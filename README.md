@@ -81,6 +81,10 @@ Document de référence : [`PROJECT_CONVENTIONS.md`](PROJECT_CONVENTIONS.md).
 Constantes machine : `lib/config/project_config.dart`.  
 Règles agents Cursor : [`.cursor/rules/`](.cursor/rules/).
 
+## Roadmap
+
+Plan d’évolution priorisé : [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 ## Specs produit
 
 Documents dans [`docs/specs/`](docs/specs/) :

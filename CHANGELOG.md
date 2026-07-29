@@ -10,16 +10,28 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 ### Ajouté
 
 - FVM : Flutter 3.44.8 épinglé pour ce repo (SDK global boulot inchangé)
+- Roadmap produit : [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- Écran profil + déconnexion
+- Sync calendrier (aide manuelle + ajout natif + export `.ics`)
+- Abstraction `PaymentService` (Noop) + CTA cotisation membre
+- Scaffold Cloud Functions (`acceptInvitation`, `paymentWebhook`)
+- CI GitHub Actions (`analyze` + `test`)
+- `ViroEmptyState` / `ViroErrorState`
+- Deep link `/join?code=`
 
 ### Modifié
 
 - Specs produit déplacées vers `docs/specs/` (renommage `viroheam_*` → `viroteam_*`)
 - README et chemins de référence alignés sur la nouvelle arborescence docs
+- Retrait tournois / championnats de l’UI et des objectifs club
+- Cotisations admin simplifiées (paiement hors app en secondaire)
+- Rules Firestore resserrées (RSVP, invitations, users list)
 
 ### Corrigé
 
 - Nettoyage `project_config` (retrait `legacyLibPath` monorepo)
 - `.gitignore` : ignore `android/.gradle/` et artefacts FVM
+- Icône profil home (boucle `/` → `/profile`)
 
 ## [1.0.0] - 2026-07-29
 

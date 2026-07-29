@@ -17,6 +17,9 @@ abstract final class ProjectConfig {
 
   static const String firebaseProjectId = 'viroteam-75303';
 
+  // —— Docs ——
+  static const String roadmapDoc = 'docs/ROADMAP.md';
+
   // —— Specs (`docs/specs/`) ——
   static const String firestoreModelDoc =
       'docs/specs/viroteam_v2_firestore_model.md';

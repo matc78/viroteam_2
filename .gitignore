@@ -43,9 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.gradle/
 
 # Local signing / secrets (see SETUP_LOCAL.md)
 **/key.properties
 **/*.keystore
 **/*.jks
 **/GoogleService-Info.plist
+
+# FVM — garder .fvmrc / fvm_config.json, ignorer le symlink SDK
+.fvm/flutter_sdk
+.fvm/versions
+.fvm/release

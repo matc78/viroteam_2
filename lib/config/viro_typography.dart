@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 
-/// Échelle typo Inter — viroheam_v2_design_system_final.md
+/// Échelle typo Inter — docs/specs/viroteam_v2_design_system_final.md
 abstract final class ViroTypography {
   static TextTheme textTheme(TextTheme base) {
     final inter = GoogleFonts.interTextTheme(base).apply(

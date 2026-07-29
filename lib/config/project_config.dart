@@ -2,8 +2,9 @@ import 'package:flutter/foundation.dart';
 
 /// Configuration centrale du projet ViroTeam v2.
 ///
-/// Référence humaine complète : [PROJECT_CONVENTIONS.md] à la racine de `v2/`.
+/// Référence humaine complète : [PROJECT_CONVENTIONS.md] à la racine du repo.
 /// Thème détaillé : section « Thème & harmonisation visuelle » du même fichier.
+/// Specs produit : `docs/specs/`.
 abstract final class ProjectConfig {
   static const String appName = 'ViroTeam';
 
@@ -16,11 +17,13 @@ abstract final class ProjectConfig {
 
   static const String firebaseProjectId = 'viroteam-75303';
 
-  // —— Specs (racine du repo) ——
-  static const String firestoreModelDoc = 'viroteam_v2_firestore_model.md';
-  static const String uxJourneyDoc = 'viroheam_v2_ux_journey_detailed.md';
+  // —— Specs (`docs/specs/`) ——
+  static const String firestoreModelDoc =
+      'docs/specs/viroteam_v2_firestore_model.md';
+  static const String uxJourneyDoc =
+      'docs/specs/viroteam_v2_ux_journey_detailed.md';
   static const String invitationModelDoc =
-      'viroheam_v2_invitation_only_model.md';
+      'docs/specs/viroteam_v2_invitation_only_model.md';
 
   // —— Collections Firestore (voir firestoreModelDoc) ——
   static const String usersCollection = 'users';
@@ -38,7 +41,6 @@ abstract final class ProjectConfig {
   static const String memberFeesSubcollection = 'member_fees';
 
   // —— Chemins code ——
-  static const String legacyLibPath = '../lib';
   static const String configPath = 'lib/config';
   static const String widgetsPath = 'lib/widgets';
   static const String listTilesPath = 'lib/widgets/lists';

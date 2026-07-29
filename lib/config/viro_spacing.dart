@@ -1,4 +1,4 @@
-/// Grille 8px — viroheam_v2_design_system_final.md
+/// Grille 8px — docs/specs/viroteam_v2_design_system_final.md
 abstract final class ViroSpacing {
   static const double xs = 4;
   static const double sm = 8;

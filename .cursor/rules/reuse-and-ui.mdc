@@ -1,0 +1,36 @@
+---
+description: Réutilisation widgets/services et conventions UI Firestore ViroTeam
+alwaysApply: true
+---
+
+# Réutilisation & UI
+
+Lire `PROJECT_CONVENTIONS.md` avant tout changement UI important.
+
+## Réutiliser avant de créer
+
+Chercher d’abord dans :
+
+- `lib/widgets/common/` et `lib/widgets/lists/`
+- `lib/config/viro_*.dart`
+- `lib/services/` et models existants
+
+Ne créer un widget/service neuf que si rien d’existant ne convient (après adaptation légère).
+
+## Listes
+
+- Tuiles dans `lib/widgets/lists/*_list_tile.dart` — **jamais** un gros `itemBuilder` inline dans un `*_screen.dart`.
+
+## UI obligatoire
+
+- Écrans : `ViroScaffold` + `ViroAppBar` (pas de `Scaffold`/`AppBar` bruts).
+- Cartes : `ViroCard` ; badges rôles : `ViroRoleBadge`.
+- Icônes : `ViroIcons` / `ViroIcon` (Phosphor) — pas `Icons.*`.
+- Couleurs / espacements / motion : uniquement `lib/config/` (pas de magic numbers).
+- Interactions : `ViroPressable` / boutons flottants Viro.
+
+## Firestore
+
+- Toujours `appFirestore` (`lib/utils/firestore_instance.dart`).
+- Jamais `FirebaseFirestore.instance` (base default).
+- Bases : `v2-dev` (debug) / `v2-prod` (release).

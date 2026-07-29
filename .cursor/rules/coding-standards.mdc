@@ -1,0 +1,38 @@
+---
+description: Standards de code Dart/Flutter (noms, commentaires, scope)
+alwaysApply: true
+---
+
+# Standards de code
+
+## Nommage
+
+- Variables, paramètres et méthodes : noms **explicites** qui décrivent le rôle.
+- Interdit : `tmp`, `data`, `x`, `res`, abréviations obscures.
+- Suivre le style existant : `FeatureNomScreen`, `feature_nom_service.dart`, `camelCase` pour locals.
+
+```dart
+// ❌ BAD
+final d = event.start;
+final res = await svc.load(id);
+
+// ✅ GOOD
+final eventStartDate = event.start;
+final clubMembership = await clubService.loadMembership(clubId);
+```
+
+## Commentaires
+
+- Toute méthode / fonction **publique** commence par un `///` qui explique le rôle, les params notables et le retour.
+- Pas de commentaires redondants qui redisent le code.
+
+```dart
+/// Charge les membres du club et filtre ceux sans rôle actif.
+Future<List<ClubMember>> loadActiveMembers(String clubId) async { … }
+```
+
+## Modifications
+
+- Changements **ciblés** : uniquement ce qui est demandé.
+- Pas de refactor hors scope, pas de fichiers non liés.
+- Cohérence : reprendre les patterns déjà présents dans le fichier / la feature touchée.

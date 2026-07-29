@@ -1,0 +1,26 @@
+---
+description: Titres de commit avec gitmoji et message explicite
+alwaysApply: true
+---
+
+# Commits
+
+Quand l’utilisateur demande un **titre** ou **message de commit** :
+
+- Format : `:<gitmoji>: <description explicite en français>`
+- Décrire le résultat / le pourquoi, pas un mot vague.
+- Ne **pas** committer sauf demande explicite de créer le commit.
+
+## Exemples
+
+```
+:sparkles: ajout planning joueur avec RSVP
+:bug: corrige affichage date du planning global
+:lipstick: harmonise tuile événement club
+:recycle: extrait FeeStatusChip pour réutilisation
+:memo: met à jour README et CHANGELOG
+```
+
+## À éviter
+
+`fix`, `wip`, `part2`, `update`, `changes`, messages sans gitmoji.

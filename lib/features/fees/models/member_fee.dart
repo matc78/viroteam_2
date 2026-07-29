@@ -42,6 +42,12 @@ extension MemberFeeDisplayStatusX on MemberFeeDisplayStatus {
       };
 }
 
+/// Canal de règlement d'une cotisation.
+abstract final class FeePaidVia {
+  static const String manual = 'manual';
+  static const String inApp = 'in_app';
+}
+
 class MemberFee {
   const MemberFee({
     required this.memberId,
@@ -51,6 +57,9 @@ class MemberFee {
     this.notesAdmin,
     this.paidAt,
     this.markedBy,
+    this.paidVia,
+    this.paymentProvider,
+    this.externalPaymentId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -62,6 +71,9 @@ class MemberFee {
   final String? notesAdmin;
   final DateTime? paidAt;
   final String? markedBy;
+  final String? paidVia;
+  final String? paymentProvider;
+  final String? externalPaymentId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -81,6 +93,9 @@ class MemberFee {
       notesAdmin: d[FirestoreFields.notesAdmin] as String?,
       paidAt: (d[FirestoreFields.paidAt] as Timestamp?)?.toDate(),
       markedBy: d[FirestoreFields.markedBy] as String?,
+      paidVia: d[FirestoreFields.paidVia] as String?,
+      paymentProvider: d[FirestoreFields.paymentProvider] as String?,
+      externalPaymentId: d[FirestoreFields.externalPaymentId] as String?,
       createdAt:
           (d[FirestoreFields.createdAt] as Timestamp?)?.toDate() ??
               DateTime.now(),

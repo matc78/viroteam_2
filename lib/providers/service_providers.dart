@@ -7,6 +7,7 @@ import 'package:viro_team_v2/services/fee_service.dart';
 import 'package:viro_team_v2/services/invitation_service.dart';
 import 'package:viro_team_v2/services/join_request_service.dart';
 import 'package:viro_team_v2/services/member_service.dart';
+import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
 import 'package:viro_team_v2/services/user_service.dart';
@@ -37,3 +38,6 @@ final announcementServiceProvider =
     Provider<AnnouncementService>((ref) => AnnouncementService());
 
 final feeServiceProvider = Provider<FeeService>((ref) => FeeService());
+
+final paymentServiceProvider =
+    Provider<PaymentService>((ref) => NoopPaymentService());

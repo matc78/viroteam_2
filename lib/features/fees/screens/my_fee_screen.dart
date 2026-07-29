@@ -16,6 +16,8 @@ import 'package:viro_team_v2/features/fees/widgets/fee_status_chip.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class MyFeeScreen extends ConsumerStatefulWidget {
@@ -66,11 +68,13 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
       ),
       body: feeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (_, _) => const ViroErrorState(
+          message: 'Impossible de charger la cotisation',
+        ),
         data: (data) {
           final season = data.season;
           if (season == null) {
-            return _EmptyState(
+            return const ViroEmptyState(
               message:
                   'Aucune saison de cotisation active.\nLe club te tiendra informé.',
             );
@@ -78,7 +82,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
 
           final fee = data.fee;
           if (fee == null) {
-            return _EmptyState(
+            return const ViroEmptyState(
               message:
                   'Ta cotisation n\'a pas encore été paramétrée par le club.',
             );
@@ -90,7 +94,11 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
               constraints: const BoxConstraints(
                 maxWidth: ProjectConfig.contentMaxWidth,
               ),
-              child: _FeeContent(season: season, fee: fee),
+              child: _FeeContent(
+                season: season,
+                fee: fee,
+                clubId: widget.clubId,
+              ),
             ),
           );
         },
@@ -99,44 +107,44 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(ViroSpacing.xl),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: ViroColors.gray600,
-              ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FeeContent extends StatelessWidget {
+class _FeeContent extends ConsumerWidget {
   const _FeeContent({
     required this.season,
     required this.fee,
+    required this.clubId,
   });
 
   final FeeSeason season;
   final MemberFee fee;
+  final String clubId;
+
+  Future<void> _pay(BuildContext context, WidgetRef ref) async {
+    final payment = ref.read(paymentServiceProvider);
+    final amount = fee.amountDueCents(season);
+    final result = await payment.createCheckout(
+      clubId: clubId,
+      seasonId: season.id,
+      memberId: fee.memberId,
+      amountCents: amount,
+      currency: season.currency,
+    );
+    if (!context.mounted) return;
+    ViroSnackBar.show(
+      context,
+      result.message ?? 'Paiement indisponible pour le moment',
+    );
+  }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
     final display = fee.displayStatus(season.paymentDeadlineAt);
     final tier = fee.resolveTier(season);
     final amount = fee.amountDueCents(season);
     final deadline = season.paymentDeadlineAt;
+    final payment = ref.watch(paymentServiceProvider);
+    final canPay = display == MemberFeeDisplayStatus.aPayer ||
+        display == MemberFeeDisplayStatus.enRetard;
 
     return ListView(
       padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
@@ -180,6 +188,13 @@ class _FeeContent extends StatelessWidget {
                     style: theme.bodyMedium?.copyWith(
                       color: ViroColors.gray600,
                     ),
+                  ),
+                ],
+                if (fee.paidVia == FeePaidVia.inApp) ...[
+                  const SizedBox(height: ViroSpacing.xs),
+                  Text(
+                    'Payé via l\'application',
+                    style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                   ),
                 ],
                 if (amount > 0) ...[
@@ -264,10 +279,19 @@ class _FeeContent extends StatelessWidget {
             ),
         ],
 
+        if (canPay) ...[
+          const SizedBox(height: ViroSpacing.lg),
+          ViroPrimaryButton(
+            label: payment.isInAppPaymentEnabled
+                ? 'Payer ma cotisation'
+                : 'Payer en ligne (bientôt)',
+            onPressed: () => _pay(context, ref),
+          ),
+        ],
+
         const SizedBox(height: ViroSpacing.lg),
 
-        if (display == MemberFeeDisplayStatus.aPayer ||
-            display == MemberFeeDisplayStatus.enRetard) ...[
+        if (canPay) ...[
           if (season.paymentInstructions.trim().isNotEmpty) ...[
             Text(
               'Consignes de paiement',
@@ -350,8 +374,12 @@ class _FeeContent extends StatelessWidget {
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: Text(
-                  'Le club vérifie manuellement les paiements. '
-                  'Seuls les administrateurs peuvent confirmer qu\'une cotisation est réglée.',
+                  payment.isInAppPaymentEnabled
+                      ? 'Le paiement en ligne met à jour automatiquement le statut. '
+                          'L\'admin peut aussi confirmer un règlement manuel.'
+                      : 'Le paiement en ligne arrive bientôt. En attendant, '
+                          'suivez les consignes du club ; seuls les administrateurs '
+                          'confirment qu\'une cotisation est réglée.',
                   style: theme.bodySmall?.copyWith(
                     color: ViroColors.gray600,
                     height: 1.4,

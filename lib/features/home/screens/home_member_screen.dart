@@ -27,7 +27,9 @@ import 'package:viro_team_v2/features/home/widgets/home_quiet_content.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
+import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -103,12 +105,21 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
       authUid: authUid,
     );
 
-    await eventService.updateRsvp(
-      clubId: event.clubId,
-      eventId: event.id,
-      uid: audienceId,
-      status: status,
-    );
+    // Optimistic : invalide après succès ; snackbar + rechargement si échec.
+    try {
+      await eventService.updateRsvp(
+        clubId: event.clubId,
+        eventId: event.id,
+        uid: audienceId,
+        status: status,
+      );
+      ref.invalidate(memberEventsProvider);
+    } catch (_) {
+      ref.invalidate(memberEventsProvider);
+      if (mounted) {
+        ViroSnackBar.show(context, 'RSVP impossible, réessayez');
+      }
+    }
   }
 
   @override
@@ -127,13 +138,16 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
         actions: [
           IconButton(
             icon: ViroIcon(ViroIcons.user),
-            onPressed: () => context.go(AppRoutes.entry),
+            onPressed: () => context.push(AppRoutes.profile),
           ),
         ],
       ),
       body: clubsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (e, _) => ViroErrorState(
+          message: 'Impossible de charger vos clubs',
+          onRetry: () => ref.invalidate(userClubsProvider),
+        ),
         data: (clubs) {
           if (clubs.isEmpty) {
             return _EmptyClubsBody(
@@ -155,7 +169,10 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
               Expanded(
                 child: eventsAsync.when(
                   loading: () => const _HomeLoadingBody(),
-                  error: (e, _) => Center(child: Text('Erreur : $e')),
+                  error: (e, _) => ViroErrorState(
+                    message: 'Impossible de charger le planning',
+                    onRetry: () => ref.invalidate(memberEventsProvider),
+                  ),
                   data: (state) {
                     final isFullyQuiet = state.upcoming.isEmpty;
                     final firstName = userAsync.value?.firstName;

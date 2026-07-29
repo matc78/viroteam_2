@@ -8,6 +8,7 @@ import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart'
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_expansion_card.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class MyTeamsScreen extends ConsumerWidget {
@@ -30,7 +31,7 @@ class MyTeamsScreen extends ConsumerWidget {
       ),
       body: clubAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (_, _) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
             return const Center(child: Text('Club introuvable'));
@@ -43,7 +44,7 @@ class MyTeamsScreen extends ConsumerWidget {
 
           return teamsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Erreur : $e')),
+            error: (_, _) => const ViroErrorState(),
             data: (teams) {
               if (teams.isEmpty) {
                 return Center(

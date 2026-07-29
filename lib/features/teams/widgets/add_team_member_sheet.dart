@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -85,7 +86,7 @@ class _AddTeamMemberSheet extends ConsumerWidget {
         Expanded(
           child: membersAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Erreur : $e')),
+            error: (_, _) => const ViroErrorState(),
             data: (members) {
               if (slot == TeamRosterSlot.coach) {
                 return _buildMemberList(
@@ -105,7 +106,7 @@ class _AddTeamMemberSheet extends ConsumerWidget {
 
               return pendingAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Erreur : $e')),
+                error: (_, _) => const ViroErrorState(),
                 data: (pending) {
                   final eligible = members
                       .where(_canAddAsPlayer)

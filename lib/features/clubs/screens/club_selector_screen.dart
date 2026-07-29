@@ -16,6 +16,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/features/clubs/widgets/add_club_sheet.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubSelectorScreen extends ConsumerWidget {
@@ -32,11 +33,11 @@ class ClubSelectorScreen extends ConsumerWidget {
       body: SafeArea(
         child: clubsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Erreur : $e')),
+          error: (_, _) => const ViroErrorState(),
           data: (clubs) {
             return invitationsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erreur : $e')),
+              error: (_, _) => const ViroErrorState(),
               data: (invitations) => _ClubSelectorBody(
                 clubs: clubs,
                 invitations: invitations,

@@ -39,6 +39,15 @@ abstract final class ViroIcons {
   static IconData get logout => PhosphorIconsRegular.signOut;
   static IconData get bell => PhosphorIconsRegular.bell;
   static IconData get payments => PhosphorIconsRegular.currencyEur;
+  static IconData get image => PhosphorIconsRegular.image;
+  static IconData get selectAll => PhosphorIconsRegular.selectionAll;
+  static IconData get note => PhosphorIconsRegular.notePencil;
+  static IconData get block => PhosphorIconsRegular.prohibit;
+  static IconData get personOutline => PhosphorIconsRegular.user;
+  static IconData get groups => PhosphorIconsRegular.usersThree;
+  static IconData get key => PhosphorIconsRegular.key;
+  static IconData get share => PhosphorIconsRegular.shareNetwork;
+  static IconData get calendarPlus => PhosphorIconsRegular.calendarPlus;
 
   // Rôles (badges)
   static IconData get rolePlayer => PhosphorIconsFill.soccerBall;

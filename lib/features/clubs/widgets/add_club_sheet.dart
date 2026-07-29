@@ -40,7 +40,7 @@ Future<void> showAddClubSheet(BuildContext context, WidgetRef ref) {
               ),
               const SizedBox(height: ViroSpacing.lg),
               _AddClubOptionTile(
-                icon: Icons.groups_outlined,
+                icon: ViroIcons.groups,
                 title: 'Créer un club',
                 subtitle: 'Devenez administrateur d\'un nouveau club',
                 onTap: () {
@@ -51,7 +51,7 @@ Future<void> showAddClubSheet(BuildContext context, WidgetRef ref) {
               ),
               const SizedBox(height: ViroSpacing.sm),
               _AddClubOptionTile(
-                icon: Icons.vpn_key_outlined,
+                icon: ViroIcons.key,
                 title: 'Rejoindre avec un code',
                 subtitle: 'Code fourni par votre entraîneur ou admin',
                 onTap: () {
@@ -102,7 +102,7 @@ class _AddClubOptionTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
-                child: Icon(icon, color: ViroColors.primary600, size: 24),
+                child: ViroIcon(icon, color: ViroColors.primary600, size: 24),
               ),
               const SizedBox(width: ViroSpacing.md),
               Expanded(

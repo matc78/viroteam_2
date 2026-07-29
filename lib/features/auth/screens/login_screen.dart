@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
@@ -52,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
         title: const Text('Connexion'),

@@ -14,6 +14,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubAnnouncementsScreen extends ConsumerWidget {
@@ -55,7 +56,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
           : null,
       body: announcementsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (_, _) => const ViroErrorState(),
         data: (announcements) {
           if (announcements.isEmpty) {
             return Center(

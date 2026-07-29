@@ -16,6 +16,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubMembersScreen extends ConsumerStatefulWidget {
@@ -181,7 +182,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
           : null,
       body: clubAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (_, _) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
             return const Center(child: Text('Club introuvable'));
@@ -189,7 +190,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
 
           return membersAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Erreur : $e')),
+            error: (_, _) => const ViroErrorState(),
             data: (members) {
               final viewerRole =
                   ref.watch(clubMemberProvider(clubId)).value?.role ??

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -69,7 +70,7 @@ class _RequestRoleScreenState extends ConsumerState<RequestRoleScreen> {
     return ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
         title: const Text('Demander un rôle'),

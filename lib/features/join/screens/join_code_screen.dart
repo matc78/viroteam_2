@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
@@ -10,15 +11,35 @@ import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class JoinCodeScreen extends ConsumerStatefulWidget {
-  const JoinCodeScreen({super.key});
+  const JoinCodeScreen({super.key, this.initialCode});
+
+  /// Code prérempli via deep link `/join?code=…`.
+  final String? initialCode;
 
   @override
   ConsumerState<JoinCodeScreen> createState() => _JoinCodeScreenState();
 }
 
 class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
-  final _codeController = TextEditingController();
+  late final TextEditingController _codeController;
   bool _loading = false;
+  bool _autoSubmitted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _codeController = TextEditingController(
+      text: widget.initialCode?.trim().toUpperCase() ?? '',
+    );
+    if (_codeController.text.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_autoSubmitted && mounted) {
+          _autoSubmitted = true;
+          _validate();
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -54,7 +75,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
     return ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
         title: const Text('Rejoindre un club'),

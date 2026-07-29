@@ -13,6 +13,7 @@ import 'package:viro_team_v2/features/auth/screens/onboarding_entry_screen.dart'
 import 'package:viro_team_v2/features/auth/screens/sign_up_screen.dart';
 
 import 'package:viro_team_v2/features/announcements/screens/club_announcements_screen.dart';
+import 'package:viro_team_v2/features/calendar/screens/calendar_sync_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_detail_screen.dart';
 import 'package:viro_team_v2/features/fees/screens/admin_fees_screen.dart';
 import 'package:viro_team_v2/features/fees/screens/my_fee_screen.dart';
@@ -35,6 +36,8 @@ import 'package:viro_team_v2/features/join/screens/invitation_preview_screen.dar
 import 'package:viro_team_v2/features/join/screens/join_code_screen.dart';
 
 import 'package:viro_team_v2/features/join/screens/request_role_screen.dart';
+
+import 'package:viro_team_v2/features/profile/screens/profile_screen.dart';
 
 import 'package:viro_team_v2/providers/session_provider.dart';
 
@@ -60,6 +63,8 @@ abstract final class AppRoutes {
 
   static const home = '/home';
 
+  static const profile = '/profile';
+
   static const clubs = '/clubs';
 
   static const clubDetail = '/club/:clubId';
@@ -79,6 +84,8 @@ abstract final class AppRoutes {
   static const clubFees = '/club/:clubId/fees';
 
   static const clubMyFee = '/club/:clubId/fees/mine';
+
+  static const clubCalendarSync = '/club/:clubId/calendar-sync';
 
   static const designPreview = '/dev/design';
 
@@ -101,6 +108,12 @@ abstract final class AppRoutes {
   static String clubFeesPath(String clubId) => '/club/$clubId/fees';
 
   static String clubMyFeePath(String clubId) => '/club/$clubId/fees/mine';
+
+  static String clubCalendarSyncPath(String clubId, {String? eventId}) {
+    final base = '/club/$clubId/calendar-sync';
+    if (eventId == null || eventId.isEmpty) return base;
+    return '$base?eventId=$eventId';
+  }
 
   static String clubAddEventPath(String clubId, {String? date}) {
     final base = '/club/$clubId/planning/add';
@@ -298,7 +311,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.join,
 
-        builder: (_, _) => const JoinCodeScreen(),
+        builder: (_, state) => JoinCodeScreen(
+
+          initialCode: state.uri.queryParameters['code'],
+
+        ),
 
       ),
 
@@ -331,6 +348,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.home,
 
         builder: (_, _) => const HomeMemberScreen(),
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.profile,
+
+        builder: (_, _) => const ProfileScreen(),
 
       ),
 
@@ -479,6 +504,23 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final clubId = state.pathParameters['clubId']!;
 
           return AdminFeesScreen(clubId: clubId);
+
+        },
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.clubCalendarSync,
+
+        builder: (_, state) {
+
+          final clubId = state.pathParameters['clubId']!;
+
+          return CalendarSyncScreen(
+            clubId: clubId,
+            eventId: state.uri.queryParameters['eventId'],
+          );
 
         },
 

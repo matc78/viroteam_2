@@ -14,7 +14,6 @@ import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/announcement_preview.dart';
 import 'package:viro_team_v2/features/club/widgets/club_stats_row.dart';
 import 'package:viro_team_v2/features/club/widgets/quick_actions_grid.dart';
-import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/features/home/widgets/event_rsvp_card.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
@@ -24,6 +23,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubDetailScreen extends ConsumerStatefulWidget {
@@ -76,24 +76,10 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         ),
         title: const Text(ProjectConfig.appName),
         onTitleTap: () => context.go(AppRoutes.home),
-        actions: [
-          memberAsync.maybeWhen(
-            data: (m) {
-              if (m?.role != MemberRoles.admin) {
-                return const SizedBox.shrink();
-              }
-              return IconButton(
-                icon: ViroIcon(ViroIcons.settings),
-                onPressed: () {},
-              );
-            },
-            orElse: () => const SizedBox.shrink(),
-          ),
-        ],
       ),
       body: clubAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erreur : $e')),
+        error: (_, _) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
             return const Center(child: Text('Club introuvable'));
@@ -132,12 +118,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 child: memberAsync.when(
                   data: (m) {
                     if (m == null) return const SizedBox.shrink();
-                    void showComingSoon() {
-                      ViroSnackBar.show(
-                        context,
-                        'Bientôt disponible',
-                      );
-                    }
 
                     final hasActiveSeason = ref
                             .watch(activeSeasonProvider(clubId))
@@ -179,12 +159,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                             onManageMembers: () => context.push(
                               AppRoutes.clubMembersPath(clubId),
                             ),
-                            onManageTournaments: showComingSoon,
                             onFees: m.role == MemberRoles.admin
                                 ? () => context.push(
                                       AppRoutes.clubFeesPath(clubId),
                                     )
-                                : showComingSoon,
+                                : null,
                           ),
                         ],
                         const SizedBox(height: ViroSpacing.xl),
@@ -217,7 +196,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         ),
       ],
       error: (e, _) => [
-        SliverToBoxAdapter(child: Center(child: Text('Erreur : $e'))),
+        const SliverToBoxAdapter(child: ViroErrorState()),
       ],
       data: (state) {
         final pending = state.pending

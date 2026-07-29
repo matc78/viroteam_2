@@ -121,6 +121,9 @@ abstract final class FirestoreFields {
   static const String paidAt = 'paidAt';
   static const String markedBy = 'markedBy';
   static const String createdBy = 'createdBy';
+  static const String paidVia = 'paidVia';
+  static const String paymentProvider = 'paymentProvider';
+  static const String externalPaymentId = 'externalPaymentId';
 
   // join_requests
   static const String clubName = 'clubName';
@@ -199,15 +202,16 @@ abstract final class JoinRequestStatus {
 abstract final class ClubObjectives {
   static const String planning = 'planning';
   static const String attendance = 'attendance';
-  static const String tournaments = 'tournaments';
   static const String fees = 'fees';
   static const String equipment = 'equipment';
   static const String communication = 'communication';
 
+  /// Conservé pour lecture de clubs créés avant le retrait des tournois.
+  static const String tournamentsLegacy = 'tournaments';
+
   static const List<String> all = [
     planning,
     attendance,
-    tournaments,
     fees,
     equipment,
     communication,
@@ -216,10 +220,10 @@ abstract final class ClubObjectives {
   static String label(String key) => switch (key) {
         planning => 'Planning & événements',
         attendance => 'Présences',
-        tournaments => 'Tournois',
         fees => 'Cotisations',
         equipment => 'Équipement',
         communication => 'Annonces',
+        tournamentsLegacy => 'Tournois',
         _ => key,
       };
 }

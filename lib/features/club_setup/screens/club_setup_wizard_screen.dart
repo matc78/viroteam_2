@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -208,7 +209,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen> {
     return ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: _back,
         ),
         title: Text('Création du club (${_step + 1}/$_totalSteps)'),
@@ -320,7 +321,7 @@ class _WelcomeStep extends StatelessWidget {
           ),
           const SizedBox(height: ViroSpacing.md),
           const Text(
-            'ViroTeam centralise le planning, les présences, les tournois et la vie du club. '
+            'ViroTeam centralise le planning, les présences, les cotisations et la vie du club. '
             'En quelques minutes, configurez votre espace et invitez vos membres par code.',
           ),
         ],
@@ -370,7 +371,7 @@ class _IdentityStep extends StatelessWidget {
           const SizedBox(height: ViroSpacing.md),
           OutlinedButton.icon(
             onPressed: onPickLogo,
-            icon: const Icon(Icons.image_outlined),
+            icon: ViroIcon(ViroIcons.image),
             label: Text(
               draft.logoBytes != null ? 'Logo sélectionné' : 'Logo (optionnel)',
             ),
@@ -485,7 +486,7 @@ class _InfoStep extends StatelessWidget {
                 title: Text(e.value.name),
                 subtitle: e.value.address != null ? Text(e.value.address!) : null,
                 trailing: IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: ViroIcon(ViroIcons.close),
                   onPressed: () => onRemoveLocation(e.key),
                 ),
               ),

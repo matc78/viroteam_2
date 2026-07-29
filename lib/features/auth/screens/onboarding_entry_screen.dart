@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -31,22 +32,22 @@ class OnboardingEntryScreen extends StatelessWidget {
               ),
               const SizedBox(height: ViroSpacing.md),
               Text(
-                'Gérez votre club sportif : planning, présences, tournois et communication — tout en un seul endroit.',
+                'Gérez votre club sportif : planning, présences, cotisations et communication — tout en un seul endroit.',
                 style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: ViroSpacing.xl),
               _BenefitRow(
-                icon: Icons.event_available_outlined,
+                icon: ViroIcons.calendar,
                 text: 'Organisez entraînements et matchs',
               ),
               _BenefitRow(
-                icon: Icons.groups_outlined,
+                icon: ViroIcons.users,
                 text: 'Suivez les présences en temps réel',
               ),
               _BenefitRow(
-                icon: Icons.emoji_events_outlined,
-                text: 'Animez des tournois et championnats',
+                icon: ViroIcons.bell,
+                text: 'Communiquez avec votre club',
               ),
               const Spacer(),
               ViroPrimaryButton(
@@ -86,7 +87,7 @@ class _BenefitRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
       child: Row(
         children: [
-          Icon(icon, color: ViroColors.primary600, size: 22),
+          ViroIcon(icon, color: ViroColors.primary600, size: 22),
           const SizedBox(width: ViroSpacing.sm),
           Expanded(
             child: Text(text, style: Theme.of(context).textTheme.bodyMedium),

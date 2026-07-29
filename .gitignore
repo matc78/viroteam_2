@@ -55,3 +55,7 @@ app.*.map.json
 .fvm/flutter_sdk
 .fvm/versions
 .fvm/release
+
+# Cloud Functions
+functions/node_modules/
+functions/lib/

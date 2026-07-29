@@ -1,7 +1,10 @@
 # ViroTeam v2 — Conventions projet
 
 Document de référence pour les humains et les agents IA.  
-Constantes machine : `lib/config/project_config.dart`.
+Constantes machine : `lib/config/project_config.dart`.  
+Changelog : [`CHANGELOG.md`](CHANGELOG.md).  
+Specs produit : [`docs/specs/`](docs/specs/).  
+Règles Cursor : [`.cursor/rules/`](.cursor/rules/) (`coding-standards`, `reuse-and-ui`, `git-commits`).
 
 ---
 
@@ -11,17 +14,17 @@ Constantes machine : `lib/config/project_config.dart`.
 
 | Source | Chemin |
 |--------|--------|
-| App v1 (legacy) | `../lib/` (services, models, widgets) |
-| Widgets v2 | `lib/widgets/` |
-| Tuiles / listes v2 | `lib/widgets/lists/` |
+| Widgets communs | `lib/widgets/common/` |
+| Tuiles / listes | `lib/widgets/lists/` |
 | Thème & motion | `lib/config/viro_*.dart` |
+| Services / models | `lib/services/`, `lib/models/` |
 
 **Règles :**
 
-- Copier puis **adapter** (imports, thème v2, pas de `MaterialPageRoute` legacy).
-- Un widget v2 validé remplace toute copie inline dans une page.
+- Réutiliser ou **adapter** un composant existant avant d’en créer un nouveau.
+- Un widget validé remplace toute copie inline dans une page.
 - Pas de duplication de logique métier : elle vit dans `lib/services/`.
-- Si un morceau v1 est réutilisé par 2+ écrans v2 → envisager `packages/viro_core` plus tard.
+- Si un morceau est partagé par 2+ features → envisager `packages/viro_core` plus tard.
 
 ---
 
@@ -126,7 +129,8 @@ lib/
 
 - Toujours passer par **`appFirestore`** (`lib/utils/firestore_instance.dart`).
 - **Ne jamais** utiliser `FirebaseFirestore.instance` (base default).
-- Créer la base `V2-dev` dans la console Firebase (même projet `viroteam-75303`).
+- Bases créées dans le projet Firebase `viroteam-75303`.
+- Rules / indexes versionnés : `firestore.rules`, `firestore.indexes.json`.
 
 ### Règles de sécurité : garder simple
 
@@ -135,7 +139,6 @@ lib/
   - appartenance club via un champ / sous-doc vérifiable
 - Logique sensible (acceptation invitation, fusion de rôles) → **Cloud Functions** callable.
 - Éviter les `get()` multiples et conditions imbriquées dans les rules.
-- Fichier dédié v2 : `firestore.v2.rules` à la racine du monorepo (quand prêt).
 
 ---
 
@@ -161,16 +164,14 @@ lib/
 
 ## 7. Suggestions complémentaires (recommandées)
 
-1. **`packages/viro_core`** — extraire models + services partagés v1/v2 quand la duplication devient gênante.
-2. **`firestore.indexes.v2.json`** — indexes composites séparés de la v1.
-3. **Feature flags** — `kDebugMode` ou Remote Config pour activer des écrans en cours.
-4. **Journal des décisions** — section en bas de ce fichier ou `DECISIONS.md` (1 ligne par choix d’archi).
-5. **Deep links invitation** — `/join?code=` dès la Phase 2 auth (cf. `viroheam_v2_invitation_only_model.md`).
-6. **Pas de logique dans `build()`** — calculs / streams dans des providers.
-7. **Optimistic UI** pour RSVP et actions rapides (Firestore en arrière-plan).
-8. **Assets partagés** — symlink ou copie unique `assets/` à la racine du monorepo.
-9. **CI** — job séparé `cd v2 && flutter test && flutter analyze`.
-10. **Cursor** — règle `.cursor/rules/viro-v2.mdc` pointe vers ce fichier.
+1. **`packages/viro_core`** — extraire models + services partagés quand la duplication devient gênante.
+2. **Feature flags** — `kDebugMode` ou Remote Config pour activer des écrans en cours.
+3. **Journal des décisions** — section en bas de ce fichier ou `DECISIONS.md` (1 ligne par choix d’archi).
+4. **Deep links invitation** — `/join?code=` (cf. `docs/specs/viroteam_v2_invitation_only_model.md`).
+5. **Pas de logique dans `build()`** — calculs / streams dans des providers.
+6. **Optimistic UI** pour RSVP et actions rapides (Firestore en arrière-plan).
+7. **CI** — `flutter test && flutter analyze` sur le repo.
+8. **Cursor** — règles dans `.cursor/rules/` (pointent vers ce fichier pour l’UI).
 
 ---
 
@@ -184,3 +185,5 @@ lib/
 | 2026-05 | Phosphor via `ViroIcons` / `ViroIcon` |
 | 2026-05 | Harmonie visuelle : `ViroScaffold` + fond dégradé, AppBar claire, bleu fort réservé aux accents |
 | 2026-05 | `ViroRoleBadge` pour les rôles (badges colorés, pas d’emojis) |
+| 2026-07 | Repo standalone ; règles Cursor scindées + `CHANGELOG.md` |
+| 2026-07 | Specs produit dans `docs/specs/` ; typos `viroheam` corrigées |

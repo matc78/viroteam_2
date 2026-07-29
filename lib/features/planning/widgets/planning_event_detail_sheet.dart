@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/calendar/services/calendar_sync_service.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_member_rsvp_row.dart';
@@ -13,6 +16,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 
 enum _CancelScope { single, series }
 
@@ -120,7 +124,7 @@ class _PlanningEventDetailSheetState
         padding: EdgeInsets.all(ViroSpacing.xl),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (e, _) => Text('Erreur : $e'),
+      error: (_, _) => const ViroErrorState(),
       data: (members) {
         final byUid = indexClubMembersByUid(members);
         final entries = _sortedEntries(byUid);
@@ -367,6 +371,34 @@ class _PlanningEventDetailSheetState
                     ],
                     const SizedBox(height: ViroSpacing.lg),
                     Center(child: PlanningRsvpSummaryRow(counts: counts)),
+                    const SizedBox(height: ViroSpacing.md),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final ok = await CalendarSyncService
+                            .addEventToDeviceCalendar(event);
+                        if (!context.mounted) return;
+                        ViroSnackBar.show(
+                          context,
+                          ok
+                              ? 'Événement envoyé à l’agenda'
+                              : 'Ajout annulé ou refusé',
+                        );
+                      },
+                      icon: ViroIcon(ViroIcons.calendarPlus, size: 18),
+                      label: const Text('Ajouter à mon agenda'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.push(
+                          AppRoutes.clubCalendarSyncPath(
+                            widget.clubId,
+                            eventId: event.id,
+                          ),
+                        );
+                      },
+                      child: const Text('Aide import calendrier'),
+                    ),
                     const SizedBox(height: ViroSpacing.lg),
                     Text(
                       'Réponses ($playerCount)',

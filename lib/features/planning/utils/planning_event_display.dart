@@ -14,6 +14,10 @@ abstract final class PlanningEventDisplay {
     return typeLabel;
   }
 
+  /// Titre pour calendrier / .ics (titre custom ou type d'événement).
+  static String calendarTitle(ClubEvent event) =>
+      event.title.isNotEmpty ? event.title : eventTypeLabel(event.type);
+
   static String? teamLabel(
     ClubEvent event,
     Map<String, ClubTeam> teamsById,

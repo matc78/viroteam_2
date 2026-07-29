@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCalendarsUsageDescription</key>
+	<string>ViroTeam ajoute vos entraînements et matchs à votre calendrier.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>ViroTeam ajoute vos entraînements et matchs à votre calendrier.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>ViroTeam ajoute vos entraînements et matchs à votre calendrier.</string>
 </dict>
 </plist>

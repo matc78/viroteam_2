@@ -19,6 +19,7 @@ import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubPlanningScreen extends ConsumerStatefulWidget {
@@ -130,6 +131,15 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           onPressed: () => context.pop(),
         ),
         title: const Text('Planning'),
+        actions: [
+          IconButton(
+            icon: ViroIcon(ViroIcons.calendarPlus),
+            tooltip: 'Exporter vers mon agenda',
+            onPressed: () => context.push(
+              AppRoutes.clubCalendarSyncPath(clubId),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: canManage
           ? ViroFloatingActionButton(
@@ -160,7 +170,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           Expanded(
             child: eventsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erreur : $e')),
+              error: (_, _) => const ViroErrorState(),
               data: (events) {
                 if (events.isEmpty) {
                   return Center(

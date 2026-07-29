@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local signing / secrets (see SETUP_LOCAL.md)
+**/key.properties
+**/*.keystore
+**/*.jks
+**/GoogleService-Info.plist

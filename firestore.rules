@@ -1,0 +1,323 @@
+rules_version = '2';
+
+
+
+service cloud.firestore {
+
+  match /databases/{database}/documents {
+
+
+
+    function isSignedIn() {
+
+      return request.auth != null;
+
+    }
+
+
+
+    function isOwner(uid) {
+
+      return isSignedIn() && request.auth.uid == uid;
+
+    }
+
+
+
+    function memberDocRef(clubId) {
+
+      let accountIndex = /databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid);
+
+      return exists(accountIndex)
+
+        ? /databases/$(database)/documents/clubs/$(clubId)/members/$(get(accountIndex).data.memberId)
+
+        : /databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid);
+
+    }
+
+
+
+    function isClubMember(clubId) {
+
+      return isSignedIn() && exists(memberDocRef(clubId));
+
+    }
+
+
+
+    function clubMemberRole(clubId) {
+
+      return get(memberDocRef(clubId)).data.role;
+
+    }
+
+
+
+    function isClubAdmin(clubId) {
+
+      return isSignedIn() && isClubMember(clubId) && clubMemberRole(clubId) == 'admin';
+
+    }
+
+
+
+    function isClubCoach(clubId) {
+
+      return isSignedIn() && isClubMember(clubId) && clubMemberRole(clubId) == 'coach';
+
+    }
+
+
+
+    function isClubCoachOrAdmin(clubId) {
+
+      return isClubAdmin(clubId) || isClubCoach(clubId);
+
+    }
+
+
+
+    // Le membre connecté peut modifier son doc (y compris via member_accounts).
+    function ownsMemberDoc(clubId, memberId) {
+
+      return isOwner(memberId)
+
+        || (isSignedIn()
+
+          && exists(/databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid))
+
+          && get(/databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid)).data.memberId == memberId);
+
+    }
+
+
+
+    // Liaison compte Firebase → membre pré-créé lors de l'acceptation d'une invitation.
+    function isLinkingAccountToPrecreatedMember() {
+
+      return isSignedIn()
+
+        && resource.data.get('activeInvitationId', null) != null
+
+        && resource.data.get('accountUid', null) == null
+
+        && request.resource.data.get('accountUid', null) == request.auth.uid
+
+        && request.resource.data.get('userId', null) == request.auth.uid;
+
+    }
+
+
+
+    match /users/{uid} {
+
+      // Lecture par tout utilisateur connecté (profils coéquipiers, annonces, etc.)
+      allow read: if isSignedIn();
+
+      allow write: if isOwner(uid);
+
+    }
+
+
+
+    match /clubs/{clubId} {
+
+      allow create: if isSignedIn();
+
+      // get : aperçu club avant adhésion (code d'invitation), y compris sans compte
+      allow get: if true;
+
+      allow list: if isClubMember(clubId)
+
+        || (isSignedIn()
+
+          && request.auth.uid in resource.data.adminIds);
+
+      allow update: if isClubAdmin(clubId);
+
+      allow delete: if false;
+
+
+
+      match /members/{memberId} {
+
+        // Membre pré-créé sans compte : lecture pour pré-remplir l'inscription par code
+        allow get: if isClubMember(clubId)
+
+          || (resource.data.get('activeInvitationId', null) != null
+
+            && resource.data.get('accountUid', null) == null);
+
+        allow list: if isClubMember(clubId);
+
+        allow create: if isClubCoachOrAdmin(clubId)
+
+          || isOwner(memberId)
+
+          || (isSignedIn()
+
+            && request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.adminIds);
+
+        allow update: if ownsMemberDoc(clubId, memberId)
+
+          || isClubAdmin(clubId)
+
+          || isLinkingAccountToPrecreatedMember();
+
+        allow delete: if isClubAdmin(clubId);
+
+      }
+
+
+
+      match /member_accounts/{accountUid} {
+
+        allow read: if isClubMember(clubId) || isOwner(accountUid);
+
+        allow create: if isOwner(accountUid);
+
+        allow update, delete: if false;
+
+      }
+
+
+
+      match /invitations/{inviteId} {
+
+        // Rejoindre par code (collectionGroup code + status), même sans être membre
+        allow read: if isSignedIn()
+
+          || resource.data.status == 'pending';
+
+        allow create: if isClubCoachOrAdmin(clubId);
+
+        allow update: if isSignedIn();
+
+        allow delete: if isClubAdmin(clubId);
+
+      }
+
+
+
+      match /events/{eventId} {
+
+        allow read: if isClubMember(clubId);
+
+        allow create: if isClubAdmin(clubId) || isClubCoach(clubId);
+
+        allow update: if isClubMember(clubId);
+
+        allow delete: if isClubAdmin(clubId);
+
+      }
+
+
+
+      match /announcements/{announcementId} {
+
+        allow read: if isClubMember(clubId);
+
+        allow create, update, delete: if isClubAdmin(clubId) || isClubCoach(clubId);
+
+      }
+
+
+
+      match /teams/{teamId} {
+
+        allow read: if isClubMember(clubId);
+
+        allow create, update: if isClubCoachOrAdmin(clubId);
+
+        allow delete: if isClubAdmin(clubId);
+
+      }
+
+
+
+      match /pending_members/{docId} {
+
+        allow read: if isClubMember(clubId);
+
+        allow create, update, delete: if isClubCoachOrAdmin(clubId);
+
+      }
+
+
+
+      match /fee_seasons/{seasonId} {
+
+        allow read: if isClubMember(clubId);
+
+        allow write: if isClubAdmin(clubId);
+
+
+
+        match /member_fees/{memberId} {
+
+          allow read: if isClubAdmin(clubId) || ownsMemberDoc(clubId, memberId);
+
+          allow write: if isClubAdmin(clubId);
+
+        }
+
+      }
+
+    }
+
+
+
+    match /retour_user/{docId} {
+
+      allow create: if isSignedIn()
+
+        && request.resource.data.userId == request.auth.uid;
+
+      allow read: if isSignedIn()
+
+        && resource.data.userId == request.auth.uid;
+
+      allow update, delete: if false;
+
+    }
+
+
+
+    match /join_requests/{requestId} {
+
+      allow create: if isSignedIn()
+
+        && request.resource.data.userId == request.auth.uid;
+
+      allow read: if isSignedIn()
+
+        && (resource.data.userId == request.auth.uid
+
+          || isClubAdmin(resource.data.clubId));
+
+      allow update: if isSignedIn()
+
+        && isClubAdmin(resource.data.clubId);
+
+      allow delete: if false;
+
+    }
+
+
+
+    // Collection group : recherche par code (rejoindre) ou par email (invitations en attente).
+    // Obligatoire pour les requêtes collectionGroup() — la règle sous clubs/ ne suffit pas.
+    match /{path=**}/invitations/{inviteId} {
+
+      allow read: if isSignedIn()
+
+        || resource.data.status == 'pending';
+
+    }
+
+  }
+
+}
+
+

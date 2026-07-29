@@ -1,65 +1,34 @@
-# ViroTeam v2
+# ViroTeam
 
-Application Flutter refondue (invitation uniquement, multi-rôles).
+Application Flutter de gestion d’équipe sportive (refonte, invitation uniquement).
 
 ## Lancer
 
 ```bash
-cd v2
 flutter pub get
 flutter run
 ```
 
-L’écran d’accueil actuel est un **aperçu du design system** (couleurs, typo, boutons, carte événement, badges rôles).
+Fichiers locaux (signatures, etc.) : voir [`SETUP_LOCAL.md`](SETUP_LOCAL.md).
 
 ## Conventions
 
-**Lire en priorité** : [`PROJECT_CONVENTIONS.md`](PROJECT_CONVENTIONS.md) (dont **§2 Thème & harmonisation** : `ViroScaffold`, fond dégradé, pas de bleu opaque).  
+**Lire en priorité** : [`PROJECT_CONVENTIONS.md`](PROJECT_CONVENTIONS.md).  
 Constantes : `lib/config/project_config.dart`.
 
-## Structure
+## Backend
 
-```
-lib/
-  app/           # ViroApp (MaterialApp)
-  config/        # Thème, motion, couleurs, project_config
-  screens/       # Écrans (dev + features)
-  widgets/
-    common/      # ViroPressable, boutons flottants…
-    lists/       # Tuiles ListView (obligatoire, pas d'inline)
-  models/        # (à venir)
-  services/      # (à venir)
-  utils/         # firestore_instance → V2-dev
-```
+- Projet Firebase : `viroteam-75303`
+- Firestore : `v2-dev` (debug) / `v2-prod` (release) — jamais la base `default`
+- Rules / indexes : `firestore.rules`, `firestore.indexes.json`
+- Déploiement : `firebase deploy --only firestore`
 
 ## Specs produit
-
-Voir à la racine du monorepo :
 
 - `viroheam_v2_design_system_final.md`
 - `viroheam_v2_ux_journey_detailed.md`
 - `viroheam_v2_invitation_only_model.md`
 - `viroheam_v2_development_roadmap.md`
-
-## Android (Gradle aligné sur v1)
-
-La config Gradle de `v2/android/` reprend celle de la v1 :
-
-- Plugins **Google Services** + **Firebase Crashlytics**
-- AGP `8.9.1`, Kotlin `2.1.0`, Gradle `8.12`
-- Signatures **release** (`key.properties`) et **debug** (`debug.keystore` / `debugViro`)
-
-Fichiers à copier depuis la v1 (non versionnés) :
-
-| Fichier v1 | Destination v2 |
-|------------|----------------|
-| `android/key.properties` | `v2/android/key.properties` |
-| `android/app/debug.keystore` | `v2/android/app/debug.keystore` |
-| `android/app/google-services.json` | `v2/android/app/google-services.json` |
-
-Ou lancer `flutterfire configure` dans `v2/` pour régénérer `google-services.json`.
-
-## Firestore v2
-
-Créer la base **`V2-dev`** dans Firebase Console (projet `viroteam-75303`).  
-L'app utilise `lib/utils/firestore_instance.dart` — jamais la base `default`.
+- `viroteam_v2_firestore_model.md`
+- `viroteam_v2_fees_spec.md`
+- `viroteam_v2_home_club_pages.md`

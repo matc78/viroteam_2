@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="viro_team_v2"
+        android:label="ViroTeam"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

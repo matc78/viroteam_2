@@ -16,11 +16,11 @@ abstract final class ProjectConfig {
 
   static const String firebaseProjectId = 'viroteam-75303';
 
-  // —— Specs (racine monorepo, relatif à v2/) ——
-  static const String firestoreModelDoc = '../viroteam_v2_firestore_model.md';
-  static const String uxJourneyDoc = '../viroheam_v2_ux_journey_detailed.md';
+  // —— Specs (racine du repo) ——
+  static const String firestoreModelDoc = 'viroteam_v2_firestore_model.md';
+  static const String uxJourneyDoc = 'viroheam_v2_ux_journey_detailed.md';
   static const String invitationModelDoc =
-      '../viroheam_v2_invitation_only_model.md';
+      'viroheam_v2_invitation_only_model.md';
 
   // —— Collections Firestore (voir firestoreModelDoc) ——
   static const String usersCollection = 'users';

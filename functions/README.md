@@ -1,13 +1,32 @@
 # Cloud Functions ViroTeam
 
-Scaffold pour la logique sensible hors client (voir `docs/ROADMAP.md` Phase 5).
+Logique sensible hors client (HelloAsso, invitations). Spec paiement :
+[`docs/specs/viroteam_v2_payments_helloasso_spec.md`](../docs/specs/viroteam_v2_payments_helloasso_spec.md).
 
 ## Contenu
 
 | Function | Rôle |
 |----------|------|
-| `acceptInvitation` | Callable — accepter une invitation (à brancher côté app) |
-| `paymentWebhook` | HTTP — marquer une cotisation `paye` après paiement (signature prestataire à ajouter) |
+| `acceptInvitation` | Callable — accepter une invitation |
+| `createHelloAssoCheckout` | Callable — crée un checkout HelloAsso (1×/3× + aides) |
+| `helloAssoWebhook` | HTTP — crédite `amountPaidCents` / statut **uniquement** après notif serveur |
+| `paymentWebhook` | Alias de `helloAssoWebhook` (compat) |
+
+## Secrets / params
+
+```bash
+firebase functions:secrets:set HELLOASSO_CLIENT_ID
+firebase functions:secrets:set HELLOASSO_CLIENT_SECRET
+# optionnel
+firebase functions:config:set ... # ou params:
+# HELLOASSO_API_BASE=https://api.helloasso.com
+# (sandbox : https://api.helloasso-sandbox.com)
+# FIRESTORE_DATABASE_ID=v2-dev   # ou v2-prod
+```
+
+Sur chaque club : champ `helloAssoOrganizationSlug`.
+
+Webhook : coller l’URL de `helloAssoWebhook` dans HelloAsso → Mon Compte → Intégrations et API (types Order + Payment).
 
 ## Setup
 
@@ -15,12 +34,7 @@ Scaffold pour la logique sensible hors client (voir `docs/ROADMAP.md` Phase 5).
 cd functions
 npm install
 npm run build
-```
-
-Déploiement (après config Firebase) :
-
-```bash
 firebase deploy --only functions
 ```
 
-Le client Flutter continue d’accepter les invitations en direct tant que `acceptInvitation` n’est pas branché.
+**Important** : le `returnUrl` client ne doit jamais marquer une cotisation `paye`.

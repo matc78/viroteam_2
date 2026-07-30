@@ -9,12 +9,13 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-- FVM : Flutter 3.44.8 épinglé pour ce repo (SDK global boulot inchangé)
+- FVM : Flutter 3.44.8 épiné pour ce repo (SDK global boulot inchangé)
 - Roadmap produit : [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - Écran profil + déconnexion
 - Sync calendrier (aide manuelle + ajout natif + export `.ics`)
-- Abstraction `PaymentService` (Noop) + CTA cotisation membre
-- Scaffold Cloud Functions (`acceptInvitation`, `paymentWebhook`)
+- Paiements hybrides HelloAsso (1×/3×, aides Pass'Sport/ANCV, hors-ligne, webhook, PDF)
+- Spec [`docs/specs/viroteam_v2_payments_helloasso_spec.md`](docs/specs/viroteam_v2_payments_helloasso_spec.md)
+- Cloud Functions (`createHelloAssoCheckout`, `helloAssoWebhook`, `acceptInvitation`)
 - CI GitHub Actions (`analyze` + `test`)
 - `ViroEmptyState` / `ViroErrorState`
 - Deep link `/join?code=`
@@ -24,8 +25,9 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Specs produit déplacées vers `docs/specs/` (renommage `viroheam_*` → `viroteam_*`)
 - README et chemins de référence alignés sur la nouvelle arborescence docs
 - Retrait tournois / championnats de l’UI et des objectifs club
-- Cotisations admin simplifiées (paiement hors app en secondaire)
-- Rules Firestore resserrées (RSVP, invitations, users list)
+- Cotisations admin : validation hors-ligne + justificatifs d’aides
+- `PaymentService` → `HelloAssoPaymentService`
+- Rules Firestore (`payment_sessions`, cotisations)
 
 ### Corrigé
 

@@ -17,14 +17,14 @@ class FeeTier {
   factory FeeTier.fromMap(Map<String, dynamic> m) {
     return FeeTier(
       tierId: m[FirestoreFields.tierId] as String? ?? '',
-      label: m['label'] as String? ?? '',
+      label: m[FirestoreFields.label] as String? ?? '',
       amountCents: (m[FirestoreFields.amountCents] as num?)?.toInt() ?? 0,
     );
   }
 
   Map<String, dynamic> toMap() => {
         FirestoreFields.tierId: tierId,
-        'label': label,
+        FirestoreFields.label: label,
         FirestoreFields.amountCents: amountCents,
       };
 

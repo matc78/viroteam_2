@@ -124,6 +124,19 @@ abstract final class FirestoreFields {
   static const String paidVia = 'paidVia';
   static const String paymentProvider = 'paymentProvider';
   static const String externalPaymentId = 'externalPaymentId';
+  static const String externalOrderId = 'externalOrderId';
+  static const String checkoutIntentId = 'checkoutIntentId';
+  static const String amountPaidCents = 'amountPaidCents';
+  static const String aids = 'aids';
+  static const String installmentCount = 'installmentCount';
+  static const String offlineMethod = 'offlineMethod';
+  static const String receiptUrl = 'receiptUrl';
+  static const String helloAssoOrganizationSlug = 'helloAssoOrganizationSlug';
+  static const String promoCode = 'promoCode';
+  static const String validatedBy = 'validatedBy';
+  static const String validatedAt = 'validatedAt';
+  static const String id = 'id';
+  static const String label = 'label';
 
   // join_requests
   static const String clubName = 'clubName';
@@ -171,22 +184,45 @@ abstract final class InvitationStatus {
 /// Statuts cotisation membre (member_fees).
 abstract final class MemberFeeStatuses {
   static const String aPayer = 'a_payer';
+  static const String partiel = 'partiel';
   static const String paye = 'paye';
   static const String exonere = 'exonere';
 }
 
-/// Moyens de paiement cotisation.
+/// Moyens de paiement cotisation (saison + validation hors-ligne).
 abstract final class FeePaymentMethods {
   static const String virement = 'virement';
   static const String cheque = 'cheque';
   static const String especes = 'especes';
+  static const String ancv = 'ancv';
+  static const String chequesVacances = 'cheques_vacances';
+  static const String carteBancaire = 'carte_bancaire';
 
-  static const List<String> all = [virement, cheque, especes];
+  static const List<String> all = [
+    carteBancaire,
+    virement,
+    cheque,
+    especes,
+    ancv,
+    chequesVacances,
+  ];
+
+  /// Moyens utilisables pour une validation manuelle trésorier.
+  static const List<String> offline = [
+    cheque,
+    especes,
+    virement,
+    ancv,
+    chequesVacances,
+  ];
 
   static String label(String key) => switch (key) {
         virement => 'Virement',
         cheque => 'Chèque',
         especes => 'Espèces',
+        ancv => 'Chèques ANCV',
+        chequesVacances => 'Chèques-vacances',
+        carteBancaire => 'Carte bancaire (HelloAsso)',
         _ => key,
       };
 }

@@ -154,8 +154,13 @@ service cloud.firestore {
 
         match /member_fees/{memberId} {
           allow read: if isClubAdmin(clubId) || ownsMemberDoc(clubId, memberId);
-          // Admin manuel ; passage payé in-app via Cloud Functions (Admin SDK).
+          // Admin manuel (hors-ligne / aides) ; CB via Cloud Functions (Admin SDK).
           allow write: if isClubAdmin(clubId);
+        }
+
+        match /payment_sessions/{sessionId} {
+          allow read: if isClubAdmin(clubId);
+          allow write: if false; // Cloud Functions only
         }
       }
     }

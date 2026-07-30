@@ -36,6 +36,7 @@ class Club {
     this.practiceLocations = const [],
     this.adminIds = const [],
     this.memberCount = 0,
+    this.helloAssoOrganizationSlug,
     this.createdAt,
   });
 
@@ -52,6 +53,7 @@ class Club {
   final List<PracticeLocation> practiceLocations;
   final List<String> adminIds;
   final int memberCount;
+  final String? helloAssoOrganizationSlug;
   final DateTime? createdAt;
 
   factory Club.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -81,6 +83,8 @@ class Club {
               .toList() ??
           [],
       memberCount: (data[FirestoreFields.memberCount] as num?)?.toInt() ?? 0,
+      helloAssoOrganizationSlug:
+          data[FirestoreFields.helloAssoOrganizationSlug] as String?,
       createdAt: (data[FirestoreFields.createdAt] as Timestamp?)?.toDate(),
     );
   }

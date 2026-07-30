@@ -4,7 +4,7 @@ Plan global priorisé. Cocher au fil de l’eau.
 
 **Décisions figées**
 
-- **Paiement** : abstraction `PaymentService` ; prestataire non choisi (candidat Stripe). Flux UI + modèles prêts ; marquage auto via webhook ultérieur.
+- **Paiement** : HelloAsso (Checkout Intent) via `PaymentService` / `HelloAssoPaymentService`. Modes hybrides (3×, aides, hors-ligne). Validation CB **uniquement** via webhook. Spec : [`docs/specs/viroteam_v2_payments_helloasso_spec.md`](specs/viroteam_v2_payments_helloasso_spec.md).
 - **Calendrier** : page d’aide (étapes manuelles iOS/Android) + bouton d’ajout natif.
 - **Tournois / championnats** : retirés du produit (UI, copy, actions).
 
@@ -35,7 +35,7 @@ Specs produit : [`docs/specs/`](specs/).
 
 - [x] UX admin simplifiée (saison, paliers, liste, hors-app en secondaire)
 - [x] Découpage onglet Membres (`fee_members_tracking_tab.dart`)
-- [x] `PaymentService` + Noop
+- [x] `PaymentService` + HelloAsso
 - [x] Champs paiement sur `MemberFee` + CTA membre
 
 ## Phase 4 — Calendrier téléphone
@@ -47,7 +47,7 @@ Specs produit : [`docs/specs/`](specs/).
 ## Phase 5 — Sécurité Firestore + Functions
 
 - [x] Rules resserrées (invitations, events RSVP, users list)
-- [x] Scaffold `functions/` (invitations, futur webhook paiement)
+- [x] Scaffold `functions/` (invitations, webhook paiement)
 
 ## Phase 6 — Qualité UX / technique
 
@@ -57,17 +57,27 @@ Specs produit : [`docs/specs/`](specs/).
 - [x] RSVP invalidate + feedback erreur
 - [x] CI `analyze` + `test`
 
-## Phase 7 — Backlog
+## Phase 7 — Paiements hybrides HelloAsso
+
+- [x] Spec `viroteam_v2_payments_helloasso_spec.md`
+- [x] Modèle hybride (`amountPaidCents`, `aids`, `partiel`, hors-ligne)
+- [x] Callable `createHelloAssoCheckout` (1× / 3× + aides)
+- [x] Webhook `helloAssoWebhook` + reçu PDF
+- [x] UI membre (sheet checkout) + UI trésorier (hors-ligne / justificatifs)
+- [ ] Déployer secrets HelloAsso + slug orga par club
+- [ ] Brancher `acceptInvitation` côté client
+- [ ] Upload photo justificatif d’aide (v2)
+
+## Phase 8 — Backlog
 
 - [ ] Parcours parent bout-en-bout
 - [ ] FCM (token, push rappels)
-- [ ] Brancher prestataire paiement + `acceptInvitation` côté client
 
 ---
 
 ## Hors scope immédiat
 
-- Intégration concrète Stripe / HelloAsso / PayPal
+- Multi-prestataires (Stripe en parallèle)
 - Module tournois
 - Abonnement calendrier serveur permanent
 - Dark mode / i18n multi-langue

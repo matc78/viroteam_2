@@ -158,6 +158,7 @@ class FeeStats {
         case MemberFeeDisplayStatus.enRetard:
           overdue++;
         case MemberFeeDisplayStatus.aPayer:
+        case MemberFeeDisplayStatus.partiel:
           pending++;
       }
     }

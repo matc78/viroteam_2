@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
@@ -61,7 +62,7 @@ class MemberFeeListTile extends StatelessWidget {
           FeeStatusChip(status: display, compact: true),
           const SizedBox(width: ViroSpacing.xs),
           IconButton(
-            icon: const Icon(Icons.more_vert),
+            icon: ViroIcon(ViroIcons.moreVertical),
             onPressed: onMenu,
           ),
         ],

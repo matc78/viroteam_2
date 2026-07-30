@@ -48,6 +48,10 @@ class FeeStatusChip extends StatelessWidget {
             ViroColors.error.withValues(alpha: 0.12),
             ViroColors.error,
           ),
+        MemberFeeDisplayStatus.partiel => (
+            ViroColors.primary600.withValues(alpha: 0.12),
+            ViroColors.primary800,
+          ),
         MemberFeeDisplayStatus.aPayer => (
             ViroColors.warning.withValues(alpha: 0.15),
             ViroColors.warning,

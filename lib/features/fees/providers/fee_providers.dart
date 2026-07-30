@@ -86,10 +86,11 @@ final homeFeeRemindersProvider =
           final fee = data.fee;
           if (season == null ||
               fee == null ||
-              fee.status != MemberFeeStatus.aPayer) {
+              (fee.status != MemberFeeStatus.aPayer &&
+                  fee.status != MemberFeeStatus.partiel)) {
             return <HomeFeeReminderItem>[];
           }
-          if (fee.amountDueCents(season) <= 0) {
+          if (fee.remainingCents(season) <= 0 && fee.pendingAidsCents <= 0) {
             return <HomeFeeReminderItem>[];
           }
           return [

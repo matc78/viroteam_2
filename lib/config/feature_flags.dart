@@ -5,6 +5,7 @@ abstract final class FeatureFlags {
   /// Écrans ou flux encore incomplets (uniquement en debug par défaut).
   static bool get showIncompleteFeatures => kDebugMode;
 
-  /// Paiement in-app (désactivé tant que le prestataire n'est pas branché).
-  static const bool inAppPayments = false;
+  /// Paiement in-app HelloAsso (callable + webhook).
+  /// Désactiver si les secrets Functions ne sont pas déployés.
+  static const bool inAppPayments = true;
 }

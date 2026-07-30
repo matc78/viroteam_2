@@ -40,4 +40,4 @@ final announcementServiceProvider =
 final feeServiceProvider = Provider<FeeService>((ref) => FeeService());
 
 final paymentServiceProvider =
-    Provider<PaymentService>((ref) => NoopPaymentService());
+    Provider<PaymentService>((ref) => HelloAssoPaymentService());

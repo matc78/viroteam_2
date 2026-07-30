@@ -1,13 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/widgets/member_fee_list_tile.dart';
+import 'package:viro_team_v2/features/fees/widgets/offline_payment_dialog.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -101,6 +103,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
           exempt.add(f);
         case MemberFeeDisplayStatus.aPayer:
         case MemberFeeDisplayStatus.enRetard:
+        case MemberFeeDisplayStatus.partiel:
           unpaid.add(f);
       }
     }
@@ -175,7 +178,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     );
     if (count <= 0) {
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Tous les membres ont dÃ©jÃ  une fiche.');
+        ViroSnackBar.show(context, 'Tous les membres ont déjà une fiche.');
       }
       return;
     }
@@ -185,8 +188,8 @@ class FeeMembersTrackingTab extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('Ajouter au suivi ?'),
         content: Text(
-          'CrÃ©er $count fiche${count > 1 ? 's' : ''} de cotisation '
-          'pour les membres pas encore listÃ©s.',
+          'Créer $count fiche${count > 1 ? 's' : ''} de cotisation '
+          'pour les membres pas encore listés.',
         ),
         actions: [
           TextButton(
@@ -195,7 +198,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('CrÃ©er'),
+            child: const Text('Créer'),
           ),
         ],
       ),
@@ -213,7 +216,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
             tiers: season.tiers,
           );
       if (context.mounted) {
-        ViroSnackBar.show(context, '$created fiche${created > 1 ? 's' : ''} crÃ©Ã©e${created > 1 ? 's' : ''}');
+        ViroSnackBar.show(context, '$created fiche${created > 1 ? 's' : ''} créée${created > 1 ? 's' : ''}');
       }
     } catch (e) {
       if (context.mounted) ViroSnackBar.show(context, 'Erreur : $e');
@@ -232,7 +235,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
         );
     await Clipboard.setData(ClipboardData(text: csv));
     if (context.mounted) {
-      ViroSnackBar.show(context, 'CSV copiÃ© dans le presse-papiers');
+      ViroSnackBar.show(context, 'CSV copié dans le presse-papiers');
     }
   }
 
@@ -256,86 +259,169 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                 subtitle:
                     Text(fee.displayStatus(season.paymentDeadlineAt).label),
               ),
-            ListTile(
-              leading: const Icon(Icons.check),
-              title: const Text('Marquer payÃ©'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await ref.read(feeServiceProvider).setMemberFeeStatus(
-                      clubId: clubId,
-                      seasonId: season.id,
-                      memberId: fee.memberId,
-                      status: MemberFeeStatus.paye,
-                    );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.schedule),
-              title: const Text('Marquer Ã  payer'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await ref.read(feeServiceProvider).setMemberFeeStatus(
-                      clubId: clubId,
-                      seasonId: season.id,
-                      memberId: fee.memberId,
-                      status: MemberFeeStatus.aPayer,
-                    );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.block),
-              title: const Text('Marquer exonÃ©rÃ©'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await ref.read(feeServiceProvider).setMemberFeeStatus(
-                      clubId: clubId,
-                      seasonId: season.id,
-                      memberId: fee.memberId,
-                      status: MemberFeeStatus.exonere,
-                    );
-              },
-            ),
-            if (season.tiers.isNotEmpty) ...[
-              const Divider(),
-              for (final tier in season.tiers)
-                ListTile(
-                  title: Text('CatÃ©gorie : ${tier.label}'),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    await ref.read(feeServiceProvider).setMemberFeeTier(
+              ListTile(
+                leading: ViroIcon(ViroIcons.payments, color: ViroColors.primary600),
+                title: const Text('Valider hors-ligne'),
+                subtitle: const Text('Chèque, espèces, ANCV, virement…'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await Future<void>.delayed(Duration.zero);
+                  if (!context.mounted) return;
+                  final result = await showDialog<
+                      ({String method, int amountCents})>(
+                    context: context,
+                    builder: (dCtx) => OfflinePaymentDialog(
+                      memberDisplayName: fee.memberDisplayName,
+                      remainingCents: fee.remainingCents(season),
+                    ),
+                  );
+                  if (!context.mounted || result == null) return;
+                  try {
+                    await ref.read(feeServiceProvider).validateOfflinePayment(
                           clubId: clubId,
                           seasonId: season.id,
                           memberId: fee.memberId,
-                          tierId: tier.tierId,
+                          offlineMethod: result.method,
+                          amountCents: result.amountCents,
+                          season: season,
+                          currentFee: fee,
                         );
-                  },
-                ),
-            ],
-            ListTile(
-              leading: const Icon(Icons.note_alt_outlined),
-              title: const Text('Note admin'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await Future<void>.delayed(Duration.zero);
-                if (!context.mounted) return;
-                final saved = await showDialog<String?>(
-                  context: context,
-                  builder: (dCtx) => MemberFeeNoteDialog(
-                    initialText: fee.notesAdmin ?? '',
+                    if (context.mounted) {
+                      ViroSnackBar.show(context, 'Paiement hors-ligne enregistr�');
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ViroSnackBar.show(context, 'Erreur : $e');
+                    }
+                  }
+                },
+              ),
+              ListTile(
+                leading: ViroIcon(ViroIcons.check, color: ViroColors.success),
+                title: const Text('Marquer pay�'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await ref.read(feeServiceProvider).setMemberFeeStatus(
+                        clubId: clubId,
+                        seasonId: season.id,
+                        memberId: fee.memberId,
+                        status: MemberFeeStatus.paye,
+                      );
+                },
+              ),
+              ListTile(
+                leading: ViroIcon(ViroIcons.clock, color: ViroColors.warning),
+                title: const Text('Marquer � payer'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await ref.read(feeServiceProvider).setMemberFeeStatus(
+                        clubId: clubId,
+                        seasonId: season.id,
+                        memberId: fee.memberId,
+                        status: MemberFeeStatus.aPayer,
+                      );
+                },
+              ),
+              ListTile(
+                leading: ViroIcon(ViroIcons.block, color: ViroColors.gray600),
+                title: const Text('Marquer exon�r�'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await ref.read(feeServiceProvider).setMemberFeeStatus(
+                        clubId: clubId,
+                        seasonId: season.id,
+                        memberId: fee.memberId,
+                        status: MemberFeeStatus.exonere,
+                      );
+                },
+              ),
+              if (fee.aids.any((a) => a.isPendingProof)) ...[
+                const Divider(),
+                for (final aid in fee.aids.where((a) => a.isPendingProof)) ...[
+                  ListTile(
+                    leading: ViroIcon(ViroIcons.note, color: ViroColors.primary600),
+                    title: Text('Valider ${aid.label}'),
+                    subtitle: Text(
+                      '${aid.amountCents / 100} € �€� justificatif',
+                    ),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await ref.read(feeServiceProvider).setFeeAidStatus(
+                            clubId: clubId,
+                            seasonId: season.id,
+                            memberId: fee.memberId,
+                            aidId: aid.id,
+                            aidStatus: FeeAidStatuses.validated,
+                            season: season,
+                            currentFee: fee,
+                          );
+                      if (context.mounted) {
+                        ViroSnackBar.show(context, 'Aide valid�e');
+                      }
+                    },
                   ),
-                );
-                if (!context.mounted || saved == null) return;
-                await ref.read(feeServiceProvider).setMemberFeeNote(
-                      clubId: clubId,
-                      seasonId: season.id,
-                      memberId: fee.memberId,
-                      note: saved,
-                    );
-                if (context.mounted) {
-                  ViroSnackBar.show(context, 'Note enregistrÃ©e');
-                }
-              },
-            ),
+                  ListTile(
+                    leading: ViroIcon(ViroIcons.close, color: ViroColors.error),
+                    title: Text('Refuser ${aid.label}'),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await ref.read(feeServiceProvider).setFeeAidStatus(
+                            clubId: clubId,
+                            seasonId: season.id,
+                            memberId: fee.memberId,
+                            aidId: aid.id,
+                            aidStatus: FeeAidStatuses.rejected,
+                            season: season,
+                            currentFee: fee,
+                          );
+                      if (context.mounted) {
+                        ViroSnackBar.show(context, 'Aide refus�e');
+                      }
+                    },
+                  ),
+                ],
+              ],
+              if (season.tiers.isNotEmpty) ...[
+                const Divider(),
+                for (final tier in season.tiers)
+                  ListTile(
+                    title: Text('cat�gorie : ${tier.label}'),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await ref.read(feeServiceProvider).setMemberFeeTier(
+                            clubId: clubId,
+                            seasonId: season.id,
+                            memberId: fee.memberId,
+                            tierId: tier.tierId,
+                          );
+                    },
+                  ),
+              ],
+              ListTile(
+                leading: ViroIcon(ViroIcons.note, color: ViroColors.primary600),
+                title: const Text('Note admin'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await Future<void>.delayed(Duration.zero);
+                  if (!context.mounted) return;
+                  final saved = await showDialog<String?>(
+                    context: context,
+                    builder: (dCtx) => MemberFeeNoteDialog(
+                      initialText: fee.notesAdmin ?? '',
+                    ),
+                  );
+                  if (!context.mounted || saved == null) return;
+                  await ref.read(feeServiceProvider).setMemberFeeNote(
+                        clubId: clubId,
+                        seasonId: season.id,
+                        memberId: fee.memberId,
+                        note: saved,
+                      );
+                  if (context.mounted) {
+                    ViroSnackBar.show(context, 'Note enregistr�e');
+                  }
+                },
+              ),
             ],
           ),
         ),
@@ -360,7 +446,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
       data: (season) {
         if (season == null) {
           return const Center(
-            child: Text('CrÃ©ez d\'abord une saison dans l\'onglet Configuration'),
+            child: Text('Créez d\'abord une saison dans l\'onglet Configuration'),
           );
         }
 
@@ -387,9 +473,9 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        '${stats.paid} / ${stats.total} ont payÃ© '
-                        '(${stats.total > 0 ? (stats.paidPercent * 100).round() : 0} %) Â· '
-                        '${stats.exempt} exonÃ©rÃ©${stats.exempt > 1 ? 's' : ''} Â· '
+                        '${stats.paid} / ${stats.total} ont payé '
+                        '(${stats.total > 0 ? (stats.paidPercent * 100).round() : 0} %) �� '
+                        '${stats.exempt} exonéré${stats.exempt > 1 ? 's' : ''} �� '
                         '${stats.awaiting} en attente',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: ViroColors.gray600,
@@ -401,16 +487,19 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                           Expanded(
                             child: TextField(
                               controller: searchCtrl,
-                              decoration: const InputDecoration(
-                                hintText: 'Rechercherâ€¦',
-                                prefixIcon: Icon(Icons.search),
+                              decoration: InputDecoration(
+                                hintText: 'Rechercher…',
+                                prefixIcon: ViroIcon(
+                                  ViroIcons.search,
+                                  color: ViroColors.gray600,
+                                ),
                                 isDense: true,
                               ),
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.select_all),
-                            tooltip: 'SÃ©lection multiple',
+                            icon: ViroIcon(ViroIcons.selectAll),
+                            tooltip: 'Sélection multiple',
                             onPressed: onToggleSelection,
                           ),
                           IconButton(
@@ -425,11 +514,11 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                           alignment: Alignment.centerLeft,
                           child: DropdownButton<String?>(
                             value: tierFilter,
-                            hint: const Text('Filtrer par catÃ©gorie'),
+                            hint: const Text('Filtrer par catégorie'),
                             items: [
                               const DropdownMenuItem(
                                 value: null,
-                                child: Text('Toutes les catÃ©gories'),
+                                child: Text('Toutes les catégories'),
                               ),
                               for (final t in season.tiers)
                                 DropdownMenuItem(
@@ -456,7 +545,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                 ),
                 Expanded(
                   child: !hasAnyList
-                      ? const Center(child: Text('Aucun membre Ã  afficher'))
+                      ? const Center(child: Text('Aucun membre à afficher'))
                       : ListView(
                           children: [
                             if (lists.unpaid.isNotEmpty) ...[
@@ -470,7 +559,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             if (lists.paid.isNotEmpty) ...[
                               _sectionTitle(
                                 context,
-                                'PayÃ©s (${lists.paid.length})',
+                                'Payés (${lists.paid.length})',
                               ),
                               for (final fee in lists.paid)
                                 _feeTile(context, ref, fee, season),
@@ -478,7 +567,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             if (lists.exempt.isNotEmpty) ...[
                               _sectionTitle(
                                 context,
-                                'ExonÃ©rÃ©s (${lists.exempt.length})',
+                                'Exonérés (${lists.exempt.length})',
                               ),
                               for (final fee in lists.exempt)
                                 _feeTile(context, ref, fee, season),
@@ -496,7 +585,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   }
 }
 
-/// Dialogue note admin â€” le [TextEditingController] vit dans le State du dialogue.
+/// Dialogue note admin — le [TextEditingController] vit dans le State du dialogue.
 class MemberFeeNoteDialog extends StatefulWidget {
   const MemberFeeNoteDialog({super.key, required this.initialText});
 
@@ -529,7 +618,7 @@ class MemberFeeNoteDialogState extends State<MemberFeeNoteDialog> {
         controller: _controller,
         maxLines: 3,
         autofocus: true,
-        decoration: const InputDecoration(hintText: 'Note privÃ©e'),
+        decoration: const InputDecoration(hintText: 'Note privée'),
       ),
       actions: [
         TextButton(
@@ -544,3 +633,4 @@ class MemberFeeNoteDialogState extends State<MemberFeeNoteDialog> {
     );
   }
 }
+

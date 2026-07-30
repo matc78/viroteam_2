@@ -2,18 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
+import 'package:viro_team_v2/features/fees/widgets/fee_checkout_sheet.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_status_chip.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
@@ -120,18 +124,37 @@ class _FeeContent extends ConsumerWidget {
 
   Future<void> _pay(BuildContext context, WidgetRef ref) async {
     final payment = ref.read(paymentServiceProvider);
-    final amount = fee.amountDueCents(season);
-    final result = await payment.createCheckout(
-      clubId: clubId,
-      seasonId: season.id,
-      memberId: fee.memberId,
-      amountCents: amount,
-      currency: season.currency,
+    final result = await showModalBottomSheet<PaymentCheckoutResult>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => FeeCheckoutSheet(
+        season: season,
+        fee: fee,
+        onConfirm: ({
+          required int cardAmountCents,
+          required int installmentCount,
+          required List<FeeAidDraft> aids,
+        }) {
+          return payment.createCheckout(
+            clubId: clubId,
+            seasonId: season.id,
+            memberId: fee.memberId,
+            amountCents: cardAmountCents,
+            currency: season.currency,
+            installmentCount: installmentCount,
+            aids: aids,
+          );
+        },
+      ),
     );
-    if (!context.mounted) return;
+    if (!context.mounted || result == null) return;
     ViroSnackBar.show(
       context,
-      result.message ?? 'Paiement indisponible pour le moment',
+      result.message ??
+          (result.status == PaymentCheckoutStatus.started
+              ? 'Paiement HelloAsso ouvert'
+              : 'Paiement indisponible'),
     );
   }
 
@@ -141,10 +164,13 @@ class _FeeContent extends ConsumerWidget {
     final display = fee.displayStatus(season.paymentDeadlineAt);
     final tier = fee.resolveTier(season);
     final amount = fee.amountDueCents(season);
+    final remaining = fee.remainingCents(season);
+    final cardAmount = fee.cardCheckoutCents(season);
     final deadline = season.paymentDeadlineAt;
     final payment = ref.watch(paymentServiceProvider);
     final canPay = display == MemberFeeDisplayStatus.aPayer ||
-        display == MemberFeeDisplayStatus.enRetard;
+        display == MemberFeeDisplayStatus.enRetard ||
+        display == MemberFeeDisplayStatus.partiel;
 
     return ListView(
       padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
@@ -190,10 +216,19 @@ class _FeeContent extends ConsumerWidget {
                     ),
                   ),
                 ],
-                if (fee.paidVia == FeePaidVia.inApp) ...[
+                if (fee.paidVia == FeePaidVia.inApp ||
+                    fee.paidVia == FeePaidVia.helloasso) ...[
                   const SizedBox(height: ViroSpacing.xs),
                   Text(
-                    'Payé via l\'application',
+                    'Payé via HelloAsso',
+                    style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                  ),
+                ],
+                if (fee.paidVia == FeePaidVia.offline) ...[
+                  const SizedBox(height: ViroSpacing.xs),
+                  Text(
+                    'Payé hors-ligne'
+                    '${fee.offlineMethod != null ? ' (${FeePaymentMethods.label(fee.offlineMethod!)})' : ''}',
                     style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                   ),
                 ],
@@ -204,6 +239,18 @@ class _FeeContent extends ConsumerWidget {
                     style: theme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
+                  ),
+                ],
+                if (fee.receiptUrl != null && fee.receiptUrl!.isNotEmpty) ...[
+                  const SizedBox(height: ViroSpacing.md),
+                  TextButton.icon(
+                    onPressed: () async {
+                      final uri = Uri.tryParse(fee.receiptUrl!);
+                      if (uri == null) return;
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                    icon: ViroIcon(ViroIcons.share, color: ViroColors.primary600),
+                    label: const Text('Télécharger l\'attestation PDF'),
                   ),
                 ],
               ],
@@ -231,6 +278,23 @@ class _FeeContent extends ConsumerWidget {
           Center(
             child: FeeStatusChip(status: display),
           ),
+          if (fee.amountPaidCents > 0 || fee.pendingAidsCents > 0) ...[
+            const SizedBox(height: ViroSpacing.sm),
+            Center(
+              child: Text(
+                [
+                  if (fee.amountPaidCents > 0)
+                    'Payé : ${formatFeeAmountCents(fee.amountPaidCents)}',
+                  if (fee.pendingAidsCents > 0)
+                    'Aide en attente : ${formatFeeAmountCents(fee.pendingAidsCents)}',
+                  if (remaining > 0)
+                    'Reste : ${formatFeeAmountCents(remaining)}',
+                ].join(' · '),
+                textAlign: TextAlign.center,
+                style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+              ),
+            ),
+          ],
           if (tier != null) ...[
             const SizedBox(height: ViroSpacing.sm),
             Center(
@@ -238,6 +302,39 @@ class _FeeContent extends ConsumerWidget {
                 'Catégorie : ${tier.label}',
                 style: theme.bodyLarge?.copyWith(
                   color: ViroColors.gray600,
+                ),
+              ),
+            ),
+          ],
+          if (fee.aids.isNotEmpty) ...[
+            const SizedBox(height: ViroSpacing.md),
+            ...fee.aids.map(
+              (aid) => Padding(
+                padding: const EdgeInsets.only(bottom: ViroSpacing.xs),
+                child: ViroCard(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${aid.label} · ${formatFeeAmountCents(aid.amountCents)}',
+                          style: theme.bodyMedium,
+                        ),
+                      ),
+                      Text(
+                        aid.isValidated
+                            ? 'Validée'
+                            : aid.status == FeeAidStatuses.rejected
+                                ? 'Refusée'
+                                : 'Justificatif',
+                        style: theme.labelSmall?.copyWith(
+                          color: aid.isValidated
+                              ? ViroColors.success
+                              : ViroColors.warning,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -283,7 +380,9 @@ class _FeeContent extends ConsumerWidget {
           const SizedBox(height: ViroSpacing.lg),
           ViroPrimaryButton(
             label: payment.isInAppPaymentEnabled
-                ? 'Payer ma cotisation'
+                ? (cardAmount > 0
+                    ? 'Payer ${formatFeeAmountCents(cardAmount)}'
+                    : 'Déclarer une aide / payer')
                 : 'Payer en ligne (bientôt)',
             onPressed: () => _pay(context, ref),
           ),
@@ -375,8 +474,9 @@ class _FeeContent extends ConsumerWidget {
               Expanded(
                 child: Text(
                   payment.isInAppPaymentEnabled
-                      ? 'Le paiement en ligne met à jour automatiquement le statut. '
-                          'L\'admin peut aussi confirmer un règlement manuel.'
+                      ? 'Le paiement HelloAsso met à jour le statut après '
+                          'confirmation serveur (webhook). Les aides restent '
+                          'en attente de justificatif jusqu\'à validation du trésorier.'
                       : 'Le paiement en ligne arrive bientôt. En attendant, '
                           'suivez les consignes du club ; seuls les administrateurs '
                           'confirment qu\'une cotisation est réglée.',

@@ -6,7 +6,8 @@ Plan global priorisé. Cocher au fil de l’eau.
 
 - **Paiement** : HelloAsso (Checkout Intent) via `PaymentService` / `HelloAssoPaymentService`. Modes hybrides (3×, aides, hors-ligne). Validation CB **uniquement** via webhook. Spec : [`docs/specs/viroteam_v2_payments_helloasso_spec.md`](specs/viroteam_v2_payments_helloasso_spec.md).
 - **Calendrier** : page d’aide (étapes manuelles iOS/Android) + bouton d’ajout natif.
-- **Tournois / championnats** : retirés du produit (UI, copy, actions).
+- **Tournois / championnats** : retirés du produit mobile (UI, copy, actions). Module web éventuel plus tard.
+- **Portail web** : React (landing + dashboard admin). Au MVP, admin = trésorier. Spec : [`docs/specs/viroteam_v2_web_portal_spec.md`](specs/viroteam_v2_web_portal_spec.md).
 
 Specs produit : [`docs/specs/`](specs/).
 
@@ -73,11 +74,22 @@ Specs produit : [`docs/specs/`](specs/).
 - [ ] Parcours parent bout-en-bout
 - [ ] FCM (token, push rappels)
 
+## Phase 9 — Portail web + allègement mobile
+
+- [x] Spec cadrage `viroteam_v2_web_portal_spec.md`
+- [x] Landing React (sans pricing)
+- [ ] Login + dashboard admin (membres, cotisations, HelloAsso)
+- [ ] Inventaire équipements (CRUD simple)
+- [ ] Matrice droits coachs (web) + lecture app
+- [ ] Alléger écrans cotisations admin mobile (urgences seulement)
+
 ---
 
 ## Hors scope immédiat
 
 - Multi-prestataires (Stripe en parallèle)
-- Module tournois
+- Module tournois (mobile ; web post-MVP)
+- Rôle `treasurer` distinct (MVP : admin = trésorier)
+- Abonnement / pricing portail
 - Abonnement calendrier serveur permanent
 - Dark mode / i18n multi-langue

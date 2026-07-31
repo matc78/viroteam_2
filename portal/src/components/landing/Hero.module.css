@@ -1,0 +1,240 @@
+.hero {
+  position: relative;
+  min-height: calc(100vh - var(--header-height));
+  overflow: hidden;
+}
+
+.visual {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.visualPlane {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      120% 80% at 85% 20%,
+      color-mix(in srgb, var(--color-primary-100) 70%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 70% at 10% 90%,
+      color-mix(in srgb, var(--color-primary-50) 90%, transparent) 0%,
+      transparent 50%
+    ),
+    linear-gradient(
+      160deg,
+      var(--color-scaffold-highlight) 0%,
+      var(--color-scaffold) 45%,
+      color-mix(in srgb, var(--color-primary-50) 65%, var(--color-scaffold-depth)) 100%
+    );
+}
+
+.phoneWrap {
+  position: absolute;
+  z-index: 1;
+  right: max(4%, calc((100% - var(--max-width)) / 2 + 0.5rem));
+  top: 12%;
+  bottom: 8%;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.phone {
+  width: min(22rem, 42vw);
+  aspect-ratio: 9 / 17.5;
+  border-radius: 2rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary-200) 70%, transparent);
+  background: linear-gradient(
+    180deg,
+    var(--color-white) 0%,
+    var(--color-surface) 100%
+  );
+  box-shadow: var(--shadow-soft);
+  padding: 1.1rem 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.phoneStatus {
+  height: 0.35rem;
+  width: 28%;
+  margin: 0.35rem auto 0.5rem;
+  border-radius: 999px;
+  background: var(--color-gray-200);
+}
+
+.phoneTitle {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-primary-800);
+  padding: 0 0.35rem;
+}
+
+.eventRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-scaffold-highlight);
+  border: 1px solid var(--color-gray-100);
+}
+
+.eventDate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.65rem;
+  background: var(--color-primary-600);
+  color: var(--color-white);
+  font-family: var(--font-display);
+  line-height: 1.05;
+}
+
+.eventDate span:first-child {
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.eventDate span:last-child {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.eventMeta strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--color-primary-900);
+}
+
+.eventMeta span {
+  font-size: 0.78rem;
+  color: var(--color-gray-600);
+}
+
+.rsvpRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.rsvpYes,
+.rsvpMaybe {
+  text-align: center;
+  padding: 0.65rem 0.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.rsvpYes {
+  background: color-mix(in srgb, var(--color-success) 16%, white);
+  color: #047857;
+}
+
+.rsvpMaybe {
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: var(--max-width);
+  width: 100%;
+  min-height: calc(100vh - var(--header-height));
+  margin: 0 auto;
+  padding: var(--space-3xl) var(--space-lg);
+  padding-right: min(48%, 26rem);
+}
+
+.brand {
+  margin: 0 0 var(--space-lg);
+  font-family: var(--font-display);
+  font-size: clamp(3.25rem, 8vw, 5.5rem);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+  color: var(--color-primary-900);
+}
+
+.headline {
+  max-width: 18ch;
+  margin: 0 0 var(--space-md);
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 600;
+  color: var(--color-primary-800);
+}
+
+.support {
+  max-width: 34ch;
+  margin: 0 0 var(--space-xl);
+  font-size: 1.125rem;
+  color: var(--color-gray-600);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.clubLink {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-primary-600);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  transition: color 160ms ease;
+}
+
+.clubLink:hover {
+  color: var(--color-primary-800);
+}
+
+@media (max-width: 900px) {
+  .hero {
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .content {
+    min-height: auto;
+    padding: var(--space-2xl) var(--space-lg) var(--space-lg);
+    padding-right: var(--space-lg);
+  }
+
+  .phoneWrap {
+    position: relative;
+    right: auto;
+    top: auto;
+    bottom: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg) var(--space-3xl);
+  }
+
+  .phone {
+    width: min(18rem, 78vw);
+  }
+}

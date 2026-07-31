@@ -1,0 +1,72 @@
+.section {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--space-3xl) var(--space-lg) var(--space-4xl);
+}
+
+.header {
+  max-width: 34rem;
+  margin-bottom: var(--space-2xl);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary-600);
+}
+
+.title {
+  margin-bottom: var(--space-md);
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+}
+
+.lead {
+  color: var(--color-gray-600);
+}
+
+.steps {
+  display: grid;
+  gap: var(--space-xl);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+@media (min-width: 800px) {
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2xl);
+  }
+}
+
+.step {
+  counter-increment: step;
+  padding-top: var(--space-md);
+  border-top: 2px solid var(--color-primary-100);
+}
+
+.step::before {
+  content: "0" counter(step);
+  display: block;
+  margin-bottom: var(--space-md);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-primary-400);
+}
+
+.stepTitle {
+  margin-bottom: var(--space-sm);
+  font-size: 1.2rem;
+  color: var(--color-primary-800);
+}
+
+.stepBody {
+  color: var(--color-gray-600);
+  font-size: 1rem;
+}

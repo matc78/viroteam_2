@@ -1,0 +1,134 @@
+:root {
+  /* Primary — deep blue (ViroColors) */
+  --color-primary-50: #d4e4f4;
+  --color-primary-100: #9bb8dc;
+  --color-primary-200: #5e8dbf;
+  --color-primary-400: #1a5f9e;
+  --color-primary-600: #134a7d;
+  --color-primary-800: #0b3358;
+  --color-primary-900: #061f38;
+
+  /* Neutrals */
+  --color-white: #ffffff;
+  --color-gray-50: #f4f6f9;
+  --color-gray-100: #eceff4;
+  --color-gray-200: #e2e6ed;
+  --color-gray-300: #c8ced8;
+  --color-gray-400: #8b95a5;
+  --color-gray-600: #4a5568;
+  --color-gray-900: #111827;
+
+  /* Surfaces */
+  --color-scaffold: #e9eff7;
+  --color-scaffold-highlight: #f6f9fc;
+  --color-scaffold-depth: #e2e9f2;
+  --color-surface: #fafcfe;
+  --color-surface-card: #ffffff;
+
+  /* Roles */
+  --color-role-player: #3b82f6;
+  --color-role-coach: #ea580c;
+  --color-role-parent: #059669;
+  --color-role-admin: #7c3aed;
+
+  /* Semantic */
+  --color-success: #10b981;
+
+  /* Spacing (8px grid) */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4.5rem;
+  --space-4xl: 6rem;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+
+  --font-display: var(--font-sora), system-ui, sans-serif;
+  --font-body: var(--font-source-sans), system-ui, sans-serif;
+
+  --shadow-soft: 0 12px 40px color-mix(in srgb, var(--color-primary-900) 8%, transparent);
+  --max-width: 72rem;
+  --header-height: 4.25rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--color-gray-900);
+  background:
+    linear-gradient(
+      135deg,
+      var(--color-scaffold-highlight) 0%,
+      var(--color-scaffold) 55%,
+      var(--color-scaffold-depth) 100%
+    );
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--color-primary-900);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 3px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

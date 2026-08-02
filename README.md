@@ -41,6 +41,21 @@ fvm flutter run
 ```
 
 Équivalent sans préfixe si tu as activé le SDK FVM dans l’IDE.
+
+## CI / Releases
+
+- **Push / PR** : [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — `flutter analyze` + `flutter test` (Flutter 3.44.8). Aucun secret requis.
+- **Tag `v*`** : [`.github/workflows/release.yml`](.github/workflows/release.yml) — build APK release **signé**, publié sur **GitHub → Releases**.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+L’APK apparaît sur la page Releases du repo (`viro-team-v2-1.0.0.apk`). Build manuel sans tag : **Actions → Release APK → Run workflow**.
+
+Secrets Android (une fois) : voir [`SETUP_LOCAL.md`](SETUP_LOCAL.md) — après ça, tu peux lancer un build release depuis n’importe où via un tag.
+
 ## Structure du projet
 
 ```

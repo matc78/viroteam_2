@@ -14,38 +14,64 @@ Sans ces fichiers : builds debug/release Android non signés comme en beta.
 
 Pour le quotidien (`flutter run`), le keystore release n’est pas obligatoire. Il sert surtout aux builds **release / Play Store**.
 
-## CI — secrets GitHub (recommandé)
+## CI — secrets GitHub
 
-Une fois les fichiers récupérés, dépose-les aussi en **secrets du repo** GitHub pour ne plus avoir à les copier-coller à chaque machine / clone. Ils restent hors git ; la CI les reconstruit sur le runner avant le build.
+Une fois les fichiers récupérés, dépose-les en **secrets du repo** GitHub. Ils restent hors git ; le workflow [`.github/workflows/release.yml`](.github/workflows/release.yml) les reconstruit sur le runner avant le build APK.
+
+Les secrets sont **obligatoires** pour le job **Release APK** (tags `v*` / déclenchement manuel). Ils ne sont **pas** requis pour la CI analyze + tests (`.github/workflows/ci.yml`).
 
 **Settings → Secrets and variables → Actions** sur ce repo :
 
-| Secret GitHub | Contenu |
-|---|---|
-| `ANDROID_KEYSTORE_BASE64` | keystore release encodé en base64 |
-| `ANDROID_KEY_PROPERTIES` | contenu brut de `android/key.properties` |
-| `ANDROID_DEBUG_KEYSTORE_BASE64` | (optionnel) `android/app/debug.keystore` en base64 |
+| Secret GitHub | Contenu | Obligatoire |
+|---|---|---|
+| `ANDROID_KEYSTORE_BASE64` | keystore release encodé en base64 | oui (release) |
+| `ANDROID_KEY_PROPERTIES` | contenu de `key.properties` avec chemin **relatif CI** | oui (release) |
+| `ANDROID_DEBUG_KEYSTORE_BASE64` | `android/app/debug.keystore` en base64 | non |
 
-Encoder un fichier (PowerShell) :
+### Contenu de `ANDROID_KEY_PROPERTIES`
 
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("android\app\upload-keystore.jks")) | Set-Clipboard
+Le secret doit utiliser un `storeFile` **relatif** à `android/` (pas un chemin Windows absolu). Le workflow écrit le keystore dans `android/app/upload-keystore.jks` :
+
+```properties
+storePassword=***
+keyPassword=***
+keyAlias=upload
+storeFile=app/upload-keystore.jks
 ```
 
-Puis coller la valeur dans le secret GitHub.
+En local, tu peux garder un chemin absolu dans ton `android/key.properties` (hors git) ; seul le secret GitHub doit utiliser le chemin relatif ci-dessus.
 
-Dans un workflow GitHub Actions (à ajouter plus tard), restaurer ainsi avant `flutter build appbundle` :
+### Encoder le keystore (PowerShell)
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Users\matin\upload-keystore.jks")) | Set-Clipboard
+```
+
+Puis coller la valeur dans le secret `ANDROID_KEYSTORE_BASE64`.
+
+### Restauration côté CI
+
+Le workflow release restaure ainsi avant `flutter build apk --release` :
 
 ```yaml
 - name: Restore Android signing
+  env:
+    ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    ANDROID_KEY_PROPERTIES: ${{ secrets.ANDROID_KEY_PROPERTIES }}
   run: |
-    echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
-    echo "${{ secrets.ANDROID_KEY_PROPERTIES }}" > android/key.properties
-    # optionnel :
-    # echo "${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}" | base64 --decode > android/app/debug.keystore
+    echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+    printf '%s\n' "$ANDROID_KEY_PROPERTIES" > android/key.properties
 ```
 
-Adapter le chemin du keystore dans `key.properties` (`storeFile`) pour qu’il corresponde au fichier écrit par la CI.
+### Publier un APK (tag de release)
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Le workflow crée une **GitHub Release** avec l’APK signé `viro-team-v2-1.0.0.apk`.  
+Build manuel (sans tag) : onglet **Actions → Release APK → Run workflow** (artifact téléchargeable, pas de Release GitHub).
 
 ## Android — Firebase
 

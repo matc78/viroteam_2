@@ -1,0 +1,62 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: var(--space-3xl) var(--space-lg);
+}
+
+.panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 26rem;
+  padding: clamp(1.75rem, 4vw, 2.5rem);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-white) 92%, transparent);
+  border: 2px solid var(--panel-accent, var(--color-sport-cyan));
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(6px);
+}
+
+.panelCyan {
+  --panel-accent: var(--color-sport-cyan);
+}
+
+.panelOrange {
+  --panel-accent: var(--color-sport-orange);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary-600);
+  text-align: center;
+}
+
+.title {
+  margin: 0 0 var(--space-sm);
+  font-size: clamp(1.5rem, 3vw, 1.75rem);
+  text-align: center;
+  color: var(--color-primary-900);
+}
+
+.lead {
+  margin: 0 0 var(--space-xl);
+  color: var(--color-gray-600);
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1.5;
+}

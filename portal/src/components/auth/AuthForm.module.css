@@ -1,0 +1,107 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  text-align: left;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary-800);
+}
+
+.input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.85rem;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-gray-900);
+  font: inherit;
+  font-size: 1rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.input::placeholder {
+  color: var(--color-gray-400);
+}
+
+.input:hover {
+  border-color: var(--color-gray-300);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary-400);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-400) 22%, transparent);
+}
+
+.inputInvalid {
+  border-color: #dc2626;
+}
+
+.inputInvalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #dc2626 18%, transparent);
+}
+
+.error {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #dc2626;
+}
+
+.submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: var(--space-sm);
+  padding: 0.55rem 1.15rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-600);
+  color: var(--color-white);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--color-primary-800);
+  transform: translateY(-1px);
+}
+
+.submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.switch {
+  margin: var(--space-lg) 0 0;
+  text-align: center;
+  font-size: 0.9375rem;
+  color: var(--color-gray-600);
+}
+
+.switchLink {
+  color: var(--color-primary-600);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  transition: color 160ms ease;
+}
+
+.switchLink:hover {
+  color: var(--color-primary-800);
+}

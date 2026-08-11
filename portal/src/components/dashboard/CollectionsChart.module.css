@@ -1,0 +1,136 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-gray-200);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary-900) 4%, transparent);
+  min-height: 100%;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary-900);
+}
+
+.subtitle {
+  margin-top: var(--space-xs);
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.totalCard {
+  color: var(--color-primary-600);
+}
+
+.totalOffline {
+  color: var(--color-gray-600);
+}
+
+.chart {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-sm);
+  align-items: end;
+  height: 11rem;
+  padding-top: var(--space-sm);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 100%;
+  min-width: 0;
+}
+
+.barTrack {
+  flex: 1;
+  width: 100%;
+  max-width: 2.25rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.bar {
+  width: 100%;
+  min-height: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: 4px 4px 2px 2px;
+  overflow: hidden;
+}
+
+.barCard {
+  display: block;
+  width: 100%;
+  background: var(--color-primary-400);
+  min-height: 2px;
+}
+
+.barOffline {
+  display: block;
+  width: 100%;
+  background: var(--color-primary-100);
+  min-height: 2px;
+}
+
+.monthLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.8rem;
+  color: var(--color-gray-600);
+}
+
+.swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+}
+
+.swatchCard {
+  background: var(--color-primary-400);
+}
+
+.swatchOffline {
+  background: var(--color-primary-100);
+}

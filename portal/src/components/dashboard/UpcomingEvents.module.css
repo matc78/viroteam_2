@@ -1,0 +1,93 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-gray-200);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary-900) 4%, transparent);
+  min-height: 100%;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary-900);
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-top: 1px solid var(--color-gray-100);
+}
+
+.item:first-child {
+  border-top: none;
+  padding-top: var(--space-sm);
+}
+
+.itemMain {
+  min-width: 0;
+}
+
+.eventTitle {
+  font-weight: 600;
+  color: var(--color-primary-900);
+  font-size: 0.95rem;
+}
+
+.meta {
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+  color: var(--color-gray-600);
+}
+
+.location {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--color-gray-400);
+}
+
+.rsvp {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.rsvpValue {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-primary-800);
+}
+
+.rsvpLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-400);
+}

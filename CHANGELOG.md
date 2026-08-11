@@ -35,6 +35,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Landing marketing portal (sections photo, Final CTA)
 - Thème portal : fond blanc + formes partagées, typo Inter (alignée app)
 - Login portal refactoré vers la coquille auth
+- Roadmap : séquence « app prête » puis partenariat HelloAsso (paiements live)
 
 ### Corrigé
 

@@ -9,6 +9,11 @@ Plan global priorisé. Cocher au fil de l’eau.
 - **Tournois / championnats** : retirés du produit mobile (UI, copy, actions). Module web éventuel plus tard.
 - **Portail web** : React (landing + dashboard admin). Au MVP, admin = trésorier. Spec : [`docs/specs/viroteam_v2_web_portal_spec.md`](specs/viroteam_v2_web_portal_spec.md).
 
+**Séquence produit**
+
+1. Finir tout ce qu’il faut pour que l’app soit prête (phases restantes, polish, déploiement).
+2. Ensuite devenir partenaire HelloAsso pour activer / finaliser les paiements en ligne en conditions réelles.
+
 Specs produit : [`docs/specs/`](specs/).
 
 ---
@@ -65,7 +70,7 @@ Specs produit : [`docs/specs/`](specs/).
 - [x] Callable `createHelloAssoCheckout` (1× / 3× + aides)
 - [x] Webhook `helloAssoWebhook` + reçu PDF
 - [x] UI membre (sheet checkout) + UI trésorier (hors-ligne / justificatifs)
-- [ ] Déployer secrets HelloAsso + slug orga par club
+- [ ] Déployer secrets HelloAsso + slug orga par club *(après partenariat HelloAsso — voir séquence produit)*
 - [ ] Brancher `acceptInvitation` côté client
 - [ ] Upload photo justificatif d’aide (v2)
 
@@ -82,6 +87,14 @@ Specs produit : [`docs/specs/`](specs/).
 - [ ] Inventaire équipements (CRUD simple)
 - [ ] Matrice droits coachs (web) + lecture app
 - [ ] Alléger écrans cotisations admin mobile (urgences seulement)
+
+## Phase 10 — Partenariat HelloAsso (paiements en ligne live)
+
+Après app prête (phases restantes bouclées) :
+
+- [ ] Devenir partenaire HelloAsso
+- [ ] Brancher l’orga / secrets en prod et valider le parcours paiement en ligne bout-en-bout
+- [ ] Activer les checkouts CB réels pour les clubs
 
 ---
 

@@ -19,6 +19,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - CI GitHub Actions (`analyze` + `test`)
 - `ViroEmptyState` / `ViroErrorState`
 - Deep link `/join?code=`
+- Portail web : pages `/signup` et `/home` (dashboard admin mock)
+- Coquille auth portal (`AuthShell`, `LoginForm`, `SignupForm`)
+- Widgets dashboard portal mock (KPI, graphiques, attention, événements)
+- Fond décoratif global `DecorShapes` + images landing portal
 
 ### Modifié
 
@@ -28,6 +32,9 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Cotisations admin : validation hors-ligne + justificatifs d’aides
 - `PaymentService` → `HelloAssoPaymentService`
 - Rules Firestore (`payment_sessions`, cotisations)
+- Landing marketing portal (sections photo, Final CTA)
+- Thème portal : fond blanc + formes partagées, typo Inter (alignée app)
+- Login portal refactoré vers la coquille auth
 
 ### Corrigé
 

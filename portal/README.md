@@ -1,6 +1,6 @@
 # Portail web ViroTeam
 
-Site public (landing marketing) + futur dashboard admin.  
+Site public (landing marketing) + dashboard admin (home mock).  
 Stack : **Next.js** (App Router) + TypeScript + CSS Modules.
 
 ## Démarrer
@@ -18,7 +18,9 @@ Ouvre [http://localhost:3000](http://localhost:3000).
 | Route | Contenu |
 |-------|---------|
 | `/` | Landing marketing |
-| `/login` | Stub « connexion bientôt » (pas d’auth Firebase pour l’instant) |
+| `/login` | Formulaire connexion (UI seule, pas d’auth Firebase) |
+| `/signup` | Formulaire inscription (UI seule) |
+| `/home` | Home dashboard admin (données mock) |
 
 ## Liens stores
 
@@ -36,4 +38,4 @@ Configurés dans [`src/lib/site.ts`](src/lib/site.ts) :
 
 ## Thème
 
-Tokens alignés sur l’app Flutter (`ViroColors`) : bleu profond `#134A7D`, fonds clairs en dégradé. Typo : Sora (titres) + Source Sans 3 (corps).
+Tokens alignés sur l’app Flutter (`ViroColors`) : bleu profond `#134A7D`. Fond blanc + formes décoratives globales (`DecorShapes`). Typo : Inter (comme l’app).

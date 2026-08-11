@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
-import { Sora, Source_Sans_3 } from "next/font/google";
+import { Inter } from "next/font/google";
+import { DecorShapes } from "@/components/landing/DecorShapes";
 import "./globals.css";
 
-const sora = Sora({
-  variable: "--font-sora",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
-
-const sourceSans = Source_Sans_3({
-  variable: "--font-source-sans",
+const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -34,7 +28,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className={`${sora.variable} ${sourceSans.variable}`}>{children}</body>
+      <body className={inter.className}>
+        <DecorShapes />
+        <div className="app-root">{children}</div>
+      </body>
     </html>
   );
 }

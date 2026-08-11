@@ -1,0 +1,180 @@
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shape {
+  position: absolute;
+  display: block;
+}
+
+.circleA {
+  width: 8rem;
+  height: 8rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary-50) 55%, transparent);
+  top: 8%;
+  right: 12%;
+}
+
+.circleB {
+  width: 3.75rem;
+  height: 3.75rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-sport-orange) 16%, transparent);
+  top: 42%;
+  left: 6%;
+}
+
+.circleC {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary-100) 42%, transparent);
+  bottom: 18%;
+  right: 22%;
+}
+
+.circleD {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-sport-green) 12%, transparent);
+  top: 68%;
+  left: 28%;
+}
+
+.circleE {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-sport-cyan) 14%, transparent);
+  top: 18%;
+  left: 38%;
+}
+
+.ringA {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-primary-200) 45%, transparent);
+  background: transparent;
+  top: 55%;
+  right: 5%;
+}
+
+.ringB {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-sport-orange) 28%, transparent);
+  background: transparent;
+  top: 12%;
+  left: 14%;
+}
+
+.arcA {
+  width: 9.5rem;
+  height: 9.5rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-sport-green) 28%, transparent);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  top: 4%;
+  left: 48%;
+  transform: rotate(25deg);
+}
+
+.arcB {
+  width: 7rem;
+  height: 7rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-sport-cyan) 30%, transparent);
+  border-right-color: transparent;
+  border-top-color: transparent;
+  bottom: 8%;
+  left: 8%;
+  transform: rotate(-18deg);
+}
+
+.dotA {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-sport-cyan) 55%, transparent);
+  top: 28%;
+  left: 22%;
+}
+
+.dotB {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-sport-yellow) 70%, transparent);
+  top: 72%;
+  right: 38%;
+}
+
+.dotC {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-sport-orange) 45%, transparent);
+  top: 36%;
+  right: 18%;
+}
+
+.pill {
+  width: 3.5rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary-100) 35%, transparent);
+  top: 80%;
+  right: 14%;
+  transform: rotate(-28deg);
+}
+
+.square {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--color-sport-yellow) 22%, transparent);
+  top: 48%;
+  right: 42%;
+  transform: rotate(18deg);
+}
+
+@media (max-width: 700px) {
+  .arcA,
+  .arcB,
+  .circleE,
+  .square,
+  .pill {
+    display: none;
+  }
+
+  .circleA {
+    width: 5rem;
+    height: 5rem;
+    right: 4%;
+  }
+
+  .circleD {
+    width: 3.5rem;
+    height: 3.5rem;
+    left: 12%;
+  }
+
+  .ringA {
+    width: 3.75rem;
+    height: 3.75rem;
+  }
+
+  .ringB {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}

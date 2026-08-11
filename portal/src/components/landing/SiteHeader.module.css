@@ -3,8 +3,8 @@
   top: 0;
   z-index: 40;
   height: var(--header-height);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-primary-100) 55%, transparent);
-  background: color-mix(in srgb, var(--color-scaffold-highlight) 88%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-gray-200) 80%, transparent);
+  background: color-mix(in srgb, var(--color-white) 88%, transparent);
   backdrop-filter: blur(12px);
 }
 
@@ -33,7 +33,6 @@
 }
 
 .wordmark {
-  font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 700;
   letter-spacing: -0.02em;

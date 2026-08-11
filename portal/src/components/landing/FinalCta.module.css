@@ -1,18 +1,147 @@
 .section {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: var(--space-2xl) var(--space-lg) var(--space-3xl);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Triple cadre : cyan → orange → panel */
+.frame {
   max-width: var(--max-width);
+  width: 100%;
   margin: 0 auto;
-  padding: var(--space-3xl) var(--space-lg) var(--space-4xl);
+  padding: 4px;
+  border-radius: calc(var(--radius-lg) + 6px);
+  background: linear-gradient(
+    135deg,
+    var(--color-sport-cyan) 0%,
+    var(--color-sport-green) 45%,
+    var(--color-sport-orange) 100%
+  );
+}
+
+.frameInner {
+  padding: 4px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  background: var(--color-white);
+  border: 2px solid var(--color-primary-200);
 }
 
 .panel {
+  position: relative;
+  overflow: hidden;
   padding: clamp(2rem, 5vw, 3.5rem);
   border-radius: var(--radius-lg);
-  background: linear-gradient(
-    145deg,
-    var(--color-white) 0%,
-    var(--color-scaffold-highlight) 100%
-  );
-  border: 1px solid var(--color-gray-200);
+  background:
+    radial-gradient(
+      circle at 92% 18%,
+      color-mix(in srgb, var(--color-sport-yellow) 22%, transparent),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 8% 88%,
+      color-mix(in srgb, var(--color-sport-cyan) 16%, transparent),
+      transparent 40%
+    ),
+    linear-gradient(
+      160deg,
+      var(--color-white) 0%,
+      color-mix(in srgb, var(--color-primary-50) 35%, white) 100%
+    );
+  border: 2px solid var(--color-sport-orange);
+}
+
+.shapes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.blobOrange,
+.blobCyan,
+.blobGreen,
+.ring,
+.dotYellow,
+.dotBlue,
+.arc {
+  position: absolute;
+  display: block;
+}
+
+.blobOrange {
+  width: 9rem;
+  height: 9rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-sport-orange) 18%, transparent);
+  top: -2.5rem;
+  right: -1.5rem;
+}
+
+.blobCyan {
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-sport-cyan) 20%, transparent);
+  bottom: -1.5rem;
+  right: 22%;
+}
+
+.blobGreen {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 42% 58% 55% 45%;
+  background: color-mix(in srgb, var(--color-sport-green) 18%, transparent);
+  top: 35%;
+  right: 8%;
+}
+
+.ring {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--color-primary-400) 35%, transparent);
+  top: 12%;
+  right: 28%;
+}
+
+.dotYellow {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 50%;
+  background: var(--color-sport-yellow);
+  top: 1.75rem;
+  right: 38%;
+}
+
+.dotBlue {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--color-sport-cyan);
+  bottom: 2.5rem;
+  right: 12%;
+}
+
+.arc {
+  width: 7rem;
+  height: 7rem;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--color-sport-orange) 40%, transparent);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  bottom: -1.25rem;
+  left: 42%;
+  transform: rotate(-20deg);
+}
+
+.content {
+  position: relative;
+  z-index: 1;
 }
 
 .title {
@@ -45,4 +174,15 @@
 
 .clubLink:hover {
   color: var(--color-primary-800);
+}
+
+@media (max-width: 700px) {
+  .blobGreen,
+  .ring {
+    opacity: 0.55;
+  }
+
+  .arc {
+    left: 28%;
+  }
 }

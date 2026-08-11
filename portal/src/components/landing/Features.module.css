@@ -1,12 +1,34 @@
 .section {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-3xl) 0;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: var(--space-4xl) var(--space-lg);
+  padding: 0 var(--space-lg);
+  display: grid;
+  gap: var(--space-2xl);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .inner {
+    grid-template-columns: 1fr min(22rem, 38%);
+    gap: var(--space-3xl);
+  }
+}
+
+.copy {
+  min-width: 0;
 }
 
 .header {
   max-width: 36rem;
-  margin-bottom: var(--space-3xl);
+  margin-bottom: var(--space-xl);
 }
 
 .eyebrow {
@@ -36,44 +58,68 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--color-gray-200);
 }
 
 .item {
   display: grid;
-  grid-template-columns: 4.5rem 1fr;
-  gap: var(--space-lg);
-  padding: var(--space-xl) 0;
-  border-bottom: 1px solid var(--color-gray-200);
+  grid-template-columns: 3.5rem 1fr;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--color-gray-100);
 }
 
-@media (min-width: 768px) {
-  .item {
-    grid-template-columns: 6rem 1fr 1.1fr;
-    align-items: baseline;
-  }
+.item:last-child {
+  border-bottom: none;
 }
 
 .index {
-  font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--color-primary-400);
+  color: var(--color-sport-orange);
 }
 
 .itemTitle {
-  margin-bottom: var(--space-sm);
-  font-size: 1.25rem;
+  margin-bottom: var(--space-xs);
+  font-size: 1.15rem;
   color: var(--color-primary-800);
 }
 
 .itemBody {
   color: var(--color-gray-600);
-  font-size: 1rem;
+  font-size: 0.98rem;
 }
 
-@media (max-width: 767px) {
-  .itemBody {
-    grid-column: 2;
+.photo {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.imageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-gray-100);
+}
+
+.image {
+  object-fit: cover;
+}
+
+.caption {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-400);
+}
+
+@media (max-width: 899px) {
+  .photo {
+    order: -1;
+    max-width: 22rem;
   }
 }

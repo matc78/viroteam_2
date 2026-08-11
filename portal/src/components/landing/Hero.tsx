@@ -21,10 +21,6 @@ const fadeUp = {
 export function Hero() {
   return (
     <section className={styles.hero} aria-labelledby="hero-brand">
-      <div className={styles.visual} aria-hidden="true">
-        <div className={styles.visualPlane} />
-      </div>
-
       <div className={styles.content}>
         <motion.h1
           id="hero-brand"

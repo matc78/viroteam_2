@@ -1,12 +1,34 @@
 .section {
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-2xl) 0 var(--space-3xl);
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: var(--space-3xl) var(--space-lg) var(--space-4xl);
+  padding: 0 var(--space-lg);
+  display: grid;
+  gap: var(--space-2xl);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .inner {
+    grid-template-columns: 1fr min(22rem, 38%);
+    gap: var(--space-3xl);
+  }
+}
+
+.copy {
+  min-width: 0;
 }
 
 .header {
   max-width: 34rem;
-  margin-bottom: var(--space-2xl);
+  margin-bottom: var(--space-xl);
 }
 
 .eyebrow {
@@ -29,44 +51,72 @@
 }
 
 .steps {
-  display: grid;
-  gap: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
   margin: 0;
   padding: 0;
   list-style: none;
   counter-reset: step;
 }
 
-@media (min-width: 800px) {
-  .steps {
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-2xl);
-  }
-}
-
 .step {
   counter-increment: step;
   padding-top: var(--space-md);
-  border-top: 2px solid var(--color-primary-100);
+  border-top: 1px solid var(--color-gray-200);
 }
 
 .step::before {
   content: "0" counter(step);
   display: block;
-  margin-bottom: var(--space-md);
-  font-family: var(--font-display);
+  margin-bottom: var(--space-sm);
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--color-primary-400);
+  color: var(--color-sport-cyan);
 }
 
 .stepTitle {
-  margin-bottom: var(--space-sm);
-  font-size: 1.2rem;
+  margin-bottom: var(--space-xs);
+  font-size: 1.15rem;
   color: var(--color-primary-800);
 }
 
 .stepBody {
   color: var(--color-gray-600);
   font-size: 1rem;
+}
+
+.photo {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.imageWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-gray-100);
+}
+
+.image {
+  object-fit: cover;
+}
+
+.caption {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-400);
+}
+
+@media (max-width: 899px) {
+  .photo {
+    order: -1;
+    max-width: 22rem;
+  }
 }

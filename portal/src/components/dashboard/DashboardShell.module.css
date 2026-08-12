@@ -237,6 +237,12 @@
   padding: var(--space-xl) clamp(1.25rem, 3vw, 2.75rem) var(--space-3xl);
 }
 
+.mainWide {
+  max-width: none;
+  padding-top: var(--space-md);
+  padding-inline: clamp(0.85rem, 1.6vw, 1.5rem);
+}
+
 @media (max-width: 1024px) {
   .inner {
     grid-template-columns: 1fr auto;

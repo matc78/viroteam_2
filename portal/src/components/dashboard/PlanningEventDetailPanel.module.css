@@ -1,0 +1,142 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--space-md);
+  background: color-mix(in srgb, var(--color-primary-900) 28%, transparent);
+}
+
+.panel {
+  width: min(100%, 28rem);
+  max-height: min(85vh, 32rem);
+  overflow: auto;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+}
+
+.title {
+  margin-top: 0.2rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+}
+
+.closeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid var(--color-primary-600);
+  outline-offset: 2px;
+}
+
+.details {
+  display: grid;
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.details dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+}
+
+.details dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.92rem;
+  color: var(--color-primary-900);
+}
+
+.rsvpSection {
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-gray-100);
+}
+
+.rsvpTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-primary-800);
+}
+
+.rsvpGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.rsvpStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-gray-100);
+}
+
+.rsvpStat[data-tone="green"] {
+  background: color-mix(in srgb, var(--color-success) 10%, white);
+}
+
+.rsvpStat[data-tone="orange"] {
+  background: color-mix(in srgb, var(--color-sport-orange) 10%, white);
+}
+
+.rsvpStat[data-tone="amber"] {
+  background: var(--tone-amber-soft);
+}
+
+.rsvpValue {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--color-primary-900);
+}
+
+.rsvpLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+}
+
+.rsvpHint {
+  margin-top: var(--space-sm);
+  font-size: 0.85rem;
+  color: var(--color-gray-600);
+}
+
+@media (min-width: 640px) {
+  .backdrop {
+    align-items: center;
+  }
+}

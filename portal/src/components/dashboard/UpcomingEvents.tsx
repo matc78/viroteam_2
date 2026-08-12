@@ -1,50 +1,45 @@
+import Link from "next/link";
 import type { UpcomingEvent } from "@/lib/firebase/homeService";
+import panelStyles from "./DashboardPanel.module.css";
+import { PlanningEventTile } from "./PlanningEventTile";
 import styles from "./UpcomingEvents.module.css";
 
-/** Props de la liste d'evenements a venir. */
+/** Props de l'aperçu événements home. */
 type UpcomingEventsProps = {
   events: UpcomingEvent[];
 };
 
-/** Liste des prochains événements club (lecture admin). */
+/** Aperçu des prochains événements club (home dashboard). */
 export function UpcomingEvents({ events }: UpcomingEventsProps) {
-  const formatWhen = (iso: string) =>
-    new Intl.DateTimeFormat("fr-FR", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
-
   return (
-    <section className={styles.panel} aria-labelledby="upcoming-title">
+    <section
+      className={panelStyles.panel}
+      data-tone="cyan"
+      aria-labelledby="upcoming-title"
+    >
       <header className={styles.header}>
-        <h2 id="upcoming-title" className={styles.title}>
-          Prochains événements
-        </h2>
-        <p className={styles.subtitle}>Vue lecture — planning club</p>
+        <div>
+          <h2 id="upcoming-title" className={styles.title}>
+            Prochains événements
+          </h2>
+          <p className={styles.subtitle}>14 prochains jours</p>
+        </div>
+        <Link href="/planning" className={styles.viewAllLink}>
+          Voir tout →
+        </Link>
       </header>
 
-      <ul className={styles.list}>
-        {events.map((event) => (
-          <li key={event.id} className={styles.item}>
-            <div className={styles.itemMain}>
-              <p className={styles.eventTitle}>{event.title}</p>
-              <p className={styles.meta}>
-                {event.team} · {formatWhen(event.startsAt)}
-              </p>
-              <p className={styles.location}>{event.location}</p>
-            </div>
-            <div className={styles.rsvp}>
-              <span className={styles.rsvpValue}>
-                {event.rsvpYes}/{event.rsvpTotal}
-              </span>
-              <span className={styles.rsvpLabel}>RSVP</span>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {events.length === 0 ? (
+        <p className={styles.empty}>Aucun événement prévu dans les 14 prochains jours.</p>
+      ) : (
+        <ul className={styles.list}>
+          {events.map((event) => (
+            <li key={event.id} className={styles.item}>
+              <PlanningEventTile event={event} compact />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

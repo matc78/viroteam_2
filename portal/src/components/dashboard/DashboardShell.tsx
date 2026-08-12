@@ -11,10 +11,13 @@ import styles from "./DashboardShell.module.css";
 /** Props de la coquille espace club. */
 type DashboardShellProps = {
   children: ReactNode;
+  /** Contenu pleine largeur (ex. planning). */
+  wide?: boolean;
 };
 
 const NAV_ITEMS = [
   { href: "/home", label: "Accueil" },
+  { href: "/planning", label: "Planning" },
   { href: "/fees", label: "Cotisations" },
 ] as const;
 
@@ -30,7 +33,7 @@ function userInitials(displayName: string): string {
 }
 
 /** Coquille espace club : header bureau + nav modules + logout. */
-export function DashboardShell({ children }: DashboardShellProps) {
+export function DashboardShell({ children, wide = false }: DashboardShellProps) {
   const pathname = usePathname();
   const {
     activeClub,
@@ -121,7 +124,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
           </div>
         </div>
       </header>
-      <main className={styles.main}>{children}</main>
+      <main className={wide ? `${styles.main} ${styles.mainWide}` : styles.main}>
+        {children}
+      </main>
     </div>
   );
 }

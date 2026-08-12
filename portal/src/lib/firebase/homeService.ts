@@ -1,21 +1,16 @@
-import {
-  collection,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
-import { getAppFirestore } from "./app";
 import { ClubRecord } from "./clubService";
-import { Collections, Fields, MemberFeeStatuses } from "./constants";
+import {
+  HOME_PREVIEW_EVENT_LIMIT,
+  loadUpcomingEvents,
+  type UpcomingEvent,
+} from "./eventService";
+import { MemberFeeStatuses } from "./constants";
 import {
   FeeSeasonRecord,
   getActiveSeason,
   listMemberFees,
   MemberFeeRecord,
 } from "./feeService";
-import { toDate } from "./types";
 
 
 type FeeStatus = "paye" | "partiel" | "a_payer" | "exonere";
@@ -41,15 +36,7 @@ export type CollectionMonth = {
   offlineAmount: number;
 };
 
-export type UpcomingEvent = {
-  id: string;
-  title: string;
-  team: string;
-  startsAt: string;
-  location: string;
-  rsvpYes: number;
-  rsvpTotal: number;
-};
+export type { UpcomingEvent } from "./eventService";
 
 export type AttentionItem = {
   id: string;
@@ -200,83 +187,6 @@ function buildFeeSegments(fees: MemberFeeRecord[]): FeeStatusSegment[] {
   ];
 }
 
-async function loadUpcomingEvents(clubId: string): Promise<UpcomingEvent[]> {
-  const eventsCol = collection(
-    getAppFirestore(),
-    Collections.clubs,
-    clubId,
-    Collections.events,
-  );
-  const todayId = formatDateId(new Date());
-  try {
-    const upcomingEventsQuery = query(
-      eventsCol,
-      where(Fields.dateId, ">=", todayId),
-      orderBy(Fields.dateId, "asc"),
-      limit(8),
-    );
-    const snap = await getDocs(upcomingEventsQuery);
-    return snap.docs
-      .map((docSnap) => parseUpcomingEvent(docSnap.id, docSnap.data() as Record<string, unknown>))
-      .filter((event): event is UpcomingEvent => event !== null)
-      .slice(0, 4);
-  } catch {
-    // Index manquant ou champ absent : fallback lecture limitée.
-    const snap = await getDocs(query(eventsCol, limit(40)));
-    const parsed = snap.docs
-      .map((docSnap) => parseUpcomingEvent(docSnap.id, docSnap.data() as Record<string, unknown>))
-      .filter((event): event is UpcomingEvent => event !== null)
-      .filter((event) => new Date(event.startsAt).getTime() >= Date.now() - 60_000)
-      .sort(
-        (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
-      );
-    return parsed.slice(0, 4);
-  }
-}
-
-function formatDateId(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}${month}${day}`;
-}
-
-function parseUpcomingEvent(
-  id: string,
-  data: Record<string, unknown>,
-): UpcomingEvent | null {
-  if (data[Fields.canceled] === true) return null;
-  const eventDate = toDate(data[Fields.date]) ?? toDate(data[Fields.startTime]);
-  if (!eventDate) return null;
-
-  const rsvpRaw = data[Fields.rsvp];
-  const rsvp =
-    rsvpRaw && typeof rsvpRaw === "object"
-      ? (rsvpRaw as Record<string, string>)
-      : {};
-  const values = Object.values(rsvp);
-  const rsvpYes = values.filter((value) => value === "yes").length;
-  const teamMemberIds = Array.isArray(data[Fields.teamMemberIds])
-    ? (data[Fields.teamMemberIds] as unknown[]).map(String)
-    : [];
-  const rsvpTotal =
-    teamMemberIds.length > 0 ? teamMemberIds.length : values.length;
-
-  const teamIds = Array.isArray(data[Fields.teamIds])
-    ? (data[Fields.teamIds] as unknown[]).map(String)
-    : [];
-
-  return {
-    id,
-    title: String(data[Fields.title] ?? "Événement"),
-    team: teamIds.length > 0 ? `${teamIds.length} équipe(s)` : "Club",
-    startsAt: eventDate.toISOString(),
-    location: String(data[Fields.location] ?? ""),
-    rsvpYes,
-    rsvpTotal,
-  };
-}
-
 function buildAttention(params: {
   fees: MemberFeeRecord[];
   season: FeeSeasonRecord | null;
@@ -356,7 +266,9 @@ export async function loadHomeDashboard(params: {
 }): Promise<HomeDashboardData> {
   const season = await getActiveSeason(params.club.id);
   const fees = season ? await listMemberFees(params.club.id, season.id) : [];
-  const upcomingEvents = await loadUpcomingEvents(params.club.id);
+  const upcomingEvents = await loadUpcomingEvents(params.club.id, {
+    limit: HOME_PREVIEW_EVENT_LIMIT,
+  });
   const pendingAids = countPendingAids(fees);
   const segments = buildFeeSegments(fees);
   const unpaidCount =

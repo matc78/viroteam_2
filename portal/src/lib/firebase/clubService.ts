@@ -1,4 +1,4 @@
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
 import { getAppFirestore } from "./app";
 import { Collections, Fields } from "./constants";
 import { toDate } from "./types";
@@ -11,6 +11,8 @@ export type ClubRecord = {
   adminIds: string[];
   helloAssoOrganizationSlug: string;
   onlinePaymentEnabled: boolean;
+  /** Fin de saison sportive (planning / récurrence), si configurée. */
+  seasonEndDate: Date | null;
   createdAt: Date | null;
 };
 
@@ -31,6 +33,7 @@ export function parseClub(
       data[Fields.helloAssoOrganizationSlug] ?? "",
     ),
     onlinePaymentEnabled: Boolean(data[Fields.onlinePaymentEnabled]),
+    seasonEndDate: toDate(data[Fields.seasonEndDate]),
     createdAt: toDate(data[Fields.createdAt]),
   };
 }
@@ -59,5 +62,19 @@ export async function updateOnlinePaymentConfig(params: {
   await updateDoc(doc(getAppFirestore(), Collections.clubs, params.clubId), {
     [Fields.onlinePaymentEnabled]: params.enabled,
     [Fields.helloAssoOrganizationSlug]: slug,
+  });
+}
+
+/** Met à jour la fin de saison sportive du club (récurrence planning). */
+export async function updateClubSeasonEndDate(params: {
+  clubId: string;
+  seasonEndDate: Date;
+}): Promise<void> {
+  const day = params.seasonEndDate;
+  await updateDoc(doc(getAppFirestore(), Collections.clubs, params.clubId), {
+    [Fields.seasonEndDate]: Timestamp.fromDate(
+      new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate())),
+    ),
+    [Fields.updatedAt]: Timestamp.now(),
   });
 }

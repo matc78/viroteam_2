@@ -13,6 +13,7 @@ import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/fee_tier.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_iban_validator.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_bulk_action_sheet.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_members_tracking_tab.dart';
@@ -289,7 +290,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen>
   }
 }
 
-/// InstantanÃ© du formulaire configuration pour dÃ©tecter les modifications.
+/// Instantané du formulaire configuration pour détecter les modifications.
 class _ConfigFormSnapshot {
   const _ConfigFormSnapshot({
     required this.seasonLabel,
@@ -298,6 +299,8 @@ class _ConfigFormSnapshot {
     required this.paymentMethods,
     required this.paymentDeadlineAt,
     required this.tiers,
+    required this.onlinePaymentEnabled,
+    required this.helloAssoOrganizationSlug,
   });
 
   final String seasonLabel;
@@ -306,6 +309,8 @@ class _ConfigFormSnapshot {
   final List<String> paymentMethods;
   final DateTime? paymentDeadlineAt;
   final List<FeeTier> tiers;
+  final bool onlinePaymentEnabled;
+  final String helloAssoOrganizationSlug;
 
   factory _ConfigFormSnapshot.fromForm({
     required String seasonLabel,
@@ -314,6 +319,8 @@ class _ConfigFormSnapshot {
     required List<String> paymentMethods,
     required DateTime? paymentDeadlineAt,
     required List<FeeTier> tiers,
+    required bool onlinePaymentEnabled,
+    required String helloAssoOrganizationSlug,
   }) {
     return _ConfigFormSnapshot(
       seasonLabel: seasonLabel,
@@ -326,6 +333,8 @@ class _ConfigFormSnapshot {
       tiers: tiers
           .map((t) => FeeTier(tierId: t.tierId, label: t.label.trim(), amountCents: t.amountCents))
           .toList(),
+      onlinePaymentEnabled: onlinePaymentEnabled,
+      helloAssoOrganizationSlug: helloAssoOrganizationSlug.trim(),
     );
   }
 
@@ -333,6 +342,10 @@ class _ConfigFormSnapshot {
     if (seasonLabel != other.seasonLabel) return false;
     if (paymentInstructions != other.paymentInstructions) return false;
     if (iban != other.iban) return false;
+    if (onlinePaymentEnabled != other.onlinePaymentEnabled) return false;
+    if (helloAssoOrganizationSlug != other.helloAssoOrganizationSlug) {
+      return false;
+    }
     if (paymentDeadlineAt?.year != other.paymentDeadlineAt?.year ||
         paymentDeadlineAt?.month != other.paymentDeadlineAt?.month ||
         paymentDeadlineAt?.day != other.paymentDeadlineAt?.day) {
@@ -375,13 +388,16 @@ class _ConfigTab extends ConsumerStatefulWidget {
 }
 
 class _ConfigTabState extends ConsumerState<_ConfigTab> {
-  final _seasonLabelCtrl = TextEditingController();
   final _instructionsCtrl = TextEditingController();
   final _ibanCtrl = TextEditingController();
+  final _helloAssoSlugCtrl = TextEditingController();
+  String _seasonLabel = resolveFeeSeasonLabel(null);
   List<FeeTier> _tiers = [];
   List<String> _paymentMethods = [];
   DateTime? _deadline;
+  bool _onlinePaymentEnabled = false;
   bool _initialized = false;
+  bool _clubPaymentLoaded = false;
   bool _listenersAttached = false;
   _ConfigFormSnapshot? _savedSnapshot;
 
@@ -392,12 +408,14 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
   }
 
   _ConfigFormSnapshot _currentSnapshot() => _ConfigFormSnapshot.fromForm(
-        seasonLabel: _seasonLabelCtrl.text.trim(),
+        seasonLabel: _seasonLabel,
         paymentInstructions: _instructionsCtrl.text.trim(),
         iban: _ibanCtrl.text.trim().isEmpty ? null : _ibanCtrl.text,
         paymentMethods: _paymentMethods,
         paymentDeadlineAt: _deadline,
         tiers: _tiers,
+        onlinePaymentEnabled: _onlinePaymentEnabled,
+        helloAssoOrganizationSlug: _helloAssoSlugCtrl.text,
       );
 
   void _markDirty() {
@@ -407,35 +425,54 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
   void _attachListeners() {
     if (_listenersAttached) return;
     _listenersAttached = true;
-    _seasonLabelCtrl.addListener(_markDirty);
     _instructionsCtrl.addListener(_markDirty);
     _ibanCtrl.addListener(_markDirty);
+    _helloAssoSlugCtrl.addListener(_markDirty);
   }
 
   @override
   void dispose() {
-    _seasonLabelCtrl.dispose();
     _instructionsCtrl.dispose();
     _ibanCtrl.dispose();
+    _helloAssoSlugCtrl.dispose();
     super.dispose();
   }
 
   void _loadFromSeason(FeeSeason season) {
     if (_initialized) return;
     _initialized = true;
-    _seasonLabelCtrl.text = season.seasonLabel;
+    _seasonLabel = resolveFeeSeasonLabel(season.seasonLabel);
     _instructionsCtrl.text = season.paymentInstructions;
     _ibanCtrl.text = season.iban ?? '';
     _tiers = List.from(season.tiers);
     _paymentMethods = List.from(season.paymentMethods);
     _deadline = season.paymentDeadlineAt;
     _attachListeners();
+    _maybeCommitInitialSnapshot();
+  }
+
+  /// Charge le flag / slug HelloAsso depuis le document club.
+  void _loadFromClub({
+    required bool onlinePaymentEnabled,
+    required String? helloAssoOrganizationSlug,
+  }) {
+    if (_clubPaymentLoaded) return;
+    _clubPaymentLoaded = true;
+    _onlinePaymentEnabled = onlinePaymentEnabled;
+    _helloAssoSlugCtrl.text = helloAssoOrganizationSlug ?? '';
+    _attachListeners();
+    _maybeCommitInitialSnapshot();
+  }
+
+  void _maybeCommitInitialSnapshot() {
+    if (!_initialized || !_clubPaymentLoaded) return;
     _savedSnapshot = _currentSnapshot();
   }
 
   void discardChanges() {
     setState(() {
       _initialized = false;
+      _clubPaymentLoaded = false;
       _savedSnapshot = null;
     });
   }
@@ -452,7 +489,7 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
     try {
       final season = FeeSeason(
         id: '',
-        seasonLabel: '2025-2026',
+        seasonLabel: resolveFeeSeasonLabel(null),
         isActive: true,
         tiers: [
           FeeTier(
@@ -469,8 +506,11 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
             clubId: widget.clubId,
             season: season,
           );
-      if (mounted) ViroSnackBar.show(context, 'Saison crÃ©Ã©e');
-      setState(() => _initialized = false);
+      if (mounted) ViroSnackBar.show(context, 'Saison créée');
+      setState(() {
+        _initialized = false;
+        _clubPaymentLoaded = false;
+      });
     } catch (e) {
       if (mounted) ViroSnackBar.show(context, 'Erreur : $e');
     } finally {
@@ -514,12 +554,15 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
 
   Future<void> _save(FeeSeason season) async {
     if (_tiers.isEmpty) {
-      ViroSnackBar.show(context, 'Ajoutez au moins une catÃ©gorie tarifaire');
+      ViroSnackBar.show(context, 'Ajoutez au moins une catégorie tarifaire');
       return;
     }
     for (final t in _tiers) {
       if (t.label.trim().isEmpty || t.amountCents <= 0) {
-        ViroSnackBar.show(context, 'Chaque catÃ©gorie doit avoir un libellÃ© et un montant > 0');
+        ViroSnackBar.show(
+          context,
+          'Chaque catégorie doit avoir un libellé et un montant > 0',
+        );
         return;
       }
     }
@@ -527,12 +570,19 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
       ViroSnackBar.show(context, 'Format IBAN invalide');
       return;
     }
+    if (_onlinePaymentEnabled && _helloAssoSlugCtrl.text.trim().isEmpty) {
+      ViroSnackBar.show(
+        context,
+        'Indiquez le slug HelloAsso de l\'organisation',
+      );
+      return;
+    }
 
     widget.onSaving(true);
     try {
       final updated = FeeSeason(
         id: season.id,
-        seasonLabel: _seasonLabelCtrl.text.trim(),
+        seasonLabel: _seasonLabel,
         isActive: season.isActive,
         paymentInstructions: _instructionsCtrl.text.trim(),
         paymentMethods: _paymentMethods,
@@ -547,9 +597,15 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
             clubId: widget.clubId,
             season: updated,
           );
+      await ref.read(clubServiceProvider).updateOnlinePaymentConfig(
+            clubId: widget.clubId,
+            enabled: _onlinePaymentEnabled,
+            organizationSlug: _helloAssoSlugCtrl.text,
+          );
+      ref.invalidate(clubProvider(widget.clubId));
       if (mounted) {
         _commitSnapshot();
-        ViroSnackBar.show(context, 'EnregistrÃ©');
+        ViroSnackBar.show(context, 'Enregistré');
       }
     } catch (e) {
       if (mounted) ViroSnackBar.show(context, 'Erreur : $e');
@@ -583,17 +639,21 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
           clubId: widget.clubId,
           seasonId: season.id,
         );
-    if (mounted) ViroSnackBar.show(context, 'Saison clÃ´turÃ©e');
-    setState(() => _initialized = false);
+    if (mounted) ViroSnackBar.show(context, 'Saison clôturée');
+    setState(() {
+      _initialized = false;
+      _clubPaymentLoaded = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final seasonAsync = ref.watch(activeSeasonProvider(widget.clubId));
+    final clubAsync = ref.watch(clubProvider(widget.clubId));
 
     return seasonAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, _) => const ViroErrorState(),
+      error: (error, stackTrace) => const ViroErrorState(),
       data: (season) {
         if (season == null) {
           return Center(
@@ -608,7 +668,7 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
                   ),
                   const SizedBox(height: ViroSpacing.lg),
                   ViroPrimaryButton(
-                    label: 'CrÃ©er la saison',
+                    label: 'Créer la saison',
                     onPressed: widget.saving ? null : _createSeason,
                   ),
                 ],
@@ -618,20 +678,50 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
         }
 
         _loadFromSeason(season);
+        final club = clubAsync.value;
+        if (!_clubPaymentLoaded) {
+          if (clubAsync.hasValue) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || _clubPaymentLoaded) return;
+              setState(() {
+                _loadFromClub(
+                  onlinePaymentEnabled: club?.onlinePaymentEnabled ?? false,
+                  helloAssoOrganizationSlug: club?.helloAssoOrganizationSlug,
+                );
+              });
+            });
+          }
+        }
 
         return ListView(
           padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
           children: [
             Text(
-              'Paramétrez la saison et les montants, puis suivez les paiements dans l''onglet Membres.',
+              'Paramétrez la saison et les montants, puis suivez les paiements dans l\'onglet Membres.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: ViroColors.gray600,
                   ),
             ),
             const SizedBox(height: ViroSpacing.md),
-            TextField(
-              controller: _seasonLabelCtrl,
-              decoration: const InputDecoration(labelText: 'Libellé saison'),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Libellé saison',
+                border: OutlineInputBorder(),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  isExpanded: true,
+                  value: _seasonLabel,
+                  items: [
+                    for (final label in feeSeasonLabelChoices(_seasonLabel))
+                      DropdownMenuItem(value: label, child: Text(label)),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _seasonLabel = value);
+                  },
+                ),
+              ),
             ),
             const SizedBox(height: ViroSpacing.md),
             ListTile(
@@ -678,30 +768,33 @@ class _ConfigTabState extends ConsumerState<_ConfigTab> {
               onDeleteTier: _onDeleteTier,
             ),
             const SizedBox(height: ViroSpacing.md),
-            Card(
-              color: ViroColors.primary50,
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(ViroSpacing.md),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ViroIcon(ViroIcons.payments, color: ViroColors.primary600),
-                    const SizedBox(width: ViroSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        'Paiement en ligne dans l''app : bientôt disponible. '
-                        'En attendant, renseignez un paiement hors app ci-dessous si besoin.',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: ViroColors.primary800,
-                              height: 1.4,
-                            ),
-                      ),
-                    ),
-                  ],
+            Text(
+              'Paiement en ligne (HelloAsso)',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: ViroSpacing.sm),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Activer le paiement en ligne'),
+              subtitle: const Text(
+                'Affiche un bouton « Payer en ligne » aux membres. '
+                'La config complète arrivera aussi sur le portail web.',
+              ),
+              value: _onlinePaymentEnabled,
+              onChanged: (value) => setState(() => _onlinePaymentEnabled = value),
+            ),
+            if (_onlinePaymentEnabled) ...[
+              const SizedBox(height: ViroSpacing.sm),
+              TextField(
+                controller: _helloAssoSlugCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Slug organisation HelloAsso',
+                  hintText: 'mon-club-asso',
                 ),
               ),
-            ),
+            ],
             const SizedBox(height: ViroSpacing.sm),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,

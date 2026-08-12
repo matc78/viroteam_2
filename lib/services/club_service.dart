@@ -162,4 +162,21 @@ class ClubService {
 
     return clubRef.id;
   }
+
+  /// Met à jour la config paiement en ligne HelloAsso du club.
+  Future<void> updateOnlinePaymentConfig({
+    required String clubId,
+    required bool enabled,
+    String? organizationSlug,
+  }) async {
+    final slug = organizationSlug?.trim();
+    await _clubs.doc(clubId).update({
+      FirestoreFields.onlinePaymentEnabled: enabled,
+      if (slug != null && slug.isNotEmpty)
+        FirestoreFields.helloAssoOrganizationSlug: slug
+      else
+        FirestoreFields.helloAssoOrganizationSlug: FieldValue.delete(),
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
 }

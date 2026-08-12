@@ -19,3 +19,32 @@ int? parseAmountToCents(String input) {
   if (value == null || value < 0) return null;
   return (value * 100).round();
 }
+
+/// Libellés de saison scolaire / sportive (année N–N+1) autour de [aroundYear].
+List<String> feeSeasonLabelOptions([DateTime? around]) {
+  final year = (around ?? DateTime.now()).year;
+  final start = year - 1;
+  return List.generate(4, (index) {
+    final from = start + index;
+    return '$from-${from + 1}';
+  });
+}
+
+/// Options de saison : liste standard + [current] s'il est hors liste (legacy).
+List<String> feeSeasonLabelChoices(String? current, [DateTime? around]) {
+  final options = feeSeasonLabelOptions(around);
+  if (current == null || current.isEmpty || options.contains(current)) {
+    return options;
+  }
+  return [current, ...options];
+}
+
+/// Choisit un libellé valide parmi [feeSeasonLabelChoices], sinon la saison courante.
+String resolveFeeSeasonLabel(String? current, [DateTime? around]) {
+  final options = feeSeasonLabelChoices(current, around);
+  if (current != null && options.contains(current)) return current;
+  final year = (around ?? DateTime.now()).year;
+  final preferred = '$year-${year + 1}';
+  if (options.contains(preferred)) return preferred;
+  return options.first;
+}

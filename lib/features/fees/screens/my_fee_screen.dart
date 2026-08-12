@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/project_config.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
-import 'package:viro_team_v2/features/fees/widgets/fee_checkout_sheet.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_status_chip.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
-import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
@@ -72,7 +74,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
       ),
       body: feeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const ViroErrorState(
+        error: (error, stackTrace) => const ViroErrorState(
           message: 'Impossible de charger la cotisation',
         ),
         data: (data) {
@@ -122,42 +124,6 @@ class _FeeContent extends ConsumerWidget {
   final MemberFee fee;
   final String clubId;
 
-  Future<void> _pay(BuildContext context, WidgetRef ref) async {
-    final payment = ref.read(paymentServiceProvider);
-    final result = await showModalBottomSheet<PaymentCheckoutResult>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) => FeeCheckoutSheet(
-        season: season,
-        fee: fee,
-        onConfirm: ({
-          required int cardAmountCents,
-          required int installmentCount,
-          required List<FeeAidDraft> aids,
-        }) {
-          return payment.createCheckout(
-            clubId: clubId,
-            seasonId: season.id,
-            memberId: fee.memberId,
-            amountCents: cardAmountCents,
-            currency: season.currency,
-            installmentCount: installmentCount,
-            aids: aids,
-          );
-        },
-      ),
-    );
-    if (!context.mounted || result == null) return;
-    ViroSnackBar.show(
-      context,
-      result.message ??
-          (result.status == PaymentCheckoutStatus.started
-              ? 'Paiement HelloAsso ouvert'
-              : 'Paiement indisponible'),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
@@ -165,9 +131,10 @@ class _FeeContent extends ConsumerWidget {
     final tier = fee.resolveTier(season);
     final amount = fee.amountDueCents(season);
     final remaining = fee.remainingCents(season);
-    final cardAmount = fee.cardCheckoutCents(season);
     final deadline = season.paymentDeadlineAt;
-    final payment = ref.watch(paymentServiceProvider);
+    final club = ref.watch(clubProvider(clubId)).value;
+    final onlinePaymentEnabled = FeatureFlags.inAppPayments &&
+        (club?.onlinePaymentEnabled ?? false);
     final canPay = display == MemberFeeDisplayStatus.aPayer ||
         display == MemberFeeDisplayStatus.enRetard ||
         display == MemberFeeDisplayStatus.partiel;
@@ -376,15 +343,11 @@ class _FeeContent extends ConsumerWidget {
             ),
         ],
 
-        if (canPay) ...[
+        if (canPay && onlinePaymentEnabled) ...[
           const SizedBox(height: ViroSpacing.lg),
           ViroPrimaryButton(
-            label: payment.isInAppPaymentEnabled
-                ? (cardAmount > 0
-                    ? 'Payer ${formatFeeAmountCents(cardAmount)}'
-                    : 'Déclarer une aide / payer')
-                : 'Payer en ligne (bientôt)',
-            onPressed: () => _pay(context, ref),
+            label: 'Payer en ligne',
+            onPressed: () => context.push(AppRoutes.clubFeePayPath(clubId)),
           ),
         ],
 
@@ -473,12 +436,11 @@ class _FeeContent extends ConsumerWidget {
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: Text(
-                  payment.isInAppPaymentEnabled
-                      ? 'Le paiement HelloAsso met à jour le statut après '
-                          'confirmation serveur (webhook). Les aides restent '
-                          'en attente de justificatif jusqu\'à validation du trésorier.'
-                      : 'Le paiement en ligne arrive bientôt. En attendant, '
-                          'suivez les consignes du club ; seuls les administrateurs '
+                  onlinePaymentEnabled
+                      ? 'Le paiement en ligne via HelloAsso sera bientôt '
+                          'disponible. En attendant, suivez les consignes du club.'
+                      : 'Le paiement en ligne n\'est pas proposé par le club. '
+                          'Suivez les consignes ci-dessus ; seuls les administrateurs '
                           'confirment qu\'une cotisation est réglée.',
                   style: theme.bodySmall?.copyWith(
                     color: ViroColors.gray600,

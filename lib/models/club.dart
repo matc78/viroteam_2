@@ -37,6 +37,7 @@ class Club {
     this.adminIds = const [],
     this.memberCount = 0,
     this.helloAssoOrganizationSlug,
+    this.onlinePaymentEnabled = false,
     this.createdAt,
   });
 
@@ -54,6 +55,8 @@ class Club {
   final List<String> adminIds;
   final int memberCount;
   final String? helloAssoOrganizationSlug;
+  /// Paiement en ligne HelloAsso proposé aux membres (défaut : désactivé).
+  final bool onlinePaymentEnabled;
   final DateTime? createdAt;
 
   factory Club.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -85,6 +88,8 @@ class Club {
       memberCount: (data[FirestoreFields.memberCount] as num?)?.toInt() ?? 0,
       helloAssoOrganizationSlug:
           data[FirestoreFields.helloAssoOrganizationSlug] as String?,
+      onlinePaymentEnabled:
+          data[FirestoreFields.onlinePaymentEnabled] as bool? ?? false,
       createdAt: (data[FirestoreFields.createdAt] as Timestamp?)?.toDate(),
     );
   }

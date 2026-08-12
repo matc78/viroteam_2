@@ -17,6 +17,7 @@ import 'package:viro_team_v2/features/calendar/screens/calendar_sync_screen.dart
 import 'package:viro_team_v2/features/club/screens/club_detail_screen.dart';
 import 'package:viro_team_v2/features/fees/screens/admin_fees_screen.dart';
 import 'package:viro_team_v2/features/fees/screens/my_fee_screen.dart';
+import 'package:viro_team_v2/features/fees/screens/payment_soon_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/add_event_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/club_planning_screen.dart';
 import 'package:viro_team_v2/features/members/screens/club_members_screen.dart';
@@ -85,6 +86,8 @@ abstract final class AppRoutes {
 
   static const clubMyFee = '/club/:clubId/fees/mine';
 
+  static const clubFeePay = '/club/:clubId/fees/pay';
+
   static const clubCalendarSync = '/club/:clubId/calendar-sync';
 
   static const designPreview = '/dev/design';
@@ -108,6 +111,8 @@ abstract final class AppRoutes {
   static String clubFeesPath(String clubId) => '/club/$clubId/fees';
 
   static String clubMyFeePath(String clubId) => '/club/$clubId/fees/mine';
+
+  static String clubFeePayPath(String clubId) => '/club/$clubId/fees/pay';
 
   static String clubCalendarSyncPath(String clubId, {String? eventId}) {
     final base = '/club/$clubId/calendar-sync';
@@ -490,6 +495,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final clubId = state.pathParameters['clubId']!;
 
           return MyFeeScreen(clubId: clubId);
+
+        },
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.clubFeePay,
+
+        builder: (_, state) {
+
+          return const PaymentSoonScreen();
 
         },
 

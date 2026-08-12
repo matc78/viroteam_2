@@ -38,6 +38,7 @@ class Club {
     this.memberCount = 0,
     this.helloAssoOrganizationSlug,
     this.onlinePaymentEnabled = false,
+    this.seasonEndDate,
     this.createdAt,
   });
 
@@ -57,6 +58,8 @@ class Club {
   final String? helloAssoOrganizationSlug;
   /// Paiement en ligne HelloAsso proposé aux membres (défaut : désactivé).
   final bool onlinePaymentEnabled;
+  /// Fin de saison sportive (récurrence planning).
+  final DateTime? seasonEndDate;
   final DateTime? createdAt;
 
   factory Club.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -90,6 +93,8 @@ class Club {
           data[FirestoreFields.helloAssoOrganizationSlug] as String?,
       onlinePaymentEnabled:
           data[FirestoreFields.onlinePaymentEnabled] as bool? ?? false,
+      seasonEndDate:
+          (data[FirestoreFields.seasonEndDate] as Timestamp?)?.toDate(),
       createdAt: (data[FirestoreFields.createdAt] as Timestamp?)?.toDate(),
     );
   }

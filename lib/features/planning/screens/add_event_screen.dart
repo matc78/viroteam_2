@@ -15,6 +15,7 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
+import 'package:viro_team_v2/utils/season_end.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -51,6 +52,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
   bool get _isMatch => _type == EventTypes.match;
   bool get _isTraining => _type == EventTypes.training;
 
+  /// Fin de saison résolue (club ou défaut), bornée au jour de l'événement.
+  DateTime _seasonRecurrenceEndFor(DateTime eventDay) {
+    final club = ref.read(clubProvider(widget.clubId)).value;
+    final seasonEnd = resolveSeasonEndDate(club?.seasonEndDate, eventDay);
+    return recurrenceEndForEventDay(eventDay, seasonEnd);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -74,7 +82,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
       context: context,
       locale: const Locale('fr', 'FR'),
       initialDate: isRecurrenceEnd
-          ? (_recurrenceEndDate ?? _date.add(const Duration(days: 28)))
+          ? (_recurrenceEndDate ?? _seasonRecurrenceEndFor(_date))
           : _date,
       firstDate: isRecurrenceEnd ? _date : DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
@@ -86,7 +94,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
       } else {
         _date = picked;
         if (_recurrenceEndDate != null && _recurrenceEndDate!.isBefore(_date)) {
-          _recurrenceEndDate = _date.add(const Duration(days: 28));
+          _recurrenceEndDate = _seasonRecurrenceEndFor(_date);
         }
       }
     });
@@ -478,16 +486,16 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   value: _isRecurring,
                   onChanged: _saving
                       ? null
-                      : (v) => setState(() {
+                          : (v) => setState(() {
                             _isRecurring = v;
                             if (v && _recurrenceEndDate == null) {
                               _recurrenceEndDate =
-                                  _date.add(const Duration(days: 28));
+                                  _seasonRecurrenceEndFor(_date);
                             }
                           }),
                 ),
                 if (_isRecurring) ...[
-                  const _FieldLabel('Date de fin'),
+                  const _FieldLabel('Fin de saison'),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
@@ -495,6 +503,9 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                           ? DateFormat('EEEE dd/MM/yyyy', 'fr_FR')
                               .format(_recurrenceEndDate!)
                           : 'Choisir une date',
+                    ),
+                    subtitle: const Text(
+                      'Par défaut : fin de saison du club',
                     ),
                     trailing: ViroIcon(
                       ViroIcons.calendar,

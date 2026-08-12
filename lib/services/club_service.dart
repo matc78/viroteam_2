@@ -8,6 +8,7 @@ import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
+import 'package:viro_team_v2/utils/season_end.dart';
 
 class ClubService {
   ClubService({
@@ -111,6 +112,7 @@ class ClubService {
             draft.practiceLocations.map((l) => l.toMap()).toList(),
         FirestoreFields.adminIds: [founderUid],
         FirestoreFields.memberCount: 1,
+        FirestoreFields.seasonEndDate: Timestamp.fromDate(defaultSeasonEndDate()),
         FirestoreFields.createdAt: FieldValue.serverTimestamp(),
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       });

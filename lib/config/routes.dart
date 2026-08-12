@@ -20,6 +20,7 @@ import 'package:viro_team_v2/features/fees/screens/my_fee_screen.dart';
 import 'package:viro_team_v2/features/fees/screens/payment_soon_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/add_event_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/club_planning_screen.dart';
+import 'package:viro_team_v2/features/planning/screens/member_planning_screen.dart';
 import 'package:viro_team_v2/features/members/screens/club_members_screen.dart';
 import 'package:viro_team_v2/features/teams/screens/manage_teams_screen.dart';
 import 'package:viro_team_v2/features/teams/screens/my_teams_screen.dart';
@@ -63,6 +64,8 @@ abstract final class AppRoutes {
   static const clubSetup = '/club-setup';
 
   static const home = '/home';
+
+  static const memberPlanning = '/planning';
 
   static const profile = '/profile';
 
@@ -353,6 +356,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.home,
 
         builder: (_, _) => const HomeMemberScreen(),
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.memberPlanning,
+
+        builder: (_, _) => const MemberPlanningScreen(),
 
       ),
 

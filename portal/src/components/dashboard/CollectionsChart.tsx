@@ -1,6 +1,7 @@
-import type { CollectionMonth } from "@/lib/dashboard/mockHome";
+import type { CollectionMonth } from "@/lib/firebase/homeService";
 import styles from "./CollectionsChart.module.css";
 
+/** Props du graphe encaissements mensuels. */
 type CollectionsChartProps = {
   months: CollectionMonth[];
 };

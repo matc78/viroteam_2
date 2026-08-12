@@ -1,6 +1,7 @@
-import type { HomeKpi } from "@/lib/dashboard/mockHome";
+import type { HomeKpi } from "@/lib/firebase/homeService";
 import styles from "./KpiCard.module.css";
 
+/** Props d'une carte indicateur cle. */
 type KpiCardProps = {
   kpi: HomeKpi;
 };

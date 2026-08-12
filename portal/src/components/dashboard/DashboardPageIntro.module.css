@@ -1,0 +1,26 @@
+.intro {
+  margin-bottom: var(--space-xl);
+}
+
+.eyebrow {
+  margin-bottom: var(--space-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary-600);
+}
+
+.heading {
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-primary-900);
+}
+
+.lead {
+  margin-top: var(--space-sm);
+  font-size: 1.05rem;
+  color: var(--color-gray-600);
+  line-height: 1.5;
+}

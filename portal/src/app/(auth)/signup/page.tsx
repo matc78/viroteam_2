@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AuthShell } from "@/components/auth/AuthShell";
+import { AuthPageIntro } from "@/components/auth/AuthPageIntro";
 import { SignupForm } from "@/components/auth/SignupForm";
 
 export const metadata: Metadata = {
@@ -7,16 +7,16 @@ export const metadata: Metadata = {
   description: "Crée ton compte pour l’espace club ViroTeam.",
 };
 
-/** Page d’inscription — UI seule, redirect /home. */
+/** Page d’inscription Firebase Auth. */
 export default function SignupPage() {
   return (
-    <AuthShell
-      accent="orange"
-      eyebrow="Espace club"
-      title="Inscription"
-      lead="Crée ton compte pour rejoindre l’espace club."
-    >
+    <>
+      <AuthPageIntro
+        eyebrow="Espace club"
+        title="Inscription"
+        lead="Crée ton compte. L’espace web est réservé aux administrateurs de club."
+      />
       <SignupForm />
-    </AuthShell>
+    </>
   );
 }

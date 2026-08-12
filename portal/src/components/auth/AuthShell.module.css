@@ -25,6 +25,13 @@
   border: 2px solid var(--panel-accent, var(--color-sport-cyan));
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(6px);
+  overflow: hidden;
+  transition: border-color 320ms ease;
+}
+
+.panelContent {
+  display: flex;
+  flex-direction: column;
 }
 
 .panelCyan {

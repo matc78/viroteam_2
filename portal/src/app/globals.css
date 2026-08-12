@@ -33,12 +33,46 @@
 
   /* Semantic */
   --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
 
   /* Sport accents — landing dynamism */
   --color-sport-orange: #ff6b2c;
   --color-sport-green: #22c55e;
   --color-sport-cyan: #0ea5e9;
   --color-sport-yellow: #facc15;
+
+  /* Cotisations — statut « à payer » (orange tirant vers le rouge) */
+  --color-fee-due: #dc4426;
+  --color-fee-due-soft: #fde8e4;
+
+  /*
+   * Tones dashboard — sections / badges colorés.
+   * Utilisation : data-tone="blue|amber|green|orange" ou classes .badge-*
+   */
+  --tone-blue: #1a5f9e;
+  --tone-blue-soft: #d4e4f4;
+  --tone-blue-border: #5e8dbf;
+  --tone-blue-surface: color-mix(in srgb, var(--tone-blue-soft) 55%, white);
+  --tone-blue-text: #0b3358;
+
+  --tone-amber: #f59e0b;
+  --tone-amber-soft: #fef3c7;
+  --tone-amber-border: #fbbf24;
+  --tone-amber-surface: color-mix(in srgb, var(--tone-amber-soft) 70%, white);
+  --tone-amber-text: #92400e;
+
+  --tone-green: #059669;
+  --tone-green-soft: #d1fae5;
+  --tone-green-border: #34d399;
+  --tone-green-surface: color-mix(in srgb, var(--tone-green-soft) 65%, white);
+  --tone-green-text: #065f46;
+
+  --tone-orange: #ea580c;
+  --tone-orange-soft: #ffedd5;
+  --tone-orange-border: #fb923c;
+  --tone-orange-surface: color-mix(in srgb, var(--tone-orange-soft) 70%, white);
+  --tone-orange-text: #9a3412;
 
   /* Spacing (8px grid) */
   --space-xs: 0.25rem;
@@ -55,7 +89,10 @@
   --radius-lg: 1.5rem;
 
   --shadow-soft: 0 12px 40px color-mix(in srgb, var(--color-primary-900) 8%, transparent);
+  --shadow-card: 0 4px 14px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
+    0 1px 3px color-mix(in srgb, var(--color-primary-900) 5%, transparent);
   --max-width: 72rem;
+  --dashboard-max-width: 68rem;
   --header-height: 4.25rem;
 }
 
@@ -133,6 +170,45 @@ button {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Badges thématiques réutilisables */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.badge-blue {
+  color: var(--tone-blue-text);
+  background: var(--tone-blue-soft);
+  border-color: var(--tone-blue-border);
+}
+
+.badge-amber {
+  color: var(--tone-amber-text);
+  background: var(--tone-amber-soft);
+  border-color: var(--tone-amber-border);
+}
+
+.badge-green {
+  color: var(--tone-green-text);
+  background: var(--tone-green-soft);
+  border-color: var(--tone-green-border);
+}
+
+.badge-orange {
+  color: var(--tone-orange-text);
+  background: var(--tone-orange-soft);
+  border-color: var(--tone-orange-border);
 }
 
 #fonctionnalites {

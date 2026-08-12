@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { DecorShapes } from "@/components/landing/DecorShapes";
+import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -29,8 +30,10 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={inter.className}>
-        <DecorShapes />
-        <div className="app-root">{children}</div>
+        <Providers>
+          <DecorShapes />
+          <div className="app-root">{children}</div>
+        </Providers>
       </body>
     </html>
   );

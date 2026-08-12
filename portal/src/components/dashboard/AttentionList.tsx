@@ -1,6 +1,7 @@
-import type { AttentionItem } from "@/lib/dashboard/mockHome";
+import type { AttentionItem } from "@/lib/firebase/homeService";
 import styles from "./AttentionList.module.css";
 
+/** Props de la liste d'alertes club. */
 type AttentionListProps = {
   items: AttentionItem[];
 };

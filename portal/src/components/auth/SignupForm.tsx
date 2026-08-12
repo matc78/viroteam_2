@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
+import { AuthDivider, GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { handleGoogleAuthError } from "@/lib/auth/handleGoogleAuthError";
+import { usePostAuthRedirect } from "@/lib/auth/usePostAuthRedirect";
+import { validateEmail } from "@/lib/auth/validateEmail";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import styles from "./AuthForm.module.css";
 
 type FieldErrors = {
@@ -10,41 +14,49 @@ type FieldErrors = {
   email?: string;
   password?: string;
   confirmPassword?: string;
+  form?: string;
 };
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/** Formulaire d’inscription UI — redirige vers /home après validation. */
+/** Formulaire d’inscription Firebase Auth + profil users/{uid}. */
 export function SignupForm() {
-  const router = useRouter();
+  return (
+    <Suspense fallback={<p>Chargement…</p>}>
+      <SignupFormContent />
+    </Suspense>
+  );
+}
+
+function SignupFormContent() {
+  const { signUp, signInWithGoogle } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  usePostAuthRedirect({ accessDeniedFromSignup: true });
 
   function validate(): FieldErrors {
-    const next: FieldErrors = {};
+    const nextErrors: FieldErrors = {};
     if (!displayName.trim()) {
-      next.displayName = "Le nom est requis.";
+      nextErrors.displayName = "Le nom est requis.";
     }
-    if (!email.trim()) {
-      next.email = "L’e-mail est requis.";
-    } else if (!EMAIL_PATTERN.test(email.trim())) {
-      next.email = "Saisis un e-mail valide.";
-    }
+    const emailError = validateEmail(email);
+    if (emailError) nextErrors.email = emailError;
     if (!password) {
-      next.password = "Le mot de passe est requis.";
+      nextErrors.password = "Le mot de passe est requis.";
     } else if (password.length < 8) {
-      next.password = "Au moins 8 caractères.";
+      nextErrors.password = "Au moins 8 caractères.";
     }
     if (!confirmPassword) {
-      next.confirmPassword = "Confirme ton mot de passe.";
+      nextErrors.confirmPassword = "Confirme ton mot de passe.";
     } else if (confirmPassword !== password) {
-      next.confirmPassword = "Les mots de passe ne correspondent pas.";
+      nextErrors.confirmPassword = "Les mots de passe ne correspondent pas.";
     }
-    return next;
+    return nextErrors;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -54,8 +66,31 @@ export function SignupForm() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    router.push("/home");
+    try {
+      await signUp({ email, password, displayName });
+    } catch (error) {
+      setErrors({
+        form:
+          error instanceof Error
+            ? error.message
+            : "Inscription impossible.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleGoogleSignUp() {
+    setErrors({});
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle({ createProfileIfMissing: true });
+    } catch (error) {
+      const result = handleGoogleAuthError(error, "Inscription Google impossible.");
+      if (result.emailToPrefill) setEmail(result.emailToPrefill);
+      setErrors({ form: result.formMessage });
+      if (result.shouldStopLoading) setGoogleLoading(false);
+    }
   }
 
   return (
@@ -71,7 +106,7 @@ export function SignupForm() {
             type="text"
             name="displayName"
             autoComplete="name"
-            placeholder="Alex Dupont"
+            placeholder="Tristan Heraud"
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
             aria-invalid={Boolean(errors.displayName)}
@@ -113,20 +148,42 @@ export function SignupForm() {
           <label className={styles.label} htmlFor="signup-password">
             Mot de passe
           </label>
-          <input
-            id="signup-password"
-            className={`${styles.input}${errors.password ? ` ${styles.inputInvalid}` : ""}`}
-            type="password"
-            name="password"
-            autoComplete="new-password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            aria-invalid={Boolean(errors.password)}
+          <div className={styles.passwordField}>
+            <input
+              id="signup-password"
+              className={`${styles.input}${errors.password ? ` ${styles.inputInvalid}` : ""}`}
+              type={showPassword ? "text" : "password"}
+              name="password"
+              autoComplete="new-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={Boolean(errors.password)}
             aria-describedby={
               errors.password ? "signup-password-error" : undefined
             }
-          />
+            />
+            <button
+              type="button"
+              className={styles.passwordToggle}
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={
+                showPassword
+                  ? "Masquer le mot de passe"
+                  : "Afficher le mot de passe"
+              }
+            >
+              {showPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+                  <path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.14C55.46,186.53,83.34,200,112,200a117.55,117.55,0,0,0,32.9-4.73l30.17,33.17a8,8,0,1,0,11.84-10.76ZM128,184c-22.09,0-42.15-9.15-58.25-26.08a133.16,133.16,0,0,1-18.22-24.47L76.69,152A32,32,0,0,0,128,184Z" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+                  <path d="M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.14C202.57,57.67,174.69,44,144,44S85.43,57.67,66.34,86.62C47.51,105.18,39,124,38.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.14C85.43,198.33,113.31,212,144,212s58.57-13.67,77.66-42.62c18.83-18.57,27.3-37.35,27.65-38.14A8,8,0,0,0,247.31,124.76ZM144,196c-22.09,0-42.15-9.15-58.25-26.08a133.16,133.16,0,0,1-18.22-24.47A133.16,133.16,0,0,1,85.75,121.08C101.85,104.15,121.91,95,144,95s42.15,9.15,58.25,26.08a133.16,133.16,0,0,1,18.22,24.47A133.16,133.16,0,0,1,202.25,169.92C186.15,186.85,166.09,196,144,196Zm0-84a32,32,0,1,0,32,32A32,32,0,0,0,144,112Zm0,48a16,16,0,1,1,16-16A16,16,0,0,1,144,160Z" />
+                </svg>
+              )}
+            </button>
+          </div>
           {errors.password ? (
             <p id="signup-password-error" className={styles.error} role="alert">
               {errors.password}
@@ -159,10 +216,24 @@ export function SignupForm() {
           ) : null}
         </div>
 
-        <button className={styles.submit} type="submit" disabled={submitting}>
+        {errors.form ? (
+          <p className={styles.error} role="alert">
+            {errors.form}
+          </p>
+        ) : null}
+
+        <button className={styles.submit} type="submit" disabled={submitting || googleLoading}>
           {submitting ? "Création…" : "Créer mon compte"}
         </button>
       </form>
+
+      <AuthDivider />
+
+      <GoogleSignInButton
+        onClick={handleGoogleSignUp}
+        loading={googleLoading}
+        disabled={submitting}
+      />
 
       <p className={styles.switch}>
         Déjà un compte ?{" "}

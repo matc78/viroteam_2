@@ -1,6 +1,7 @@
-import type { UpcomingEvent } from "@/lib/dashboard/mockHome";
+import type { UpcomingEvent } from "@/lib/firebase/homeService";
 import styles from "./UpcomingEvents.module.css";
 
+/** Props de la liste d'evenements a venir. */
 type UpcomingEventsProps = {
   events: UpcomingEvent[];
 };

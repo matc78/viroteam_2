@@ -11,12 +11,14 @@ import {
   FeeTierDraft,
   tiersDraftToFeeTiers,
 } from "@/lib/dashboard/feesConfig";
-import { updateOnlinePaymentConfig } from "@/lib/firebase/clubService";
+import { updateClubSeasonEndDate, updateOnlinePaymentConfig } from "@/lib/firebase/clubService";
 import {
   createSeason,
   parseDateInput,
   updateSeason,
 } from "@/lib/firebase/feeService";
+import { defaultSeasonEndDate } from "@/lib/planning/seasonEnd";
+import panelStyles from "./DashboardPanel.module.css";
 import styles from "./FeesConfigForm.module.css";
 
 /** Props du formulaire de configuration cotisations. */
@@ -29,6 +31,14 @@ type FeesConfigFormProps = {
 
 const SEASON_LABEL_OPTIONS = buildSeasonLabelOptions();
 const TOAST_DURATION_MS = 3200;
+
+/** Formate une date locale en `YYYY-MM-DD`. */
+function toDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 /** Formulaire de configuration cotisations (saison + HelloAsso → Firestore). */
 export function FeesConfigForm({
@@ -51,6 +61,9 @@ export function FeesConfigForm({
   const [paymentDeadline, setPaymentDeadline] = useState(
     initial.paymentDeadline,
   );
+  const [seasonEndDate, setSeasonEndDate] = useState(
+    initial.seasonEndDate || toDateInputValue(defaultSeasonEndDate()),
+  );
   const [paymentInstructions, setPaymentInstructions] = useState(
     initial.paymentInstructions,
   );
@@ -72,11 +85,18 @@ export function FeesConfigForm({
 
   const canSave = useMemo(() => {
     if (!seasonLabel.trim()) return false;
+    if (!seasonEndDate) return false;
     if (tiers.length === 0) return false;
     if (tiers.some((tier) => !tier.label.trim() || tier.amountCents <= 0)) return false;
     if (onlinePaymentEnabled && !helloAssoOrganizationSlug.trim()) return false;
     return true;
-  }, [seasonLabel, tiers, onlinePaymentEnabled, helloAssoOrganizationSlug]);
+  }, [
+    seasonLabel,
+    seasonEndDate,
+    tiers,
+    onlinePaymentEnabled,
+    helloAssoOrganizationSlug,
+  ]);
 
   function setOnlinePayment(enabled: boolean) {
     setOnlinePaymentEnabled(enabled);
@@ -150,6 +170,14 @@ export function FeesConfigForm({
         organizationSlug: helloAssoOrganizationSlug,
       });
 
+      const parsedSeasonEnd = parseDateInput(seasonEndDate);
+      if (parsedSeasonEnd) {
+        await updateClubSeasonEndDate({
+          clubId,
+          seasonEndDate: parsedSeasonEnd,
+        });
+      }
+
       setToast("Enregistré dans Firestore");
       onSaved?.();
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -175,18 +203,15 @@ export function FeesConfigForm({
       ) : null}
 
       <section
-        className={styles.section}
+        className={`${panelStyles.panel} ${styles.section}`}
         data-tone="blue"
         aria-labelledby="fees-season"
       >
-        <div className={styles.titleRow}>
-          <h2 id="fees-season" className={styles.sectionTitle}>
-            Saison
-          </h2>
-          <span className="badge badge-blue">Période</span>
-        </div>
+        <h2 id="fees-season" className={styles.sectionTitle}>
+          Saison
+        </h2>
         <p className={styles.sectionLead}>
-          Libellé, échéance et devise de la saison active.
+          Libellé, fin de saison sportive, échéance de paiement et devise.
         </p>
         <div className={styles.grid2}>
           <label className={styles.field}>
@@ -219,6 +244,16 @@ export function FeesConfigForm({
             </select>
           </label>
           <label className={styles.field}>
+            <span className={styles.label}>Fin de saison (planning)</span>
+            <input
+              className={styles.input}
+              type="date"
+              value={seasonEndDate}
+              onChange={(e) => setSeasonEndDate(e.target.value)}
+              required
+            />
+          </label>
+          <label className={styles.field}>
             <span className={styles.label}>Date limite de paiement</span>
             <input
               className={styles.input}
@@ -231,18 +266,15 @@ export function FeesConfigForm({
       </section>
 
       <section
-        className={styles.section}
+        className={`${panelStyles.panel} ${styles.section}`}
         data-tone="amber"
         aria-labelledby="fees-tiers"
       >
         <div className={styles.sectionHeader}>
           <div>
-            <div className={styles.titleRow}>
-              <h2 id="fees-tiers" className={styles.sectionTitle}>
-                Tarifs
-              </h2>
-              <span className="badge badge-amber">Grille</span>
-            </div>
+            <h2 id="fees-tiers" className={styles.sectionTitle}>
+              Tarifs
+            </h2>
             <p className={styles.sectionLead}>
               Grille des paliers proposés aux membres.
             </p>
@@ -303,16 +335,13 @@ export function FeesConfigForm({
       </section>
 
       <section
-        className={styles.section}
+        className={`${panelStyles.panel} ${styles.section}`}
         data-tone="green"
         aria-labelledby="fees-offline"
       >
-        <div className={styles.titleRow}>
-          <h2 id="fees-offline" className={styles.sectionTitle}>
-            Paiement hors ligne
-          </h2>
-          <span className="badge badge-green">Hors app</span>
-        </div>
+        <h2 id="fees-offline" className={styles.sectionTitle}>
+          Paiement hors ligne
+        </h2>
         <p className={styles.sectionLead}>
           Consignes, IBAN et moyens acceptés hors HelloAsso.
         </p>
@@ -361,18 +390,15 @@ export function FeesConfigForm({
       </section>
 
       <section
-        className={styles.section}
+        className={`${panelStyles.panel} ${styles.section}`}
         data-tone="orange"
         data-enabled={onlinePaymentEnabled ? "true" : "false"}
         aria-labelledby="fees-helloasso"
       >
         <div className={styles.sectionTop}>
-          <div className={styles.titleRow}>
-            <h2 id="fees-helloasso" className={styles.sectionTitle}>
-              HelloAsso
-            </h2>
-            <span className="badge badge-orange">En ligne</span>
-          </div>
+          <h2 id="fees-helloasso" className={styles.sectionTitle}>
+            HelloAsso
+          </h2>
           <label className={styles.toggle}>
             <span className={styles.toggleLabel}>
               {onlinePaymentEnabled ? "Activé" : "Désactivé"}

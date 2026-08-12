@@ -5,6 +5,7 @@ import type {
   FeeTier,
 } from "@/lib/firebase/feeService";
 import { formatDateInput } from "@/lib/firebase/feeService";
+import { resolveSeasonEndDate } from "@/lib/planning/seasonEnd";
 
 export type { FeePaymentMethod } from "@/lib/firebase/feeService";
 
@@ -23,6 +24,8 @@ export type FeesConfig = {
   currency: string;
   /** ISO date `YYYY-MM-DD` ou chaîne vide. */
   paymentDeadline: string;
+  /** Fin de saison sportive (planning / récurrence), ISO date. */
+  seasonEndDate: string;
   paymentInstructions: string;
   iban: string;
   paymentMethods: FeePaymentMethod[];
@@ -71,13 +74,16 @@ export function tiersDraftToFeeTiers(tiers: FeeTierDraft[]): FeeTier[] {
 export function emptyFeesConfig(params: {
   onlinePaymentEnabled?: boolean;
   helloAssoOrganizationSlug?: string;
+  seasonEndDate?: Date | null;
 }): FeesConfig {
   const seasonOptions = buildSeasonLabelOptions();
+  const seasonEnd = resolveSeasonEndDate(params.seasonEndDate ?? null);
   return {
     seasonId: null,
     seasonLabel: seasonOptions[1] ?? seasonOptions[0] ?? "",
     currency: "EUR",
     paymentDeadline: "",
+    seasonEndDate: formatDateInput(seasonEnd),
     paymentInstructions: "",
     iban: "",
     paymentMethods: ["virement", "cheque", "especes"],
@@ -92,11 +98,13 @@ export function seasonRecordToFeesConfig(
   season: FeeSeasonRecord,
   club: ClubRecord,
 ): FeesConfig {
+  const seasonEnd = resolveSeasonEndDate(club.seasonEndDate);
   return {
     seasonId: season.id,
     seasonLabel: season.seasonLabel,
     currency: season.currency || "EUR",
     paymentDeadline: formatDateInput(season.paymentDeadlineAt),
+    seasonEndDate: formatDateInput(seasonEnd) || "",
     paymentInstructions: season.paymentInstructions,
     iban: season.iban,
     paymentMethods: season.paymentMethods,

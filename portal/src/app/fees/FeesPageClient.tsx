@@ -22,6 +22,7 @@ async function loadFeesConfigForClub(club: ClubRecord): Promise<FeesConfig> {
     return emptyFeesConfig({
       onlinePaymentEnabled: club.onlinePaymentEnabled,
       helloAssoOrganizationSlug: club.helloAssoOrganizationSlug,
+      seasonEndDate: club.seasonEndDate,
     });
   }
   return seasonRecordToFeesConfig(season, club);

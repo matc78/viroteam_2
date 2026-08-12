@@ -18,17 +18,11 @@
   --section-focus: var(--color-primary-400);
   --section-button-border: var(--color-primary-200);
   --section-button-text: var(--color-primary-800);
-
-  padding: var(--space-lg);
-  border: 2px solid var(--section-border);
-  border-radius: var(--radius-md);
-  background: var(--section-surface);
-  box-shadow: var(--shadow-card);
 }
 
 .section[data-tone="blue"] {
   --section-accent: var(--tone-blue);
-  --section-border: var(--tone-blue-border);
+  --section-border: color-mix(in srgb, var(--tone-blue-border) 42%, var(--color-gray-200));
   --section-surface: var(--color-surface-card);
   --section-title: var(--tone-blue-text);
   --section-label: var(--tone-blue-text);
@@ -44,7 +38,7 @@
 
 .section[data-tone="amber"] {
   --section-accent: var(--tone-amber);
-  --section-border: var(--tone-amber-border);
+  --section-border: color-mix(in srgb, var(--color-sport-yellow) 40%, var(--color-gray-200));
   --section-surface: var(--color-surface-card);
   --section-title: var(--tone-amber-text);
   --section-label: var(--tone-amber-text);
@@ -60,7 +54,7 @@
 
 .section[data-tone="green"] {
   --section-accent: var(--tone-green);
-  --section-border: var(--tone-green-border);
+  --section-border: color-mix(in srgb, var(--color-sport-green) 34%, var(--color-gray-200));
   --section-surface: var(--color-surface-card);
   --section-title: var(--tone-green-text);
   --section-label: var(--tone-green-text);
@@ -76,7 +70,7 @@
 
 .section[data-tone="orange"] {
   --section-accent: var(--tone-orange);
-  --section-border: var(--tone-orange-border);
+  --section-border: color-mix(in srgb, var(--color-sport-orange) 34%, var(--color-gray-200));
   --section-surface: var(--color-surface-card);
   --section-title: var(--tone-orange-text);
   --section-label: var(--tone-orange-text);
@@ -97,12 +91,6 @@
   --section-title: var(--color-gray-600);
   --section-label: var(--color-gray-600);
   --section-focus: var(--color-gray-400);
-}
-
-.section[data-tone="orange"][data-enabled="false"] .badge-orange {
-  color: var(--color-gray-600);
-  background: var(--color-gray-100);
-  border-color: var(--color-gray-300);
 }
 
 .sectionTop {
@@ -132,13 +120,6 @@
   justify-content: space-between;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
-}
-
-.titleRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-sm);
 }
 
 .sectionTitle {

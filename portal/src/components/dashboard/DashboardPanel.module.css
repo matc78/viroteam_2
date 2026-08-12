@@ -1,0 +1,46 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  border: 1.5px solid var(--panel-border, var(--color-gray-200));
+  box-shadow: 0 8px 24px var(--panel-shadow, color-mix(in srgb, var(--color-primary-900) 4%, transparent));
+  min-height: 100%;
+}
+
+.panel[data-tone="green"],
+.panel[data-tone="blue"] {
+  gap: var(--space-lg);
+}
+
+.panel[data-tone="green"] {
+  --panel-border: color-mix(in srgb, var(--color-sport-green) 34%, var(--color-gray-200));
+  --panel-shadow: color-mix(in srgb, var(--color-sport-green) 7%, transparent);
+}
+
+.panel[data-tone="blue"] {
+  --panel-border: color-mix(in srgb, var(--tone-blue-border) 42%, var(--color-gray-200));
+  --panel-shadow: color-mix(in srgb, var(--tone-blue) 7%, transparent);
+}
+
+.panel[data-tone="cyan"] {
+  --panel-border: color-mix(in srgb, var(--color-sport-cyan) 34%, var(--color-gray-200));
+  --panel-shadow: color-mix(in srgb, var(--color-sport-cyan) 7%, transparent);
+}
+
+.panel[data-tone="amber"] {
+  --panel-border: color-mix(in srgb, var(--color-sport-yellow) 40%, var(--color-gray-200));
+  --panel-shadow: color-mix(in srgb, var(--color-sport-yellow) 7%, transparent);
+}
+
+.panel[data-tone="orange"] {
+  --panel-border: color-mix(in srgb, var(--color-sport-orange) 34%, var(--color-gray-200));
+  --panel-shadow: color-mix(in srgb, var(--color-sport-orange) 7%, transparent);
+}
+
+.panel[data-tone="orange"][data-enabled="false"] {
+  --panel-border: var(--color-gray-300);
+  --panel-shadow: color-mix(in srgb, var(--color-primary-900) 4%, transparent);
+}

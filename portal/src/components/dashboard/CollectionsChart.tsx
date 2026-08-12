@@ -1,4 +1,5 @@
 import type { CollectionMonth } from "@/lib/firebase/homeService";
+import panelStyles from "./DashboardPanel.module.css";
 import styles from "./CollectionsChart.module.css";
 
 /** Props du graphe encaissements mensuels. */
@@ -27,7 +28,11 @@ export function CollectionsChart({ months }: CollectionsChartProps) {
   );
 
   return (
-    <section className={styles.panel} aria-labelledby="collections-title">
+    <section
+      className={panelStyles.panel}
+      data-tone="blue"
+      aria-labelledby="collections-title"
+    >
       <header className={styles.header}>
         <div>
           <h2 id="collections-title" className={styles.title}>

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { FeeStatusSegment } from "@/lib/firebase/homeService";
+import panelStyles from "./DashboardPanel.module.css";
 import styles from "./FeeStatusChart.module.css";
 
 /** Props du donut cotisations. */
@@ -27,7 +28,11 @@ export function FeeStatusChart({ segments }: FeeStatusChartProps) {
   }, [segments, total]);
 
   return (
-    <section className={styles.panel} aria-labelledby="fee-status-title">
+    <section
+      className={panelStyles.panel}
+      data-tone="green"
+      aria-labelledby="fee-status-title"
+    >
       <header className={styles.header}>
         <h2 id="fee-status-title" className={styles.title}>
           Cotisations

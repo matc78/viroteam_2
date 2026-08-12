@@ -1,4 +1,5 @@
 import type { AttentionItem } from "@/lib/firebase/homeService";
+import panelStyles from "./DashboardPanel.module.css";
 import styles from "./AttentionList.module.css";
 
 /** Props de la liste d'alertes club. */
@@ -9,7 +10,11 @@ type AttentionListProps = {
 /** Liste des alertes bureau à traiter (cotisations, aides, RSVP). */
 export function AttentionList({ items }: AttentionListProps) {
   return (
-    <section className={styles.panel} aria-labelledby="attention-title">
+    <section
+      className={panelStyles.panel}
+      data-tone="amber"
+      aria-labelledby="attention-title"
+    >
       <header className={styles.header}>
         <h2 id="attention-title" className={styles.title}>
           À traiter

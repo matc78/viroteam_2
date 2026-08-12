@@ -5,9 +5,11 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/auth/widgets/auth_social_buttons.dart';
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/auth_exceptions.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -32,6 +34,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
+  bool _googleLoading = false;
   String? _error;
   bool _prefillApplied = false;
 
@@ -119,17 +122,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       );
       await ref.read(userServiceProvider).createUserProfile(profile);
 
-      if (!mounted) return;
-      final intent = ref.read(signUpIntentProvider);
-      final pending = ref.read(pendingInvitationProvider);
-
-      if (intent == SignUpIntent.join && pending.hasInvitation) {
-        context.go(AppRoutes.joinPreview);
-      } else if (intent == SignUpIntent.founder) {
-        context.go(AppRoutes.clubSetup);
-      } else {
-        context.go(AppRoutes.entry);
-      }
+      await _navigateAfterSignUp();
     } catch (e) {
       setState(() => _error = 'Impossible de créer le compte. Réessayez.');
     } finally {
@@ -137,10 +130,83 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
   }
 
+  Future<void> _navigateAfterSignUp() async {
+    if (!mounted) return;
+    final intent = ref.read(signUpIntentProvider);
+    final pending = ref.read(pendingInvitationProvider);
+
+    if (intent == SignUpIntent.join && pending.hasInvitation) {
+      context.go(AppRoutes.joinPreview);
+    } else if (intent == SignUpIntent.founder) {
+      context.go(AppRoutes.clubSetup);
+    } else {
+      context.go(AppRoutes.entry);
+    }
+  }
+
+  Future<void> _signUpWithGoogle() async {
+    setState(() {
+      _googleLoading = true;
+      _error = null;
+    });
+
+    try {
+      final auth = ref.read(authServiceProvider);
+      final cred = await auth.signInWithGoogle();
+      final firebaseUser = cred.user;
+      if (firebaseUser == null) {
+        throw StateError('Utilisateur Firebase absent après Google Sign-In');
+      }
+
+      final userService = ref.read(userServiceProvider);
+      final existingProfile = await userService.getUser(firebaseUser.uid);
+
+      if (existingProfile == null) {
+        final email = firebaseUser.email?.trim() ?? '';
+        final names = splitGoogleDisplayName(firebaseUser.displayName);
+        final first = names.firstName.isNotEmpty
+            ? names.firstName
+            : _firstNameController.text.trim();
+        final last = names.lastName.isNotEmpty
+            ? names.lastName
+            : _lastNameController.text.trim();
+
+        final profile = ViroUser(
+          uid: firebaseUser.uid,
+          email: email,
+          emailNorm: email.toLowerCase(),
+          firstName: first,
+          lastName: last,
+          displayName: firebaseUser.displayName?.trim() ?? '$first $last'.trim(),
+          profileCompleted: false,
+        );
+        await userService.createUserProfile(profile);
+      }
+
+      await _navigateAfterSignUp();
+    } on EmailUsedWithPasswordException catch (error) {
+      final email = error.email?.trim();
+      if (email != null && email.isNotEmpty) {
+        _emailController.text = email;
+      }
+      setState(() {
+        _error =
+            'Un compte existe déjà avec cet e-mail. Connecte-toi avec ton mot de passe.';
+      });
+    } on AuthCanceledException {
+      // Annulation volontaire.
+    } catch (e) {
+      setState(() => _error = 'Inscription Google impossible. Réessayez.');
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final intent = ref.watch(signUpIntentProvider);
     final isJoin = intent == SignUpIntent.join;
+    final isBusy = _loading || _googleLoading;
 
     ref.listen(pendingInvitationProvider, (_, next) {
       if (isJoin) _applyInvitationPrefill(next);
@@ -164,14 +230,20 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               children: [
                 TextFormField(
                   controller: _firstNameController,
-                  decoration: const InputDecoration(labelText: 'Prénom'),
+                  decoration: const InputDecoration(
+                    labelText: 'Prénom',
+                    hintText: 'Tristan',
+                  ),
                   validator: (v) =>
                       v != null && v.trim().length >= 2 ? null : 'Requis',
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 TextFormField(
                   controller: _lastNameController,
-                  decoration: const InputDecoration(labelText: 'Nom'),
+                  decoration: const InputDecoration(
+                    labelText: 'Nom',
+                    hintText: 'Heraud',
+                  ),
                   validator: (v) =>
                       v != null && v.trim().length >= 2 ? null : 'Requis',
                 ),
@@ -204,7 +276,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 ViroPrimaryButton(
                   label: 'Créer mon compte',
                   isLoading: _loading,
-                  onPressed: _submit,
+                  onPressed: isBusy ? null : _submit,
+                ),
+                const AuthDivider(),
+                GoogleSignInButton(
+                  isLoading: _googleLoading,
+                  onPressed: isBusy ? null : _signUpWithGoogle,
                 ),
               ],
             ),

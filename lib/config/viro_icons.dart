@@ -33,6 +33,8 @@ abstract final class ViroIcons {
   static IconData get search => PhosphorIconsRegular.magnifyingGlass;
   static IconData get copy => PhosphorIconsRegular.copy;
   static IconData get moreVertical => PhosphorIconsRegular.dotsThreeVertical;
+  static IconData get eye => PhosphorIconsRegular.eye;
+  static IconData get eyeSlash => PhosphorIconsRegular.eyeSlash;
 
   // Compte
   static IconData get user => PhosphorIconsRegular.user;
@@ -46,6 +48,7 @@ abstract final class ViroIcons {
   static IconData get personOutline => PhosphorIconsRegular.user;
   static IconData get groups => PhosphorIconsRegular.usersThree;
   static IconData get key => PhosphorIconsRegular.key;
+  static IconData get google => PhosphorIconsFill.googleLogo;
   static IconData get share => PhosphorIconsRegular.shareNetwork;
   static IconData get calendarPlus => PhosphorIconsRegular.calendarPlus;
 

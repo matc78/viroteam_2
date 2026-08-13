@@ -23,15 +23,15 @@ import {
   loadPlanningPageData,
 } from "@/lib/firebase/eventService";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
+import {
+  arePlanningFiltersEqual,
+  emptyPlanningFilters,
+  readPlanningFilters,
+  sanitizePlanningFilters,
+  writePlanningFilters,
+} from "@/lib/planning/planningFiltersStorage";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import styles from "./page.module.css";
-
-const EMPTY_FILTERS: PlanningSidebarFilters = {
-  teamIds: [],
-  coachIds: [],
-  categories: [],
-  playerIds: [],
-};
 
 /** Contenu page planning branché sur Firestore. */
 function PlanningPageContent() {
@@ -41,7 +41,9 @@ function PlanningPageContent() {
 
   const [view, setView] = useState<CalendarView>("week");
   const [cursor, setCursor] = useState(() => dateOnly(new Date()));
-  const [filters, setFilters] = useState<PlanningSidebarFilters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<PlanningSidebarFilters>(emptyPlanningFilters);
+  /** Club auquel `filters` appartient — évite d'écrire le state A sous la clé B. */
+  const [filtersClubId, setFiltersClubId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<ClubEventView | null>(null);
   const [createEventDraft, setCreateEventDraft] = useState<CreateEventDraft | null>(
     null,
@@ -66,6 +68,34 @@ function PlanningPageContent() {
     [range.start.getTime(), range.end.getTime()],
   );
 
+  useEffect(() => {
+    if (!activeClub) {
+      setFilters(emptyPlanningFilters());
+      setFiltersClubId(null);
+      return;
+    }
+    setFilters(readPlanningFilters(activeClub.id));
+    setFiltersClubId(activeClub.id);
+  }, [activeClub?.id]);
+
+  useEffect(() => {
+    if (!activeClub || filtersClubId !== activeClub.id || !data) return;
+    const sanitized = sanitizePlanningFilters(filters, {
+      teamIds: new Set(data.teams.map((team) => team.id)),
+      coachIds: new Set(data.coaches.map((coach) => coach.id)),
+      categories: new Set(data.categories),
+      playerIds: new Set(data.players.map((player) => player.id)),
+    });
+    if (!arePlanningFiltersEqual(filters, sanitized)) {
+      setFilters(sanitized);
+    }
+  }, [activeClub, data, filters, filtersClubId]);
+
+  useEffect(() => {
+    if (!activeClub || filtersClubId !== activeClub.id) return;
+    writePlanningFilters(activeClub.id, filters);
+  }, [activeClub, filters, filtersClubId]);
+
   const eventBlocks = useMemo(() => {
     if (!data) return [];
     return expandEventsToLabelBlocks(
@@ -85,6 +115,14 @@ function PlanningPageContent() {
     setView("day");
     setSelectedEvent(matchedEvent);
   }, [data, initialEventId]);
+
+  const createEventPeople = useMemo(
+    () =>
+      [...(data?.players ?? []), ...(data?.coaches ?? []), ...(data?.admins ?? [])].sort(
+        (a, b) => a.name.localeCompare(b.name, "fr"),
+      ),
+    [data?.players, data?.coaches, data?.admins],
+  );
 
   function openCreateForDay(day: Date) {
     setCreateEventDraft({
@@ -165,6 +203,8 @@ function PlanningPageContent() {
           clubId={activeClub.id}
           creatorId={user.uid}
           teams={data?.teams ?? []}
+          categories={data?.categories ?? []}
+          people={createEventPeople}
           seasonEndDate={data?.seasonEndDate ?? null}
           onClose={() => setCreateEventDraft(null)}
           onCreated={reload}

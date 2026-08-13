@@ -6,6 +6,7 @@ import {
   eventTypeLabel,
   formatDayHeading,
   type EventType,
+  type PlanningPersonOption,
   type TeamOption,
 } from "@/lib/firebase/eventService";
 import {
@@ -13,6 +14,13 @@ import {
   resolveSeasonEndDate,
 } from "@/lib/planning/seasonEnd";
 import type { CreateEventDraft } from "./PlanningCalendar";
+import {
+  resolveGuestAudience,
+  type PlanningGuestSelection,
+} from "@/lib/planning/resolveGuestAudience";
+import { PlanningGuestPicker } from "./PlanningGuestPicker";
+import { PlanningSelect } from "./PlanningSelect";
+import { PlanningTimeSelect } from "./PlanningTimeSelect";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningNewEventDialog.module.css";
 
@@ -28,6 +36,8 @@ type PlanningNewEventDialogProps = {
   clubId: string;
   creatorId: string;
   teams: TeamOption[];
+  categories: string[];
+  people: PlanningPersonOption[];
   /** Fin de saison du club (sinon défaut 30 juin). */
   seasonEndDate?: Date | null;
   onClose: () => void;
@@ -162,6 +172,8 @@ export function PlanningNewEventDialog({
   clubId,
   creatorId,
   teams,
+  categories,
+  people,
   seasonEndDate = null,
   onClose,
   onCreated,
@@ -182,6 +194,7 @@ export function PlanningNewEventDialog({
   });
   const [type, setType] = useState<EventType>("training");
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
+  const [guests, setGuests] = useState<PlanningGuestSelection[]>([]);
   const [title, setTitle] = useState("");
   const [startTime, setStartTime] = useState(() =>
     snapToQuarterHour(initialStartTime, START_TIME_OPTIONS),
@@ -206,15 +219,31 @@ export function PlanningNewEventDialog({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const teamSelectOptions = useMemo(
+    () =>
+      teams.map((team) => ({
+        value: team.id,
+        label: team.category
+          ? `${team.name} (${team.category})`
+          : team.name,
+      })),
+    [teams],
+  );
+
   const selectedTeam = useMemo(
     () => teams.find((team) => team.id === teamId) ?? null,
     [teams, teamId],
   );
 
-  const needsTeam = type !== "other";
-  const needsCustomTitle = type === "other";
   const isMatch = type === "match";
   const isTraining = type === "training";
+  const isTournament = type === "tournament";
+  const isOther = type === "other";
+  const needsSingleTeam = isTraining || isMatch;
+  const guestAudience = useMemo(
+    () => resolveGuestAudience(guests, teams, people),
+    [guests, teams, people],
+  );
 
   useLayoutEffect(() => {
     function updatePosition() {
@@ -237,9 +266,11 @@ export function PlanningNewEventDialog({
     error,
     isMatch,
     isTraining,
+    isTournament,
+    isOther,
     isRecurring,
-    needsTeam,
-    needsCustomTitle,
+    needsSingleTeam,
+    guests.length,
   ]);
 
   function handleTypeChange(nextType: EventType) {
@@ -248,11 +279,20 @@ export function PlanningNewEventDialog({
     if (nextType !== "training") {
       setIsRecurring(false);
     }
-    if (nextType === "other") {
+    if (nextType === "other" || nextType === "tournament") {
       setTeamId("");
-      return;
+      setGuests([]);
+      if (nextType === "other") {
+        if (location === "Domicile" || location.trim() === "") {
+          setLocation("Stade du club");
+        }
+        return;
+      }
     }
-    if (!teamId && teams[0]) setTeamId(teams[0].id);
+    if (nextType === "training" || nextType === "match") {
+      setGuests([]);
+      if (!teamId && teams[0]) setTeamId(teams[0].id);
+    }
     if (nextType === "match") {
       setMatchVenue("home");
       setLocation("Domicile");
@@ -284,11 +324,15 @@ export function PlanningNewEventDialog({
     formEvent.preventDefault();
     if (saving) return;
 
-    if (needsTeam && !selectedTeam) {
+    if (needsSingleTeam && !selectedTeam) {
       setError("Choisissez une équipe.");
       return;
     }
-    if (needsCustomTitle && !title.trim()) {
+    if (isTournament && guests.length === 0) {
+      setError("Ajoutez au moins une équipe ou une catégorie.");
+      return;
+    }
+    if (isOther && !title.trim()) {
       setError("Titre requis.");
       return;
     }
@@ -331,6 +375,39 @@ export function PlanningNewEventDialog({
         : location.trim()
       : location.trim();
 
+    let resolvedTeamIds: string[] = [];
+    let resolvedMemberIds: string[] = [];
+    let resolvedTitle = eventTypeLabel(type);
+
+    if (needsSingleTeam && selectedTeam) {
+      resolvedTeamIds = [selectedTeam.id];
+      resolvedMemberIds = selectedTeam.playerIds;
+      resolvedTitle = `${eventTypeLabel(type)} - ${selectedTeam.name}`;
+    } else if (isTournament || isOther) {
+      // « Autre » : invités optionnels (audience RSVP vide si aucun).
+      resolvedTeamIds = guestAudience.teamIds;
+      resolvedMemberIds = guestAudience.teamMemberIds;
+      if (isOther) {
+        resolvedTitle = title.trim();
+      } else {
+        const guestLabels = guests
+          .slice(0, 3)
+          .map((guest) => {
+            if (guest.kind === "team") {
+              return teams.find((team) => team.id === guest.id)?.name ?? guest.id;
+            }
+            return guest.id;
+          });
+        const suffix =
+          guests.length > 3
+            ? `${guestLabels.join(", ")}…`
+            : guestLabels.join(", ");
+        resolvedTitle = suffix
+          ? `${eventTypeLabel(type)} - ${suffix}`
+          : eventTypeLabel(type);
+      }
+    }
+
     setError(null);
     setSaving(true);
     try {
@@ -338,14 +415,10 @@ export function PlanningNewEventDialog({
         clubId,
         creatorId,
         type,
-        title: needsCustomTitle
-          ? title.trim()
-          : selectedTeam
-            ? `${eventTypeLabel(type)} - ${selectedTeam.name}`
-            : eventTypeLabel(type),
+        title: resolvedTitle,
         startDate: day,
-        teamIds: selectedTeam ? [selectedTeam.id] : [],
-        teamMemberIds: selectedTeam ? selectedTeam.playerIds : [],
+        teamIds: resolvedTeamIds,
+        teamMemberIds: resolvedMemberIds,
         location: resolvedLocation,
         startTime,
         endTime: isMatch ? undefined : endTime,
@@ -436,45 +509,81 @@ export function PlanningNewEventDialog({
             </div>
           </div>
 
-          {needsTeam ? (
+          {needsSingleTeam ? (
             <div className={styles.field}>
               <label className={styles.label} htmlFor="new-event-team">
                 Équipe
               </label>
-              <select
+              <PlanningSelect
                 id="new-event-team"
-                className={styles.input}
                 value={teamId}
-                onChange={(changeEvent) => setTeamId(changeEvent.target.value)}
+                options={teamSelectOptions}
+                onChange={setTeamId}
                 required
                 disabled={saving}
-              >
-                {teams.length === 0 ? (
-                  <option value="">Aucune équipe</option>
-                ) : null}
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="new-event-title-input">
-                Titre
-              </label>
-              <input
-                id="new-event-title-input"
-                className={styles.input}
-                value={title}
-                onChange={(changeEvent) => setTitle(changeEvent.target.value)}
-                placeholder="Réunion, AG…"
-                required
-                disabled={saving}
+                placeholder="Choisir une équipe…"
               />
             </div>
-          )}
+          ) : null}
+
+          {isTournament ? (
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="new-event-guests">
+                Équipes et catégories
+              </label>
+              <PlanningGuestPicker
+                id="new-event-guests"
+                teams={teams}
+                categories={categories}
+                allowedKinds={["team", "category"]}
+                value={guests}
+                onChange={setGuests}
+                disabled={saving}
+                placeholder="Ajouter une équipe ou catégorie…"
+              />
+            </div>
+          ) : null}
+
+          {isOther ? (
+            <>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="new-event-title-input">
+                  Titre
+                </label>
+                <input
+                  id="new-event-title-input"
+                  className={styles.input}
+                  value={title}
+                  onChange={(changeEvent) => setTitle(changeEvent.target.value)}
+                  placeholder="Réunion, AG…"
+                  required
+                  disabled={saving}
+                />
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="new-event-guests">
+                  Invités
+                </label>
+                <PlanningGuestPicker
+                  id="new-event-guests"
+                  teams={teams}
+                  categories={categories}
+                  people={people}
+                  allowedKinds={["team", "category", "person"]}
+                  value={guests}
+                  onChange={setGuests}
+                  disabled={saving}
+                  placeholder="Ajouter équipes, catégories, personnes…"
+                />
+                {guests.length === 0 ? (
+                  <p className={styles.hint}>
+                    Optionnel — sans invités, personne n&apos;est convoqué au RSVP
+                    (ex. AG informative).
+                  </p>
+                ) : null}
+              </div>
+            </>
+          ) : null}
 
           {isMatch ? (
             <div className={styles.section}>
@@ -514,43 +623,27 @@ export function PlanningNewEventDialog({
                 <label className={styles.label} htmlFor="new-event-start">
                   Heure du match
                 </label>
-                <select
+                <PlanningTimeSelect
                   id="new-event-start"
-                  className={styles.input}
                   value={startTime}
-                  onChange={(changeEvent) =>
-                    setStartTime(changeEvent.target.value)
-                  }
+                  options={START_TIME_OPTIONS}
+                  onChange={setStartTime}
                   required
                   disabled={saving}
-                >
-                  {START_TIME_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="new-event-meeting">
                   Heure de RDV
                 </label>
-                <select
+                <PlanningTimeSelect
                   id="new-event-meeting"
-                  className={styles.input}
                   value={meetingTime}
-                  onChange={(changeEvent) =>
-                    setMeetingTime(changeEvent.target.value)
-                  }
+                  options={START_TIME_OPTIONS}
+                  onChange={setMeetingTime}
                   required
                   disabled={saving}
-                >
-                  {START_TIME_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             </div>
           ) : (
@@ -559,43 +652,27 @@ export function PlanningNewEventDialog({
                 <label className={styles.label} htmlFor="new-event-start">
                   Début
                 </label>
-                <select
+                <PlanningTimeSelect
                   id="new-event-start"
-                  className={styles.input}
                   value={startTime}
-                  onChange={(changeEvent) =>
-                    setStartTime(changeEvent.target.value)
-                  }
+                  options={START_TIME_OPTIONS}
+                  onChange={setStartTime}
                   required
                   disabled={saving}
-                >
-                  {START_TIME_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="new-event-end">
                   Fin
                 </label>
-                <select
+                <PlanningTimeSelect
                   id="new-event-end"
-                  className={styles.input}
                   value={endTime}
-                  onChange={(changeEvent) =>
-                    setEndTime(changeEvent.target.value)
-                  }
+                  options={END_TIME_OPTIONS}
+                  onChange={setEndTime}
                   required
                   disabled={saving}
-                >
-                  {END_TIME_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             </div>
           )}

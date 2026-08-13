@@ -12,6 +12,8 @@
 .panel {
   width: min(100%, 28rem);
   max-height: min(85vh, 32rem);
+  min-height: 0 !important;
+  height: fit-content;
   overflow: auto;
 }
 

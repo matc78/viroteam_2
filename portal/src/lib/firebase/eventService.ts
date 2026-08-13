@@ -57,7 +57,7 @@ export type TeamOption = {
   coachIds: string[];
 };
 
-/** Membre club pour filtres planning (coach / joueur). */
+/** Membre club pour filtres planning et invités (coach / joueur / admin). */
 export type PlanningPersonOption = {
   id: string;
   /** Identifiants possibles (memberId, accountUid) pour matcher les rosters. */
@@ -71,6 +71,8 @@ export type PlanningPageData = {
   teams: TeamOption[];
   coaches: PlanningPersonOption[];
   players: PlanningPersonOption[];
+  /** Admins du club (invités « Autre », hors filtres sidebar). */
+  admins: PlanningPersonOption[];
   categories: string[];
   /** Fin de saison résolue (club ou défaut 30 juin). */
   seasonEndDate: Date;
@@ -550,6 +552,7 @@ export async function loadPlanningPageData(
 
   const coaches = people.filter((person) => person.role === "coach");
   const players = people.filter((person) => person.role === "player");
+  const admins = people.filter((person) => person.role === "admin");
   const categories = Array.from(
     new Set(
       teams
@@ -558,7 +561,15 @@ export async function loadPlanningPageData(
     ),
   ).sort((a, b) => a.localeCompare(b, "fr"));
 
-  return { events, teams, coaches, players, categories, seasonEndDate };
+  return {
+    events,
+    teams,
+    coaches,
+    players,
+    admins,
+    categories,
+    seasonEndDate,
+  };
 }
 
 /** Début de semaine (lundi). */

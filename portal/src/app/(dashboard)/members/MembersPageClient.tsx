@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DashboardGuard } from "@/components/auth/DashboardGuard";
 import { AddMemberDialog } from "@/components/dashboard/AddMemberDialog";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ImportMembersDialog } from "@/components/dashboard/ImportMembersDialog";
 import { MemberDetailPanel } from "@/components/dashboard/MemberDetailPanel";
 import { MembersTable } from "@/components/dashboard/MembersTable";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
+import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import { useToast } from "@/components/ToastProvider";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import { useAuth } from "@/lib/firebase/AuthProvider";
@@ -46,10 +46,10 @@ const DEFAULT_FILTERS: MembersFilters = {
 };
 
 /** Contenu page Membres branché sur Firestore. */
-function MembersPageContent() {
+export function MembersPageClient() {
   const { activeClub, user } = useAuth();
   const { showToast } = useToast();
-  const { data, loading, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
     loadMembersPageData,
     [],
@@ -341,53 +341,58 @@ function MembersPageContent() {
     showToast("Export CSV téléchargé.", "success");
   }
 
+  if (loading && !data) {
+    return <DashboardSkeleton variant="members" />;
+  }
+
   return (
-    <DashboardShell wide>
-      <DashboardPageIntro
-        eyebrow="Espace club"
-        heading="Membres"
-        lead={`Gérez les membres de ${activeClub?.name ?? "votre club"}, leurs licences et les invitations.`}
-      />
-
-      {loading ? <p className={introStyles.lead}>Chargement…</p> : null}
-      {error ? (
-        <p className={introStyles.lead} role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      {data && !loading ? (
-        <MembersTable
-          rows={filteredRows}
-          teams={data.teams}
-          filters={filters}
-          selectedMemberId={selectedMemberId}
-          seasonLabel={data.seasonLabel}
-          onFiltersChange={setFilters}
-          onSelectMember={setSelectedMemberId}
-          onCopyInvite={(member) => {
-            if (!activeClub || !member.pendingInviteCode) return;
-            void copyInviteMessage({
-              clubName: activeClub.name,
-              code: member.pendingInviteCode,
-            });
-          }}
-          onRegenerateInvite={(member) => {
-            void handleRegenerateInvite(member.memberId);
-          }}
-          onAddClick={() => {
-            setCreatedMember(null);
-            setActionError(null);
-            setShowAdd(true);
-          }}
-          onImportClick={() => {
-            setImportReport(null);
-            setActionError(null);
-            setShowImport(true);
-          }}
-          onExportClick={handleExport}
+    <>
+      <div className={refreshing ? transitionStyles.refreshing : undefined}>
+        <DashboardPageIntro
+          eyebrow="Espace club"
+          heading="Membres"
+          lead={`Gérez les membres de ${activeClub?.name ?? "votre club"}, leurs licences et les invitations.`}
         />
-      ) : null}
+
+        {error ? (
+          <p className={introStyles.lead} role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        {data ? (
+          <MembersTable
+            rows={filteredRows}
+            teams={data.teams}
+            filters={filters}
+            selectedMemberId={selectedMemberId}
+            seasonLabel={data.seasonLabel}
+            onFiltersChange={setFilters}
+            onSelectMember={setSelectedMemberId}
+            onCopyInvite={(member) => {
+              if (!activeClub || !member.pendingInviteCode) return;
+              void copyInviteMessage({
+                clubName: activeClub.name,
+                code: member.pendingInviteCode,
+              });
+            }}
+            onRegenerateInvite={(member) => {
+              void handleRegenerateInvite(member.memberId);
+            }}
+            onAddClick={() => {
+              setCreatedMember(null);
+              setActionError(null);
+              setShowAdd(true);
+            }}
+            onImportClick={() => {
+              setImportReport(null);
+              setActionError(null);
+              setShowImport(true);
+            }}
+            onExportClick={handleExport}
+          />
+        ) : null}
+      </div>
 
       {selectedMember ? (
         <MemberDetailPanel
@@ -449,15 +454,6 @@ function MembersPageContent() {
           onImport={handleImport}
         />
       ) : null}
-    </DashboardShell>
-  );
-}
-
-/** Client membres + garde admin. */
-export function MembersPageClient() {
-  return (
-    <DashboardGuard>
-      <MembersPageContent />
-    </DashboardGuard>
+    </>
   );
 }

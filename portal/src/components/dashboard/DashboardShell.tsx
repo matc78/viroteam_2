@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { DashboardPageTransition } from "@/components/dashboard/DashboardPageTransition";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
 import styles from "./DashboardShell.module.css";
@@ -11,8 +12,6 @@ import styles from "./DashboardShell.module.css";
 /** Props de la coquille espace club. */
 type DashboardShellProps = {
   children: ReactNode;
-  /** Contenu pleine largeur (ex. planning). */
-  wide?: boolean;
 };
 
 const NAV_ITEMS = [
@@ -22,8 +21,16 @@ const NAV_ITEMS = [
   { href: "/fees", label: "Cotisations" },
 ] as const;
 
+const WIDE_PATH_PREFIXES = ["/members", "/planning"] as const;
+
 function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function isWidePath(pathname: string): boolean {
+  return WIDE_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 function userInitials(displayName: string): string {
@@ -34,7 +41,7 @@ function userInitials(displayName: string): string {
 }
 
 /** Coquille espace club : header bureau + nav modules + logout. */
-export function DashboardShell({ children, wide = false }: DashboardShellProps) {
+export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname();
   const {
     activeClub,
@@ -43,9 +50,15 @@ export function DashboardShell({ children, wide = false }: DashboardShellProps) 
     setActiveClubId,
     logout,
   } = useAuth();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   const resolvedClubName = activeClub?.name ?? "Club";
   const resolvedAdminName = profile?.displayName ?? "Admin";
+  const wide = isWidePath(pathname);
 
   return (
     <div className={styles.page}>
@@ -56,6 +69,9 @@ export function DashboardShell({ children, wide = false }: DashboardShellProps) 
               href="/home"
               className={styles.brand}
               aria-label={`${site.name} — espace club`}
+              onClick={() => {
+                if (pathname !== "/home") setPendingHref("/home");
+              }}
             >
               <Image
                 src="/logo-mark.svg"
@@ -92,12 +108,16 @@ export function DashboardShell({ children, wide = false }: DashboardShellProps) 
           <nav className={styles.nav} aria-label="Modules espace club">
             {NAV_ITEMS.map((item) => {
               const isActive = isNavItemActive(pathname, item.href);
+              const isPending = pendingHref === item.href && !isActive;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`${styles.navLink}${isActive ? ` ${styles.navLinkActive}` : ""}`}
+                  className={`${styles.navLink}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
                   aria-current={isActive ? "page" : undefined}
+                  onClick={() => {
+                    if (!isActive) setPendingHref(item.href);
+                  }}
                 >
                   {item.label}
                 </Link>
@@ -126,7 +146,7 @@ export function DashboardShell({ children, wide = false }: DashboardShellProps) 
         </div>
       </header>
       <main className={wide ? `${styles.main} ${styles.mainWide}` : styles.main}>
-        {children}
+        <DashboardPageTransition>{children}</DashboardPageTransition>
       </main>
     </div>
   );

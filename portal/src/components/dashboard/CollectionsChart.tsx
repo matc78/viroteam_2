@@ -5,12 +5,21 @@ import styles from "./CollectionsChart.module.css";
 /** Props du graphe encaissements mensuels. */
 type CollectionsChartProps = {
   months: CollectionMonth[];
+  /** Affiche la série CB HelloAsso (paiement en ligne activé sur le club). */
+  showHelloAsso?: boolean;
 };
 
 /** Barres mensuelles : encaissements CB HelloAsso vs hors-ligne. */
-export function CollectionsChart({ months }: CollectionsChartProps) {
+export function CollectionsChart({
+  months,
+  showHelloAsso = false,
+}: CollectionsChartProps) {
   const maxTotal = Math.max(
-    ...months.map((month) => month.cardAmount + month.offlineAmount),
+    ...months.map((month) =>
+      showHelloAsso
+        ? month.cardAmount + month.offlineAmount
+        : month.offlineAmount,
+    ),
     1,
   );
 
@@ -38,10 +47,16 @@ export function CollectionsChart({ months }: CollectionsChartProps) {
           <h2 id="collections-title" className={styles.title}>
             Encaissements
           </h2>
-          <p className={styles.subtitle}>CB HelloAsso vs hors-ligne</p>
+          <p className={styles.subtitle}>
+            {showHelloAsso ? "CB HelloAsso vs hors-ligne" : "Paiements hors-ligne"}
+          </p>
         </div>
         <div className={styles.totals}>
-          <span className={styles.totalCard}>{formatAmount(totalCard)} CB</span>
+          {showHelloAsso ? (
+            <span className={styles.totalCard}>
+              {formatAmount(totalCard)} CB
+            </span>
+          ) : null}
           <span className={styles.totalOffline}>
             {formatAmount(totalOffline)} hors-ligne
           </span>
@@ -50,10 +65,18 @@ export function CollectionsChart({ months }: CollectionsChartProps) {
 
       <div className={styles.chart} role="img" aria-label="Encaissements mensuels">
         {months.map((month) => {
-          const total = month.cardAmount + month.offlineAmount;
+          const total = showHelloAsso
+            ? month.cardAmount + month.offlineAmount
+            : month.offlineAmount;
           const heightPct = (total / maxTotal) * 100;
           const cardPct =
-            total === 0 ? 0 : (month.cardAmount / total) * 100;
+            !showHelloAsso || total === 0
+              ? 0
+              : (month.cardAmount / total) * 100;
+
+          const barTitle = showHelloAsso
+            ? `${month.month} — CB ${formatAmount(month.cardAmount)}, hors-ligne ${formatAmount(month.offlineAmount)}`
+            : `${month.month} — hors-ligne ${formatAmount(month.offlineAmount)}`;
 
           return (
             <div key={month.month} className={styles.column}>
@@ -61,16 +84,18 @@ export function CollectionsChart({ months }: CollectionsChartProps) {
                 <div
                   className={styles.bar}
                   style={{ height: `${heightPct}%` }}
-                  title={`${month.month} — CB ${formatAmount(month.cardAmount)}, hors-ligne ${formatAmount(month.offlineAmount)}`}
+                  title={barTitle}
                 >
                   <span
                     className={styles.barOffline}
                     style={{ height: `${100 - cardPct}%` }}
                   />
-                  <span
-                    className={styles.barCard}
-                    style={{ height: `${cardPct}%` }}
-                  />
+                  {showHelloAsso ? (
+                    <span
+                      className={styles.barCard}
+                      style={{ height: `${cardPct}%` }}
+                    />
+                  ) : null}
                 </div>
               </div>
               <span className={styles.monthLabel}>{month.month}</span>
@@ -80,10 +105,15 @@ export function CollectionsChart({ months }: CollectionsChartProps) {
       </div>
 
       <ul className={styles.legend}>
-        <li className={styles.legendItem}>
-          <span className={`${styles.swatch} ${styles.swatchCard}`} aria-hidden="true" />
-          HelloAsso CB
-        </li>
+        {showHelloAsso ? (
+          <li className={styles.legendItem}>
+            <span
+              className={`${styles.swatch} ${styles.swatchCard}`}
+              aria-hidden="true"
+            />
+            HelloAsso CB
+          </li>
+        ) : null}
         <li className={styles.legendItem}>
           <span
             className={`${styles.swatch} ${styles.swatchOffline}`}

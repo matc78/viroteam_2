@@ -1,8 +1,7 @@
 "use client";
 
-import { DashboardGuard } from "@/components/auth/DashboardGuard";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { FeesConfigForm } from "@/components/dashboard/FeesConfigForm";
 import {
   emptyFeesConfig,
@@ -14,6 +13,7 @@ import type { ClubRecord } from "@/lib/firebase/clubService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { getActiveSeason } from "@/lib/firebase/feeService";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
+import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 
 /** Charge la config cotisations depuis la saison active du club. */
 async function loadFeesConfigForClub(club: ClubRecord): Promise<FeesConfig> {
@@ -29,31 +29,35 @@ async function loadFeesConfigForClub(club: ClubRecord): Promise<FeesConfig> {
 }
 
 /** Contenu page Cotisations branché sur Firestore. */
-function FeesPageContent() {
+export function FeesPageClient() {
   const { activeClub, user, refreshProfile } = useAuth();
-  const { data: config, loading, error, reload } = useAsyncClubResource(
+  const { data: config, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
     loadFeesConfigForClub,
     [],
   );
 
+  if (loading && !config) {
+    return <DashboardSkeleton variant="fees" />;
+  }
+
   return (
-    <DashboardShell>
+    <div className={refreshing ? transitionStyles.refreshing : undefined}>
       <DashboardPageIntro
         eyebrow="Espace club"
         heading="Cotisations"
         lead={`Configurez la saison, les tarifs et le paiement en ligne HelloAsso pour ${activeClub?.name ?? "votre club"}.`}
       />
 
-      {loading ? <p className={introStyles.lead}>Chargement…</p> : null}
       {error ? (
         <p className={introStyles.lead} role="alert">
           {error}
         </p>
       ) : null}
 
-      {config && !loading && user && activeClub ? (
+      {config && user && activeClub ? (
         <FeesConfigForm
+          key={activeClub.id}
           initial={config}
           clubId={activeClub.id}
           uid={user.uid}
@@ -62,15 +66,6 @@ function FeesPageContent() {
           }}
         />
       ) : null}
-    </DashboardShell>
-  );
-}
-
-/** Client cotisations + garde admin. */
-export function FeesPageClient() {
-  return (
-    <DashboardGuard>
-      <FeesPageContent />
-    </DashboardGuard>
+    </div>
   );
 }

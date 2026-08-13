@@ -2,8 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { DashboardGuard } from "@/components/auth/DashboardGuard";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import {
   PlanningCalendar,
   type CalendarView,
@@ -31,6 +30,7 @@ import {
   writePlanningFilters,
 } from "@/lib/planning/planningFiltersStorage";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
+import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import styles from "./page.module.css";
 
 /** Contenu page planning branché sur Firestore. */
@@ -58,7 +58,7 @@ function PlanningPageContent() {
     };
   }, [cursor]);
 
-  const { data, loading, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
     (club) =>
       loadPlanningPageData(club.id, {
@@ -138,12 +138,12 @@ function PlanningPageContent() {
     });
   }
 
-  return (
-    <DashboardShell wide>
-      {loading && !data ? (
-        <p className={introStyles.lead}>Chargement du planning…</p>
-      ) : null}
+  if (loading && !data) {
+    return <DashboardSkeleton variant="planning" />;
+  }
 
+  return (
+    <>
       {error ? (
         <p className={introStyles.lead} role="alert">
           {error}
@@ -151,7 +151,9 @@ function PlanningPageContent() {
       ) : null}
 
       {data ? (
-        <div className={styles.layout}>
+        <div
+          className={`${styles.layout}${refreshing ? ` ${transitionStyles.refreshing}` : ""}`}
+        >
           <PlanningSidebar
             cursor={cursor}
             selectedDay={cursor}
@@ -210,19 +212,15 @@ function PlanningPageContent() {
           onCreated={reload}
         />
       ) : null}
-    </DashboardShell>
+    </>
   );
 }
 
-/** Client planning + garde admin. */
+/** Client planning (Suspense pour searchParams). */
 export function PlanningPageClient() {
   return (
-    <DashboardGuard>
-      <Suspense
-        fallback={<p className={introStyles.lead}>Chargement du planning…</p>}
-      >
-        <PlanningPageContent />
-      </Suspense>
-    </DashboardGuard>
+    <Suspense fallback={<DashboardSkeleton variant="planning" />}>
+      <PlanningPageContent />
+    </Suspense>
   );
 }

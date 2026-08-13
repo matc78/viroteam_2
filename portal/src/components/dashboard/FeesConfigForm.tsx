@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useRef, useState } from "react";
+import { useToast } from "@/components/ToastProvider";
 import {
   buildSeasonLabelOptions,
   FEE_CURRENCY_OPTIONS,
@@ -30,7 +31,6 @@ type FeesConfigFormProps = {
 };
 
 const SEASON_LABEL_OPTIONS = buildSeasonLabelOptions();
-const TOAST_DURATION_MS = 3200;
 
 /** Formate une date locale en `YYYY-MM-DD`. */
 function toDateInputValue(date: Date): string {
@@ -47,6 +47,7 @@ export function FeesConfigForm({
   uid,
   onSaved,
 }: FeesConfigFormProps) {
+  const { showToast } = useToast();
   const [seasonId, setSeasonId] = useState(initial.seasonId);
   const [seasonLabel, setSeasonLabel] = useState(() =>
     SEASON_LABEL_OPTIONS.includes(initial.seasonLabel)
@@ -78,10 +79,8 @@ export function FeesConfigForm({
   const [helloAssoOrganizationSlug, setHelloAssoOrganizationSlug] = useState(
     initial.helloAssoOrganizationSlug,
   );
-  const [toast, setToast] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const canSave = useMemo(() => {
     if (!seasonLabel.trim()) return false;
@@ -141,7 +140,6 @@ export function FeesConfigForm({
     if (!canSave || savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
-    setToast(null);
 
     try {
       const seasonPayload = {
@@ -178,15 +176,14 @@ export function FeesConfigForm({
         });
       }
 
-      setToast("Enregistré dans Firestore");
+      showToast("Enregistré dans Firestore", "success");
       onSaved?.();
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      toastTimerRef.current = setTimeout(() => setToast(null), TOAST_DURATION_MS);
     } catch (error) {
-      setToast(
+      showToast(
         error instanceof Error
           ? error.message
           : "Échec de l’enregistrement.",
+        "error",
       );
     } finally {
       savingRef.current = false;
@@ -438,11 +435,6 @@ export function FeesConfigForm({
         >
           {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
-        {toast ? (
-          <p className={styles.toast} role="status">
-            {toast}
-          </p>
-        ) : null}
       </div>
     </form>
   );

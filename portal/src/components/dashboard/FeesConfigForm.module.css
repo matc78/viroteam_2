@@ -385,17 +385,6 @@ select.input:focus {
   color: var(--color-error);
 }
 
-.toast {
-  margin: 0;
-  padding: 0.55rem 0.85rem;
-  border-radius: var(--radius-sm);
-  border: 1.5px solid var(--tone-blue-border);
-  background: var(--tone-blue-soft);
-  color: var(--tone-blue-text);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
 @media (max-width: 720px) {
   .grid2,
   .tierRow {

@@ -46,15 +46,20 @@ fvm flutter run
 
 - **Push / PR** : [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — `flutter analyze` + `flutter test` (Flutter 3.44.8). Aucun secret requis.
 - **Tag `v*`** : [`.github/workflows/release.yml`](.github/workflows/release.yml) — build APK release **signé**, publié sur **GitHub → Releases**.
+- **Tag `portal-v*`** : [`.github/workflows/deploy-portal.yml`](.github/workflows/deploy-portal.yml) — déploiement du portail Next.js sur **Firebase App Hosting** (budget alerte 5 €/mois). Détails : [`portal/README.md`](portal/README.md).
 
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
+
+git tag portal-v0.1.0
+git push origin portal-v0.1.0
 ```
 
 L’APK apparaît sur la page Releases du repo (`viro-team-v2-1.0.0.apk`). Build manuel sans tag : **Actions → Release APK → Run workflow**.
 
-Secrets Android (une fois) : voir [`SETUP_LOCAL.md`](SETUP_LOCAL.md) — après ça, tu peux lancer un build release depuis n’importe où via un tag.
+Secrets Android (une fois) : voir [`SETUP_LOCAL.md`](SETUP_LOCAL.md) — après ça, tu peux lancer un build release depuis n’importe où via un tag.  
+Secret portail (une fois) : `FIREBASE_SERVICE_ACCOUNT_PORTAL` — voir [`portal/README.md`](portal/README.md).
 
 ## Structure du projet
 

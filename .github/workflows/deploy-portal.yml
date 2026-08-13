@@ -1,0 +1,46 @@
+name: Deploy portal
+
+on:
+  push:
+    tags:
+      - "portal-v*"
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "SHA du commit à déployer (vide = HEAD du défaut)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PORTAL }}
+
+      - name: Set up Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Resolve commit SHA
+        id: sha
+        run: |
+          if [ -n "${{ inputs.commit }}" ]; then
+            echo "value=${{ inputs.commit }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create App Hosting rollout
+        run: |
+          firebase apphosting:rollouts:create portal \
+            --git-commit "${{ steps.sha.outputs.value }}" \
+            --project viroteam-75303 \
+            --non-interactive

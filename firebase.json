@@ -1,4 +1,14 @@
 {
+  "apphosting": {
+    "backendId": "portal",
+    "rootDir": "portal",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log"
+    ]
+  },
   "firestore": [
     {
       "database": "v2-dev",

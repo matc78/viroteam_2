@@ -1,0 +1,52 @@
+# Firebase App Hosting — portail Next.js (backendId: portal)
+# https://firebase.google.com/docs/app-hosting/configure
+
+runConfig:
+  # Scale-to-zero : pas de coût Cloud Run hors trafic
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyDC11KSpLJY-C07QNExa3AHuXHKk_DpXkQ
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: viroteam-75303.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: viroteam-75303
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: viroteam-75303.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "396501317680"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:396501317680:web:93d4f0b325ff9c876fd5f5
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: G-RNK62HGCVT
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIRESTORE_DATABASE_ID
+    value: v2-prod
+    availability:
+      - BUILD
+      - RUNTIME

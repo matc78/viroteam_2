@@ -25,7 +25,10 @@ import {
   formatEventTime,
 } from "@/lib/firebase/eventService";
 import type { CalendarEventBlock } from "@/lib/planning/calendarEventBlocks";
-import { packOverlappingEvents } from "@/lib/planning/eventOverlapLayout";
+import {
+  overlappingClusterIds,
+  packOverlappingEvents,
+} from "@/lib/planning/eventOverlapLayout";
 import styles from "./PlanningCalendar.module.css";
 
 export type CalendarView = "month" | "week" | "day";
@@ -817,6 +820,17 @@ function DayColumnEvents({
   singleDay,
   onSelectEvent,
 }: DayColumnEventsProps) {
+  const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
+  const hoverClearFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (hoverClearFrameRef.current !== null) {
+        cancelAnimationFrame(hoverClearFrameRef.current);
+      }
+    };
+  }, []);
+
   const packed = useMemo(
     () =>
       packOverlappingEvents(
@@ -845,6 +859,35 @@ function DayColumnEvents({
     [packed],
   );
 
+  const hoverClusterIds = useMemo(() => {
+    if (!hoveredBlockId) return null;
+    return overlappingClusterIds(hoveredBlockId, packed);
+  }, [hoveredBlockId, packed]);
+
+  const hoverLayout = useMemo(() => {
+    if (!hoveredBlockId || !hoverClusterIds) return null;
+    const hovered = layoutById.get(hoveredBlockId);
+    if (!hovered) return null;
+
+    const leftPeekIds = packed
+      .filter(
+        (item) =>
+          hoverClusterIds.has(item.id) && item.column < hovered.column,
+      )
+      .sort((a, b) => a.column - b.column)
+      .map((item) => item.id);
+
+    const rightPeekIds = packed
+      .filter(
+        (item) =>
+          hoverClusterIds.has(item.id) && item.column > hovered.column,
+      )
+      .sort((a, b) => a.column - b.column)
+      .map((item) => item.id);
+
+    return { leftPeekIds, rightPeekIds };
+  }, [hoveredBlockId, hoverClusterIds, layoutById, packed]);
+
   return (
     <>
       {eventBlocks.map((block) => {
@@ -855,41 +898,117 @@ function DayColumnEvents({
         const durationMinutes = layout.endMinutes - layout.startMinutes;
         const height = (durationMinutes / TOTAL_MINUTES) * 100;
         const isStacked = layout.columnCount > 1;
-        // Bandeau visible à gauche pour chaque couche sous-jacente.
+        const isInHoverCluster =
+          hoverClusterIds?.has(block.blockId) === true && isStacked;
+        const stackSize =
+          isInHoverCluster && hoverLayout
+            ? 1 + hoverLayout.leftPeekIds.length + hoverLayout.rightPeekIds.length
+            : layout.columnCount;
         const peekPercent =
-          layout.columnCount <= 1
-            ? 0
-            : Math.min(14, 72 / layout.columnCount);
-        const leftPercent = layout.column * peekPercent;
-        const widthPercent = 100 - leftPercent;
-        const isFrontmost = layout.column === layout.columnCount - 1;
+          stackSize <= 1 ? 0 : Math.min(18, 90 / stackSize);
+
+        let leftPercent = layout.column * peekPercent;
+        let widthPercent = 100 - leftPercent;
+        let isFrontmost = layout.column === layout.columnCount - 1;
+        let zIndex = 2 + layout.column;
+        let peekSide: "left" | "right" | null = null;
+
+        if (isInHoverCluster && hoverLayout) {
+          const { leftPeekIds, rightPeekIds } = hoverLayout;
+
+          if (block.blockId === hoveredBlockId) {
+            leftPercent = leftPeekIds.length * peekPercent;
+            // S'étend sous les bandeaux droits pour éviter un trou de hit-test.
+            widthPercent = 100 - leftPercent;
+            isFrontmost = true;
+            zIndex = 40;
+          } else {
+            const leftPeekIndex = leftPeekIds.indexOf(block.blockId);
+            if (leftPeekIndex >= 0) {
+              const stripsFromLeft = leftPeekIds.length - leftPeekIndex;
+              leftPercent = leftPeekIndex * peekPercent;
+              widthPercent = stripsFromLeft * peekPercent;
+              isFrontmost = false;
+              zIndex = 2 + leftPeekIndex;
+              peekSide = "left";
+            } else {
+              const rightPeekIndex = rightPeekIds.indexOf(block.blockId);
+              if (rightPeekIndex >= 0) {
+                const stripsFromRight = rightPeekIds.length - rightPeekIndex;
+                leftPercent = 100 - stripsFromRight * peekPercent;
+                // Cascade vers la droite : les bandeaux plus à gauche restent
+                // atteignables, sans trou entre le survolé et ses voisins.
+                widthPercent = stripsFromRight * peekPercent;
+                isFrontmost = false;
+                zIndex = 50 + rightPeekIndex;
+                peekSide = "right";
+              }
+              // Même colonne que le survolé : conserve le layout packing.
+            }
+          }
+        }
+
         const displayTitle = formatEventBlockTitle(event);
         const startLabel = formatEventTime(event.startsAt);
         const endLabel = formatEventTime(event.endsAt);
         const isCompact = durationMinutes < 45;
         const showTimeRange = durationMinutes >= 45;
         const showMeta = singleDay && durationMinutes >= 75;
+        const useFlushStack = isStacked;
 
         return (
           <button
             key={block.blockId}
             type="button"
             className={styles.eventBlock}
+            data-planning-event-block="true"
             data-colored="true"
             data-compact={isCompact ? "true" : "false"}
             data-stacked={isStacked ? "true" : "false"}
             data-frontmost={isFrontmost ? "true" : "false"}
+            data-peek-side={peekSide ?? undefined}
             style={{
               ...blockColorStyle(block),
               top: `${top}%`,
               height: `${Math.max(height, 2.2)}%`,
-              left: `calc(${leftPercent}% + 0.12rem)`,
-              width: `calc(${widthPercent}% - 0.24rem)`,
-              zIndex: 2 + layout.column,
+              left: useFlushStack
+                ? `${leftPercent}%`
+                : `calc(${leftPercent}% + 0.12rem)`,
+              width: useFlushStack
+                ? `${widthPercent}%`
+                : `calc(${widthPercent}% - 0.24rem)`,
+              zIndex,
             }}
             onClick={() => onSelectEvent(event)}
             onPointerDown={(pointerEvent) => pointerEvent.stopPropagation()}
-            title={`${displayTitle} · ${startLabel} – ${endLabel}`}
+            onPointerEnter={() => {
+              if (hoverClearFrameRef.current !== null) {
+                cancelAnimationFrame(hoverClearFrameRef.current);
+                hoverClearFrameRef.current = null;
+              }
+              if (isStacked) setHoveredBlockId(block.blockId);
+            }}
+            onPointerLeave={(pointerEvent) => {
+              const nextTarget = pointerEvent.relatedTarget;
+              if (
+                nextTarget instanceof Element &&
+                nextTarget.closest("[data-planning-event-block]")
+              ) {
+                return;
+              }
+              // Laisse le temps à un bandeau voisin de prendre le survol
+              // (évite le reset vers le bloc front le plus à droite).
+              const leavingId = block.blockId;
+              if (hoverClearFrameRef.current !== null) {
+                cancelAnimationFrame(hoverClearFrameRef.current);
+              }
+              hoverClearFrameRef.current = requestAnimationFrame(() => {
+                hoverClearFrameRef.current = null;
+                setHoveredBlockId((current) =>
+                  current === leavingId ? null : current,
+                );
+              });
+            }}
           >
             {isCompact ? (
               <span className={styles.eventBlockTitle}>

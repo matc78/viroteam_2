@@ -9,6 +9,9 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Portal planning : sélecteurs custom (heure, équipe) style Google Calendar
+- Portal planning : picker invités multi (équipes, catégories, personnes) pour tournois et événements « Autre »
+- Portal planning : persistance des filtres sidebar dans le localStorage
 - FVM : Flutter 3.44.8 épiné pour ce repo (SDK global boulot inchangé)
 - Roadmap produit : [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - Écran profil + déconnexion
@@ -26,6 +29,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Portal planning : dialog création d'événement compacté et branché sur les nouveaux sélecteurs
+- Portal planning : calendrier — survol des événements empilés et titres multilignes
 - Specs produit déplacées vers `docs/specs/` (renommage `viroheam_*` → `viroteam_*`)
 - README et chemins de référence alignés sur la nouvelle arborescence docs
 - Retrait tournois / championnats de l’UI et des objectifs club

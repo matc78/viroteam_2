@@ -9,6 +9,8 @@ export type TimedEventSpan = {
 export type PackedEventLayout = TimedEventSpan & {
   column: number;
   columnCount: number;
+  /** Identifiant du cluster de chevauchement (même groupe que le packing). */
+  clusterId: number;
 };
 
 /**
@@ -44,7 +46,7 @@ export function packOverlappingEvents(
   if (currentCluster.length > 0) clusters.push(currentCluster);
 
   const packed: PackedEventLayout[] = [];
-  for (const cluster of clusters) {
+  clusters.forEach((cluster, clusterId) => {
     const columnEnds: number[] = [];
     const assigned = cluster.map((event) => {
       let column = columnEnds.findIndex(
@@ -56,12 +58,29 @@ export function packOverlappingEvents(
       } else {
         columnEnds[column] = event.endMinutes;
       }
-      return { ...event, column };
+      return { ...event, column, clusterId };
     });
     const columnCount = Math.max(columnEnds.length, 1);
     for (const item of assigned) {
       packed.push({ ...item, columnCount });
     }
-  }
+  });
   return packed;
+}
+
+/**
+ * Retourne les ids du cluster de chevauchement contenant `eventId`
+ * (même groupe que le packing colonnes, via `clusterId`).
+ */
+export function overlappingClusterIds(
+  eventId: string,
+  events: PackedEventLayout[],
+): Set<string> {
+  const target = events.find((event) => event.id === eventId);
+  if (!target) return new Set();
+  return new Set(
+    events
+      .filter((event) => event.clusterId === target.clusterId)
+      .map((event) => event.id),
+  );
 }

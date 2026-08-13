@@ -1,18 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 
 /** Etat retourne par `useAsyncClubResource`. */
 type AsyncClubResourceState<T> = {
   data: T | null;
+  /** Premier chargement (pas encore de données). */
   loading: boolean;
+  /** Rechargement alors que des données sont déjà affichées. */
+  refreshing: boolean;
   error: string | null;
   reload: () => void;
 };
 
 /**
  * Charge une ressource liee au club actif avec annulation au demontage.
+ * Conserve les données précédentes pendant un refresh (stale-while-revalidate).
  * `deps` est serialise en cle stable pour eviter les problemes de hooks.
  */
 export function useAsyncClubResource<T>(
@@ -22,8 +26,13 @@ export function useAsyncClubResource<T>(
 ): AsyncClubResourceState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const dataRef = useRef<T | null>(null);
+  const loadedClubIdRef = useRef<string | null>(null);
+
+  dataRef.current = data;
 
   const depsKey = JSON.stringify(deps);
 
@@ -31,14 +40,29 @@ export function useAsyncClubResource<T>(
     if (!activeClub) return;
 
     let cancelled = false;
-    setLoading(true);
+    const isClubSwitch =
+      loadedClubIdRef.current !== null &&
+      loadedClubIdRef.current !== activeClub.id;
+    const hasStaleData = dataRef.current !== null && !isClubSwitch;
+
+    if (isClubSwitch) {
+      setData(null);
+      setLoading(true);
+      setRefreshing(false);
+    } else if (hasStaleData) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
     void loader(activeClub)
       .then((result) => {
         if (!cancelled) {
           setData(result);
+          loadedClubIdRef.current = activeClub.id;
           setLoading(false);
+          setRefreshing(false);
         }
       })
       .catch((err: unknown) => {
@@ -47,6 +71,7 @@ export function useAsyncClubResource<T>(
             err instanceof Error ? err.message : "Impossible de charger les données.",
           );
           setLoading(false);
+          setRefreshing(false);
         }
       });
 
@@ -59,6 +84,7 @@ export function useAsyncClubResource<T>(
   return {
     data,
     loading,
+    refreshing,
     error,
     reload: () => setReloadToken((token) => token + 1),
   };

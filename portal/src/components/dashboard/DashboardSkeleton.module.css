@@ -1,0 +1,165 @@
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.bone {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-100) 0%,
+    var(--color-gray-50) 45%,
+    var(--color-gray-100) 90%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.15s ease-in-out infinite;
+}
+
+.intro {
+  margin-bottom: var(--space-xl);
+}
+
+.eyebrow {
+  width: 6.5rem;
+  height: 0.7rem;
+  margin-bottom: var(--space-sm);
+}
+
+.heading {
+  width: min(18rem, 70%);
+  height: 1.85rem;
+  margin-bottom: var(--space-sm);
+}
+
+.lead {
+  width: min(28rem, 90%);
+  height: 1rem;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.kpiCard {
+  height: 6.5rem;
+  border-radius: var(--radius-md);
+}
+
+.chartsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.chartCard {
+  height: 14rem;
+  border-radius: var(--radius-md);
+}
+
+.listsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.listCard {
+  height: 12rem;
+  border-radius: var(--radius-md);
+}
+
+.toolbar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.toolbarChip {
+  width: 7.5rem;
+  height: 2.25rem;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.tableRow {
+  height: 3rem;
+  border-radius: var(--radius-sm);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  max-width: 40rem;
+}
+
+.formBlock {
+  height: 8rem;
+  border-radius: var(--radius-md);
+}
+
+.planningLayout {
+  display: grid;
+  grid-template-columns: 16.5rem minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  min-height: calc(100vh - 7.5rem);
+}
+
+.sidebar {
+  height: 28rem;
+  border-radius: var(--radius-md);
+}
+
+.calendar {
+  height: 32rem;
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 960px) {
+  .kpiGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chartsGrid,
+  .listsGrid,
+  .planningLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .kpiGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bone {
+    animation: none;
+  }
+}

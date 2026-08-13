@@ -1,0 +1,39 @@
+.panel {
+  width: min(100%, 26rem);
+  max-height: min(90vh, 36rem);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.input,
+.select {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-primary-900);
+  font: inherit;
+}
+
+.success {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-success) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-success) 28%, white);
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-primary-900);
+}

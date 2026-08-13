@@ -76,11 +76,24 @@ export const Fields = {
   canceled: "canceled",
   memberId: "memberId",
   accountUid: "accountUid",
+  /** Legacy fondateurs / membres inscrits avant accountUid. */
+  userId: "userId",
   code: "code",
   /** Champ `status` dans `invitations` (pending, accepted, declined, expired). */
   status: "status",
   clubName: "clubName",
   clubSport: "clubSport",
+  sport: "sport",
+  snapshot: "snapshot",
+  activeInvitationId: "activeInvitationId",
+  playerInfo: "playerInfo",
+  license: "license",
+  coachInfo: "coachInfo",
+  headCoach: "headCoach",
+  expiresAt: "expiresAt",
+  sentBy: "sentBy",
+  sentAt: "sentAt",
+  joinedAt: "joinedAt",
 } as const;
 
 /** Rôles membre club. */

@@ -1,0 +1,244 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 8rem;
+}
+
+.fieldSearch {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+}
+
+.label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+}
+
+.input,
+.select {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-primary-900);
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 1px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.button,
+.buttonSecondary,
+.buttonGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+}
+
+.button {
+  background: var(--color-primary-700);
+  color: var(--color-white);
+}
+
+.button:hover {
+  background: var(--color-primary-800);
+}
+
+.buttonSecondary {
+  background: var(--color-white);
+  border-color: var(--color-gray-200);
+  color: var(--color-primary-800);
+}
+
+.buttonSecondary:hover {
+  border-color: var(--color-primary-300);
+}
+
+.buttonGhost {
+  background: transparent;
+  color: var(--color-primary-700);
+  border-color: transparent;
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+.buttonGhost:hover {
+  background: var(--color-gray-50);
+}
+
+.meta {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-gray-600);
+}
+
+.tableWrap {
+  overflow: auto;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 52rem;
+}
+
+.table th,
+.table td {
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.table th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+  background: color-mix(in srgb, var(--color-gray-50) 80%, white);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table tbody tr {
+  cursor: pointer;
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--tone-blue-soft) 35%, white);
+}
+
+.table tbody tr[data-selected="true"] {
+  background: color-mix(in srgb, var(--tone-blue-soft) 55%, white);
+}
+
+.nameCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.name {
+  font-weight: 650;
+  color: var(--color-primary-900);
+}
+
+.sub {
+  font-size: 0.8rem;
+  color: var(--color-gray-500);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge[data-tone="admin"] {
+  background: color-mix(in srgb, var(--color-primary-700) 12%, white);
+  color: var(--color-primary-800);
+}
+
+.badge[data-tone="coach"] {
+  background: var(--tone-blue-soft);
+  color: var(--tone-blue-text);
+}
+
+.badge[data-tone="player"] {
+  background: var(--tone-green-soft);
+  color: var(--tone-green-text);
+}
+
+.badge[data-tone="pending"] {
+  background: var(--tone-amber-soft);
+  color: var(--tone-amber-text);
+}
+
+.badge[data-tone="ok"] {
+  background: color-mix(in srgb, var(--color-success) 12%, white);
+  color: var(--tone-green-text);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-lg);
+  text-align: center;
+  color: var(--color-gray-600);
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+@media (max-width: 720px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .actions .button,
+  .actions .buttonSecondary {
+    flex: 1;
+  }
+}

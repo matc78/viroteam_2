@@ -7,6 +7,7 @@ import { toDate } from "./types";
 export type ClubRecord = {
   id: string;
   name: string;
+  sport: string;
   memberCount: number;
   adminIds: string[];
   helloAssoOrganizationSlug: string;
@@ -25,6 +26,7 @@ export function parseClub(
   return {
     id,
     name: String(data[Fields.name] ?? ""),
+    sport: String(data[Fields.sport] ?? ""),
     memberCount: Number(data[Fields.memberCount] ?? 0),
     adminIds: Array.isArray(adminIdsRaw)
       ? adminIdsRaw.map((idValue) => String(idValue))

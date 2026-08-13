@@ -17,6 +17,7 @@ type DashboardShellProps = {
 
 const NAV_ITEMS = [
   { href: "/home", label: "Accueil" },
+  { href: "/members", label: "Membres" },
   { href: "/planning", label: "Planning" },
   { href: "/fees", label: "Cotisations" },
 ] as const;

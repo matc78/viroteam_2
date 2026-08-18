@@ -7,10 +7,14 @@ import styles from "./UpcomingEvents.module.css";
 /** Props de l'aperçu événements home. */
 type UpcomingEventsProps = {
   events: UpcomingEvent[];
+  planningHref?: string;
 };
 
 /** Aperçu des prochains événements club (home dashboard). */
-export function UpcomingEvents({ events }: UpcomingEventsProps) {
+export function UpcomingEvents({
+  events,
+  planningHref = "/planning",
+}: UpcomingEventsProps) {
   return (
     <section
       className={panelStyles.panel}
@@ -24,7 +28,7 @@ export function UpcomingEvents({ events }: UpcomingEventsProps) {
           </h2>
           <p className={styles.subtitle}>14 prochains jours</p>
         </div>
-        <Link href="/planning" className={styles.viewAllLink}>
+        <Link href={planningHref} className={styles.viewAllLink}>
           Voir tout →
         </Link>
       </header>

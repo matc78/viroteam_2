@@ -5,16 +5,15 @@ import { useAuth } from "@/lib/firebase/AuthProvider";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect } from "react";
 
-type DashboardGuardProps = {
+type FamilyGuardProps = {
   children: ReactNode;
 };
 
 /**
- * Protège les routes dashboard : login requis + rôle admin.
- * Non-admin → /access-denied ; non connecté → /login.
+ * Protège l’espace famille : login + au moins un parentLink active.
  */
-export function DashboardGuard({ children }: DashboardGuardProps) {
-  const { status, isAdmin, setActiveSpace } = useAuth();
+export function FamilyGuard({ children }: FamilyGuardProps) {
+  const { status, isParent, setActiveSpace } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -24,18 +23,18 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (!isAdmin) {
+    if (!isParent) {
       router.replace("/access-denied");
       return;
     }
-    setActiveSpace("bureau");
-  }, [status, isAdmin, router, pathname, setActiveSpace]);
+    setActiveSpace("family");
+  }, [status, isParent, router, pathname, setActiveSpace]);
 
   if (status === "loading") {
     return <AuthLoadingState />;
   }
 
-  if (status === "signedOut" || !isAdmin) {
+  if (status === "signedOut" || !isParent) {
     return <AuthLoadingState message="Redirection…" />;
   }
 

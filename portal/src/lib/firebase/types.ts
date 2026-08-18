@@ -1,10 +1,23 @@
 import { Timestamp } from "firebase/firestore";
-import { Fields, MemberRoles } from "./constants";
+import {
+  Fields,
+  GuardianRelations,
+  GuardianStatuses,
+  MemberRoles,
+} from "./constants";
 
 /** Résumé d’adhésion club sur users/{uid}.clubMemberships. */
 export type ClubMembership = {
   clubId: string;
   role: string;
+};
+
+/** Lien parent → fiche enfant (index session, pas un rôle club). */
+export type ParentLink = {
+  clubId: string;
+  memberId: string;
+  relation: string;
+  status: string;
 };
 
 /** Profil utilisateur Firestore. */
@@ -16,9 +29,23 @@ export type ViroUserProfile = {
   lastName: string;
   displayName: string;
   clubMemberships: ClubMembership[];
+  parentLinks: ParentLink[];
+  parentClubIds: string[];
   profileCompleted: boolean;
   disabled: boolean;
 };
+
+function parseParentLink(item: Record<string, unknown>): ParentLink | null {
+  const clubId = String(item[Fields.clubId] ?? "").trim();
+  const memberId = String(item[Fields.memberId] ?? "").trim();
+  if (!clubId || !memberId) return null;
+  return {
+    clubId,
+    memberId,
+    relation: String(item[Fields.relation] ?? GuardianRelations.parent),
+    status: String(item[Fields.status] ?? GuardianStatuses.pending),
+  };
+}
 
 /** Parse un document users/{uid}. */
 export function parseUserProfile(
@@ -29,6 +56,10 @@ export function parseUserProfile(
   const rawMemberships =
     (data?.[Fields.clubMemberships] as Array<Record<string, unknown>> | undefined) ??
     [];
+  const rawParentLinks =
+    (data?.[Fields.parentLinks] as Array<Record<string, unknown>> | undefined) ??
+    [];
+  const rawParentClubIds = (data?.[Fields.parentClubIds] as unknown[] | undefined) ?? [];
 
   return {
     uid: (data?.[Fields.uid] as string | undefined) ?? uid,
@@ -43,6 +74,12 @@ export function parseUserProfile(
         role: String(item[Fields.role] ?? ""),
       }))
       .filter((membership) => membership.clubId.length > 0),
+    parentLinks: rawParentLinks
+      .map(parseParentLink)
+      .filter((link): link is ParentLink => link !== null),
+    parentClubIds: rawParentClubIds
+      .map((item) => String(item ?? "").trim())
+      .filter(Boolean),
     profileCompleted: Boolean(flags[Fields.profileCompleted]),
     disabled: Boolean(flags[Fields.disabled]),
   };
@@ -54,6 +91,20 @@ export function adminClubIds(profile: ViroUserProfile | null): string[] {
   return profile.clubMemberships
     .filter((membership) => membership.role === MemberRoles.admin)
     .map((membership) => membership.clubId);
+}
+
+/** Liens parent actifs (espace famille). */
+export function activeParentLinks(profile: ViroUserProfile | null): ParentLink[] {
+  if (!profile) return [];
+  return profile.parentLinks.filter(
+    (link) => link.status === GuardianStatuses.active,
+  );
+}
+
+/** Clubs où l’utilisateur a au moins un enfant lié (lien active). */
+export function familyClubIds(profile: ViroUserProfile | null): string[] {
+  const ids = new Set(activeParentLinks(profile).map((link) => link.clubId));
+  return [...ids];
 }
 
 /** Sépare prénom / nom depuis un displayName libre. */

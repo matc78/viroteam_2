@@ -4,23 +4,37 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { JoinAppRedirect } from "@/components/auth/JoinAppRedirect";
-import { findInvitationByCode } from "@/lib/firebase/invitationService";
+import { JoinGuardianAccept } from "@/components/auth/JoinGuardianAccept";
+import {
+  findInvitationByCode,
+  type InvitationLookupResult,
+} from "@/lib/firebase/invitationService";
+import { InvitationTypes } from "@/lib/firebase/constants";
 import styles from "@/components/auth/JoinOnboardingForm.module.css";
 
-/** Tente d’ouvrir l’app avec un code d’invitation. */
+/** Tente d’ouvrir l’app (membre) ou d’accepter un lien parent sur le portail. */
 export function JoinRedirectClient() {
   const searchParams = useSearchParams();
   const invitationCode = (searchParams.get("code") ?? "").trim().toUpperCase();
-  const [clubName, setClubName] = useState<string | null>(null);
+  const [invitation, setInvitation] = useState<InvitationLookupResult | null>(
+    null,
+  );
+  const [lookupDone, setLookupDone] = useState(false);
 
   useEffect(() => {
-    if (!invitationCode) return;
+    if (!invitationCode) {
+      setLookupDone(true);
+      return;
+    }
 
     void findInvitationByCode(invitationCode)
-      .then((invitation) => {
-        if (invitation) setClubName(invitation.clubName);
+      .then((found) => {
+        setInvitation(found);
       })
-      .catch(() => {});
+      .catch(() => {
+        setInvitation(null);
+      })
+      .finally(() => setLookupDone(true));
   }, [invitationCode]);
 
   if (!invitationCode) {
@@ -38,20 +52,37 @@ export function JoinRedirectClient() {
     );
   }
 
+  if (!lookupDone) {
+    return (
+      <AuthShell
+        accent="cyan"
+        eyebrow="Invitation"
+        title="Vérification du code"
+        lead="On cherche ton invitation…"
+      >
+        <p className={styles.hint}>Un instant.</p>
+      </AuthShell>
+    );
+  }
+
+  if (invitation?.type === InvitationTypes.guardian) {
+    return <JoinGuardianAccept invitation={invitation} />;
+  }
+
   return (
     <AuthShell
       accent="cyan"
       eyebrow="Rejoindre un club"
       title="Ouvre l’app ViroTeam"
       lead={
-        clubName
-          ? `On t’envoie vers ${clubName} dans l’app.`
+        invitation?.clubName
+          ? `On t’envoie vers ${invitation.clubName} dans l’app.`
           : "On t’envoie vers l’app ViroTeam avec ton code d’invitation."
       }
     >
       <JoinAppRedirect
         code={invitationCode}
-        clubName={clubName}
+        clubName={invitation?.clubName ?? null}
         showPortalLoginLink
       />
     </AuthShell>

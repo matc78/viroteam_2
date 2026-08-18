@@ -1,0 +1,53 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.button {
+  min-height: 2.15rem;
+  padding: 0.3rem 0.85rem;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: 999px;
+  background: var(--color-white);
+  color: var(--color-gray-700);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.button[data-value="yes"].buttonActive {
+  border-color: var(--color-sport-green);
+  background: color-mix(in srgb, var(--color-sport-green) 16%, white);
+  color: var(--color-primary-900);
+}
+
+.button[data-value="maybe"].buttonActive {
+  border-color: var(--color-sport-yellow);
+  background: color-mix(in srgb, var(--color-sport-yellow) 20%, white);
+  color: var(--color-primary-900);
+}
+
+.button[data-value="no"].buttonActive {
+  border-color: var(--color-sport-orange);
+  background: color-mix(in srgb, var(--color-sport-orange) 16%, white);
+  color: var(--color-primary-900);
+}
+
+.error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-sport-orange);
+}

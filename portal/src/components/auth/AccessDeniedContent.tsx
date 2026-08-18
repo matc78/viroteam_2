@@ -10,6 +10,7 @@ import {
 } from "@/components/auth/JoinOnboardingForm";
 import { StoreBadges } from "@/components/StoreBadges";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { GuardianStatuses } from "@/lib/firebase/constants";
 import {
   buildAccessDeniedLead,
   buildAccessDeniedTitle,
@@ -33,7 +34,10 @@ export function AccessDeniedContent() {
   } | null>(null);
 
   const hasClubs = (profile?.clubMemberships.length ?? 0) > 0;
-  const needsJoinOnboarding = status === "signedIn" && !hasClubs;
+  const isParent = (profile?.parentLinks ?? []).some(
+    (link) => link.status === GuardianStatuses.active,
+  );
+  const needsJoinOnboarding = status === "signedIn" && !hasClubs && !isParent;
 
   useEffect(() => {
     const clubIds =

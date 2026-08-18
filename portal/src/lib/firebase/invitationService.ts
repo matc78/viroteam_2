@@ -7,13 +7,15 @@ import {
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
 import { getClub } from "./clubService";
-import { Collections, Fields, InvitationStatus } from "./constants";
+import { Collections, Fields, InvitationStatus, InvitationTypes } from "./constants";
 
 export type InvitationLookupResult = {
   invitationId: string;
   clubId: string;
   code: string;
   role: string;
+  type: string;
+  memberId: string;
   clubName: string;
   firstName?: string;
   lastName?: string;
@@ -55,6 +57,8 @@ export async function findInvitationByCode(
     clubId,
     code,
     role: String(data[Fields.role] ?? ""),
+    type: String(data[Fields.type] ?? InvitationTypes.member),
+    memberId: String(data[Fields.memberId] ?? ""),
     clubName,
     firstName: String(data[Fields.firstName] ?? "").trim() || undefined,
     lastName: String(data[Fields.lastName] ?? "").trim() || undefined,

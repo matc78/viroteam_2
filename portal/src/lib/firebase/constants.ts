@@ -9,6 +9,8 @@ export const Collections = {
   memberFees: "member_fees",
   teams: "teams",
   invitations: "invitations",
+  guardians: "guardians",
+  announcements: "announcements",
 } as const;
 
 /** Noms de champs Firestore alignés sur FirestoreFields Flutter. */
@@ -23,6 +25,18 @@ export const Fields = {
   phone: "phone",
   avatarUrl: "avatarUrl",
   clubMemberships: "clubMemberships",
+  parentLinks: "parentLinks",
+  parentClubIds: "parentClubIds",
+  relation: "relation",
+  parentUid: "parentUid",
+  invitedBy: "invitedBy",
+  revokedAt: "revokedAt",
+  permissions: "permissions",
+  canView: "canView",
+  canRsvp: "canRsvp",
+  canPay: "canPay",
+  acceptedBy: "acceptedBy",
+  acceptedAt: "acceptedAt",
   flags: "flags",
   profileCompleted: "profileCompleted",
   disabled: "disabled",
@@ -102,6 +116,12 @@ export const Fields = {
   sentBy: "sentBy",
   sentAt: "sentAt",
   joinedAt: "joinedAt",
+  message: "message",
+  senderId: "senderId",
+  senderFirstName: "senderFirstName",
+  senderLastName: "senderLastName",
+  targetType: "targetType",
+  targetIds: "targetIds",
 } as const;
 
 /** Rôles membre club. */
@@ -148,10 +168,43 @@ export type OfflinePaymentMethod = (typeof OfflinePaymentMethods)[number];
 /** Clé localStorage du club actif. */
 export const ACTIVE_CLUB_STORAGE_KEY = "viro.activeClubId";
 
+/** Clé localStorage de l’espace (bureau vs famille). */
+export const ACTIVE_SPACE_STORAGE_KEY = "viro.activeSpace";
+
+/** V1 : un guardian active/pending par fiche enfant. */
+export const MAX_ACTIVE_GUARDIANS_PER_MEMBER = 1;
+
 /** Statuts invitation (aligné InvitationStatus Flutter). */
 export const InvitationStatus = {
   pending: "pending",
   accepted: "accepted",
   declined: "declined",
   expired: "expired",
+} as const;
+
+/** `invitations.type` — membre du roster vs rattachement parent. */
+export const InvitationTypes = {
+  member: "member",
+  guardian: "guardian",
+} as const;
+
+/** `guardians.relation` / `parentLinks.relation`. V1 : uniquement parent. */
+export const GuardianRelations = {
+  parent: "parent",
+  grandparent: "grandparent",
+  tutor: "tutor",
+} as const;
+
+/** `guardians.status` / `parentLinks.status`. */
+export const GuardianStatuses = {
+  pending: "pending",
+  active: "active",
+  revoked: "revoked",
+} as const;
+
+/** Ciblage des annonces club (aligné AnnouncementTargetTypes Flutter). */
+export const AnnouncementTargetTypes = {
+  allMembers: "Tous les membres",
+  teams: "Équipes",
+  categories: "Catégories",
 } as const;

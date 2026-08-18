@@ -39,6 +39,8 @@ export type ClubEventView = {
   teamLabels: string[];
   /** Audience RSVP / joueurs convoqués. */
   teamMemberIds: string[];
+  /** Map memberId → yes | maybe | no. */
+  rsvpByMemberId: Record<string, string>;
   rsvpYes: number;
   rsvpNo: number;
   rsvpPending: number;
@@ -157,17 +159,28 @@ function parseEventType(raw: unknown): EventType {
   return "other";
 }
 
+function parseRsvpMap(data: Record<string, unknown>): Record<string, string> {
+  const rsvpRaw = data[Fields.rsvp];
+  if (!rsvpRaw || typeof rsvpRaw !== "object") return {};
+  const result: Record<string, string> = {};
+  for (const [memberId, value] of Object.entries(
+    rsvpRaw as Record<string, unknown>,
+  )) {
+    if (typeof value === "string" && value.trim()) {
+      result[memberId] = value;
+    }
+  }
+  return result;
+}
+
 function parseRsvpCounts(data: Record<string, unknown>): {
   rsvpYes: number;
   rsvpNo: number;
   rsvpPending: number;
   rsvpTotal: number;
+  rsvpByMemberId: Record<string, string>;
 } {
-  const rsvpRaw = data[Fields.rsvp];
-  const rsvp =
-    rsvpRaw && typeof rsvpRaw === "object"
-      ? (rsvpRaw as Record<string, string>)
-      : {};
+  const rsvp = parseRsvpMap(data);
   const values = Object.values(rsvp);
   const rsvpYes = values.filter((value) => value === "yes").length;
   const rsvpNo = values.filter((value) => value === "no").length;
@@ -178,7 +191,7 @@ function parseRsvpCounts(data: Record<string, unknown>): {
     teamMemberIds.length > 0 ? teamMemberIds.length : values.length;
   const rsvpPending = Math.max(0, rsvpTotal - rsvpYes - rsvpNo);
 
-  return { rsvpYes, rsvpNo, rsvpPending, rsvpTotal };
+  return { rsvpYes, rsvpNo, rsvpPending, rsvpTotal, rsvpByMemberId: rsvp };
 }
 
 /** Parse un document Firestore events en vue portail. */
@@ -199,7 +212,8 @@ export function parseClubEvent(
       ? teamIds.map((teamId) => teamNameById.get(teamId) ?? "Équipe")
       : ["Club"];
 
-  const { rsvpYes, rsvpNo, rsvpPending, rsvpTotal } = parseRsvpCounts(data);
+  const { rsvpYes, rsvpNo, rsvpPending, rsvpTotal, rsvpByMemberId } =
+    parseRsvpCounts(data);
   const dateId =
     typeof data[Fields.dateId] === "string" && data[Fields.dateId]
       ? String(data[Fields.dateId])
@@ -235,6 +249,7 @@ export function parseClubEvent(
     teamMemberIds: Array.isArray(data[Fields.teamMemberIds])
       ? (data[Fields.teamMemberIds] as unknown[]).map(String)
       : [],
+    rsvpByMemberId,
     rsvpYes,
     rsvpNo,
     rsvpPending,

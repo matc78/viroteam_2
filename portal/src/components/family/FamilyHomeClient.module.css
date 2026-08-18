@@ -1,0 +1,53 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.bannerTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+}
+
+.bannerLead {
+  margin: 0;
+  color: var(--color-gray-700);
+  font-size: 0.95rem;
+}
+
+.bannerLink {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--color-primary-700);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-gray-600);
+}
+
+.announcements {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.announcementAuthor {
+  margin: 0 0 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+}
+
+.announcementBody {
+  margin: 0;
+  color: var(--color-primary-900);
+  white-space: pre-wrap;
+}

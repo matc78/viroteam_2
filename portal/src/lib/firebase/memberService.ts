@@ -227,6 +227,39 @@ export function parseClubMember(
   };
 }
 
+/** Charge une fiche membre par id. */
+export async function getClubMember(
+  clubId: string,
+  memberId: string,
+): Promise<ClubMemberRecord | null> {
+  const snap = await getDoc(doc(membersCol(clubId), memberId));
+  if (!snap.exists()) return null;
+  return parseClubMember(snap.id, snap.data() as Record<string, unknown>);
+}
+
+/** Résout la fiche licencié liée au compte Auth (Moi). */
+export async function getLinkedMemberId(
+  clubId: string,
+  accountUid: string,
+): Promise<string | null> {
+  const indexSnap = await getDoc(
+    doc(
+      getAppFirestore(),
+      Collections.clubs,
+      clubId,
+      Collections.memberAccounts,
+      accountUid,
+    ),
+  );
+  if (indexSnap.exists()) {
+    const linked = String(indexSnap.data()?.[Fields.memberId] ?? "").trim();
+    if (linked) return linked;
+  }
+  const selfSnap = await getDoc(doc(membersCol(clubId), accountUid));
+  if (selfSnap.exists()) return accountUid;
+  return null;
+}
+
 async function enrichMember(
   clubId: string,
   member: ClubMemberRecord,

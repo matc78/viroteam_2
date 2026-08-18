@@ -1,7 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { validateEmail } from "@/lib/auth/validateEmail";
 import { MemberRoles } from "@/lib/firebase/constants";
+import {
+  getMemberGuardian,
+  inviteMemberGuardian,
+  revokeMemberGuardian,
+  type MemberGuardianView,
+} from "@/lib/firebase/guardianService";
 import {
   isMemberInviteValid,
   memberRoleLabel,
@@ -14,6 +21,7 @@ import styles from "./MemberDetailPanel.module.css";
 
 /** Props du panneau détail membre. */
 type MemberDetailPanelProps = {
+  clubId: string;
   member: MemberRow;
   busy: boolean;
   error: string | null;
@@ -26,8 +34,9 @@ type MemberDetailPanelProps = {
   onRemove: () => Promise<void>;
 };
 
-/** Fiche membre : licence, rôle, invitation, suppression. */
+/** Fiche membre : licence, rôle, parent, invitation, suppression. */
 export function MemberDetailPanel({
+  clubId,
   member,
   busy,
   error,
@@ -42,15 +51,35 @@ export function MemberDetailPanel({
   const [license, setLicense] = useState(member.license);
   const [role, setRole] = useState<ClubMemberRole>(member.role);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [guardian, setGuardian] = useState<MemberGuardianView | null>(null);
+  const [guardianEmail, setGuardianEmail] = useState("");
+  const [guardianBusy, setGuardianBusy] = useState(false);
+  const [guardianError, setGuardianError] = useState<string | null>(null);
 
   useEffect(() => {
     setLicense(member.license);
     setRole(member.role);
     setConfirmRemove(false);
+    setGuardianEmail("");
+    setGuardianError(null);
   }, [member.memberId, member.license, member.role]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void getMemberGuardian(clubId, member.memberId)
+      .then((view) => {
+        if (!cancelled) setGuardian(view);
+      })
+      .catch(() => {
+        if (!cancelled) setGuardian(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [clubId, member.memberId]);
+
   function requestClose() {
-    if (busy) return;
+    if (busy || guardianBusy) return;
     onClose();
   }
 
@@ -64,6 +93,58 @@ export function MemberDetailPanel({
     if (role === member.role) return;
     await onChangeRole(role);
   }
+
+  async function reloadGuardian() {
+    const view = await getMemberGuardian(clubId, member.memberId);
+    setGuardian(view);
+  }
+
+  async function handleInviteParent(event: FormEvent) {
+    event.preventDefault();
+    const emailError = validateEmail(guardianEmail);
+    if (emailError) {
+      setGuardianError(emailError);
+      return;
+    }
+    setGuardianBusy(true);
+    setGuardianError(null);
+    try {
+      await inviteMemberGuardian({
+        clubId,
+        memberId: member.memberId,
+        email: guardianEmail.trim(),
+      });
+      setGuardianEmail("");
+      await reloadGuardian();
+    } catch (err: unknown) {
+      setGuardianError(
+        err instanceof Error ? err.message : "Invitation parent impossible.",
+      );
+    } finally {
+      setGuardianBusy(false);
+    }
+  }
+
+  async function handleRevokeParent() {
+    setGuardianBusy(true);
+    setGuardianError(null);
+    try {
+      await revokeMemberGuardian({
+        clubId,
+        memberId: member.memberId,
+        parentUid: guardian?.parentUid,
+      });
+      await reloadGuardian();
+    } catch (err: unknown) {
+      setGuardianError(
+        err instanceof Error ? err.message : "Révocation impossible.",
+      );
+    } finally {
+      setGuardianBusy(false);
+    }
+  }
+
+  const panelBusy = busy || guardianBusy;
 
   const showInviteActions = !member.hasLinkedAccount;
   const hasValidInvite = isMemberInviteValid(member);
@@ -100,7 +181,7 @@ export function MemberDetailPanel({
             type="button"
             className={dialogStyles.closeButton}
             onClick={requestClose}
-            disabled={busy}
+            disabled={panelBusy}
             aria-label="Fermer la fiche"
           >
             ×
@@ -134,6 +215,60 @@ export function MemberDetailPanel({
           </div>
         </dl>
 
+        <div className={dialogStyles.field}>
+          <p className={dialogStyles.label}>Parent</p>
+          {guardian?.status ? (
+            <>
+              <p className={styles.inviteCode}>
+                {guardian.displayName || guardian.email || "Parent invité"}
+                {guardian.status === "pending" ? " · en attente" : ""}
+              </p>
+              {guardian.invitationCode ? (
+                <p className={dialogStyles.hint}>
+                  Code : {guardian.invitationCode}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                className={dialogStyles.buttonSecondary}
+                disabled={panelBusy}
+                onClick={() => void handleRevokeParent()}
+              >
+                Révoquer
+              </button>
+            </>
+          ) : (
+            <form className={styles.row} onSubmit={handleInviteParent}>
+              <input
+                className={styles.input}
+                type="email"
+                value={guardianEmail}
+                onChange={(event) => setGuardianEmail(event.target.value)}
+                placeholder="email du parent"
+                disabled={panelBusy}
+                aria-label="E-mail du parent"
+              />
+              <button
+                type="submit"
+                className={`${dialogStyles.buttonSecondary} ${styles.rowAction}`}
+                disabled={panelBusy}
+              >
+                Inviter
+              </button>
+            </form>
+          )}
+          {guardianError ? (
+            <p className={dialogStyles.hint} role="alert">
+              {guardianError}
+            </p>
+          ) : (
+            <p className={dialogStyles.hint}>
+              Un parent par enfant. Il pourra voir le planning, répondre et
+              payer la cotisation.
+            </p>
+          )}
+        </div>
+
         {showInviteActions ? (
           <div className={dialogStyles.field}>
             <p className={dialogStyles.label}>Code invitation</p>
@@ -149,7 +284,7 @@ export function MemberDetailPanel({
                   <button
                     type="button"
                     className={`${dialogStyles.buttonSecondary} ${styles.inviteAction}`}
-                    disabled={busy}
+                    disabled={panelBusy}
                     onClick={() => void onExtendInvite()}
                   >
                     Prolonger
@@ -157,7 +292,7 @@ export function MemberDetailPanel({
                   <button
                     type="button"
                     className={`${dialogStyles.buttonSecondary} ${styles.inviteAction}`}
-                    disabled={busy}
+                    disabled={panelBusy}
                     onClick={() => void onRegenerateInvite()}
                   >
                     Nouveau code
@@ -170,7 +305,7 @@ export function MemberDetailPanel({
                 <button
                   type="button"
                   className={dialogStyles.buttonSecondary}
-                  disabled={busy}
+                  disabled={panelBusy}
                   onClick={() => void onRegenerateInvite()}
                 >
                   Créer un code
@@ -191,7 +326,7 @@ export function MemberDetailPanel({
               value={license}
               onChange={(event) => setLicense(event.target.value)}
               placeholder="Ex. LIC-12345"
-              disabled={busy}
+              disabled={panelBusy}
             />
             <button
               type="submit"
@@ -215,7 +350,7 @@ export function MemberDetailPanel({
               onChange={(event) =>
                 setRole(event.target.value as ClubMemberRole)
               }
-              disabled={busy}
+              disabled={panelBusy}
             >
               <option value={MemberRoles.admin}>Admin</option>
               <option value={MemberRoles.coach}>Coach</option>
@@ -238,7 +373,7 @@ export function MemberDetailPanel({
                 type="button"
                 className={dialogStyles.button}
                 onClick={onCopyInvite}
-                disabled={busy}
+                disabled={panelBusy}
               >
                 Copier le message d&apos;invitation
               </button>
@@ -246,7 +381,7 @@ export function MemberDetailPanel({
               <button
                 type="button"
                 className={dialogStyles.button}
-                disabled={busy}
+                disabled={panelBusy}
                 onClick={() => void onRegenerateInvite()}
               >
                 Générer nouveau code
@@ -263,7 +398,7 @@ export function MemberDetailPanel({
                 <button
                   type="button"
                   className={dialogStyles.buttonDanger}
-                  disabled={busy}
+                  disabled={panelBusy}
                   onClick={() => void onRemove()}
                 >
                   Confirmer la suppression
@@ -271,7 +406,7 @@ export function MemberDetailPanel({
                 <button
                   type="button"
                   className={dialogStyles.buttonSecondary}
-                  disabled={busy}
+                  disabled={panelBusy}
                   onClick={() => setConfirmRemove(false)}
                 >
                   Annuler
@@ -281,7 +416,7 @@ export function MemberDetailPanel({
               <button
                 type="button"
                 className={dialogStyles.buttonDanger}
-                disabled={busy}
+                disabled={panelBusy}
                 onClick={() => setConfirmRemove(true)}
               >
                 Supprimer le membre

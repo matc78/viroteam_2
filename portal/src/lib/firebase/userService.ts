@@ -33,6 +33,8 @@ export async function createUserProfile(params: {
     [Fields.lastName]: lastName,
     [Fields.displayName]: displayName,
     [Fields.clubMemberships]: [],
+    [Fields.parentLinks]: [],
+    [Fields.parentClubIds]: [],
     [Fields.flags]: {
       [Fields.profileCompleted]: Boolean(firstName),
       [Fields.disabled]: false,

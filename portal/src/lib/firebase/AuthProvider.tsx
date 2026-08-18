@@ -26,9 +26,14 @@ import {
   signInWithGoogle as firebaseSignInWithGoogle,
 } from "@/lib/firebase/googleAuth";
 import { ClubRecord, getClubsByIds } from "@/lib/firebase/clubService";
-import { ACTIVE_CLUB_STORAGE_KEY } from "@/lib/firebase/constants";
+import {
+  ACTIVE_CLUB_STORAGE_KEY,
+  ACTIVE_SPACE_STORAGE_KEY,
+} from "@/lib/firebase/constants";
+import { claimPendingGuardianInvites } from "@/lib/firebase/guardianService";
 import {
   adminClubIds,
+  familyClubIds,
   ViroUserProfile,
 } from "@/lib/firebase/types";
 import {
@@ -37,6 +42,8 @@ import {
 } from "@/lib/firebase/userService";
 
 type AuthStatus = "loading" | "signedOut" | "signedIn";
+
+export type PortalSpace = "bureau" | "family";
 
 /** État exposé par le contexte Auth du portail. */
 type AuthContextValue = {
@@ -48,12 +55,20 @@ type AuthContextValue = {
   profile: ViroUserProfile | null;
   /** Clubs où l’utilisateur a un rôle admin. */
   adminClubs: ClubRecord[];
-  /** Club sélectionné dans l’espace dashboard. */
+  /** Clubs où l’utilisateur a un lien parent actif. */
+  familyClubs: ClubRecord[];
+  /** Club sélectionné dans l’espace courant. */
   activeClub: ClubRecord | null;
   /** Vrai si l’utilisateur administre au moins un club. */
   isAdmin: boolean;
+  /** Vrai si au moins un parentLink est active. */
+  isParent: boolean;
+  /** Espace courant (bureau admin vs famille). */
+  activeSpace: PortalSpace;
   /** Persiste le club actif (localStorage). */
   setActiveClubId: (clubId: string) => void;
+  /** Bascule bureau / famille. */
+  setActiveSpace: (space: PortalSpace) => void;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: (options?: { createProfileIfMissing?: boolean }) => Promise<void>;
   signUp: (params: {
@@ -62,7 +77,7 @@ type AuthContextValue = {
     displayName: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
-  /** Recharge profil + clubs admin après mutation Firestore. */
+  /** Recharge profil + clubs après mutation Firestore. */
   refreshProfile: () => Promise<void>;
 };
 
@@ -87,6 +102,26 @@ function writeStoredClubId(clubId: string | null): void {
   }
 }
 
+function readStoredSpace(): PortalSpace | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = localStorage.getItem(ACTIVE_SPACE_STORAGE_KEY);
+    if (value === "bureau" || value === "family") return value;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredSpace(space: PortalSpace): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(ACTIVE_SPACE_STORAGE_KEY, space);
+  } catch {
+    // ignore
+  }
+}
+
 function pickActiveClub(
   clubs: ClubRecord[],
   preferredId: string | null,
@@ -99,34 +134,79 @@ function pickActiveClub(
   return clubs[0];
 }
 
-/** Provider Auth + clubs admin pour le portail. */
+function resolveSpace(params: {
+  isAdmin: boolean;
+  isParent: boolean;
+  stored: PortalSpace | null;
+}): PortalSpace {
+  if (params.isAdmin && params.isParent) {
+    return params.stored ?? "bureau";
+  }
+  if (params.isParent) return "family";
+  return "bureau";
+}
+
+/** Provider Auth + clubs admin / famille pour le portail. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ViroUserProfile | null>(null);
   const [adminClubs, setAdminClubs] = useState<ClubRecord[]>([]);
+  const [familyClubs, setFamilyClubs] = useState<ClubRecord[]>([]);
   const [activeClubId, setActiveClubIdState] = useState<string | null>(null);
+  const [activeSpace, setActiveSpaceState] = useState<PortalSpace>("bureau");
 
   const loadSession = useCallback(async (firebaseUser: User | null) => {
     if (!firebaseUser) {
       setUser(null);
       setProfile(null);
       setAdminClubs([]);
+      setFamilyClubs([]);
       setActiveClubIdState(null);
       setStatus("signedOut");
       return;
     }
 
     setUser(firebaseUser);
-    const userProfile = await getUserProfile(firebaseUser.uid);
+    let userProfile = await getUserProfile(firebaseUser.uid);
+
+    const emailNorm =
+      userProfile?.emailNorm || firebaseUser.email?.trim().toLowerCase() || "";
+    if (emailNorm) {
+      try {
+        const claimed = await claimPendingGuardianInvites(emailNorm);
+        if (claimed > 0) {
+          userProfile = await getUserProfile(firebaseUser.uid);
+        }
+      } catch (error) {
+        console.error("Claim guardian invites", error);
+      }
+    }
+
     setProfile(userProfile);
 
-    const clubIds = adminClubIds(userProfile);
-    const clubs = clubIds.length > 0 ? await getClubsByIds(clubIds) : [];
-    setAdminClubs(clubs);
+    const adminIds = adminClubIds(userProfile);
+    const familyIds = familyClubIds(userProfile);
+    const [loadedAdminClubs, loadedFamilyClubs] = await Promise.all([
+      adminIds.length > 0 ? getClubsByIds(adminIds) : Promise.resolve([]),
+      familyIds.length > 0 ? getClubsByIds(familyIds) : Promise.resolve([]),
+    ]);
+    setAdminClubs(loadedAdminClubs);
+    setFamilyClubs(loadedFamilyClubs);
 
+    const isAdminUser = loadedAdminClubs.length > 0;
+    const isParentUser = loadedFamilyClubs.length > 0;
+    const nextSpace = resolveSpace({
+      isAdmin: isAdminUser,
+      isParent: isParentUser,
+      stored: readStoredSpace(),
+    });
+    setActiveSpaceState(nextSpace);
+    writeStoredSpace(nextSpace);
+
+    const clubPool = nextSpace === "family" ? loadedFamilyClubs : loadedAdminClubs;
     const preferred = readStoredClubId();
-    const active = pickActiveClub(clubs, preferred);
+    const active = pickActiveClub(clubPool, preferred);
     setActiveClubIdState(active?.id ?? null);
     if (active) writeStoredClubId(active.id);
 
@@ -141,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProfile(null);
         setAdminClubs([]);
+        setFamilyClubs([]);
         setActiveClubIdState(null);
         setStatus("signedOut");
       });
@@ -150,11 +231,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setActiveClubId = useCallback(
     (clubId: string) => {
-      if (!adminClubs.some((club) => club.id === clubId)) return;
+      const allowed = [...adminClubs, ...familyClubs].some(
+        (club) => club.id === clubId,
+      );
+      if (!allowed) return;
       setActiveClubIdState(clubId);
       writeStoredClubId(clubId);
     },
-    [adminClubs],
+    [adminClubs, familyClubs],
+  );
+
+  const setActiveSpace = useCallback(
+    (space: PortalSpace) => {
+      setActiveSpaceState(space);
+      writeStoredSpace(space);
+      const pool = space === "family" ? familyClubs : adminClubs;
+      setActiveClubIdState((currentId) => {
+        if (currentId && pool.some((club) => club.id === currentId)) {
+          return currentId;
+        }
+        const next = pool[0];
+        if (next) writeStoredClubId(next.id);
+        return next?.id ?? null;
+      });
+    },
+    [adminClubs, familyClubs],
   );
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -237,9 +338,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadSession(user);
   }, [loadSession, user]);
 
+  const clubPool = activeSpace === "family" ? familyClubs : adminClubs;
   const activeClub = useMemo(
-    () => adminClubs.find((club) => club.id === activeClubId) ?? null,
-    [adminClubs, activeClubId],
+    () => clubPool.find((club) => club.id === activeClubId) ?? clubPool[0] ?? null,
+    [clubPool, activeClubId],
   );
 
   const value = useMemo<AuthContextValue>(
@@ -248,9 +350,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       adminClubs,
+      familyClubs,
       activeClub,
       isAdmin: adminClubs.length > 0,
+      isParent: familyClubs.length > 0,
+      activeSpace,
       setActiveClubId,
+      setActiveSpace,
       signIn,
       signInWithGoogle,
       signUp,
@@ -262,8 +368,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       adminClubs,
+      familyClubs,
       activeClub,
+      activeSpace,
       setActiveClubId,
+      setActiveSpace,
       signIn,
       signInWithGoogle,
       signUp,

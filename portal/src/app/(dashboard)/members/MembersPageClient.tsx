@@ -394,8 +394,9 @@ export function MembersPageClient() {
         ) : null}
       </div>
 
-      {selectedMember ? (
+      {selectedMember && activeClub ? (
         <MemberDetailPanel
+          clubId={activeClub.id}
           member={selectedMember}
           busy={busy}
           error={actionError}

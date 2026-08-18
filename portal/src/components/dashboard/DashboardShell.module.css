@@ -179,6 +179,34 @@
   text-transform: uppercase;
 }
 
+.spaceSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.18rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-gray-200);
+  background: var(--color-gray-100);
+}
+
+.spaceLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-gray-600);
+}
+
+.spaceLinkActive {
+  background: var(--color-white);
+  color: var(--color-primary-900);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-primary-900) 8%, transparent);
+}
+
 .logoutButton {
   display: inline-flex;
   align-items: center;

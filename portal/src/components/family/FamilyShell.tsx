@@ -8,45 +8,36 @@ import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
 import { DashboardPageTransition } from "@/components/dashboard/DashboardPageTransition";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
-import styles from "./DashboardShell.module.css";
+import styles from "@/components/dashboard/DashboardShell.module.css";
 
-/** Props de la coquille espace club. */
-type DashboardShellProps = {
+type FamilyShellProps = {
   children: ReactNode;
 };
 
 const NAV_ITEMS = [
-  { href: "/home", label: "Accueil" },
-  { href: "/members", label: "Membres" },
-  { href: "/planning", label: "Planning" },
-  { href: "/fees", label: "Cotisations" },
+  { href: "/family", label: "Accueil" },
+  { href: "/family/planning", label: "Planning" },
+  { href: "/family/fees", label: "Cotisations" },
 ] as const;
 
-const WIDE_PATH_PREFIXES = ["/members", "/planning"] as const;
-
 function isNavItemActive(pathname: string, href: string): boolean {
+  if (href === "/family") return pathname === "/family";
   return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function isWidePath(pathname: string): boolean {
-  return WIDE_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
 }
 
 function userInitials(displayName: string): string {
   const nameParts = displayName.trim().split(/\s+/).filter(Boolean);
-  if (nameParts.length === 0) return "A";
+  if (nameParts.length === 0) return "F";
   if (nameParts.length === 1) return nameParts[0]!.slice(0, 1).toUpperCase();
   return `${nameParts[0]!.slice(0, 1)}${nameParts[1]!.slice(0, 1)}`.toUpperCase();
 }
 
-/** Coquille espace club : header bureau + nav modules + logout. */
-export function DashboardShell({ children }: DashboardShellProps) {
+/** Coquille espace famille : nav distincte du bureau admin. */
+export function FamilyShell({ children }: FamilyShellProps) {
   const pathname = usePathname();
   const {
     activeClub,
-    adminClubs,
+    familyClubs,
     profile,
     setActiveClubId,
     logout,
@@ -58,8 +49,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
   }, [pathname]);
 
   const resolvedClubName = activeClub?.name ?? "Club";
-  const resolvedAdminName = profile?.displayName ?? "Admin";
-  const wide = isWidePath(pathname);
+  const resolvedName = profile?.displayName ?? "Famille";
+  const wide = pathname.startsWith("/family/planning");
 
   return (
     <div className={styles.page}>
@@ -67,18 +58,18 @@ export function DashboardShell({ children }: DashboardShellProps) {
         <div className={styles.inner}>
           <div className={styles.brandBlock}>
             <Link
-              href="/home"
+              href="/family"
               className={styles.brand}
-              aria-label={`${site.name} — espace club`}
+              aria-label={`${site.name} — espace famille`}
               onClick={() => {
-                if (pathname !== "/home") setPendingHref("/home");
+                if (pathname !== "/family") setPendingHref("/family");
               }}
             >
               <BrandMark className={styles.mark} priority />
               <span className={styles.wordmark}>{site.name}</span>
             </Link>
             <span className={styles.clubDivider} aria-hidden="true" />
-            {adminClubs.length > 1 ? (
+            {familyClubs.length > 1 ? (
               <label className={styles.clubSelectLabel}>
                 <span className={styles.srOnly}>Club actif</span>
                 <select
@@ -87,7 +78,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
                   onChange={(event) => setActiveClubId(event.target.value)}
                   aria-label="Sélectionner le club"
                 >
-                  {adminClubs.map((club) => (
+                  {familyClubs.map((club) => (
                     <option key={club.id} value={club.id}>
                       {club.name}
                     </option>
@@ -99,7 +90,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
             )}
           </div>
 
-          <nav className={styles.nav} aria-label="Modules espace club">
+          <nav className={styles.nav} aria-label="Espace famille">
             {NAV_ITEMS.map((item) => {
               const isActive = isNavItemActive(pathname, item.href);
               const isPending = pendingHref === item.href && !isActive;
@@ -123,11 +114,11 @@ export function DashboardShell({ children }: DashboardShellProps) {
             <SpaceSwitcher />
             <div className={styles.userBlock}>
               <span className={styles.avatar} aria-hidden="true">
-                {userInitials(resolvedAdminName)}
+                {userInitials(resolvedName)}
               </span>
               <div className={styles.userMeta}>
-                <span className={styles.userName}>{resolvedAdminName}</span>
-                <span className={styles.roleChip}>Admin</span>
+                <span className={styles.userName}>{resolvedName}</span>
+                <span className={styles.roleChip}>Famille</span>
               </div>
             </div>
             <button

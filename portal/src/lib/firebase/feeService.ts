@@ -2,6 +2,7 @@ import {
   collection,
   deleteField,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -10,8 +11,16 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import { getAppFirestore } from "./app";
-import { Collections, Fields } from "./constants";
+import { getAppFirestore, getFirebaseAuth } from "./app";
+import {
+  Collections,
+  FeeAidStatuses,
+  FeePaidVia,
+  Fields,
+  MemberFeeStatuses,
+  OfflinePaymentMethod,
+  OfflinePaymentMethods,
+} from "./constants";
 import { toDate } from "./types";
 
 /** Moyen de paiement accepté (aligné Flutter). */
@@ -44,15 +53,29 @@ export type FeeSeasonRecord = {
   createdBy: string;
 };
 
+/** Aide / réduction sur une fiche cotisation. */
+export type FeeAidRecord = {
+  id: string;
+  type: string;
+  label: string;
+  amountCents: number;
+  status: string;
+  promoCode: string | null;
+  validatedBy: string | null;
+  validatedAt: Date | null;
+};
+
 /** Fiche cotisation membre. */
 export type MemberFeeRecord = {
   id: string;
+  memberDisplayName: string;
+  tierId: string | null;
   status: string;
   amountPaidCents: number;
   paidAt: Date | null;
   paidVia: string | null;
   paymentProvider: string | null;
-  aids: Array<Record<string, unknown>>;
+  aids: FeeAidRecord[];
 };
 
 const VALID_METHODS = new Set<string>([
@@ -121,15 +144,36 @@ export function parseFeeSeason(
   };
 }
 
+function parseAids(raw: unknown): FeeAidRecord[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+    .map((item) => ({
+      id: String(item[Fields.id] ?? item.id ?? ""),
+      type: String(item[Fields.type] ?? "other"),
+      label: String(item[Fields.label] ?? ""),
+      amountCents: Number(item[Fields.amountCents] ?? 0),
+      status: String(item[Fields.status] ?? FeeAidStatuses.pendingProof),
+      promoCode:
+        item[Fields.promoCode] != null ? String(item[Fields.promoCode]) : null,
+      validatedBy:
+        item[Fields.validatedBy] != null
+          ? String(item[Fields.validatedBy])
+          : null,
+      validatedAt: toDate(item[Fields.validatedAt]),
+    }));
+}
+
 /** Parse un document member_fees. */
 export function parseMemberFee(
   id: string,
   data: Record<string, unknown>,
 ): MemberFeeRecord {
-  const aidsRaw = data[Fields.aids];
   return {
     id,
-    status: String(data[Fields.feeStatus] ?? "a_payer"),
+    memberDisplayName: String(data[Fields.memberDisplayName] ?? ""),
+    tierId: data[Fields.tierId] != null ? String(data[Fields.tierId]) : null,
+    status: String(data[Fields.feeStatus] ?? MemberFeeStatuses.aPayer),
     amountPaidCents: Number(data[Fields.amountPaidCents] ?? 0),
     paidAt: toDate(data[Fields.paidAt]),
     paidVia: data[Fields.paidVia] != null ? String(data[Fields.paidVia]) : null,
@@ -137,12 +181,7 @@ export function parseMemberFee(
       data[Fields.paymentProvider] != null
         ? String(data[Fields.paymentProvider])
         : null,
-    aids: Array.isArray(aidsRaw)
-      ? aidsRaw.filter(
-          (item): item is Record<string, unknown> =>
-            !!item && typeof item === "object",
-        )
-      : [],
+    aids: parseAids(data[Fields.aids]),
   };
 }
 
@@ -277,4 +316,179 @@ export function parseDateInput(value: string): Date | null {
   const month = Number(match[2]);
   const day = Number(match[3]);
   return new Date(year, month - 1, day);
+}
+
+function memberFeeRef(clubId: string, seasonId: string, memberId: string) {
+  return doc(
+    getAppFirestore(),
+    Collections.clubs,
+    clubId,
+    Collections.feeSeasons,
+    seasonId,
+    Collections.memberFees,
+    memberId,
+  );
+}
+
+function currentUid(): string {
+  const uid = getFirebaseAuth().currentUser?.uid;
+  if (!uid) throw new Error("Non connecté");
+  return uid;
+}
+
+/** Montant catalogue dû pour une fiche (palier). */
+export function amountDueCents(
+  fee: MemberFeeRecord,
+  season: FeeSeasonRecord,
+): number {
+  if (fee.status === MemberFeeStatuses.exonere) return 0;
+  if (!fee.tierId) return 0;
+  const tier = season.tiers.find((item) => item.tierId === fee.tierId);
+  return tier?.amountCents ?? 0;
+}
+
+/** Somme des aides validées. */
+export function validatedAidsCents(fee: MemberFeeRecord): number {
+  return fee.aids
+    .filter((aid) => aid.status === FeeAidStatuses.validated)
+    .reduce((sum, aid) => sum + aid.amountCents, 0);
+}
+
+/** Reste à encaisser / justifier. */
+export function remainingCents(
+  fee: MemberFeeRecord,
+  season: FeeSeasonRecord,
+): number {
+  const due = amountDueCents(fee, season);
+  const covered = fee.amountPaidCents + validatedAidsCents(fee);
+  const remaining = due - covered;
+  return remaining < 0 ? 0 : remaining;
+}
+
+/** Charge une fiche cotisation membre. */
+export async function getMemberFee(
+  clubId: string,
+  seasonId: string,
+  memberId: string,
+): Promise<MemberFeeRecord | null> {
+  const snap = await getDoc(memberFeeRef(clubId, seasonId, memberId));
+  if (!snap.exists()) return null;
+  return parseMemberFee(snap.id, snap.data() as Record<string, unknown>);
+}
+
+/** Valide un paiement hors-ligne (chèque, espèces, …). */
+export async function validateOfflinePayment(params: {
+  clubId: string;
+  seasonId: string;
+  memberId: string;
+  offlineMethod: OfflinePaymentMethod;
+  amountCents: number;
+  season: FeeSeasonRecord;
+}): Promise<void> {
+  const { clubId, seasonId, memberId, offlineMethod, amountCents, season } =
+    params;
+  if (amountCents < 0) throw new Error("Montant invalide");
+  if (!OfflinePaymentMethods.includes(offlineMethod)) {
+    throw new Error("Moyen hors-ligne inconnu");
+  }
+
+  const fee = await getMemberFee(clubId, seasonId, memberId);
+  if (!fee) throw new Error("Fiche cotisation introuvable");
+
+  const uid = currentUid();
+  const newPaid = fee.amountPaidCents + amountCents;
+  const covered = newPaid + validatedAidsCents(fee);
+  const due = amountDueCents(fee, season);
+  const isFullyPaid = due - covered <= 0;
+
+  await updateDoc(memberFeeRef(clubId, seasonId, memberId), {
+    [Fields.amountPaidCents]: newPaid,
+    [Fields.offlineMethod]: offlineMethod,
+    [Fields.paidVia]: FeePaidVia.offline,
+    [Fields.feeStatus]: isFullyPaid
+      ? MemberFeeStatuses.paye
+      : MemberFeeStatuses.partiel,
+    ...(isFullyPaid ? { [Fields.paidAt]: serverTimestamp() } : {}),
+    [Fields.markedBy]: uid,
+    [Fields.updatedAt]: serverTimestamp(),
+  });
+}
+
+/** Valide ou refuse un justificatif d'aide. */
+export async function setFeeAidStatus(params: {
+  clubId: string;
+  seasonId: string;
+  memberId: string;
+  aidId: string;
+  aidStatus: typeof FeeAidStatuses.validated | typeof FeeAidStatuses.rejected;
+  season: FeeSeasonRecord;
+}): Promise<void> {
+  const { clubId, seasonId, memberId, aidId, aidStatus, season } = params;
+  if (
+    aidStatus !== FeeAidStatuses.validated &&
+    aidStatus !== FeeAidStatuses.rejected
+  ) {
+    throw new Error("Statut aide invalide");
+  }
+
+  const fee = await getMemberFee(clubId, seasonId, memberId);
+  if (!fee) throw new Error("Fiche cotisation introuvable");
+
+  const uid = currentUid();
+  const updatedAids = fee.aids.map((aid) => {
+    if (aid.id !== aidId) return aid;
+    return {
+      ...aid,
+      status: aidStatus,
+      validatedBy: uid,
+      validatedAt: new Date(),
+    };
+  });
+
+  const validatedAids = updatedAids
+    .filter((aid) => aid.status === FeeAidStatuses.validated)
+    .reduce((sum, aid) => sum + aid.amountCents, 0);
+  const covered = fee.amountPaidCents + validatedAids;
+  const due = amountDueCents(fee, season);
+  const remaining = due - covered;
+  const hasPending =
+    updatedAids.some((aid) => aid.status === FeeAidStatuses.pendingProof) ||
+    remaining > 0;
+
+  let nextStatus: string;
+  if (fee.status === MemberFeeStatuses.exonere) {
+    nextStatus = MemberFeeStatuses.exonere;
+  } else if (
+    remaining <= 0 &&
+    !updatedAids.some((aid) => aid.status === FeeAidStatuses.pendingProof)
+  ) {
+    nextStatus = MemberFeeStatuses.paye;
+  } else if (fee.amountPaidCents > 0 || validatedAids > 0) {
+    nextStatus = MemberFeeStatuses.partiel;
+  } else {
+    nextStatus = MemberFeeStatuses.aPayer;
+  }
+
+  await updateDoc(memberFeeRef(clubId, seasonId, memberId), {
+    [Fields.aids]: updatedAids.map((aid) => ({
+      [Fields.id]: aid.id,
+      [Fields.type]: aid.type,
+      [Fields.label]: aid.label,
+      [Fields.amountCents]: aid.amountCents,
+      [Fields.status]: aid.status,
+      ...(aid.promoCode ? { [Fields.promoCode]: aid.promoCode } : {}),
+      ...(aid.validatedBy ? { [Fields.validatedBy]: aid.validatedBy } : {}),
+      ...(aid.validatedAt
+        ? { [Fields.validatedAt]: Timestamp.fromDate(aid.validatedAt) }
+        : {}),
+    })),
+    [Fields.feeStatus]: nextStatus,
+    ...(nextStatus === MemberFeeStatuses.paye
+      ? { [Fields.paidAt]: serverTimestamp() }
+      : hasPending && nextStatus !== MemberFeeStatuses.paye
+        ? { [Fields.paidAt]: deleteField() }
+        : {}),
+    [Fields.markedBy]: uid,
+    [Fields.updatedAt]: serverTimestamp(),
+  });
 }

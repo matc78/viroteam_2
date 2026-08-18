@@ -3,6 +3,7 @@
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { FeesConfigForm } from "@/components/dashboard/FeesConfigForm";
+import { FeesTrackingPanel } from "@/components/dashboard/FeesTrackingPanel";
 import {
   emptyFeesConfig,
   FeesConfig,
@@ -56,15 +57,18 @@ export function FeesPageClient() {
       ) : null}
 
       {config && user && activeClub ? (
-        <FeesConfigForm
-          key={activeClub.id}
-          initial={config}
-          clubId={activeClub.id}
-          uid={user.uid}
-          onSaved={() => {
-            void refreshProfile().then(reload);
-          }}
-        />
+        <>
+          <FeesConfigForm
+            key={activeClub.id}
+            initial={config}
+            clubId={activeClub.id}
+            uid={user.uid}
+            onSaved={() => {
+              void refreshProfile().then(reload);
+            }}
+          />
+          <FeesTrackingPanel club={activeClub} />
+        </>
       ) : null}
     </div>
   );

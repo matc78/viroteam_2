@@ -13,6 +13,7 @@ export const Collections = {
 
 /** Noms de champs Firestore alignés sur FirestoreFields Flutter. */
 export const Fields = {
+  id: "id",
   uid: "uid",
   email: "email",
   emailNorm: "emailNorm",
@@ -54,6 +55,13 @@ export const Fields = {
   paymentProvider: "paymentProvider",
   amountPaidCents: "amountPaidCents",
   aids: "aids",
+  offlineMethod: "offlineMethod",
+  markedBy: "markedBy",
+  memberDisplayName: "memberDisplayName",
+  validatedBy: "validatedBy",
+  validatedAt: "validatedAt",
+  promoCode: "promoCode",
+  notesAdmin: "notesAdmin",
   title: "title",
   type: "type",
   location: "location",
@@ -110,6 +118,32 @@ export const MemberFeeStatuses = {
   paye: "paye",
   exonere: "exonere",
 } as const;
+
+/** Statuts justificatif d'aide cotisation. */
+export const FeeAidStatuses = {
+  pendingProof: "pending_proof",
+  validated: "validated",
+  rejected: "rejected",
+} as const;
+
+/** Canal de règlement cotisation. */
+export const FeePaidVia = {
+  offline: "offline",
+  manual: "manual",
+  helloasso: "helloasso",
+  inApp: "in_app",
+} as const;
+
+/** Moyens hors-ligne acceptés (aligné Flutter FeePaymentMethods.offline). */
+export const OfflinePaymentMethods = [
+  "virement",
+  "cheque",
+  "especes",
+  "ancv",
+  "cheques_vacances",
+] as const;
+
+export type OfflinePaymentMethod = (typeof OfflinePaymentMethods)[number];
 
 /** Clé localStorage du club actif. */
 export const ACTIVE_CLUB_STORAGE_KEY = "viro.activeClubId";

@@ -1,24 +1,23 @@
 import * as admin from "firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
-import { setGlobalOptions } from "firebase-functions/v2";
 import PDFDocument from "pdfkit";
+import { db } from "./db";
+import { assertCanActForMember } from "./guardians";
 
-admin.initializeApp();
-setGlobalOptions({ region: "europe-west1" });
+export {
+  inviteGuardian,
+  linkGuardian,
+  revokeGuardian,
+  setEventRsvp,
+} from "./guardians";
 
 const helloAssoClientId = defineSecret("HELLOASSO_CLIENT_ID");
 const helloAssoClientSecret = defineSecret("HELLOASSO_CLIENT_SECRET");
 const helloAssoApiBase = defineString("HELLOASSO_API_BASE", {
   default: "https://api.helloasso.com",
 });
-const firestoreDatabaseId = defineString("FIRESTORE_DATABASE_ID", {
-  default: "v2-dev",
-});
-
-const db = () => getFirestore(admin.app(), firestoreDatabaseId.value());
 
 type AidInput = {
   type: string;
@@ -96,12 +95,24 @@ export const createHelloAssoCheckout = onCall(
     const errorUrl =
       (request.data?.errorUrl as string | undefined) ?? returnUrl;
 
+    const callerUid = request.auth?.uid;
+    if (!callerUid) {
+      throw new HttpsError("unauthenticated", "Connexion requise");
+    }
     if (!clubId || !seasonId || !memberId) {
       throw new HttpsError(
         "invalid-argument",
         "clubId, seasonId et memberId requis",
       );
     }
+
+    await assertCanActForMember({
+      clubId,
+      memberId,
+      uid: callerUid,
+      permission: "canPay",
+    });
+
     if (amountCents < 0) {
       throw new HttpsError("invalid-argument", "Montant invalide");
     }

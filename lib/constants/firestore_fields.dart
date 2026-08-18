@@ -20,6 +20,9 @@ abstract final class FirestoreFields {
   static const String lastConnectionAt = 'lastConnectionAt';
   static const String parentLinks = 'parentLinks';
 
+  /// ClubIds où l’adulte a un lien guardian `active` — helper rules (pas un 3ᵉ modèle).
+  static const String parentClubIds = 'parentClubIds';
+
   // parentLinks[] — index session (relation, pas un rôle club).
   // Cible : { clubId, memberId, relation, status }.
   // Spec : ProjectConfig.parentsSpecDoc.

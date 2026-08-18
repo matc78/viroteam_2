@@ -52,6 +52,27 @@ service cloud.firestore {
         : request.auth.uid;
     }
 
+    function guardianDoc(clubId, memberId) {
+      return /databases/$(database)/documents/clubs/$(clubId)/members/$(memberId)/guardians/$(request.auth.uid);
+    }
+
+    function isActiveGuardianOf(clubId, memberId) {
+      return isSignedIn()
+        && exists(guardianDoc(clubId, memberId))
+        && get(guardianDoc(clubId, memberId)).data.status == 'active';
+    }
+
+    function isClubGuardian(clubId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && clubId in get(/databases/$(database)/documents/users/$(request.auth.uid))
+          .data.get('parentClubIds', []);
+    }
+
+    function canReadClubFamily(clubId) {
+      return isClubMember(clubId) || isClubGuardian(clubId);
+    }
+
     // RSVP : le membre ne peut modifier que sa propre clé dans `rsvp`.
     function onlyOwnRsvpUpdate(clubId) {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
@@ -83,7 +104,13 @@ service cloud.firestore {
       // get pour afficher coéquipiers ; pas de list global (scraping).
       allow get: if isSignedIn();
       allow list: if false;
-      allow write: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.get('parentLinks', []) == []
+        && request.resource.data.get('parentClubIds', []) == [];
+      allow update: if isOwner(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['parentLinks', 'parentClubIds']);
+      allow delete: if false;
     }
 
     match /clubs/{clubId} {
@@ -98,6 +125,7 @@ service cloud.firestore {
 
       match /members/{memberId} {
         allow get: if isClubMember(clubId)
+          || isActiveGuardianOf(clubId, memberId)
           || (resource.data.get('activeInvitationId', null) != null
             && resource.data.get('accountUid', null) == null);
         allow list: if isClubMember(clubId);
@@ -109,6 +137,13 @@ service cloud.firestore {
           || isClubAdmin(clubId)
           || isLinkingAccountToPrecreatedMember();
         allow delete: if isClubAdmin(clubId);
+
+        match /guardians/{parentUid} {
+          allow read: if isClubAdmin(clubId)
+            || (isSignedIn() && request.auth.uid == parentUid)
+            || ownsMemberDoc(clubId, memberId);
+          allow write: if false;
+        }
       }
 
       match /member_accounts/{accountUid} {
@@ -119,26 +154,28 @@ service cloud.firestore {
 
       match /invitations/{inviteId} {
         allow read: if isSignedIn() || resource.data.status == 'pending';
-        allow create: if isClubCoachOrAdmin(clubId);
+        allow create: if isClubCoachOrAdmin(clubId)
+          && (request.resource.data.get('type', 'member') != 'guardian'
+            || isClubAdmin(clubId));
         allow update: if isClubCoachOrAdmin(clubId)
           || isAcceptingPendingInvitation();
         allow delete: if isClubAdmin(clubId);
       }
 
       match /events/{eventId} {
-        allow read: if isClubMember(clubId);
+        allow read: if canReadClubFamily(clubId);
         allow create: if isClubAdmin(clubId) || isClubCoach(clubId);
         allow update: if isClubCoachOrAdmin(clubId) || onlyOwnRsvpUpdate(clubId);
         allow delete: if isClubAdmin(clubId);
       }
 
       match /announcements/{announcementId} {
-        allow read: if isClubMember(clubId);
+        allow read: if canReadClubFamily(clubId);
         allow create, update, delete: if isClubAdmin(clubId) || isClubCoach(clubId);
       }
 
       match /teams/{teamId} {
-        allow read: if isClubMember(clubId);
+        allow read: if canReadClubFamily(clubId);
         allow create, update: if isClubCoachOrAdmin(clubId);
         allow delete: if isClubAdmin(clubId);
       }
@@ -149,11 +186,13 @@ service cloud.firestore {
       }
 
       match /fee_seasons/{seasonId} {
-        allow read: if isClubMember(clubId);
+        allow read: if canReadClubFamily(clubId);
         allow write: if isClubAdmin(clubId);
 
         match /member_fees/{memberId} {
-          allow read: if isClubAdmin(clubId) || ownsMemberDoc(clubId, memberId);
+          allow read: if isClubAdmin(clubId)
+            || ownsMemberDoc(clubId, memberId)
+            || isActiveGuardianOf(clubId, memberId);
           // Admin manuel (hors-ligne / aides) ; CB via Cloud Functions (Admin SDK).
           allow write: if isClubAdmin(clubId);
         }

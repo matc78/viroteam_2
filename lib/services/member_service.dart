@@ -384,77 +384,66 @@ class MemberService {
     });
   }
 
-  /// Parents avec compte liés à des joueurs du club, sans rôle club.
+  /// Parents liés aux fiches du club via `members/{memberId}/guardians`.
   ///
-  /// Les liens vivent sur `users/{parentUid}.parentLinks[].childUid`.
-  /// Pas de requête Firestore inverse native : on parcourt les utilisateurs
-  /// ayant au moins un parentLink (acceptable pour clubs de taille modeste).
+  /// Source de vérité : sous-collection guardians (pas le scan legacy
+  /// `users.parentLinks.childUid`).
   Future<List<ClubParentEntry>> fetchClubParents(String clubId) async {
     final membersSnap = await _members(clubId).get();
-    final memberAccountUids = <String>{};
-    final childAccountUids = <String>{};
+    final seenParentUids = <String>{};
+    final entries = <ClubParentEntry>[];
 
-    for (final doc in membersSnap.docs) {
-      final data = doc.data();
-      final accountUid = data[FirestoreFields.accountUid] as String?;
-      if (accountUid == null) continue;
-      memberAccountUids.add(accountUid);
-      final role = data[FirestoreFields.role] as String? ?? MemberRoles.player;
-      if (role == MemberRoles.player) {
-        childAccountUids.add(accountUid);
-      }
-    }
+    for (final memberDoc in membersSnap.docs) {
+      final guardiansSnap = await memberDoc.reference
+          .collection(ProjectConfig.guardiansSubcollection)
+          .get();
+      for (final guardianDoc in guardiansSnap.docs) {
+        final status =
+            guardianDoc.data()[FirestoreFields.status] as String? ?? '';
+        if (status != GuardianStatuses.active &&
+            status != GuardianStatuses.pending) {
+          continue;
+        }
+        final parentUid = guardianDoc.id;
+        if (!seenParentUids.add(parentUid)) continue;
 
-    if (childAccountUids.isEmpty) return [];
+        String displayName = '';
+        String? email;
+        String? avatarUrl;
+        final userSnap = await _db
+            .collection(ProjectConfig.usersCollection)
+            .doc(parentUid)
+            .get();
+        if (userSnap.exists) {
+          final user = userSnap.data()!;
+          displayName =
+              (user[FirestoreFields.displayName] as String?)?.trim() ?? '';
+          if (displayName.isEmpty) {
+            displayName =
+                '${user[FirestoreFields.firstName] ?? ''} ${user[FirestoreFields.lastName] ?? ''}'
+                    .trim();
+          }
+          email = user[FirestoreFields.email] as String?;
+          avatarUrl = user[FirestoreFields.avatarUrl] as String?;
+        }
+        if (displayName.isEmpty) displayName = 'Parent';
 
-    final parentProfiles = <String, Map<String, dynamic>>{};
-
-    // Lecture ciblée : utilisateurs dont parentLinks référencent un enfant du club.
-    // Limite raisonnable pour éviter un scan complet de la collection users.
-    final usersSnap = await _db
-        .collection(ProjectConfig.usersCollection)
-        .where(FirestoreFields.parentLinks, isNotEqualTo: null)
-        .limit(500)
-        .get();
-
-    for (final userDoc in usersSnap.docs) {
-      final parentUid = userDoc.id;
-      if (memberAccountUids.contains(parentUid)) continue;
-
-      final data = userDoc.data();
-      if (data[FirestoreFields.createdAt] is! Timestamp) continue;
-
-      final links = (data[FirestoreFields.parentLinks] as List<dynamic>?)
-              ?.whereType<Map<String, dynamic>>() ??
-          [];
-
-      final linkedToClubChild = links.any((link) {
-        if (link[FirestoreFields.revokedAt] != null) return false;
-        final childUid = link[FirestoreFields.childUid] as String?;
-        return childUid != null && childAccountUids.contains(childUid);
-      });
-
-      if (linkedToClubChild) {
-        parentProfiles[parentUid] = data;
-      }
-    }
-
-    return parentProfiles.entries
-        .map(
-          (e) => ClubParentEntry(
-            parentUid: e.key,
-            displayName: e.value[FirestoreFields.displayName] as String? ??
-                '${e.value[FirestoreFields.firstName] ?? ''} ${e.value[FirestoreFields.lastName] ?? ''}'
-                    .trim(),
-            avatarUrl: e.value[FirestoreFields.avatarUrl] as String?,
-            email: e.value[FirestoreFields.email] as String?,
+        entries.add(
+          ClubParentEntry(
+            parentUid: parentUid,
+            displayName: displayName,
+            avatarUrl: avatarUrl,
+            email: email,
           ),
-        )
-        .toList()
-      ..sort(
-        (a, b) =>
-            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-      );
+        );
+      }
+    }
+
+    entries.sort(
+      (a, b) =>
+          a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
+    );
+    return entries;
   }
 
   String inviteMessageFor({

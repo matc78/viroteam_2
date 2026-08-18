@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
+import 'package:viro_team_v2/models/parent_link.dart';
 
 class ViroUser {
   const ViroUser({
@@ -13,6 +14,8 @@ class ViroUser {
     this.phone,
     this.avatarUrl,
     this.clubMemberships = const [],
+    this.parentLinks = const [],
+    this.parentClubIds = const [],
     this.profileCompleted = false,
     this.disabled = false,
     this.createdAt,
@@ -28,6 +31,8 @@ class ViroUser {
   final String? phone;
   final String? avatarUrl;
   final List<ClubMembershipSummary> clubMemberships;
+  final List<ParentLink> parentLinks;
+  final List<String> parentClubIds;
   final bool profileCompleted;
   final bool disabled;
   final DateTime? createdAt;
@@ -35,11 +40,19 @@ class ViroUser {
 
   bool get hasClubs => clubMemberships.isNotEmpty;
 
+  /// Liens parent actifs (espace famille).
+  List<ParentLink> get activeParentLinks =>
+      parentLinks.where((link) => link.isActive).toList();
+
   factory ViroUser.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     final flags = data[FirestoreFields.flags] as Map<String, dynamic>? ?? {};
     final membershipsRaw =
         data[FirestoreFields.clubMemberships] as List<dynamic>? ?? [];
+    final parentLinksRaw =
+        data[FirestoreFields.parentLinks] as List<dynamic>? ?? [];
+    final parentClubIdsRaw =
+        data[FirestoreFields.parentClubIds] as List<dynamic>? ?? [];
 
     return ViroUser(
       uid: data[FirestoreFields.uid] as String? ?? doc.id,
@@ -53,6 +66,15 @@ class ViroUser {
       clubMemberships: membershipsRaw
           .whereType<Map<String, dynamic>>()
           .map(ClubMembershipSummary.fromMap)
+          .toList(),
+      parentLinks: parentLinksRaw
+          .whereType<Map<String, dynamic>>()
+          .map(ParentLink.fromMap)
+          .where((link) => link.clubId.isNotEmpty && link.memberId.isNotEmpty)
+          .toList(),
+      parentClubIds: parentClubIdsRaw
+          .map((item) => item.toString())
+          .where((id) => id.isNotEmpty)
           .toList(),
       profileCompleted:
           flags[FirestoreFields.profileCompleted] as bool? ?? false,
@@ -73,6 +95,8 @@ class ViroUser {
       FirestoreFields.displayName: displayName,
       if (phone != null) FirestoreFields.phone: phone,
       FirestoreFields.clubMemberships: <Map<String, dynamic>>[],
+      FirestoreFields.parentLinks: <Map<String, dynamic>>[],
+      FirestoreFields.parentClubIds: <String>[],
       FirestoreFields.flags: {
         FirestoreFields.profileCompleted: profileCompleted,
         FirestoreFields.disabled: disabled,

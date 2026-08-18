@@ -8,6 +8,10 @@ Logique sensible hors client (HelloAsso, invitations). Spec paiement :
 | Function | Rôle |
 |----------|------|
 | `acceptInvitation` | Callable — accepter une invitation |
+| `inviteGuardian` | Callable — admin invite un parent (plafond V1 = 1) |
+| `linkGuardian` | Callable — active guardian + `parentLinks` (deux faces) |
+| `revokeGuardian` | Callable — révoque le lien parent (deux faces) |
+| `setEventRsvp` | Callable — RSVP pour soi ou un enfant lié |
 | `createHelloAssoCheckout` | Callable — crée un checkout HelloAsso (1×/3× + aides) |
 | `helloAssoWebhook` | HTTP — crédite `amountPaidCents` / statut **uniquement** après notif serveur |
 | `paymentWebhook` | Alias de `helloAssoWebhook` (compat) |

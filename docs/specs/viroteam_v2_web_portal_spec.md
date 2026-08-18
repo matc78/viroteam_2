@@ -3,7 +3,7 @@
 **Statut** : cadrage  
 **Stack site** : React (site public + dashboard)  
 **Backend** : même Firebase Auth + Firestore (`v2-dev` / `v2-prod`) + Cloud Functions que l’app  
-**Spec liée** : [`viroteam_v2_payments_helloasso_spec.md`](viroteam_v2_payments_helloasso_spec.md)
+**Specs liées** : [`viroteam_v2_payments_helloasso_spec.md`](viroteam_v2_payments_helloasso_spec.md), [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md)
 
 ---
 
@@ -11,8 +11,9 @@
 
 ### Portail web
 1. **Site public** — présenter l’app et ses fonctionnalités (modèle apps sportives type SportEasy / TeamApp).
-2. **Connexion** — même compte que l’app → dashboard club.
+2. **Connexion** — même compte que l’app → dashboard bureau (admin) ou espace famille (parent).
 3. **Dashboard bureau** — suivi membres / cotisations, config HelloAsso, inventaire équipements, droits coachs.
+4. **Espace famille** — planning / RSVP / cotisation payeur pour les enfants liés (voir spec parents). Hors MVP bureau actuel ; prévu Phase 8.
 
 ### App mobile (ajustement)
 Garder le **terrain** et les **actions urgentes / simples**. Déplacer le **pilotage bureau** (tableaux, config lourde) vers le web.
@@ -27,11 +28,13 @@ Garder le **terrain** et les **actions urgentes / simples**. Déplacer le **pilo
 | Tournois / événements lourds | **Hors scope** — prochaine partie |
 | Rôle `owner` | **N’existe pas** (créateur = `admin`) |
 | Rôle `treasurer` | **Pas encore** — au MVP, **tout admin = trésorier** (droits finance + HelloAsso) |
-| Accès dashboard web | `role == admin` uniquement |
+| Accès dashboard **bureau** | `role == admin` uniquement |
+| Accès espace **famille** | `parentLinks` actifs (guardian) — Phase 8 ; spec parents |
 | Équipements | Inventaire **simple** (CRUD) ; prêts / retours plus tard |
 | Stack | **React** (entraînement) + Firebase |
 
-### Évolution prévue (post-MVP)
+### Évolution prévue (post-MVP bureau)
+- Espace famille parent (Phase 8) — même stack, garde et nav distinctes.
 - Rôle Firestore dédié `treasurer` (finance / HelloAsso sans être super-admin club).
 - Module tournois / événements majeurs sur le web.
 - Prêts / retours équipements.
@@ -43,7 +46,7 @@ Garder le **terrain** et les **actions urgentes / simples**. Déplacer le **pilo
 
 | | **App mobile** | **Dashboard web (React)** |
 |---|---|---|
-| Public | Joueur, coach, parent ; admin en déplacement | Bureau : admin (= trésorier MVP) |
+| Public | Joueur, coach, parent ; admin en déplacement | Bureau : admin (= trésorier MVP). Famille : parent (Phase 8) |
 | UI | Écrans courts, actions rapides | Tableaux, filtres, config |
 | Cotisations admin | Vue légère (voir retards, relancer, hors-ligne ponctuel) | Cockpit complet + HelloAsso |
 | Membres | Ajouter / inviter un oublié, gestes simples | Liste riche, filtres, export |
@@ -64,7 +67,7 @@ Sans page pricing.
 |-------|---------|
 | `/` | Landing : marque, promesse, CTA (créer un club / se connecter / stores) |
 | `/features` | Modules : équipes, planning / RSVP, cotisations HelloAsso, invitations, présences |
-| `/login` | Connexion Firebase → redirect dashboard si admin |
+| `/login` | Connexion Firebase → bureau si admin, espace famille si guardian (Phase 8), sinon access-denied |
 | `/legal/*` | CGU, confidentialité |
 
 Landing : une composition claire, brand fort, pas de faux dashboard marketing.  
@@ -75,10 +78,12 @@ CTA : stores + « Espace club ».
 ## 5. Auth & garde d’accès
 
 1. Login Firebase Auth (même projet que l’app).
-2. Charger `clubs/{clubId}/members/{uid}` (ou memberships user).
-3. Si `role != admin` → message « Réservé aux administrateurs du club » + lien vers l’app.
-4. Si plusieurs clubs admin → sélecteur de club puis dashboard.
-5. Rules Firestore : writes dashboard = admin (comme aujourd’hui) ; pas d’élargissement coach/joueur.
+2. Charger `users/{uid}` : `clubMemberships` + `parentLinks`.
+3. Si `role == admin` → espace **bureau** (sélecteur de club si plusieurs).
+4. Si `parentLinks` actifs (et pas admin sur ce club) → espace **famille** (Phase 8). Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).
+5. Sinon (joueur / coach seul) → message access-denied + lien vers l’app.
+6. Admin **et** parent sur le même club → sélecteur d’espace (bureau vs famille), navs non mélangées.
+7. Rules Firestore : writes dashboard bureau = admin ; lecture / RSVP / paiement famille = guardian du `memberId` cible. Pas d’élargissement coach/joueur au bureau.
 
 ---
 
@@ -147,7 +152,7 @@ player | coach | admin
 ```
 
 Hiérarchie actuelle : Admin ⊃ Coach ⊃ Player.  
-Parent = relation (`parentLinks`), pas un rôle club.  
+Parent = relation (`guardians` + `parentLinks`), pas un rôle club — spec [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).  
 Pas d’`owner`.
 
 **MVP finance** : tout `admin` a les droits trésorier (cotisations, HelloAsso, dashboard web).
@@ -198,16 +203,18 @@ Tournois / championnats restent retirés du mobile (Phase 1 roadmap).
 - Tournois & événements lourds
 - Rôle `treasurer` distinct
 - Rôle `owner`
-- Dashboard web pour coach / joueur
+- Dashboard web **bureau** pour coach / joueur (l’espace **famille** parent est Phase 8, pas le cockpit admin)
 - Prêts / retours équipements
 - Multi-prestataires paiement
+- 2ᵉ parent / grands-parents (schéma prêt, plafond V1 = 1)
 
 ---
 
 ## 10. Critères de succès MVP
 
 - Un admin se connecte sur le web et pilote cotisations + HelloAsso sans Excel.
-- Un non-admin ne peut pas entrer dans le dashboard.
+- Un joueur / coach **sans** `parentLinks` ne peut pas entrer dans le dashboard bureau.
+- Un parent (Phase 8) entre dans l’espace famille, pas dans les KPI / config HelloAsso.
 - L’inventaire simple est utilisable sur le web.
 - Les droits coachs se configurent sur le web et s’appliquent dans l’app.
 - Sur mobile, l’admin gère surtout les urgences cotisations / membres, pas la config lourde.

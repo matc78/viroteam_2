@@ -7,7 +7,8 @@ Plan global priorisé. Cocher au fil de l’eau.
 - **Paiement** : HelloAsso (Checkout Intent) via `PaymentService` / `HelloAssoPaymentService`. Modes hybrides (3×, aides, hors-ligne). Validation CB **uniquement** via webhook. Spec : [`docs/specs/viroteam_v2_payments_helloasso_spec.md`](specs/viroteam_v2_payments_helloasso_spec.md).
 - **Calendrier** : page d’aide (étapes manuelles iOS/Android) + bouton d’ajout natif.
 - **Tournois / championnats** : retirés du produit mobile (UI, copy, actions). Module web éventuel plus tard.
-- **Portail web** : React (landing + dashboard admin). Au MVP, admin = trésorier. Spec : [`docs/specs/viroteam_v2_web_portal_spec.md`](specs/viroteam_v2_web_portal_spec.md).
+- **Portail web** : React (landing + dashboard admin ; espace famille parent en Phase 8). Au MVP bureau, admin = trésorier. Spec : [`docs/specs/viroteam_v2_web_portal_spec.md`](specs/viroteam_v2_web_portal_spec.md).
+- **Parents** : relation (`guardians` + `parentLinks`), pas un rôle club. V1 = 1 adulte actif par enfant, N enfants par parent. Invitation admin, compte Auth de l’adulte, actions sur le `memberId` de l’enfant. Spec : [`docs/specs/viroteam_v2_parents_spec.md`](specs/viroteam_v2_parents_spec.md).
 
 **Séquence produit**
 
@@ -74,10 +75,20 @@ Specs produit : [`docs/specs/`](specs/).
 - [ ] Brancher `acceptInvitation` côté client
 - [ ] Upload photo justificatif d’aide (v2)
 
-## Phase 8 — Backlog
+## Phase 8 — Parents (espace famille)
 
-- [ ] Parcours parent bout-en-bout
-- [ ] FCM (token, push rappels)
+Cadrage : [`docs/specs/viroteam_v2_parents_spec.md`](specs/viroteam_v2_parents_spec.md).  
+V1 : 1 guardian actif par enfant ; N enfants par parent. Hors V1 : 2ᵉ adulte, compte enfant, FCM.
+
+- [x] Spec cadrage `viroteam_v2_parents_spec.md` + constantes `project_config` / `firestore_fields`
+- [ ] Modèle `guardians/{parentUid}` + `parentLinks` `{ clubId, memberId, relation, status }`
+- [ ] Callable `linkGuardian` / acceptation invitation `type: guardian` (écriture des deux faces)
+- [ ] Invitation admin sur fiche joueur (plafond 1 `active`/`pending`)
+- [ ] Accueil famille app : planning, RSVP, cotisation, annonces (puces si plusieurs enfants)
+- [ ] Segment **Moi | enfant** seulement si l’adulte est aussi licencié du club
+- [ ] Espace famille portail (garde admin **ou** guardian ; nav distincte du bureau)
+- [ ] RSVP + checkout HelloAsso au nom du `memberId` enfant (rules + callable)
+- [ ] FCM (token, push rappels) — backlog, pas bloquant parents V1
 
 ## Phase 9 — Portail web + allègement mobile
 
@@ -89,6 +100,7 @@ Specs produit : [`docs/specs/`](specs/).
 - [x] Suivi cotisations portail (paiement hors-ligne, validation aides)
 - [ ] Inventaire équipements (CRUD simple)
 - [ ] Matrice droits coachs (web) + lecture app
+- [ ] Espace famille parent (voir Phase 8) — garde et nav distinctes du bureau admin
 
 ## Phase 10 — Partenariat HelloAsso (paiements en ligne live)
 
@@ -108,3 +120,5 @@ Partenariat en cours — flags `helloAssoPaymentsLive` (app) et `NEXT_PUBLIC_HEL
 - Abonnement / pricing portail
 - Abonnement calendrier serveur permanent
 - Dark mode / i18n multi-langue
+- 2ᵉ parent / grands-parents (schéma prêt, plafond V1 = 1)
+- Compte Auth de l’enfant et relais RSVP (hors parents V1)

@@ -137,7 +137,8 @@ lib/
 - Peu de règles complexes côté Firestore ; préférer :
   - `request.auth != null`
   - appartenance club via un champ / sous-doc vérifiable
-- Logique sensible (acceptation invitation, fusion de rôles) → **Cloud Functions** callable.
+- Logique sensible (acceptation invitation, fusion de rôles, **lien parent** `linkGuardian`) → **Cloud Functions** callable.
+- Parent ≠ rôle club : relation `members/{memberId}/guardians/{parentUid}` + index `users.parentLinks`. Spec : [`docs/specs/viroteam_v2_parents_spec.md`](docs/specs/viroteam_v2_parents_spec.md). Écriture des deux faces via Function, jamais un seul côté client.
 - Éviter les `get()` multiples et conditions imbriquées dans les rules.
 
 ---
@@ -187,3 +188,4 @@ lib/
 | 2026-05 | `ViroRoleBadge` pour les rôles (badges colorés, pas d’emojis) |
 | 2026-07 | Repo standalone ; règles Cursor scindées + `CHANGELOG.md` |
 | 2026-07 | Specs produit dans `docs/specs/` ; typos `viroheam` corrigées |
+| 2026-08 | Parents = relation (pas rôle) ; spec `viroteam_v2_parents_spec.md` ; V1 = 1 adulte / enfant |

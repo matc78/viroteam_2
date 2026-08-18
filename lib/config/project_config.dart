@@ -17,9 +17,11 @@ abstract final class ProjectConfig {
 
   static const String firebaseProjectId = 'viroteam-75303';
 
-  // —— Portail web admin ——
-  /// URL de base du portail (dashboard admin).
+  // —— Portail web (bureau admin + espace famille parent) ——
+  /// URL de base du portail.
   ///
+  /// Bureau admin et, Phase 8, espace famille. Spec :
+  /// [webPortalSpecDoc], [parentsSpecDoc].
   /// Release : `https://www.viroteam.com` — surcharge possible via
   /// `--dart-define=PORTAL_BASE_URL=...`
   static String get portalBaseUrl {
@@ -40,12 +42,17 @@ abstract final class ProjectConfig {
       'docs/specs/viroteam_v2_ux_journey_detailed.md';
   static const String invitationModelDoc =
       'docs/specs/viroteam_v2_invitation_only_model.md';
+  static const String webPortalSpecDoc =
+      'docs/specs/viroteam_v2_web_portal_spec.md';
+  static const String parentsSpecDoc =
+      'docs/specs/viroteam_v2_parents_spec.md';
 
   // —— Collections Firestore (voir firestoreModelDoc) ——
   static const String usersCollection = 'users';
   static const String clubsCollection = 'clubs';
   static const String membersSubcollection = 'members';
   static const String memberAccountsSubcollection = 'member_accounts';
+  static const String guardiansSubcollection = 'guardians';
   static const String invitationsSubcollection = 'invitations';
   static const String joinRequestsCollection = 'join_requests';
   static const String retourUserCollection = 'retour_user';
@@ -103,23 +110,40 @@ abstract final class ProjectConfig {
   // Un coach EST un joueur avec plus de droits.
   // Un admin EST un coach (donc aussi joueur) avec plus de droits.
   //
-  // Parent ≠ rôle club. C'est une RELATION optionnelle sur l'utilisateur :
-  //   users/{uid}.parentLinks: [
-  //     { childUid, permissions, revokedAt }
-  //   ]
-  // « Je suis parent DE Marie » — pas un 4e rôle dans clubMemberships.
+  // Parent ≠ rôle club. Relation adulte ↔ fiche joueur :
+  //   clubs/{clubId}/members/{memberId}/guardians/{parentUid}
+  //   users/{parentUid}.parentLinks[] : [{ clubId, memberId, relation, status }]
+  // Identité du lien : (parentUid, clubId, memberId) — pas l’Auth uid enfant.
   //
   // AVANT (faux) : roles: ['player', 'coach', 'admin', 'parent']
   // APRÈS (bon)  : clubMemberships.role ∈ {player, coach, admin}
-  //                + parentLinks pour le lien parent ↔ enfant
+  //                + guardians / parentLinks pour le lien parent ↔ enfant
   //
-  // Voir [MemberRoles], [MemberRoleHierarchy] et [FirestoreFields.parentLinks].
+  // Voir [parentsSpecDoc], [MemberRoles], [MemberRoleHierarchy],
+  // [FirestoreFields.parentLinks] et [guardiansSubcollection].
 
   /// Rôles possibles dans `clubMemberships` / `members/{uid}.role`.
   static const List<String> clubMemberRoles = ['player', 'coach', 'admin'];
 
-  /// Champ utilisateur : liens parent → enfant (relation, pas rôle global).
+  /// Champ utilisateur : index session parent → enfants (pas un rôle).
   static const String parentLinksField = 'parentLinks';
+
+  /// V1 : un seul guardian `active` ou `pending` par fiche enfant.
+  static const int maxActiveGuardiansPerMember = 1;
+
+  /// `invitations.type` pour un rattachement parent (pas `role: parent`).
+  static const String invitationTypeMember = 'member';
+  static const String invitationTypeGuardian = 'guardian';
+
+  /// `guardians.relation` / `parentLinks.relation` — V1 uniquement `parent`.
+  static const String guardianRelationParent = 'parent';
+  static const String guardianRelationGrandparent = 'grandparent';
+  static const String guardianRelationTutor = 'tutor';
+
+  /// Statuts d’un lien guardian.
+  static const String guardianStatusPending = 'pending';
+  static const String guardianStatusActive = 'active';
+  static const String guardianStatusRevoked = 'revoked';
 
   /// Résumé hiérarchie — Admin hérite de tout ce que Coach peut faire, etc.
   static const String roleInheritanceRule =
@@ -129,9 +153,9 @@ abstract final class ProjectConfig {
   static const String permPlayerPlanning = 'Voir son planning, RSVP';
   static const String permPlayerTeam = 'Voir son équipe';
   static const String permPlayerInviteParent =
-      'Inviter des parents pour lui-même';
+      'Hors V1 : inviter un parent pour lui-même (V1 = admin uniquement)';
   static const String permPlayerRevokeParent =
-      'Révoquer ses propres parents';
+      'Hors V1 : révoquer ses propres parents (V1 = admin)';
 
   // —— Coach (= Player +) ——
   static const String permCoachEvents = 'Créer événements, marquer présence';
@@ -143,19 +167,21 @@ abstract final class ProjectConfig {
   static const String permAdminAll = 'Peut tout faire dans le club';
   static const String permAdminInvite =
       'Inviter joueurs, entraîneurs, admins';
+  static const String permAdminInviteGuardian =
+      'Inviter un parent sur une fiche joueur (V1, plafond 1)';
   static const String permAdminRevoke = 'Révoquer n\'importe qui';
 
-  // —— Parent (relation, pas rôle club) ——
+  // —— Parent (relation, pas rôle club) — V1 : canView + canRsvp + canPay ——
   static const String permParentView =
-      'Voir le planning de l\'enfant (si permission)';
-  static const String permParentRsvp =
-      'RSVP pour l\'enfant (si permission)';
+      'Voir le planning et les annonces de l\'enfant';
+  static const String permParentRsvp = 'RSVP pour l\'enfant';
+  static const String permParentPay = 'Payer la cotisation de l\'enfant';
   static const String permParentCannot =
       'Ne peut pas créer d\'événements ni gérer l\'équipe';
   static const String permParentInvitedBy =
-      'Invité par l\'enfant lui-même';
+      'Invité par un admin du club (V1)';
   static const String permParentRevokedBy =
-      'Révocable par l\'enfant (ou admin)';
+      'Révocable par un admin (V1) ; plus tard aussi par l\'enfant lié';
   static const String permParentAlsoMember =
-      'Peut aussi être joueur / coach / admin dans le même club';
+      'Peut aussi être joueur / coach / admin dans le même club (segment Moi | enfant)';
 }

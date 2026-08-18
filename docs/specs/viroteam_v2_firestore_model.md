@@ -7,7 +7,8 @@
 
 ## Philosophie générale
 
-- **Source de vérité du rôle** : `clubs/{clubId}/members/{uid}` — jamais `users/{uid}`
+- **Source de vérité du rôle club** : `clubs/{clubId}/members/{memberId}` — jamais `users/{uid}.clubMemberships` comme vérité (c’est un index).
+- **Parent** : relation `members/{memberId}/guardians/{parentUid}` + index `users.parentLinks` — jamais `role: parent`.
 - **Pas de duplication** : les listes `admins[]`, `coaches[]`, `members[]` dans le doc club sont supprimées
 - **Une page par club** : on charge `members/{uid}` une seule fois pour connaître le rôle, puis on affiche/masque les sections
 - **Streams temps réel** : utiliser les streams Firestore pour les scores, présences, et brackets de tournoi
@@ -19,7 +20,7 @@
 ---
 
 ### `users/{uid}`
-> Profil global uniquement. Ne contient rien de spécifique à un club.
+> Profil global. Rôle **club** : `members/{memberId}`. Liens parent : `parentLinks` (index) + sous-collection `guardians`.
 
 | Champ | Type | Description |
 |---|---|---|
@@ -32,7 +33,8 @@
 | `phone` | string | |
 | `avatarUrl` | string | URL Firebase Storage |
 | `fcmToken` | string | Token push notifications |
-| `clubMemberships` | array | `[{ clubId, role }]` — liste des clubs et rôle dans chacun |
+| `clubMemberships` | array | `[{ clubId, role }]` — clubs où l’utilisateur est **membre** (`player` \| `coach` \| `admin`) |
+| `parentLinks` | array | Index session parent : `[{ clubId, memberId, relation, status }]` — **pas** un rôle club. Source de vérité : `members/{memberId}/guardians/{parentUid}`. Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md). |
 | `notificationPreferences` | map | Préférences par type de notif |
 | `flags` | map | `{ profileCompleted, disabled }` |
 | `createdAt` | timestamp | |
@@ -78,11 +80,12 @@
 ---
 
 ### `clubs/{clubId}/members/{uid}`
-> **Source de vérité** : rôle et données d'un membre dans un club spécifique.
+> **Source de vérité du rôle club** : `player` \| `coach` \| `admin` uniquement. Parent n’est **pas** un rôle ici.
 
 | Champ | Type | Description |
 |---|---|---|
-| `userId` | string | Référence à `users/{uid}` |
+| `userId` | string | Référence à `users/{uid}` (legacy) |
+| `accountUid` | string? | Auth uid si le membre a un compte |
 | `role` | string | `'admin'` \| `'coach'` \| `'player'` |
 | `status` | string | `'active'` \| `'inactive'` |
 | `teamIds` | array | Équipes du membre dans ce club |
@@ -106,6 +109,25 @@ coachInfo: {
 ```
 
 > Les admins n'ont pas de sous-objet — leur pouvoir vient uniquement du champ `role`.
+
+### `clubs/{clubId}/members/{memberId}/guardians/{parentUid}`
+
+> Source de vérité du lien parent → enfant. Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).  
+> Identité : `(parentUid, clubId, memberId)`. Pas un rôle club. Écriture des deux faces (ce doc + `users.parentLinks`) via Cloud Function.
+
+| Champ | Type | Description |
+|---|---|---|
+| `parentUid` | string | Auth uid de l’adulte (également id du doc) |
+| `clubId` | string | |
+| `memberId` | string | Fiche licencié enfant |
+| `relation` | string | V1 : `parent`. Plus tard : `grandparent` \| `tutor` |
+| `status` | string | `pending` \| `active` \| `revoked` |
+| `permissions` | map | `{ canView, canRsvp, canPay }` — V1 tout `true` |
+| `invitedBy` | string | uid admin |
+| `createdAt` | timestamp | |
+| `revokedAt` | timestamp? | |
+
+V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiveGuardiansPerMember = 1`). N enfants par parent = N documents (clubs éventuellement distincts).
 
 ---
 
@@ -342,7 +364,7 @@ Afficher/masquer les sections selon `member.role` :
 | Gérer les membres | ❌ | ❌ | ✅ |
 | Cotisations | ❌ | ❌ | ✅ |
 
-> Le rôle **Parent** n'est pas encore implémenté. Prévoir le champ `role: 'parent'` dans `members/{uid}` pour une future itération.
+> L’adulte lié (parent) n’a pas de colonne ici : ce n’est pas un rôle `members`. Accueil famille = planning / RSVP / cotisation de l’**enfant** (`memberId` cible). Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).
 
 ---
 
@@ -372,4 +394,4 @@ equipment_loan_change_requests/{id} → modifications en cours
 
 ---
 
-*Dernière mise à jour : mai 2026*
+*Dernière mise à jour : août 2026*

@@ -416,6 +416,26 @@ ViroTeam: One app, all your roles.
 
 ---
 
+## Guardian invitations (parent)
+
+Parent n’est **pas** un `role` d’invitation joueur. Spec canonique : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).
+
+```
+clubs/{clubId}/invitations/{inviteId}
+  type: "guardian"          // distinct des invitations membre
+  memberId: "<fiche enfant>"
+  email: "parent@…"
+  relation: "parent"
+  status: pending | accepted | declined | expired
+```
+
+- Créateur V1 : **admin** (fiche joueur → Inviter un parent).
+- Plafond V1 : un guardian `active` ou `pending` par `memberId`.
+- Acceptation : Cloud Function écrit `members/{memberId}/guardians/{parentUid}` **et** `users/{parentUid}.parentLinks[]`.
+- Si l’e-mail a déjà un compte licencié du club : **lien seulement**, pas de nouvelle fiche `members`, `role` inchangé.
+
+---
+
 ## Summary: Invitation-Only Benefits
 
 ✅ **Controlled rosters** — Only verified players join

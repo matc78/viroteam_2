@@ -20,12 +20,25 @@ abstract final class FirestoreFields {
   static const String lastConnectionAt = 'lastConnectionAt';
   static const String parentLinks = 'parentLinks';
 
-  // parentLinks item (relation parent → enfant, pas un rôle club)
+  // parentLinks[] — index session (relation, pas un rôle club).
+  // Cible : { clubId, memberId, relation, status }.
+  // Spec : ProjectConfig.parentsSpecDoc.
+  //
+  // Legacy : [childUid] utilisé par fetchClubParents — ce n'est PAS
+  // l'identité du lien (utiliser memberId + clubId).
   static const String childUid = 'childUid';
   static const String permissions = 'permissions';
   static const String revokedAt = 'revokedAt';
+  static const String relation = 'relation';
+  static const String invitedBy = 'invitedBy';
+  static const String canView = 'canView';
+  static const String canRsvp = 'canRsvp';
+  static const String canPay = 'canPay';
 
-  // clubMemberships item
+  // members/{memberId}/guardians/{parentUid} — source de vérité du lien
+  static const String parentUid = 'parentUid';
+
+  // clubMemberships item / invitations
   static const String clubId = 'clubId';
   static const String role = 'role';
 
@@ -148,8 +161,8 @@ abstract final class FirestoreFields {
 
 /// Rôles membre d'un club — hiérarchie : admin ⊃ coach ⊃ player.
 ///
-/// Parent n'est PAS un rôle ici : voir [FirestoreFields.parentLinks] et
-/// [ProjectConfig.parentLinksField].
+/// Parent n'est PAS un rôle ici : voir [FirestoreFields.parentLinks],
+/// [ProjectConfig.guardiansSubcollection] et [ProjectConfig.parentsSpecDoc].
 abstract final class MemberRoles {
   static const String admin = 'admin';
   static const String coach = 'coach';
@@ -180,6 +193,26 @@ abstract final class InvitationStatus {
   static const String accepted = 'accepted';
   static const String declined = 'declined';
   static const String expired = 'expired';
+}
+
+/// `invitations.type` — membre du roster vs rattachement parent.
+abstract final class InvitationTypes {
+  static const String member = 'member';
+  static const String guardian = 'guardian';
+}
+
+/// `guardians.relation` / `parentLinks.relation`. V1 : uniquement [parent].
+abstract final class GuardianRelations {
+  static const String parent = 'parent';
+  static const String grandparent = 'grandparent';
+  static const String tutor = 'tutor';
+}
+
+/// `guardians.status` / `parentLinks.status`.
+abstract final class GuardianStatuses {
+  static const String pending = 'pending';
+  static const String active = 'active';
+  static const String revoked = 'revoked';
 }
 
 /// Statuts cotisation membre (member_fees).

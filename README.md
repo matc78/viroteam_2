@@ -114,10 +114,13 @@ Documents dans [`docs/specs/`](docs/specs/) :
 | [`viroteam_v2_design_system_final.md`](docs/specs/viroteam_v2_design_system_final.md) | Design system |
 | [`viroteam_v2_ux_journey_detailed.md`](docs/specs/viroteam_v2_ux_journey_detailed.md) | Parcours UX |
 | [`viroteam_v2_invitation_only_model.md`](docs/specs/viroteam_v2_invitation_only_model.md) | Modèle invitation uniquement |
-| [`viroteam_v2_development_roadmap.md`](docs/specs/viroteam_v2_development_roadmap.md) | Roadmap |
+| [`viroteam_v2_development_roadmap.md`](docs/specs/viroteam_v2_development_roadmap.md) | Roadmap historique (vérité : [`docs/ROADMAP.md`](docs/ROADMAP.md)) |
 | [`viroteam_v2_club_selector_enhanced.md`](docs/specs/viroteam_v2_club_selector_enhanced.md) | Sélecteur de club |
 | [`viroteam_v2_firestore_model.md`](docs/specs/viroteam_v2_firestore_model.md) | Modèle Firestore |
 | [`viroteam_v2_fees_spec.md`](docs/specs/viroteam_v2_fees_spec.md) | Cotisations |
+| [`viroteam_v2_payments_helloasso_spec.md`](docs/specs/viroteam_v2_payments_helloasso_spec.md) | Paiements HelloAsso |
+| [`viroteam_v2_web_portal_spec.md`](docs/specs/viroteam_v2_web_portal_spec.md) | Portail web (bureau + allègement mobile) |
+| [`viroteam_v2_parents_spec.md`](docs/specs/viroteam_v2_parents_spec.md) | Parents (relation, pas rôle) |
 | [`viroteam_v2_home_club_pages.md`](docs/specs/viroteam_v2_home_club_pages.md) | Home / pages club |
 
 ## Changelog

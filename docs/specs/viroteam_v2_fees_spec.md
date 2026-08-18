@@ -477,7 +477,7 @@ GoRoute(
 - Notifications push J-7 / J-1 (Cloud Function)
 - Multi-saisons (historique + duplication config)
 - Paiement partiel (`amountPaidCents`)
-- Vue parent (quand le rôle parent sera implémenté)
+- Vue parent (payeur) : guardian `active` avec `canPay` sur le `memberId` de l’enfant — spec [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md). Pas un rôle `parent` sur `members`.
 - Intégration HelloAsso / Stripe
 
 ---
@@ -493,7 +493,7 @@ GoRoute(
 - [ ] Formatage montant avec virgule (FR) : `180,00 €`
 - [ ] IBAN validé (format, pas existence réelle)
 - [ ] Tests : admin crée saison → initialise fees → assigne tiers → marque payé → joueur voit le statut
-- [ ] Route guard : `/fees` admin-only, `/fees/mine` tout membre
+- [ ] Route guard : `/fees` admin-only, `/fees/mine` membre **ou** guardian du `memberId`
 
 ---
 

@@ -1,5 +1,9 @@
 # ViroTeam v2: Development Roadmap
 
+> **Document historique.** Source de vérité actuelle : [`docs/ROADMAP.md`](../ROADMAP.md).  
+> Parents (relation, pas rôle) : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).  
+> Ne pas implémenter `role: parent` dans `members` malgré les checklists ci-dessous.
+
 ## Overview
 
 **Launch date**: No timeline pressure — ship when ready, but with structured milestones.

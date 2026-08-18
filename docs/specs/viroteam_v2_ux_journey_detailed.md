@@ -6,6 +6,8 @@
 
 This document traces every screen, every button, every decision a user makes from launch to productivity.
 
+**Parent (cadrage à jour)** : ce n’est **pas** un rôle club. Relation `guardians` + `parentLinks`. Invitation V1 par **admin** sur la fiche enfant. Switcher « En tant que parent » **uniquement** si l’adulte est aussi licencié (segment Moi | enfant). Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md). Les maquettes ci-dessous qui traitent parent comme un 4ᵉ rôle restent une intention UX ; le modèle données est celui de la spec parents.
+
 ---
 
 ## Part 1: Authentication Journey
@@ -492,7 +494,9 @@ Check Firebase Auth: isLoggedIn?
 
 ### 3.4 Parent Home Screen
 
-**Precondition**: `activeRole = 'parent'` AND `activeClubId` is set
+> **Cadrage** : `activeRole = 'parent'` est un **casque UI** (session), pas `members.role`. Invitation V1 = admin. Un parent *seul* n’a pas de switcher. Licencié + parent → segment Moi | enfant. Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).
+
+**Precondition**: casque famille actif (`parentLinks` vers ce club) AND `activeClubId` is set
 
 **Visual**:
 ```

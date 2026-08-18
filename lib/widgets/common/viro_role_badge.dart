@@ -6,9 +6,9 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 
 /// Rôles affichables en UI.
 ///
-/// [ViroRole.parent] = relation parent↔enfant ([ProjectConfig.parentLinksField]),
-/// pas un rôle `members/{uid}.role`. Utiliser [viroRoleFromMemberRole] pour
-/// les badges issus d'une adhésion club.
+/// [ViroRole.parent] = relation parent↔enfant ([ProjectConfig.parentLinksField],
+/// [ProjectConfig.guardiansSubcollection]) — pas un rôle `members/{uid}.role`.
+/// Utiliser [viroRoleFromMemberRole] pour les badges issus d'une adhésion club.
 enum ViroRole { player, coach, parent, admin }
 
 /// Mappe un rôle club (`player` | `coach` | `admin`) vers le badge UI.

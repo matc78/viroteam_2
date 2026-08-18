@@ -17,6 +17,19 @@ abstract final class ProjectConfig {
 
   static const String firebaseProjectId = 'viroteam-75303';
 
+  // —— Portail web admin ——
+  /// URL de base du portail (dashboard admin).
+  ///
+  /// Release : `https://www.viroteam.com` — surcharge possible via
+  /// `--dart-define=PORTAL_BASE_URL=...`
+  static String get portalBaseUrl {
+    const fromDefine = String.fromEnvironment('PORTAL_BASE_URL');
+    if (fromDefine.isNotEmpty) return fromDefine;
+    return kReleaseMode
+        ? 'https://www.viroteam.com'
+        : 'http://localhost:3000';
+  }
+
   // —— Docs ——
   static const String roadmapDoc = 'docs/ROADMAP.md';
 

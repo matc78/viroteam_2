@@ -9,6 +9,8 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
+import 'package:viro_team_v2/utils/portal_links.dart';
+import 'package:viro_team_v2/widgets/common/portal_admin_banner.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
@@ -109,6 +111,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     final member = ref.watch(clubMemberProvider(clubId)).value;
     final canManage = member != null &&
         MemberRoleHierarchy.isCoachOrAbove(member.role);
+    final isAdmin = member?.role == MemberRoles.admin;
     final dayParams = (clubId: clubId, day: _selectedDay);
     final eventsAsync = canManage
         ? ref.watch(clubPlanningEventsProvider(dayParams))
@@ -153,6 +156,13 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (isAdmin)
+            PortalAdminBanner(
+              portalUrl: portalPlanningUrl(clubId: clubId),
+              compact: true,
+              message:
+                  'Vue calendrier détaillée, filtres multi-équipes : portail web.',
+            ),
           const SizedBox(height: ViroSpacing.sm),
           if (!_daysReady)
             const SizedBox(

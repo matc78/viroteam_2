@@ -21,6 +21,7 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
+import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
@@ -162,6 +163,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                             onFees: m.role == MemberRoles.admin
                                 ? () => context.push(
                                       AppRoutes.clubFeesPath(clubId),
+                                    )
+                                : null,
+                            onPortal: m.role == MemberRoles.admin
+                                ? () => openPortalUrl(
+                                      portalHomeUrl(clubId: clubId),
                                     )
                                 : null,
                           ),

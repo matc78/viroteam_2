@@ -160,6 +160,7 @@ class ClubManagementActionsGrid extends StatelessWidget {
     this.onManageTeams,
     this.onManageMembers,
     this.onFees,
+    this.onPortal,
   });
 
   final String role;
@@ -167,6 +168,7 @@ class ClubManagementActionsGrid extends StatelessWidget {
   final VoidCallback? onManageTeams;
   final VoidCallback? onManageMembers;
   final VoidCallback? onFees;
+  final VoidCallback? onPortal;
 
   List<QuickAction> get _actions {
     return [
@@ -188,9 +190,15 @@ class ClubManagementActionsGrid extends StatelessWidget {
         ),
       if (role == MemberRoles.admin && onFees != null)
         QuickAction(
-          label: 'Cotisations',
+          label: 'Suivi cotisations',
           icon: ViroIcons.payments,
           onTap: onFees,
+        ),
+      if (role == MemberRoles.admin && onPortal != null)
+        QuickAction(
+          label: 'Espace club',
+          icon: ViroIcons.roleAdmin,
+          onTap: onPortal,
         ),
     ];
   }

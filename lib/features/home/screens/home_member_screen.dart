@@ -57,14 +57,14 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
   }
 
   Map<String, String> _clubNames(List<UserClubEntry> clubs) => {
-        for (final e in clubs) e.$1.id: e.$1.name,
+        for (final e in clubs) e.club.id: e.club.name,
       };
 
   Map<String, Color> _clubColors(List<UserClubEntry> clubs) => {
         for (final e in clubs)
-          e.$1.id: clubAccentColor(
-            brandColorHex: e.$1.brandColorHex,
-            clubId: e.$1.id,
+          e.club.id: clubAccentColor(
+            brandColorHex: e.club.brandColorHex,
+            clubId: e.club.id,
           ),
       };
 

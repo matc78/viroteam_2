@@ -38,11 +38,28 @@ class ViroUser {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  bool get hasClubs => clubMemberships.isNotEmpty;
+  /// Clubs accessibles : adhésion **ou** lien parent actif.
+  bool get hasClubs =>
+      clubMemberships.isNotEmpty || activeParentLinks.isNotEmpty;
 
   /// Liens parent actifs (espace famille).
   List<ParentLink> get activeParentLinks =>
       parentLinks.where((link) => link.isActive).toList();
+
+  /// Liens parent actifs dans un club.
+  List<ParentLink> activeParentLinksInClub(String clubId) =>
+      activeParentLinks.where((link) => link.clubId == clubId).toList();
+
+  /// Adhésion club (joueur / coach / admin), pas un lien parent.
+  ClubMembershipSummary? membershipInClub(String clubId) {
+    for (final membership in clubMemberships) {
+      if (membership.clubId == clubId) return membership;
+    }
+    return null;
+  }
+
+  /// `true` si l’adulte a une fiche membre dans ce club.
+  bool isLicensedInClub(String clubId) => membershipInClub(clubId) != null;
 
   factory ViroUser.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};

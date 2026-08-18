@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/announcements/utils/announcement_filter.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
@@ -31,20 +32,31 @@ final clubAnnouncementsProvider =
       );
 });
 
-/// Annonces visibles pour le membre connecté (ciblage ; sans filtre dismiss).
+/// Annonces visibles pour la cible du club (Moi ou enfant).
 final visibleClubAnnouncementsProvider =
     Provider.family<AsyncValue<List<ClubAnnouncement>>, String>((ref, clubId) {
   final announcementsAsync = ref.watch(clubAnnouncementsProvider(clubId));
   final memberAsync = ref.watch(clubMemberProvider(clubId));
+  final target = ref.watch(selectedClubAudienceProvider(clubId));
+  final childMemberAsync = target?.isChild == true
+      ? ref.watch(clubAudienceMemberProvider(clubId))
+      : null;
   final teamsAsync = ref.watch(clubTeamsProvider(clubId));
 
   return announcementsAsync.when(
     loading: () => const AsyncLoading(),
     error: (e, st) => AsyncError(e, st),
     data: (announcements) {
-      final member = memberAsync.value;
+      if (target?.isChild == true && (childMemberAsync?.isLoading ?? true)) {
+        return const AsyncLoading();
+      }
+      final member = target?.isChild == true
+          ? childMemberAsync?.value
+          : memberAsync.value;
       final teams = teamsAsync.value ?? [];
-      final staff = AnnouncementFilter.isStaffRole(member?.role);
+      final staff = target?.isChild == true
+          ? false
+          : AnnouncementFilter.isStaffRole(member?.role);
       final visible = AnnouncementFilter.forMemberAudience(
         announcements: announcements,
         member: member,
@@ -72,7 +84,7 @@ final homeActiveAnnouncementsProvider =
   final eventService = ref.read(eventServiceProvider);
 
   final streams = clubs.map<Stream<List<HomeAnnouncementItem>>>((entry) {
-    final club = entry.$1;
+    final club = entry.club;
     return eventService.watchClubMember(clubId: club.id, uid: authUid).asyncExpand(
       (member) {
         final dismissed =

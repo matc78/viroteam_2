@@ -32,8 +32,13 @@ class ClubService {
     return Club.fromFirestore(doc);
   }
 
+  /// Clubs où l’utilisateur est membre **ou** parent actif.
   Future<List<Club>> getClubsForUser(ViroUser user) async {
-    return getClubsByIds(user.clubMemberships.map((m) => m.clubId).toList());
+    final ids = <String>{
+      ...user.clubMemberships.map((membership) => membership.clubId),
+      ...user.activeParentLinks.map((link) => link.clubId),
+    }.where((id) => id.isNotEmpty).toList();
+    return getClubsByIds(ids);
   }
 
   Future<List<Club>> getClubsByIds(List<String> ids) async {

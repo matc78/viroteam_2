@@ -69,6 +69,7 @@ class PlanningRsvpStatusBadge extends StatelessWidget {
 
   (IconData icon, Color color) get _style => switch (status) {
         RsvpStatus.yes => (ViroIcons.check, ViroColors.success),
+        RsvpStatus.maybe => (ViroIcons.clock, ViroColors.warning),
         RsvpStatus.no => (ViroIcons.close, ViroColors.error),
         RsvpStatus.none => (ViroIcons.clock, ViroColors.warning),
       };

@@ -11,7 +11,7 @@ final homeClubTeamsProvider =
   if (clubs == null || clubs.isEmpty) return Stream.value({});
 
   final streams = clubs.map((entry) {
-    final clubId = entry.$1.id;
+    final clubId = entry.club.id;
     return ref.read(teamServiceProvider).watchClubTeams(clubId: clubId).map(
           (teams) => [
             MapEntry(

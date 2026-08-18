@@ -106,7 +106,7 @@ class _ClubSelectorBody extends ConsumerWidget {
                         final membership = clubs[i].membership;
                         ref.read(sessionProvider.notifier).setActiveClub(
                               club.id,
-                              role: membership.role,
+                              role: membership?.role,
                             );
                         context.push(AppRoutes.clubDetailPath(club.id));
                       },
@@ -272,12 +272,15 @@ class _ClubCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: ViroSpacing.md),
-            Wrap(
-              spacing: ViroSpacing.sm,
-              runSpacing: ViroSpacing.sm,
-              children: _roleBadgesFor(membership.role),
-            ),
-            const SizedBox(height: ViroSpacing.md),
+            if (membership != null) ...[
+              Wrap(
+                spacing: ViroSpacing.sm,
+                runSpacing: ViroSpacing.sm,
+                children: _roleBadgesFor(membership.role),
+              ),
+              const SizedBox(height: ViroSpacing.md),
+            ] else
+              const SizedBox(height: ViroSpacing.sm),
             if (entry.highlightEvent != null)
               Row(
                 children: [
@@ -409,18 +412,28 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
       _error = null;
     });
     try {
-      await ref.read(invitationServiceProvider).acceptInvitation(
-            invitation: widget.invitation,
-            user: user,
-          );
+      if (widget.invitation.isGuardian) {
+        await ref.read(guardianServiceProvider).linkGuardian(
+              clubId: widget.invitation.clubId,
+              invitationId: widget.invitation.id,
+            );
+        ref.read(sessionProvider.notifier).setActiveClub(
+              widget.invitation.clubId,
+            );
+      } else {
+        await ref.read(invitationServiceProvider).acceptInvitation(
+              invitation: widget.invitation,
+              user: user,
+            );
+        ref.read(sessionProvider.notifier).setActiveClub(
+              widget.invitation.clubId,
+              role: widget.invitation.role,
+            );
+      }
       ref.invalidate(pendingInvitationsProvider);
       ref.invalidate(userClubsProvider);
       ref.invalidate(userClubsWithEventsProvider);
       ref.invalidate(viroUserFutureProvider);
-      ref.read(sessionProvider.notifier).setActiveClub(
-            widget.invitation.clubId,
-            role: widget.invitation.role,
-          );
       if (mounted) {
         context.push(AppRoutes.clubDetailPath(widget.invitation.clubId));
       }
@@ -481,7 +494,12 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                       ),
                     ),
                     Text(
-                      'Rôle : ${_roleLabel(invite.role)}',
+                      invite.isGuardian
+                          ? (invite.firstName != null &&
+                                  invite.firstName!.trim().isNotEmpty
+                              ? 'Suivre ${invite.firstName!.trim()}'
+                              : 'Suivre un enfant du club')
+                          : 'Rôle : ${_roleLabel(invite.role)}',
                       style: theme.bodySmall?.copyWith(
                         color: ViroColors.primary600,
                       ),

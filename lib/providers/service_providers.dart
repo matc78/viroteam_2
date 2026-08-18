@@ -4,6 +4,7 @@ import 'package:viro_team_v2/services/auth_service.dart';
 import 'package:viro_team_v2/services/club_service.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/services/fee_service.dart';
+import 'package:viro_team_v2/services/guardian_service.dart';
 import 'package:viro_team_v2/services/invitation_service.dart';
 import 'package:viro_team_v2/services/join_request_service.dart';
 import 'package:viro_team_v2/services/member_service.dart';
@@ -41,3 +42,6 @@ final feeServiceProvider = Provider<FeeService>((ref) => FeeService());
 
 final paymentServiceProvider =
     Provider<PaymentService>((ref) => HelloAssoPaymentService());
+
+final guardianServiceProvider =
+    Provider<GuardianService>((ref) => GuardianService());

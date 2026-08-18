@@ -56,3 +56,27 @@ final clubAttendanceRateProvider =
         authUid: auth.uid,
       );
 });
+
+/// Planning d’une fiche cible (enfant) — pas de fusion avec le calendrier sénior.
+final clubEventsForMemberProvider = StreamProvider.family<ClubEventsState,
+    ({String clubId, String memberId})>((ref, params) {
+  final eventService = ref.read(eventServiceProvider);
+  return eventService
+      .watchEventsForTargetMember(
+        clubId: params.clubId,
+        memberId: params.memberId,
+      )
+      .map(
+        (events) => categorizeMemberEvents(
+          events,
+          authUid: params.memberId,
+          audienceByClub: {params.clubId: params.memberId},
+        ),
+      )
+      .map(
+        (state) => ClubEventsState(
+          pending: state.pending,
+          upcoming: state.upcoming,
+        ),
+      );
+});

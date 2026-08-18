@@ -95,8 +95,9 @@ class _PlanningEventDetailSheetState
   ) {
     int order(RsvpStatus s) => switch (s) {
           RsvpStatus.yes => 0,
-          RsvpStatus.no => 1,
-          RsvpStatus.none => 2,
+          RsvpStatus.maybe => 1,
+          RsvpStatus.no => 2,
+          RsvpStatus.none => 3,
         };
 
     final entries = <({String id, ClubMember member})>[];

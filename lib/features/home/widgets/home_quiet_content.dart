@@ -63,7 +63,7 @@ class HomeQuietContent extends StatelessWidget {
               (entry) => _ClubShortcutTile(
                 entry: entry,
                 onTap: () => context.push(
-                  AppRoutes.clubDetailPath(entry.$1.id),
+                  AppRoutes.clubDetailPath(entry.club.id),
                 ),
               ),
             ),
@@ -153,8 +153,8 @@ class _ClubShortcutTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final club = entry.$1;
-    final membership = entry.$2;
+    final club = entry.club;
+    final membership = entry.membership;
     final accent = clubAccentColor(
       brandColorHex: club.brandColorHex,
       clubId: club.id,
@@ -205,10 +205,11 @@ class _ClubShortcutTile extends StatelessWidget {
               ],
             ),
           ),
-          ViroRoleBadge(
-            role: viroRoleFromMemberRole(membership.role),
-            compact: true,
-          ),
+          if (membership != null)
+            ViroRoleBadge(
+              role: viroRoleFromMemberRole(membership.role),
+              compact: true,
+            ),
           const SizedBox(width: ViroSpacing.xs),
           ViroIcon(
             ViroIcons.chevronRight,

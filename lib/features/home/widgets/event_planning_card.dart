@@ -228,6 +228,7 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
       RsvpStatus.yes => ('Présent', ViroColors.success),
+      RsvpStatus.maybe => ('Peut-être', ViroColors.warning),
       RsvpStatus.no => ('Absent', ViroColors.error),
       RsvpStatus.none => ('Sans réponse', ViroColors.warning),
     };

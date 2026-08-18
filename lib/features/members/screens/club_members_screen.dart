@@ -10,8 +10,8 @@ import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart'
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/add_member_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/change_role_sheet.dart';
+import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_list_tile.dart';
-import 'package:viro_team_v2/features/members/widgets/parents_section.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
@@ -295,6 +295,14 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                               onChangeRole: _isAdmin
                                   ? () => _changeRole(member)
                                   : null,
+                              onInviteParent: _isAdmin &&
+                                      member.role == MemberRoles.player
+                                  ? () => showInviteParentSheet(
+                                        context,
+                                        club: club,
+                                        member: member,
+                                      )
+                                  : null,
                               onRemove: _isAdmin
                                   ? () => _removeMember(member)
                                   : null,
@@ -304,9 +312,6 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                         ),
                       ),
                     ),
-                  SliverToBoxAdapter(
-                    child: ParentsSection(clubId: clubId),
-                  ),
                   const SliverToBoxAdapter(
                     child: SizedBox(height: ViroSpacing.xl),
                   ),

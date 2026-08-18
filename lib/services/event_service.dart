@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_event.dart';
@@ -7,10 +8,15 @@ import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
 
 class EventService {
-  EventService({FirebaseFirestore? firestore})
-      : _db = firestore ?? appFirestore;
+  EventService({
+    FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
+  })  : _db = firestore ?? appFirestore,
+        _functions = functions ??
+            FirebaseFunctions.instanceFor(region: 'europe-west1');
 
   final FirebaseFirestore _db;
+  final FirebaseFunctions _functions;
 
   CollectionReference<Map<String, dynamic>> _events(String clubId) =>
       _db
@@ -285,6 +291,23 @@ class EventService {
   static String _rosterAudienceId(ClubMember member, String authUid) =>
       member.memberId;
 
+  /// Convocation d’une fiche cible uniquement (pas de fusion coach / séniors).
+  Stream<List<ClubEvent>> watchEventsForTargetMember({
+    required String clubId,
+    required String memberId,
+  }) {
+    final asPlayer = watchUpcomingEventsForClub(
+      clubId: clubId,
+      uid: memberId,
+    );
+    final asTeamPlayer = watchUpcomingEventsForPlayerTeams(
+      clubId: clubId,
+      audienceId: memberId,
+      authUid: memberId,
+    );
+    return combineLatestListStreams([asPlayer, asTeamPlayer]).map(_dedupeEvents);
+  }
+
   /// Identifiant utilisé dans `teamMemberIds` / `rsvp` pour un membre du club.
   Future<String> resolveAudienceId({
     required String clubId,
@@ -536,12 +559,26 @@ class EventService {
     return snap.docs.length;
   }
 
+  /// Enregistre le RSVP de [uid] (memberId cible : soi ou enfant).
+  ///
+  /// [viaCallable] : parent pour un enfant (rules : clé du connecté seulement).
   Future<void> updateRsvp({
     required String clubId,
     required String eventId,
     required String uid,
     required RsvpStatus status,
+    bool viaCallable = false,
   }) async {
+    if (viaCallable) {
+      final callable = _functions.httpsCallable('setEventRsvp');
+      await callable.call<Map<String, dynamic>>({
+        'clubId': clubId,
+        'eventId': eventId,
+        'memberId': uid,
+        'value': status.firestoreValue,
+      });
+      return;
+    }
     await _events(clubId).doc(eventId).update({
       '${FirestoreFields.rsvp}.$uid': status.firestoreValue,
     });

@@ -141,10 +141,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     children: [
                       for (final entry in clubs)
                         ClubListTile(
-                          club: entry.$1,
-                          membership: entry.$2,
+                          club: entry.club,
+                          membership: entry.membership,
                           onTap: () => context.push(
-                            AppRoutes.clubDetailPath(entry.$1.id),
+                            AppRoutes.clubDetailPath(entry.club.id),
                           ),
                         ),
                     ],

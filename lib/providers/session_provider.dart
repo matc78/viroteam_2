@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 
+/// Session club : club actif + rôle **membre** (player / coach / admin).
+///
+/// Le lien parent n’est pas un rôle Firestore. La cible des actions
+/// (Moi vs enfant) vit dans `clubAudienceSelectionProvider`.
 class SessionState {
   const SessionState({
     this.activeClubId,
@@ -8,6 +12,8 @@ class SessionState {
   });
 
   final String? activeClubId;
+
+  /// Rôle club `player` | `coach` | `admin`, jamais parent.
   final String? activeRole;
 
   bool get hasActiveClub =>
@@ -30,12 +36,16 @@ class SessionNotifier extends Notifier<SessionState> {
   @override
   SessionState build() => const SessionState();
 
+  /// Active un club. [role] = adhésion membre uniquement (`null` si parent seul).
   void setActiveClub(String clubId, {String? role}) {
-    state = SessionState(activeClubId: clubId, activeRole: role);
+    final memberRole = role == null || role.isEmpty
+        ? null
+        : memberRoleToViroRole(role);
+    state = SessionState(activeClubId: clubId, activeRole: memberRole);
   }
 
   void setActiveRole(String role) {
-    state = state.copyWith(activeRole: role);
+    state = state.copyWith(activeRole: memberRoleToViroRole(role));
   }
 
   void clear() {

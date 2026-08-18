@@ -16,6 +16,7 @@ class EventRsvpCard extends StatelessWidget {
     required this.clubColor,
     required this.onPresent,
     required this.onAbsent,
+    this.onMaybe,
   });
 
   final ClubEvent event;
@@ -23,6 +24,7 @@ class EventRsvpCard extends StatelessWidget {
   final Color clubColor;
   final VoidCallback onPresent;
   final VoidCallback onAbsent;
+  final VoidCallback? onMaybe;
 
   @override
   Widget build(BuildContext context) {
@@ -61,15 +63,25 @@ class EventRsvpCard extends StatelessWidget {
             children: [
               Expanded(
                 child: RsvpChoiceButton(
-                  label: 'Présent',
+                  label: onMaybe == null ? 'Présent' : 'Oui',
                   color: ViroColors.success,
                   onTap: onPresent,
                 ),
               ),
+              if (onMaybe != null) ...[
+                const SizedBox(width: ViroSpacing.sm),
+                Expanded(
+                  child: RsvpChoiceButton(
+                    label: 'Peut-être',
+                    color: ViroColors.warning,
+                    onTap: onMaybe!,
+                  ),
+                ),
+              ],
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: RsvpChoiceButton(
-                  label: 'Absent',
+                  label: onMaybe == null ? 'Absent' : 'Non',
                   color: ViroColors.error,
                   onTap: onAbsent,
                 ),

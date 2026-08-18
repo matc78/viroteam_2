@@ -62,22 +62,9 @@ class InvitationService {
           .get();
       if (!clubDoc.exists) return null;
       club = Club.fromFirestore(clubDoc);
-      invitation = ClubInvitation(
-        id: invitation.id,
-        clubId: invitation.clubId,
-        code: invitation.code,
-        role: invitation.role,
-        status: invitation.status,
-        memberId: invitation.memberId,
-        email: invitation.email,
-        sentBy: invitation.sentBy,
-        sentAt: invitation.sentAt,
-        expiresAt: invitation.expiresAt,
-        acceptedAt: invitation.acceptedAt,
+      invitation = invitation.copyWith(
         clubName: club.name,
         clubSport: club.sport,
-        firstName: invitation.firstName,
-        lastName: invitation.lastName,
       );
     }
 
@@ -116,20 +103,8 @@ class InvitationService {
       return invitation;
     }
 
-    return ClubInvitation(
-      id: invitation.id,
-      clubId: invitation.clubId,
-      code: invitation.code,
-      role: invitation.role,
-      status: invitation.status,
-      memberId: invitation.memberId,
+    return invitation.copyWith(
       email: email ?? invitation.email,
-      sentBy: invitation.sentBy,
-      sentAt: invitation.sentAt,
-      expiresAt: invitation.expiresAt,
-      acceptedAt: invitation.acceptedAt,
-      clubName: invitation.clubName,
-      clubSport: invitation.clubSport,
       firstName: firstName,
       lastName: lastName,
     );
@@ -162,6 +137,11 @@ class InvitationService {
     required ClubInvitation invitation,
     required ViroUser user,
   }) async {
+    if (invitation.isGuardian) {
+      throw StateError(
+        'Utiliser GuardianService.linkGuardian pour une invitation parent.',
+      );
+    }
     if (invitation.email != null &&
         invitation.email!.trim().toLowerCase() !=
             user.emailNorm.trim().toLowerCase()) {
@@ -394,22 +374,9 @@ class InvitationService {
 
       final club = Club.fromFirestore(clubDoc);
       invites.add(
-        ClubInvitation(
-          id: invitation.id,
-          clubId: invitation.clubId,
-          code: invitation.code,
-          role: invitation.role,
-          status: invitation.status,
-          memberId: invitation.memberId,
-          email: invitation.email,
-          sentBy: invitation.sentBy,
-          sentAt: invitation.sentAt,
-          expiresAt: invitation.expiresAt,
-          acceptedAt: invitation.acceptedAt,
+        invitation.copyWith(
           clubName: club.name,
           clubSport: club.sport,
-          firstName: invitation.firstName,
-          lastName: invitation.lastName,
         ),
       );
     }

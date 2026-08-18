@@ -10,15 +10,17 @@ class ClubListTile extends StatelessWidget {
   const ClubListTile({
     super.key,
     required this.club,
-    required this.membership,
+    this.membership,
     required this.onTap,
   });
 
   final Club club;
-  final ClubMembershipSummary membership;
+  final ClubMembershipSummary? membership;
   final VoidCallback onTap;
 
-  ViroRole get _badgeRole => viroRoleFromMemberRole(membership.role);
+  ViroRole? get _badgeRole => membership == null
+      ? null
+      : viroRoleFromMemberRole(membership!.role);
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +59,8 @@ class ClubListTile extends StatelessWidget {
                 ],
               ),
             ),
-            ViroRoleBadge(role: _badgeRole, compact: true),
+            if (_badgeRole != null)
+              ViroRoleBadge(role: _badgeRole!, compact: true),
           ],
         ),
       ),

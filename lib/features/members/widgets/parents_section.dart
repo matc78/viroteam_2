@@ -7,6 +7,9 @@ import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
+/// Liste club-wide des parents (lecture). L’invitation V1 est sur la fiche
+/// joueur (menu « Inviter un parent »).
+
 class ParentsSection extends ConsumerWidget {
   const ParentsSection({super.key, required this.clubId});
 

@@ -21,3 +21,17 @@ Ton code : ${invitation.code}
 Valable 7 jours.
 Ouvre l'app → « J'ai un code d'invitation » et saisis ce code.''';
 }
+
+/// Message FR pour une invitation parent (pas un rôle club).
+String buildGuardianInviteMessage({
+  required Club club,
+  required String code,
+  required String childFirstName,
+}) {
+  final name =
+      childFirstName.trim().isEmpty ? 'ton enfant' : childFirstName.trim();
+  return '''Tu pourras voir le planning de $name, répondre aux convocations et payer la cotisation.
+Club : ${club.name}
+Code : $code
+Ouvre l'app → « J'ai un code d'invitation » et saisis ce code.''';
+}

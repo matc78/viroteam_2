@@ -21,6 +21,7 @@ class MemberListTile extends StatelessWidget {
     required this.viewerRole,
     this.onChangeRole,
     this.onRemove,
+    this.onInviteParent,
     this.showClubAdminActions = true,
   });
 
@@ -29,6 +30,7 @@ class MemberListTile extends StatelessWidget {
   final String viewerRole;
   final VoidCallback? onChangeRole;
   final VoidCallback? onRemove;
+  final VoidCallback? onInviteParent;
 
   /// `false` dans un roster d'équipe : pas de menu admin ni copie d'invitation.
   final bool showClubAdminActions;
@@ -132,6 +134,8 @@ class MemberListTile extends StatelessWidget {
                 switch (value) {
                   case 'role':
                     onChangeRole?.call();
+                  case 'parent':
+                    onInviteParent?.call();
                   case 'remove':
                     onRemove?.call();
                 }
@@ -141,6 +145,11 @@ class MemberListTile extends StatelessWidget {
                   value: 'role',
                   child: Text('Changer le rôle'),
                 ),
+                if (onInviteParent != null)
+                  const PopupMenuItem(
+                    value: 'parent',
+                    child: Text('Inviter un parent'),
+                  ),
                 const PopupMenuItem(
                   value: 'remove',
                   child: Text('Supprimer'),

@@ -151,6 +151,43 @@ class MemberQuickActionsGrid extends StatelessWidget {
   }
 }
 
+/// Accueil famille : Planning, Cotisation, Infos (pas de gestion club).
+class FamilyQuickActionsGrid extends StatelessWidget {
+  const FamilyQuickActionsGrid({
+    super.key,
+    required this.onPlanning,
+    required this.onFee,
+    required this.onInfos,
+  });
+
+  final VoidCallback onPlanning;
+  final VoidCallback onFee;
+  final VoidCallback onInfos;
+
+  @override
+  Widget build(BuildContext context) {
+    return _QuickActionsGridBase(
+      actions: [
+        QuickAction(
+          label: 'Planning',
+          icon: ViroIcons.calendar,
+          onTap: onPlanning,
+        ),
+        QuickAction(
+          label: 'Cotisation',
+          icon: ViroIcons.payments,
+          onTap: onFee,
+        ),
+        QuickAction(
+          label: 'Infos',
+          icon: ViroIcons.bell,
+          onTap: onInfos,
+        ),
+      ],
+    );
+  }
+}
+
 /// Gestion du club (coach + admin).
 class ClubManagementActionsGrid extends StatelessWidget {
   const ClubManagementActionsGrid({

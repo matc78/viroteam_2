@@ -3,6 +3,7 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
+import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
 
@@ -72,7 +73,15 @@ final homeFeeRemindersProvider =
   final eventService = ref.read(eventServiceProvider);
 
   final streams = clubs.map<Stream<List<HomeFeeReminderItem>>>((entry) {
-    final club = entry.$1;
+    final club = entry.club;
+    if (!entry.isLicensed && entry.parentLinks.isNotEmpty) {
+      return feeService
+          .watchActiveMemberFee(
+            clubId: club.id,
+            memberId: entry.parentLinks.first.memberId,
+          )
+          .map((data) => _reminderFromFee(club: club, data: data));
+    }
     return eventService.watchClubMember(clubId: club.id, uid: authUid).asyncExpand(
       (member) {
         if (member == null) return Stream.value(<HomeFeeReminderItem>[]);
@@ -81,28 +90,7 @@ final homeFeeRemindersProvider =
               clubId: club.id,
               memberId: member.memberId,
             )
-            .map((data) {
-          final season = data.season;
-          final fee = data.fee;
-          if (season == null ||
-              fee == null ||
-              (fee.status != MemberFeeStatus.aPayer &&
-                  fee.status != MemberFeeStatus.partiel)) {
-            return <HomeFeeReminderItem>[];
-          }
-          if (fee.remainingCents(season) <= 0 && fee.pendingAidsCents <= 0) {
-            return <HomeFeeReminderItem>[];
-          }
-          return [
-            HomeFeeReminderItem(
-              clubId: club.id,
-              clubName: club.name,
-              brandColorHex: club.brandColorHex,
-              season: season,
-              fee: fee,
-            ),
-          ];
-        });
+            .map((data) => _reminderFromFee(club: club, data: data));
       },
     );
   }).toList();
@@ -111,3 +99,29 @@ final homeFeeRemindersProvider =
     (items) => items.take(3).toList(),
   );
 });
+
+List<HomeFeeReminderItem> _reminderFromFee({
+  required Club club,
+  required ({MemberFee? fee, FeeSeason? season}) data,
+}) {
+  final season = data.season;
+  final fee = data.fee;
+  if (season == null ||
+      fee == null ||
+      (fee.status != MemberFeeStatus.aPayer &&
+          fee.status != MemberFeeStatus.partiel)) {
+    return [];
+  }
+  if (fee.remainingCents(season) <= 0 && fee.pendingAidsCents <= 0) {
+    return [];
+  }
+  return [
+    HomeFeeReminderItem(
+      clubId: club.id,
+      clubName: club.name,
+      brandColorHex: club.brandColorHex,
+      season: season,
+      fee: fee,
+    ),
+  ];
+}

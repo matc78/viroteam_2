@@ -12,7 +12,9 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
@@ -45,10 +47,16 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
   }
 
   Future<void> _resolveAudience() async {
+    final clubId = widget.clubId;
+    final target = ref.read(selectedClubAudienceProvider(clubId));
+    if (target != null) {
+      if (mounted) setState(() => _audienceId = target.memberId);
+      return;
+    }
     final authUid = ref.read(authStateProvider).value?.uid;
     if (authUid == null) return;
     final id = await ref.read(eventServiceProvider).resolveAudienceId(
-          clubId: widget.clubId,
+          clubId: clubId,
           authUid: authUid,
         );
     if (mounted) setState(() => _audienceId = id);
@@ -56,11 +64,23 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final selected = ref.watch(selectedClubAudienceProvider(widget.clubId));
+    final selectedId = selected?.memberId;
+    if (selectedId != null && selectedId != _audienceId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _audienceId = selectedId);
+      });
+    }
+
+    final title = selected?.isChild == true
+        ? 'Cotisation de ${selected!.label}'
+        : 'Ma cotisation';
+
     final audienceId = _audienceId;
     if (audienceId == null) {
-      return const ViroScaffold(
-        appBar: ViroAppBar(title: Text('Ma cotisation')),
-        body: Center(child: CircularProgressIndicator()),
+      return ViroScaffold(
+        appBar: ViroAppBar(title: Text(title)),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -69,10 +89,14 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
     );
 
     return ViroScaffold(
-      appBar: const ViroAppBar(
-        title: Text('Ma cotisation'),
+      appBar: ViroAppBar(
+        title: Text(title),
       ),
-      body: feeAsync.when(
+      body: Column(
+        children: [
+          ClubAudienceSwitcher(clubId: widget.clubId),
+          Expanded(
+            child: feeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => const ViroErrorState(
           message: 'Impossible de charger la cotisation',
@@ -88,9 +112,10 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
 
           final fee = data.fee;
           if (fee == null) {
-            return const ViroEmptyState(
-              message:
-                  'Ta cotisation n\'a pas encore été paramétrée par le club.',
+            return ViroEmptyState(
+              message: selected?.isChild == true
+                  ? 'La cotisation de ${selected!.label} n\'a pas encore été paramétrée par le club.'
+                  : 'Ta cotisation n\'a pas encore été paramétrée par le club.',
             );
           }
 
@@ -108,6 +133,9 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
             ),
           );
         },
+            ),
+          ),
+        ],
       ),
     );
   }

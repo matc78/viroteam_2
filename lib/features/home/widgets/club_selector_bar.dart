@@ -27,13 +27,15 @@ class ClubSelectorBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = clubs.map((entry) {
-      final club = entry.$1;
-      final membership = entry.$2;
+      final club = entry.club;
+      final membership = entry.membership;
       final pending = pendingByClub[club.id] ?? 0;
       return _ClubBarItem(
         label: _shortName(club.name),
         logoUrl: club.logoUrl,
-        role: viroRoleFromMemberRole(membership.role),
+        role: membership == null
+            ? null
+            : viroRoleFromMemberRole(membership.role),
         accentColor: clubAccentColor(
           brandColorHex: club.brandColorHex,
           clubId: club.id,
@@ -127,7 +129,7 @@ class _ClubBarItem extends StatelessWidget {
   const _ClubBarItem({
     required this.label,
     required this.onTap,
-    required this.role,
+    this.role,
     this.logoUrl,
     this.accentColor,
     this.badgeCount,
@@ -135,7 +137,7 @@ class _ClubBarItem extends StatelessWidget {
 
   final String label;
   final VoidCallback onTap;
-  final ViroRole role;
+  final ViroRole? role;
   final String? logoUrl;
   final Color? accentColor;
   final int? badgeCount;
@@ -208,11 +210,12 @@ class _ClubBarItem extends StatelessWidget {
                       ),
                     ),
                   ),
-                Positioned(
-                  bottom: -2,
-                  right: -2,
-                  child: ViroRoleSatelliteBadge(role: role),
-                ),
+                if (role != null)
+                  Positioned(
+                    bottom: -2,
+                    right: -2,
+                    child: ViroRoleSatelliteBadge(role: role!),
+                  ),
               ],
             ),
             const SizedBox(height: 4),

@@ -26,14 +26,14 @@ class MemberPlanningScreen extends ConsumerWidget {
   const MemberPlanningScreen({super.key});
 
   Map<String, String> _clubNames(List<UserClubEntry> clubs) => {
-        for (final entry in clubs) entry.$1.id: entry.$1.name,
+        for (final entry in clubs) entry.club.id: entry.club.name,
       };
 
   Map<String, Color> _clubColors(List<UserClubEntry> clubs) => {
         for (final entry in clubs)
-          entry.$1.id: clubAccentColor(
-            brandColorHex: entry.$1.brandColorHex,
-            clubId: entry.$1.id,
+          entry.club.id: clubAccentColor(
+            brandColorHex: entry.club.brandColorHex,
+            clubId: entry.club.id,
           ),
       };
 

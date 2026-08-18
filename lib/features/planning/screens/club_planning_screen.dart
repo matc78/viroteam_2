@@ -6,7 +6,9 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
@@ -109,15 +111,20 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
     final member = ref.watch(clubMemberProvider(clubId)).value;
-    final canManage = member != null &&
+    final target = ref.watch(selectedClubAudienceProvider(clubId));
+    final isChildView = target?.isChild == true;
+    final canManage = !isChildView &&
+        member != null &&
         MemberRoleHierarchy.isCoachOrAbove(member.role);
-    final isAdmin = member?.role == MemberRoles.admin;
+    final isAdmin = !isChildView && member?.role == MemberRoles.admin;
     final dayParams = (clubId: clubId, day: _selectedDay);
     final eventsAsync = canManage
         ? ref.watch(clubPlanningEventsProvider(dayParams))
         : ref.watch(memberClubPlanningEventsProvider(dayParams));
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
-    final clubMembers = ref.watch(clubMembersProvider(clubId)).value;
+    final clubMembers = member != null
+        ? ref.watch(clubMembersProvider(clubId)).value
+        : null;
     final membersByUid =
         clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
 
@@ -156,6 +163,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ClubAudienceSwitcher(clubId: clubId),
           if (isAdmin)
             PortalAdminBanner(
               portalUrl: portalPlanningUrl(clubId: clubId),

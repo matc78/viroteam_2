@@ -5,16 +5,19 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 enum RsvpStatus {
   none,
   yes,
+  maybe,
   no;
 
   static RsvpStatus fromString(String? value) => switch (value) {
         'yes' => RsvpStatus.yes,
+        'maybe' => RsvpStatus.maybe,
         'no' => RsvpStatus.no,
         _ => RsvpStatus.none,
       };
 
   String get firestoreValue => switch (this) {
         RsvpStatus.yes => 'yes',
+        RsvpStatus.maybe => 'maybe',
         RsvpStatus.no => 'no',
         RsvpStatus.none => 'none',
       };
@@ -148,6 +151,7 @@ class ClubEvent {
         : entry?.toString();
     return switch (status) {
       'present' || 'yes' => RsvpStatus.yes,
+      'maybe' => RsvpStatus.maybe,
       'absent' || 'no' => RsvpStatus.no,
       _ => RsvpStatus.none,
     };
@@ -178,6 +182,7 @@ class ClubEvent {
           yes++;
         case RsvpStatus.no:
           no++;
+        case RsvpStatus.maybe:
         case RsvpStatus.none:
           none++;
       }

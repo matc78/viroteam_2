@@ -51,19 +51,28 @@ class _InvitationPreviewScreenState
       _error = null;
     });
     try {
-      await ref.read(invitationServiceProvider).acceptInvitation(
-            invitation: pending.invitation!,
-            user: user,
-          );
+      final invitation = pending.invitation!;
+      if (invitation.isGuardian) {
+        await ref.read(guardianServiceProvider).linkGuardian(
+              clubId: invitation.clubId,
+              invitationId: invitation.id,
+            );
+        ref.read(sessionProvider.notifier).setActiveClub(pending.club!.id);
+      } else {
+        await ref.read(invitationServiceProvider).acceptInvitation(
+              invitation: invitation,
+              user: user,
+            );
+        ref.read(sessionProvider.notifier).setActiveClub(
+              pending.club!.id,
+              role: invitation.role,
+            );
+      }
       ref.invalidate(userClubsProvider);
       ref.invalidate(userClubsWithEventsProvider);
       ref.invalidate(pendingInvitationsProvider);
       ref.invalidate(viroUserFutureProvider);
       ref.read(pendingInvitationProvider.notifier).clear();
-      ref.read(sessionProvider.notifier).setActiveClub(
-            pending.club!.id,
-            role: pending.invitation!.role,
-          );
       if (mounted) context.go(AppRoutes.home);
     } catch (e) {
       setState(() => _error = e.toString());
@@ -102,6 +111,13 @@ class _InvitationPreviewScreenState
 
     final club = pending.club!;
     final invite = pending.invitation!;
+    final childName = [
+      invite.firstName?.trim() ?? '',
+      invite.lastName?.trim() ?? '',
+    ].where((part) => part.isNotEmpty).join(' ');
+    final childFirst = (invite.firstName?.trim().isNotEmpty ?? false)
+        ? invite.firstName!.trim()
+        : (childName.isNotEmpty ? childName.split(' ').first : 'ton enfant');
 
     return ViroScaffold(
       appBar: const ViroAppBar(title: Text('Invitation')),
@@ -112,7 +128,9 @@ class _InvitationPreviewScreenState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Vous êtes invité à rejoindre',
+                invite.isGuardian
+                    ? 'Invitation pour suivre un enfant'
+                    : 'Vous êtes invité à rejoindre',
                 style: theme.bodyLarge,
                 textAlign: TextAlign.center,
               ),
@@ -130,18 +148,27 @@ class _InvitationPreviewScreenState
                 style: theme.bodyMedium,
               ),
               const SizedBox(height: ViroSpacing.lg),
-              Center(child: ViroRoleBadge(role: _badge(invite.role))),
-              const SizedBox(height: ViroSpacing.sm),
-              Text(
-                'Rôle proposé : ${_roleLabel(invite.role)}',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: ViroSpacing.sm),
-              Text(
-                'En tant que membre du club, vous aurez aussi accès aux fonctions joueur.',
-                style: theme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
+              if (invite.isGuardian) ...[
+                Text(
+                  'Tu pourras voir le planning de $childFirst, '
+                  'répondre aux convocations et payer la cotisation.',
+                  style: theme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ] else ...[
+                Center(child: ViroRoleBadge(role: _badge(invite.role))),
+                const SizedBox(height: ViroSpacing.sm),
+                Text(
+                  'Rôle proposé : ${_roleLabel(invite.role)}',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                Text(
+                  'En tant que membre du club, vous aurez aussi accès aux fonctions joueur.',
+                  style: theme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+              ],
               if (_error != null) ...[
                 const SizedBox(height: ViroSpacing.md),
                 Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
@@ -158,10 +185,11 @@ class _InvitationPreviewScreenState
                 outlined: true,
                 onPressed: _decline,
               ),
-              TextButton(
-                onPressed: () => context.push(AppRoutes.joinRequestRole),
-                child: const Text('Demander un autre rôle'),
-              ),
+              if (!invite.isGuardian)
+                TextButton(
+                  onPressed: () => context.push(AppRoutes.joinRequestRole),
+                  child: const Text('Demander un autre rôle'),
+                ),
             ],
           ),
         ),

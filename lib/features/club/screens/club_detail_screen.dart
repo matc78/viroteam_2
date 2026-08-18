@@ -9,8 +9,12 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
+import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/club/widgets/announcement_preview.dart';
 import 'package:viro_team_v2/features/club/widgets/club_stats_row.dart';
 import 'package:viro_team_v2/features/club/widgets/quick_actions_grid.dart';
@@ -20,11 +24,14 @@ import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
+import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubDetailScreen extends ConsumerStatefulWidget {
@@ -39,24 +46,49 @@ class ClubDetailScreen extends ConsumerStatefulWidget {
 class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   final _hiddenPendingIds = <String>{};
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncSession());
+  }
+
+  void _syncSession() {
+    final user = ref.read(viroUserProvider).value;
+    ref.read(sessionProvider.notifier).setActiveClub(
+          widget.clubId,
+          role: user?.membershipInClub(widget.clubId)?.role,
+        );
+  }
+
   Future<void> _setRsvp(ClubEvent event, RsvpStatus status) async {
     final authUid = ref.read(authStateProvider).value?.uid;
     if (authUid == null) return;
 
+    final target = ref.read(selectedClubAudienceProvider(widget.clubId));
+    final eventService = ref.read(eventServiceProvider);
+    final audienceId = target?.memberId ??
+        await eventService.resolveAudienceId(
+          clubId: event.clubId,
+          authUid: authUid,
+        );
+    final viaCallable = target?.isChild == true;
+
     setState(() => _hiddenPendingIds.add(event.id));
 
-    final eventService = ref.read(eventServiceProvider);
-    final audienceId = await eventService.resolveAudienceId(
-      clubId: event.clubId,
-      authUid: authUid,
-    );
-
-    await eventService.updateRsvp(
-      clubId: event.clubId,
-      eventId: event.id,
-      uid: audienceId,
-      status: status,
-    );
+    try {
+      await eventService.updateRsvp(
+        clubId: event.clubId,
+        eventId: event.id,
+        uid: audienceId,
+        status: status,
+        viaCallable: viaCallable,
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _hiddenPendingIds.remove(event.id));
+        ViroSnackBar.show(context, 'RSVP impossible, réessayez');
+      }
+    }
   }
 
   @override
@@ -64,7 +96,15 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final clubId = widget.clubId;
     final clubAsync = ref.watch(clubProvider(clubId));
     final memberAsync = ref.watch(clubMemberProvider(clubId));
-    final eventsAsync = ref.watch(clubEventsProvider(clubId));
+    final selected = ref.watch(selectedClubAudienceProvider(clubId));
+    final isChildView = selected?.isChild == true;
+    final eventsAsync = isChildView && selected != null
+        ? ref.watch(
+            clubEventsForMemberProvider(
+              (clubId: clubId, memberId: selected.memberId),
+            ),
+          )
+        : ref.watch(clubEventsProvider(clubId));
     final announcementsAsync =
         ref.watch(visibleClubAnnouncementsProvider(clubId));
     final attendanceAsync = ref.watch(clubAttendanceRateProvider(clubId));
@@ -96,95 +136,231 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               SliverToBoxAdapter(
                 child: _ClubHeader(
                   club: club,
-                  member: memberAsync.value,
+                  member: isChildView ? null : memberAsync.value,
                   accent: accent,
                 ),
               ),
-              ..._buildEventsSlivers(
-                eventsAsync: eventsAsync,
-                club: club,
-                accent: accent,
-              ),
-              ..._buildStatsSlivers(
-                attendanceAsync: attendanceAsync,
-                eventsAsync: eventsAsync,
-                club: club,
-                member: memberAsync.value,
-              ),
-              ..._buildAnnouncementsSlivers(
-                announcementsAsync,
-                clubId: clubId,
-              ),
               SliverToBoxAdapter(
-                child: memberAsync.when(
-                  data: (m) {
-                    if (m == null) return const SizedBox.shrink();
-
-                    final hasActiveSeason = ref
-                            .watch(activeSeasonProvider(clubId))
-                            .value !=
-                        null;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const _SectionTitle(title: 'Accès rapides'),
-                        MemberQuickActionsGrid(
-                          onPlanning: MemberRoleHierarchy.isCoachOrAbove(m.role)
-                              ? null
-                              : () => context.push(
-                                    AppRoutes.clubPlanningPath(clubId),
-                                  ),
-                          onMyTeams: () => context.push(
-                            AppRoutes.clubMyTeamsPath(clubId),
-                          ),
-                          onAnnouncements: () => context.push(
-                            AppRoutes.clubAnnouncementsPath(clubId),
-                          ),
-                          onMyFee: hasActiveSeason
-                              ? () => context.push(
-                                    AppRoutes.clubMyFeePath(clubId),
-                                  )
-                              : null,
-                        ),
-                        if (MemberRoleHierarchy.isCoachOrAbove(m.role)) ...[
-                          const _SectionTitle(title: 'Gestion du club'),
-                          ClubManagementActionsGrid(
-                            role: m.role,
-                            onPlanning: () => context.push(
-                              AppRoutes.clubPlanningPath(clubId),
-                            ),
-                            onManageTeams: () => context.push(
-                              AppRoutes.clubManageTeamsPath(clubId),
-                            ),
-                            onManageMembers: () => context.push(
-                              AppRoutes.clubMembersPath(clubId),
-                            ),
-                            onFees: m.role == MemberRoles.admin
-                                ? () => context.push(
-                                      AppRoutes.clubFeesPath(clubId),
-                                    )
-                                : null,
-                            onPortal: m.role == MemberRoles.admin
-                                ? () => openPortalUrl(
-                                      portalHomeUrl(clubId: clubId),
-                                    )
-                                : null,
-                          ),
-                        ],
-                        const SizedBox(height: ViroSpacing.xl),
-                      ],
-                    );
-                  },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, _) => const SizedBox.shrink(),
-                ),
+                child: ClubAudienceSwitcher(clubId: clubId),
               ),
+              if (isChildView && selected != null)
+                ..._buildFamilySlivers(
+                  club: club,
+                  accent: accent,
+                  childMemberId: selected.memberId,
+                  childLabel: selected.label,
+                  eventsAsync: eventsAsync,
+                  announcementsAsync: announcementsAsync,
+                )
+              else ...[
+                ..._buildEventsSlivers(
+                  eventsAsync: eventsAsync,
+                  club: club,
+                  accent: accent,
+                ),
+                ..._buildStatsSlivers(
+                  attendanceAsync: attendanceAsync,
+                  eventsAsync: eventsAsync,
+                  club: club,
+                  member: memberAsync.value,
+                ),
+                ..._buildAnnouncementsSlivers(
+                  announcementsAsync,
+                  clubId: clubId,
+                ),
+                SliverToBoxAdapter(
+                  child: memberAsync.when(
+                    data: (m) {
+                      if (m == null) return const SizedBox.shrink();
+
+                      final hasActiveSeason = ref
+                              .watch(activeSeasonProvider(clubId))
+                              .value !=
+                          null;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _SectionTitle(title: 'Accès rapides'),
+                          MemberQuickActionsGrid(
+                            onPlanning:
+                                MemberRoleHierarchy.isCoachOrAbove(m.role)
+                                    ? null
+                                    : () => context.push(
+                                          AppRoutes.clubPlanningPath(clubId),
+                                        ),
+                            onMyTeams: () => context.push(
+                              AppRoutes.clubMyTeamsPath(clubId),
+                            ),
+                            onAnnouncements: () => context.push(
+                              AppRoutes.clubAnnouncementsPath(clubId),
+                            ),
+                            onMyFee: hasActiveSeason
+                                ? () => context.push(
+                                      AppRoutes.clubMyFeePath(clubId),
+                                    )
+                                : null,
+                          ),
+                          if (MemberRoleHierarchy.isCoachOrAbove(m.role)) ...[
+                            const _SectionTitle(title: 'Gestion du club'),
+                            ClubManagementActionsGrid(
+                              role: m.role,
+                              onPlanning: () => context.push(
+                                AppRoutes.clubPlanningPath(clubId),
+                              ),
+                              onManageTeams: () => context.push(
+                                AppRoutes.clubManageTeamsPath(clubId),
+                              ),
+                              onManageMembers: () => context.push(
+                                AppRoutes.clubMembersPath(clubId),
+                              ),
+                              onFees: m.role == MemberRoles.admin
+                                  ? () => context.push(
+                                        AppRoutes.clubFeesPath(clubId),
+                                      )
+                                  : null,
+                              onPortal: m.role == MemberRoles.admin
+                                  ? () => openPortalUrl(
+                                        portalHomeUrl(clubId: clubId),
+                                      )
+                                  : null,
+                            ),
+                          ],
+                          const SizedBox(height: ViroSpacing.xl),
+                        ],
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
+                  ),
+                ),
+              ],
             ],
           );
         },
       ),
     );
+  }
+
+  List<Widget> _buildFamilySlivers({
+    required Club club,
+    required Color accent,
+    required String childMemberId,
+    required String childLabel,
+    required AsyncValue<ClubEventsState> eventsAsync,
+    required AsyncValue<List<ClubAnnouncement>> announcementsAsync,
+  }) {
+    final clubId = club.id;
+    final feeAsync = ref.watch(
+      myFeeProvider((clubId: clubId, memberId: childMemberId)),
+    );
+
+    return [
+      ...eventsAsync.when(
+        loading: () => [
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(ViroSpacing.screenHorizontal),
+              child: SectionShimmer(itemCount: 1),
+            ),
+          ),
+        ],
+        error: (_, _) => [
+          const SliverToBoxAdapter(child: ViroErrorState()),
+        ],
+        data: (state) {
+          final next = state.upcoming.firstOrNull;
+          if (next == null) {
+            return [
+              const SliverToBoxAdapter(
+                child: _SectionTitle(title: 'Prochain événement'),
+              ),
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ViroSpacing.screenHorizontal,
+                  ),
+                  child: Text('Aucun événement à venir pour cette fiche.'),
+                ),
+              ),
+            ];
+          }
+          return [
+            const SliverToBoxAdapter(
+              child: _SectionTitle(title: 'Prochain événement'),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: ViroSpacing.screenHorizontal,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: EventRsvpCard(
+                  event: next,
+                  clubName: club.name,
+                  clubColor: accent,
+                  onPresent: () => _setRsvp(next, RsvpStatus.yes),
+                  onMaybe: () => _setRsvp(next, RsvpStatus.maybe),
+                  onAbsent: () => _setRsvp(next, RsvpStatus.no),
+                ),
+              ),
+            ),
+          ];
+        },
+      ),
+      ...feeAsync.when(
+        loading: () => const <Widget>[],
+        error: (_, _) => const <Widget>[],
+        data: (data) {
+          final season = data.season;
+          final fee = data.fee;
+          if (season == null || fee == null) return const <Widget>[];
+          if (fee.status != MemberFeeStatus.aPayer &&
+              fee.status != MemberFeeStatus.partiel) {
+            return const <Widget>[];
+          }
+          final remaining = fee.remainingCents(season);
+          if (remaining <= 0 && fee.pendingAidsCents <= 0) {
+            return const <Widget>[];
+          }
+          return [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  ViroSpacing.screenHorizontal,
+                  ViroSpacing.lg,
+                  ViroSpacing.screenHorizontal,
+                  0,
+                ),
+                child: _FamilyFeeBanner(
+                  label: childLabel,
+                  amountLabel: formatFeeAmountCents(remaining),
+                  onTap: () => context.push(AppRoutes.clubMyFeePath(clubId)),
+                ),
+              ),
+            ),
+          ];
+        },
+      ),
+      ..._buildAnnouncementsSlivers(announcementsAsync, clubId: clubId),
+      SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _SectionTitle(title: 'Accès rapides'),
+            FamilyQuickActionsGrid(
+              onPlanning: () => context.push(
+                AppRoutes.clubPlanningPath(clubId),
+              ),
+              onFee: () => context.push(AppRoutes.clubMyFeePath(clubId)),
+              onInfos: () => context.push(
+                AppRoutes.clubAnnouncementsPath(clubId),
+              ),
+            ),
+            const SizedBox(height: ViroSpacing.xl),
+          ],
+        ),
+      ),
+    ];
   }
 
   List<Widget> _buildEventsSlivers({
@@ -421,6 +597,68 @@ class _SectionTitle extends StatelessWidget {
               color: ViroColors.primary800,
               fontWeight: FontWeight.w700,
             ),
+      ),
+    );
+  }
+}
+
+class _FamilyFeeBanner extends StatelessWidget {
+  const _FamilyFeeBanner({
+    required this.label,
+    required this.amountLabel,
+    required this.onTap,
+  });
+
+  final String label;
+  final String amountLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: ViroColors.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
+        border: Border.all(color: ViroColors.warning.withValues(alpha: 0.4)),
+      ),
+      child: ViroPressable(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
+        child: Padding(
+          padding: const EdgeInsets.all(ViroSpacing.md),
+          child: Row(
+            children: [
+              ViroIcon(ViroIcons.payments, color: ViroColors.warning, size: 22),
+              const SizedBox(width: ViroSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cotisation de $label',
+                      style: theme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: ViroColors.primary800,
+                      ),
+                    ),
+                    Text(
+                      'Reste dû : $amountLabel',
+                      style: theme.bodyMedium?.copyWith(
+                        color: ViroColors.gray600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ViroIcon(
+                ViroIcons.chevronRight,
+                color: ViroColors.gray400,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -84,7 +84,7 @@ V1 : 1 guardian actif par enfant ; N enfants par parent. Hors V1 : 2ᵉ adulte, 
 - [x] Modèle `guardians/{parentUid}` + `parentLinks` `{ clubId, memberId, relation, status }`
 - [x] Callable `linkGuardian` / acceptation invitation `type: guardian` (écriture des deux faces)
 - [x] Invitation admin sur fiche joueur (plafond 1 `active`/`pending`)
-- [ ] Accueil famille app : planning, RSVP, cotisation, annonces (puces si plusieurs enfants)
+- [x] Accueil famille app : planning, RSVP, cotisation, annonces (puces si plusieurs enfants)
 - [x] Segment **Moi | enfant** seulement si l’adulte est aussi licencié du club
 - [x] Espace famille portail (garde admin **ou** guardian ; nav distincte du bureau)
 - [x] RSVP + checkout HelloAsso au nom du `memberId` enfant (rules + callable)

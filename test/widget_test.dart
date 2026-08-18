@@ -1,9 +1,16 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/app/viro_app.dart';
+import 'package:viro_team_v2/config/viro_theme.dart';
+import 'package:viro_team_v2/screens/dev/design_system_preview_screen.dart';
 
 void main() {
   testWidgets('affiche l\'aperçu du design system', (WidgetTester tester) async {
-    await tester.pumpWidget(const ViroApp());
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ViroTheme.light,
+        home: const DesignSystemPreviewScreen(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('ViroTeam v2'), findsOneWidget);

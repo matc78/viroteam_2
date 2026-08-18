@@ -5,16 +5,78 @@ on:
     branches: [main, master, develop]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  analyze-test:
+  flutter:
+    name: Flutter analyze & test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # Aligné sur .fvmrc / .fvm/fvm_config.json
           flutter-version: "3.44.8"
           cache: true
+
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
+
+  portal:
+    name: Portal lint & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: portal
+    env:
+      # Config web publique (même projet que apphosting.yaml) — pas de secrets Admin
+      NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyDC11KSpLJY-C07QNExa3AHuXHKk_DpXkQ
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: viroteam-75303.firebaseapp.com
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: viroteam-75303
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: viroteam-75303.firebasestorage.app
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "396501317680"
+      NEXT_PUBLIC_FIREBASE_APP_ID: 1:396501317680:web:93d4f0b325ff9c876fd5f5
+      NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-RNK62HGCVT
+      NEXT_PUBLIC_FIRESTORE_DATABASE_ID: v2-dev
+      NEXT_PUBLIC_DEV_AUTH_BYPASS: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: portal/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  functions:
+    name: Functions build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - run: npm ci
+      - run: npm run build

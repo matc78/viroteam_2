@@ -172,7 +172,12 @@ Pas d’`owner`.
 - Validation massive d’aides, synthèse comptable.
 - Gros tableaux / exports.
 
-L’écran admin cotisations mobile devient une **vue opérationnelle légère**, avec un lien / message du type « Pour la configuration complète, utilisez l’espace club sur le web » (quand le portail est en prod).
+L’écran admin cotisations mobile devient une **vue opérationnelle légère** (`Suivi cotisations`), avec bannière et lien vers l’espace club sur le web pour la configuration complète.
+
+**HelloAsso (état actuel)**  
+- Config orga (slug) : **portail uniquement** (`/fees`), toggle désactivé tant que le partenariat n’est pas actif.  
+- Paiement CB membre : masqué dans l’app (`helloAssoPaymentsLive = false`) ; message « bientôt disponible ».  
+- Activation : flip `FeatureFlags.helloAssoPaymentsLive` (app) + `NEXT_PUBLIC_HELLOASSO_LIVE=true` (portail) après partenariat et déploiement des secrets Functions.
 
 ### 8.2 Membres
 Conserver : inviter / ajouter un membre oublié, gestes simples.  

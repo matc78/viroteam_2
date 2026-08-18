@@ -83,18 +83,20 @@ Specs produit : [`docs/specs/`](specs/).
 
 - [x] Spec cadrage `viroteam_v2_web_portal_spec.md`
 - [x] Landing React (sans pricing)
-- [ ] Login + dashboard admin (membres, cotisations, HelloAsso)
+- [x] Login + dashboard admin (membres, cotisations, planning, home)
+- [x] Liens app → portail (tuile Espace club, bannières, deep link `?clubId=`)
+- [x] Alléger écran cotisations admin mobile (suivi seulement, config → portail)
+- [x] Suivi cotisations portail (paiement hors-ligne, validation aides)
 - [ ] Inventaire équipements (CRUD simple)
 - [ ] Matrice droits coachs (web) + lecture app
-- [ ] Alléger écrans cotisations admin mobile (urgences seulement)
 
 ## Phase 10 — Partenariat HelloAsso (paiements en ligne live)
 
-Après app prête (phases restantes bouclées) :
+Partenariat en cours — flags `helloAssoPaymentsLive` (app) et `NEXT_PUBLIC_HELLOASSO_LIVE` (portail) à `false` tant que non activé.
 
 - [ ] Devenir partenaire HelloAsso
 - [ ] Brancher l’orga / secrets en prod et valider le parcours paiement en ligne bout-en-bout
-- [ ] Activer les checkouts CB réels pour les clubs
+- [ ] Activer les checkouts CB réels pour les clubs (`helloAssoPaymentsLive = true`)
 
 ---
 

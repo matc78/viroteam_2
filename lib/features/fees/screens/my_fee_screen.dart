@@ -133,7 +133,7 @@ class _FeeContent extends ConsumerWidget {
     final remaining = fee.remainingCents(season);
     final deadline = season.paymentDeadlineAt;
     final club = ref.watch(clubProvider(clubId)).value;
-    final onlinePaymentEnabled = FeatureFlags.inAppPayments &&
+    final onlinePaymentEnabled = FeatureFlags.helloAssoPaymentsLive &&
         (club?.onlinePaymentEnabled ?? false);
     final canPay = display == MemberFeeDisplayStatus.aPayer ||
         display == MemberFeeDisplayStatus.enRetard ||
@@ -436,12 +436,11 @@ class _FeeContent extends ConsumerWidget {
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: Text(
-                  onlinePaymentEnabled
-                      ? 'Le paiement en ligne via HelloAsso sera bientôt '
-                          'disponible. En attendant, suivez les consignes du club.'
-                      : 'Le paiement en ligne n\'est pas proposé par le club. '
-                          'Suivez les consignes ci-dessus ; seuls les administrateurs '
-                          'confirment qu\'une cotisation est réglée.',
+                  FeatureFlags.helloAssoPaymentsLive && onlinePaymentEnabled
+                      ? 'Le paiement en ligne via HelloAsso est disponible '
+                          'ci-dessus.'
+                      : 'Le paiement en ligne via HelloAsso arrive bientôt. '
+                          'En attendant, suivez les consignes du club.',
                   style: theme.bodySmall?.copyWith(
                     color: ViroColors.gray600,
                     height: 1.4,

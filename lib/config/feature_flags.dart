@@ -8,4 +8,7 @@ abstract final class FeatureFlags {
   /// Paiement in-app HelloAsso (callable + webhook).
   /// Désactiver si les secrets Functions ne sont pas déployés.
   static const bool inAppPayments = true;
+
+  /// Paiement CB HelloAsso live (partenariat + secrets déployés).
+  static const bool helloAssoPaymentsLive = false;
 }

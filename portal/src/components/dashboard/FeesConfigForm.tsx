@@ -19,6 +19,7 @@ import {
   updateSeason,
 } from "@/lib/firebase/feeService";
 import { defaultSeasonEndDate } from "@/lib/planning/seasonEnd";
+import { HELLOASSO_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./FeesConfigForm.module.css";
 
@@ -87,7 +88,13 @@ export function FeesConfigForm({
     if (!seasonEndDate) return false;
     if (tiers.length === 0) return false;
     if (tiers.some((tier) => !tier.label.trim() || tier.amountCents <= 0)) return false;
-    if (onlinePaymentEnabled && !helloAssoOrganizationSlug.trim()) return false;
+    if (
+      HELLOASSO_PAYMENTS_LIVE &&
+      onlinePaymentEnabled &&
+      !helloAssoOrganizationSlug.trim()
+    ) {
+      return false;
+    }
     return true;
   }, [
     seasonLabel,
@@ -164,7 +171,7 @@ export function FeesConfigForm({
 
       await updateOnlinePaymentConfig({
         clubId,
-        enabled: onlinePaymentEnabled,
+        enabled: HELLOASSO_PAYMENTS_LIVE && onlinePaymentEnabled,
         organizationSlug: helloAssoOrganizationSlug,
       });
 
@@ -398,22 +405,33 @@ export function FeesConfigForm({
           </h2>
           <label className={styles.toggle}>
             <span className={styles.toggleLabel}>
-              {onlinePaymentEnabled ? "Activé" : "Désactivé"}
+              {onlinePaymentEnabled && HELLOASSO_PAYMENTS_LIVE
+                ? "Activé"
+                : "Désactivé"}
             </span>
             <input
               type="checkbox"
               role="switch"
               checked={onlinePaymentEnabled}
               onChange={(e) => setOnlinePayment(e.target.checked)}
+              disabled={!HELLOASSO_PAYMENTS_LIVE}
               aria-label="Activer le paiement en ligne HelloAsso"
             />
             <span className={styles.toggleTrack} aria-hidden="true" />
           </label>
         </div>
         <div className={styles.sectionBody}>
-          <p className={styles.sectionLead}>
-            Affiche le bouton « Payer en ligne » aux membres dans l’app.
-          </p>
+          {!HELLOASSO_PAYMENTS_LIVE ? (
+            <p className={styles.sectionLead} role="status">
+              Paiement en ligne HelloAsso — partenariat en cours. Vous pouvez
+              préparer le slug de votre organisation ; l&apos;activation sera
+              disponible prochainement.
+            </p>
+          ) : (
+            <p className={styles.sectionLead}>
+              Affiche le bouton « Payer en ligne » aux membres dans l&apos;app.
+            </p>
+          )}
           <label className={styles.field}>
             <span className={styles.label}>Slug organisation HelloAsso</span>
             <input
@@ -421,7 +439,6 @@ export function FeesConfigForm({
               value={helloAssoOrganizationSlug}
               onChange={(event) => setHelloAssoOrganizationSlug(event.target.value)}
               placeholder="mon-club-asso"
-              disabled={!onlinePaymentEnabled}
             />
           </label>
         </div>

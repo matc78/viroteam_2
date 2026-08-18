@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { BrandMark } from "@/components/BrandMark";
 import { site } from "@/lib/site";
 import styles from "./SiteHeader.module.css";
 
@@ -9,14 +9,7 @@ export function SiteHeader() {
     <header className={styles.header}>
       <div className={styles.inner}>
         <Link href="/" className={styles.brand} aria-label={`${site.name} — accueil`}>
-          <Image
-            src="/logo-mark.svg"
-            alt=""
-            width={32}
-            height={32}
-            className={styles.mark}
-            priority
-          />
+          <BrandMark className={styles.mark} priority />
           <span className={styles.wordmark}>{site.name}</span>
         </Link>
 

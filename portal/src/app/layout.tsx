@@ -13,12 +13,17 @@ export const metadata: Metadata = {
   title: "ViroTeam — Tout le club, une seule app",
   description:
     "Pilotez planning, RSVP, cotisations et équipes. Joueurs, coachs, parents et admins réunis dans ViroTeam.",
+  icons: {
+    icon: [{ url: "/logo-mark.png", type: "image/png" }],
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
     title: "ViroTeam",
     description:
       "Pilotez planning, RSVP, cotisations et équipes — une app pour tout le club.",
     locale: "fr_FR",
     type: "website",
+    images: [{ url: "/logo.png", alt: "ViroTeam" }],
   },
 };
 

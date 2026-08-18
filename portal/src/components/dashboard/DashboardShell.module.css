@@ -44,9 +44,9 @@
 }
 
 .mark {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.5rem;
+  width: 2.15rem;
+  height: 2.15rem;
+  object-fit: contain;
 }
 
 .wordmark {

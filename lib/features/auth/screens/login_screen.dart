@@ -9,13 +9,10 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 
 import 'package:viro_team_v2/config/viro_spacing.dart';
-
 import 'package:viro_team_v2/features/auth/widgets/auth_social_buttons.dart';
-
 import 'package:viro_team_v2/providers/service_providers.dart';
-
 import 'package:viro_team_v2/services/auth_exceptions.dart';
-
+import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -197,7 +194,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
 
               children: [
-
+                const Center(child: ViroLogo(height: 112)),
+                const SizedBox(height: ViroSpacing.xl),
                 TextFormField(
 
                   controller: _emailController,

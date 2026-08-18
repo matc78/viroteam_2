@@ -10,6 +10,7 @@ import 'package:viro_team_v2/features/join/providers/pending_invitation_provider
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -228,6 +229,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Center(child: ViroLogo(height: 96)),
+                const SizedBox(height: ViroSpacing.xl),
                 TextFormField(
                   controller: _firstNameController,
                   decoration: const InputDecoration(

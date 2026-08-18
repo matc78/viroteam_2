@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
+import { BrandMark } from "@/components/BrandMark";
 import { DashboardPageTransition } from "@/components/dashboard/DashboardPageTransition";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
@@ -73,14 +73,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 if (pathname !== "/home") setPendingHref("/home");
               }}
             >
-              <Image
-                src="/logo-mark.svg"
-                alt=""
-                width={32}
-                height={32}
-                className={styles.mark}
-                priority
-              />
+              <BrandMark className={styles.mark} priority />
               <span className={styles.wordmark}>{site.name}</span>
             </Link>
             <span className={styles.clubDivider} aria-hidden="true" />

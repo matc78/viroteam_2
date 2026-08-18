@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/BrandMark";
 import { site } from "@/lib/site";
 import styles from "./SiteFooter.module.css";
 
@@ -9,9 +10,12 @@ export function SiteFooter() {
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>
-        <div>
-          <p className={styles.brand}>{site.name}</p>
-          <p className={styles.copy}>© {year} {site.name}. Tous droits réservés.</p>
+        <div className={styles.brandBlock}>
+          <BrandMark size={28} className={styles.mark} />
+          <div>
+            <p className={styles.brand}>{site.name}</p>
+            <p className={styles.copy}>© {year} {site.name}. Tous droits réservés.</p>
+          </div>
         </div>
         <nav className={styles.links} aria-label="Pied de page">
           <a href="#fonctionnalites" className={styles.link}>

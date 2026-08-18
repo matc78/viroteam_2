@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -22,6 +23,8 @@ class OnboardingEntryScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
+              const Center(child: ViroLogo(height: 128)),
+              const SizedBox(height: ViroSpacing.xl),
               Text(
                 'Bienvenue sur ViroTeam',
                 style: theme.headlineMedium?.copyWith(

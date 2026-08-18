@@ -2,6 +2,9 @@
 export const site = {
   name: "ViroTeam",
   tagline: "Tout le club, une seule app",
+  logoMark: "/logo-mark.png",
+  logoStacked: "/logo.png",
+  logoWordmark: "/logo-wordmark.png",
   description:
     "Pilotez planning, RSVP, cotisations et équipes — joueurs, coachs, parents et admins réunis.",
   playStoreUrl:

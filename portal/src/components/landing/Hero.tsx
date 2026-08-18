@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { StoreBadges } from "@/components/StoreBadges";
@@ -30,7 +31,14 @@ export function Hero() {
           initial="hidden"
           animate="show"
         >
-          {site.name}
+          <Image
+            src={site.logoStacked}
+            alt={site.name}
+            width={277}
+            height={237}
+            className={styles.brandLogo}
+            priority
+          />
         </motion.h1>
 
         <motion.p

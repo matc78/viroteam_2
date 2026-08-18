@@ -136,11 +136,13 @@
 
 .brand {
   margin: 0 0 var(--space-lg);
-  font-size: clamp(3.25rem, 8vw, 5.5rem);
-  font-weight: 700;
-  letter-spacing: -0.045em;
-  line-height: 0.95;
-  color: var(--color-primary-900);
+  line-height: 0;
+}
+
+.brandLogo {
+  display: block;
+  width: min(16.5rem, 68vw);
+  height: auto;
 }
 
 .headline {

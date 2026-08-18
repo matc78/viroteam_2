@@ -27,6 +27,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -130,7 +131,14 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
 
     return ViroScaffold(
       appBar: ViroAppBar(
-        title: const Text(ProjectConfig.appName),
+        title: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ViroLogoMark(height: 28),
+            SizedBox(width: ViroSpacing.sm),
+            Text(ProjectConfig.appName),
+          ],
+        ),
         onTitleTap: _scrollToTop,
         actions: [
           IconButton(

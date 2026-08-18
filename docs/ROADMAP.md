@@ -81,13 +81,13 @@ Cadrage : [`docs/specs/viroteam_v2_parents_spec.md`](specs/viroteam_v2_parents_s
 V1 : 1 guardian actif par enfant ; N enfants par parent. Hors V1 : 2ᵉ adulte, compte enfant, FCM.
 
 - [x] Spec cadrage `viroteam_v2_parents_spec.md` + constantes `project_config` / `firestore_fields`
-- [ ] Modèle `guardians/{parentUid}` + `parentLinks` `{ clubId, memberId, relation, status }`
-- [ ] Callable `linkGuardian` / acceptation invitation `type: guardian` (écriture des deux faces)
-- [ ] Invitation admin sur fiche joueur (plafond 1 `active`/`pending`)
+- [x] Modèle `guardians/{parentUid}` + `parentLinks` `{ clubId, memberId, relation, status }`
+- [x] Callable `linkGuardian` / acceptation invitation `type: guardian` (écriture des deux faces)
+- [x] Invitation admin sur fiche joueur (plafond 1 `active`/`pending`)
 - [ ] Accueil famille app : planning, RSVP, cotisation, annonces (puces si plusieurs enfants)
-- [ ] Segment **Moi | enfant** seulement si l’adulte est aussi licencié du club
-- [ ] Espace famille portail (garde admin **ou** guardian ; nav distincte du bureau)
-- [ ] RSVP + checkout HelloAsso au nom du `memberId` enfant (rules + callable)
+- [x] Segment **Moi | enfant** seulement si l’adulte est aussi licencié du club
+- [x] Espace famille portail (garde admin **ou** guardian ; nav distincte du bureau)
+- [x] RSVP + checkout HelloAsso au nom du `memberId` enfant (rules + callable)
 - [ ] FCM (token, push rappels) — backlog, pas bloquant parents V1
 
 ## Phase 9 — Portail web + allègement mobile
@@ -100,7 +100,7 @@ V1 : 1 guardian actif par enfant ; N enfants par parent. Hors V1 : 2ᵉ adulte, 
 - [x] Suivi cotisations portail (paiement hors-ligne, validation aides)
 - [ ] Inventaire équipements (CRUD simple)
 - [ ] Matrice droits coachs (web) + lecture app
-- [ ] Espace famille parent (voir Phase 8) — garde et nav distinctes du bureau admin
+- [x] Espace famille parent (voir Phase 8) — garde et nav distinctes du bureau admin
 
 ## Phase 10 — Partenariat HelloAsso (paiements en ligne live)
 

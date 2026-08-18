@@ -6,6 +6,7 @@ import { JoinRedirectClient } from "./JoinRedirectClient";
 export const metadata: Metadata = {
   title: "Rejoindre un club — ViroTeam",
   description: "Ouvre l’app ViroTeam avec ton code d’invitation.",
+  robots: { index: false, follow: false },
 };
 
 /** Page publique de redirection vers l’app mobile. */

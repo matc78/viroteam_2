@@ -154,7 +154,7 @@
 }
 
 .support {
-  max-width: 34ch;
+  max-width: 42ch;
   margin: 0 0 var(--space-xl);
   font-size: 1.125rem;
   color: var(--color-gray-600);

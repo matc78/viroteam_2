@@ -1,0 +1,60 @@
+.section {
+  padding: var(--space-3xl) 0;
+}
+
+.inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
+}
+
+.header {
+  max-width: 36rem;
+  margin-bottom: var(--space-xl);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary-600);
+}
+
+.title {
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+  color: var(--color-primary-900);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.item {
+  padding: var(--space-lg) 0;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.question {
+  margin: 0 0 var(--space-sm);
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--color-primary-800);
+}
+
+.answer {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--color-gray-600);
+  font-size: 1rem;
+  line-height: 1.55;
+}

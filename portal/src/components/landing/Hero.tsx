@@ -23,8 +23,7 @@ export function Hero() {
   return (
     <section className={styles.hero} aria-labelledby="hero-brand">
       <div className={styles.content}>
-        <motion.h1
-          id="hero-brand"
+        <motion.p
           className={styles.brand}
           custom={0.05}
           variants={fadeUp}
@@ -33,23 +32,25 @@ export function Hero() {
         >
           <Image
             src={site.logoStacked}
-            alt={site.name}
+            alt=""
             width={277}
             height={237}
             className={styles.brandLogo}
             priority
           />
-        </motion.h1>
+        </motion.p>
 
-        <motion.p
+        <motion.h1
+          id="hero-brand"
           className={styles.headline}
           custom={0.18}
           variants={fadeUp}
           initial="hidden"
           animate="show"
         >
+          <span className="sr-only">{site.name}. </span>
           {site.tagline}
-        </motion.p>
+        </motion.h1>
 
         <motion.p
           className={styles.support}
@@ -58,8 +59,9 @@ export function Hero() {
           initial="hidden"
           animate="show"
         >
-          Invitation uniquement. Planning, RSVP et cotisations pour joueurs,
-          coachs, parents et admins.
+          Application de gestion de club sportif, invitation uniquement.
+          Planning, convocations RSVP et cotisations pour clubs de football,
+          joueurs, coachs, parents et admins.
         </motion.p>
 
         <motion.div

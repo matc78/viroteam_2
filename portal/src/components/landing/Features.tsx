@@ -6,20 +6,20 @@ import styles from "./Features.module.css";
 
 const features = [
   {
-    title: "Planning & RSVP",
-    body: "Créez les entraînements et matchs, suivez les réponses en temps réel et gardez tout le monde aligné.",
+    title: "Planning, matchs et convocations RSVP",
+    body: "Créez les entraînements et matchs, envoyez les convocations, suivez les présences en temps réel.",
   },
   {
     title: "Cotisations HelloAsso",
-    body: "Paiement simple pour les membres, suivi clair pour le bureau — sans tableur parallèle.",
+    body: "Les membres paient leur cotisation depuis l’app. Le bureau suit les paiements, sans tableur parallèle.",
   },
   {
-    title: "Invitations & équipes",
+    title: "Invitations et équipes",
     body: "Rejoindre un club uniquement sur invitation. Organisez joueurs et coachs par équipe.",
   },
   {
-    title: "Annonces & calendrier",
-    body: "Diffusez l'essentiel au club et synchronisez les événements avec le calendrier du téléphone.",
+    title: "Annonces et calendrier",
+    body: "Diffusez l’essentiel au club et synchronisez les événements avec le calendrier du téléphone.",
   },
 ] as const;
 
@@ -38,10 +38,11 @@ export function Features() {
           <div className={styles.header}>
             <span className={styles.eyebrow}>Fonctionnalités</span>
             <h2 id="features-title" className={styles.title}>
-              Ce qui compte pour un club
+              Ce qui compte pour un club sportif
             </h2>
             <p className={styles.lead}>
-              Du terrain au bureau : les outils du quotidien, sans friction.
+              Du terrain au bureau : planning, convocations, cotisations et
+              équipes — sans tableur ni groupe WhatsApp.
             </p>
           </div>
 

@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Accès réservé — ViroTeam",
   description:
     "Le portail web ViroTeam est réservé aux administrateurs de club.",
+  robots: { index: false, follow: false },
 };
 
 /** Page d’accès refusé pour joueurs / coachs / comptes sans club admin. */

@@ -209,11 +209,12 @@ class ClubManagementActionsGrid extends StatelessWidget {
 
   List<QuickAction> get _actions {
     return [
-      QuickAction(
-        label: 'Planning',
-        icon: ViroIcons.calendar,
-        onTap: onPlanning,
-      ),
+      if (onPlanning != null)
+        QuickAction(
+          label: 'Planning',
+          icon: ViroIcons.calendar,
+          onTap: onPlanning,
+        ),
       QuickAction(
         label: 'Gérer les équipes',
         icon: ViroIcons.users,

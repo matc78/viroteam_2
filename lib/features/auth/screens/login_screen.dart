@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:viro_team_v2/config/routes.dart';
 
+import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -195,6 +196,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               children: [
                 const Center(child: ViroLogo(height: 112)),
+                const SizedBox(height: ViroSpacing.sm),
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(2),
+                      color: ViroColors.sportGreen,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: ViroSpacing.xl),
                 TextFormField(
 

@@ -5,7 +5,6 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
-import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class OnboardingEntryScreen extends StatelessWidget {
@@ -42,28 +41,33 @@ class OnboardingEntryScreen extends StatelessWidget {
               const SizedBox(height: ViroSpacing.xl),
               _BenefitRow(
                 icon: ViroIcons.calendar,
+                iconColor: ViroColors.sportCyan,
                 text: 'Organisez entraînements et matchs',
               ),
               _BenefitRow(
                 icon: ViroIcons.users,
+                iconColor: ViroColors.sportGreen,
                 text: 'Suivez les présences en temps réel',
               ),
               _BenefitRow(
                 icon: ViroIcons.bell,
+                iconColor: ViroColors.sportYellow,
                 text: 'Communiquez avec votre club',
               ),
               const Spacer(),
-              ViroPrimaryButton(
+              _AccentButton(
+                label: 'J\'ai un code d\'invitation',
+                color: ViroColors.sportGreen,
+                onPressed: () => context.push(AppRoutes.join),
+              ),
+              const SizedBox(height: ViroSpacing.sm),
+              _AccentButton(
                 label: 'Créer mon club',
+                color: ViroColors.primary600,
+                outlined: true,
                 onPressed: () => context.push(
                   '${AppRoutes.signup}?intent=founder',
                 ),
-              ),
-              const SizedBox(height: ViroSpacing.sm),
-              ViroPrimaryButton(
-                label: 'J\'ai un code d\'invitation',
-                outlined: true,
-                onPressed: () => context.push(AppRoutes.join),
               ),
               const SizedBox(height: ViroSpacing.md),
               TextButton(
@@ -79,23 +83,99 @@ class OnboardingEntryScreen extends StatelessWidget {
 }
 
 class _BenefitRow extends StatelessWidget {
-  const _BenefitRow({required this.icon, required this.text});
+  const _BenefitRow({
+    required this.icon,
+    required this.text,
+    required this.iconColor,
+  });
 
   final IconData icon;
   final String text;
+  final Color iconColor;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
+      padding: const EdgeInsets.only(bottom: ViroSpacing.md),
       child: Row(
         children: [
-          ViroIcon(icon, color: ViroColors.primary600, size: 22),
-          const SizedBox(width: ViroSpacing.sm),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: ViroIcon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: ViroSpacing.md),
           Expanded(
-            child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+            child: Text(
+              text,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Bouton CTA coloré pour l'onboarding (plein ou outlined).
+class _AccentButton extends StatelessWidget {
+  const _AccentButton({
+    required this.label,
+    required this.color,
+    required this.onPressed,
+    this.outlined = false,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onPressed;
+  final bool outlined;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(ViroSpacing.cardRadius);
+
+    if (outlined) {
+      return SizedBox(
+        width: double.infinity,
+        height: ViroSpacing.buttonHeightLarge,
+        child: OutlinedButton(
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: color,
+            side: BorderSide(color: color),
+            shape: RoundedRectangleBorder(borderRadius: radius),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: color),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      height: ViroSpacing.buttonHeightLarge,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: ViroColors.white,
+          shape: RoundedRectangleBorder(borderRadius: radius),
+          elevation: 0,
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+        ),
       ),
     );
   }

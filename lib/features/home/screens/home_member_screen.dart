@@ -163,16 +163,9 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
           final names = _clubNames(clubs);
           final colors = _clubColors(clubs);
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          return Stack(
             children: [
-              ClubSelectorBar(
-                clubs: clubs,
-                pendingByClub: pendingCounts,
-                onAddClub: () => showAddClubSheet(context, ref),
-              ),
-              Expanded(
-                child: eventsAsync.when(
+              eventsAsync.when(
                   loading: () => const _HomeLoadingBody(),
                   error: (e, _) => ViroErrorState(
                     message: 'Impossible de charger le planning',
@@ -190,8 +183,12 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                         ref.invalidate(viroUserFutureProvider);
                       },
                       child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         controller: _scrollController,
                         slivers: [
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: ViroSpacing.md),
+                          ),
                           const SliverToBoxAdapter(
                             child: HomeAnnouncementBanner(),
                           ),
@@ -243,6 +240,15 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                       ),
                     );
                   },
+                ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: ViroSpacing.md,
+                child: ClubSelectorBar(
+                  clubs: clubs,
+                  pendingByClub: pendingCounts,
+                  onAddClub: () => showAddClubSheet(context, ref),
                 ),
               ),
             ],

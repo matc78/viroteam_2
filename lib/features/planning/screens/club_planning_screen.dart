@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
@@ -23,7 +24,9 @@ import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubPlanningScreen extends ConsumerStatefulWidget {
@@ -39,6 +42,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   final _dayScrollController = ScrollController();
   List<DateTime> _days = [];
   bool _daysReady = false;
+  bool _portalBannerDismissed = false;
   late DateTime _selectedDay;
 
   @override
@@ -117,6 +121,9 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         member != null &&
         MemberRoleHierarchy.isCoachOrAbove(member.role);
     final isAdmin = !isChildView && member?.role == MemberRoles.admin;
+    final familyTargets =
+        ref.watch(clubFamilyTargetsProvider(clubId)).value ?? const [];
+    final isParent = familyTargets.any((t) => t.isChild);
     final dayParams = (clubId: clubId, day: _selectedDay);
     final eventsAsync = canManage
         ? ref.watch(clubPlanningEventsProvider(dayParams))
@@ -127,6 +134,11 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         : null;
     final membersByUid =
         clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
+
+    final club = ref.watch(clubProvider(clubId)).value;
+    final clubColor = club != null
+        ? clubAccentColor(brandColorHex: club.brandColorHex, clubId: clubId)
+        : null;
 
     final teamsById = teamsAsync.value?.fold<Map<String, ClubTeam>>(
           {},
@@ -151,25 +163,59 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           ),
         ],
       ),
-      floatingActionButton: canManage
-          ? ViroFloatingActionButton(
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!DateUtils.isSameDay(_selectedDay, DateTime.now()))
+            Padding(
+              padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
+              child: ViroPressable(
+                onTap: () => _selectDay(
+                  DateTime(DateTime.now().year, DateTime.now().month,
+                      DateTime.now().day),
+                ),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: ViroColors.surfaceCard,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: clubColor ?? ViroColors.primary600,
+                      width: 2,
+                    ),
+                    boxShadow: ViroMotion.floatingShadow(
+                        opacity: 0.16, blur: 18, y: 5),
+                  ),
+                  child: _TodayCalendarIcon(
+                    day: DateTime.now().day,
+                    color: clubColor ?? ViroColors.primary600,
+                  ),
+                ),
+              ),
+            ),
+          if (canManage)
+            ViroFloatingActionButton(
               icon: ViroIcons.add,
               onPressed: () {
                 final iso = _selectedDay.toIso8601String().split('T').first;
                 context.push(AppRoutes.clubAddEventPath(clubId, date: iso));
               },
-            )
-          : null,
+            ),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ClubAudienceSwitcher(clubId: clubId),
-          if (isAdmin)
+          if ((isAdmin || isParent) && !_portalBannerDismissed)
             PortalAdminBanner(
               portalUrl: portalPlanningUrl(clubId: clubId),
               compact: true,
               message:
-                  'Vue calendrier détaillée, filtres multi-équipes : portail web.',
+                  'Vue calendrier détaillée, filtres multi-équipes.',
+              ctaLabel: 'www.viroteam.com',
+              onDismiss: () => setState(() => _portalBannerDismissed = true),
             ),
           const SizedBox(height: ViroSpacing.sm),
           if (!_daysReady)
@@ -183,6 +229,9 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
               selectedDay: _selectedDay,
               scrollController: _dayScrollController,
               onDaySelected: _selectDay,
+              clubId: clubId,
+              useManagerView: canManage,
+              todayBorderColor: clubColor,
             ),
           const Divider(height: 1, color: ViroColors.gray200),
           Expanded(
@@ -240,6 +289,55 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                   },
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayCalendarIcon extends StatelessWidget {
+  const _TodayCalendarIcon({required this.day, required this.color});
+
+  final int day;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: Column(
+        children: [
+          Container(
+            height: 5,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: color, width: 1.5),
+                  right: BorderSide(color: color, width: 1.5),
+                  bottom: BorderSide(color: color, width: 1.5),
+                ),
+                borderRadius:
+                    const BorderRadius.vertical(bottom: Radius.circular(3)),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$day',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                ),
+              ),
             ),
           ),
         ],

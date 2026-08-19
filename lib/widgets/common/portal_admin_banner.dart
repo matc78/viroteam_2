@@ -14,12 +14,14 @@ class PortalAdminBanner extends StatelessWidget {
     required this.message,
     this.compact = false,
     this.ctaLabel = 'Ouvrir l\'espace club',
+    this.onDismiss,
   });
 
   final Uri portalUrl;
   final String message;
   final bool compact;
   final String ctaLabel;
+  final VoidCallback? onDismiss;
 
   Future<void> _openPortal() => openPortalUrl(portalUrl);
 
@@ -74,6 +76,19 @@ class PortalAdminBanner extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (onDismiss != null)
+                  IconButton(
+                    icon: ViroIcon(
+                      ViroIcons.close,
+                      size: 16,
+                      color: ViroColors.gray400,
+                    ),
+                    onPressed: onDismiss,
+                    tooltip: 'Masquer',
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
               ],
             ),
             if (!compact) const SizedBox(height: ViroSpacing.sm),

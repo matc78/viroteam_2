@@ -208,6 +208,7 @@ abstract final class ViroTheme {
         contentTextStyle: textTheme.bodyLarge,
       ),
       listTileTheme: ListTileThemeData(
+        tileColor: ViroColors.white,
         minVerticalPadding: ViroSpacing.sm,
         contentPadding: const EdgeInsets.symmetric(horizontal: ViroSpacing.md),
         shape: RoundedRectangleBorder(

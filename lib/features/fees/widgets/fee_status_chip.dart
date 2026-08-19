@@ -37,7 +37,7 @@ class FeeStatusChip extends StatelessWidget {
 
   (Color, Color) _colors(MemberFeeDisplayStatus status) => switch (status) {
         MemberFeeDisplayStatus.paye => (
-            ViroColors.success.withValues(alpha: 0.15),
+            Color.lerp(ViroColors.white, ViroColors.success, 0.15)!,
             ViroColors.success,
           ),
         MemberFeeDisplayStatus.exonere => (
@@ -45,15 +45,15 @@ class FeeStatusChip extends StatelessWidget {
             ViroColors.gray600,
           ),
         MemberFeeDisplayStatus.enRetard => (
-            ViroColors.error.withValues(alpha: 0.12),
+            Color.lerp(ViroColors.white, ViroColors.error, 0.12)!,
             ViroColors.error,
           ),
         MemberFeeDisplayStatus.partiel => (
-            ViroColors.primary600.withValues(alpha: 0.12),
+            Color.lerp(ViroColors.white, ViroColors.primary600, 0.12)!,
             ViroColors.primary800,
           ),
         MemberFeeDisplayStatus.aPayer => (
-            ViroColors.warning.withValues(alpha: 0.15),
+            Color.lerp(ViroColors.white, ViroColors.warning, 0.15)!,
             ViroColors.warning,
           ),
       };

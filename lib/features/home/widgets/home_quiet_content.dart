@@ -101,7 +101,7 @@ class _EmptyPlanningCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: ViroColors.primary100.withValues(alpha: 0.6),
+              color: Color.lerp(ViroColors.white, ViroColors.primary100, 0.6)!,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -243,9 +243,9 @@ class _ClubLogo extends StatelessWidget {
       width: _size,
       height: _size,
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
+        color: Color.lerp(ViroColors.white, accent, 0.12)!,
         shape: BoxShape.circle,
-        border: Border.all(color: accent.withValues(alpha: 0.5)),
+        border: Border.all(color: Color.lerp(ViroColors.white, accent, 0.5)!),
         image: logoUrl != null
             ? DecorationImage(
                 image: NetworkImage(logoUrl!),

@@ -69,9 +69,11 @@ class _FeeReminderCard extends StatelessWidget {
     );
     final warning = item.isOverdue;
     final borderColor = warning ? ViroColors.error : accent;
-    final bgColor = warning
-        ? ViroColors.error.withValues(alpha: 0.08)
-        : accent.withValues(alpha: 0.08);
+    final bgColor = Color.lerp(
+      ViroColors.white,
+      warning ? ViroColors.error : accent,
+      0.08,
+    )!;
 
     final amount = formatFeeAmountCents(item.fee.amountDueCents(item.season));
     final deadline = item.season.paymentDeadlineAt;

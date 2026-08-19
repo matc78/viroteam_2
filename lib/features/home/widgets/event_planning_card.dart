@@ -239,7 +239,7 @@ class _StatusBadge extends StatelessWidget {
         vertical: 3,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: Color.lerp(ViroColors.white, color, 0.12)!,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(

@@ -11,6 +11,12 @@ abstract final class ViroColors {
   static const Color primary800 = Color(0xFF0B3358);
   static const Color primary900 = Color(0xFF061F38);
 
+  // Sport (formes décoratives d'arrière-plan)
+  static const Color sportOrange = Color(0xFFFF6B2C);
+  static const Color sportGreen = Color(0xFF22C55E);
+  static const Color sportCyan = Color(0xFF0EA5E9);
+  static const Color sportYellow = Color(0xFFFACC15);
+
   // Semantic
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
@@ -27,30 +33,12 @@ abstract final class ViroColors {
   static const Color gray600 = Color(0xFF4A5568);
   static const Color gray900 = Color(0xFF111827);
 
-  // Surfaces & fond (harmonie douce, pas de bleu opaque plein écran)
-  static const Color scaffold = Color(0xFFE9EFF7);
-  static const Color scaffoldHighlight = Color(0xFFF6F9FC);
-  static const Color scaffoldDepth = Color(0xFFE2E9F2);
+  // Surfaces & fond — blanc pur comme le portail web
+  static const Color scaffold = white;
+  static const Color scaffoldHighlight = white;
+  static const Color scaffoldDepth = white;
   static const Color surface = Color(0xFFFAFCFE);
   static const Color surfaceCard = Color(0xFFFFFFFF);
-
-  /// Dégradé principal derrière tout le contenu.
-  static const LinearGradient scaffoldGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [scaffoldHighlight, scaffold, scaffoldDepth],
-    stops: [0.0, 0.55, 1.0],
-  );
-
-  /// Bandeau haut (AppBar) — fusionne avec le fond.
-  static const LinearGradient headerGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [
-      Color(0xFFF8FAFD),
-      Color(0xFFF0F5FA),
-    ],
-  );
 
   // Role badges — couleurs vives (dégradés dans [ViroRoleBadge])
   static const Color playerBadgeStart = Color(0xFF3B82F6);

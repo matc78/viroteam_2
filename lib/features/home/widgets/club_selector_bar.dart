@@ -163,7 +163,7 @@ class _ClubBarItem extends StatelessWidget {
                   width: _logoSize,
                   height: _logoSize,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
+                    color: Color.lerp(ViroColors.white, color, 0.12)!,
                     shape: BoxShape.circle,
                     border: Border.all(color: color, width: 1.5),
                     image: logoUrl != null

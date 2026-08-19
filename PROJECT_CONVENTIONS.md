@@ -124,8 +124,8 @@ lib/
 
 | Environnement | Base (`databaseId`) |
 |---------------|---------------------|
-| Debug / dev   | `V2-dev`            |
-| Release prod  | `V2-prod` (à créer) |
+| Debug / dev   | `v2-dev`            |
+| Release prod  | `v2-prod`           |
 
 - Toujours passer par **`appFirestore`** (`lib/utils/firestore_instance.dart`).
 - **Ne jamais** utiliser `FirebaseFirestore.instance` (base default).

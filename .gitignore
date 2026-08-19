@@ -64,3 +64,5 @@ functions/lib/
 portal/node_modules/
 portal/.next/
 portal/out/
+portal/.env.local
+portal/.env.sentry-build-plugin

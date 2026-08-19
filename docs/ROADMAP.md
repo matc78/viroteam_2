@@ -4,7 +4,7 @@ Plan global priorisé. Cocher au fil de l’eau.
 
 **Décisions figées**
 
-- **Paiement** : HelloAsso (Checkout Intent) via `PaymentService` / `HelloAssoPaymentService`. Modes hybrides (3×, aides, hors-ligne). Validation CB **uniquement** via webhook. Spec : [`docs/specs/viroteam_v2_payments_helloasso_spec.md`](specs/viroteam_v2_payments_helloasso_spec.md).
+- **Paiement** : HelloAsso (Checkout Intent) via `HelloAssoPaymentService`. Modes hybrides (3×, aides, hors-ligne). Validation CB **uniquement** via webhook. Spec : [`docs/specs/viroteam_v2_payments_helloasso_spec.md`](specs/viroteam_v2_payments_helloasso_spec.md).
 - **Calendrier** : page d’aide (étapes manuelles iOS/Android) + bouton d’ajout natif.
 - **Tournois / championnats** : retirés du produit mobile (UI, copy, actions). Module web éventuel plus tard.
 - **Portail web** : React (landing + dashboard admin ; espace famille parent en Phase 8). Au MVP bureau, admin = trésorier. Spec : [`docs/specs/viroteam_v2_web_portal_spec.md`](specs/viroteam_v2_web_portal_spec.md).

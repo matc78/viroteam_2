@@ -44,7 +44,7 @@ En local, tu peux garder un chemin absolu dans ton `android/key.properties` (hor
 ### Encoder le keystore (PowerShell)
 
 ```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Users\matin\upload-keystore.jks")) | Set-Clipboard
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\upload-keystore.jks")) | Set-Clipboard
 ```
 
 Puis coller la valeur dans le secret `ANDROID_KEYSTORE_BASE64`.
@@ -91,6 +91,31 @@ flutterfire configure --project=viroteam-75303
 | idem macOS si besoin | `macos/Runner/GoogleService-Info.plist` |
 
 Note : `lib/firebase_options.dart` pointe encore le bundle iOS `com.viroteam.viroTeam` (app Firebase beta). Le bundle Xcode local est `com.viroteam.viroTeamV2`. À aligner plus tard avec `flutterfire configure` si Auth / Crashlytics iOS posent problème.
+
+## Portail web (Next.js)
+
+Le portail utilise des variables d'environnement non versionnées.
+
+```bash
+cd portal
+cp .env.local.example .env.local
+```
+
+Remplir ensuite les valeurs dans `portal/.env.local` :
+
+| Variable | Rôle | Obligatoire |
+|---|---|---|
+| `NEXT_PUBLIC_FIREBASE_*` | Config Firebase web (déjà préremplie dans l'example) | oui |
+| `NEXT_PUBLIC_FIRESTORE_DATABASE_ID` | `v2-dev` (local) ou `v2-prod` (prod) | oui |
+| `NEXT_PUBLIC_DEV_AUTH_BYPASS` | `true` pour connexion sans limite en dev local | recommandé |
+| `FIREBASE_ADMIN_CLIENT_EMAIL` | Email du compte de service Admin SDK | oui si bypass activé |
+| `FIREBASE_ADMIN_KEY_PATH` | Chemin vers le JSON de clé privée Admin SDK | oui si bypass activé |
+| `NEXT_PUBLIC_POSTHOG_KEY` | Clé projet PostHog (analytics) | non |
+| `NEXT_PUBLIC_SENTRY_DSN` | DSN Sentry (monitoring erreurs) | non |
+
+Pour le bypass auth en dev, télécharger la clé privée du compte de service : Console Firebase → Paramètres → Comptes de service → **Générer une nouvelle clé privée**, puis placer le JSON dans `portal/` et renseigner `FIREBASE_ADMIN_KEY_PATH`.
+
+Le fichier `portal/.env.sentry-build-plugin` est créé automatiquement par `npx @sentry/wizard` si tu configures Sentry. Il contient le `SENTRY_AUTH_TOKEN` et ne doit **jamais** être commité.
 
 ## Vérification rapide
 

@@ -12,7 +12,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Portal planning : sélecteurs custom (heure, équipe) style Google Calendar
 - Portal planning : picker invités multi (équipes, catégories, personnes) pour tournois et événements « Autre »
 - Portal planning : persistance des filtres sidebar dans le localStorage
-- FVM : Flutter 3.44.8 épiné pour ce repo (SDK global boulot inchangé)
+- FVM : Flutter 3.44.8 épinglé pour ce repo (SDK global boulot inchangé)
 - Roadmap produit : [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - Écran profil + déconnexion
 - Sync calendrier (aide manuelle + ajout natif + export `.ics`)

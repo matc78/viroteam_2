@@ -1,4 +1,4 @@
-package com.viroteam.viro_team_v2
+package com.viroteam.viro_team
 
 import io.flutter.embedding.android.FlutterActivity
 

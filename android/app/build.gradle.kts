@@ -22,7 +22,7 @@ val keystoreStoreFile = keystoreProperties["storeFile"]?.let { path ->
 }
 
 android {
-    namespace = "com.viroteam.viro_team_v2"
+    namespace = "com.viroteam.viro_team"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -36,7 +36,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.viroteam.viro_team_v2"
+        applicationId = "com.viroteam.viro_team"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

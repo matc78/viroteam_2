@@ -75,7 +75,7 @@ Build manuel (sans tag) : onglet **Actions → Release APK → Run workflow** (a
 
 ## Android — Firebase
 
-`android/app/google-services.json` est déjà présent dans ce repo (app `com.viroteam.viro_team_v2`).
+`android/app/google-services.json` est déjà présent dans ce repo (app Android `com.viroteam.viro_team`, même package que la v1 Play Store).
 
 Si tu régénères la config :
 

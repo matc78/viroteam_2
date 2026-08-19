@@ -58,7 +58,7 @@ Le mot de passe saisi n’est **pas vérifié** en mode dev bypass — seul l’
 
 Configurés dans [`src/lib/site.ts`](src/lib/site.ts) :
 
-- **Google Play** : actif (`com.viroteam.viro_team_v2`)
+- **Google Play** : actif (`com.viroteam.viro_team`)
 - **App Store** : « Bientôt » jusqu’à publication
 
 ## Scripts

@@ -13,7 +13,7 @@ export const site = {
   seoDescription:
     "Application de gestion de club sportif : planning des entraînements et matchs, convocations RSVP, cotisations HelloAsso et équipes. Pour clubs de football, joueurs, coachs, parents et bureau.",
   playStoreUrl:
-    "https://play.google.com/store/apps/details?id=com.viroteam.viro_team_v2",
+    "https://play.google.com/store/apps/details?id=com.viroteam.viro_team",
   /** App Store pas encore publié. */
   appStoreUrl: null as string | null,
   /** Schéma deep link app mobile. */

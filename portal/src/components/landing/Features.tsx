@@ -11,7 +11,7 @@ const features = [
   },
   {
     title: "Cotisations HelloAsso",
-    body: "Les membres paient leur cotisation depuis l’app. Le bureau suit les paiements, sans tableur parallèle.",
+    body: "Les membres paient leur cotisation depuis l'app. Le bureau suit les paiements, sans tableur parallèle.",
   },
   {
     title: "Invitations et équipes",
@@ -19,11 +19,17 @@ const features = [
   },
   {
     title: "Annonces et calendrier",
-    body: "Diffusez l’essentiel au club et synchronisez les événements avec le calendrier du téléphone.",
+    body: "Diffusez l'essentiel au club et synchronisez les événements avec le calendrier du téléphone.",
   },
 ] as const;
 
-/** Section modules — texte à gauche, photo terrain à droite. */
+const screenshots = [
+  { src: "/landing/app-club-dashboard.png", alt: "Dashboard club ViroTeam" },
+  { src: "/landing/app-planning.png", alt: "Planning ViroTeam" },
+  { src: "/landing/app-home-player.png", alt: "Accueil joueur ViroTeam" },
+] as const;
+
+/** Section fonctionnalités — texte + pyramide de 3 captures app. */
 export function Features() {
   const reduceMotion = useReducedMotion();
 
@@ -72,24 +78,33 @@ export function Features() {
           </ol>
         </div>
 
-        <motion.figure
-          className={styles.photo}
-          initial={reduceMotion ? false : { opacity: 0, x: 20 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        <div
+          className={styles.pyramid}
+          aria-label="Captures d'écran de l'application"
         >
-          <div className={styles.imageWrap}>
-            <Image
-              src="/landing/youth-playing.jpg"
-              alt="Jeune joueur en action sur le terrain du club"
-              fill
-              sizes="(max-width: 900px) 100vw, 42vw"
-              className={styles.image}
-            />
-          </div>
-          <figcaption className={styles.caption}>Sur le terrain</figcaption>
-        </motion.figure>
+          {screenshots.map((shot, index) => (
+            <motion.figure
+              key={shot.src}
+              className={styles.phoneFrame}
+              initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{
+                duration: 0.5,
+                delay: reduceMotion ? 0 : index * 0.12,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <Image
+                src={shot.src}
+                alt={shot.alt}
+                width={390}
+                height={844}
+                className={styles.phoneImage}
+              />
+            </motion.figure>
+          ))}
+        </div>
       </div>
     </section>
   );

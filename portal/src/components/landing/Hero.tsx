@@ -86,32 +86,14 @@ export function Hero() {
         transition={{ duration: 0.7, delay: 0.25, ease: easeOut }}
       >
         <div className={styles.phone}>
-          <div className={styles.phoneStatus} />
-          <p className={styles.phoneTitle}>Planning</p>
-          <div className={styles.eventRow}>
-            <div className={styles.eventDate}>
-              <span>Sam</span>
-              <span>12</span>
-            </div>
-            <div className={styles.eventMeta}>
-              <strong>Entraînement U15</strong>
-              <span>18:30 · Terrain A</span>
-            </div>
-          </div>
-          <div className={styles.eventRow}>
-            <div className={styles.eventDate}>
-              <span>Dim</span>
-              <span>13</span>
-            </div>
-            <div className={styles.eventMeta}>
-              <strong>Match amical</strong>
-              <span>14:00 · Extérieur</span>
-            </div>
-          </div>
-          <div className={styles.rsvpRow}>
-            <div className={styles.rsvpYes}>Présent</div>
-            <div className={styles.rsvpMaybe}>Peut-être</div>
-          </div>
+          <Image
+            src="/landing/app-welcome.png"
+            alt="Écran d'accueil ViroTeam sur mobile"
+            width={390}
+            height={844}
+            className={styles.phoneImage}
+            priority
+          />
         </div>
       </motion.div>
     </section>

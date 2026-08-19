@@ -17,7 +17,7 @@
 
 @media (min-width: 900px) {
   .inner {
-    grid-template-columns: 1fr min(22rem, 38%);
+    grid-template-columns: 1fr 1fr;
     gap: var(--space-3xl);
   }
 }
@@ -89,37 +89,42 @@
   font-size: 0.98rem;
 }
 
-.photo {
+/* Pyramide : 1 en haut centré, 2 en bas côte à côte */
+.pyramid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  justify-items: center;
+}
+
+.pyramid .phoneFrame:first-child {
+  grid-column: 1 / -1;
+  max-width: 45%;
+}
+
+.phoneFrame {
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.imageWrap {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 3 / 4;
+  border-radius: 1.25rem;
   overflow: hidden;
-  border-radius: var(--radius-md);
-  background: var(--color-gray-100);
+  box-shadow: var(--shadow-soft);
+  border: 1px solid color-mix(in srgb, var(--color-primary-200) 50%, transparent);
+  background: var(--color-white);
 }
 
-.image {
-  object-fit: cover;
-}
-
-.caption {
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-gray-400);
+.phoneImage {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 @media (max-width: 899px) {
-  .photo {
+  .pyramid {
     order: -1;
-    max-width: 22rem;
+    max-width: 24rem;
+    margin: 0 auto;
+  }
+
+  .pyramid .phoneFrame:first-child {
+    max-width: 55%;
   }
 }

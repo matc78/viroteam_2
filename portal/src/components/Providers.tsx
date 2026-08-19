@@ -1,14 +1,22 @@
 "use client";
 
 import { AuthProvider } from "@/lib/firebase/AuthProvider";
+import { AnalyticsProvider } from "@/components/AnalyticsProvider";
+import { PostHogProvider } from "@/components/PostHogProvider";
 import { ToastProvider } from "@/components/ToastProvider";
-import { ReactNode } from "react";
+import { ReactNode, Suspense } from "react";
 
-/** Providers client (Auth Firebase + toasts) pour le layout racine. */
+/** Providers client (Auth Firebase + analytics + PostHog + toasts) pour le layout racine. */
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
-      <ToastProvider>{children}</ToastProvider>
+      <AnalyticsProvider>
+        <Suspense fallback={null}>
+          <PostHogProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </PostHogProvider>
+        </Suspense>
+      </AnalyticsProvider>
     </AuthProvider>
   );
 }

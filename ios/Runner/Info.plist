@@ -77,6 +77,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>com.posthog.posthog.API_KEY</key>
+	<string>phc_wMm5hy9zFdbcsgUXoibRunuxb2crXmL6iLnLSMLHBvBv</string>
+	<key>com.posthog.posthog.POSTHOG_HOST</key>
+	<string>https://eu.i.posthog.com</string>
+	<key>com.posthog.posthog.TRACK_APPLICATION_LIFECYCLE_EVENTS</key>
+	<true/>
 	<key>NSCalendarsUsageDescription</key>
 	<string>ViroTeam ajoute vos entraînements et matchs à votre calendrier.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>

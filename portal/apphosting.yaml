@@ -50,3 +50,34 @@ env:
     availability:
       - BUILD
       - RUNTIME
+
+  # PostHog
+  - variable: NEXT_PUBLIC_POSTHOG_KEY
+    value: phc_wMm5hy9zFdbcsgUXoibRunuxb2crXmL6iLnLSMLHBvBv
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_POSTHOG_HOST
+    value: https://eu.i.posthog.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Sentry
+  - variable: NEXT_PUBLIC_SENTRY_DSN
+    value: https://76ef59d0483792a5c5b9d10b7160ddbb@o4511937020821504.ingest.de.sentry.io/4511937058832464
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: SENTRY_ORG
+    value: viroteam
+    availability:
+      - BUILD
+  - variable: SENTRY_PROJECT
+    value: viroteam-portal
+    availability:
+      - BUILD
+  - variable: SENTRY_AUTH_TOKEN
+    secret: SENTRY_AUTH_TOKEN
+    availability:
+      - BUILD

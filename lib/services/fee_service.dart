@@ -422,6 +422,16 @@ class FeeService {
     );
     for (final cat in categories) {
       for (final tier in tiers) {
+        final linked = tier.category;
+        if (linked != null &&
+            linked.isNotEmpty &&
+            linked.toLowerCase() == cat.toLowerCase()) {
+          return tier.tierId;
+        }
+      }
+    }
+    for (final cat in categories) {
+      for (final tier in tiers) {
         if (tier.label.toLowerCase() == cat.toLowerCase()) {
           return tier.tierId;
         }

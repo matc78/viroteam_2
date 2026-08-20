@@ -15,6 +15,8 @@ export type FeeTierDraft = {
   label: string;
   /** Montant en centimes. */
   amountCents: number;
+  /** Catégorie sport associée (optionnel). */
+  category: string;
 };
 
 /** Config cotisations (saison + HelloAsso) pour le formulaire. */
@@ -67,6 +69,7 @@ export function tiersDraftToFeeTiers(tiers: FeeTierDraft[]): FeeTier[] {
     tierId: tier.id,
     label: tier.label.trim(),
     amountCents: tier.amountCents,
+    category: tier.category.trim() || null,
   }));
 }
 
@@ -87,7 +90,7 @@ export function emptyFeesConfig(params: {
     paymentInstructions: "",
     iban: "",
     paymentMethods: ["virement", "cheque", "especes"],
-    tiers: [{ id: `tier_${Date.now()}`, label: "Standard", amountCents: 0 }],
+    tiers: [{ id: `tier_${Date.now()}`, label: "Standard", amountCents: 0, category: "" }],
     onlinePaymentEnabled: params.onlinePaymentEnabled ?? false,
     helloAssoOrganizationSlug: params.helloAssoOrganizationSlug ?? "",
   };
@@ -112,6 +115,7 @@ export function seasonRecordToFeesConfig(
       id: tier.tierId || `tier_${tier.label}`,
       label: tier.label,
       amountCents: tier.amountCents,
+      category: tier.category ?? "",
     })),
     onlinePaymentEnabled: club.onlinePaymentEnabled,
     helloAssoOrganizationSlug: club.helloAssoOrganizationSlug,

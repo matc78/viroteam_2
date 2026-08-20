@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 import {
   buildSeasonLabelOptions,
@@ -13,6 +13,7 @@ import {
   tiersDraftToFeeTiers,
 } from "@/lib/dashboard/feesConfig";
 import { updateClubSeasonEndDate, updateOnlinePaymentConfig } from "@/lib/firebase/clubService";
+import { loadTeamsForClub } from "@/lib/firebase/eventService";
 import {
   createSeason,
   parseDateInput,
@@ -21,6 +22,7 @@ import {
 import { defaultSeasonEndDate } from "@/lib/planning/seasonEnd";
 import { HELLOASSO_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import panelStyles from "./DashboardPanel.module.css";
+import dialogStyles from "./DashboardDialog.module.css";
 import { PlanningSelect } from "./PlanningSelect";
 import styles from "./FeesConfigForm.module.css";
 
@@ -83,6 +85,29 @@ export function FeesConfigForm({
   );
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const [sportCategories, setSportCategories] = useState<string[]>([]);
+  const [categoryLinkTierId, setCategoryLinkTierId] = useState<string | null>(
+    null,
+  );
+  const [categoryDraft, setCategoryDraft] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadTeamsForClub(clubId).then((teams) => {
+      if (cancelled) return;
+      const categories = [
+        ...new Set(
+          teams
+            .map((team) => team.category.trim())
+            .filter((category) => category.length > 0),
+        ),
+      ].sort((a, b) => a.localeCompare(b, "fr"));
+      setSportCategories(categories);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [clubId]);
 
   const canSave = useMemo(() => {
     if (!seasonLabel.trim()) return false;
@@ -124,7 +149,7 @@ export function FeesConfigForm({
 
   function updateTier(
     id: string,
-    patch: Partial<Pick<FeeTierDraft, "label" | "amountCents">>,
+    patch: Partial<Pick<FeeTierDraft, "label" | "amountCents" | "category">>,
   ) {
     setTiers((current) =>
       current.map((tier) => (tier.id === id ? { ...tier, ...patch } : tier)),
@@ -135,13 +160,37 @@ export function FeesConfigForm({
     const id = `tier_${Date.now()}`;
     setTiers((current) => [
       ...current,
-      { id, label: "Nouveau palier", amountCents: 0 },
+      { id, label: "Nouveau palier", amountCents: 0, category: "" },
     ]);
   }
 
   function removeTier(id: string) {
     setTiers((current) => current.filter((tier) => tier.id !== id));
+    if (categoryLinkTierId === id) {
+      setCategoryLinkTierId(null);
+      setCategoryDraft("");
+    }
   }
+
+  function openCategoryLink(tier: FeeTierDraft) {
+    setCategoryLinkTierId(tier.id);
+    setCategoryDraft(tier.category);
+  }
+
+  function closeCategoryLink() {
+    setCategoryLinkTierId(null);
+    setCategoryDraft("");
+  }
+
+  function confirmCategoryLink() {
+    if (!categoryLinkTierId) return;
+    updateTier(categoryLinkTierId, { category: categoryDraft });
+    closeCategoryLink();
+  }
+
+  const categoryLinkTier = categoryLinkTierId
+    ? tiers.find((tier) => tier.id === categoryLinkTierId) ?? null
+    : null;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -277,7 +326,8 @@ export function FeesConfigForm({
               Tarifs
             </h2>
             <p className={styles.sectionLead}>
-              Grille des paliers proposés aux membres.
+              Grille des paliers proposés aux membres. Associez une catégorie
+              sport pour l’application intelligente.
             </p>
           </div>
           <button
@@ -294,16 +344,70 @@ export function FeesConfigForm({
               <span className={`badge badge-amber ${styles.tierBadge}`}>
                 #{index + 1}
               </span>
-              <label className={styles.field}>
-                <span className={styles.label}>Libellé</span>
+              <div className={styles.libelleField}>
+                <div className={styles.fieldHeader}>
+                  <span className={styles.label}>Libellé</span>
+                  <div className={styles.categoryLinkArea}>
+                    <button
+                      type="button"
+                      className={styles.linkIconButton}
+                      data-active={tier.category ? "true" : undefined}
+                      onClick={() => openCategoryLink(tier)}
+                      title={
+                        tier.category
+                          ? `Catégorie liée : ${tier.category}`
+                          : "Lier à une catégorie sport (optionnel)"
+                      }
+                      aria-label={
+                        tier.category
+                          ? `Modifier la catégorie liée à ${tier.label}`
+                          : `Lier ${tier.label} à une catégorie sport`
+                      }
+                    >
+                      <svg
+                        className={styles.linkIcon}
+                        viewBox="0 0 256 256"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fill="currentColor"
+                          d="M208.49 47.51a72 72 0 0 0-101.82 0L86.34 67.84a8 8 0 0 0 11.32 11.32l20.33-20.33a56 56 0 0 1 79.18 79.18l-20.33 20.33a8 8 0 1 0 11.32 11.32l20.33-20.33a72 72 0 0 0 0-101.82Zm-49.65 128.33-20.33 20.33a56 56 0 0 1-79.18-79.18l20.33-20.33a8 8 0 1 0-11.32-11.32L47.51 106.67a72 72 0 1 0 101.82 101.82l20.33-20.33a8 8 0 0 0-11.32-11.32Zm8.49-76.37-56 56a8 8 0 0 1-11.32-11.32l56-56a8 8 0 0 1 11.32 11.32Z"
+                        />
+                      </svg>
+                    </button>
+                    {tier.category ? (
+                      <span className={styles.categoryChip}>
+                        <button
+                          type="button"
+                          className={styles.categoryChipLabel}
+                          onClick={() => openCategoryLink(tier)}
+                          title="Modifier la catégorie liée"
+                        >
+                          {tier.category}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.categoryChipRemove}
+                          onClick={() =>
+                            updateTier(tier.id, { category: "" })
+                          }
+                          aria-label={`Retirer la catégorie ${tier.category}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
                 <input
                   className={styles.input}
                   value={tier.label}
                   onChange={(e) =>
                     updateTier(tier.id, { label: e.target.value })
                   }
+                  aria-label="Libellé"
                 />
-              </label>
+              </div>
               <label className={styles.field}>
                 <span className={styles.label}>Montant (€)</span>
                 <input
@@ -324,7 +428,7 @@ export function FeesConfigForm({
               </label>
               <button
                 type="button"
-                className={styles.ghostButton}
+                className={`${styles.ghostButton} ${styles.tierDelete}`}
                 onClick={() => removeTier(tier.id)}
                 aria-label={`Supprimer ${tier.label}`}
               >
@@ -450,6 +554,87 @@ export function FeesConfigForm({
           {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
       </div>
+
+      {categoryLinkTier ? (
+        <div
+          className={dialogStyles.backdrop}
+          role="presentation"
+          onClick={closeCategoryLink}
+          onKeyDown={(keyboardEvent) => {
+            if (keyboardEvent.key === "Escape") closeCategoryLink();
+          }}
+        >
+          <div
+            className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.categoryDialog}`}
+            data-tone="amber"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="fees-tier-category-title"
+            onClick={(mouseEvent) => mouseEvent.stopPropagation()}
+          >
+            <header className={dialogStyles.header}>
+              <div>
+                <p className={dialogStyles.eyebrow}>Tarifs</p>
+                <h2
+                  id="fees-tier-category-title"
+                  className={dialogStyles.title}
+                >
+                  Lier « {categoryLinkTier.label} » à une catégorie ?
+                </h2>
+              </div>
+              <button
+                type="button"
+                className={dialogStyles.closeButton}
+                onClick={closeCategoryLink}
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+            </header>
+            <p className={dialogStyles.hint}>
+              Optionnel — utile pour l’application intelligente des
+              cotisations selon la catégorie sport des membres.
+            </p>
+            <label className={styles.field}>
+              <span className={styles.label}>Catégorie sport</span>
+              <PlanningSelect
+                id="fees-tier-category-dialog"
+                value={categoryDraft}
+                placeholder="Aucune"
+                aria-label="Choisir une catégorie sport"
+                options={[
+                  { value: "", label: "Aucune" },
+                  ...sportCategories.map((category) => ({
+                    value: category,
+                    label: category,
+                  })),
+                  ...(categoryDraft &&
+                  !sportCategories.includes(categoryDraft)
+                    ? [{ value: categoryDraft, label: categoryDraft }]
+                    : []),
+                ]}
+                onChange={setCategoryDraft}
+              />
+            </label>
+            <div className={styles.categoryDialogActions}>
+              <button
+                type="button"
+                className={styles.ghostButton}
+                onClick={closeCategoryLink}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={confirmCategoryLink}
+              >
+                {categoryDraft ? "Lier" : "Ne pas lier"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

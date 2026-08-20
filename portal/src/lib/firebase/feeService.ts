@@ -37,6 +37,8 @@ export type FeeTier = {
   tierId: string;
   label: string;
   amountCents: number;
+  /** Catégorie sport associée (optionnel, pour application intelligente). */
+  category: string | null;
 };
 
 /** Saison de cotisations. */
@@ -111,11 +113,19 @@ function parseTiers(raw: unknown): FeeTier[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
-    .map((item) => ({
-      tierId: String(item[Fields.tierId] ?? ""),
-      label: String(item[Fields.label] ?? ""),
-      amountCents: Number(item[Fields.amountCents] ?? 0),
-    }));
+    .map((item) => {
+      const categoryRaw = item[Fields.category];
+      const category =
+        typeof categoryRaw === "string" && categoryRaw.trim()
+          ? categoryRaw.trim()
+          : null;
+      return {
+        tierId: String(item[Fields.tierId] ?? ""),
+        label: String(item[Fields.label] ?? ""),
+        amountCents: Number(item[Fields.amountCents] ?? 0),
+        category,
+      };
+    });
 }
 
 function parseMethods(raw: unknown): FeePaymentMethod[] {
@@ -219,11 +229,17 @@ export type SeasonWriteInput = {
 };
 
 function tiersPayload(tiers: FeeTier[]) {
-  return tiers.map((tier) => ({
-    [Fields.tierId]: tier.tierId,
-    [Fields.label]: tier.label,
-    [Fields.amountCents]: tier.amountCents,
-  }));
+  return tiers.map((tier) => {
+    const payload: Record<string, unknown> = {
+      [Fields.tierId]: tier.tierId,
+      [Fields.label]: tier.label,
+      [Fields.amountCents]: tier.amountCents,
+    };
+    if (tier.category) {
+      payload[Fields.category] = tier.category;
+    }
+    return payload;
+  });
 }
 
 /** Crée une saison active (désactive les autres si besoin). */
@@ -394,6 +410,12 @@ export async function validateOfflinePayment(params: {
 
   const fee = await getMemberFee(clubId, seasonId, memberId);
   if (!fee) throw new Error("Fiche cotisation introuvable");
+  if (!fee.tierId) {
+    throw new Error("Aucune cotisation assignée pour ce membre");
+  }
+  if (fee.status === MemberFeeStatuses.exonere) {
+    throw new Error("Membre exonéré — paiement impossible");
+  }
 
   const uid = currentUid();
   const newPaid = fee.amountPaidCents + amountCents;
@@ -412,6 +434,62 @@ export async function validateOfflinePayment(params: {
     [Fields.markedBy]: uid,
     [Fields.updatedAt]: serverTimestamp(),
   });
+}
+
+/** Résultat d’un encaissement groupé hors-ligne. */
+export type BulkOfflinePaymentResult = {
+  applied: number;
+  skipped: number;
+};
+
+/**
+ * Enregistre le reste dû pour chaque membre, avec le même moyen hors-ligne.
+ * Ignore sans fiche, sans palier, exonérés, ou déjà soldés.
+ */
+export async function bulkValidateOfflinePayments(params: {
+  clubId: string;
+  seasonId: string;
+  season: FeeSeasonRecord;
+  offlineMethod: OfflinePaymentMethod;
+  memberIds: string[];
+}): Promise<BulkOfflinePaymentResult> {
+  const { clubId, seasonId, season, offlineMethod, memberIds } = params;
+  if (!OfflinePaymentMethods.includes(offlineMethod)) {
+    throw new Error("Moyen hors-ligne inconnu");
+  }
+
+  let applied = 0;
+  let skipped = 0;
+  const uniqueIds = [...new Set(memberIds)];
+
+  for (const memberId of uniqueIds) {
+    const fee = await getMemberFee(clubId, seasonId, memberId);
+    if (
+      !fee ||
+      !fee.tierId ||
+      fee.status === MemberFeeStatuses.exonere ||
+      fee.status === MemberFeeStatuses.paye
+    ) {
+      skipped += 1;
+      continue;
+    }
+    const remaining = remainingCents(fee, season);
+    if (remaining <= 0) {
+      skipped += 1;
+      continue;
+    }
+    await validateOfflinePayment({
+      clubId,
+      seasonId,
+      memberId,
+      offlineMethod,
+      amountCents: remaining,
+      season,
+    });
+    applied += 1;
+  }
+
+  return { applied, skipped };
 }
 
 /** Valide ou refuse un justificatif d'aide. */
@@ -540,4 +618,130 @@ export async function setMemberFeeStatus(params: {
   }
 
   await updateDoc(feeRef, payload);
+}
+
+/** Modification cotisation / statut à appliquer (création si besoin). */
+export type MemberFeeApplyChange = {
+  memberId: string;
+  memberDisplayName: string;
+  /** `null` = retirer le palier ; `undefined` = ne pas toucher. */
+  tierId?: string | null;
+  /** `null` / vide interdit ; `undefined` = ne pas toucher. */
+  status?: string;
+  /** La fiche existait déjà avant la validation. */
+  feeExists: boolean;
+};
+
+/**
+ * Applique en lot palier et/ou statut.
+ * Crée la fiche `member_fees/{memberId}` si elle n’existe pas.
+ * Sans palier, seul le statut `exonere` est autorisé (pas à payer / partiel / payé).
+ */
+export async function applyMemberFeeChanges(params: {
+  clubId: string;
+  seasonId: string;
+  changes: MemberFeeApplyChange[];
+}): Promise<void> {
+  const { clubId, seasonId, changes } = params;
+  if (changes.length === 0) return;
+
+  const uid = currentUid();
+  const db = getAppFirestore();
+  const maxBatch = 450;
+  const assignableWithoutTier = new Set<string>([MemberFeeStatuses.exonere]);
+
+  for (let offset = 0; offset < changes.length; offset += maxBatch) {
+    const slice = changes.slice(offset, offset + maxBatch);
+    const batch = writeBatch(db);
+
+    for (const change of slice) {
+      if (
+        change.status !== undefined &&
+        !FEE_STATUS_VALUES.has(change.status)
+      ) {
+        throw new Error(`Statut cotisation invalide (${change.memberId})`);
+      }
+      if (
+        change.status === MemberFeeStatuses.partiel ||
+        change.status === MemberFeeStatuses.paye
+      ) {
+        throw new Error(
+          "Les statuts Partiel et Payé s’enregistrent via un paiement (moyen + montant)",
+        );
+      }
+
+      const feeRef = memberFeeRef(clubId, seasonId, change.memberId);
+      const existing = change.feeExists
+        ? await getMemberFee(clubId, seasonId, change.memberId)
+        : null;
+
+      const nextTierId =
+        change.tierId !== undefined ? change.tierId : (existing?.tierId ?? null);
+      const nextStatus =
+        change.status ??
+        existing?.status ??
+        (change.feeExists ? undefined : MemberFeeStatuses.aPayer);
+
+      if (
+        !nextTierId &&
+        nextStatus &&
+        !assignableWithoutTier.has(nextStatus)
+      ) {
+        throw new Error(
+          "Sans cotisation assignée, seul le statut Exonéré est autorisé",
+        );
+      }
+
+      if (!change.feeExists) {
+        const createStatus = nextStatus ?? MemberFeeStatuses.aPayer;
+        if (!nextTierId && createStatus !== MemberFeeStatuses.exonere) {
+          throw new Error(
+            "Sans cotisation assignée, seul le statut Exonéré est autorisé",
+          );
+        }
+        const createPayload: Record<string, unknown> = {
+          [Fields.memberId]: change.memberId,
+          [Fields.memberDisplayName]: change.memberDisplayName,
+          [Fields.feeStatus]: createStatus,
+          [Fields.amountPaidCents]: 0,
+          [Fields.aids]: [],
+          [Fields.markedBy]: uid,
+          [Fields.createdAt]: serverTimestamp(),
+          [Fields.updatedAt]: serverTimestamp(),
+        };
+        if (nextTierId) {
+          createPayload[Fields.tierId] = nextTierId;
+        }
+        if (createStatus === MemberFeeStatuses.exonere) {
+          createPayload[Fields.paidVia] = FeePaidVia.manual;
+        }
+        batch.set(feeRef, createPayload);
+        continue;
+      }
+
+      const updatePayload: Record<string, unknown> = {
+        [Fields.memberDisplayName]: change.memberDisplayName,
+        [Fields.markedBy]: uid,
+        [Fields.updatedAt]: serverTimestamp(),
+      };
+
+      if (change.tierId !== undefined) {
+        if (change.tierId) {
+          updatePayload[Fields.tierId] = change.tierId;
+        } else {
+          updatePayload[Fields.tierId] = deleteField();
+        }
+      }
+
+      if (change.status !== undefined) {
+        updatePayload[Fields.feeStatus] = change.status;
+        updatePayload[Fields.paidVia] = FeePaidVia.manual;
+        updatePayload[Fields.paidAt] = deleteField();
+      }
+
+      batch.set(feeRef, updatePayload, { merge: true });
+    }
+
+    await batch.commit();
+  }
 }

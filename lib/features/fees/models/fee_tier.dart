@@ -6,37 +6,54 @@ class FeeTier {
     required this.tierId,
     required this.label,
     required this.amountCents,
+    this.category,
   });
 
   final String tierId;
   final String label;
   final int amountCents;
 
+  /// Catégorie sport associée (optionnel, application intelligente).
+  final String? category;
+
   String get formattedAmount => formatFeeAmountCents(amountCents);
 
   factory FeeTier.fromMap(Map<String, dynamic> m) {
+    final rawCategory = m[FirestoreFields.category];
+    final category = rawCategory is String && rawCategory.trim().isNotEmpty
+        ? rawCategory.trim()
+        : null;
     return FeeTier(
       tierId: m[FirestoreFields.tierId] as String? ?? '',
       label: m[FirestoreFields.label] as String? ?? '',
       amountCents: (m[FirestoreFields.amountCents] as num?)?.toInt() ?? 0,
+      category: category,
     );
   }
 
-  Map<String, dynamic> toMap() => {
-        FirestoreFields.tierId: tierId,
-        FirestoreFields.label: label,
-        FirestoreFields.amountCents: amountCents,
-      };
+  Map<String, dynamic> toMap() {
+    final map = <String, dynamic>{
+      FirestoreFields.tierId: tierId,
+      FirestoreFields.label: label,
+      FirestoreFields.amountCents: amountCents,
+    };
+    if (category != null && category!.isNotEmpty) {
+      map[FirestoreFields.category] = category;
+    }
+    return map;
+  }
 
   FeeTier copyWith({
     String? tierId,
     String? label,
     int? amountCents,
+    String? category,
   }) {
     return FeeTier(
       tierId: tierId ?? this.tierId,
       label: label ?? this.label,
       amountCents: amountCents ?? this.amountCents,
+      category: category ?? this.category,
     );
   }
 }

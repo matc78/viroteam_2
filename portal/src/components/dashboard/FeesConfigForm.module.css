@@ -211,7 +211,7 @@ select.input:focus {
 
 .tierRow {
   display: grid;
-  grid-template-columns: auto 1.4fr 0.8fr auto;
+  grid-template-columns: auto minmax(0, 1.6fr) 0.8fr auto;
   gap: var(--space-md);
   align-items: end;
   padding: var(--space-md);
@@ -222,6 +222,122 @@ select.input:focus {
 
 .tierBadge {
   align-self: center;
+}
+
+.libelleField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.fieldHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 1.1rem;
+}
+
+.categoryLinkArea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.linkIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-gray-500);
+  cursor: pointer;
+}
+
+.linkIconButton:hover {
+  color: var(--tone-amber-text);
+  background: color-mix(in srgb, var(--tone-amber-soft) 55%, white);
+  border-color: color-mix(in srgb, var(--tone-amber-border) 40%, transparent);
+}
+
+.linkIconButton[data-active="true"] {
+  color: var(--tone-amber-text);
+  background: color-mix(in srgb, var(--tone-amber-soft) 65%, white);
+  border-color: var(--tone-amber-border);
+}
+
+.linkIcon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.categoryChip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 8.5rem;
+  border: 1px solid color-mix(in srgb, var(--tone-amber-border) 50%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone-amber-soft) 55%, white);
+  overflow: hidden;
+}
+
+.categoryChipLabel {
+  min-width: 0;
+  padding: 0.1rem 0.15rem 0.1rem 0.45rem;
+  border: none;
+  background: transparent;
+  color: var(--tone-amber-text);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 650;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.categoryChipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--tone-amber-text);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.categoryChipRemove:hover {
+  opacity: 1;
+}
+
+.tierDelete {
+  align-self: end;
+  margin-bottom: 0.35rem;
+}
+
+.categoryDialog {
+  width: min(100%, 26rem);
+}
+
+.categoryDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
 }
 
 .fieldset {
@@ -389,6 +505,15 @@ select.input:focus {
   .grid2,
   .tierRow {
     grid-template-columns: 1fr;
+  }
+
+  .fieldHeader {
+    flex-wrap: wrap;
+  }
+
+  .tierDelete {
+    margin-bottom: 0;
+    justify-self: start;
   }
 
   .sectionHeader,

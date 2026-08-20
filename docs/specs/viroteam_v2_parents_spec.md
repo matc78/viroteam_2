@@ -25,9 +25,12 @@ La majorité des parents ne sont pas licenciés du club : un seul écran famille
 | Écriture | Les deux faces via Cloud Function / transaction — jamais un seul côté client |
 | V1 adultes / enfant | **1** guardian `active` ou `pending` (`maxActiveGuardiansPerMember = 1`) |
 | V1 enfants / adulte | **N** (liste dès le départ) |
-| Invitation | Admin, `type: guardian`, e-mail, sur la fiche joueur |
+| Invitation | Admin **ou titulaire de la fiche** (compte lié), `type: guardian`, e-mail |
 | Login partagé | **Non** — chaque adulte a son compte Auth |
 | Relais ado | Hors V1 — l’enfant lie son Auth sur la **même** fiche (`accountUid`) |
+| Liste admin | Sous-onglet Parents dans Membres (portail + app) : invitations + parents connectés |
+| Révocation | Soft sur `guardians` ; **retrait** de l’entrée `parentLinks` + recalcul `parentClubIds` |
+| Self-manage joueur | Compte lié : inviter / révoquer **son** parent depuis l’app |
 
 Schéma déjà N:N : 2ᵉ parent / grands-parents = lever le plafond + champ `relation`, pas de migration.
 
@@ -93,11 +96,15 @@ clubs/{clubId}/invitations/{inviteId}
 
 Flux :
 
-1. Admin ouvre la fiche joueur → **Inviter un parent** (e-mail).
+1. Admin **ou titulaire de la fiche** → **Inviter un parent** (e-mail), depuis la fiche joueur, la liste Parents, ou « Mon parent » (app).
 2. V1 : refuser s’il existe déjà un guardian `active` ou `pending`.
 3. L’adulte crée **son** compte (ou se connecte).
 4. Callable `linkGuardian` / acceptation : écrit `guardians/{parentUid}` **et** l’entrée `parentLinks`.
 5. Si l’e-mail a déjà un compte **licencié du même club** : on **ajoute le lien**, on ne crée pas de membre, on ne change pas le `role`.
+
+Callables invite / revoke / update mail / extend / regenerate : autorisées pour **admin club** ou **`accountUid` de la fiche**.
+
+Révocation : `guardians.status = revoked` ; sur `users/{parentUid}` on **retire** l’entrée `parentLinks` pour `(clubId, memberId)` (pas de soft-status) et on recalcule `parentClubIds`.
 
 Copy invitation : *« Tu pourras voir le planning de Marie, répondre aux convocations et payer la cotisation. »*
 
@@ -146,6 +153,8 @@ Garde d’accès après login :
 
 L’espace famille n’est **pas** le dashboard KPI. Routes bureau (`/members`, config HelloAsso, inventaire) restent admin-only.
 
+Sous-onglet **Parents** dans Membres (bureau) : liste filtrable des invitations pending et parents connectés (1 ligne = 1 parent, N enfants), actions révoquer / changer mail (pending) / prolonger / renvoyer / copier. Le bloc Parent de la fiche membre est conservé.
+
 ---
 
 ## 7. Paiement et RSVP
@@ -161,9 +170,9 @@ L’espace famille n’est **pas** le dashboard KPI. Routes bureau (`/members`, 
 
 - 2ᵉ parent, grands-parents (`relation: grandparent` \| `tutor`), droits différents par adulte
 - Compte Auth de l’enfant ; relais : poser `accountUid`, puis retirer `canRsvp` au parent
-- L’enfant qui invite ses parents
 - Planning fusionné multi-cibles
 - Push / e-mail dédiés parents (FCM reste backlog)
+- Changement d’e-mail Auth d’un parent **actif**
 
 ---
 
@@ -185,6 +194,8 @@ L’espace famille n’est **pas** le dashboard KPI. Routes bureau (`/members`, 
 - Un licencié du club invité comme parent garde son `role` ; il bascule Moi / enfant.
 - Un non-admin sans `parentLinks` n’entre pas dans le dashboard bureau.
 - Impossible d’ajouter un 2ᵉ parent tant que le cap V1 est à 1.
+- Liste Parents (portail + app) : invitations + connectés, révocation purge `parentLinks`.
+- Joueur avec compte lié : invite / révoque son parent depuis « Mon parent ».
 
 ---
 

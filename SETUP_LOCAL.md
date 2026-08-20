@@ -117,6 +117,23 @@ Pour le bypass auth en dev, télécharger la clé privée du compte de service :
 
 Le fichier `portal/.env.sentry-build-plugin` est créé automatiquement par `npx @sentry/wizard` si tu configures Sentry. Il contient le `SENTRY_AUTH_TOKEN` et ne doit **jamais** être commité.
 
+## Cloud Functions (invitations e-mail Brevo)
+
+```bash
+firebase functions:secrets:set BREVO_API_KEY
+# coller la clé API Brevo (viroteam-functions-dev)
+
+cd functions
+# params locaux (déjà dans .env.viroteam-75303 si présent) :
+# BREVO_SENDER_EMAIL=noreply@viroteam.com
+# BREVO_SENDER_NAME=ViroTeam
+
+npm run build
+firebase deploy --only functions:sendMemberInvites
+```
+
+Voir aussi [`functions/README.md`](functions/README.md).
+
 ## Vérification rapide
 
 ```bash

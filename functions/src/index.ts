@@ -10,8 +10,13 @@ export {
   inviteGuardian,
   linkGuardian,
   revokeGuardian,
+  updateGuardianInviteEmail,
+  extendGuardianInvite,
+  regenerateGuardianInvite,
   setEventRsvp,
 } from "./guardians";
+
+export { sendMemberInvites } from "./memberInvites";
 
 const helloAssoClientId = defineSecret("HELLOASSO_CLIENT_ID");
 const helloAssoClientSecret = defineSecret("HELLOASSO_CLIENT_SECRET");
@@ -59,6 +64,12 @@ export const acceptInvitation = onCall(async (request) => {
   const invite = inviteSnap.data()!;
   if (invite.status !== "pending") {
     throw new HttpsError("failed-precondition", "Invitation déjà traitée");
+  }
+  if (String(invite.type ?? "member") === "guardian") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Invitation parent : utilise linkGuardian",
+    );
   }
 
   await inviteRef.update({

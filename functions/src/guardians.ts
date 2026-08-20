@@ -47,6 +47,14 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+function requireEmail(value: unknown, name = "email"): string {
+  const email = normalizeEmail(requireString(value, name));
+  if (!email.includes("@")) {
+    throw new HttpsError("invalid-argument", "E-mail invalide");
+  }
+  return email;
+}
+
 function generateInviteCode(): string {
   const bytes = crypto.randomBytes(INVITE_CODE_LENGTH);
   let code = "";
@@ -104,7 +112,11 @@ function parentClubIdsFromLinks(links: ParentLink[]): string[] {
   return [...new Set(links.filter((link) => link.status === GUARDIAN_STATUS_ACTIVE).map((link) => link.clubId))];
 }
 
-async function assertClubAdmin(clubId: string, uid: string): Promise<DocumentData> {
+/** Vérifie que l’uid est admin du club (adminIds ou fiche role admin). */
+export async function assertClubAdmin(
+  clubId: string,
+  uid: string,
+): Promise<DocumentData> {
   const clubSnap = await clubRef(clubId).get();
   if (!clubSnap.exists) {
     throw new HttpsError("not-found", "Club introuvable");
@@ -125,6 +137,62 @@ async function assertClubAdmin(clubId: string, uid: string): Promise<DocumentDat
   }
 
   throw new HttpsError("permission-denied", "Réservé aux admins du club");
+}
+
+async function isClubAdmin(clubId: string, uid: string): Promise<boolean> {
+  try {
+    await assertClubAdmin(clubId, uid);
+    return true;
+  } catch (error) {
+    if (error instanceof HttpsError && error.code === "permission-denied") {
+      return false;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Admin du club, ou propriétaire Auth de la fiche membre cible.
+ */
+async function assertCanManageGuardian(params: {
+  clubId: string;
+  memberId: string;
+  uid: string;
+}): Promise<DocumentData> {
+  const clubSnap = await clubRef(params.clubId).get();
+  if (!clubSnap.exists) {
+    throw new HttpsError("not-found", "Club introuvable");
+  }
+  const club = clubSnap.data()!;
+
+  if (await isClubAdmin(params.clubId, params.uid)) {
+    return club;
+  }
+
+  const memberSnap = await memberRef(params.clubId, params.memberId).get();
+  if (!memberSnap.exists) {
+    throw new HttpsError("not-found", "Fiche membre introuvable");
+  }
+  const ownerUid = childAccountUid(memberSnap.data()!, params.memberId);
+  if (ownerUid && ownerUid === params.uid) {
+    return club;
+  }
+
+  throw new HttpsError(
+    "permission-denied",
+    "Réservé à l’admin ou au titulaire de la fiche",
+  );
+}
+
+/** Retire le lien parent↔enfant du profil user (pas de soft-status). */
+function removeParentLink(
+  links: ParentLink[],
+  clubId: string,
+  memberId: string,
+): ParentLink[] {
+  return links.filter(
+    (link) => !(link.clubId === clubId && link.memberId === memberId),
+  );
 }
 
 async function resolveCallerMemberId(clubId: string, uid: string): Promise<string | null> {
@@ -183,6 +251,7 @@ function isCapStatus(status: string): boolean {
 async function countGuardiansOccupyingSlot(
   clubId: string,
   memberId: string,
+  options?: { excludeInvitationId?: string },
 ): Promise<number> {
   const guardiansSnap = await memberRef(clubId, memberId).collection("guardians").get();
   let count = 0;
@@ -196,9 +265,16 @@ async function countGuardiansOccupyingSlot(
     .where("memberId", "==", memberId)
     .where("status", "==", "pending")
     .get();
-  return invitesSnap.docs.filter(
-    (inviteDoc) => inviteDoc.data().type === INVITATION_TYPE_GUARDIAN,
-  ).length;
+  return invitesSnap.docs.filter((inviteDoc) => {
+    if (inviteDoc.data().type !== INVITATION_TYPE_GUARDIAN) return false;
+    if (
+      options?.excludeInvitationId &&
+      inviteDoc.id === options.excludeInvitationId
+    ) {
+      return false;
+    }
+    return true;
+  }).length;
 }
 
 function childAccountUid(memberData: DocumentData, memberId: string): string | null {
@@ -220,18 +296,21 @@ async function writeGuardianAndParentLinks(params: {
   const now = admin.firestore.FieldValue.serverTimestamp();
   const gRef = guardianRef(params.clubId, params.memberId, params.parentUid);
   const uRef = userRef(params.parentUid);
+  const isRevoked = params.status === GUARDIAN_STATUS_REVOKED;
 
   await db().runTransaction(async (tx) => {
     const userSnap = await tx.get(uRef);
     const existingLinks = userSnap.exists
       ? parseParentLinks(userSnap.data()?.parentLinks)
       : [];
-    const nextLinks = upsertParentLink(existingLinks, {
-      clubId: params.clubId,
-      memberId: params.memberId,
-      relation: params.relation,
-      status: params.status,
-    });
+    const nextLinks = isRevoked
+      ? removeParentLink(existingLinks, params.clubId, params.memberId)
+      : upsertParentLink(existingLinks, {
+          clubId: params.clubId,
+          memberId: params.memberId,
+          relation: params.relation,
+          status: params.status,
+        });
     const guardianSnap = await tx.get(gRef);
     const guardianPayload: Record<string, unknown> = {
       parentUid: params.parentUid,
@@ -246,13 +325,17 @@ async function writeGuardianAndParentLinks(params: {
     if (!guardianSnap.exists) {
       guardianPayload.createdAt = now;
     }
-    if (params.status === GUARDIAN_STATUS_REVOKED) {
+    if (isRevoked) {
       guardianPayload.revokedAt = now;
     }
 
     tx.set(gRef, guardianPayload, { merge: true });
 
     if (!userSnap.exists) {
+      if (isRevoked) {
+        // Révocation sans profil user : le doc guardian suffit.
+        return;
+      }
       throw new HttpsError(
         "failed-precondition",
         "Le compte parent n’a pas encore de profil",
@@ -266,17 +349,78 @@ async function writeGuardianAndParentLinks(params: {
   });
 }
 
+async function findPendingGuardianInviteForMember(
+  clubId: string,
+  memberId: string,
+): Promise<admin.firestore.QueryDocumentSnapshot | null> {
+  const invitesSnap = await invitationsCol(clubId)
+    .where("memberId", "==", memberId)
+    .where("status", "==", "pending")
+    .get();
+  const pendingInvite = invitesSnap.docs.find(
+    (inviteDoc) => inviteDoc.data().type === INVITATION_TYPE_GUARDIAN,
+  );
+  return pendingInvite ?? null;
+}
+
+/** Charge une invitation guardian pending (par id ou membre). */
+async function loadPendingGuardianInvite(params: {
+  clubId: string;
+  memberId: string;
+  invitationId?: string;
+}): Promise<{
+  ref: admin.firestore.DocumentReference;
+  data: DocumentData;
+  invitationId: string;
+}> {
+  if (params.invitationId) {
+    const inviteRef = invitationsCol(params.clubId).doc(params.invitationId);
+    const snap = await inviteRef.get();
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Invitation introuvable");
+    }
+    const data = snap.data()!;
+    if (data.type !== INVITATION_TYPE_GUARDIAN) {
+      throw new HttpsError("failed-precondition", "Invitation parent invalide");
+    }
+    if (data.status !== "pending") {
+      throw new HttpsError("failed-precondition", "Invitation déjà traitée");
+    }
+    if (String(data.memberId ?? "") !== params.memberId) {
+      throw new HttpsError("failed-precondition", "Invitation hors fiche");
+    }
+    return { ref: inviteRef, data, invitationId: snap.id };
+  }
+
+  const pending = await findPendingGuardianInviteForMember(
+    params.clubId,
+    params.memberId,
+  );
+  if (!pending) {
+    throw new HttpsError("not-found", "Aucune invitation parent en attente");
+  }
+  return {
+    ref: pending.ref,
+    data: pending.data(),
+    invitationId: pending.id,
+  };
+}
+
 /**
- * Admin : invite un parent sur une fiche joueur (plafond V1 = 1).
+ * Admin ou titulaire de fiche : invite un parent (plafond V1 = 1).
  */
 export const inviteGuardian = onCall(async (request) => {
-  const adminUid = requireUid(request);
+  const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const memberId = requireString(request.data?.memberId, "memberId");
-  const email = normalizeEmail(requireString(request.data?.email, "email"));
+  const email = requireEmail(request.data?.email);
   const relation = RELATION_PARENT;
 
-  const club = await assertClubAdmin(clubId, adminUid);
+  const club = await assertCanManageGuardian({
+    clubId,
+    memberId,
+    uid: callerUid,
+  });
 
   const memberSnap = await memberRef(clubId, memberId).get();
   if (!memberSnap.exists) {
@@ -297,12 +441,6 @@ export const inviteGuardian = onCall(async (request) => {
   }
 
   if (existingParentUid && (existingParentUid === childUid || existingParentUid === memberId)) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Impossible de lier un adulte à sa propre fiche",
-    );
-  }
-  if (adminUid === childUid && existingParentUid === adminUid) {
     throw new HttpsError(
       "failed-precondition",
       "Impossible de lier un adulte à sa propre fiche",
@@ -330,7 +468,7 @@ export const inviteGuardian = onCall(async (request) => {
     relation,
     status: "pending",
     code,
-    sentBy: adminUid,
+    sentBy: callerUid,
     sentAt: now,
     expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
     clubName: String(club.name ?? ""),
@@ -345,7 +483,7 @@ export const inviteGuardian = onCall(async (request) => {
         parentUid: existingParentUid,
         relation,
         status: GUARDIAN_STATUS_PENDING,
-        invitedBy: adminUid,
+        invitedBy: callerUid,
       });
     } catch {
       // Invitation seule : linkGuardian activera les deux faces à la connexion.
@@ -379,10 +517,20 @@ async function findPendingGuardianInvitation(params: {
     .where("email", "==", params.email)
     .where("status", "==", "pending")
     .get();
-  const match = snap.docs.find((docSnap) => docSnap.data().type === INVITATION_TYPE_GUARDIAN);
-  if (!match) {
+  const matches = snap.docs.filter(
+    (docSnap) => docSnap.data().type === INVITATION_TYPE_GUARDIAN,
+  );
+  if (matches.length === 0) {
     throw new HttpsError("not-found", "Aucune invitation parent en attente");
   }
+  matches.sort((a, b) => {
+    const aExp = (a.data().expiresAt as admin.firestore.Timestamp | undefined)
+      ?.toMillis?.() ?? 0;
+    const bExp = (b.data().expiresAt as admin.firestore.Timestamp | undefined)
+      ?.toMillis?.() ?? 0;
+    return bExp - aExp;
+  });
+  const match = matches[0]!;
   const clubId = match.ref.parent.parent?.id;
   if (!clubId) {
     throw new HttpsError("not-found", "Invitation introuvable");
@@ -395,12 +543,14 @@ async function findPendingGuardianInvitation(params: {
  */
 export const linkGuardian = onCall(async (request) => {
   const parentUid = requireUid(request);
-  const email = normalizeEmail(
-    String(request.auth?.token.email ?? request.data?.email ?? ""),
-  );
-  if (!email) {
-    throw new HttpsError("failed-precondition", "E-mail du compte introuvable");
+  const tokenEmail = request.auth?.token?.email;
+  if (typeof tokenEmail !== "string" || !tokenEmail.trim()) {
+    throw new HttpsError(
+      "failed-precondition",
+      "E-mail du compte introuvable — reconnecte-toi avec un compte e-mail",
+    );
   }
+  const email = normalizeEmail(tokenEmail);
 
   const clubIdArg =
     typeof request.data?.clubId === "string" ? request.data.clubId.trim() : "";
@@ -451,7 +601,11 @@ export const linkGuardian = onCall(async (request) => {
     );
   }
 
-  const occupying = await countGuardiansOccupyingSlot(invitation.clubId, memberId);
+  const occupying = await countGuardiansOccupyingSlot(
+    invitation.clubId,
+    memberId,
+    { excludeInvitationId: invitation.invitationId },
+  );
   const existingGuardian = await guardianRef(
     invitation.clubId,
     memberId,
@@ -460,6 +614,8 @@ export const linkGuardian = onCall(async (request) => {
   const alreadyPendingForCaller =
     existingGuardian.exists &&
     isCapStatus(String(existingGuardian.data()?.status ?? ""));
+  // L’invitation courante ne compte pas (excludeInvitationId). Un autre
+  // guardian active/pending, ou une autre invite, bloque toujours.
   if (occupying >= MAX_ACTIVE_GUARDIANS_PER_MEMBER && !alreadyPendingForCaller) {
     throw new HttpsError(
       "failed-precondition",
@@ -488,13 +644,13 @@ export const linkGuardian = onCall(async (request) => {
 });
 
 /**
- * Admin : révoque le lien parent (les deux faces).
+ * Admin ou titulaire de fiche : révoque le lien parent (purge parentLinks).
  */
 export const revokeGuardian = onCall(async (request) => {
-  const adminUid = requireUid(request);
+  const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const memberId = requireString(request.data?.memberId, "memberId");
-  await assertClubAdmin(clubId, adminUid);
+  await assertCanManageGuardian({ clubId, memberId, uid: callerUid });
 
   const parentUidArg =
     typeof request.data?.parentUid === "string"
@@ -510,12 +666,9 @@ export const revokeGuardian = onCall(async (request) => {
     parentUid = occupying?.id ?? "";
   }
   if (!parentUid) {
-    const invitesSnap = await invitationsCol(clubId)
-      .where("memberId", "==", memberId)
-      .where("status", "==", "pending")
-      .get();
-    const pendingInvite = invitesSnap.docs.find(
-      (inviteDoc) => inviteDoc.data().type === INVITATION_TYPE_GUARDIAN,
+    const pendingInvite = await findPendingGuardianInviteForMember(
+      clubId,
+      memberId,
     );
     if (pendingInvite) {
       await pendingInvite.ref.update({
@@ -536,7 +689,7 @@ export const revokeGuardian = onCall(async (request) => {
       parentUid,
       relation: String(guardianSnap.data()?.relation ?? RELATION_PARENT),
       status: GUARDIAN_STATUS_REVOKED,
-      invitedBy: String(guardianSnap.data()?.invitedBy ?? adminUid),
+      invitedBy: String(guardianSnap.data()?.invitedBy ?? callerUid),
     });
   }
 
@@ -555,6 +708,164 @@ export const revokeGuardian = onCall(async (request) => {
   await batch.commit();
 
   return { ok: true };
+});
+
+/**
+ * Admin ou titulaire : change l’e-mail d’une invitation parent encore pending.
+ */
+export const updateGuardianInviteEmail = onCall(async (request) => {
+  const callerUid = requireUid(request);
+  const clubId = requireString(request.data?.clubId, "clubId");
+  const memberId = requireString(request.data?.memberId, "memberId");
+  const email = requireEmail(request.data?.email);
+  const invitationIdArg =
+    typeof request.data?.invitationId === "string"
+      ? request.data.invitationId.trim()
+      : "";
+
+  await assertCanManageGuardian({ clubId, memberId, uid: callerUid });
+
+  const guardiansSnap = await memberRef(clubId, memberId).collection("guardians").get();
+  const activeGuardian = guardiansSnap.docs.find(
+    (docSnap) => String(docSnap.data().status ?? "") === GUARDIAN_STATUS_ACTIVE,
+  );
+  if (activeGuardian) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Impossible de changer l’e-mail d’un parent déjà connecté",
+    );
+  }
+
+  const invite = await loadPendingGuardianInvite({
+    clubId,
+    memberId,
+    invitationId: invitationIdArg || undefined,
+  });
+
+  // Révoque les guardians pending de l’ancien e-mail (sinon le slot V1 reste pris).
+  for (const guardianDoc of guardiansSnap.docs) {
+    if (!isCapStatus(String(guardianDoc.data().status ?? ""))) continue;
+    await writeGuardianAndParentLinks({
+      clubId,
+      memberId,
+      parentUid: guardianDoc.id,
+      relation: String(guardianDoc.data().relation ?? RELATION_PARENT),
+      status: GUARDIAN_STATUS_REVOKED,
+      invitedBy: String(guardianDoc.data().invitedBy ?? callerUid),
+    });
+  }
+
+  await invite.ref.update({
+    email,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  let newParentUid: string | null = null;
+  try {
+    const authUser = await admin.auth().getUserByEmail(email);
+    newParentUid = authUser.uid;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== "auth/user-not-found") {
+      throw error;
+    }
+  }
+  if (newParentUid) {
+    const memberSnap = await memberRef(clubId, memberId).get();
+    const childUid = memberSnap.exists
+      ? childAccountUid(memberSnap.data()!, memberId)
+      : null;
+    if (newParentUid !== childUid && newParentUid !== memberId) {
+      await writeGuardianAndParentLinks({
+        clubId,
+        memberId,
+        parentUid: newParentUid,
+        relation: RELATION_PARENT,
+        status: GUARDIAN_STATUS_PENDING,
+        invitedBy: callerUid,
+      });
+    }
+  }
+
+  return { ok: true, invitationId: invite.invitationId, email };
+});
+
+/**
+ * Admin ou titulaire : prolonge l’expiration d’une invitation parent pending.
+ */
+export const extendGuardianInvite = onCall(async (request) => {
+  const callerUid = requireUid(request);
+  const clubId = requireString(request.data?.clubId, "clubId");
+  const memberId = requireString(request.data?.memberId, "memberId");
+  const invitationIdArg =
+    typeof request.data?.invitationId === "string"
+      ? request.data.invitationId.trim()
+      : "";
+
+  await assertCanManageGuardian({ clubId, memberId, uid: callerUid });
+
+  const invite = await loadPendingGuardianInvite({
+    clubId,
+    memberId,
+    invitationId: invitationIdArg || undefined,
+  });
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + INVITE_TTL_DAYS);
+  const code = String(invite.data.code ?? "").trim();
+
+  await invite.ref.update({
+    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    ok: true,
+    invitationId: invite.invitationId,
+    code,
+    expiresAt: expiresAt.toISOString(),
+  };
+});
+
+/**
+ * Admin ou titulaire : nouveau code + reset expiration (renvoyer l’invite).
+ */
+export const regenerateGuardianInvite = onCall(async (request) => {
+  const callerUid = requireUid(request);
+  const clubId = requireString(request.data?.clubId, "clubId");
+  const memberId = requireString(request.data?.memberId, "memberId");
+  const invitationIdArg =
+    typeof request.data?.invitationId === "string"
+      ? request.data.invitationId.trim()
+      : "";
+
+  await assertCanManageGuardian({ clubId, memberId, uid: callerUid });
+
+  const invite = await loadPendingGuardianInvite({
+    clubId,
+    memberId,
+    invitationId: invitationIdArg || undefined,
+  });
+
+  const code = generateInviteCode();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + INVITE_TTL_DAYS);
+  const now = admin.firestore.FieldValue.serverTimestamp();
+
+  await invite.ref.update({
+    code,
+    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+    sentBy: callerUid,
+    sentAt: now,
+    updatedAt: now,
+  });
+
+  return {
+    ok: true,
+    invitationId: invite.invitationId,
+    code,
+    expiresAt: expiresAt.toISOString(),
+  };
 });
 
 /**

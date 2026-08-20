@@ -18,18 +18,66 @@ class AddMemberResult {
   final ClubInvitation invitation;
 }
 
-class ClubParentEntry {
-  const ClubParentEntry({
-    required this.parentUid,
+class ClubParentChildRef {
+  const ClubParentChildRef({
+    required this.memberId,
     required this.displayName,
-    this.avatarUrl,
-    this.email,
+    required this.status,
+    this.parentUid,
+    this.invitationId,
+    this.invitationCode,
+    this.expiresAt,
   });
 
-  final String parentUid;
+  final String memberId;
   final String displayName;
+  final String status;
+  final String? parentUid;
+  final String? invitationId;
+  final String? invitationCode;
+  final DateTime? expiresAt;
+
+  bool get inviteValid {
+    if (status != GuardianStatuses.pending) return true;
+    if (expiresAt == null) return true;
+    return !expiresAt!.isBefore(DateTime.now());
+  }
+}
+
+class ClubParentEntry {
+  const ClubParentEntry({
+    required this.rowKey,
+    required this.displayName,
+    required this.status,
+    required this.children,
+    this.parentUid,
+    this.avatarUrl,
+    this.email,
+    this.firstName,
+    this.lastName,
+    this.rosterMemberId,
+  });
+
+  final String rowKey;
+  final String? parentUid;
+  final String displayName;
+  final String? firstName;
+  final String? lastName;
   final String? avatarUrl;
   final String? email;
+  final String status;
+  final List<ClubParentChildRef> children;
+  final String? rosterMemberId;
+
+  bool get isPending => status == GuardianStatuses.pending;
+  bool get isActive => status == GuardianStatuses.active;
+
+  ClubParentChildRef? get primaryPendingChild {
+    for (final child in children) {
+      if (child.status == GuardianStatuses.pending) return child;
+    }
+    return null;
+  }
 }
 
 class MemberService {
@@ -384,59 +432,234 @@ class MemberService {
     });
   }
 
-  /// Parents liés aux fiches du club via `members/{memberId}/guardians`.
-  ///
-  /// Source de vérité : sous-collection guardians (pas le scan legacy
-  /// `users.parentLinks.childUid`).
+  /// Parents liés aux fiches du club via `members/{memberId}/guardians`
+  /// et invitations `type: guardian` pending. Une entrée = un parent (uid/email).
   Future<List<ClubParentEntry>> fetchClubParents(String clubId) async {
     final membersSnap = await _members(clubId).get();
-    final seenParentUids = <String>{};
-    final entries = <ClubParentEntry>[];
-
+    final membersById = <String, ClubMember>{};
+    final membersByAccount = <String, ClubMember>{};
     for (final memberDoc in membersSnap.docs) {
-      final guardiansSnap = await memberDoc.reference
-          .collection(ProjectConfig.guardiansSubcollection)
+      final member = ClubMember.fromFirestore(memberDoc);
+      membersById[member.memberId] = member;
+      final accountUid = member.accountUid?.trim();
+      if (accountUid != null && accountUid.isNotEmpty) {
+        membersByAccount[accountUid] = member;
+      }
+    }
+
+    // Une seule lecture des invitations pending du club (évite N requêtes).
+    final pendingGuardianByMember =
+        <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+    try {
+      final pendingInvitesSnap = await _invitations(clubId)
+          .where(FirestoreFields.status, isEqualTo: InvitationStatus.pending)
           .get();
+      for (final inviteDoc in pendingInvitesSnap.docs) {
+        final type = inviteDoc.data()[FirestoreFields.type] as String? ?? '';
+        if (type != InvitationTypes.guardian) continue;
+        final memberId =
+            (inviteDoc.data()[FirestoreFields.memberId] as String?)?.trim() ?? '';
+        if (memberId.isEmpty) continue;
+        pendingGuardianByMember.putIfAbsent(memberId, () => inviteDoc);
+      }
+    } catch (_) {
+      // Invites illisibles : on continue avec les seuls guardians.
+    }
+
+    // Guardians en parallèle (une requête par membre, sans boucle séquentielle).
+    final guardianSnaps = await Future.wait(
+      membersSnap.docs.map(
+        (memberDoc) => memberDoc.reference
+            .collection(ProjectConfig.guardiansSubcollection)
+            .get(),
+      ),
+    );
+
+    final occupyingByMemberIndex =
+        <int, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+    final parentUids = <String>{};
+    for (var index = 0; index < membersSnap.docs.length; index++) {
+      final guardiansSnap = guardianSnaps[index];
+      QueryDocumentSnapshot<Map<String, dynamic>>? occupying;
       for (final guardianDoc in guardiansSnap.docs) {
         final status =
             guardianDoc.data()[FirestoreFields.status] as String? ?? '';
-        if (status != GuardianStatuses.active &&
-            status != GuardianStatuses.pending) {
-          continue;
+        if (status == GuardianStatuses.active ||
+            status == GuardianStatuses.pending) {
+          occupying = guardianDoc;
+          break;
         }
-        final parentUid = guardianDoc.id;
-        if (!seenParentUids.add(parentUid)) continue;
+      }
+      if (occupying != null) {
+        occupyingByMemberIndex[index] = occupying;
+        parentUids.add(occupying.id);
+      }
+    }
+
+    // Users parents en parallèle (uids uniques).
+    final usersById = <String, Map<String, dynamic>>{};
+    if (parentUids.isNotEmpty) {
+      final userSnaps = await Future.wait(
+        parentUids.map(
+          (uid) => _db.collection(ProjectConfig.usersCollection).doc(uid).get(),
+        ),
+      );
+      for (final userSnap in userSnaps) {
+        if (userSnap.exists && userSnap.data() != null) {
+          usersById[userSnap.id] = userSnap.data()!;
+        }
+      }
+    }
+
+    final byKey = <String, _ParentAccumulator>{};
+
+    void ensure(
+      String key, {
+      String? parentUid,
+      String? email,
+      String? firstName,
+      String? lastName,
+      String? displayName,
+      String? avatarUrl,
+    }) {
+      final existing = byKey[key];
+      if (existing == null) {
+        byKey[key] = _ParentAccumulator(
+          parentUid: parentUid,
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+          displayName: displayName ?? email ?? 'Parent',
+          avatarUrl: avatarUrl,
+        );
+        return;
+      }
+      existing.parentUid ??= parentUid;
+      existing.email ??= email;
+      existing.firstName ??= firstName;
+      existing.lastName ??= lastName;
+      existing.avatarUrl ??= avatarUrl;
+      if ((existing.displayName.isEmpty || existing.displayName == 'Parent') &&
+          displayName != null &&
+          displayName.isNotEmpty) {
+        existing.displayName = displayName;
+      }
+    }
+
+    for (var index = 0; index < membersSnap.docs.length; index++) {
+      final memberDoc = membersSnap.docs[index];
+      final member = membersById[memberDoc.id]!;
+      final childName = member.fullName.trim().isNotEmpty
+          ? member.fullName.trim()
+          : 'Enfant';
+      final pendingInvite = pendingGuardianByMember[member.memberId];
+      final inviteData = pendingInvite?.data();
+      final occupying = occupyingByMemberIndex[index];
+
+      if (occupying != null) {
+        final statusRaw =
+            occupying.data()[FirestoreFields.status] as String? ??
+                GuardianStatuses.pending;
+        final status = statusRaw == GuardianStatuses.active
+            ? GuardianStatuses.active
+            : GuardianStatuses.pending;
 
         String displayName = '';
         String? email;
         String? avatarUrl;
-        final userSnap = await _db
-            .collection(ProjectConfig.usersCollection)
-            .doc(parentUid)
-            .get();
-        if (userSnap.exists) {
-          final user = userSnap.data()!;
+        String? firstName;
+        String? lastName;
+        final user = usersById[occupying.id];
+        if (user != null) {
+          firstName = (user[FirestoreFields.firstName] as String?)?.trim();
+          lastName = (user[FirestoreFields.lastName] as String?)?.trim();
           displayName =
               (user[FirestoreFields.displayName] as String?)?.trim() ?? '';
           if (displayName.isEmpty) {
-            displayName =
-                '${user[FirestoreFields.firstName] ?? ''} ${user[FirestoreFields.lastName] ?? ''}'
-                    .trim();
+            displayName = '${firstName ?? ''} ${lastName ?? ''}'.trim();
           }
           email = user[FirestoreFields.email] as String?;
           avatarUrl = user[FirestoreFields.avatarUrl] as String?;
         }
         if (displayName.isEmpty) displayName = 'Parent';
 
-        entries.add(
-          ClubParentEntry(
-            parentUid: parentUid,
-            displayName: displayName,
-            avatarUrl: avatarUrl,
-            email: email,
+        final expiresAt =
+            (inviteData?[FirestoreFields.expiresAt] as Timestamp?)?.toDate();
+        email ??= (inviteData?[FirestoreFields.email] as String?)?.trim();
+
+        final key = 'uid:${occupying.id}';
+        ensure(
+          key,
+          parentUid: occupying.id,
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+          displayName: displayName,
+          avatarUrl: avatarUrl,
+        );
+        byKey[key]!.children.add(
+          ClubParentChildRef(
+            memberId: member.memberId,
+            displayName: childName,
+            status: status,
+            parentUid: occupying.id,
+            invitationId: pendingInvite?.id,
+            invitationCode:
+                (inviteData?[FirestoreFields.code] as String?)?.trim(),
+            expiresAt: expiresAt,
           ),
         );
+        continue;
       }
+
+      if (pendingInvite == null || inviteData == null) continue;
+
+      final email =
+          (inviteData[FirestoreFields.email] as String?)?.trim().toLowerCase();
+      if (email == null || email.isEmpty) continue;
+      final expiresAt =
+          (inviteData[FirestoreFields.expiresAt] as Timestamp?)?.toDate();
+      final key = 'email:$email';
+      ensure(key, email: email, displayName: email);
+      byKey[key]!.children.add(
+        ClubParentChildRef(
+          memberId: member.memberId,
+          displayName: childName,
+          status: GuardianStatuses.pending,
+          invitationId: pendingInvite.id,
+          invitationCode: (inviteData[FirestoreFields.code] as String?)?.trim(),
+          expiresAt: expiresAt,
+        ),
+      );
+    }
+
+    final entries = <ClubParentEntry>[];
+    for (final entry in byKey.entries) {
+      final acc = entry.value;
+      final hasActive = acc.children.any(
+        (c) => c.status == GuardianStatuses.active,
+      );
+      final status =
+          hasActive ? GuardianStatuses.active : GuardianStatuses.pending;
+      ClubMember? roster;
+      if (acc.parentUid != null) {
+        roster = membersByAccount[acc.parentUid!] ??
+            membersById[acc.parentUid!];
+      }
+      entries.add(
+        ClubParentEntry(
+          rowKey: entry.key,
+          parentUid: acc.parentUid,
+          displayName: acc.displayName,
+          firstName: acc.firstName,
+          lastName: acc.lastName,
+          avatarUrl: acc.avatarUrl,
+          email: acc.email,
+          status: status,
+          children: acc.children,
+          rosterMemberId: roster?.memberId,
+        ),
+      );
     }
 
     entries.sort(
@@ -451,4 +674,23 @@ class MemberService {
     required ClubInvitation invitation,
   }) =>
       buildInviteMessage(club: club, invitation: invitation);
+}
+
+class _ParentAccumulator {
+  _ParentAccumulator({
+    this.parentUid,
+    this.email,
+    this.firstName,
+    this.lastName,
+    required this.displayName,
+    this.avatarUrl,
+  });
+
+  String? parentUid;
+  String? email;
+  String? firstName;
+  String? lastName;
+  String displayName;
+  String? avatarUrl;
+  final children = <ClubParentChildRef>[];
 }

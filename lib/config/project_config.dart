@@ -153,9 +153,9 @@ abstract final class ProjectConfig {
   static const String permPlayerPlanning = 'Voir son planning, RSVP';
   static const String permPlayerTeam = 'Voir son équipe';
   static const String permPlayerInviteParent =
-      'Hors V1 : inviter un parent pour lui-même (V1 = admin uniquement)';
+      'Inviter un parent pour sa propre fiche (compte lié)';
   static const String permPlayerRevokeParent =
-      'Hors V1 : révoquer ses propres parents (V1 = admin)';
+      'Révoquer le parent de sa propre fiche (compte lié)';
 
   // —— Coach (= Player +) ——
   static const String permCoachEvents = 'Créer événements, marquer présence';

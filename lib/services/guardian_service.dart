@@ -113,15 +113,13 @@ class GuardianService {
     final invite = pendingInvite.data();
     final expiresAt =
         (invite[FirestoreFields.expiresAt] as Timestamp?)?.toDate();
-    if (expiresAt != null && expiresAt.isBefore(DateTime.now())) {
-      return empty;
-    }
 
     return MemberGuardianView(
       status: GuardianStatuses.pending,
       email: (invite[FirestoreFields.email] as String?)?.trim(),
       invitationId: pendingInvite.id,
       invitationCode: (invite[FirestoreFields.code] as String?)?.trim(),
+      expiresAt: expiresAt,
     );
   }
 
@@ -132,12 +130,7 @@ class GuardianService {
   }) async {
     final snap = await _memberRef(clubId, memberId).get();
     if (!snap.exists) return 'Enfant';
-    final member = ClubMember.fromFirestore(snap);
-    final first = member.firstName?.trim() ?? '';
-    if (first.isNotEmpty) return first;
-    final display = member.fullName.trim();
-    if (display.isNotEmpty) return display.split(' ').first;
-    return 'Enfant';
+    return ClubMember.fromFirestore(snap).preferredFirstName;
   }
 
   /// Charge une fiche membre (lecture guardian / RSVP / cotisation).
@@ -150,7 +143,7 @@ class GuardianService {
     return ClubMember.fromFirestore(snap);
   }
 
-  /// Invite un parent (e-mail) sur la fiche joueur — callable admin.
+  /// Invite un parent (e-mail) sur la fiche — admin ou titulaire.
   Future<({String code, String invitationId})> inviteGuardian({
     required String clubId,
     required String memberId,
@@ -188,7 +181,7 @@ class GuardianService {
     );
   }
 
-  /// Révoque le parent V1 de la fiche (admin).
+  /// Révoque le parent V1 de la fiche (admin ou titulaire).
   Future<void> revokeGuardian({
     required String clubId,
     required String memberId,
@@ -200,5 +193,64 @@ class GuardianService {
       'memberId': memberId,
       if (parentUid != null && parentUid.isNotEmpty) 'parentUid': parentUid,
     });
+  }
+
+  /// Change l’e-mail d’une invitation parent pending.
+  Future<void> updateGuardianInviteEmail({
+    required String clubId,
+    required String memberId,
+    required String email,
+    String? invitationId,
+  }) async {
+    final callable = _functions.httpsCallable('updateGuardianInviteEmail');
+    await callable.call<Map<String, dynamic>>({
+      'clubId': clubId,
+      'memberId': memberId,
+      'email': email.trim(),
+      if (invitationId != null && invitationId.isNotEmpty)
+        'invitationId': invitationId,
+    });
+  }
+
+  /// Prolonge l’expiration d’une invitation parent pending.
+  Future<({String code, DateTime? expiresAt})> extendGuardianInvite({
+    required String clubId,
+    required String memberId,
+    String? invitationId,
+  }) async {
+    final callable = _functions.httpsCallable('extendGuardianInvite');
+    final response = await callable.call<Map<String, dynamic>>({
+      'clubId': clubId,
+      'memberId': memberId,
+      if (invitationId != null && invitationId.isNotEmpty)
+        'invitationId': invitationId,
+    });
+    final data = response.data;
+    final expiresRaw = data['expiresAt'] as String?;
+    return (
+      code: data['code'] as String? ?? '',
+      expiresAt: expiresRaw != null ? DateTime.tryParse(expiresRaw) : null,
+    );
+  }
+
+  /// Régénère le code d’une invitation parent pending.
+  Future<({String code, DateTime? expiresAt})> regenerateGuardianInvite({
+    required String clubId,
+    required String memberId,
+    String? invitationId,
+  }) async {
+    final callable = _functions.httpsCallable('regenerateGuardianInvite');
+    final response = await callable.call<Map<String, dynamic>>({
+      'clubId': clubId,
+      'memberId': memberId,
+      if (invitationId != null && invitationId.isNotEmpty)
+        'invitationId': invitationId,
+    });
+    final data = response.data;
+    final expiresRaw = data['expiresAt'] as String?;
+    return (
+      code: data['code'] as String? ?? '',
+      expiresAt: expiresRaw != null ? DateTime.tryParse(expiresRaw) : null,
+    );
   }
 }

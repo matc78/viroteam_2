@@ -61,6 +61,15 @@ class ClubMember {
     return displayName ?? '';
   }
 
+  /// Prénom affiché (invites parent, puces famille) — firstName ou 1er token.
+  String get preferredFirstName {
+    final first = firstName?.trim() ?? '';
+    if (first.isNotEmpty) return first;
+    final display = fullName.trim();
+    if (display.isNotEmpty) return display.split(' ').first;
+    return 'Enfant';
+  }
+
   String get initials {
     final parts = fullName.trim().split(RegExp(r'\s+'));
     if (parts.isEmpty) return '?';

@@ -21,6 +21,7 @@ import {
 import { defaultSeasonEndDate } from "@/lib/planning/seasonEnd";
 import { HELLOASSO_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import panelStyles from "./DashboardPanel.module.css";
+import { PlanningSelect } from "./PlanningSelect";
 import styles from "./FeesConfigForm.module.css";
 
 /** Props du formulaire de configuration cotisations. */
@@ -220,32 +221,28 @@ export function FeesConfigForm({
         <div className={styles.grid2}>
           <label className={styles.field}>
             <span className={styles.label}>Libellé saison</span>
-            <select
-              className={styles.input}
+            <PlanningSelect
+              id="fees-season-label"
               value={seasonLabel}
-              onChange={(e) => setSeasonLabel(e.target.value)}
               required
-            >
-              {SEASON_LABEL_OPTIONS.map((label) => (
-                <option key={label} value={label}>
-                  {label}
-                </option>
-              ))}
-            </select>
+              options={SEASON_LABEL_OPTIONS.map((label) => ({
+                value: label,
+                label,
+              }))}
+              onChange={setSeasonLabel}
+            />
           </label>
           <label className={styles.field}>
             <span className={styles.label}>Devise</span>
-            <select
-              className={styles.input}
+            <PlanningSelect
+              id="fees-currency"
               value={currency}
-              onChange={(e) => setCurrency(e.target.value as FeeCurrency)}
-            >
-              {FEE_CURRENCY_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              options={FEE_CURRENCY_OPTIONS.map((option) => ({
+                value: option.id,
+                label: option.label,
+              }))}
+              onChange={(next) => setCurrency(next as FeeCurrency)}
+            />
           </label>
           <label className={styles.field}>
             <span className={styles.label}>Fin de saison (planning)</span>

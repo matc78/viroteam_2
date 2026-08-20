@@ -56,7 +56,7 @@
 
 .list {
   position: absolute;
-  z-index: 50;
+  z-index: 80;
   top: calc(100% + 0.25rem);
   left: 0;
   right: 0;
@@ -73,6 +73,10 @@
     0 0 0 1px color-mix(in srgb, var(--color-primary-900) 4%, transparent);
   max-height: 11rem;
   outline: none;
+}
+
+.list[data-portal="true"] {
+  right: auto;
 }
 
 .list[data-compact="true"] {

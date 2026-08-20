@@ -1,6 +1,6 @@
 .panel {
   width: min(100%, 44rem);
-  max-height: min(92vh, 44rem);
+  max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
 }
 
 .lead {

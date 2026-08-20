@@ -5,6 +5,8 @@ import { MemberRoles } from "@/lib/firebase/constants";
 import type { AddMemberResult } from "@/lib/firebase/memberService";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
+import { PlanningSelect } from "./PlanningSelect";
+import { InviteEmailButton } from "./InviteEmailButton";
 import styles from "./AddMemberDialog.module.css";
 
 /** Props du dialog d’ajout membre. */
@@ -16,12 +18,14 @@ type AddMemberDialogProps = {
   onSubmit: (input: {
     firstName: string;
     lastName: string;
+    email: string;
     role: typeof MemberRoles.player | typeof MemberRoles.coach;
   }) => Promise<void>;
   onCopyInvite: () => void;
+  onEmailInvite: () => Promise<boolean>;
 };
 
-/** Dialog ajout membre (prénom / nom / rôle joueur|coach). */
+/** Dialog ajout membre (prénom / nom / e-mail optionnel / rôle joueur|coach). */
 export function AddMemberDialog({
   busy,
   error,
@@ -29,9 +33,11 @@ export function AddMemberDialog({
   onClose,
   onSubmit,
   onCopyInvite,
+  onEmailInvite,
 }: AddMemberDialogProps) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState<
     typeof MemberRoles.player | typeof MemberRoles.coach
   >(MemberRoles.player);
@@ -43,7 +49,7 @@ export function AddMemberDialog({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    await onSubmit({ firstName, lastName, role });
+    await onSubmit({ firstName, lastName, email, role });
   }
 
   return (
@@ -87,17 +93,29 @@ export function AddMemberDialog({
               {created.member.displayName} a été ajouté·e. Partagez ce code :
             </p>
             <p className={styles.code}>{created.invitation.code}</p>
-            <div className={dialogStyles.actions}>
+            <div
+              className={`${dialogStyles.actions} ${styles.successActions}`}
+            >
+              {created.member.email ? (
+                <InviteEmailButton
+                  onSend={onEmailInvite}
+                  disabled={busy}
+                />
+              ) : null}
               <button
                 type="button"
-                className={dialogStyles.button}
+                className={
+                  created.member.email
+                    ? dialogStyles.buttonSecondary
+                    : dialogStyles.button
+                }
                 onClick={onCopyInvite}
               >
                 Copier le message
               </button>
               <button
                 type="button"
-                className={dialogStyles.buttonSecondary}
+                className={dialogStyles.buttonDanger}
                 onClick={requestClose}
               >
                 Fermer
@@ -132,22 +150,37 @@ export function AddMemberDialog({
               />
             </label>
             <label className={dialogStyles.field}>
+              <span className={dialogStyles.label}>
+                E-mail <span className={styles.optional}>(optionnel)</span>
+              </span>
+              <input
+                className={styles.input}
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                disabled={busy}
+                autoComplete="off"
+                placeholder="pour préremplir l’invitation"
+              />
+            </label>
+            <label className={dialogStyles.field}>
               <span className={dialogStyles.label}>Rôle</span>
-              <select
-                className={styles.select}
+              <PlanningSelect
+                id="add-member-role"
                 value={role}
-                onChange={(event) =>
+                disabled={busy}
+                options={[
+                  { value: MemberRoles.player, label: "Joueur" },
+                  { value: MemberRoles.coach, label: "Coach" },
+                ]}
+                onChange={(next) =>
                   setRole(
-                    event.target.value as
+                    next as
                       | typeof MemberRoles.player
                       | typeof MemberRoles.coach,
                   )
                 }
-                disabled={busy}
-              >
-                <option value={MemberRoles.player}>Joueur</option>
-                <option value={MemberRoles.coach}>Coach</option>
-              </select>
+              />
             </label>
 
             {error ? (

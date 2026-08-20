@@ -24,7 +24,7 @@ type ImportMembersDialogProps = {
   onClose: () => void;
   onImport: (
     rows: MemberImportRow[],
-    meta: { skippedDuplicates: number },
+    meta: { skippedDuplicates: number; sendInvites: boolean },
   ) => Promise<void>;
 };
 
@@ -40,6 +40,7 @@ export function ImportMembersDialog({
 }: ImportMembersDialogProps) {
   const [rawCsv, setRawCsv] = useState("");
   const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [sendInvites, setSendInvites] = useState(true);
 
   const previewRows = useMemo(
     () => (rawCsv.trim() ? parseMembersCsv(rawCsv, existingMembers) : []),
@@ -124,6 +125,9 @@ export function ImportMembersDialog({
               {report.created > 1 ? "s" : ""}, {report.skipped} ignoré
               {report.skipped > 1 ? "s" : ""}, {report.failed} échec
               {report.failed > 1 ? "s" : ""}.
+              {report.emailsSent > 0
+                ? ` ${report.emailsSent} invitation${report.emailsSent > 1 ? "s" : ""} envoyée${report.emailsSent > 1 ? "s" : ""} par e-mail.`
+                : ""}
             </p>
             {report.errors.length > 0 ? (
               <ul className={styles.reportList}>
@@ -192,6 +196,19 @@ export function ImportMembersDialog({
                   disabled={busy}
                 />{" "}
                 Ignorer les doublons (même prénom + nom)
+              </span>
+            </label>
+
+            <label className={dialogStyles.field}>
+              <span>
+                <input
+                  type="checkbox"
+                  checked={sendInvites}
+                  onChange={(event) => setSendInvites(event.target.checked)}
+                  disabled={busy}
+                />{" "}
+                Envoyer les invitations par e-mail (Brevo) aux lignes avec
+                e-mail
               </span>
             </label>
 
@@ -268,7 +285,10 @@ export function ImportMembersDialog({
                 className={dialogStyles.button}
                 disabled={busy || importableRows.length === 0}
                 onClick={() =>
-                  void onImport(importableRows, { skippedDuplicates })
+                  void onImport(importableRows, {
+                    skippedDuplicates,
+                    sendInvites,
+                  })
                 }
               >
                 {busy

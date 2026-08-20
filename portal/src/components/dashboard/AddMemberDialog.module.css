@@ -1,6 +1,6 @@
 .panel {
   width: min(100%, 26rem);
-  max-height: min(90vh, 36rem);
+  max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
 }
 
 .form {
@@ -23,11 +23,17 @@
 .success {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--color-success) 10%, white);
   border: 1px solid color-mix(in srgb, var(--color-success) 28%, white);
+  text-align: center;
+}
+
+.successActions {
+  justify-content: center;
 }
 
 .code {
@@ -36,4 +42,12 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--color-primary-900);
+  text-align: center;
+}
+
+.optional {
+  font-weight: 500;
+  color: var(--color-gray-500);
+  text-transform: none;
+  letter-spacing: 0;
 }

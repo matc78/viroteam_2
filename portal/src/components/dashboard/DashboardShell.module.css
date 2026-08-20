@@ -236,6 +236,8 @@
 
 .clubSelectLabel {
   min-width: 0;
+  max-width: 14rem;
+  width: min(14rem, 100%);
 }
 
 .clubSelect {

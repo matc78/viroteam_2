@@ -1,20 +1,21 @@
 .backdrop {
   position: fixed;
-  inset: 0;
-  z-index: 40;
+  top: var(--header-height);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-md);
-  background: color-mix(in srgb, var(--color-primary-900) 18%, transparent);
-  backdrop-filter: blur(2px);
+  padding: var(--space-lg);
+  background: transparent;
 }
 
 .backdrop[data-anchored="true"] {
   display: block;
   padding: 0;
-  background: color-mix(in srgb, var(--color-primary-900) 10%, transparent);
-  backdrop-filter: none;
+  background: transparent;
 }
 
 .panel {
@@ -27,15 +28,21 @@
   flex-direction: column;
   gap: 0;
   padding: 0 !important;
+  transform: translateY(-0.35rem);
+}
+
+.backdrop .panel {
   box-shadow:
-    0 20px 48px color-mix(in srgb, var(--color-primary-900) 18%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--color-sport-cyan) 28%, transparent);
+    0 2px 4px color-mix(in srgb, var(--color-primary-900) 6%, transparent),
+    0 12px 28px color-mix(in srgb, var(--color-primary-900) 12%, transparent),
+    0 28px 64px color-mix(in srgb, var(--color-primary-900) 16%, transparent);
 }
 
 .backdrop[data-anchored="true"] .panel {
   position: fixed;
   z-index: 41;
   margin: 0;
+  transform: none;
 }
 
 .header {

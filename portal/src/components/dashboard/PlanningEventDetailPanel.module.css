@@ -1,20 +1,31 @@
 .backdrop {
   position: fixed;
-  inset: 0;
-  z-index: 40;
+  top: var(--header-height);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 50;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding: var(--space-md);
-  background: color-mix(in srgb, var(--color-primary-900) 28%, transparent);
+  padding: var(--space-lg);
+  background: transparent;
 }
 
 .panel {
   width: min(100%, 28rem);
-  max-height: min(85vh, 32rem);
+  max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
   min-height: 0 !important;
   height: fit-content;
   overflow: auto;
+  transform: translateY(-0.35rem);
+}
+
+.backdrop .panel {
+  box-shadow:
+    0 2px 4px color-mix(in srgb, var(--color-primary-900) 6%, transparent),
+    0 12px 28px color-mix(in srgb, var(--color-primary-900) 12%, transparent),
+    0 28px 64px color-mix(in srgb, var(--color-primary-900) 16%, transparent);
 }
 
 .header {
@@ -135,10 +146,4 @@
   margin-top: var(--space-sm);
   font-size: 0.85rem;
   color: var(--color-gray-600);
-}
-
-@media (min-width: 640px) {
-  .backdrop {
-    align-items: center;
-  }
 }

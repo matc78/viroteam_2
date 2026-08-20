@@ -6,6 +6,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
 import { DashboardPageTransition } from "@/components/dashboard/DashboardPageTransition";
+import { PlanningSelect } from "@/components/dashboard/PlanningSelect";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
 import styles from "./DashboardShell.module.css";
@@ -81,18 +82,16 @@ export function DashboardShell({ children }: DashboardShellProps) {
             {adminClubs.length > 1 ? (
               <label className={styles.clubSelectLabel}>
                 <span className={styles.srOnly}>Club actif</span>
-                <select
-                  className={styles.clubSelect}
+                <PlanningSelect
+                  id="dashboard-active-club"
                   value={activeClub?.id ?? ""}
-                  onChange={(event) => setActiveClubId(event.target.value)}
                   aria-label="Sélectionner le club"
-                >
-                  {adminClubs.map((club) => (
-                    <option key={club.id} value={club.id}>
-                      {club.name}
-                    </option>
-                  ))}
-                </select>
+                  options={adminClubs.map((club) => ({
+                    value: club.id,
+                    label: club.name,
+                  }))}
+                  onChange={setActiveClubId}
+                />
               </label>
             ) : (
               <span className={styles.clubName}>{resolvedClubName}</span>

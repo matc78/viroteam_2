@@ -21,6 +21,7 @@ import {
   validateOfflinePayment,
 } from "@/lib/firebase/feeService";
 import panelStyles from "./DashboardPanel.module.css";
+import { PlanningSelect } from "./PlanningSelect";
 import styles from "./FeesTrackingPanel.module.css";
 
 /** Props du panneau suivi cotisations. */
@@ -289,19 +290,17 @@ function FeeTrackingRowItem({
             <div className={styles.formGrid}>
               <label className={styles.field}>
                 <span className={styles.label}>Moyen</span>
-                <select
-                  className={styles.input}
+                <PlanningSelect
+                  id="fees-offline-method"
                   value={offlineMethod}
-                  onChange={(event) =>
-                    setOfflineMethod(event.target.value as OfflinePaymentMethod)
+                  options={OfflinePaymentMethods.map((method) => ({
+                    value: method,
+                    label: OFFLINE_LABELS.get(method) ?? method,
+                  }))}
+                  onChange={(next) =>
+                    setOfflineMethod(next as OfflinePaymentMethod)
                   }
-                >
-                  {OfflinePaymentMethods.map((method) => (
-                    <option key={method} value={method}>
-                      {OFFLINE_LABELS.get(method) ?? method}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
               <label className={styles.field}>
                 <span className={styles.label}>Montant (€)</span>

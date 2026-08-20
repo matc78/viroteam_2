@@ -4,6 +4,21 @@ import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart'
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 
+/// Fiche enfant affichée en liste (parent seul dans le club) — 1er lien actif.
+final familyPrimaryChildProvider =
+    FutureProvider.family<ClubMember?, String>((ref, clubId) async {
+  final user = ref.watch(viroUserProvider).value;
+  if (user == null || user.isLicensedInClub(clubId)) return null;
+
+  final childLinks = user.activeParentLinksInClub(clubId);
+  if (childLinks.isEmpty) return null;
+
+  return ref.read(guardianServiceProvider).getClubMember(
+        clubId: clubId,
+        memberId: childLinks.first.memberId,
+      );
+});
+
 /// Cible des actions dans un club : sa fiche ou un enfant.
 enum FamilyAudienceKind { self, child }
 

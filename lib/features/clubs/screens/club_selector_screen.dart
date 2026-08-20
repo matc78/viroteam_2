@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -14,6 +15,8 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/features/clubs/widgets/add_club_sheet.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
+import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
@@ -33,11 +36,11 @@ class ClubSelectorScreen extends ConsumerWidget {
       body: SafeArea(
         child: clubsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => const ViroErrorState(),
+          error: (_, __) => const ViroErrorState(),
           data: (clubs) {
             return invitationsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, _) => const ViroErrorState(),
+              error: (_, __) => const ViroErrorState(),
               data: (invitations) => _ClubSelectorBody(
                 clubs: clubs,
                 invitations: invitations,
@@ -209,7 +212,7 @@ class _EmptyStateWidget extends StatelessWidget {
   }
 }
 
-class _ClubCard extends StatelessWidget {
+class _ClubCard extends ConsumerWidget {
   const _ClubCard({
     required this.entry,
     required this.onTap,
@@ -219,7 +222,7 @@ class _ClubCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
     final club = entry.club;
     final membership = entry.membership;
@@ -228,6 +231,7 @@ class _ClubCard extends StatelessWidget {
       clubId: club.id,
     );
     final memberLabel = club.memberCount == 1 ? 'membre' : 'membres';
+    final familyChild = ref.watch(familyPrimaryChildProvider(club.id)).value;
 
     return GestureDetector(
       onTap: onTap,
@@ -243,10 +247,10 @@ class _ClubCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                _ClubAvatar(
-                  logoUrl: club.logoUrl,
-                  name: club.name,
+                ClubContextAvatar(
+                  club: club,
                   accentColor: accentColor,
+                  childMember: familyChild,
                 ),
                 const SizedBox(width: ViroSpacing.md),
                 Expanded(
@@ -285,7 +289,7 @@ class _ClubCard extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    Icons.calendar_today,
+                    ViroIcons.calendar,
                     size: 16,
                     color: ViroColors.gray600,
                   ),
@@ -312,7 +316,7 @@ class _ClubCard extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: Icon(
-                Icons.arrow_forward,
+                ViroIcons.chevronRight,
                 size: 20,
                 color: accentColor,
               ),
@@ -336,47 +340,6 @@ class _ClubCard extends StatelessWidget {
       badges.add(const ViroRoleBadge(role: ViroRole.admin, compact: true));
     }
     return badges;
-  }
-}
-
-class _ClubAvatar extends StatelessWidget {
-  const _ClubAvatar({
-    required this.logoUrl,
-    required this.name,
-    required this.accentColor,
-  });
-
-  final String? logoUrl;
-  final String name;
-  final Color accentColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: accentColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        image: logoUrl != null
-            ? DecorationImage(
-                image: NetworkImage(logoUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
-      ),
-      alignment: Alignment.center,
-      child: logoUrl == null
-          ? Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: TextStyle(
-                color: accentColor,
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-              ),
-            )
-          : null,
-    );
   }
 }
 

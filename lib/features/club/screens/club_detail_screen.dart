@@ -12,6 +12,9 @@ import 'package:viro_team_v2/features/announcements/providers/announcement_provi
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
+import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
+import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
+import 'package:viro_team_v2/features/members/widgets/my_parent_section.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
@@ -98,6 +101,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final memberAsync = ref.watch(clubMemberProvider(clubId));
     final selected = ref.watch(selectedClubAudienceProvider(clubId));
     final isChildView = selected?.isChild == true;
+    final familyChildAsync = isChildView
+        ? ref.watch(clubAudienceMemberProvider(clubId))
+        : const AsyncValue<ClubMember?>.data(null);
     final eventsAsync = isChildView && selected != null
         ? ref.watch(
             clubEventsForMemberProvider(
@@ -120,7 +126,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       ),
       body: clubAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const ViroErrorState(),
+        error: (_, __) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
             return const Center(child: Text('Club introuvable'));
@@ -137,6 +143,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 child: _ClubHeader(
                   club: club,
                   member: isChildView ? null : memberAsync.value,
+                  familyChild: familyChildAsync.value,
                   accent: accent,
                 ),
               ),
@@ -198,6 +205,14 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                     )
                                 : null,
                           ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: ViroSpacing.screenHorizontal,
+                            ),
+                            child: m.role == MemberRoles.player
+                                ? MyParentSection(club: club, member: m)
+                                : const SizedBox.shrink(),
+                          ),
                           if (MemberRoleHierarchy.isCoachOrAbove(m.role)) ...[
                             const _SectionTitle(title: 'Gestion du club'),
                             ClubManagementActionsGrid(
@@ -225,7 +240,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                       );
                     },
                     loading: () => const SizedBox.shrink(),
-                    error: (_, _) => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
                   ),
                 ),
               ],
@@ -259,7 +274,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             ),
           ),
         ],
-        error: (_, _) => [
+        error: (_, __) => [
           const SliverToBoxAdapter(child: ViroErrorState()),
         ],
         data: (state) {
@@ -303,7 +318,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       ),
       ...feeAsync.when(
         loading: () => const <Widget>[],
-        error: (_, _) => const <Widget>[],
+        error: (_, __) => const <Widget>[],
         data: (data) {
           final season = data.season;
           final fee = data.fee;
@@ -432,7 +447,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
 
     return attendanceAsync.when(
       loading: () => const [],
-      error: (_, _) {
+      error: (_, __) {
         final next = eventsAsync.value?.upcoming.firstOrNull;
         return [SliverToBoxAdapter(child: buildRow(rate: null, next: next))];
       },
@@ -449,7 +464,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   }) {
     return announcementsAsync.when(
       loading: () => const [],
-      error: (_, _) => const [],
+      error: (_, __) => const [],
       data: (items) {
         if (items.isEmpty) return const [];
         final previews = items.take(3).toList();
@@ -499,54 +514,56 @@ class _ClubHeader extends StatelessWidget {
     required this.club,
     required this.member,
     required this.accent,
+    this.familyChild,
   });
 
   final Club club;
   final ClubMember? member;
+  final ClubMember? familyChild;
   final Color accent;
+
+  String get _familyChildTitle {
+    final child = familyChild;
+    if (child == null) return club.name;
+    final first = child.firstName?.trim() ?? '';
+    if (first.isNotEmpty) return first;
+    final full = child.fullName.trim();
+    if (full.isNotEmpty) return full;
+    return 'Enfant';
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final subtitle = [
-      club.sport,
-      if (club.city != null && club.city!.isNotEmpty) club.city,
-    ].join(' · ');
+    final isFamilyView = familyChild != null;
+    final subtitle = isFamilyView
+        ? [
+            club.name,
+            club.sport,
+            if (club.city != null && club.city!.isNotEmpty) club.city,
+          ].join(' · ')
+        : [
+            club.sport,
+            if (club.city != null && club.city!.isNotEmpty) club.city,
+          ].join(' · ');
 
     return Padding(
       padding: const EdgeInsets.all(ViroSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: accent),
-              image: club.logoUrl != null
-                  ? DecorationImage(
-                      image: NetworkImage(club.logoUrl!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
+          if (isFamilyView)
+            MemberAvatar(member: familyChild!, size: 72)
+          else
+            ClubContextAvatar(
+              club: club,
+              accentColor: accent,
+              size: 72,
+              borderRadius: 18,
             ),
-            alignment: Alignment.center,
-            child: club.logoUrl == null
-                ? Text(
-                    club.name.isNotEmpty ? club.name[0].toUpperCase() : '?',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: accent,
-                    ),
-                  )
-                : null,
-          ),
           const SizedBox(height: ViroSpacing.md),
           Text(
-            club.name,
+            isFamilyView ? _familyChildTitle : club.name,
             textAlign: TextAlign.center,
             style: theme.titleMedium?.copyWith(
               color: ViroColors.primary800,

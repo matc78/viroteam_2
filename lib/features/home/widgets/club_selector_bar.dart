@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
+import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
+import 'package:viro_team_v2/models/club.dart';
+import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
-class ClubSelectorBar extends StatelessWidget {
+class ClubSelectorBar extends ConsumerWidget {
   const ClubSelectorBar({
     super.key,
     required this.clubs,
@@ -25,14 +30,16 @@ class ClubSelectorBar extends StatelessWidget {
   static const double _addButtonSize = 36;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final items = clubs.map((entry) {
       final club = entry.club;
       final membership = entry.membership;
       final pending = pendingByClub[club.id] ?? 0;
+      final familyChild = ref.watch(familyPrimaryChildProvider(club.id)).value;
       return _ClubBarItem(
         label: _shortName(club.name),
-        logoUrl: club.logoUrl,
+        club: club,
+        childMember: familyChild,
         role: membership == null
             ? null
             : viroRoleFromMemberRole(membership.role),
@@ -128,17 +135,19 @@ class _AddClubBarItem extends StatelessWidget {
 class _ClubBarItem extends StatelessWidget {
   const _ClubBarItem({
     required this.label,
+    required this.club,
     required this.onTap,
+    this.childMember,
     this.role,
-    this.logoUrl,
     this.accentColor,
     this.badgeCount,
   });
 
   final String label;
+  final Club club;
   final VoidCallback onTap;
+  final ClubMember? childMember;
   final ViroRole? role;
-  final String? logoUrl;
   final Color? accentColor;
   final int? badgeCount;
 
@@ -159,31 +168,12 @@ class _ClubBarItem extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Container(
-                  width: _logoSize,
-                  height: _logoSize,
-                  decoration: BoxDecoration(
-                    color: Color.lerp(ViroColors.white, color, 0.12)!,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: color, width: 1.5),
-                    image: logoUrl != null
-                        ? DecorationImage(
-                            image: NetworkImage(logoUrl!),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: logoUrl == null
-                      ? Text(
-                          label.isNotEmpty ? label[0].toUpperCase() : '?',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: color,
-                          ),
-                        )
-                      : null,
+                ClubContextAvatar(
+                  club: club,
+                  accentColor: color,
+                  childMember: childMember,
+                  size: _logoSize,
+                  borderRadius: _logoSize / 2,
                 ),
                 if (badgeCount != null)
                   Positioned(

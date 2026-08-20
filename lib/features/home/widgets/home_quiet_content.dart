@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
+import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
@@ -141,7 +144,7 @@ class _EmptyPlanningCard extends StatelessWidget {
   }
 }
 
-class _ClubShortcutTile extends StatelessWidget {
+class _ClubShortcutTile extends ConsumerWidget {
   const _ClubShortcutTile({
     required this.entry,
     required this.onTap,
@@ -151,7 +154,7 @@ class _ClubShortcutTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
     final club = entry.club;
     final membership = entry.membership;
@@ -159,6 +162,7 @@ class _ClubShortcutTile extends StatelessWidget {
       brandColorHex: club.brandColorHex,
       clubId: club.id,
     );
+    final familyChild = ref.watch(familyPrimaryChildProvider(club.id)).value;
     final location = club.city?.trim();
     final subtitle = [
       club.sport,
@@ -174,10 +178,11 @@ class _ClubShortcutTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _ClubLogo(
-            name: club.name,
-            logoUrl: club.logoUrl,
-            accent: accent,
+          ClubContextAvatar(
+            club: club,
+            accentColor: accent,
+            childMember: familyChild,
+            borderRadius: 22,
           ),
           const SizedBox(width: ViroSpacing.md),
           Expanded(
@@ -218,52 +223,6 @@ class _ClubShortcutTile extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ClubLogo extends StatelessWidget {
-  const _ClubLogo({
-    required this.name,
-    required this.accent,
-    this.logoUrl,
-  });
-
-  final String name;
-  final Color accent;
-  final String? logoUrl;
-
-  static const double _size = 44;
-
-  @override
-  Widget build(BuildContext context) {
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-
-    return Container(
-      width: _size,
-      height: _size,
-      decoration: BoxDecoration(
-        color: Color.lerp(ViroColors.white, accent, 0.12)!,
-        shape: BoxShape.circle,
-        border: Border.all(color: Color.lerp(ViroColors.white, accent, 0.5)!),
-        image: logoUrl != null
-            ? DecorationImage(
-                image: NetworkImage(logoUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
-      ),
-      alignment: Alignment.center,
-      child: logoUrl == null
-          ? Text(
-              initial,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: accent,
-              ),
-            )
-          : null,
     );
   }
 }

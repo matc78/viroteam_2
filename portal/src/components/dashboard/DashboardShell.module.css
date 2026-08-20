@@ -74,45 +74,57 @@
 .nav {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.28rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-gray-200);
-  background: var(--color-gray-100);
+  gap: clamp(1.25rem, 2.5vw, 2rem);
   justify-self: center;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .navLink {
   display: inline-flex;
   align-items: center;
   min-height: 2.15rem;
-  padding: 0.35rem 1rem;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
   color: var(--color-gray-600);
+  background: transparent;
+  box-shadow: none;
   transition:
-    color 160ms ease,
-    background 160ms ease,
-    box-shadow 160ms ease;
+    color 140ms ease,
+    font-size 140ms ease,
+    font-weight 140ms ease;
 }
 
-.navLink:hover {
-  color: var(--color-primary-800);
+.navLink:hover,
+.navLinkPending {
+  color: var(--nav-tone);
 }
 
 .navLinkActive {
-  color: var(--color-primary-900);
-  background: var(--color-white);
-  box-shadow:
-    0 1px 2px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--color-gray-200) 80%, transparent);
+  color: var(--nav-tone);
+  font-size: 1.12rem;
+  font-weight: 700;
+  background: transparent;
+  box-shadow: none;
 }
 
-.navLinkPending {
-  color: var(--color-primary-800);
-  background: color-mix(in srgb, var(--color-white) 70%, var(--color-primary-100));
-  opacity: 0.85;
+.toneOrange {
+  --nav-tone: var(--color-sport-orange);
+}
+
+.toneGreen {
+  --nav-tone: var(--color-sport-green);
+}
+
+.toneBlue {
+  --nav-tone: var(--color-sport-cyan);
+}
+
+.toneYellow {
+  --nav-tone: color-mix(in srgb, var(--color-sport-yellow) 35%, #854d0e);
 }
 
 .actions {
@@ -320,6 +332,11 @@
   .navLink {
     flex: 1;
     justify-content: center;
-    padding-inline: 0.75rem;
+    padding-inline: 0.35rem;
+    font-size: 0.88rem;
+  }
+
+  .navLinkActive {
+    font-size: 1.02rem;
   }
 }

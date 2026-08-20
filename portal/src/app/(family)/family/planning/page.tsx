@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { FamilyPlanningClient } from "@/components/family/FamilyPlanningClient";
 
 export const metadata: Metadata = {
   title: "Planning famille — ViroTeam",
   description: "Convocations et RSVP de tes enfants.",
 };
 
-/** Planning espace famille. */
+/**
+ * Route Planning famille — contenu rendu par FamilyModulePanels (keep-alive).
+ */
 export default function FamilyPlanningPage() {
-  return <FamilyPlanningClient />;
+  return null;
 }

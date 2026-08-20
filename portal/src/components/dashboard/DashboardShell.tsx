@@ -2,25 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
-import { DashboardPageTransition } from "@/components/dashboard/DashboardPageTransition";
+import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePanels";
 import { PlanningSelect } from "@/components/dashboard/PlanningSelect";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
+import { clubLabelWithSportEmoji } from "@/lib/sports/sportEmoji";
 import styles from "./DashboardShell.module.css";
 
-/** Props de la coquille espace club. */
-type DashboardShellProps = {
-  children: ReactNode;
-};
-
 const NAV_ITEMS = [
-  { href: "/home", label: "Accueil" },
-  { href: "/members", label: "Membres" },
-  { href: "/planning", label: "Planning" },
-  { href: "/fees", label: "Cotisations" },
+  { href: "/home", label: "Accueil", toneClass: "toneOrange" },
+  { href: "/members", label: "Membres", toneClass: "toneGreen" },
+  { href: "/planning", label: "Planning", toneClass: "toneBlue" },
+  { href: "/fees", label: "Cotisations", toneClass: "toneYellow" },
 ] as const;
 
 const WIDE_PATH_PREFIXES = ["/members", "/planning"] as const;
@@ -43,7 +39,7 @@ function userInitials(displayName: string): string {
 }
 
 /** Coquille espace club : header bureau + nav modules + logout. */
-export function DashboardShell({ children }: DashboardShellProps) {
+export function DashboardShell() {
   const pathname = usePathname();
   const {
     activeClub,
@@ -58,7 +54,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
     setPendingHref(null);
   }, [pathname]);
 
-  const resolvedClubName = activeClub?.name ?? "Club";
+  const resolvedClubName = clubLabelWithSportEmoji({
+    name: activeClub?.name ?? "Club",
+    sport: activeClub?.sport,
+  });
   const resolvedAdminName = profile?.displayName ?? "Admin";
   const wide = isWidePath(pathname);
 
@@ -88,7 +87,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
                   aria-label="Sélectionner le club"
                   options={adminClubs.map((club) => ({
                     value: club.id,
-                    label: club.name,
+                    label: clubLabelWithSportEmoji({
+                      name: club.name,
+                      sport: club.sport,
+                    }),
                   }))}
                   onChange={setActiveClubId}
                 />
@@ -106,7 +108,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`${styles.navLink}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
+                  scroll={false}
+                  prefetch
+                  className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => {
                     if (!isActive) setPendingHref(item.href);
@@ -140,7 +144,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
         </div>
       </header>
       <main className={wide ? `${styles.main} ${styles.mainWide}` : styles.main}>
-        <DashboardPageTransition>{children}</DashboardPageTransition>
+        <DashboardModulePanels />
       </main>
     </div>
   );

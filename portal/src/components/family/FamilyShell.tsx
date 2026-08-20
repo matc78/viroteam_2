@@ -2,23 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
-import { DashboardPageTransition } from "@/components/dashboard/DashboardPageTransition";
 import { PlanningSelect } from "@/components/dashboard/PlanningSelect";
+import { FamilyAudienceProvider } from "@/components/family/FamilyAudienceProvider";
+import { FamilyModulePanels } from "@/components/family/FamilyModulePanels";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
+import { clubLabelWithSportEmoji } from "@/lib/sports/sportEmoji";
 import styles from "@/components/dashboard/DashboardShell.module.css";
 
-type FamilyShellProps = {
-  children: ReactNode;
-};
-
 const NAV_ITEMS = [
-  { href: "/family", label: "Accueil" },
-  { href: "/family/planning", label: "Planning" },
-  { href: "/family/fees", label: "Cotisations" },
+  { href: "/family", label: "Accueil", toneClass: "toneOrange" },
+  { href: "/family/planning", label: "Planning", toneClass: "toneBlue" },
+  { href: "/family/fees", label: "Cotisations", toneClass: "toneYellow" },
 ] as const;
 
 function isNavItemActive(pathname: string, href: string): boolean {
@@ -34,7 +32,7 @@ function userInitials(displayName: string): string {
 }
 
 /** Coquille espace famille : nav distincte du bureau admin. */
-export function FamilyShell({ children }: FamilyShellProps) {
+export function FamilyShell() {
   const pathname = usePathname();
   const {
     activeClub,
@@ -49,7 +47,10 @@ export function FamilyShell({ children }: FamilyShellProps) {
     setPendingHref(null);
   }, [pathname]);
 
-  const resolvedClubName = activeClub?.name ?? "Club";
+  const resolvedClubName = clubLabelWithSportEmoji({
+    name: activeClub?.name ?? "Club",
+    sport: activeClub?.sport,
+  });
   const resolvedName = profile?.displayName ?? "Famille";
   const wide = pathname.startsWith("/family/planning");
 
@@ -79,7 +80,10 @@ export function FamilyShell({ children }: FamilyShellProps) {
                   aria-label="Sélectionner le club"
                   options={familyClubs.map((club) => ({
                     value: club.id,
-                    label: club.name,
+                    label: clubLabelWithSportEmoji({
+                      name: club.name,
+                      sport: club.sport,
+                    }),
                   }))}
                   onChange={setActiveClubId}
                 />
@@ -97,7 +101,9 @@ export function FamilyShell({ children }: FamilyShellProps) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`${styles.navLink}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
+                  scroll={false}
+                  prefetch
+                  className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => {
                     if (!isActive) setPendingHref(item.href);
@@ -131,7 +137,9 @@ export function FamilyShell({ children }: FamilyShellProps) {
         </div>
       </header>
       <main className={wide ? `${styles.main} ${styles.mainWide}` : styles.main}>
-        <DashboardPageTransition>{children}</DashboardPageTransition>
+        <FamilyAudienceProvider>
+          <FamilyModulePanels />
+        </FamilyAudienceProvider>
       </main>
     </div>
   );

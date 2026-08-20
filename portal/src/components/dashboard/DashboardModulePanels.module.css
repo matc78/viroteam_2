@@ -1,0 +1,12 @@
+.root {
+  width: 100%;
+}
+
+.panelActive {
+  display: block;
+  width: 100%;
+}
+
+.panelHidden {
+  display: none;
+}

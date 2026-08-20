@@ -10,7 +10,8 @@ export const metadata: Metadata = {
 
 /**
  * Layout partagé de l’espace club : garde auth + coquille (header/nav)
- * restent montés entre Accueil / Membres / Planning / Cotisations.
+ * restent montés ; les modules Accueil / Membres / Planning / Cotisations
+ * sont affichés/masqués sans recharger la page.
  */
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
@@ -18,7 +19,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <ClubIdFromUrlSync />
       </Suspense>
-      <DashboardShell>{children}</DashboardShell>
+      <DashboardShell />
+      {/* Slot Next.js (pages = null) : contenu réel dans DashboardModulePanels. */}
+      <div hidden aria-hidden="true">
+        {children}
+      </div>
     </DashboardGuard>
   );
 }

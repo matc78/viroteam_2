@@ -12,6 +12,10 @@ import {
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
 import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
+import {
+  listClubParentRows,
+  type ClubParentRow,
+} from "@/lib/members/parentsView";
 
 /** Ligne membre enrichie pour le tableau portail. */
 export type MemberRow = ClubMemberRecord & {
@@ -26,7 +30,9 @@ export type MemberRow = ClubMemberRecord & {
 export type MembersPageData = {
   members: MemberRow[];
   teams: TeamOption[];
+  seasonId: string | null;
   seasonLabel: string | null;
+  parents: ClubParentRow[];
 };
 
 /** Libellé FR d’un statut cotisation. */
@@ -79,7 +85,7 @@ function feeStatusForMember(
   return null;
 }
 
-/** Charge membres + équipes + cotisations saison active. */
+/** Charge membres + équipes + cotisations saison active + parents. */
 export async function loadMembersPageData(
   club: ClubRecord,
 ): Promise<MembersPageData> {
@@ -89,9 +95,10 @@ export async function loadMembersPageData(
     getActiveSeason(club.id),
   ]);
 
-  const fees = season
-    ? await listMemberFees(club.id, season.id)
-    : [];
+  const [fees, parentsResult] = await Promise.all([
+    season ? listMemberFees(club.id, season.id) : Promise.resolve([]),
+    listClubParentRows(club.id, members).catch(() => [] as ClubParentRow[]),
+  ]);
   const feesById = new Map(fees.map((fee) => [fee.id, fee]));
 
   const rows: MemberRow[] = members.map((member) => {
@@ -109,7 +116,9 @@ export async function loadMembersPageData(
   return {
     members: rows,
     teams,
+    seasonId: season?.id ?? null,
     seasonLabel: season?.seasonLabel ?? null,
+    parents: parentsResult,
   };
 }
 

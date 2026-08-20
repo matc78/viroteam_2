@@ -492,3 +492,52 @@ export async function setFeeAidStatus(params: {
     [Fields.updatedAt]: serverTimestamp(),
   });
 }
+
+const FEE_STATUS_VALUES = new Set<string>([
+  MemberFeeStatuses.aPayer,
+  MemberFeeStatuses.partiel,
+  MemberFeeStatuses.paye,
+  MemberFeeStatuses.exonere,
+]);
+
+/**
+ * Force le statut cotisation d’une fiche (actions bulk / admin).
+ * La fiche `member_fees/{memberId}` doit déjà exister.
+ */
+export async function setMemberFeeStatus(params: {
+  clubId: string;
+  seasonId: string;
+  memberId: string;
+  status:
+    | typeof MemberFeeStatuses.aPayer
+    | typeof MemberFeeStatuses.partiel
+    | typeof MemberFeeStatuses.paye
+    | typeof MemberFeeStatuses.exonere;
+}): Promise<void> {
+  const { clubId, seasonId, memberId, status } = params;
+  if (!FEE_STATUS_VALUES.has(status)) {
+    throw new Error("Statut cotisation invalide");
+  }
+
+  const feeRef = memberFeeRef(clubId, seasonId, memberId);
+  const snap = await getDoc(feeRef);
+  if (!snap.exists()) {
+    throw new Error("Fiche cotisation introuvable pour ce membre");
+  }
+
+  const uid = currentUid();
+  const payload: Record<string, unknown> = {
+    [Fields.feeStatus]: status,
+    [Fields.paidVia]: FeePaidVia.manual,
+    [Fields.markedBy]: uid,
+    [Fields.updatedAt]: serverTimestamp(),
+  };
+
+  if (status === MemberFeeStatuses.paye) {
+    payload[Fields.paidAt] = serverTimestamp();
+  } else {
+    payload[Fields.paidAt] = deleteField();
+  }
+
+  await updateDoc(feeRef, payload);
+}

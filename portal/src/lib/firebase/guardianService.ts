@@ -12,6 +12,9 @@ import {
   inviteGuardian as inviteGuardianCallable,
   linkGuardian as linkGuardianCallable,
   revokeGuardian as revokeGuardianCallable,
+  updateGuardianInviteEmail as updateGuardianInviteEmailCallable,
+  extendGuardianInvite as extendGuardianInviteCallable,
+  regenerateGuardianInvite as regenerateGuardianInviteCallable,
 } from "./callableService";
 import {
   Collections,
@@ -22,6 +25,13 @@ import {
 } from "./constants";
 import { getClubMember } from "./memberService";
 import { toDate } from "./types";
+import {
+  listClubParentRows,
+  type ClubParentRow,
+} from "@/lib/members/parentsView";
+
+export type { ClubParentRow };
+export { listClubParentRows };
 
 /** Vue parent affichée sur la fiche membre admin. */
 export type MemberGuardianView = {
@@ -31,6 +41,8 @@ export type MemberGuardianView = {
   email: string | null;
   invitationId: string | null;
   invitationCode: string | null;
+  expiresAt: Date | null;
+  inviteExpired: boolean;
 };
 
 function guardiansCol(clubId: string, memberId: string) {
@@ -67,6 +79,8 @@ export async function getMemberGuardian(
     email: null,
     invitationId: null,
     invitationCode: null,
+    expiresAt: null,
+    inviteExpired: false,
   };
 
   const guardiansSnap = await getDocs(guardiansCol(clubId, memberId));
@@ -107,6 +121,8 @@ export async function getMemberGuardian(
       email,
       invitationId: null,
       invitationCode: null,
+      expiresAt: null,
+      inviteExpired: false,
     };
   }
 
@@ -125,7 +141,9 @@ export async function getMemberGuardian(
 
   const invite = pendingInvite.data() as Record<string, unknown>;
   const expiresAt = toDate(invite[Fields.expiresAt]);
-  if (expiresAt && expiresAt.getTime() < Date.now()) return empty;
+  const inviteExpired = Boolean(
+    expiresAt && expiresAt.getTime() < Date.now(),
+  );
 
   return {
     parentUid: null,
@@ -134,6 +152,8 @@ export async function getMemberGuardian(
     email: String(invite[Fields.email] ?? "").trim() || null,
     invitationId: pendingInvite.id,
     invitationCode: String(invite[Fields.code] ?? "").trim() || null,
+    expiresAt,
+    inviteExpired,
   };
 }
 
@@ -142,8 +162,17 @@ export async function inviteMemberGuardian(params: {
   clubId: string;
   memberId: string;
   email: string;
-}): Promise<void> {
-  await inviteGuardianCallable(params);
+}): Promise<{
+  invitationId: string;
+  code: string;
+  expiresAt: string;
+}> {
+  const result = await inviteGuardianCallable(params);
+  return {
+    invitationId: result.invitationId,
+    code: result.code,
+    expiresAt: result.expiresAt,
+  };
 }
 
 /** Révoque le parent V1 de la fiche. */
@@ -157,6 +186,42 @@ export async function revokeMemberGuardian(params: {
     memberId: params.memberId,
     parentUid: params.parentUid ?? undefined,
   });
+}
+
+/** Change l’e-mail d’une invitation parent pending. */
+export async function updateMemberGuardianInviteEmail(params: {
+  clubId: string;
+  memberId: string;
+  email: string;
+  invitationId?: string;
+}): Promise<void> {
+  await updateGuardianInviteEmailCallable(params);
+}
+
+/** Prolonge une invitation parent pending. */
+export async function extendMemberGuardianInvite(params: {
+  clubId: string;
+  memberId: string;
+  invitationId?: string;
+}): Promise<{ code: string; expiresAt: Date }> {
+  const result = await extendGuardianInviteCallable(params);
+  return {
+    code: result.code,
+    expiresAt: new Date(result.expiresAt),
+  };
+}
+
+/** Régénère le code d’une invitation parent pending. */
+export async function regenerateMemberGuardianInvite(params: {
+  clubId: string;
+  memberId: string;
+  invitationId?: string;
+}): Promise<{ code: string; expiresAt: Date }> {
+  const result = await regenerateGuardianInviteCallable(params);
+  return {
+    code: result.code,
+    expiresAt: new Date(result.expiresAt),
+  };
 }
 
 /** Réclame les invitations parent pending correspondant à l’e-mail connecté. */

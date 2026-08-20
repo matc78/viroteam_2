@@ -22,6 +22,10 @@ export type MemberImportReport = {
   skipped: number;
   failed: number;
   errors: string[];
+  /** Membres créés avec e-mail (éligibles à l’envoi Brevo). */
+  inviteableMemberIds: string[];
+  /** E-mails d’invitation effectivement envoyés via Brevo. */
+  emailsSent: number;
 };
 
 const CSV_HEADERS = [

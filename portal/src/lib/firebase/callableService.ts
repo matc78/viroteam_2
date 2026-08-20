@@ -33,7 +33,32 @@ async function callFunction<TReq, TRes>(
   }
 }
 
-/** Invite un parent sur une fiche joueur (admin). */
+/** Résultat d’un envoi d’invitation membre via Brevo. */
+export type SendMemberInvitesResult = {
+  ok: true;
+  sent: number;
+  skipped: number;
+  failed: number;
+  results: Array<{
+    memberId: string;
+    status: "sent" | "skipped" | "failed";
+    reason?: string;
+    messageId?: string;
+  }>;
+};
+
+/**
+ * Envoie les e-mails d’invitation membre via Brevo (admin club).
+ * Chaque destinataire reçoit son code pending individuel.
+ */
+export async function sendMemberInvites(params: {
+  clubId: string;
+  memberIds: string[];
+}): Promise<SendMemberInvitesResult> {
+  return callFunction("sendMemberInvites", params);
+}
+
+/** Invite un parent sur une fiche joueur (admin ou titulaire). */
 export async function inviteGuardian(params: {
   clubId: string;
   memberId: string;
@@ -56,13 +81,51 @@ export async function linkGuardian(params?: {
   return callFunction("linkGuardian", params ?? {});
 }
 
-/** Révoque le lien parent (admin). */
+/** Révoque le lien parent (admin ou titulaire). */
 export async function revokeGuardian(params: {
   clubId: string;
   memberId: string;
   parentUid?: string;
 }): Promise<{ ok: boolean }> {
   return callFunction("revokeGuardian", params);
+}
+
+/** Change l’e-mail d’une invitation parent pending. */
+export async function updateGuardianInviteEmail(params: {
+  clubId: string;
+  memberId: string;
+  email: string;
+  invitationId?: string;
+}): Promise<{ ok: boolean; invitationId: string; email: string }> {
+  return callFunction("updateGuardianInviteEmail", params);
+}
+
+/** Prolonge l’expiration d’une invitation parent pending. */
+export async function extendGuardianInvite(params: {
+  clubId: string;
+  memberId: string;
+  invitationId?: string;
+}): Promise<{
+  ok: boolean;
+  invitationId: string;
+  code: string;
+  expiresAt: string;
+}> {
+  return callFunction("extendGuardianInvite", params);
+}
+
+/** Régénère le code d’une invitation parent pending. */
+export async function regenerateGuardianInvite(params: {
+  clubId: string;
+  memberId: string;
+  invitationId?: string;
+}): Promise<{
+  ok: boolean;
+  invitationId: string;
+  code: string;
+  expiresAt: string;
+}> {
+  return callFunction("regenerateGuardianInvite", params);
 }
 
 /** RSVP pour soi ou un enfant lié. */

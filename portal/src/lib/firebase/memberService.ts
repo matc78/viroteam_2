@@ -12,6 +12,7 @@ import {
   type DocumentReference,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
+import { site, webJoinRedirectPath } from "@/lib/site";
 import type { ClubRecord } from "./clubService";
 import {
   Collections,
@@ -114,15 +115,26 @@ export function generateInviteCode(length = INVITE_CODE_LENGTH): string {
   return code;
 }
 
-/** Message FR prêt à copier pour WhatsApp / SMS (aligné app). */
+/** URL web absolue pour rejoindre avec un code (mailto / SMS). */
+export function inviteJoinUrl(code: string): string {
+  const base = site.url.replace(/\/$/, "");
+  return `${base}${webJoinRedirectPath(code)}`;
+}
+
+/** Message FR prêt à copier pour WhatsApp / SMS / e-mail (aligné app). */
 export function buildInviteMessage(params: {
   clubName: string;
   code: string;
 }): string {
+  const joinUrl = inviteJoinUrl(params.code);
+  const storeLine = site.playStoreUrl
+    ? `\nApp Android : ${site.playStoreUrl}`
+    : "";
   return `Rejoins ${params.clubName} sur ViroTeam !
 Ton code : ${params.code}
 Valable 7 jours.
-Ouvre l'app → « J'ai un code d'invitation » et saisis ce code.`;
+Lien : ${joinUrl}${storeLine}
+Ou ouvre l'app → « J'ai un code d'invitation » et saisis ce code.`;
 }
 
 function membersCol(clubId: string) {
@@ -847,6 +859,80 @@ export async function updateMemberLicense(params: {
       [Fields.license]: params.license.trim(),
     },
     [Fields.updatedAt]: serverTimestamp(),
+  });
+}
+
+/**
+ * Met à jour prénom / nom / e-mail d’un membre pas encore inscrit.
+ * Synchronise aussi l’invitation active si présente.
+ */
+export async function updatePendingMemberProfile(params: {
+  clubId: string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}): Promise<void> {
+  const trimmedFirst = params.firstName.trim();
+  const trimmedLast = params.lastName.trim();
+  const trimmedEmail = params.email.trim();
+  if (!trimmedFirst || !trimmedLast) {
+    throw new Error("Le prénom et le nom sont obligatoires.");
+  }
+
+  const db = getAppFirestore();
+  const memberDocument = doc(membersCol(params.clubId), params.memberId);
+
+  await runTransaction(db, async (tx) => {
+    const memberSnap = await tx.get(memberDocument);
+    if (!memberSnap.exists()) {
+      throw new Error("Membre introuvable.");
+    }
+    const data = memberSnap.data() as Record<string, unknown>;
+    const accountUid = String(data[Fields.accountUid] ?? "").trim();
+    const legacyUserId = String(data[Fields.userId] ?? "").trim();
+    if (accountUid || legacyUserId) {
+      throw new Error(
+        "Impossible de modifier l’identité d’un membre déjà inscrit.",
+      );
+    }
+
+    const activeInvitationId = String(
+      data[Fields.activeInvitationId] ?? "",
+    ).trim();
+    const inviteDocument = activeInvitationId
+      ? doc(invitationsCol(params.clubId), activeInvitationId)
+      : null;
+    const inviteSnap = inviteDocument ? await tx.get(inviteDocument) : null;
+
+    const existingSnapshot =
+      data[Fields.snapshot] && typeof data[Fields.snapshot] === "object"
+        ? { ...(data[Fields.snapshot] as Record<string, unknown>) }
+        : {};
+    const displayName = `${trimmedFirst} ${trimmedLast}`;
+    const nextSnapshot: Record<string, unknown> = {
+      ...existingSnapshot,
+      [Fields.displayName]: displayName,
+    };
+    if (trimmedEmail) {
+      nextSnapshot[Fields.email] = trimmedEmail;
+    } else {
+      delete nextSnapshot[Fields.email];
+    }
+
+    tx.update(memberDocument, {
+      [Fields.firstName]: trimmedFirst,
+      [Fields.lastName]: trimmedLast,
+      [Fields.snapshot]: nextSnapshot,
+      [Fields.updatedAt]: serverTimestamp(),
+    });
+
+    if (inviteDocument && inviteSnap?.exists()) {
+      tx.update(inviteDocument, {
+        [Fields.firstName]: trimmedFirst,
+        [Fields.lastName]: trimmedLast,
+      });
+    }
   });
 }
 

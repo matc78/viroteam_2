@@ -12,6 +12,7 @@ import 'package:viro_team_v2/features/members/widgets/add_member_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/change_role_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_list_tile.dart';
+import 'package:viro_team_v2/features/members/widgets/parents_section.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
@@ -32,6 +33,8 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   final _searchController = TextEditingController();
   String _search = '';
   String? _roleFilter;
+  /// `roster` | `parents`
+  String _section = 'roster';
 
   @override
   void dispose() {
@@ -174,7 +177,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
         ),
         title: const Text('Gérer les membres'),
       ),
-      floatingActionButton: _canAdd
+      floatingActionButton: _canAdd && _section == 'roster'
           ? ViroFloatingActionButton(
               icon: ViroIcons.add,
               onPressed: _addMember,
@@ -199,122 +202,161 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
 
               return CustomScrollView(
                 slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        ViroSpacing.screenHorizontal,
-                        ViroSpacing.md,
-                        ViroSpacing.screenHorizontal,
-                        ViroSpacing.sm,
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Rechercher un membre…',
-                          prefixIcon: ViroIcon(ViroIcons.search),
+                  if (_isAdmin)
+                    SliverToBoxAdapter(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.md,
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.xs,
                         ),
-                        onChanged: (v) => setState(() => _search = v.trim()),
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: ViroSpacing.screenHorizontal,
-                      ),
-                      child: Row(
-                        children: [
-                          _roleFilterChip(
-                            label: 'Tous',
-                            selected: _roleFilter == null,
-                            onSelected: (_) =>
-                                setState(() => _roleFilter = null),
-                          ),
-                          const SizedBox(width: ViroSpacing.xs),
-                          _roleFilterChip(
-                            label: 'Joueurs',
-                            selected: _roleFilter == MemberRoles.player,
-                            onSelected: (_) => setState(
-                              () => _roleFilter = MemberRoles.player,
+                        child: Row(
+                          children: [
+                            _roleFilterChip(
+                              label: 'Membres',
+                              selected: _section == 'roster',
+                              onSelected: (_) =>
+                                  setState(() => _section = 'roster'),
                             ),
-                          ),
-                          const SizedBox(width: ViroSpacing.xs),
-                          _roleFilterChip(
-                            label: 'Coachs',
-                            selected: _roleFilter == MemberRoles.coach,
-                            onSelected: (_) => setState(
-                              () => _roleFilter = MemberRoles.coach,
-                            ),
-                          ),
-                          if (_isAdmin) ...[
                             const SizedBox(width: ViroSpacing.xs),
                             _roleFilterChip(
-                              label: 'Admins',
-                              selected: _roleFilter == MemberRoles.admin,
-                              onSelected: (_) => setState(
-                                () => _roleFilter = MemberRoles.admin,
-                              ),
+                              label: 'Parents',
+                              selected: _section == 'parents',
+                              onSelected: (_) =>
+                                  setState(() => _section = 'parents'),
                             ),
                           ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                  if (filtered.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: Text(
-                          _search.isNotEmpty
-                              ? 'Aucun membre trouvé'
-                              : 'Aucun membre pour le moment',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(color: ViroColors.gray600),
-                        ),
+                  if (_section == 'parents' && _isAdmin)
+                    SliverToBoxAdapter(
+                      child: ParentsSection(
+                        clubId: clubId,
+                        club: club,
+                        members: members,
                       ),
                     )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(
-                        ViroSpacing.screenHorizontal,
-                        ViroSpacing.sm,
-                        ViroSpacing.screenHorizontal,
-                        ViroSpacing.md,
-                      ),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final member = filtered[index];
-                            return MemberListTile(
-                              member: member,
-                              club: club,
-                              viewerRole: viewerRole,
-                              onChangeRole: _isAdmin
-                                  ? () => _changeRole(member)
-                                  : null,
-                              onInviteParent: _isAdmin &&
-                                      member.role == MemberRoles.player
-                                  ? () => showInviteParentSheet(
-                                        context,
-                                        club: club,
-                                        member: member,
-                                      )
-                                  : null,
-                              onRemove: _isAdmin
-                                  ? () => _removeMember(member)
-                                  : null,
-                            );
-                          },
-                          childCount: filtered.length,
+                  else ...[
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.md,
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.sm,
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Rechercher un membre…',
+                            prefixIcon: ViroIcon(ViroIcons.search),
+                          ),
+                          onChanged: (v) => setState(() => _search = v.trim()),
                         ),
                       ),
                     ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: ViroSpacing.xl),
-                  ),
+                    SliverToBoxAdapter(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ViroSpacing.screenHorizontal,
+                        ),
+                        child: Row(
+                          children: [
+                            _roleFilterChip(
+                              label: 'Tous',
+                              selected: _roleFilter == null,
+                              onSelected: (_) =>
+                                  setState(() => _roleFilter = null),
+                            ),
+                            const SizedBox(width: ViroSpacing.xs),
+                            _roleFilterChip(
+                              label: 'Joueurs',
+                              selected: _roleFilter == MemberRoles.player,
+                              onSelected: (_) => setState(
+                                () => _roleFilter = MemberRoles.player,
+                              ),
+                            ),
+                            const SizedBox(width: ViroSpacing.xs),
+                            _roleFilterChip(
+                              label: 'Coachs',
+                              selected: _roleFilter == MemberRoles.coach,
+                              onSelected: (_) => setState(
+                                () => _roleFilter = MemberRoles.coach,
+                              ),
+                            ),
+                            if (_isAdmin) ...[
+                              const SizedBox(width: ViroSpacing.xs),
+                              _roleFilterChip(
+                                label: 'Admins',
+                                selected: _roleFilter == MemberRoles.admin,
+                                onSelected: (_) => setState(
+                                  () => _roleFilter = MemberRoles.admin,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (filtered.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Text(
+                            _search.isNotEmpty
+                                ? 'Aucun membre trouvé'
+                                : 'Aucun membre pour le moment',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: ViroColors.gray600),
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.sm,
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.md,
+                        ),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              final member = filtered[index];
+                              return MemberListTile(
+                                member: member,
+                                club: club,
+                                viewerRole: viewerRole,
+                                onChangeRole: _isAdmin
+                                    ? () => _changeRole(member)
+                                    : null,
+                                onInviteParent: _isAdmin &&
+                                        member.role == MemberRoles.player
+                                    ? () => showInviteParentSheet(
+                                          context,
+                                          club: club,
+                                          member: member,
+                                        )
+                                    : null,
+                                onRemove: _isAdmin
+                                    ? () => _removeMember(member)
+                                    : null,
+                              );
+                            },
+                            childCount: filtered.length,
+                          ),
+                        ),
+                      ),
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: ViroSpacing.xl),
+                    ),
+                  ],
                 ],
               );
             },

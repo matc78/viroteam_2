@@ -1,13 +1,14 @@
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/member_guardian.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
@@ -25,7 +26,7 @@ Future<void> showInviteParentSheet(
   );
 }
 
-/// Feuille admin : inviter (e-mail) ou révoquer le parent V1 d’une fiche joueur.
+/// Feuille : inviter (e-mail) ou révoquer le parent V1 d’une fiche joueur.
 class InviteParentSheet extends ConsumerStatefulWidget {
   const InviteParentSheet({
     super.key,
@@ -47,13 +48,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
   bool _busy = false;
   String? _error;
 
-  String get _childFirstName {
-    final first = widget.member.firstName?.trim() ?? '';
-    if (first.isNotEmpty) return first;
-    final full = widget.member.fullName.trim();
-    if (full.isNotEmpty) return full.split(' ').first;
-    return 'l\'enfant';
-  }
+  String get _childFirstName => widget.member.preferredFirstName;
 
   @override
   void initState() {
@@ -91,12 +86,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
     }
   }
 
-  String _callableMessage(Object error) {
-    if (error is FirebaseFunctionsException) {
-      return error.message ?? 'Action impossible';
-    }
-    return error.toString();
-  }
+  String _callableMessage(Object error) => callableErrorMessage(error);
 
   Future<void> _invite() async {
     final email = _emailController.text.trim();
@@ -122,6 +112,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
       await Clipboard.setData(ClipboardData(text: message));
       if (!mounted) return;
       ViroSnackBar.show(context, 'Invitation envoyée — message copié');
+      ref.invalidate(clubParentsProvider(widget.club.id));
       await _load();
     } catch (error) {
       if (!mounted) return;
@@ -144,6 +135,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
           );
       if (!mounted) return;
       ViroSnackBar.show(context, 'Parent révoqué');
+      ref.invalidate(clubParentsProvider(widget.club.id));
       await _load();
     } catch (error) {
       if (!mounted) return;
@@ -192,7 +184,10 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
             Text(
               [
                 _guardian!.displayName ?? _guardian!.email ?? 'Parent invité',
-                if (_guardian!.isPending) 'en attente',
+                if (_guardian!.inviteExpired)
+                  'invitation expirée'
+                else if (_guardian!.isPending)
+                  'en attente',
               ].join(' · '),
               style: theme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
             ),

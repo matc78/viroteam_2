@@ -52,17 +52,21 @@ jobs:
 
       - run: flutter pub get
 
+      - name: Resolve build number
+        id: build_number
+        run: echo "value=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Build release APK
         run: |
           flutter build apk --release \
             --build-name=${{ steps.version.outputs.name }} \
-            --build-number=${{ github.run_number }}
+            --build-number=${{ steps.build_number.outputs.value }}
 
       - name: Build release App Bundle (AAB)
         run: |
           flutter build appbundle --release \
             --build-name=${{ steps.version.outputs.name }} \
-            --build-number=${{ github.run_number }}
+            --build-number=${{ steps.build_number.outputs.value }}
 
       - name: Prepare artifacts
         run: |

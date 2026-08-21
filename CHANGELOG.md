@@ -9,6 +9,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Icône app ViroTeam (Android/iOS) + splash natif (logo + formes colorées)
 - Portal planning : sélecteurs custom (heure, équipe) style Google Calendar
 - Portal planning : picker invités multi (équipes, catégories, personnes) pour tournois et événements « Autre »
 - Portal planning : persistance des filtres sidebar dans le localStorage

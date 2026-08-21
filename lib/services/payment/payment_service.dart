@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
+import 'package:viro_team_v2/utils/cloud_callable.dart';
 
 /// Contrat paiement cotisations in-app (HelloAsso).
 ///
@@ -144,7 +145,8 @@ class HelloAssoPaymentService implements PaymentService {
     }
 
     try {
-      final callable = _functions.httpsCallable('createHelloAssoCheckout');
+      final callable = _functions
+          .httpsCallable(cloudCallableName('createHelloAssoCheckout'));
       final response = await callable.call<Map<String, dynamic>>({
         'clubId': clubId,
         'seasonId': seasonId,

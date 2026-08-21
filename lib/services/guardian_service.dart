@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/member_guardian.dart';
+import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 
 /// Callables + lecture du lien parent (même contrat que le portail).
@@ -149,7 +150,7 @@ class GuardianService {
     required String memberId,
     required String email,
   }) async {
-    final callable = _functions.httpsCallable('inviteGuardian');
+    final callable = _functions.httpsCallable(cloudCallableName('inviteGuardian'));
     final response = await callable.call<Map<String, dynamic>>({
       'clubId': clubId,
       'memberId': memberId,
@@ -167,7 +168,7 @@ class GuardianService {
     String? clubId,
     String? invitationId,
   }) async {
-    final callable = _functions.httpsCallable('linkGuardian');
+    final callable = _functions.httpsCallable(cloudCallableName('linkGuardian'));
     final payload = <String, dynamic>{};
     if (clubId != null && clubId.isNotEmpty) payload['clubId'] = clubId;
     if (invitationId != null && invitationId.isNotEmpty) {
@@ -187,7 +188,7 @@ class GuardianService {
     required String memberId,
     String? parentUid,
   }) async {
-    final callable = _functions.httpsCallable('revokeGuardian');
+    final callable = _functions.httpsCallable(cloudCallableName('revokeGuardian'));
     await callable.call<Map<String, dynamic>>({
       'clubId': clubId,
       'memberId': memberId,
@@ -202,7 +203,8 @@ class GuardianService {
     required String email,
     String? invitationId,
   }) async {
-    final callable = _functions.httpsCallable('updateGuardianInviteEmail');
+    final callable =
+        _functions.httpsCallable(cloudCallableName('updateGuardianInviteEmail'));
     await callable.call<Map<String, dynamic>>({
       'clubId': clubId,
       'memberId': memberId,
@@ -218,7 +220,8 @@ class GuardianService {
     required String memberId,
     String? invitationId,
   }) async {
-    final callable = _functions.httpsCallable('extendGuardianInvite');
+    final callable =
+        _functions.httpsCallable(cloudCallableName('extendGuardianInvite'));
     final response = await callable.call<Map<String, dynamic>>({
       'clubId': clubId,
       'memberId': memberId,
@@ -239,7 +242,8 @@ class GuardianService {
     required String memberId,
     String? invitationId,
   }) async {
-    final callable = _functions.httpsCallable('regenerateGuardianInvite');
+    final callable =
+        _functions.httpsCallable(cloudCallableName('regenerateGuardianInvite'));
     final response = await callable.call<Map<String, dynamic>>({
       'clubId': clubId,
       'memberId': memberId,

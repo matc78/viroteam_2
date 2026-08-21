@@ -2,6 +2,18 @@
 
 Ces fichiers restent hors git. Copie-les depuis l’ancien repo `viro_team` (beta) vers ce repo.
 
+## Android / iOS — icône & splash
+
+Les assets sources sont dans `assets/branding/` (versionnés). Régénérer après modification :
+
+```bash
+dart run flutter_launcher_icons
+dart run flutter_native_splash:create
+```
+
+- Icône : `app_icon.png` + `app_icon_foreground.png` (adaptive Android)
+- Splash : `splash.png` (fond blanc + formes colorées + logo) ; Android 12+ utilise `splash_logo.png`
+
 ## Android — signatures
 
 | Source (beta `viro_team`) | Destination (`viroteam_2`) |
@@ -127,9 +139,11 @@ cd functions
 # params locaux (déjà dans .env.viroteam-75303 si présent) :
 # BREVO_SENDER_EMAIL=noreply@viroteam.com
 # BREVO_SENDER_NAME=ViroTeam
+# INVITE_JOIN_BASE_URL=https://www.viroteam.com
 
 npm run build
-firebase deploy --only functions:sendMemberInvites
+# prod → v2-prod ; Dev → v2-dev (portail / app choisissent selon la base)
+firebase deploy --only functions:sendMemberInvites,functions:sendMemberInvitesDev
 ```
 
 Voir aussi [`functions/README.md`](functions/README.md).

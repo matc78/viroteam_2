@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
 
@@ -570,7 +571,8 @@ class EventService {
     bool viaCallable = false,
   }) async {
     if (viaCallable) {
-      final callable = _functions.httpsCallable('setEventRsvp');
+      final callable =
+          _functions.httpsCallable(cloudCallableName('setEventRsvp'));
       await callable.call<Map<String, dynamic>>({
         'clubId': clubId,
         'eventId': eventId,

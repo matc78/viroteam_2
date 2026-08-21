@@ -17,12 +17,12 @@ const roles = [
   },
   {
     name: "Parent",
-    desc: "Suivre le planning et les informations liées au compte de l’enfant.",
+    desc: "Calendrier de l’enfant et statut de cotisation, sans relancer le coach.",
     color: "var(--color-role-parent)",
   },
   {
     name: "Admin",
-    desc: "Piloter le club : membres, cotisations, invitations et configuration.",
+    desc: "Piloter planning, relances et cotisations depuis l’espace club.",
     color: "var(--color-role-admin)",
   },
 ] as const;
@@ -32,7 +32,7 @@ export function Roles() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className={styles.section} aria-labelledby="roles-title">
+    <section id="roles" className={styles.section} aria-labelledby="roles-title">
       <div className={styles.inner}>
         <motion.figure
           className={styles.photo}
@@ -57,10 +57,11 @@ export function Roles() {
           <div className={styles.header}>
             <span className={styles.eyebrow}>Rôles</span>
             <h2 id="roles-title" className={styles.title}>
-              Un compte, tous les rôles
+              Chacun suit le club simplement
             </h2>
             <p className={styles.lead}>
-              Chacun voit ce dont il a besoin — sans multiplier les outils.
+              Un compte, les bons droits — et plusieurs clubs si besoin
+              (multiclub).
             </p>
           </div>
 

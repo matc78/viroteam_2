@@ -12,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
         "/members",
         "/planning",
         "/fees",
+        "/announcements",
         "/login",
         "/signup",
         "/join",

@@ -38,7 +38,9 @@
 
 .links {
   display: flex;
-  gap: var(--space-lg);
+  flex-wrap: wrap;
+  gap: var(--space-md) var(--space-lg);
+  justify-content: flex-end;
 }
 
 .link {

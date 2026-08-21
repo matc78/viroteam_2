@@ -2,16 +2,16 @@
 export const site = {
   name: "ViroTeam",
   url: "https://www.viroteam.com",
-  tagline: "Tout le club, une seule app",
+  tagline: "Organisez. Relancez. Suivez.",
   logoMark: "/logo-mark.png",
   logoStacked: "/logo.png",
   logoWordmark: "/logo-wordmark.png",
   ogImage: "/og-image.png",
   description:
-    "Pilotez planning, RSVP, cotisations et équipes — joueurs, coachs, parents et admins réunis.",
-  seoTitle: "ViroTeam — Application de gestion de club sportif",
+    "Planning, relances et suivi des cotisations pour le bureau. Membres et parents suivent simplement — multiclub inclus.",
+  seoTitle: "ViroTeam — Gestion de club pour le bureau et les parents",
   seoDescription:
-    "Application de gestion de club sportif : planning des entraînements et matchs, convocations RSVP, cotisations HelloAsso et équipes. Pour clubs de football, joueurs, coachs, parents et bureau.",
+    "ViroTeam organise le planning, les relances et le suivi des cotisations. Le bureau pilote, membres et parents suivent simplement. Un compte, plusieurs clubs.",
   playStoreUrl:
     "https://play.google.com/store/apps/details?id=com.viroteam.viro_team",
   /** App Store pas encore publié. */

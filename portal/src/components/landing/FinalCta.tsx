@@ -32,11 +32,11 @@ export function FinalCta() {
 
             <div className={styles.content}>
               <h2 id="final-cta-title" className={styles.title}>
-                Prêt à organiser votre club ?
+                Bureau et parents, sur la même page
               </h2>
               <p className={styles.lead}>
-                Téléchargez ViroTeam sur Android. L’App Store arrive bientôt. Les
-                admins pourront bientôt piloter le bureau depuis le web.
+                Téléchargez ViroTeam sur Android — l’App Store arrive bientôt.
+                Organisez un ou plusieurs clubs depuis le web et l’app.
               </p>
               <div className={styles.actions}>
                 <StoreBadges />

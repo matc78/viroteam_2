@@ -41,11 +41,13 @@
 .nav {
   display: flex;
   align-items: center;
-  gap: var(--space-lg);
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .navLink {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: var(--color-gray-600);
   transition: color 160ms ease;
@@ -75,7 +77,17 @@
   transform: translateY(-1px);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
+  .nav {
+    gap: var(--space-sm);
+  }
+
+  .navLink {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 700px) {
   .navLink {
     display: none;
   }

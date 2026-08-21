@@ -16,11 +16,12 @@ const softwareApplicationJsonLd = {
     priceCurrency: "EUR",
   },
   featureList: [
-    "Planning des entraînements et matchs",
+    "Planning partagé des entraînements et matchs",
+    "Gestion des membres, licences et équipes",
     "Convocations et RSVP",
-    "Cotisations HelloAsso",
-    "Gestion des équipes et invitations",
-    "Communication club",
+    "Suivi des cotisations et relances",
+    "Multiclub — plusieurs clubs par compte",
+    "Vues bureau, membres et parents",
   ],
 };
 
@@ -42,31 +43,39 @@ const faqJsonLd = {
       name: "ViroTeam, c’est quoi ?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "ViroTeam est une application de gestion de club sportif : planning, convocations RSVP, cotisations, équipes et communication pour joueurs, coachs, parents et administrateurs.",
+        text: "ViroTeam organise le planning, les relances et le suivi des cotisations. Le bureau pilote ; membres et parents suivent simplement. Un compte peut rejoindre plusieurs clubs.",
       },
     },
     {
       "@type": "Question",
-      name: "Comment gérer le planning et les convocations d’un club de football ?",
+      name: "Comment organiser le planning du club ?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Dans ViroTeam, le coach ou l’admin crée les entraînements et matchs, envoie les convocations, et suit les réponses (présent, absent, peut-être) en temps réel.",
+        text: "Le coach ou l’admin crée séances et matchs, filtre par équipe ou coach, et suit les réponses aux convocations. Membres et parents voient le même calendrier dans l’app.",
       },
     },
     {
       "@type": "Question",
-      name: "Peut-on encaisser les cotisations du club ?",
+      name: "Comment gérer les membres et les équipes ?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Oui. Les cotisations se paient via HelloAsso. Les membres règlent depuis l’app, le bureau suit les paiements sans tableur parallèle.",
+        text: "Le bureau suit licences et invitations, filtre l’effectif, et compose les équipes par catégorie avec joueurs et coachs. Parents et membres rejoignent le club sur invitation.",
       },
     },
     {
       "@type": "Question",
-      name: "Qui peut utiliser ViroTeam ?",
+      name: "Comment suivre les cotisations et les relances ?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Les joueurs, coachs, parents et admins d’un club. L’accès se fait uniquement sur invitation, pas d’inscription ouverte au public.",
+        text: "Le bureau configure la saison et les tarifs, puis suit qui a payé et les restes dus. Parents et membres voient montant et échéance.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Peut-on gérer plusieurs clubs ?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Oui. Avec un même compte, vous pouvez appartenir à plusieurs clubs (multiclub) et basculer facilement entre eux.",
       },
     },
   ],

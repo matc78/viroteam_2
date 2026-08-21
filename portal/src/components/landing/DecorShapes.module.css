@@ -1,5 +1,5 @@
 .layer {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 0;
   overflow: hidden;
@@ -147,6 +147,82 @@
   transform: rotate(18deg);
 }
 
+/* —— Confettis —— */
+.confetti {
+  opacity: 0.85;
+}
+
+.confettiDot {
+  border-radius: 50%;
+}
+
+.confettiDash {
+  border-radius: 999px;
+}
+
+.confettiSq {
+  border-radius: 0.2rem;
+}
+
+.confettiDiamond {
+  border-radius: 0.15rem;
+}
+
+.confettiSm.confettiDot {
+  width: 0.4rem;
+  height: 0.4rem;
+}
+
+.confettiMd.confettiDot {
+  width: 0.55rem;
+  height: 0.55rem;
+}
+
+.confettiSm.confettiDash {
+  width: 0.85rem;
+  height: 0.28rem;
+}
+
+.confettiMd.confettiDash,
+.confettiDash:not(.confettiSm):not(.confettiMd) {
+  width: 1.05rem;
+  height: 0.32rem;
+}
+
+.confettiSm.confettiSq,
+.confettiSm.confettiDiamond {
+  width: 0.45rem;
+  height: 0.45rem;
+}
+
+.confettiMd.confettiSq,
+.confettiMd.confettiDiamond,
+.confettiSq:not(.confettiSm):not(.confettiMd),
+.confettiDiamond:not(.confettiSm):not(.confettiMd) {
+  width: 0.55rem;
+  height: 0.55rem;
+}
+
+.cCyan {
+  background: color-mix(in srgb, var(--color-sport-cyan) 55%, transparent);
+}
+
+.cOrange {
+  background: color-mix(in srgb, var(--color-sport-orange) 50%, transparent);
+}
+
+.cYellow {
+  background: color-mix(in srgb, var(--color-sport-yellow) 65%, transparent);
+}
+
+.cGreen {
+  background: color-mix(in srgb, var(--color-sport-green) 45%, transparent);
+}
+
+.cBlue {
+  background: color-mix(in srgb, var(--color-primary-200) 60%, transparent);
+}
+
 @media (max-width: 700px) {
   .arcA,
   .arcB,
@@ -176,5 +252,10 @@
   .ringB {
     width: 2.5rem;
     height: 2.5rem;
+  }
+
+  /* Moins de confettis sur petit écran */
+  .confettiSparse {
+    display: none;
   }
 }

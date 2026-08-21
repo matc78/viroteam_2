@@ -29,6 +29,7 @@
 .header {
   max-width: 34rem;
   margin-bottom: var(--space-xl);
+  text-align: center;
 }
 
 .eyebrow {
@@ -42,12 +43,14 @@
 }
 
 .title {
-  margin-bottom: var(--space-md);
-  font-size: clamp(1.75rem, 3vw, 2.35rem);
+  margin: 0 auto var(--space-md);
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  white-space: nowrap;
 }
 
 .lead {
   color: var(--color-gray-600);
+  text-align: left;
 }
 
 .list {
@@ -140,5 +143,9 @@
 @media (max-width: 899px) {
   .photo {
     max-width: 22rem;
+  }
+
+  .title {
+    white-space: normal;
   }
 }

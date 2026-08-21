@@ -15,7 +15,7 @@ const steps = [
   },
   {
     title: "Pilotez le quotidien",
-    body: "Planning, RSVP et cotisations au même endroit, pour tout le club.",
+    body: "Planning, relances et suivi des cotisations — visibles aussi pour membres et parents.",
   },
 ] as const;
 
@@ -24,7 +24,7 @@ export function HowItWorks() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className={styles.section} aria-labelledby="how-title">
+    <section id="demarrer" className={styles.section} aria-labelledby="how-title">
       <div className={styles.inner}>
         <div className={styles.copy}>
           <div className={styles.header}>
@@ -33,7 +33,8 @@ export function HowItWorks() {
               Comment ça marche
             </h2>
             <p className={styles.lead}>
-              Trois étapes pour passer du chaos WhatsApp à un club organisé.
+              Trois étapes pour que le bureau organise et que tout le monde
+              suive — y compris sur plusieurs clubs.
             </p>
           </div>
 

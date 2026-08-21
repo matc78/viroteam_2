@@ -3,7 +3,16 @@ import { BrandMark } from "@/components/BrandMark";
 import { site } from "@/lib/site";
 import styles from "./SiteHeader.module.css";
 
-/** En-tête sticky : marque, ancre fonctionnalités, Espace club. */
+const navItems = [
+  { href: "#planning", label: "Planning" },
+  { href: "#membres", label: "Membres" },
+  { href: "#cotisations", label: "Cotisations" },
+  { href: "#roles", label: "Rôles" },
+  { href: "#demarrer", label: "Démarrer" },
+  { href: "#faq", label: "FAQ" },
+] as const;
+
+/** En-tête sticky : marque, ancres des sections landing, Espace club. */
 export function SiteHeader() {
   return (
     <header className={styles.header}>
@@ -14,9 +23,11 @@ export function SiteHeader() {
         </Link>
 
         <nav className={styles.nav} aria-label="Navigation principale">
-          <a href="#fonctionnalites" className={styles.navLink}>
-            Fonctionnalités
-          </a>
+          {navItems.map((item) => (
+            <a key={item.href} href={item.href} className={styles.navLink}>
+              {item.label}
+            </a>
+          ))}
           <Link href="/login" className={styles.cta}>
             Espace club
           </Link>

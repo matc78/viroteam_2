@@ -4,34 +4,39 @@ const questions = [
   {
     question: "ViroTeam, c’est quoi ?",
     answer:
-      "Une application de gestion de club sportif : planning des entraînements et matchs, convocations RSVP, cotisations HelloAsso, équipes et communication. Pensée pour le football et les sports collectifs.",
+      "Une app pour organiser le club : planning, relances et suivi des cotisations. Le bureau pilote ; membres et parents suivent simplement. Un compte peut rejoindre plusieurs clubs.",
   },
   {
-    question: "Comment gérer le planning et les convocations ?",
+    question: "Comment organiser le planning du club ?",
     answer:
-      "Le coach ou l’admin crée les séances et les matchs, envoie les convocations, et suit les réponses (présent, absent, peut-être) en temps réel — sans groupe WhatsApp.",
+      "Le coach ou l’admin crée séances et matchs, filtre par équipe ou coach, et suit les réponses aux convocations. Membres et parents voient le même calendrier dans l’app.",
   },
   {
-    question: "Peut-on encaisser les cotisations du club ?",
+    question: "Comment gérer les membres et les équipes ?",
     answer:
-      "Oui. Les membres paient via HelloAsso depuis l’app. Le bureau voit qui est à jour, sans tableur parallèle.",
+      "Le bureau suit licences et invitations, filtre l’effectif, et compose les équipes par catégorie avec joueurs et coachs. Parents et membres rejoignent le club sur invitation.",
   },
   {
-    question: "Qui peut utiliser l’application ?",
+    question: "Comment suivre les cotisations et les relances ?",
     answer:
-      "Joueurs, coachs, parents et administrateurs. L’accès se fait uniquement sur invitation : pas d’inscription ouverte au public.",
+      "Le bureau configure la saison et les tarifs, puis suit qui a payé et les restes dus. Les relances s’appuient sur ce suivi ; parents et membres voient montant et échéance.",
+  },
+  {
+    question: "Peut-on gérer plusieurs clubs ?",
+    answer:
+      "Oui. Avec un même compte, vous pouvez appartenir à plusieurs clubs (multiclub) et basculer facilement entre eux.",
   },
 ] as const;
 
 /** FAQ publique : contenu indexable + mêmes questions que le JSON-LD. */
 export function Faq() {
   return (
-    <section className={styles.section} aria-labelledby="faq-title">
+    <section id="faq" className={styles.section} aria-labelledby="faq-title">
       <div className={styles.inner}>
         <header className={styles.header}>
           <span className={styles.eyebrow}>Questions</span>
           <h2 id="faq-title" className={styles.title}>
-            Questions fréquentes sur la gestion de club
+            Questions fréquentes
           </h2>
         </header>
         <dl className={styles.list}>

@@ -27,6 +27,7 @@ import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubPlanningScreen extends ConsumerStatefulWidget {
@@ -235,60 +236,96 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
             ),
           const Divider(height: 1, color: ViroColors.gray200),
           Expanded(
-            child: eventsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, _) => const ViroErrorState(),
-              data: (events) {
-                if (events.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(ViroSpacing.xl),
-                      child: Text(
-                        canManage
-                            ? 'Aucun événement ce jour-là.\nAppuyez sur + pour en créer un.'
-                            : 'Aucun événement ce jour-là.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: ViroColors.gray600,
-                            ),
-                      ),
+            child: ViroRefreshIndicator(
+              onRefresh: () async {
+                await Future.wait([
+                  if (canManage)
+                    ref.refresh(clubPlanningEventsProvider(dayParams).future)
+                  else
+                    ref.refresh(
+                      memberClubPlanningEventsProvider(dayParams).future,
                     ),
-                  );
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
-                    ViroSpacing.screenHorizontal,
-                    ViroSpacing.md,
-                    ViroSpacing.screenHorizontal,
-                    ViroSpacing.xl,
-                  ),
-                  itemCount: events.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(height: ViroSpacing.sm),
-                  itemBuilder: (context, index) {
-                    final event = events[index];
-                    final label =
-                        PlanningEventDisplay.teamLabel(event, teamsById);
-                    final excludeCoaches =
-                        PlanningEventDisplay.coachUidsToExclude(
-                      event,
-                      teamsById,
-                      membersByUid: membersByUid,
+                  ref.refresh(clubTeamsProvider(clubId).future),
+                  ref.refresh(clubProvider(clubId).future),
+                ]);
+                await _initDays();
+              },
+              child: eventsAsync.when(
+                loading: () => ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(
+                      height: 240,
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ],
+                ),
+                error: (_, _) => ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    SizedBox(height: 240, child: ViroErrorState()),
+                  ],
+                ),
+                data: (events) {
+                  if (events.isEmpty) {
+                    return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(ViroSpacing.xl),
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.sizeOf(context).height * 0.35,
+                          child: Center(
+                            child: Text(
+                              canManage
+                                  ? 'Aucun événement ce jour-là.\nAppuyez sur + pour en créer un.'
+                                  : 'Aucun événement ce jour-là.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: ViroColors.gray600),
+                            ),
+                          ),
+                        ),
+                      ],
                     );
-                    return PlanningEventTile(
-                      event: event,
-                      teamLabel: label,
-                      excludeCoachUids: excludeCoaches,
-                      onTap: () => _showEventSheet(
+                  }
+
+                  return ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(
+                      ViroSpacing.screenHorizontal,
+                      ViroSpacing.md,
+                      ViroSpacing.screenHorizontal,
+                      ViroSpacing.xl,
+                    ),
+                    itemCount: events.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: ViroSpacing.sm),
+                    itemBuilder: (context, index) {
+                      final event = events[index];
+                      final label =
+                          PlanningEventDisplay.teamLabel(event, teamsById);
+                      final excludeCoaches =
+                          PlanningEventDisplay.coachUidsToExclude(
                         event,
                         teamsById,
-                        canManage: canManage,
-                      ),
-                    );
-                  },
-                );
-              },
+                        membersByUid: membersByUid,
+                      );
+                      return PlanningEventTile(
+                        event: event,
+                        teamLabel: label,
+                        excludeCoachUids: excludeCoaches,
+                        onTap: () => _showEventSheet(
+                          event,
+                          teamsById,
+                          canManage: canManage,
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ],

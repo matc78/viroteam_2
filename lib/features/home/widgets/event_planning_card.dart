@@ -135,20 +135,27 @@ class EventPlanningCard extends StatelessWidget {
           if (showRsvpButtons) ...[
             const SizedBox(height: ViroSpacing.xs),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
+                  flex: 2,
                   child: RsvpChoiceButton(
-                    label: 'Présent',
-                    color: ViroColors.success,
-                    onTap: onPresent!,
+                    label: 'Absent',
+                    color: ViroColors.error,
+                    outlined: true,
+                    borderColor: ViroColors.error,
+                    foregroundColor: ViroColors.gray600,
+                    height: ViroSpacing.buttonHeightSmall,
+                    onTap: onAbsent!,
                   ),
                 ),
                 const SizedBox(width: ViroSpacing.sm),
                 Expanded(
+                  flex: 3,
                   child: RsvpChoiceButton(
-                    label: 'Absent',
-                    color: ViroColors.error,
-                    onTap: onAbsent!,
+                    label: 'Présent',
+                    color: clubColor,
+                    onTap: onPresent!,
                   ),
                 ),
               ],

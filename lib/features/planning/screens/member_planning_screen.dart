@@ -126,27 +126,44 @@ class MemberPlanningScreen extends ConsumerWidget {
               onRetry: () => ref.invalidate(memberEventsProvider),
             ),
             data: (state) {
+              Future<void> refreshPlanning() async {
+                await Future.wait([
+                  ref.refresh(memberEventsProvider.future),
+                  ref.refresh(userClubsProvider.future),
+                ]);
+              }
+
               if (state.upcoming.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(ViroSpacing.lg),
-                    child: Text(
-                      'Aucun événement prévu dans les 14 prochains jours.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: ViroColors.gray600,
+                return RefreshIndicator(
+                  onRefresh: refreshPlanning,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      SizedBox(
+                        height: MediaQuery.sizeOf(context).height * 0.4,
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(ViroSpacing.lg),
+                            child: Text(
+                              'Aucun événement prévu dans les 14 prochains jours.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(color: ViroColors.gray600),
+                            ),
                           ),
-                    ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }
 
               return RefreshIndicator(
-                onRefresh: () async {
-                  ref.invalidate(memberEventsProvider);
-                  ref.invalidate(userClubsProvider);
-                },
+                onRefresh: refreshPlanning,
                 child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
                     ViroSpacing.screenHorizontal,
                     ViroSpacing.md,

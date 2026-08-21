@@ -20,6 +20,7 @@ import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubSelectorScreen extends ConsumerWidget {
@@ -41,10 +42,18 @@ class ClubSelectorScreen extends ConsumerWidget {
             return invitationsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => const ViroErrorState(),
-              data: (invitations) => _ClubSelectorBody(
-                clubs: clubs,
-                invitations: invitations,
-                theme: theme,
+              data: (invitations) => ViroRefreshIndicator(
+                onRefresh: () async {
+                  await Future.wait([
+                    ref.refresh(userClubsWithEventsProvider.future),
+                    ref.refresh(pendingInvitationsProvider.future),
+                  ]);
+                },
+                child: _ClubSelectorBody(
+                  clubs: clubs,
+                  invitations: invitations,
+                  theme: theme,
+                ),
               ),
             );
           },
@@ -71,12 +80,18 @@ class _ClubSelectorBody extends ConsumerWidget {
     final hasInvitations = invitations.isNotEmpty;
 
     if (!hasClubs && !hasInvitations) {
-      return _EmptyStateWidget(
-        onAdd: () => showAddClubSheet(context, ref),
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          _EmptyStateWidget(
+            onAdd: () => showAddClubSheet(context, ref),
+          ),
+        ],
       );
     }
 
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

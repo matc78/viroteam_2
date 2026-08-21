@@ -17,6 +17,7 @@ import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 
 /// Membres du club sans fiche `member_fees` pour la saison en cours.
 int pendingFeeInitCount({
@@ -544,37 +545,58 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                   ),
                 ),
                 Expanded(
-                  child: !hasAnyList
-                      ? const Center(child: Text('Aucun membre à afficher'))
-                      : ListView(
-                          children: [
-                            if (lists.unpaid.isNotEmpty) ...[
-                              _sectionTitle(
-                                context,
-                                'En attente (${lists.unpaid.length})',
+                  child: ViroRefreshIndicator(
+                    onRefresh: () async {
+                      await Future.wait([
+                        ref.refresh(activeSeasonProvider(clubId).future),
+                        ref.refresh(allMemberFeesProvider(clubId).future),
+                        ref.refresh(clubMembersProvider(clubId).future),
+                        ref.refresh(pendingTeamMembersProvider(clubId).future),
+                      ]);
+                    },
+                    child: !hasAnyList
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              SizedBox(
+                                height: 240,
+                                child: Center(
+                                  child: Text('Aucun membre à afficher'),
+                                ),
                               ),
-                              for (final fee in lists.unpaid)
-                                _feeTile(context, ref, fee, season),
                             ],
-                            if (lists.paid.isNotEmpty) ...[
-                              _sectionTitle(
-                                context,
-                                'Payés (${lists.paid.length})',
-                              ),
-                              for (final fee in lists.paid)
-                                _feeTile(context, ref, fee, season),
+                          )
+                        : ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              if (lists.unpaid.isNotEmpty) ...[
+                                _sectionTitle(
+                                  context,
+                                  'En attente (${lists.unpaid.length})',
+                                ),
+                                for (final fee in lists.unpaid)
+                                  _feeTile(context, ref, fee, season),
+                              ],
+                              if (lists.paid.isNotEmpty) ...[
+                                _sectionTitle(
+                                  context,
+                                  'Payés (${lists.paid.length})',
+                                ),
+                                for (final fee in lists.paid)
+                                  _feeTile(context, ref, fee, season),
+                              ],
+                              if (lists.exempt.isNotEmpty) ...[
+                                _sectionTitle(
+                                  context,
+                                  'Exonérés (${lists.exempt.length})',
+                                ),
+                                for (final fee in lists.exempt)
+                                  _feeTile(context, ref, fee, season),
+                              ],
+                              const SizedBox(height: ViroSpacing.lg),
                             ],
-                            if (lists.exempt.isNotEmpty) ...[
-                              _sectionTitle(
-                                context,
-                                'Exonérés (${lists.exempt.length})',
-                              ),
-                              for (final fee in lists.exempt)
-                                _feeTile(context, ref, fee, season),
-                            ],
-                            const SizedBox(height: ViroSpacing.lg),
-                          ],
-                        ),
+                          ),
+                  ),
                 ),
               ],
             );

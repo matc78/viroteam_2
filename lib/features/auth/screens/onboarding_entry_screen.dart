@@ -18,63 +18,83 @@ class OnboardingEntryScreen extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(ViroSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Spacer(),
-              const Center(child: ViroLogo(height: 128)),
-              const SizedBox(height: ViroSpacing.xl),
-              Text(
-                'Bienvenue sur ViroTeam',
-                style: theme.headlineMedium?.copyWith(
-                  color: ViroColors.primary800,
-                  fontWeight: FontWeight.w800,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Center(child: ViroLogo(height: 128)),
+                          const SizedBox(height: ViroSpacing.xl),
+                          Text(
+                            'Bienvenue sur ViroTeam',
+                            style: theme.headlineMedium?.copyWith(
+                              color: ViroColors.primary800,
+                              fontWeight: FontWeight.w800,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: ViroSpacing.md),
+                          Text(
+                            'Gérez votre club sportif : planning, présences, cotisations et communication — tout en un seul endroit.',
+                            style: theme.bodyLarge?.copyWith(
+                              color: ViroColors.gray600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: ViroSpacing.xl),
+                          _BenefitRow(
+                            icon: ViroIcons.calendar,
+                            iconColor: ViroColors.sportCyan,
+                            text: 'Organisez entraînements et matchs',
+                          ),
+                          _BenefitRow(
+                            icon: ViroIcons.users,
+                            iconColor: ViroColors.sportGreen,
+                            text: 'Suivez les présences en temps réel',
+                          ),
+                          _BenefitRow(
+                            icon: ViroIcons.bell,
+                            iconColor: ViroColors.sportYellow,
+                            text: 'Communiquez avec votre club',
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _AccentButton(
+                            label: 'J\'ai un code d\'invitation',
+                            color: ViroColors.sportGreen,
+                            onPressed: () => context.push(AppRoutes.join),
+                          ),
+                          const SizedBox(height: ViroSpacing.sm),
+                          _AccentButton(
+                            label: 'Créer mon club',
+                            color: ViroColors.primary600,
+                            outlined: true,
+                            onPressed: () => context.push(
+                              '${AppRoutes.signup}?intent=founder',
+                            ),
+                          ),
+                          const SizedBox(height: ViroSpacing.md),
+                          TextButton(
+                            onPressed: () => context.push(AppRoutes.login),
+                            child: const Text('Déjà un compte ? Se connecter'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: ViroSpacing.md),
-              Text(
-                'Gérez votre club sportif : planning, présences, cotisations et communication — tout en un seul endroit.',
-                style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: ViroSpacing.xl),
-              _BenefitRow(
-                icon: ViroIcons.calendar,
-                iconColor: ViroColors.sportCyan,
-                text: 'Organisez entraînements et matchs',
-              ),
-              _BenefitRow(
-                icon: ViroIcons.users,
-                iconColor: ViroColors.sportGreen,
-                text: 'Suivez les présences en temps réel',
-              ),
-              _BenefitRow(
-                icon: ViroIcons.bell,
-                iconColor: ViroColors.sportYellow,
-                text: 'Communiquez avec votre club',
-              ),
-              const Spacer(),
-              _AccentButton(
-                label: 'J\'ai un code d\'invitation',
-                color: ViroColors.sportGreen,
-                onPressed: () => context.push(AppRoutes.join),
-              ),
-              const SizedBox(height: ViroSpacing.sm),
-              _AccentButton(
-                label: 'Créer mon club',
-                color: ViroColors.primary600,
-                outlined: true,
-                onPressed: () => context.push(
-                  '${AppRoutes.signup}?intent=founder',
-                ),
-              ),
-              const SizedBox(height: ViroSpacing.md),
-              TextButton(
-                onPressed: () => context.push(AppRoutes.login),
-                child: const Text('Déjà un compte ? Se connecter'),
-              ),
-            ],
+              );
+            },
           ),
         ),
       ),

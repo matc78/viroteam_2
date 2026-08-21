@@ -12,6 +12,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/club_list_tile.dart';
 
@@ -74,7 +75,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ? user.displayName
               : '${user.firstName} ${user.lastName}'.trim();
 
-          return ListView(
+          return ViroRefreshIndicator(
+            onRefresh: () async {
+              await Future.wait([
+                ref.refresh(viroUserProvider.future),
+                ref.refresh(userClubsProvider.future),
+              ]);
+            },
+            child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(ViroSpacing.lg),
             children: [
               ViroCard(
@@ -159,6 +168,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 onPressed: _signingOut ? null : _signOut,
               ),
             ],
+          ),
           );
         },
       ),

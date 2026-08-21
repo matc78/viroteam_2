@@ -60,17 +60,24 @@ class EventRsvpCard extends StatelessWidget {
           ),
           const SizedBox(height: ViroSpacing.md),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
+                flex: onMaybe == null ? 2 : 1,
                 child: RsvpChoiceButton(
-                  label: onMaybe == null ? 'Présent' : 'Oui',
-                  color: ViroColors.success,
-                  onTap: onPresent,
+                  label: onMaybe == null ? 'Absent' : 'Non',
+                  color: ViroColors.error,
+                  outlined: true,
+                  borderColor: ViroColors.error,
+                  foregroundColor: ViroColors.gray600,
+                  height: ViroSpacing.buttonHeightSmall,
+                  onTap: onAbsent,
                 ),
               ),
               if (onMaybe != null) ...[
                 const SizedBox(width: ViroSpacing.sm),
                 Expanded(
+                  flex: 2,
                   child: RsvpChoiceButton(
                     label: 'Peut-être',
                     color: ViroColors.warning,
@@ -80,10 +87,11 @@ class EventRsvpCard extends StatelessWidget {
               ],
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
+                flex: onMaybe == null ? 3 : 2,
                 child: RsvpChoiceButton(
-                  label: onMaybe == null ? 'Absent' : 'Non',
-                  color: ViroColors.error,
-                  onTap: onAbsent,
+                  label: onMaybe == null ? 'Présent' : 'Oui',
+                  color: clubColor,
+                  onTap: onPresent,
                 ),
               ),
             ],

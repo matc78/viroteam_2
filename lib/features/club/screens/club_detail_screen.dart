@@ -35,7 +35,9 @@ import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 
 class ClubDetailScreen extends ConsumerStatefulWidget {
   const ClubDetailScreen({super.key, required this.clubId});
@@ -137,7 +139,33 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             clubId: club.id,
           );
 
-          return CustomScrollView(
+          return ViroRefreshIndicator(
+            onRefresh: () async {
+              final waits = <Future<Object?>>[
+                ref.refresh(clubProvider(clubId).future),
+                ref.refresh(clubMemberProvider(clubId).future),
+                ref.refresh(memberEventsProvider.future),
+                ref.refresh(clubAttendanceRateProvider(clubId).future),
+                ref.refresh(
+                  clubAnnouncementsProvider(clubId).future,
+                ),
+              ];
+              if (isChildView && selected != null) {
+                waits.add(
+                  ref.refresh(
+                    clubEventsForMemberProvider(
+                      (clubId: clubId, memberId: selected.memberId),
+                    ).future,
+                  ),
+                );
+                waits.add(
+                  ref.refresh(clubAudienceMemberProvider(clubId).future),
+                );
+              }
+              await Future.wait(waits);
+            },
+            child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverToBoxAdapter(
                 child: _ClubHeader(
@@ -245,6 +273,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 ),
               ],
             ],
+          ),
           );
         },
       ),

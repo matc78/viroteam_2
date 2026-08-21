@@ -177,10 +177,13 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
 
                     return RefreshIndicator(
                       onRefresh: () async {
-                        ref.invalidate(memberEventsProvider);
-                        ref.invalidate(userClubsProvider);
-                        ref.invalidate(userClubsWithEventsProvider);
-                        ref.invalidate(viroUserFutureProvider);
+                        await Future.wait([
+                          ref.refresh(memberEventsProvider.future),
+                          ref.refresh(userClubsProvider.future),
+                          ref.refresh(userClubsWithEventsProvider.future),
+                          ref.refresh(viroUserFutureProvider.future),
+                          ref.refresh(homeClubTeamsProvider.future),
+                        ]);
                       },
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),

@@ -26,6 +26,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class MyFeeScreen extends ConsumerStatefulWidget {
@@ -104,31 +105,73 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
         data: (data) {
           final season = data.season;
           if (season == null) {
-            return const ViroEmptyState(
-              message:
-                  'Aucune saison de cotisation active.\nLe club te tiendra informé.',
+            return ViroRefreshIndicator(
+              onRefresh: () => ref.refresh(
+                myFeeProvider(
+                  (clubId: widget.clubId, memberId: audienceId),
+                ).future,
+              ),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(
+                    height: 280,
+                    child: ViroEmptyState(
+                      message:
+                          'Aucune saison de cotisation active.\nLe club te tiendra informé.',
+                    ),
+                  ),
+                ],
+              ),
             );
           }
 
           final fee = data.fee;
           if (fee == null) {
-            return ViroEmptyState(
-              message: selected?.isChild == true
-                  ? 'La cotisation de ${selected!.label} n\'a pas encore été paramétrée par le club.'
-                  : 'Ta cotisation n\'a pas encore été paramétrée par le club.',
+            return ViroRefreshIndicator(
+              onRefresh: () => ref.refresh(
+                myFeeProvider(
+                  (clubId: widget.clubId, memberId: audienceId),
+                ).future,
+              ),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: 280,
+                    child: ViroEmptyState(
+                      message: selected?.isChild == true
+                          ? 'La cotisation de ${selected!.label} n\'a pas encore été paramétrée par le club.'
+                          : 'Ta cotisation n\'a pas encore été paramétrée par le club.',
+                    ),
+                  ),
+                ],
+              ),
             );
           }
 
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: ProjectConfig.contentMaxWidth,
-              ),
-              child: _FeeContent(
-                season: season,
-                fee: fee,
-                clubId: widget.clubId,
+          return ViroRefreshIndicator(
+            onRefresh: () async {
+              await Future.wait([
+                ref.refresh(
+                  myFeeProvider(
+                    (clubId: widget.clubId, memberId: audienceId),
+                  ).future,
+                ),
+                ref.refresh(clubProvider(widget.clubId).future),
+              ]);
+            },
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: ProjectConfig.contentMaxWidth,
+                ),
+                child: _FeeContent(
+                  season: season,
+                  fee: fee,
+                  clubId: widget.clubId,
+                ),
               ),
             ),
           );
@@ -168,6 +211,7 @@ class _FeeContent extends ConsumerWidget {
         display == MemberFeeDisplayStatus.partiel;
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
       children: [
         if (season.seasonLabel.isNotEmpty)

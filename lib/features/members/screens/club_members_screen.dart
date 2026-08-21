@@ -18,6 +18,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubMembersScreen extends ConsumerStatefulWidget {
@@ -200,7 +201,18 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                       MemberRoles.player;
               final filtered = _filterMembers(members);
 
-              return CustomScrollView(
+              return ViroRefreshIndicator(
+                onRefresh: () async {
+                  await Future.wait([
+                    ref.refresh(clubForMembersProvider(clubId).future),
+                    ref.refresh(clubMembersProvider(clubId).future),
+                    ref.refresh(clubMemberProvider(clubId).future),
+                    if (_isAdmin)
+                      ref.refresh(clubParentsProvider(clubId).future),
+                  ]);
+                },
+                child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   if (_isAdmin)
                     SliverToBoxAdapter(
@@ -358,6 +370,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                     ),
                   ],
                 ],
+              ),
               );
             },
           );

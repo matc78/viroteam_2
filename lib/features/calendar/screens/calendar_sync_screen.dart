@@ -11,7 +11,9 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 
 /// Page d'aide : import manuel + ajout natif / export .ics du planning.
 class CalendarSyncScreen extends ConsumerStatefulWidget {
@@ -58,7 +60,15 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
         ),
         title: const Text('Calendrier'),
       ),
-      body: ListView(
+      body: ViroRefreshIndicator(
+        onRefresh: () async {
+          await Future.wait([
+            ref.refresh(clubProvider(widget.clubId).future),
+            ref.refresh(memberEventsProvider.future),
+          ]);
+        },
+        child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(ViroSpacing.lg),
         children: [
           Text(
@@ -163,6 +173,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
           ),
           const SizedBox(height: ViroSpacing.xl),
         ],
+      ),
       ),
     );
   }

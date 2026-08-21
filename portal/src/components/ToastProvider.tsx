@@ -17,15 +17,26 @@ const TOAST_DURATION_MS = 3000;
 /** Ton visuel d’une notification toast. */
 export type ToastTone = "info" | "success" | "error";
 
+/** Options d’affichage d’un toast. */
+export type ShowToastOptions = {
+  /** Si true, reste affiché jusqu’au clic sur la croix (pas d’auto-fermeture). */
+  sticky?: boolean;
+};
+
 type ToastItem = {
   id: number;
   message: string;
   tone: ToastTone;
+  sticky: boolean;
 };
 
 type ToastContextValue = {
-  /** Affiche une notification en bas à droite (auto-fermeture). */
-  showToast: (message: string, tone?: ToastTone) => void;
+  /** Affiche une notification en bas à droite. */
+  showToast: (
+    message: string,
+    tone?: ToastTone,
+    options?: ShowToastOptions,
+  ) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -57,12 +68,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const showToast = useCallback(
-    (message: string, tone: ToastTone = "info") => {
+    (
+      message: string,
+      tone: ToastTone = "info",
+      options?: ShowToastOptions,
+    ) => {
       const toastId = nextIdRef.current;
       nextIdRef.current += 1;
-      setToasts((current) => [...current, { id: toastId, message, tone }]);
-      const timer = setTimeout(() => dismissToast(toastId), TOAST_DURATION_MS);
-      timersRef.current.set(toastId, timer);
+      const sticky = Boolean(options?.sticky);
+      setToasts((current) => [
+        ...current,
+        { id: toastId, message, tone, sticky },
+      ]);
+      if (!sticky) {
+        const timer = setTimeout(
+          () => dismissToast(toastId),
+          TOAST_DURATION_MS,
+        );
+        timersRef.current.set(toastId, timer);
+      }
     },
     [dismissToast],
   );
@@ -80,16 +104,31 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className={styles.viewport} aria-live="polite" aria-relevant="additions">
+      <div
+        className={styles.viewport}
+        aria-live="polite"
+        aria-relevant="additions"
+      >
         {toasts.map((toast) => (
-          <p
+          <div
             key={toast.id}
             className={styles.toast}
             data-tone={toast.tone}
+            data-sticky={toast.sticky ? "true" : undefined}
             role="status"
           >
-            {toast.message}
-          </p>
+            <p className={styles.message}>{toast.message}</p>
+            {toast.sticky ? (
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={() => dismissToast(toast.id)}
+                aria-label="Fermer la notification"
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
         ))}
       </div>
     </ToastContext.Provider>

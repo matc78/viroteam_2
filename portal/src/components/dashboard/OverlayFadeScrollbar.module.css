@@ -1,0 +1,56 @@
+.rail {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.rail[data-axis="vertical"] {
+  top: 0;
+  right: 1px;
+  bottom: 0;
+  width: 6px;
+}
+
+.rail[data-axis="horizontal"] {
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 6px;
+}
+
+.thumb {
+  position: absolute;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary-900) 18%, transparent);
+  opacity: 0;
+  transition: opacity 1.1s ease;
+}
+
+.rail[data-axis="vertical"] .thumb {
+  top: var(--thumb-top, 0);
+  left: 0;
+  width: 100%;
+  height: var(--thumb-height, 0);
+}
+
+.rail[data-axis="horizontal"] .thumb {
+  left: var(--thumb-left, 0);
+  top: 0;
+  height: 100%;
+  width: var(--thumb-width, 0);
+}
+
+.rail[data-phase="visible"] .thumb {
+  opacity: 1;
+  transition: opacity 0.12s ease;
+}
+
+.rail[data-phase="fading"] .thumb {
+  opacity: 0;
+  transition: opacity 1.1s ease;
+}
+
+.rail[data-phase="hidden"] .thumb {
+  opacity: 0;
+  transition: none;
+}

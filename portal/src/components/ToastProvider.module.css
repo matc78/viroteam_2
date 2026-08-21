@@ -8,21 +8,21 @@
   align-items: flex-end;
   gap: var(--space-sm);
   pointer-events: none;
-  max-width: min(22rem, calc(100vw - 2 * var(--space-md)));
+  max-width: min(24rem, calc(100vw - 2 * var(--space-md)));
 }
 
 .toast {
   pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
   margin: 0;
-  padding: 0.7rem 0.95rem;
+  padding: 0.7rem 0.75rem 0.7rem 0.95rem;
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--tone-blue-border);
   background: var(--color-surface-card);
   color: var(--tone-blue-text);
   box-shadow: var(--shadow-card);
-  font-size: 0.9rem;
-  font-weight: 650;
-  line-height: 1.35;
   animation: toast-in 180ms ease-out;
 }
 
@@ -42,6 +42,36 @@
   border-color: var(--tone-blue-border);
   background: var(--tone-blue-surface);
   color: var(--tone-blue-text);
+}
+
+.message {
+  flex: 1;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.4;
+  white-space: pre-line;
+}
+
+.closeButton {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin: -0.15rem -0.1rem 0 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
 }
 
 @keyframes toast-in {

@@ -90,6 +90,7 @@ export const Fields = {
   teamMemberIds: "teamMemberIds",
   playerIds: "playerIds",
   coachIds: "coachIds",
+  pendingPlayerIds: "pendingPlayerIds",
   category: "category",
   rsvp: "rsvp",
   attendance: "attendance",
@@ -122,6 +123,9 @@ export const Fields = {
   senderLastName: "senderLastName",
   targetType: "targetType",
   targetIds: "targetIds",
+  endsAt: "endsAt",
+  closedAt: "closedAt",
+  closedBy: "closedBy",
 } as const;
 
 /** Rôles membre club. */
@@ -207,4 +211,5 @@ export const AnnouncementTargetTypes = {
   allMembers: "Tous les membres",
   teams: "Équipes",
   categories: "Catégories",
+  people: "Personnes",
 } as const;

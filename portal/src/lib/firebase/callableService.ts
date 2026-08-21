@@ -1,11 +1,19 @@
 import { FirebaseError } from "firebase/app";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { getFirebaseApp } from "./app";
+import { getFirebaseApp, getFirestoreDatabaseId } from "./app";
 
 const FUNCTIONS_REGION = "europe-west1";
 
 function functionsClient() {
   return getFunctions(getFirebaseApp(), FUNCTIONS_REGION);
+}
+
+/**
+ * Nom de callable selon la base Firestore du portail.
+ * `v2-prod` → `name` ; sinon → `nameDev`.
+ */
+function cloudCallableName(name: string): string {
+  return getFirestoreDatabaseId() === "v2-prod" ? name : `${name}Dev`;
 }
 
 function unwrapCallableError(error: unknown): Error {
@@ -25,7 +33,10 @@ async function callFunction<TReq, TRes>(
   payload: TReq,
 ): Promise<TRes> {
   try {
-    const callable = httpsCallable<TReq, TRes>(functionsClient(), name);
+    const callable = httpsCallable<TReq, TRes>(
+      functionsClient(),
+      cloudCallableName(name),
+    );
     const result = await callable(payload);
     return result.data;
   } catch (error) {

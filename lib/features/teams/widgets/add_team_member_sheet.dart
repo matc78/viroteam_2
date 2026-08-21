@@ -48,7 +48,7 @@ Future<void> showAddTeamMemberSheet({
   );
 }
 
-class _AddTeamMemberSheet extends ConsumerWidget {
+class _AddTeamMemberSheet extends ConsumerStatefulWidget {
   const _AddTeamMemberSheet({
     required this.clubId,
     required this.team,
@@ -64,10 +64,49 @@ class _AddTeamMemberSheet extends ConsumerWidget {
   final Future<void> Function(String id) onAdd;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final membersAsync = ref.watch(clubMembersProvider(clubId));
-    final pendingAsync = ref.watch(pendingTeamMembersProvider(clubId));
-    final title = slot == TeamRosterSlot.coach
+  ConsumerState<_AddTeamMemberSheet> createState() =>
+      _AddTeamMemberSheetState();
+}
+
+class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
+  final _searchController = TextEditingController();
+  String _search = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Indique si le membre correspond à la recherche (nom / e-mail).
+  bool _matchesSearch(ClubMember member) {
+    final needle = _search.trim().toLowerCase();
+    if (needle.isEmpty) return true;
+    final haystack = [
+      member.fullName,
+      member.firstName,
+      member.lastName,
+      member.email ?? '',
+    ].join(' ').toLowerCase();
+    return haystack.contains(needle);
+  }
+
+  /// Indique si un membre en attente correspond à la recherche.
+  bool _matchesPendingSearch(PendingTeamMember pending) {
+    final needle = _search.trim().toLowerCase();
+    if (needle.isEmpty) return true;
+    final haystack = [
+      pending.fullName,
+      pending.email ?? '',
+    ].join(' ').toLowerCase();
+    return haystack.contains(needle);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
+    final pendingAsync = ref.watch(pendingTeamMembersProvider(widget.clubId));
+    final title = widget.slot == TeamRosterSlot.coach
         ? 'Ajouter un coach'
         : 'Ajouter un joueur';
 
@@ -83,33 +122,55 @@ class _AddTeamMemberSheet extends ConsumerWidget {
                 ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            ViroSpacing.screenHorizontal,
+            0,
+            ViroSpacing.screenHorizontal,
+            ViroSpacing.sm,
+          ),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Rechercher un membre…',
+              prefixIcon: ViroIcon(ViroIcons.search),
+            ),
+            onChanged: (value) => setState(() => _search = value),
+          ),
+        ),
         Expanded(
           child: membersAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) => const ViroErrorState(),
+            error: (error, stackTrace) => const ViroErrorState(),
             data: (members) {
-              if (slot == TeamRosterSlot.coach) {
+              if (widget.slot == TeamRosterSlot.coach) {
+                final coaches = members
+                    .where(
+                      (m) =>
+                          m.isActive &&
+                          (m.role == MemberRoles.coach ||
+                              m.role == MemberRoles.admin) &&
+                          m.effectiveUid.isNotEmpty &&
+                          !widget.team.isOnCoachRoster(m) &&
+                          _matchesSearch(m),
+                    )
+                    .toList();
                 return _buildMemberList(
                   context,
-                  members
-                      .where(
-                        (m) =>
-                            m.isActive &&
-                            (m.role == MemberRoles.coach ||
-                                m.role == MemberRoles.admin) &&
-                            m.effectiveUid.isNotEmpty &&
-                            !team.isOnCoachRoster(m),
-                      )
-                      .toList(),
+                  coaches,
+                  emptyLabel: _search.trim().isEmpty
+                      ? 'Aucun coach disponible à ajouter.'
+                      : 'Aucun résultat pour « ${_search.trim()} ».',
                 );
               }
 
               return pendingAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (_, _) => const ViroErrorState(),
+                error: (error, stackTrace) => const ViroErrorState(),
                 data: (pending) {
                   final eligible = members
                       .where(_canAddAsPlayer)
+                      .where(_matchesSearch)
                       .toList();
                   final players = eligible
                       .where((m) => m.role == MemberRoles.player)
@@ -123,13 +184,24 @@ class _AddTeamMemberSheet extends ConsumerWidget {
                       .toList();
                   final pendingAvailable = pending
                       .where(
-                        (p) => _isPendingAvailableToAdd(
-                          pending: p,
-                          team: team,
-                          members: members,
-                        ),
+                        (p) =>
+                            _isPendingAvailableToAdd(
+                              pending: p,
+                              team: widget.team,
+                              members: members,
+                            ) &&
+                            _matchesPendingSearch(p),
                       )
                       .toList();
+
+                  final hasAnyEligible = members.any(_canAddAsPlayer) ||
+                      pending.any(
+                        (p) => _isPendingAvailableToAdd(
+                          pending: p,
+                          team: widget.team,
+                          members: members,
+                        ),
+                      );
 
                   if (players.isEmpty &&
                       staffAsPlayers.isEmpty &&
@@ -138,18 +210,21 @@ class _AddTeamMemberSheet extends ConsumerWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(ViroSpacing.xl),
                         child: Text(
-                          'Aucun joueur disponible à ajouter.',
+                          !hasAnyEligible
+                              ? 'Aucun joueur disponible à ajouter.'
+                              : 'Aucun résultat pour « ${_search.trim()} ».',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: ViroColors.gray600,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: ViroColors.gray600,
+                                  ),
                         ),
                       ),
                     );
                   }
 
                   return ListView(
-                    controller: scrollController,
+                    controller: widget.scrollController,
                     padding: const EdgeInsets.symmetric(
                       horizontal: ViroSpacing.screenHorizontal,
                     ),
@@ -209,13 +284,17 @@ class _AddTeamMemberSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildMemberList(BuildContext context, List<ClubMember> items) {
+  Widget _buildMemberList(
+    BuildContext context,
+    List<ClubMember> items, {
+    required String emptyLabel,
+  }) {
     if (items.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(ViroSpacing.xl),
           child: Text(
-            'Aucun coach disponible à ajouter.',
+            emptyLabel,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: ViroColors.gray600,
@@ -226,7 +305,7 @@ class _AddTeamMemberSheet extends ConsumerWidget {
     }
 
     return ListView.builder(
-      controller: scrollController,
+      controller: widget.scrollController,
       padding: const EdgeInsets.symmetric(
         horizontal: ViroSpacing.screenHorizontal,
       ),
@@ -256,13 +335,13 @@ class _AddTeamMemberSheet extends ConsumerWidget {
 
   Future<void> _add(BuildContext context, String id) async {
     Navigator.pop(context);
-    await onAdd(id);
+    await widget.onAdd(id);
   }
 
   bool _canAddAsPlayer(ClubMember m) =>
       m.isActive &&
       m.effectiveUid.isNotEmpty &&
-      !team.isOnPlayerRoster(m) &&
+      !widget.team.isOnPlayerRoster(m) &&
       (m.role == MemberRoles.player ||
           m.role == MemberRoles.coach ||
           m.role == MemberRoles.admin);

@@ -16,6 +16,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ManageTeamsScreen extends ConsumerWidget {
@@ -93,53 +94,65 @@ class ManageTeamsScreen extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (_, _) => const ViroErrorState(),
             data: (teams) {
-              if (teams.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(ViroSpacing.xl),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Aucune équipe pour ce club.',
-                          textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: ViroColors.gray600,
+              return ViroRefreshIndicator(
+                onRefresh: () async {
+                  await Future.wait([
+                    ref.refresh(clubProvider(clubId).future),
+                    ref.refresh(clubTeamsProvider(clubId).future),
+                    ref.refresh(clubMemberProvider(clubId).future),
+                  ]);
+                },
+                child: teams.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(ViroSpacing.xl),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.sizeOf(context).height * 0.4,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Aucune équipe pour ce club.',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyLarge
+                                      ?.copyWith(color: ViroColors.gray600),
+                                ),
+                                if (permissions.canCreateTeam()) ...[
+                                  const SizedBox(height: ViroSpacing.lg),
+                                  FilledButton.icon(
+                                    onPressed: () =>
+                                        _createTeam(context, ref, club.sport),
+                                    icon: ViroIcon(ViroIcons.add),
+                                    label: const Text('Créer une équipe'),
                                   ),
-                        ),
-                        if (permissions.canCreateTeam()) ...[
-                          const SizedBox(height: ViroSpacing.lg),
-                          FilledButton.icon(
-                            onPressed: () =>
-                                _createTeam(context, ref, club.sport),
-                            icon: ViroIcon(ViroIcons.add),
-                            label: const Text('Créer une équipe'),
+                                ],
+                              ],
+                            ),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(
-                  ViroSpacing.screenHorizontal,
-                  ViroSpacing.md,
-                  ViroSpacing.screenHorizontal,
-                  ViroSpacing.xl,
-                ),
-                itemCount: teams.length,
-                itemBuilder: (context, index) {
-                  return ManageTeamCard(
-                    team: teams[index],
-                    club: club,
-                    accent: accent,
-                    permissions: permissions,
-                    viewerRole: viewerRole,
-                  );
-                },
+                      )
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.md,
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.xl,
+                        ),
+                        itemCount: teams.length,
+                        itemBuilder: (context, index) {
+                          return ManageTeamCard(
+                            team: teams[index],
+                            club: club,
+                            accent: accent,
+                            permissions: permissions,
+                            viewerRole: viewerRole,
+                          );
+                        },
+                      ),
               );
             },
           );

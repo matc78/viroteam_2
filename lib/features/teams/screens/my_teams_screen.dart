@@ -9,6 +9,7 @@ import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_expansion_card.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class MyTeamsScreen extends ConsumerWidget {
@@ -46,36 +47,50 @@ class MyTeamsScreen extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (_, _) => const ViroErrorState(),
             data: (teams) {
-              if (teams.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(ViroSpacing.xl),
-                    child: Text(
-                      'Tu n\'es affecté à aucune équipe pour le moment.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: ViroColors.gray600,
-                          ),
-                    ),
-                  ),
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.fromLTRB(
-                  ViroSpacing.screenHorizontal,
-                  ViroSpacing.md,
-                  ViroSpacing.screenHorizontal,
-                  ViroSpacing.xl,
-                ),
-                itemCount: teams.length,
-                itemBuilder: (context, index) {
-                  return TeamExpansionCard(
-                    team: teams[index],
-                    club: club,
-                    accent: accent,
-                  );
+              return ViroRefreshIndicator(
+                onRefresh: () async {
+                  await Future.wait([
+                    ref.refresh(clubProvider(clubId).future),
+                    ref.refresh(myTeamsProvider(clubId).future),
+                  ]);
                 },
+                child: teams.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(ViroSpacing.xl),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.sizeOf(context).height * 0.4,
+                            child: Center(
+                              child: Text(
+                                'Tu n\'es affecté à aucune équipe pour le moment.',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyLarge
+                                    ?.copyWith(color: ViroColors.gray600),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.md,
+                          ViroSpacing.screenHorizontal,
+                          ViroSpacing.xl,
+                        ),
+                        itemCount: teams.length,
+                        itemBuilder: (context, index) {
+                          return TeamExpansionCard(
+                            team: teams[index],
+                            club: club,
+                            accent: accent,
+                          );
+                        },
+                      ),
               );
             },
           );

@@ -154,9 +154,13 @@ class TeamService {
     required String teamId,
     required String uid,
   }) async {
-    await _teams(clubId).doc(teamId).update({
-      FirestoreFields.playerIds: FieldValue.arrayUnion([uid]),
-    });
+    await _syncRosterAndMemberTeamIds(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
+      rosterField: FirestoreFields.playerIds,
+      add: true,
+    );
   }
 
   Future<void> addCoachToTeam({
@@ -164,9 +168,13 @@ class TeamService {
     required String teamId,
     required String uid,
   }) async {
-    await _teams(clubId).doc(teamId).update({
-      FirestoreFields.coachIds: FieldValue.arrayUnion([uid]),
-    });
+    await _syncRosterAndMemberTeamIds(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
+      rosterField: FirestoreFields.coachIds,
+      add: true,
+    );
   }
 
   Future<void> addPendingPlayerToTeam({
@@ -184,9 +192,13 @@ class TeamService {
     required String teamId,
     required String uid,
   }) async {
-    await _teams(clubId).doc(teamId).update({
-      FirestoreFields.playerIds: FieldValue.arrayRemove([uid]),
-    });
+    await _syncRosterAndMemberTeamIds(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
+      rosterField: FirestoreFields.playerIds,
+      add: false,
+    );
   }
 
   Future<void> removeCoachFromTeam({
@@ -194,9 +206,13 @@ class TeamService {
     required String teamId,
     required String uid,
   }) async {
-    await _teams(clubId).doc(teamId).update({
-      FirestoreFields.coachIds: FieldValue.arrayRemove([uid]),
-    });
+    await _syncRosterAndMemberTeamIds(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
+      rosterField: FirestoreFields.coachIds,
+      add: false,
+    );
   }
 
   Future<void> removePendingPlayerFromTeam({
@@ -335,5 +351,132 @@ class TeamService {
         authUid: accountUid,
       );
     }
+  }
+
+  CollectionReference<Map<String, dynamic>> _members(String clubId) => _db
+      .collection(ProjectConfig.clubsCollection)
+      .doc(clubId)
+      .collection(ProjectConfig.membersSubcollection);
+
+  /// Résout le document membre à partir d’un id roster (memberId ou accountUid).
+  Future<DocumentReference<Map<String, dynamic>>?> _memberRefForRosterUid({
+    required String clubId,
+    required String rosterUid,
+  }) async {
+    final byId = _members(clubId).doc(rosterUid);
+    final byIdSnap = await byId.get();
+    if (byIdSnap.exists) return byId;
+
+    final byAccount = await _members(clubId)
+        .where(FirestoreFields.accountUid, isEqualTo: rosterUid)
+        .limit(1)
+        .get();
+    if (byAccount.docs.isNotEmpty) return byAccount.docs.first.reference;
+
+    final byUserId = await _members(clubId)
+        .where(FirestoreFields.userId, isEqualTo: rosterUid)
+        .limit(1)
+        .get();
+    if (byUserId.docs.isNotEmpty) return byUserId.docs.first.reference;
+
+    return null;
+  }
+
+  /// Met à jour roster équipe + `members.teamIds` dans une transaction.
+  Future<void> _syncRosterAndMemberTeamIds({
+    required String clubId,
+    required String teamId,
+    required String rosterUid,
+    required String rosterField,
+    required bool add,
+  }) async {
+    final memberRef = await _memberRefForRosterUid(
+      clubId: clubId,
+      rosterUid: rosterUid,
+    );
+    final teamRef = _teams(clubId).doc(teamId);
+
+    await _db.runTransaction((tx) async {
+      final teamSnap = await tx.get(teamRef);
+      if (!teamSnap.exists) {
+        throw StateError('Équipe introuvable.');
+      }
+
+      final teamData = teamSnap.data() ?? {};
+      final matchIds = <String>{rosterUid};
+      Map<String, dynamic>? memberData;
+      if (memberRef != null) {
+        final memberSnap = await tx.get(memberRef);
+        if (memberSnap.exists) {
+          memberData = memberSnap.data();
+          final accountUid =
+              (memberData?[FirestoreFields.accountUid] as String?)?.trim();
+          final userId = (memberData?[FirestoreFields.userId] as String?)?.trim();
+          if (accountUid != null && accountUid.isNotEmpty) {
+            matchIds.add(accountUid);
+          }
+          if (userId != null && userId.isNotEmpty) {
+            matchIds.add(userId);
+          }
+          matchIds.add(memberRef.id);
+        }
+      }
+
+      List<String> readIds(String field) =>
+          ((teamData[field] as List<dynamic>?)?.whereType<String>() ??
+                  const <String>[])
+              .toList();
+
+      final currentIds = readIds(rosterField);
+      late final List<String> nextIds;
+      if (add) {
+        final alreadyOnRoster = currentIds.any(matchIds.contains);
+        if (alreadyOnRoster) {
+          nextIds = currentIds;
+        } else {
+          nextIds = [...currentIds, rosterUid];
+        }
+      } else {
+        nextIds = currentIds.where((id) => !matchIds.contains(id)).toList();
+      }
+
+      tx.update(teamRef, {
+        rosterField: nextIds,
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      if (memberRef == null || memberData == null) return;
+
+      final playerIds = rosterField == FirestoreFields.playerIds
+          ? nextIds
+          : readIds(FirestoreFields.playerIds);
+      final coachIds = rosterField == FirestoreFields.coachIds
+          ? nextIds
+          : readIds(FirestoreFields.coachIds);
+      final stillOnTeam = playerIds.any(matchIds.contains) ||
+          coachIds.any(matchIds.contains);
+
+      final currentTeamIds =
+          ((memberData[FirestoreFields.teamIds] as List<dynamic>?)
+                      ?.whereType<String>() ??
+                  const <String>[])
+              .toList();
+
+      if (add) {
+        if (currentTeamIds.contains(teamId)) return;
+        tx.update(memberRef, {
+          FirestoreFields.teamIds: [...currentTeamIds, teamId],
+          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+        });
+        return;
+      }
+
+      if (stillOnTeam || !currentTeamIds.contains(teamId)) return;
+      tx.update(memberRef, {
+        FirestoreFields.teamIds:
+            currentTeamIds.where((id) => id != teamId).toList(),
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
   }
 }

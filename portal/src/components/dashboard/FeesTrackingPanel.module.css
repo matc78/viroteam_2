@@ -103,13 +103,15 @@
   cursor: not-allowed;
 }
 
+.toolbarWrap {
+  margin-bottom: var(--space-sm);
+}
+
 .toolbar {
   display: flex;
   flex-wrap: nowrap;
   align-items: flex-end;
   gap: var(--space-sm);
-  margin-bottom: var(--space-sm);
-  overflow-x: auto;
 }
 
 .filters {
@@ -299,7 +301,6 @@
 
 .tableWrap {
   width: 100%;
-  overflow: auto;
   border: 1.5px solid var(--color-gray-200);
   border-radius: var(--radius-md);
   background: var(--color-surface-card);

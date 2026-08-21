@@ -330,6 +330,8 @@ select.input:focus {
 }
 
 .categoryDialog {
+  --panel-border: color-mix(in srgb, var(--color-sport-yellow) 40%, var(--color-gray-200));
+  --panel-shadow: color-mix(in srgb, var(--color-sport-yellow) 7%, transparent);
   width: min(100%, 26rem);
 }
 

@@ -53,6 +53,8 @@ export function FeesPageClient() {
         eyebrow="Espace club"
         heading="Cotisations"
         lead={`Configurez la saison et suivez les paiements de ${activeClub?.name ?? "votre club"}.`}
+        onRefresh={reload}
+        refreshing={refreshing}
       />
 
       {error ? (

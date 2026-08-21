@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AttentionList } from "@/components/dashboard/AttentionList";
 import { CollectionsChart } from "@/components/dashboard/CollectionsChart";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
@@ -17,7 +18,7 @@ import styles from "./page.module.css";
 /** Contenu home dashboard branché sur Firestore. */
 export function HomePageClient() {
   const { activeClub, profile } = useAuth();
-  const { data, loading, refreshing, error } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
     (club) =>
       loadHomeDashboard({
@@ -41,6 +42,8 @@ export function HomePageClient() {
             ? `Vue d’ensemble de ${data.clubName} — ${data.seasonLabel}.`
             : "Chargement de votre espace club…"
         }
+        onRefresh={reload}
+        refreshing={refreshing}
       />
 
       {error ? (
@@ -48,6 +51,12 @@ export function HomePageClient() {
           {error}
         </p>
       ) : null}
+
+      <div className={styles.homeActions}>
+        <Link href="/announcements" className={styles.announcementsCta}>
+          Annonces
+        </Link>
+      </div>
 
       {data ? (
         <>
@@ -57,17 +66,17 @@ export function HomePageClient() {
             ))}
           </section>
 
-          <section className={styles.chartsGrid} aria-label="Graphiques">
+          <section className={styles.activityGrid} aria-label="Planning et alertes">
+            <UpcomingEvents events={data.upcomingEvents} />
+            <AttentionList items={data.attentionItems} />
+          </section>
+
+          <section className={styles.chartsGrid} aria-label="Cotisations">
             <FeeStatusChart segments={data.feeStatus} />
             <CollectionsChart
               months={data.collections}
               showHelloAsso={activeClub?.onlinePaymentEnabled === true}
             />
-          </section>
-
-          <section className={styles.listsGrid} aria-label="Activité">
-            <UpcomingEvents events={data.upcomingEvents} />
-            <AttentionList items={data.attentionItems} />
           </section>
         </>
       ) : null}

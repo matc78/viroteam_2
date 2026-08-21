@@ -1,3 +1,30 @@
+.homeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin: calc(var(--space-md) * -1) 0 var(--space-lg);
+}
+
+.announcementsCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.45rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-primary-100);
+  background: var(--color-surface-card, #fff);
+  color: var(--color-primary-800);
+  font-size: 0.9rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.announcementsCta:hover {
+  border-color: var(--color-primary-300);
+  background: var(--color-primary-50);
+}
+
 .kpiGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5,14 +32,15 @@
   margin-bottom: var(--space-lg);
 }
 
-.chartsGrid {
+.activityGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: var(--space-md);
   margin-bottom: var(--space-lg);
+  align-items: start;
 }
 
-.listsGrid {
+.chartsGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-md);
@@ -23,8 +51,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .chartsGrid,
-  .listsGrid {
+  .activityGrid,
+  .chartsGrid {
     grid-template-columns: 1fr;
   }
 }

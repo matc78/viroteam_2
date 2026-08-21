@@ -68,10 +68,26 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-md);
-  margin-bottom: var(--space-lg);
 }
 
 .chartCard {
+  height: 14rem;
+  border-radius: var(--radius-md);
+}
+
+.activityGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.activityMain {
+  height: 18rem;
+  border-radius: var(--radius-md);
+}
+
+.activitySide {
   height: 14rem;
   border-radius: var(--radius-md);
 }
@@ -146,6 +162,7 @@
   }
 
   .chartsGrid,
+  .activityGrid,
   .listsGrid,
   .planningLayout {
     grid-template-columns: 1fr;

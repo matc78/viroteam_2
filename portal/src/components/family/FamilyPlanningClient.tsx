@@ -28,7 +28,7 @@ export function FamilyPlanningClient() {
   const { selectedMemberId, selectedTarget, loading: audienceLoading } =
     useFamilyAudience();
 
-  const { data, loading, refreshing, error } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
     async (club) => {
       if (!selectedMemberId) return [] as ClubEventView[];
@@ -53,6 +53,8 @@ export function FamilyPlanningClient() {
         eyebrow="Espace famille"
         heading="Planning"
         lead={`Les convocations de ${whose} — sans fusionner les calendriers.`}
+        onRefresh={reload}
+        refreshing={refreshing}
       />
       <FamilyAudienceSwitcher />
 

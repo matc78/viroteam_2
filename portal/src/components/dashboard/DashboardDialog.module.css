@@ -14,13 +14,18 @@
 
 .panel {
   min-height: 0 !important;
-  height: fit-content;
-  max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
-  overflow: auto;
+  height: auto;
+  max-height: calc(100dvh - var(--header-height) - 2 * var(--space-lg));
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   transform: translateY(-0.35rem);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
 }
 
 /* Spécificité > DashboardPanel : ombre flottante lisible sans voile. */

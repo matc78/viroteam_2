@@ -19,7 +19,7 @@ export function AttentionList({ items }: AttentionListProps) {
         <h2 id="attention-title" className={styles.title}>
           À traiter
         </h2>
-        <p className={styles.subtitle}>Priorités admin cette semaine</p>
+        <p className={styles.subtitle}>Priorités RSVP et admin</p>
       </header>
 
       <ul className={styles.list}>

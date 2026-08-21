@@ -26,13 +26,13 @@ export function DashboardSkeleton({ variant }: DashboardSkeletonProps) {
               <div key={index} className={`${styles.bone} ${styles.kpiCard}`} />
             ))}
           </div>
+          <div className={styles.activityGrid}>
+            <div className={`${styles.bone} ${styles.activityMain}`} />
+            <div className={`${styles.bone} ${styles.activitySide}`} />
+          </div>
           <div className={styles.chartsGrid}>
             <div className={`${styles.bone} ${styles.chartCard}`} />
             <div className={`${styles.bone} ${styles.chartCard}`} />
-          </div>
-          <div className={styles.listsGrid}>
-            <div className={`${styles.bone} ${styles.listCard}`} />
-            <div className={`${styles.bone} ${styles.listCard}`} />
           </div>
         </>
       ) : null}

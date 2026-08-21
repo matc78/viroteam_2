@@ -21,6 +21,7 @@ import {
   validateOfflinePayment,
   type FeeTier,
 } from "@/lib/firebase/feeService";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import panelStyles from "./DashboardPanel.module.css";
 import { FeesMultiFilter } from "./FeesMultiFilter";
 import { PlanningSelect } from "./PlanningSelect";
@@ -473,7 +474,11 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
         ) : null}
       </div>
 
-      <div className={styles.toolbar}>
+      <FadeScrollArea
+        className={styles.toolbarWrap}
+        viewportClassName={styles.toolbar}
+        axis="horizontal"
+      >
         <div className={styles.filters}>
           <label
             className={`${styles.field} ${styles.fieldSearch}`}
@@ -565,7 +570,7 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
             {showAll ? "Voir seulement à traiter" : "Voir tous les membres"}
           </button>
         </div>
-      </div>
+      </FadeScrollArea>
 
       {sportCategoryFilters.length > 0 || teamFilters.length > 0 ? (
         <div className={styles.activeChips} aria-label="Filtres actifs">
@@ -631,7 +636,7 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
             : "Rien à traiter — tout est à jour."}
         </p>
       ) : (
-        <div className={styles.tableWrap}>
+        <FadeScrollArea className={styles.tableWrap} axis="horizontal">
           <table className={styles.table}>
             <thead>
               <tr>
@@ -697,7 +702,7 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
               ))}
             </tbody>
           </table>
-        </div>
+        </FadeScrollArea>
       )}
 
       {selectedIds.size > 0 ? (

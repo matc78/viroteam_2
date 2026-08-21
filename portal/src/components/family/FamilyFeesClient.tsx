@@ -47,7 +47,7 @@ export function FamilyFeesClient() {
   const { showToast } = useToast();
   const [checkoutBusy, setCheckoutBusy] = useState(false);
 
-  const { data, loading, refreshing, error } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
     async (club) => {
       if (!selectedMemberId) {
@@ -114,6 +114,8 @@ export function FamilyFeesClient() {
         eyebrow="Espace famille"
         heading="Cotisation"
         lead={`Statut et paiement pour ${whose}.`}
+        onRefresh={reload}
+        refreshing={refreshing}
       />
       <FamilyAudienceSwitcher />
 

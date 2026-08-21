@@ -11,6 +11,7 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { useDismissOnOutsidePointer } from "@/lib/planning/useDismissOnOutsidePointer";
 import styles from "./FeesMultiFilter.module.css";
 
@@ -156,7 +157,11 @@ export function FeesMultiFilter({
         {filteredOptions.length === 0 ? (
           <p className={styles.empty}>Aucune option</p>
         ) : (
-          <ul className={styles.options}>
+          <FadeScrollArea
+            className={styles.optionsWrap}
+            viewportClassName={styles.options}
+            as="ul"
+          >
             {filteredOptions.map((option) => {
               const checked = selectedSet.has(option.value);
               return (
@@ -172,7 +177,7 @@ export function FeesMultiFilter({
                 </li>
               );
             })}
-          </ul>
+          </FadeScrollArea>
         )}
       </div>
     ) : null;

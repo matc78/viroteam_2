@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { useToast } from "@/components/ToastProvider";
 import {
   buildSeasonLabelOptions,
@@ -564,8 +565,9 @@ export function FeesConfigForm({
             if (keyboardEvent.key === "Escape") closeCategoryLink();
           }}
         >
-          <div
+          <FadeScrollArea
             className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.categoryDialog}`}
+            viewportClassName={dialogStyles.body}
             data-tone="amber"
             role="dialog"
             aria-modal="true"
@@ -632,7 +634,7 @@ export function FeesConfigForm({
                 {categoryDraft ? "Lier" : "Ne pas lier"}
               </button>
             </div>
-          </div>
+          </FadeScrollArea>
         </div>
       ) : null}
     </form>

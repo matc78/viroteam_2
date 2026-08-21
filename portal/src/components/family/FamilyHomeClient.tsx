@@ -64,7 +64,7 @@ export function FamilyHomeClient() {
   const { selectedMemberId, selectedTarget, loading: audienceLoading } =
     useFamilyAudience();
 
-  const { data, loading, refreshing, error } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
     async (club) => {
       if (!selectedMemberId) {
@@ -157,6 +157,8 @@ export function FamilyHomeClient() {
             ? `Planning, convocations et cotisation pour toi.`
             : `Planning, convocations et cotisation pour ${headingName}.`
         }
+        onRefresh={reload}
+        refreshing={refreshing}
       />
       <FamilyAudienceSwitcher />
 

@@ -31,7 +31,8 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
         nextPath === "/home" ||
         nextPath.startsWith("/members") ||
         nextPath.startsWith("/planning") ||
-        nextPath.startsWith("/fees");
+        nextPath.startsWith("/fees") ||
+        nextPath.startsWith("/announcements");
       const isJoinPath = nextPath.startsWith("/join");
 
       if (isJoinPath) {

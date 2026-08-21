@@ -14,7 +14,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import type { ClubEventView, EventType } from "@/lib/firebase/eventService";
+import type { ClubEventView } from "@/lib/firebase/eventService";
 import {
   buildMonthGrid,
   buildWeekDays,
@@ -29,6 +29,7 @@ import {
   overlappingClusterIds,
   packOverlappingEvents,
 } from "@/lib/planning/eventOverlapLayout";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import styles from "./PlanningCalendar.module.css";
 
 export type CalendarView = "month" | "week" | "day";
@@ -53,8 +54,6 @@ type PlanningCalendarProps = {
   eventBlocks: CalendarEventBlock[];
   view: CalendarView;
   cursor: Date;
-  selectedTeamId: string;
-  selectedType: EventType | "all";
   onViewChange: (view: CalendarView) => void;
   onCursorChange: (cursor: Date) => void;
   onSelectEvent: (event: ClubEventView) => void;
@@ -95,25 +94,6 @@ function blockColorStyle(block: CalendarEventBlock): CSSProperties {
 
 function isSameDay(a: Date, b: Date): boolean {
   return formatDateId(a) === formatDateId(b);
-}
-
-function filterCalendarBlocks(
-  blocks: CalendarEventBlock[],
-  selectedTeamId: string,
-  selectedType: EventType | "all",
-): CalendarEventBlock[] {
-  return blocks.filter((block) => {
-    if (
-      selectedTeamId !== "all" &&
-      !block.event.teamIds.includes(selectedTeamId)
-    ) {
-      return false;
-    }
-    if (selectedType !== "all" && block.event.type !== selectedType) {
-      return false;
-    }
-    return true;
-  });
 }
 
 function blocksForDay(
@@ -172,8 +152,6 @@ export function PlanningCalendar({
   eventBlocks,
   view,
   cursor,
-  selectedTeamId,
-  selectedType,
   onViewChange,
   onCursorChange,
   onSelectEvent,
@@ -182,11 +160,6 @@ export function PlanningCalendar({
   pendingCreate = null,
 }: PlanningCalendarProps) {
   const today = dateOnly(new Date());
-  const filteredBlocks = filterCalendarBlocks(
-    eventBlocks,
-    selectedTeamId,
-    selectedType,
-  );
   const periodLabel = formatCalendarPeriodLabel(cursor, view);
   const motionKey = `${view}-${formatDateId(cursor)}`;
   const [scrollToNowNonce, setScrollToNowNonce] = useState(0);
@@ -265,7 +238,7 @@ export function PlanningCalendar({
               <MonthView
                 cursor={cursor}
                 today={today}
-                eventBlocks={filteredBlocks}
+                eventBlocks={eventBlocks}
                 pendingDayKey={
                   pendingCreate ? formatDateId(pendingCreate.day) : null
                 }
@@ -285,7 +258,7 @@ export function PlanningCalendar({
               <TimeGridView
                 days={buildWeekDays(cursor)}
                 today={today}
-                eventBlocks={filteredBlocks}
+                eventBlocks={eventBlocks}
                 pendingCreate={pendingCreate}
                 scrollToNowNonce={scrollToNowNonce}
                 onSelectDay={(day) => {
@@ -302,7 +275,7 @@ export function PlanningCalendar({
               <TimeGridView
                 days={[dateOnly(cursor)]}
                 today={today}
-                eventBlocks={filteredBlocks}
+                eventBlocks={eventBlocks}
                 pendingCreate={pendingCreate}
                 scrollToNowNonce={scrollToNowNonce}
                 onSelectDay={onSelectDay}
@@ -364,9 +337,14 @@ function MonthView({
 }: MonthViewProps) {
   const days = buildMonthGrid(cursor);
   const currentMonth = cursor.getMonth();
+  const monthScrollRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className={styles.monthGrid}>
+    <FadeScrollArea
+      className={styles.monthGridWrap}
+      viewportClassName={styles.monthGrid}
+      scrollRef={monthScrollRef}
+    >
       <div className={styles.weekdayRow}>
         {WEEKDAY_LABELS.map((label) => (
           <div key={label} className={styles.weekdayCell}>
@@ -450,7 +428,7 @@ function MonthView({
           );
         })}
       </div>
-    </div>
+    </FadeScrollArea>
   );
 }
 
@@ -688,28 +666,32 @@ function TimeGridView({
       data-selecting={selection || pendingSelection ? "true" : "false"}
       style={{ ["--day-count" as string]: String(days.length) }}
     >
-      <div ref={scrollRef} className={styles.timeGridScroll}>
-        <div className={styles.timeGridHeader}>
-          <div className={styles.timeGutterSpacer} aria-hidden="true" />
-          {days.map((day) => {
-            const isToday = isSameDay(day, today);
-            const weekday = new Intl.DateTimeFormat("fr-FR", {
-              weekday: "short",
-            }).format(day);
-            return (
-              <button
-                key={formatDateId(day)}
-                type="button"
-                className={styles.dayHeader}
-                data-today={isToday ? "true" : "false"}
-                onClick={() => onSelectDay(day)}
-              >
-                <span className={styles.dayHeaderWeekday}>{weekday}</span>
-                <span className={styles.dayHeaderNumber}>{day.getDate()}</span>
-              </button>
-            );
-          })}
-        </div>
+      <FadeScrollArea
+        className={styles.timeGridScrollWrap}
+        viewportClassName={styles.timeGridScroll}
+        scrollRef={scrollRef}
+      >
+          <div className={styles.timeGridHeader}>
+            <div className={styles.timeGutterSpacer} aria-hidden="true" />
+            {days.map((day) => {
+              const isToday = isSameDay(day, today);
+              const weekday = new Intl.DateTimeFormat("fr-FR", {
+                weekday: "short",
+              }).format(day);
+              return (
+                <button
+                  key={formatDateId(day)}
+                  type="button"
+                  className={styles.dayHeader}
+                  data-today={isToday ? "true" : "false"}
+                  onClick={() => onSelectDay(day)}
+                >
+                  <span className={styles.dayHeaderWeekday}>{weekday}</span>
+                  <span className={styles.dayHeaderNumber}>{day.getDate()}</span>
+                </button>
+              );
+            })}
+          </div>
 
         <div className={styles.timeGridBody}>
           <div className={styles.hourLabels}>
@@ -788,7 +770,7 @@ function TimeGridView({
             })}
           </div>
         </div>
-      </div>
+      </FadeScrollArea>
     </div>
   );
 }

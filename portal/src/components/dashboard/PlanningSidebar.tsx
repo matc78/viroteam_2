@@ -2,8 +2,8 @@
 
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
-  colorForFilter,
-  type FilterColorKind,
+  colorsForFilterIds,
+  resolveFilterColor,
 } from "@/lib/planning/calendarColors";
 import {
   buildMonthGrid,
@@ -12,6 +12,7 @@ import {
   type PlanningPersonOption,
   type TeamOption,
 } from "@/lib/firebase/eventService";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import styles from "./PlanningSidebar.module.css";
 
 /** Sélections de filtres latéraux du planning. */
@@ -35,6 +36,8 @@ type PlanningSidebarProps = {
   onCursorChange: (cursor: Date) => void;
   onDaySelect: (day: Date) => void;
   onCreateClick: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 };
 
 const WEEKDAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
@@ -65,6 +68,8 @@ export function PlanningSidebar({
   onCursorChange,
   onDaySelect,
   onCreateClick,
+  onRefresh,
+  refreshing = false,
 }: PlanningSidebarProps) {
   const [openSections, setOpenSections] = useState({
     teams: true,
@@ -72,6 +77,7 @@ export function PlanningSidebar({
     categories: true,
     players: true,
   });
+  const [filterSearch, setFilterSearch] = useState("");
 
   const miniMonthCursor = useMemo(
     () => dateOnly(new Date(cursor.getFullYear(), cursor.getMonth(), 1)),
@@ -97,6 +103,37 @@ export function PlanningSidebar({
     setOpenSections((current) => ({ ...current, [key]: !current[key] }));
   }
 
+  const teamColors = useMemo(
+    () => colorsForFilterIds(teams.map((team) => team.id)),
+    [teams],
+  );
+  const coachColors = useMemo(
+    () => colorsForFilterIds(coaches.map((coach) => coach.id)),
+    [coaches],
+  );
+  const categoryColors = useMemo(
+    () => colorsForFilterIds(categories),
+    [categories],
+  );
+  const playerColors = useMemo(
+    () => colorsForFilterIds(players.map((player) => player.id)),
+    [players],
+  );
+
+  const filteredTeams = useMemo(
+    () => filterByLabel(teams, filterSearch, (team) => team.name),
+    [teams, filterSearch],
+  );
+  const filteredCategories = useMemo(
+    () => filterByLabel(categories, filterSearch, (category) => category),
+    [categories, filterSearch],
+  );
+  const filteredPlayers = useMemo(
+    () => filterByLabel(players, filterSearch, (player) => player.name),
+    [players, filterSearch],
+  );
+  const hasFilterSearch = filterSearch.trim().length > 0;
+
   return (
     <aside className={styles.sidebar} aria-label="Navigation et filtres planning">
       <button type="button" className={styles.createButton} onClick={onCreateClick}>
@@ -105,6 +142,17 @@ export function PlanningSidebar({
         </span>
         Créer
       </button>
+      {onRefresh ? (
+        <button
+          type="button"
+          className={styles.refreshButton}
+          onClick={onRefresh}
+          disabled={refreshing}
+          aria-busy={refreshing}
+        >
+          {refreshing ? "Actualisation…" : "Actualiser"}
+        </button>
+      ) : null}
 
       <section className={styles.miniMonth} aria-label="Mini calendrier">
         <div className={styles.miniHeader}>
@@ -157,112 +205,166 @@ export function PlanningSidebar({
         </div>
       </section>
 
-      <div className={styles.filters}>
-        <FilterSection
-          title="Équipes"
-          open={openSections.teams}
-          onToggle={() => toggleSection("teams")}
-        >
-          {teams.length === 0 ? (
-            <p className={styles.emptyHint}>Aucune équipe</p>
-          ) : (
-            teams.map((team) => (
-              <FilterOption
-                key={team.id}
-                kind="team"
-                id={team.id}
-                label={team.name}
-                checked={filters.teamIds.includes(team.id)}
-                onToggle={() =>
-                  onFiltersChange({
-                    ...filters,
-                    teamIds: toggleId(filters.teamIds, team.id),
-                  })
-                }
-              />
-            ))
-          )}
-        </FilterSection>
+      <FadeScrollArea
+        className={styles.filtersWrap}
+        viewportClassName={styles.filters}
+      >
+          <FilterSearch
+            value={filterSearch}
+            onChange={setFilterSearch}
+            placeholder="Équipes, catégories, joueurs…"
+            ariaLabel="Rechercher équipes, catégories et joueurs"
+          />
 
-        <FilterSection
-          title="Coach"
-          open={openSections.coaches}
-          onToggle={() => toggleSection("coaches")}
-        >
-          {coaches.length === 0 ? (
-            <p className={styles.emptyHint}>Aucun coach</p>
-          ) : (
-            coaches.map((coach) => (
-              <FilterOption
-                key={coach.id}
-                kind="coach"
-                id={coach.id}
-                label={coach.name}
-                checked={filters.coachIds.includes(coach.id)}
-                onToggle={() =>
-                  onFiltersChange({
-                    ...filters,
-                    coachIds: toggleId(filters.coachIds, coach.id),
-                  })
-                }
-              />
-            ))
-          )}
-        </FilterSection>
+          <FilterSection
+            title="Équipes"
+            open={openSections.teams}
+            onToggle={() => toggleSection("teams")}
+          >
+            {teams.length === 0 ? (
+              <p className={styles.emptyHint}>Aucune équipe</p>
+            ) : filteredTeams.length === 0 ? (
+              <p className={styles.emptyHint}>Aucun résultat</p>
+            ) : (
+              filteredTeams.map((team) => (
+                <FilterOption
+                  key={team.id}
+                  label={team.name}
+                  color={resolveFilterColor("team", team.id, teamColors)}
+                  checked={filters.teamIds.includes(team.id)}
+                  onToggle={() =>
+                    onFiltersChange({
+                      ...filters,
+                      teamIds: toggleId(filters.teamIds, team.id),
+                    })
+                  }
+                />
+              ))
+            )}
+          </FilterSection>
 
-        <FilterSection
-          title="Catégorie"
-          open={openSections.categories}
-          onToggle={() => toggleSection("categories")}
-        >
-          {categories.length === 0 ? (
-            <p className={styles.emptyHint}>Aucune catégorie</p>
-          ) : (
-            categories.map((category) => (
-              <FilterOption
-                key={category}
-                kind="category"
-                id={category}
-                label={category}
-                checked={filters.categories.includes(category)}
-                onToggle={() =>
-                  onFiltersChange({
-                    ...filters,
-                    categories: toggleId(filters.categories, category),
-                  })
-                }
-              />
-            ))
-          )}
-        </FilterSection>
+          {!hasFilterSearch ? (
+            <FilterSection
+              title="Coach"
+              open={openSections.coaches}
+              onToggle={() => toggleSection("coaches")}
+            >
+              {coaches.length === 0 ? (
+                <p className={styles.emptyHint}>Aucun coach</p>
+              ) : (
+                coaches.map((coach) => (
+                  <FilterOption
+                    key={coach.id}
+                    label={coach.name}
+                    color={resolveFilterColor("coach", coach.id, coachColors)}
+                    checked={filters.coachIds.includes(coach.id)}
+                    onToggle={() =>
+                      onFiltersChange({
+                        ...filters,
+                        coachIds: toggleId(filters.coachIds, coach.id),
+                      })
+                    }
+                  />
+                ))
+              )}
+            </FilterSection>
+          ) : null}
 
-        <FilterSection
-          title="Joueur"
-          open={openSections.players}
-          onToggle={() => toggleSection("players")}
-        >
-          {players.length === 0 ? (
-            <p className={styles.emptyHint}>Aucun joueur</p>
-          ) : (
-            players.map((player) => (
-              <FilterOption
-                key={player.id}
-                kind="player"
-                id={player.id}
-                label={player.name}
-                checked={filters.playerIds.includes(player.id)}
-                onToggle={() =>
-                  onFiltersChange({
-                    ...filters,
-                    playerIds: toggleId(filters.playerIds, player.id),
-                  })
-                }
-              />
-            ))
-          )}
-        </FilterSection>
-      </div>
+          <FilterSection
+            title="Catégorie"
+            open={openSections.categories}
+            onToggle={() => toggleSection("categories")}
+          >
+            {categories.length === 0 ? (
+              <p className={styles.emptyHint}>Aucune catégorie</p>
+            ) : filteredCategories.length === 0 ? (
+              <p className={styles.emptyHint}>Aucun résultat</p>
+            ) : (
+              filteredCategories.map((category) => (
+                <FilterOption
+                  key={category}
+                  label={category}
+                  color={resolveFilterColor("category", category, categoryColors)}
+                  checked={filters.categories.includes(category)}
+                  onToggle={() =>
+                    onFiltersChange({
+                      ...filters,
+                      categories: toggleId(filters.categories, category),
+                    })
+                  }
+                />
+              ))
+            )}
+          </FilterSection>
+
+          <FilterSection
+            title="Joueur"
+            open={openSections.players}
+            onToggle={() => toggleSection("players")}
+          >
+            {players.length === 0 ? (
+              <p className={styles.emptyHint}>Aucun joueur</p>
+            ) : filteredPlayers.length === 0 ? (
+              <p className={styles.emptyHint}>Aucun résultat</p>
+            ) : (
+              filteredPlayers.map((player) => (
+                <FilterOption
+                  key={player.id}
+                  label={player.name}
+                  color={resolveFilterColor("player", player.id, playerColors)}
+                  checked={filters.playerIds.includes(player.id)}
+                  onToggle={() =>
+                    onFiltersChange({
+                      ...filters,
+                      playerIds: toggleId(filters.playerIds, player.id),
+                    })
+                  }
+                />
+              ))
+            )}
+          </FilterSection>
+      </FadeScrollArea>
     </aside>
+  );
+}
+
+function filterByLabel<T>(
+  items: readonly T[],
+  query: string,
+  getLabel: (item: T) => string,
+): T[] {
+  const needle = query.trim().toLocaleLowerCase("fr");
+  if (!needle) return [...items];
+  return items.filter((item) =>
+    getLabel(item).toLocaleLowerCase("fr").includes(needle),
+  );
+}
+
+type FilterSearchProps = {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+};
+
+/** Champ de recherche compact pour filtrer une section. */
+function FilterSearch({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+}: FilterSearchProps) {
+  return (
+    <input
+      type="search"
+      className={styles.filterSearch}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      autoComplete="off"
+      spellCheck={false}
+    />
   );
 }
 
@@ -293,16 +395,14 @@ function FilterSection({ title, open, onToggle, children }: FilterSectionProps) 
 }
 
 type FilterOptionProps = {
-  kind: FilterColorKind;
-  id: string;
   label: string;
+  color: string;
   checked: boolean;
   onToggle: () => void;
 };
 
 /** Case filtre colorée (style Google Calendar). */
-function FilterOption({ kind, id, label, checked, onToggle }: FilterOptionProps) {
-  const color = colorForFilter(kind, id);
+function FilterOption({ label, color, checked, onToggle }: FilterOptionProps) {
   return (
     <label className={styles.option}>
       <span

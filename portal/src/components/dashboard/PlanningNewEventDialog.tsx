@@ -18,6 +18,7 @@ import {
   resolveGuestAudience,
   type PlanningGuestSelection,
 } from "@/lib/planning/resolveGuestAudience";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { PlanningGuestPicker } from "./PlanningGuestPicker";
 import { PlanningSelect } from "./PlanningSelect";
 import { PlanningTimeSelect } from "./PlanningTimeSelect";
@@ -183,7 +184,7 @@ export function PlanningNewEventDialog({
       recurrenceEndForEventDay(day, resolveSeasonEndDate(seasonEndDate, day)),
     [day, seasonEndDate],
   );
-  const panelRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{
     left: number;
     top: number;
@@ -451,9 +452,10 @@ export function PlanningNewEventDialog({
         if (keyboardEvent.key === "Escape") onClose();
       }}
     >
-      <aside
-        ref={panelRef}
+      <FadeScrollArea
+        wrapRef={panelRef}
         className={`${panelStyles.panel} ${styles.panel}`}
+        viewportClassName={styles.panelContent}
         data-tone="cyan"
         data-side={position?.side ?? "center"}
         role="dialog"
@@ -764,7 +766,7 @@ export function PlanningNewEventDialog({
             </button>
           </div>
         </form>
-      </aside>
+      </FadeScrollArea>
     </div>
   );
 }

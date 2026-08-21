@@ -17,6 +17,7 @@ import {
   type PlanningGuestKind,
   type PlanningGuestSelection,
 } from "@/lib/planning/resolveGuestAudience";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { useDismissOnOutsidePointer } from "@/lib/planning/useDismissOnOutsidePointer";
 import styles from "./PlanningGuestPicker.module.css";
 
@@ -270,7 +271,13 @@ export function PlanningGuestPicker({
       </div>
 
       {open && !disabled ? (
-        <ul id={listboxId} className={styles.list} role="listbox">
+        <FadeScrollArea
+          as="ul"
+          className={styles.list}
+          viewportClassName={styles.listViewport}
+          id={listboxId}
+          role="listbox"
+        >
           {suggestions.length === 0 ? (
             <li className={styles.empty}>Aucun résultat</li>
           ) : (
@@ -294,7 +301,7 @@ export function PlanningGuestPicker({
               </li>
             ))
           )}
-        </ul>
+        </FadeScrollArea>
       ) : null}
     </div>
   );

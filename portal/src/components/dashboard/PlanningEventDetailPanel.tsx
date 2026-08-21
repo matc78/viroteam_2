@@ -3,6 +3,8 @@ import {
   eventTypeLabel,
   formatEventWhen,
 } from "@/lib/firebase/eventService";
+import { rsvpStatLabel } from "@/lib/planning/rsvpLabels";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningEventDetailPanel.module.css";
 
@@ -26,8 +28,9 @@ export function PlanningEventDetailPanel({
         if (keyboardEvent.key === "Escape") onClose();
       }}
     >
-      <aside
+      <FadeScrollArea
         className={`${panelStyles.panel} ${styles.panel}`}
+        viewportClassName={styles.panelContent}
         data-tone="cyan"
         role="dialog"
         aria-modal="true"
@@ -73,11 +76,15 @@ export function PlanningEventDetailPanel({
           <div className={styles.rsvpGrid}>
             <div className={styles.rsvpStat} data-tone="green">
               <span className={styles.rsvpValue}>{event.rsvpYes}</span>
-              <span className={styles.rsvpLabel}>Présents</span>
+              <span className={styles.rsvpLabel}>
+                {rsvpStatLabel(event.rsvpYes, "Présent", "Présents")}
+              </span>
             </div>
             <div className={styles.rsvpStat} data-tone="orange">
               <span className={styles.rsvpValue}>{event.rsvpNo}</span>
-              <span className={styles.rsvpLabel}>Absents</span>
+              <span className={styles.rsvpLabel}>
+                {rsvpStatLabel(event.rsvpNo, "Absent", "Absents")}
+              </span>
             </div>
             <div className={styles.rsvpStat} data-tone="amber">
               <span className={styles.rsvpValue}>{event.rsvpPending}</span>
@@ -90,7 +97,7 @@ export function PlanningEventDetailPanel({
               : "Aucune convocation enregistrée"}
           </p>
         </section>
-      </aside>
+      </FadeScrollArea>
     </div>
   );
 }

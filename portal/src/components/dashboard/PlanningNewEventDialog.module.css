@@ -19,6 +19,8 @@
 }
 
 .panel {
+  --panel-border: color-mix(in srgb, var(--color-sport-cyan) 34%, var(--color-gray-200));
+  --panel-shadow: color-mix(in srgb, var(--color-sport-cyan) 7%, transparent);
   width: min(100%, 24rem);
   max-height: none;
   min-height: 0 !important;
@@ -29,6 +31,12 @@
   gap: 0;
   padding: 0 !important;
   transform: translateY(-0.35rem);
+}
+
+.panelContent {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .backdrop .panel {
@@ -374,10 +382,10 @@ select.input,
 @media (max-height: 720px) {
   .backdrop:not([data-anchored="true"]) {
     align-items: flex-start;
-    overflow: auto;
   }
 
   .backdrop:not([data-anchored="true"]) .panel {
+    max-height: calc(100vh - 2 * var(--space-md));
     margin-block: var(--space-md);
   }
 }

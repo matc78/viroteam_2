@@ -59,12 +59,8 @@
   z-index: 80;
   top: calc(100% + 0.25rem);
   left: 0;
-  right: 0;
+  right: auto;
   margin: 0;
-  padding: 0.2rem 0;
-  list-style: none;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   border: 1px solid color-mix(in srgb, var(--tone-blue-border) 35%, white);
   border-radius: var(--radius-sm);
   background: var(--color-white);
@@ -75,13 +71,15 @@
   outline: none;
 }
 
-.list[data-portal="true"] {
-  right: auto;
+.listCompact {
+  max-height: 8.25rem;
 }
 
-.list[data-compact="true"] {
-  /* Fallback avant mesure : ~5 lignes. */
-  max-height: 8.25rem;
+.listViewport {
+  margin: 0;
+  padding: 0.2rem 0;
+  list-style: none;
+  outline: none;
 }
 
 .empty {

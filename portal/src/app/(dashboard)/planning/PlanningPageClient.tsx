@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import {
   PlanningCalendar,
@@ -19,6 +19,7 @@ import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import type { ClubEventView } from "@/lib/firebase/eventService";
 import {
   dateOnly,
+  getClubEvent,
   loadPlanningPageData,
 } from "@/lib/firebase/eventService";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
@@ -36,8 +37,11 @@ import styles from "./page.module.css";
 /** Contenu page planning branché sur Firestore. */
 function PlanningPageContent() {
   const { activeClub, user } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const initialEventId = searchParams.get("eventId");
+  const selectAllTeams = searchParams.get("teams") === "all";
 
   const [view, setView] = useState<CalendarView>("week");
   const [cursor, setCursor] = useState(() => dateOnly(new Date()));
@@ -67,6 +71,11 @@ function PlanningPageContent() {
       }),
     [range.start.getTime(), range.end.getTime()],
   );
+
+  /** Nettoie les query params deep-link après application (keep-alive). */
+  function clearPlanningDeepLinkParams() {
+    router.replace(pathname, { scroll: false });
+  }
 
   useEffect(() => {
     if (!activeClub) {
@@ -108,13 +117,64 @@ function PlanningPageContent() {
   }, [data, filters]);
 
   useEffect(() => {
-    if (!data || !initialEventId) return;
-    const matchedEvent = data.events.find((event) => event.id === initialEventId);
-    if (!matchedEvent) return;
-    setCursor(dateOnly(new Date(matchedEvent.startsAt)));
-    setView("day");
-    setSelectedEvent(matchedEvent);
-  }, [data, initialEventId]);
+    if (!data || !selectAllTeams) return;
+    if (initialEventId) return;
+
+    setView("week");
+    setFilters({
+      teamIds: data.teams.map((team) => team.id),
+      coachIds: [],
+      categories: [],
+      playerIds: [],
+    });
+    clearPlanningDeepLinkParams();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- clear once per searchParams token
+  }, [data, selectAllTeams, initialEventId, pathname]);
+
+  useEffect(() => {
+    if (!data || !initialEventId || !activeClub) return;
+
+    let cancelled = false;
+
+    async function applyEventDeepLink() {
+      let matchedEvent =
+        data!.events.find((event) => event.id === initialEventId) ?? null;
+
+      if (!matchedEvent) {
+        matchedEvent = await getClubEvent(
+          activeClub!.id,
+          initialEventId!,
+          data!.teams,
+        );
+        if (cancelled) return;
+        if (!matchedEvent) {
+          clearPlanningDeepLinkParams();
+          return;
+        }
+      }
+
+      const eventDay = dateOnly(new Date(matchedEvent.startsAt));
+      setCursor(eventDay);
+      setView("week");
+      setSelectedEvent(matchedEvent);
+      setFilters({
+        teamIds:
+          matchedEvent.teamIds.length > 0
+            ? [...matchedEvent.teamIds]
+            : data!.teams.map((team) => team.id),
+        coachIds: [],
+        categories: [],
+        playerIds: [],
+      });
+      clearPlanningDeepLinkParams();
+    }
+
+    void applyEventDeepLink();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply once per eventId query
+  }, [data, initialEventId, activeClub?.id, pathname]);
 
   const createEventPeople = useMemo(
     () =>
@@ -143,7 +203,7 @@ function PlanningPageContent() {
   }
 
   return (
-    <>
+    <div className={styles.pageRoot}>
       {error ? (
         <p className={introStyles.lead} role="alert">
           {error}
@@ -169,6 +229,8 @@ function PlanningPageContent() {
               setView("day");
             }}
             onCreateClick={() => openCreateForDay(cursor)}
+            onRefresh={reload}
+            refreshing={refreshing}
           />
 
           <div className={styles.mainPane}>
@@ -176,8 +238,6 @@ function PlanningPageContent() {
               eventBlocks={eventBlocks}
               view={view}
               cursor={cursor}
-              selectedTeamId="all"
-              selectedType="all"
               onViewChange={setView}
               onCursorChange={setCursor}
               onSelectDay={setCursor}
@@ -212,14 +272,20 @@ function PlanningPageContent() {
           onCreated={reload}
         />
       ) : null}
-    </>
+    </div>
   );
 }
 
 /** Client planning (Suspense pour searchParams). */
 export function PlanningPageClient() {
   return (
-    <Suspense fallback={<DashboardSkeleton variant="planning" />}>
+    <Suspense
+      fallback={
+        <div className={styles.pageRoot}>
+          <DashboardSkeleton variant="planning" />
+        </div>
+      }
+    >
       <PlanningPageContent />
     </Suspense>
   );

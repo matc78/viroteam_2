@@ -4,7 +4,8 @@ import type {
   TeamOption,
 } from "@/lib/firebase/eventService";
 import {
-  colorForFilter,
+  colorsForFilterIds,
+  resolveFilterColor,
   type FilterColorKind,
 } from "@/lib/planning/calendarColors";
 
@@ -83,12 +84,25 @@ function matchingLabelsForEvent(
     }
   }
 
+  // Événement club (sans équipe) : visible sur chaque calendrier équipe coché.
+  if (event.teamIds.length === 0 && filters.teamIds.length > 0) {
+    for (const teamId of filters.teamIds) {
+      pushLabel("team", teamId);
+    }
+  }
+
   if (filters.categories.length > 0) {
     const selectedCategories = new Set(filters.categories);
-    for (const teamId of event.teamIds) {
-      const category = teamById.get(teamId)?.category ?? "";
-      if (category && selectedCategories.has(category)) {
+    if (event.teamIds.length === 0) {
+      for (const category of filters.categories) {
         pushLabel("category", category);
+      }
+    } else {
+      for (const teamId of event.teamIds) {
+        const category = teamById.get(teamId)?.category ?? "";
+        if (category && selectedCategories.has(category)) {
+          pushLabel("category", category);
+        }
       }
     }
   }
@@ -145,6 +159,18 @@ export function expandEventsToLabelBlocks(
   const teamById = new Map(teams.map((team) => [team.id, team]));
   const coachMatchToFilterId = collectMatchIds(coaches, filters.coachIds);
   const playerMatchToFilterId = collectMatchIds(players, filters.playerIds);
+  const teamColors = colorsForFilterIds(teams.map((team) => team.id));
+  const coachColors = colorsForFilterIds(coaches.map((coach) => coach.id));
+  const playerColors = colorsForFilterIds(players.map((player) => player.id));
+  const categoryColors = colorsForFilterIds(
+    Array.from(
+      new Set(
+        teams
+          .map((team) => team.category.trim())
+          .filter((category) => category.length > 0),
+      ),
+    ).sort((left, right) => left.localeCompare(right, "fr")),
+  );
   const blocks: CalendarEventBlock[] = [];
 
   for (const event of events) {
@@ -156,10 +182,18 @@ export function expandEventsToLabelBlocks(
       playerMatchToFilterId,
     );
     for (const label of labels) {
+      const palette =
+        label.kind === "team"
+          ? teamColors
+          : label.kind === "coach"
+            ? coachColors
+            : label.kind === "player"
+              ? playerColors
+              : categoryColors;
       blocks.push({
         blockId: `${event.id}::${label.kind}:${label.id}`,
         event,
-        color: colorForFilter(label.kind, label.id),
+        color: resolveFilterColor(label.kind, label.id, palette),
         labelKind: label.kind,
         labelId: label.id,
       });

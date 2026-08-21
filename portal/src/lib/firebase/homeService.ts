@@ -187,6 +187,11 @@ function buildFeeSegments(fees: MemberFeeRecord[]): FeeStatusSegment[] {
   ];
 }
 
+const MIN_RSVP_TOTAL_FOR_ALERT = 8;
+const LOW_RSVP_RATIO_THRESHOLD = 0.4;
+const MAX_ATTENTION_ITEMS = 4;
+
+/** Construit les alertes bureau : RSVP d’abord, puis cotisations / aides. */
 function buildAttention(params: {
   fees: MemberFeeRecord[];
   season: FeeSeasonRecord | null;
@@ -194,32 +199,6 @@ function buildAttention(params: {
   pendingAids: number;
 }): AttentionItem[] {
   const items: AttentionItem[] = [];
-  const overdue = params.fees.filter(
-    (fee) =>
-      fee.status === MemberFeeStatuses.aPayer &&
-      isDeadlineElapsed(params.season?.paymentDeadlineAt ?? null),
-  ).length;
-
-  if (overdue > 0) {
-    items.push({
-      id: "overdue",
-      severity: "high",
-      title: `${overdue} cotisation${overdue > 1 ? "s" : ""} en retard`,
-      detail: "Échéance de saison dépassée",
-    });
-  }
-
-  if (params.pendingAids > 0) {
-    items.push({
-      id: "aids",
-      severity: "high",
-      title: `${params.pendingAids} aide${params.pendingAids > 1 ? "s" : ""} à valider`,
-      detail: "Justificatifs en attente de revue",
-    });
-  }
-
-  const MIN_RSVP_TOTAL_FOR_ALERT = 8;
-  const LOW_RSVP_RATIO_THRESHOLD = 0.4;
 
   for (const event of params.events) {
     if (
@@ -230,13 +209,39 @@ function buildAttention(params: {
         id: `rsvp-${event.id}`,
         severity: "medium",
         title: `RSVP faible — ${event.title}`,
-        detail: `${event.rsvpYes} réponses sur ${event.rsvpTotal}`,
+        detail: `${event.rsvpYes} présents · ${event.rsvpPending} en attente sur ${event.rsvpTotal}`,
       });
-      break;
+    }
+    if (items.length >= MAX_ATTENTION_ITEMS) {
+      return items;
     }
   }
 
-  if (!params.season) {
+  const overdue = params.fees.filter(
+    (fee) =>
+      fee.status === MemberFeeStatuses.aPayer &&
+      isDeadlineElapsed(params.season?.paymentDeadlineAt ?? null),
+  ).length;
+
+  if (overdue > 0 && items.length < MAX_ATTENTION_ITEMS) {
+    items.push({
+      id: "overdue",
+      severity: "high",
+      title: `${overdue} cotisation${overdue > 1 ? "s" : ""} en retard`,
+      detail: "Échéance de saison dépassée",
+    });
+  }
+
+  if (params.pendingAids > 0 && items.length < MAX_ATTENTION_ITEMS) {
+    items.push({
+      id: "aids",
+      severity: "high",
+      title: `${params.pendingAids} aide${params.pendingAids > 1 ? "s" : ""} à valider`,
+      detail: "Justificatifs en attente de revue",
+    });
+  }
+
+  if (!params.season && items.length < MAX_ATTENTION_ITEMS) {
     items.push({
       id: "no-season",
       severity: "medium",
@@ -254,7 +259,7 @@ function buildAttention(params: {
     });
   }
 
-  return items.slice(0, 4);
+  return items.slice(0, MAX_ATTENTION_ITEMS);
 }
 
 /**
@@ -266,15 +271,17 @@ export async function loadHomeDashboard(params: {
 }): Promise<HomeDashboardData> {
   const season = await getActiveSeason(params.club.id);
   const fees = season ? await listMemberFees(params.club.id, season.id) : [];
-  const upcomingEvents = await loadUpcomingEvents(params.club.id, {
-    limit: HOME_PREVIEW_EVENT_LIMIT,
-  });
+  const allUpcomingEvents = await loadUpcomingEvents(params.club.id);
+  const upcomingEvents = allUpcomingEvents.slice(0, HOME_PREVIEW_EVENT_LIMIT);
+  const upcomingEventCount = allUpcomingEvents.length;
+  const pendingRsvpCount = allUpcomingEvents.reduce(
+    (sum, event) => sum + event.rsvpPending,
+    0,
+  );
   const pendingAids = countPendingAids(fees);
   const segments = buildFeeSegments(fees);
   const unpaidCount =
     segments.find((segment) => segment.status === "a_payer")?.count ?? 0;
-  const paidCount =
-    segments.find((segment) => segment.status === "paye")?.count ?? 0;
 
   return {
     clubName: params.club.name,
@@ -282,11 +289,18 @@ export async function loadHomeDashboard(params: {
     adminDisplayName: params.adminDisplayName,
     kpis: [
       {
-        id: "members",
-        label: "Membres actifs",
-        value: params.club.memberCount,
-        hint: "Joueurs, coachs, admins",
+        id: "events",
+        label: "Événements à venir",
+        value: upcomingEventCount,
+        hint: "Prochains 14 jours",
         tone: "neutral",
+      },
+      {
+        id: "rsvp",
+        label: "RSVP en attente",
+        value: pendingRsvpCount,
+        hint: "Réponses manquantes",
+        tone: "accent",
       },
       {
         id: "due",
@@ -296,18 +310,11 @@ export async function loadHomeDashboard(params: {
         tone: "warning",
       },
       {
-        id: "paid",
-        label: "Payées",
-        value: paidCount,
-        hint: season ? "Soldées cette saison" : "—",
-        tone: "success",
-      },
-      {
         id: "aids",
         label: "Aides en attente",
         value: pendingAids,
         hint: "Justificatifs à valider",
-        tone: "accent",
+        tone: "success",
       },
     ],
     feeStatus: segments,
@@ -316,7 +323,7 @@ export async function loadHomeDashboard(params: {
     attentionItems: buildAttention({
       fees,
       season,
-      events: upcomingEvents,
+      events: allUpcomingEvents,
       pendingAids,
     }),
   };

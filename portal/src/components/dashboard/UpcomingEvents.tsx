@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { UpcomingEvent } from "@/lib/firebase/homeService";
 import panelStyles from "./DashboardPanel.module.css";
 import { PlanningEventTile } from "./PlanningEventTile";
@@ -10,11 +13,24 @@ type UpcomingEventsProps = {
   planningHref?: string;
 };
 
-/** Aperçu des prochains événements club (home dashboard). */
+/** Ajoute un paramètre de query à une URL planning. */
+function withPlanningQuery(
+  baseHref: string,
+  params: Record<string, string>,
+): string {
+  const query = new URLSearchParams(params).toString();
+  if (!query) return baseHref;
+  const separator = baseHref.includes("?") ? "&" : "?";
+  return `${baseHref}${separator}${query}`;
+}
+
+/** Aperçu des prochains événements club avec détail des présences. */
 export function UpcomingEvents({
   events,
   planningHref = "/planning",
 }: UpcomingEventsProps) {
+  const router = useRouter();
+
   return (
     <section
       className={panelStyles.panel}
@@ -26,20 +42,34 @@ export function UpcomingEvents({
           <h2 id="upcoming-title" className={styles.title}>
             Prochains événements
           </h2>
-          <p className={styles.subtitle}>14 prochains jours</p>
+          <p className={styles.subtitle}>14 prochains jours · présences</p>
         </div>
-        <Link href={planningHref} className={styles.viewAllLink}>
+        <Link
+          href={withPlanningQuery(planningHref, { teams: "all" })}
+          className={styles.viewAllLink}
+        >
           Voir tout →
         </Link>
       </header>
 
       {events.length === 0 ? (
-        <p className={styles.empty}>Aucun événement prévu dans les 14 prochains jours.</p>
+        <p className={styles.empty}>
+          Aucun événement prévu dans les 14 prochains jours.
+        </p>
       ) : (
         <ul className={styles.list}>
           {events.map((event) => (
             <li key={event.id} className={styles.item}>
-              <PlanningEventTile event={event} compact />
+              <PlanningEventTile
+                event={event}
+                compact
+                detailedRsvp
+                onSelect={() =>
+                  router.push(
+                    withPlanningQuery(planningHref, { eventId: event.id }),
+                  )
+                }
+              />
             </li>
           ))}
         </ul>

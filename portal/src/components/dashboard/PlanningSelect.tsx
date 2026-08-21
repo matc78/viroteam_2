@@ -11,6 +11,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { useDismissOnOutsidePointer } from "@/lib/planning/useDismissOnOutsidePointer";
 import styles from "./PlanningSelect.module.css";
 
@@ -59,7 +60,8 @@ export function PlanningSelect({
 }: PlanningSelectProps) {
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const listScrollRef = useRef<HTMLElement | null>(null);
   const optionRefs = useRef<Map<string, HTMLLIElement>>(new Map());
   const [open, setOpen] = useState(false);
   const [optionHeight, setOptionHeight] = useState(0);
@@ -119,14 +121,12 @@ export function PlanningSelect({
             spaceAbove > spaceBelow;
     const available = openUpward ? spaceAbove : spaceBelow;
     const height = Math.min(maxListHeight, Math.max(80, available));
-    const fitsWithoutScroll = height >= maxListHeight;
 
     setListStyle({
       position: "fixed",
       left: rect.left,
       width: rect.width,
       maxHeight: height,
-      overflowY: fitsWithoutScroll ? "hidden" : "auto",
       ...(openUpward
         ? { bottom: window.innerHeight - rect.top + gap, top: "auto" }
         : { top: rect.bottom + gap, bottom: "auto" }),
@@ -176,19 +176,19 @@ export function PlanningSelect({
     if (selectedNode) {
       setOptionHeight(selectedNode.offsetHeight);
     }
-    listRef.current?.focus({ preventScroll: true });
+    listScrollRef.current?.focus({ preventScroll: true });
   }, [open, value, options]);
 
   useLayoutEffect(() => {
     if (
       !open ||
-      !listRef.current ||
+      !listScrollRef.current ||
       optionHeight <= 0 ||
       visibleNeighbors === undefined
     ) {
       return;
     }
-    const list = listRef.current;
+    const list = listScrollRef.current;
     list.scrollTop = Math.max(
       0,
       selectedIndex * optionHeight - visibleNeighbors * optionHeight,
@@ -208,7 +208,7 @@ export function PlanningSelect({
     }
   }
 
-  function handleListKeyDown(event: KeyboardEvent<HTMLUListElement>) {
+  function handleListKeyDown(event: KeyboardEvent<HTMLElement>) {
     const currentIndex = Math.max(
       0,
       options.findIndex((option) => option.value === highlighted),
@@ -247,18 +247,19 @@ export function PlanningSelect({
 
   const listNode =
     open && mounted ? (
-      <ul
-        ref={listRef}
+      <FadeScrollArea
+        wrapRef={listRef}
+        scrollRef={listScrollRef}
+        as="ul"
+        className={`${styles.list}${visibleNeighbors !== undefined ? ` ${styles.listCompact}` : ""}`}
+        viewportClassName={styles.listViewport}
+        style={listStyle}
         id={listboxId}
-        className={styles.list}
         role="listbox"
         tabIndex={-1}
         aria-activedescendant={
           highlighted ? `${listboxId}-${highlighted}` : undefined
         }
-        style={listStyle}
-        data-compact={visibleNeighbors !== undefined ? "true" : "false"}
-        data-portal="true"
         onKeyDown={handleListKeyDown}
       >
         {options.length === 0 ? (
@@ -288,7 +289,7 @@ export function PlanningSelect({
             );
           })
         )}
-      </ul>
+      </FadeScrollArea>
     ) : null;
 
   return (

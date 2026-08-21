@@ -1,7 +1,10 @@
 import {
   Timestamp,
+  arrayRemove,
+  arrayUnion,
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -23,7 +26,7 @@ export type EventType = "training" | "match" | "tournament" | "other";
 export const UPCOMING_PLANNING_HORIZON_DAYS = 14;
 
 /** Limite d'aperçu sur la home dashboard. */
-export const HOME_PREVIEW_EVENT_LIMIT = 3;
+export const HOME_PREVIEW_EVENT_LIMIT = 6;
 
 /** Vue événement pour le portail admin. */
 export type ClubEventView = {
@@ -257,6 +260,26 @@ export function parseClubEvent(
   };
 }
 
+/**
+ * Charge un événement club par id (deep-link hors fenêtre calendrier).
+ * Retourne null si absent ou annulé.
+ */
+export async function getClubEvent(
+  clubId: string,
+  eventId: string,
+  teams: TeamOption[] = [],
+): Promise<ClubEventView | null> {
+  const eventDocument = doc(eventsCollection(clubId), eventId);
+  const snap = await getDoc(eventDocument);
+  if (!snap.exists()) return null;
+  const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
+  return parseClubEvent(
+    snap.id,
+    snap.data() as Record<string, unknown>,
+    teamNameById,
+  );
+}
+
 /** Charge les équipes d'un club pour résoudre les libellés. */
 export async function loadTeamsForClub(clubId: string): Promise<TeamOption[]> {
   const teamsCol = collection(
@@ -399,6 +422,192 @@ export async function createClubEvent(
   return dates.length;
 }
 
+/**
+ * Ajoute un convoqué aux événements à venir d'une équipe
+ * (aligné EventService Flutter `addAudienceToUpcomingTeamEvents`).
+ */
+export async function addAudienceToUpcomingTeamEvents(params: {
+  clubId: string;
+  teamId: string;
+  audienceId: string;
+}): Promise<void> {
+  const audienceId = params.audienceId.trim();
+  if (!audienceId) return;
+
+  const snap = await queryUpcomingTeamEvents(params.clubId, params.teamId);
+  const db = getAppFirestore();
+  let batch = writeBatch(db);
+  let pending = 0;
+
+  for (const docSnap of snap) {
+    const data = docSnap.data;
+    if (data[Fields.canceled] === true) continue;
+    const members = Array.isArray(data[Fields.teamMemberIds])
+      ? (data[Fields.teamMemberIds] as unknown[]).map(String)
+      : [];
+    if (members.includes(audienceId)) continue;
+
+    batch.update(doc(eventsCollection(params.clubId), docSnap.id), {
+      [Fields.teamMemberIds]: arrayUnion(audienceId),
+    });
+    pending += 1;
+    if (pending >= 400) {
+      await batch.commit();
+      batch = writeBatch(db);
+      pending = 0;
+    }
+  }
+  if (pending > 0) await batch.commit();
+}
+
+/**
+ * Retire un convoqué des événements à venir d'une équipe
+ * (aligné EventService Flutter `removeAudienceFromUpcomingTeamEvents`).
+ */
+export async function removeAudienceFromUpcomingTeamEvents(params: {
+  clubId: string;
+  teamId: string;
+  audienceId: string;
+}): Promise<void> {
+  const audienceId = params.audienceId.trim();
+  if (!audienceId) return;
+
+  const snap = await queryUpcomingTeamEvents(params.clubId, params.teamId);
+  const db = getAppFirestore();
+  let batch = writeBatch(db);
+  let pending = 0;
+
+  for (const docSnap of snap) {
+    const data = docSnap.data;
+    if (data[Fields.canceled] === true) continue;
+    const members = Array.isArray(data[Fields.teamMemberIds])
+      ? (data[Fields.teamMemberIds] as unknown[]).map(String)
+      : [];
+    if (!members.includes(audienceId)) continue;
+
+    batch.update(doc(eventsCollection(params.clubId), docSnap.id), {
+      [Fields.teamMemberIds]: arrayRemove(audienceId),
+    });
+    pending += 1;
+    if (pending >= 400) {
+      await batch.commit();
+      batch = writeBatch(db);
+      pending = 0;
+    }
+  }
+  if (pending > 0) await batch.commit();
+}
+
+/**
+ * Aligne `teamMemberIds` des événements à venir sur les rosters joueurs actuels.
+ * N’ajoute que les manquants (ne retire pas les invités manuels).
+ * @returns nombre d’événements mis à jour.
+ */
+export async function syncUpcomingEventsAudienceFromTeams(
+  clubId: string,
+  teams: TeamOption[],
+): Promise<number> {
+  const teamById = new Map(teams.map((team) => [team.id, team]));
+  const today = dateOnly(new Date());
+  const eventsCol = eventsCollection(clubId);
+
+  let raw: Array<{ id: string; data: Record<string, unknown> }>;
+  try {
+    const snap = await getDocs(
+      query(
+        eventsCol,
+        where(Fields.date, ">=", Timestamp.fromDate(today)),
+        limit(200),
+      ),
+    );
+    raw = snap.docs.map((docSnap) => ({
+      id: docSnap.id,
+      data: docSnap.data() as Record<string, unknown>,
+    }));
+  } catch {
+    raw = await queryUpcomingRawEvents(clubId);
+  }
+
+  const db = getAppFirestore();
+  let batch = writeBatch(db);
+  let pending = 0;
+  let updated = 0;
+
+  for (const { id, data } of raw) {
+    if (data[Fields.canceled] === true) continue;
+    const eventDate = toDate(data[Fields.date]) ?? toDate(data[Fields.startTime]);
+    if (!eventDate || dateOnly(eventDate).getTime() < today.getTime()) continue;
+
+    const eventTeamIds = Array.isArray(data[Fields.teamIds])
+      ? (data[Fields.teamIds] as unknown[]).map(String)
+      : [];
+    if (eventTeamIds.length === 0) continue;
+
+    const expected = new Set<string>();
+    for (const teamId of eventTeamIds) {
+      const team = teamById.get(teamId);
+      if (!team) continue;
+      for (const playerId of team.playerIds) {
+        if (playerId) expected.add(playerId);
+      }
+    }
+    if (expected.size === 0) continue;
+
+    const current = new Set(
+      Array.isArray(data[Fields.teamMemberIds])
+        ? (data[Fields.teamMemberIds] as unknown[]).map(String)
+        : [],
+    );
+    const missing = [...expected].filter((memberId) => !current.has(memberId));
+    if (missing.length === 0) continue;
+
+    batch.update(doc(eventsCol, id), {
+      [Fields.teamMemberIds]: arrayUnion(...missing),
+    });
+    pending += 1;
+    updated += 1;
+    if (pending >= 400) {
+      await batch.commit();
+      batch = writeBatch(db);
+      pending = 0;
+    }
+  }
+
+  if (pending > 0) await batch.commit();
+  return updated;
+}
+
+/** Événements à venir d’une équipe (`date` ≥ aujourd’hui). */
+async function queryUpcomingTeamEvents(
+  clubId: string,
+  teamId: string,
+): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+  const today = dateOnly(new Date());
+  const eventsCol = eventsCollection(clubId);
+  try {
+    const snap = await getDocs(
+      query(
+        eventsCol,
+        where(Fields.teamIds, "array-contains", teamId),
+        where(Fields.date, ">=", Timestamp.fromDate(today)),
+        limit(200),
+      ),
+    );
+    return snap.docs.map((docSnap) => ({
+      id: docSnap.id,
+      data: docSnap.data() as Record<string, unknown>,
+    }));
+  } catch {
+    const fallback = await queryUpcomingRawEvents(clubId);
+    return fallback.filter(({ data }) => {
+      const teamIds = Array.isArray(data[Fields.teamIds])
+        ? (data[Fields.teamIds] as unknown[]).map(String)
+        : [];
+      return teamIds.includes(teamId);
+    });
+  }
+}
+
 function eventsCollection(clubId: string) {
   return collection(
     getAppFirestore(),
@@ -475,6 +684,8 @@ export async function loadUpcomingEvents(
   options: { limit?: number } = {},
 ): Promise<ClubEventView[]> {
   const teams = await loadTeamsForClub(clubId);
+  // Aligne les convocations sur le roster actuel (répare les ajouts portail sans sync).
+  await syncUpcomingEventsAudienceFromTeams(clubId, teams);
   const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
   const rawEvents = await queryUpcomingRawEvents(clubId);
 
@@ -488,35 +699,6 @@ export async function loadUpcomingEvents(
 
   const maxItems = options.limit ?? parsed.length;
   return parsed.slice(0, maxItems);
-}
-
-/** Charge les événements d'un club dans une plage de dates inclusive. */
-export async function loadEventsInRange(
-  clubId: string,
-  start: Date,
-  end: Date,
-): Promise<ClubEventView[]> {
-  const teams = await loadTeamsForClub(clubId);
-  const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
-  const rawEvents = await queryEventsByDateIdRange(
-    clubId,
-    formatDateId(dateOnly(start)),
-    formatDateId(dateOnly(end)),
-  );
-
-  const startMs = dateOnly(start).getTime();
-  const endMs = dateOnly(end).getTime();
-
-  return rawEvents
-    .map(({ id, data }) => parseClubEvent(id, data, teamNameById))
-    .filter((event): event is ClubEventView => event !== null)
-    .filter((event) => {
-      const dayMs = dateOnly(new Date(event.startsAt)).getTime();
-      return dayMs >= startMs && dayMs <= endMs;
-    })
-    .sort(
-      (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
-    );
 }
 
 /** Charge les données complètes de la page planning (plage calendrier élargie). */
@@ -565,8 +747,7 @@ export async function loadPlanningPageData(
       (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
     );
 
-  const coaches = people.filter((person) => person.role === "coach");
-  const players = people.filter((person) => person.role === "player");
+  const { coaches, players } = splitPlanningPeopleByRoster(people, teams);
   const admins = people.filter((person) => person.role === "admin");
   const categories = Array.from(
     new Set(
@@ -584,6 +765,55 @@ export async function loadPlanningPageData(
     admins,
     categories,
     seasonEndDate,
+  };
+}
+
+/**
+ * Sépare coachs / joueurs à partir des rosters d’équipes (prioritaire),
+ * puis complète avec le rôle club pour les membres hors roster.
+ */
+function splitPlanningPeopleByRoster(
+  people: PlanningPersonOption[],
+  teams: TeamOption[],
+): {
+  coaches: PlanningPersonOption[];
+  players: PlanningPersonOption[];
+} {
+  const peopleByMatchId = new Map<string, PlanningPersonOption>();
+  for (const person of people) {
+    peopleByMatchId.set(person.id, person);
+    for (const matchId of person.matchIds) {
+      peopleByMatchId.set(matchId, person);
+    }
+  }
+
+  const coachesById = new Map<string, PlanningPersonOption>();
+  const playersById = new Map<string, PlanningPersonOption>();
+
+  for (const team of teams) {
+    for (const coachId of team.coachIds) {
+      const person = peopleByMatchId.get(coachId);
+      if (person) coachesById.set(person.id, person);
+    }
+    for (const playerId of team.playerIds) {
+      const person = peopleByMatchId.get(playerId);
+      if (person) playersById.set(person.id, person);
+    }
+  }
+
+  // Membres hors roster : classés via le rôle club.
+  for (const person of people) {
+    if (coachesById.has(person.id) || playersById.has(person.id)) continue;
+    if (person.role === "coach") coachesById.set(person.id, person);
+    if (person.role === "player") playersById.set(person.id, person);
+  }
+
+  const byName = (a: PlanningPersonOption, b: PlanningPersonOption) =>
+    a.name.localeCompare(b.name, "fr");
+
+  return {
+    coaches: [...coachesById.values()].sort(byName),
+    players: [...playersById.values()].sort(byName),
   };
 }
 
@@ -669,18 +899,6 @@ export function formatCalendarPeriodLabel(
     year: "numeric",
   }).format(end);
   return `${startLabel} – ${endLabel}`;
-}
-
-/** Construit la liste des jours couvrant la fenêtre planning. */
-export function buildPlanningDays(clock = new Date()): Date[] {
-  const days: Date[] = [];
-  const start = dateOnly(clock);
-  for (let offset = 0; offset < UPCOMING_PLANNING_HORIZON_DAYS; offset += 1) {
-    const day = new Date(start);
-    day.setDate(start.getDate() + offset);
-    days.push(day);
-  }
-  return days;
 }
 
 /** Formate l'heure d'un event (fr-FR). */

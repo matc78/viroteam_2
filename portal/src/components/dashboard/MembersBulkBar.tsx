@@ -77,8 +77,6 @@ export function MembersBulkBar({
             options={[
               { value: "", label: hasSeason ? "Changer…" : "Pas de saison" },
               { value: MemberFeeStatuses.aPayer, label: "À payer" },
-              { value: MemberFeeStatuses.partiel, label: "Partiel" },
-              { value: MemberFeeStatuses.paye, label: "Payé" },
               { value: MemberFeeStatuses.exonere, label: "Exonéré" },
             ]}
             onChange={(next) => {

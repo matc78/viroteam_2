@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AddMemberDialog } from "@/components/dashboard/AddMemberDialog";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -9,6 +9,8 @@ import { InviteParentDialog } from "@/components/dashboard/InviteParentDialog";
 import { MemberDetailPanel } from "@/components/dashboard/MemberDetailPanel";
 import { MembersTable } from "@/components/dashboard/MembersTable";
 import { ParentsTable } from "@/components/dashboard/ParentsTable";
+import { TeamsPanel } from "@/components/dashboard/TeamsPanel";
+import type { TeamFormValues } from "@/components/dashboard/CreateTeamDialog";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import tabStyles from "@/components/dashboard/MembersTabs.module.css";
@@ -24,7 +26,7 @@ import {
   updateMemberGuardianInviteEmail,
 } from "@/lib/firebase/guardianService";
 import { sendMemberInvites } from "@/lib/firebase/callableService";
-import { setMemberFeeStatus } from "@/lib/firebase/feeService";
+import { applyMemberFeeChanges } from "@/lib/firebase/feeService";
 import {
   addMemberWithInvitation,
   assignMemberToTeam,
@@ -40,10 +42,18 @@ import {
   type ClubMemberRole,
 } from "@/lib/firebase/memberService";
 import {
+  addMemberToTeam,
+  createTeam,
+  deleteTeam,
+  removeMemberFromTeam,
+  updateTeam,
+  type TeamRosterRole,
+} from "@/lib/firebase/teamService";
+import {
   downloadTextFile,
   exportMembersToCsv,
   type MemberImportReport,
-  type MemberImportRow,
+  type MembersImportPlan,
 } from "@/lib/members/membersCsv";
 import {
   feeStatusLabel,
@@ -72,7 +82,7 @@ const DEFAULT_PARENT_FILTERS: ParentsFilters = {
   status: "all",
 };
 
-type MembersTab = "roster" | "parents";
+type MembersTab = "roster" | "parents" | "teams";
 
 /** Contenu page Membres branché sur Firestore. */
 export function MembersPageClient() {
@@ -83,6 +93,29 @@ export function MembersPageClient() {
     loadMembersPageData,
     [],
   );
+
+  const teamIdsSyncToastShownRef = useRef(false);
+
+  useEffect(() => {
+    teamIdsSyncToastShownRef.current = false;
+    setFilters(DEFAULT_FILTERS);
+    setParentFilters(DEFAULT_PARENT_FILTERS);
+    setSelectedMemberId(null);
+    setSelectedIds(new Set());
+    setShowAdd(false);
+    setShowImport(false);
+    setShowInviteParent(false);
+    setActionError(null);
+    setCreatedMember(null);
+    setImportReport(null);
+    setMembersTab("roster");
+  }, [activeClub?.id]);
+
+  useEffect(() => {
+    if (!data?.teamIdsSynced || teamIdsSyncToastShownRef.current) return;
+    teamIdsSyncToastShownRef.current = true;
+    showToast("Changement appliqué.", "success");
+  }, [data?.teamIdsSynced, showToast]);
 
   const [membersTab, setMembersTab] = useState<MembersTab>("roster");
   const [filters, setFilters] = useState<MembersFilters>(DEFAULT_FILTERS);
@@ -222,6 +255,108 @@ export function MembersPageClient() {
         reload();
       },
       { errorFallback: "Ajout impossible." },
+    );
+  }
+
+  async function handleCreateTeam(values: TeamFormValues) {
+    if (!activeClub) return;
+    const ok = await runMemberAction(
+      async () => {
+        await createTeam({
+          clubId: activeClub.id,
+          name: values.name,
+          category: values.category,
+        });
+        reload();
+      },
+      {
+        successMessage: "Équipe créée.",
+        errorFallback: "Création de l’équipe impossible.",
+      },
+    );
+    if (!ok) throw new Error("Création de l’équipe impossible.");
+  }
+
+  async function handleUpdateTeam(teamId: string, values: TeamFormValues) {
+    if (!activeClub) return;
+    const ok = await runMemberAction(
+      async () => {
+        await updateTeam({
+          clubId: activeClub.id,
+          teamId,
+          name: values.name,
+          category: values.category,
+        });
+        reload();
+      },
+      {
+        successMessage: "Équipe mise à jour.",
+        errorFallback: "Mise à jour de l’équipe impossible.",
+      },
+    );
+    if (!ok) throw new Error("Mise à jour de l’équipe impossible.");
+  }
+
+  async function handleDeleteTeam(teamId: string) {
+    if (!activeClub) return;
+    await runMemberAction(
+      async () => {
+        await deleteTeam({ clubId: activeClub.id, teamId });
+        reload();
+      },
+      {
+        successMessage: "Équipe supprimée.",
+        errorFallback: "Suppression de l’équipe impossible.",
+      },
+    );
+  }
+
+  async function handleAddTeamMember(params: {
+    teamId: string;
+    memberId: string;
+    role: TeamRosterRole;
+  }) {
+    if (!activeClub) return;
+    const ok = await runMemberAction(
+      async () => {
+        await addMemberToTeam({
+          clubId: activeClub.id,
+          teamId: params.teamId,
+          memberId: params.memberId,
+          role: params.role,
+        });
+        reload();
+      },
+      {
+        successMessage: "Changement appliqué.",
+        errorFallback: "Ajout au roster impossible.",
+      },
+    );
+    if (!ok) throw new Error("Ajout au roster impossible.");
+  }
+
+  async function handleRemoveTeamMember(params: {
+    teamId: string;
+    memberId: string;
+    accountUid: string | null;
+    role: TeamRosterRole;
+  }) {
+    if (!activeClub) return;
+    await runMemberAction(
+      async () => {
+        await removeMemberFromTeam({
+          clubId: activeClub.id,
+          teamId: params.teamId,
+          memberId: params.memberId,
+          role: params.role,
+          accountUid: params.accountUid,
+        });
+        reload();
+      },
+      {
+        successMessage: "Changement appliqué.",
+        errorFallback: "Retrait du roster impossible.",
+      },
     );
   }
 
@@ -378,123 +513,354 @@ export function MembersPageClient() {
   }
 
   async function handleImport(
-    rows: MemberImportRow[],
-    meta: { skippedDuplicates: number; sendInvites: boolean },
+    plan: MembersImportPlan,
+    meta: { sendInvites: boolean },
   ) {
     if (!activeClub || !user || !data) return;
+    if (plan.blockingErrors.length > 0) {
+      setActionError(
+        "Import impossible : le fichier contient des erreurs. Corrigez-le puis réessayez.",
+      );
+      return;
+    }
+
     setBusy(true);
     setActionError(null);
 
     const report: MemberImportReport = {
       created: 0,
-      skipped: meta.skippedDuplicates,
+      updated: 0,
+      teamsCreated: 0,
+      teamsUpdated: 0,
       failed: 0,
       errors: [],
+      warnings: [],
       inviteableMemberIds: [],
       emailsSent: 0,
     };
 
     const teamsByName = new Map(
-      data.teams.map((team) => [team.name.trim().toLowerCase(), team]),
+      data.teams.map((team) => [
+        team.name.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
+        { id: team.id, name: team.name, category: team.category },
+      ]),
     );
 
-    for (const row of rows) {
-      try {
-        const result = await addMemberWithInvitation({
-          clubId: activeClub.id,
-          firstName: row.firstName,
-          lastName: row.lastName,
-          role: row.role,
-          sentByUid: user.uid,
-          club: activeClub,
-          email: row.email,
-        });
+    const normalizeTeamKey = (name: string) =>
+      name
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
 
-        if (row.license.trim()) {
-          await updateMemberLicense({
+    try {
+      let importAborted = false;
+
+      for (const teamAction of plan.teamsToCreate) {
+        try {
+          const teamId = await createTeam({
             clubId: activeClub.id,
-            memberId: result.member.memberId,
-            license: row.license,
+            name: teamAction.name,
+            category: teamAction.category,
           });
-        }
-
-        if (row.teamName.trim()) {
-          const team = teamsByName.get(row.teamName.trim().toLowerCase());
-          if (team) {
-            await assignMemberToTeam({
-              clubId: activeClub.id,
-              memberId: result.member.memberId,
-              teamId: team.id,
-              role: row.role,
-            });
-          } else {
-            report.errors.push(
-              `Ligne ${row.lineNumber} : équipe « ${row.teamName} » introuvable (membre créé sans équipe).`,
-            );
-          }
-        }
-
-        report.created += 1;
-        if (row.email.trim()) {
-          report.inviteableMemberIds.push(result.member.memberId);
-        }
-      } catch (err: unknown) {
-        report.failed += 1;
-        report.errors.push(
-          `Ligne ${row.lineNumber} : ${
-            err instanceof Error ? err.message : "échec"
-          }`,
-        );
-      }
-    }
-
-    if (meta.sendInvites && report.inviteableMemberIds.length > 0) {
-      try {
-        const chunkSize = 100;
-        for (
-          let offset = 0;
-          offset < report.inviteableMemberIds.length;
-          offset += chunkSize
-        ) {
-          const chunk = report.inviteableMemberIds.slice(
-            offset,
-            offset + chunkSize,
+          teamsByName.set(normalizeTeamKey(teamAction.name), {
+            id: teamId,
+            name: teamAction.name,
+            category: teamAction.category,
+          });
+          report.teamsCreated += 1;
+        } catch (err: unknown) {
+          report.failed += 1;
+          report.errors.push(
+            `Équipe « ${teamAction.name} » : ${
+              err instanceof Error ? err.message : "création impossible"
+            }. Corrigez puis réessayez.`,
           );
-          const inviteResult = await sendMemberInvites({
+          importAborted = true;
+        }
+      }
+
+      for (const teamAction of plan.teamsToUpdate) {
+        if (importAborted) break;
+        if (!teamAction.existingTeamId) continue;
+        try {
+          await updateTeam({
             clubId: activeClub.id,
-            memberIds: chunk,
+            teamId: teamAction.existingTeamId,
+            category: teamAction.category,
           });
-          report.emailsSent += inviteResult.sent;
-          if (inviteResult.failed > 0 || inviteResult.skipped > 0) {
-            report.errors.push(
-              `E-mails : ${inviteResult.sent} envoyé${inviteResult.sent > 1 ? "s" : ""}, ${inviteResult.skipped} ignoré${inviteResult.skipped > 1 ? "s" : ""}, ${inviteResult.failed} échec${inviteResult.failed > 1 ? "s" : ""}.`,
-            );
+          const key = normalizeTeamKey(teamAction.name);
+          const previous = teamsByName.get(key);
+          if (previous) {
+            teamsByName.set(key, {
+              ...previous,
+              category: teamAction.category,
+            });
           }
-          for (const item of inviteResult.results) {
-            if (item.status === "failed" && item.reason) {
-              report.errors.push(
-                `Invitation ${item.memberId} : ${item.reason}`,
+          report.teamsUpdated += 1;
+        } catch (err: unknown) {
+          report.failed += 1;
+          report.errors.push(
+            `Équipe « ${teamAction.name} » : ${
+              err instanceof Error ? err.message : "mise à jour impossible"
+            }. Corrigez puis réessayez.`,
+          );
+          importAborted = true;
+        }
+      }
+
+      // Si une équipe a échoué, on ne touche pas aux membres — mais on a déjà
+      // listé toutes les erreurs d’équipes rencontrées ci-dessus.
+      const existingById = new Map(
+        data.members.map((member) => [member.memberId, member]),
+      );
+
+      if (!importAborted) {
+        for (const action of plan.memberActions) {
+          try {
+            let memberId = action.existingMemberId;
+
+            if (action.action === "create" || !memberId) {
+              const createRole =
+                action.role === MemberRoles.admin
+                  ? MemberRoles.admin
+                  : action.role === MemberRoles.coach
+                    ? MemberRoles.coach
+                    : MemberRoles.player;
+
+              const result = await addMemberWithInvitation({
+                clubId: activeClub.id,
+                firstName: action.firstName,
+                lastName: action.lastName,
+                role: createRole,
+                sentByUid: user.uid,
+                club: activeClub,
+                email: action.email,
+              });
+              memberId = result.member.memberId;
+              report.created += 1;
+            } else {
+              const existing = existingById.get(memberId);
+              if (existing && existing.role !== action.role) {
+                await updateMemberRole({
+                  clubId: activeClub.id,
+                  memberId,
+                  newRole: action.role,
+                });
+              }
+
+              if (existing && !existing.hasLinkedAccount) {
+                const nameChanged =
+                  existing.firstName.trim() !== action.firstName.trim() ||
+                  existing.lastName.trim() !== action.lastName.trim();
+                const emailChanged =
+                  (existing.email ?? "").trim().toLowerCase() !==
+                  action.email.trim().toLowerCase();
+                if (nameChanged || emailChanged) {
+                  try {
+                    await updatePendingMemberProfile({
+                      clubId: activeClub.id,
+                      memberId,
+                      firstName: action.firstName,
+                      lastName: action.lastName,
+                      email: action.email,
+                    });
+                  } catch (err: unknown) {
+                    report.failed += 1;
+                    report.errors.push(
+                      `Ligne ${action.lineNumber} : profil non mis à jour (${
+                        err instanceof Error ? err.message : "échec"
+                      }). Corrigez puis réessayez.`,
+                    );
+                    importAborted = true;
+                    break;
+                  }
+                }
+              } else if (existing?.hasLinkedAccount && action.email.trim()) {
+                // Avertissement non bloquant : le compte lié conserve son e-mail.
+                report.warnings.push(
+                  `Ligne ${action.lineNumber} : e-mail CSV ignoré (membre déjà inscrit).`,
+                );
+              }
+
+              report.updated += 1;
+            }
+
+            if (action.license.trim()) {
+              await updateMemberLicense({
+                clubId: activeClub.id,
+                memberId,
+                license: action.license,
+              });
+            }
+
+            if (
+              action.teamName.trim() &&
+              action.role !== MemberRoles.admin &&
+              memberId
+            ) {
+              const team = teamsByName.get(normalizeTeamKey(action.teamName));
+              if (!team) {
+                report.failed += 1;
+                report.errors.push(
+                  `Ligne ${action.lineNumber} : équipe « ${action.teamName} » introuvable après import. Corrigez puis réessayez.`,
+                );
+                importAborted = true;
+                break;
+              }
+              const rosterRole =
+                action.role === MemberRoles.coach
+                  ? MemberRoles.coach
+                  : MemberRoles.player;
+              const existingMember = existingById.get(memberId);
+              const previousAssignments = existingMember
+                ? existingMember.resolvedTeamIds
+                : [];
+
+              await assignMemberToTeam({
+                clubId: activeClub.id,
+                memberId,
+                teamId: team.id,
+                role: rosterRole,
+              });
+
+              for (const previousTeamId of previousAssignments) {
+                if (previousTeamId === team.id) continue;
+                const previousTeam = data.teams.find(
+                  (item) => item.id === previousTeamId,
+                );
+                if (!previousTeam) continue;
+                const matchIds = new Set(
+                  [
+                    existingMember?.memberId,
+                    existingMember?.accountUid,
+                  ].filter(Boolean) as string[],
+                );
+                const wasCoach = previousTeam.coachIds.some((id) =>
+                  matchIds.has(id),
+                );
+                const wasPlayer = previousTeam.playerIds.some((id) =>
+                  matchIds.has(id),
+                );
+                if (wasCoach) {
+                  await removeMemberFromTeam({
+                    clubId: activeClub.id,
+                    memberId,
+                    teamId: previousTeamId,
+                    role: MemberRoles.coach,
+                    accountUid: existingMember?.accountUid,
+                  });
+                }
+                if (wasPlayer || (!wasCoach && !wasPlayer)) {
+                  await removeMemberFromTeam({
+                    clubId: activeClub.id,
+                    memberId,
+                    teamId: previousTeamId,
+                    role: MemberRoles.player,
+                    accountUid: existingMember?.accountUid,
+                  });
+                }
+              }
+            }
+
+            const shouldQueueInvite =
+              Boolean(action.email.trim()) &&
+              Boolean(memberId) &&
+              (action.action === "create" ||
+                !existingById.get(memberId)?.hasLinkedAccount);
+            if (shouldQueueInvite && memberId) {
+              report.inviteableMemberIds.push(memberId);
+            }
+          } catch (err: unknown) {
+            report.failed += 1;
+            report.errors.push(
+              `Ligne ${action.lineNumber} : ${
+                err instanceof Error ? err.message : "échec"
+              }. Corrigez puis réessayez.`,
+            );
+            importAborted = true;
+            break;
+          }
+        }
+      }
+
+      if (importAborted) {
+        report.errors.unshift(
+          "Import interrompu : certaines écritures ont pu déjà être appliquées. Corrigez les erreurs puis réimportez (les lignes déjà traitées seront mises à jour).",
+        );
+      } else if (
+        meta.sendInvites &&
+        report.inviteableMemberIds.length > 0
+      ) {
+        try {
+          const chunkSize = 100;
+          for (
+            let offset = 0;
+            offset < report.inviteableMemberIds.length;
+            offset += chunkSize
+          ) {
+            const chunk = report.inviteableMemberIds.slice(
+              offset,
+              offset + chunkSize,
+            );
+            const inviteResult = await sendMemberInvites({
+              clubId: activeClub.id,
+              memberIds: chunk,
+            });
+            report.emailsSent += inviteResult.sent;
+            if (inviteResult.failed > 0 || inviteResult.skipped > 0) {
+              report.warnings.push(
+                `E-mails : ${inviteResult.sent} envoyé${inviteResult.sent > 1 ? "s" : ""}, ${inviteResult.skipped} ignoré${inviteResult.skipped > 1 ? "s" : ""}, ${inviteResult.failed} échec${inviteResult.failed > 1 ? "s" : ""}.`,
               );
             }
+            for (const item of inviteResult.results) {
+              if (item.status === "failed" && item.reason) {
+                report.warnings.push(
+                  `Invitation ${item.memberId} : ${item.reason}`,
+                );
+              }
+            }
           }
+        } catch (err: unknown) {
+          report.warnings.push(
+            `Envoi des invitations : ${
+              err instanceof Error ? err.message : "échec"
+            }. Réessayez.`,
+          );
         }
-      } catch (err: unknown) {
-        report.errors.push(
-          `Envoi des invitations : ${
-            err instanceof Error ? err.message : "échec"
-          }`,
-        );
       }
+    } finally {
+      setImportReport(report);
+      setBusy(false);
+      reload();
     }
 
-    setImportReport(report);
-    setBusy(false);
-    reload();
-    if (report.created > 0) {
+    if (report.failed > 0) {
       showToast(
-        `${report.created} membre${report.created > 1 ? "s" : ""} importé${report.created > 1 ? "s" : ""}.`,
+        "Import interrompu : vérifiez le rapport puis corrigez le fichier.",
+        "error",
+      );
+    } else if (report.created > 0 || report.updated > 0 || report.teamsCreated > 0) {
+      showToast(
+        `Import : ${report.created} créé${report.created > 1 ? "s" : ""}, ${report.updated} mis à jour.`,
         "success",
       );
+      if (report.warnings.length > 0) {
+        const preview = report.warnings.slice(0, 6);
+        const remaining = report.warnings.length - preview.length;
+        const message = [
+          `Import terminé avec ${report.warnings.length} info${
+            report.warnings.length > 1 ? "s" : ""
+          } :`,
+          ...preview,
+          remaining > 0
+            ? `… et ${remaining} autre${remaining > 1 ? "s" : ""}.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        showToast(message, "info", { sticky: true });
+      }
     }
   }
 
@@ -602,62 +968,44 @@ export function MembersPageClient() {
     }
     if (
       status !== MemberFeeStatuses.aPayer &&
-      status !== MemberFeeStatuses.partiel &&
-      status !== MemberFeeStatuses.paye &&
       status !== MemberFeeStatuses.exonere
     ) {
       return;
     }
 
-    const memberIds = [...selectedIds];
-    if (memberIds.length === 0) return;
+    const selectedRows = selectedMemberRows();
+    if (selectedRows.length === 0) return;
 
     const confirmed = window.confirm(
-      `Passer ${memberIds.length} cotisation${memberIds.length > 1 ? "s" : ""} à « ${feeStatusLabel(status)} » ?`,
+      `Passer ${selectedRows.length} cotisation${selectedRows.length > 1 ? "s" : ""} à « ${feeStatusLabel(status)} » ?`,
     );
     if (!confirmed) return;
 
     setBusy(true);
-    let ok = 0;
-    const failures: string[] = [];
-    const memberById = new Map(
-      (data.members ?? []).map((member) => [member.memberId, member]),
-    );
     try {
-      for (const memberId of memberIds) {
-        const member = memberById.get(memberId);
-        const label = member?.displayName ?? memberId;
-        try {
-          await setMemberFeeStatus({
-            clubId: activeClub.id,
-            seasonId: data.seasonId,
-            memberId,
-            status,
-          });
-          ok += 1;
-        } catch (err: unknown) {
-          const reason =
-            err instanceof Error ? err.message : "échec inconnu";
-          failures.push(`${label} : ${reason}`);
-        }
-      }
-      if (failures.length === 0) {
-        showToast(
-          `Cotisations : ${ok} mise${ok > 1 ? "s" : ""} à jour.`,
-          "success",
-        );
-      } else {
-        const preview = failures.slice(0, 3).join(" · ");
-        const more =
-          failures.length > 3 ? ` (+${failures.length - 3})` : "";
-        showToast(
-          `Cotisations : ${ok} ok, ${failures.length} échec${failures.length > 1 ? "s" : ""}. ${preview}${more}`,
-          "error",
-        );
-        console.error("[bulkSetFeeStatus]", failures);
-      }
+      await applyMemberFeeChanges({
+        clubId: activeClub.id,
+        seasonId: data.seasonId,
+        changes: selectedRows.map((member) => ({
+          memberId: member.memberId,
+          memberDisplayName: member.displayName,
+          status,
+          feeExists: member.feeStatus !== null,
+        })),
+      });
+      showToast(
+        `Cotisations : ${selectedRows.length} mise${selectedRows.length > 1 ? "s" : ""} à jour.`,
+        "success",
+      );
       clearSelection();
       reload();
+    } catch (err: unknown) {
+      showToast(
+        err instanceof Error
+          ? err.message
+          : "Mise à jour groupée des cotisations impossible.",
+        "error",
+      );
     } finally {
       setBusy(false);
     }
@@ -862,8 +1210,12 @@ export function MembersPageClient() {
           lead={
             membersTab === "roster"
               ? `Gérez les membres de ${activeClub?.name ?? "votre club"}, leurs licences et les invitations.`
-              : `Suivez les invitations et parents connectés de ${activeClub?.name ?? "votre club"}.`
+              : membersTab === "parents"
+                ? `Suivez les invitations et parents connectés de ${activeClub?.name ?? "votre club"}.`
+                : `Créez les équipes de ${activeClub?.name ?? "votre club"}, leurs catégories, joueurs et coachs.`
           }
+          onRefresh={reload}
+          refreshing={refreshing}
         />
 
         <div className={tabStyles.tabs} role="tablist" aria-label="Membres">
@@ -875,6 +1227,18 @@ export function MembersPageClient() {
             onClick={() => setMembersTab("roster")}
           >
             Membres
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={membersTab === "teams"}
+            className={`${tabStyles.tab} ${membersTab === "teams" ? tabStyles.tabActive : ""}`}
+            onClick={() => {
+              setActionError(null);
+              setMembersTab("teams");
+            }}
+          >
+            Équipes
           </button>
           <button
             type="button"
@@ -977,6 +1341,23 @@ export function MembersPageClient() {
             }}
           />
         ) : null}
+
+        {data && membersTab === "teams" && activeClub ? (
+          <TeamsPanel
+            clubId={activeClub.id}
+            teams={data.teams}
+            members={data.members}
+            sport={activeClub.sport}
+            busy={busy}
+            error={actionError}
+            onClearError={() => setActionError(null)}
+            onCreateTeam={handleCreateTeam}
+            onUpdateTeam={handleUpdateTeam}
+            onDeleteTeam={handleDeleteTeam}
+            onAddMember={handleAddTeamMember}
+            onRemoveMember={handleRemoveTeamMember}
+          />
+        ) : null}
       </div>
 
       {selectedMember && activeClub && membersTab === "roster" ? (
@@ -1034,9 +1415,11 @@ export function MembersPageClient() {
         />
       ) : null}
 
-      {showImport && data ? (
+      {showImport && data && activeClub ? (
         <ImportMembersDialog
+          sport={activeClub.sport}
           existingMembers={data.members}
+          adminIds={activeClub.adminIds}
           teams={data.teams}
           busy={busy}
           error={actionError}

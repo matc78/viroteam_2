@@ -12,6 +12,7 @@ import {
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
 import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
+import { reconcileMemberTeamIds } from "@/lib/firebase/teamService";
 import {
   listClubParentRows,
   type ClubParentRow,
@@ -20,10 +21,20 @@ import {
 /** Ligne membre enrichie pour le tableau portail. */
 export type MemberRow = ClubMemberRecord & {
   teamNames: string[];
+  /** Libellés équipes avec rôle roster (ex. « M18 filles (joueur) »). */
+  teamLabels: string[];
   /** IDs d’équipes dérivés des rosters (playerIds/coachIds) + teamIds doc. */
   resolvedTeamIds: string[];
   feeStatus: string | null;
   feeStatusLabel: string;
+};
+
+/** Affectation roster d’un membre sur une équipe. */
+export type MemberTeamAssignment = {
+  teamId: string;
+  teamName: string;
+  isCoach: boolean;
+  isPlayer: boolean;
 };
 
 /** Données page Membres. */
@@ -33,6 +44,8 @@ export type MembersPageData = {
   seasonId: string | null;
   seasonLabel: string | null;
   parents: ClubParentRow[];
+  /** True si une réparation `teamIds` a été écrite au chargement. */
+  teamIdsSynced: boolean;
 };
 
 /** Libellé FR d’un statut cotisation. */
@@ -45,30 +58,53 @@ export function feeStatusLabel(status: string | null): string {
   return status;
 }
 
-/** Résout les équipes d’un membre via rosters + teamIds. */
+/** Formate une affectation équipe + rôle roster pour l’UI. */
+export function formatMemberTeamLabel(assignment: MemberTeamAssignment): string {
+  const roles: string[] = [];
+  if (assignment.isCoach) roles.push("coach");
+  if (assignment.isPlayer) roles.push("joueur");
+  if (roles.length === 0) return assignment.teamName;
+  return `${assignment.teamName} (${roles.join(" + ")})`;
+}
+
+/** Résout les équipes d’un membre via rosters + teamIds, avec rôles roster. */
 export function resolveMemberTeams(
   member: ClubMemberRecord,
   teams: TeamOption[],
-): { teamIds: string[]; teamNames: string[] } {
+): {
+  teamIds: string[];
+  teamNames: string[];
+  teamLabels: string[];
+  assignments: MemberTeamAssignment[];
+} {
   const matchIds = new Set(
     [member.memberId, member.accountUid].filter(Boolean) as string[],
   );
-  const fromRosters = teams.filter(
-    (team) =>
-      team.playerIds.some((id) => matchIds.has(id)) ||
-      team.coachIds.some((id) => matchIds.has(id)),
-  );
-  const fromDoc = teams.filter((team) => member.teamIds.includes(team.id));
-  const merged = new Map<string, TeamOption>();
-  for (const team of [...fromRosters, ...fromDoc]) {
-    merged.set(team.id, team);
+
+  const assignmentsById = new Map<string, MemberTeamAssignment>();
+
+  for (const team of teams) {
+    const isPlayer = team.playerIds.some((id) => matchIds.has(id));
+    const isCoach = team.coachIds.some((id) => matchIds.has(id));
+    const inDoc = member.teamIds.includes(team.id);
+    if (!isPlayer && !isCoach && !inDoc) continue;
+    assignmentsById.set(team.id, {
+      teamId: team.id,
+      teamName: team.name,
+      isCoach,
+      isPlayer,
+    });
   }
-  const list = [...merged.values()].sort((a, b) =>
-    a.name.localeCompare(b.name, "fr"),
+
+  const assignments = [...assignmentsById.values()].sort((a, b) =>
+    a.teamName.localeCompare(b.teamName, "fr"),
   );
+
   return {
-    teamIds: list.map((team) => team.id),
-    teamNames: list.map((team) => team.name),
+    teamIds: assignments.map((assignment) => assignment.teamId),
+    teamNames: assignments.map((assignment) => assignment.teamName),
+    teamLabels: assignments.map(formatMemberTeamLabel),
+    assignments,
   };
 }
 
@@ -95,18 +131,35 @@ export async function loadMembersPageData(
     getActiveSeason(club.id),
   ]);
 
+  const healed = await reconcileMemberTeamIds(club.id, {
+    members: members.map((member) => ({
+      memberId: member.memberId,
+      accountUid: member.accountUid,
+      teamIds: member.teamIds,
+    })),
+    teams,
+  });
+
+  // Recharge après réparation pour aligner rosters normalisés + teamIds.
+  const [membersForRows, teamsForRows] = healed
+    ? await Promise.all([listClubMembers(club.id), loadTeamsForClub(club.id)])
+    : [members, teams];
+
   const [fees, parentsResult] = await Promise.all([
     season ? listMemberFees(club.id, season.id) : Promise.resolve([]),
-    listClubParentRows(club.id, members).catch(() => [] as ClubParentRow[]),
+    listClubParentRows(club.id, membersForRows).catch(
+      () => [] as ClubParentRow[],
+    ),
   ]);
   const feesById = new Map(fees.map((fee) => [fee.id, fee]));
 
-  const rows: MemberRow[] = members.map((member) => {
-    const resolved = resolveMemberTeams(member, teams);
+  const rows: MemberRow[] = membersForRows.map((member) => {
+    const resolved = resolveMemberTeams(member, teamsForRows);
     const feeStatus = feeStatusForMember(member, feesById);
     return {
       ...member,
       teamNames: resolved.teamNames,
+      teamLabels: resolved.teamLabels,
       resolvedTeamIds: resolved.teamIds,
       feeStatus,
       feeStatusLabel: feeStatusLabel(feeStatus),
@@ -115,10 +168,11 @@ export async function loadMembersPageData(
 
   return {
     members: rows,
-    teams,
+    teams: teamsForRows,
     seasonId: season?.id ?? null,
     seasonLabel: season?.seasonLabel ?? null,
     parents: parentsResult,
+    teamIdsSynced: healed,
   };
 }
 
@@ -168,6 +222,7 @@ export function filterMemberRows(
       row.pendingInviteCode ?? "",
       memberRoleLabel(row.role),
       ...row.teamNames,
+      ...row.teamLabels,
     ]
       .join(" ")
       .toLowerCase();

@@ -20,6 +20,7 @@ import {
   InvitationStatus,
   MemberRoles,
 } from "./constants";
+import { addMemberToTeam } from "./teamService";
 import { toDate } from "./types";
 
 /** Rôle club (aligné MemberRoles Flutter). */
@@ -353,13 +354,16 @@ export async function listClubMembers(
 
 /**
  * Ajoute un membre pré-créé + invitation pending (miroir Flutter).
- * Rôles autorisés : joueur ou coach.
+ * Rôles autorisés : joueur, coach ou admin (import CSV / ajout bureau).
  */
 export async function addMemberWithInvitation(params: {
   clubId: string;
   firstName: string;
   lastName: string;
-  role: typeof MemberRoles.player | typeof MemberRoles.coach;
+  role:
+    | typeof MemberRoles.player
+    | typeof MemberRoles.coach
+    | typeof MemberRoles.admin;
   sentByUid: string;
   club: Pick<ClubRecord, "name" | "sport">;
   /** Email optionnel stocké dans `snapshot.email` (import CSV). */
@@ -373,9 +377,10 @@ export async function addMemberWithInvitation(params: {
   }
   if (
     params.role !== MemberRoles.player &&
-    params.role !== MemberRoles.coach
+    params.role !== MemberRoles.coach &&
+    params.role !== MemberRoles.admin
   ) {
-    throw new Error("Seuls joueur et coach peuvent être ajoutés ici.");
+    throw new Error("Rôle invalide : utilisez joueur, coach ou admin.");
   }
 
   const db = getAppFirestore();
@@ -946,43 +951,5 @@ export async function assignMemberToTeam(params: {
   teamId: string;
   role: typeof MemberRoles.player | typeof MemberRoles.coach;
 }): Promise<void> {
-  const db = getAppFirestore();
-  const teamDocument = doc(
-    collection(db, Collections.clubs, params.clubId, Collections.teams),
-    params.teamId,
-  );
-  const memberDocument = doc(membersCol(params.clubId), params.memberId);
-
-  await runTransaction(db, async (tx) => {
-    const teamSnap = await tx.get(teamDocument);
-    const memberSnap = await tx.get(memberDocument);
-    if (!teamSnap.exists()) {
-      throw new Error("Équipe introuvable.");
-    }
-    if (!memberSnap.exists()) {
-      throw new Error("Membre introuvable.");
-    }
-
-    const teamData = teamSnap.data() as Record<string, unknown>;
-    const field =
-      params.role === MemberRoles.coach ? Fields.coachIds : Fields.playerIds;
-    const currentIds = Array.isArray(teamData[field])
-      ? teamData[field].map(String)
-      : [];
-    if (!currentIds.includes(params.memberId)) {
-      tx.update(teamDocument, {
-        [field]: [...currentIds, params.memberId],
-        [Fields.updatedAt]: serverTimestamp(),
-      });
-    }
-
-    const memberData = memberSnap.data() as Record<string, unknown>;
-    const teamIds = parseTeamIds(memberData[Fields.teamIds]);
-    if (!teamIds.includes(params.teamId)) {
-      tx.update(memberDocument, {
-        [Fields.teamIds]: [...teamIds, params.teamId],
-        [Fields.updatedAt]: serverTimestamp(),
-      });
-    }
-  });
+  await addMemberToTeam(params);
 }

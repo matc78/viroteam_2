@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { MemberRoles } from "@/lib/firebase/constants";
 import type { AddMemberResult } from "@/lib/firebase/memberService";
 import panelStyles from "./DashboardPanel.module.css";
@@ -61,8 +62,9 @@ export function AddMemberDialog({
         if (keyboardEvent.key === "Escape") requestClose();
       }}
     >
-      <div
+      <FadeScrollArea
         className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.panel}`}
+        viewportClassName={`${dialogStyles.body} ${styles.panelContent}`}
         data-tone="green"
         role="dialog"
         aria-modal="true"
@@ -208,7 +210,7 @@ export function AddMemberDialog({
             </div>
           </form>
         )}
-      </div>
+      </FadeScrollArea>
     </div>
   );
 }

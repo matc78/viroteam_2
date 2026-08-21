@@ -1,6 +1,12 @@
 .panel {
+  --panel-border: color-mix(in srgb, var(--color-sport-green) 34%, var(--color-gray-200));
+  --panel-shadow: color-mix(in srgb, var(--color-sport-green) 7%, transparent);
   width: min(100%, 26rem);
   max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
+}
+
+.panelContent {
+  gap: var(--space-lg);
 }
 
 .form {

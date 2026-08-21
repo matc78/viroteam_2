@@ -1,0 +1,33 @@
+.panel {
+  --panel-border: color-mix(in srgb, var(--color-sport-green) 34%, var(--color-gray-200));
+  width: min(100%, 26rem);
+  max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
+}
+
+.panelContent {
+  gap: var(--space-lg);
+  /* Espace pour le focus ring (le viewport a overflow-x: hidden). */
+  padding-inline: 0.35rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.input {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-primary-900);
+  font: inherit;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-gray-500);
+}

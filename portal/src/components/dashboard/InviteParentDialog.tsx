@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
@@ -47,8 +48,9 @@ export function InviteParentDialog({
         if (keyboardEvent.key === "Escape") requestClose();
       }}
     >
-      <div
+      <FadeScrollArea
         className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.panel}`}
+        viewportClassName={`${dialogStyles.body} ${styles.panelContent}`}
         data-tone="green"
         role="dialog"
         aria-modal="true"
@@ -136,7 +138,7 @@ export function InviteParentDialog({
             </div>
           </form>
         )}
-      </div>
+      </FadeScrollArea>
     </div>
   );
 }

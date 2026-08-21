@@ -1,8 +1,12 @@
 .panel {
+  --panel-border: color-mix(in srgb, var(--tone-blue-border) 42%, var(--color-gray-200));
+  --panel-shadow: color-mix(in srgb, var(--tone-blue) 7%, transparent);
   width: min(100%, 40rem);
   max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
-  gap: 0.65rem !important;
-  overflow: auto;
+}
+
+.panelContent {
+  gap: 0.65rem;
 }
 
 .section {

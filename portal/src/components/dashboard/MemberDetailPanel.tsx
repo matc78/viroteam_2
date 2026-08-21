@@ -15,6 +15,7 @@ import {
   type ClubMemberRole,
 } from "@/lib/firebase/memberService";
 import type { MemberRow } from "@/lib/members/membersView";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import { PlanningSelect } from "./PlanningSelect";
@@ -266,7 +267,9 @@ export function MemberDetailPanel({
     !hasValidInvite;
   const canEmailInvite = Boolean(member.email?.trim()) && hasValidInvite;
   const teamsLabel =
-    member.teamNames.length > 0 ? member.teamNames.join(", ") : "Aucune";
+    member.teamLabels.length > 0
+      ? member.teamLabels.join(", ")
+      : "Aucune";
   const emailDisplay = member.email?.trim() || "—";
 
   return (
@@ -278,8 +281,9 @@ export function MemberDetailPanel({
         if (keyboardEvent.key === "Escape") requestClose();
       }}
     >
-      <aside
+      <FadeScrollArea
         className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.panel}`}
+        viewportClassName={`${dialogStyles.body} ${styles.panelContent}`}
         data-tone="blue"
         role="dialog"
         aria-modal="true"
@@ -743,7 +747,7 @@ export function MemberDetailPanel({
             {error}
           </p>
         ) : null}
-      </aside>
+      </FadeScrollArea>
     </div>
   );
 }

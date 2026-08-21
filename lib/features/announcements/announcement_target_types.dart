@@ -3,6 +3,7 @@ abstract final class AnnouncementTargetTypes {
   static const String tousLesMembres = 'Tous les membres';
   static const String equipes = 'Équipes';
   static const String categories = 'Catégories';
+  static const String personnes = 'Personnes';
 
   static const List<String> adminOptions = [
     tousLesMembres,

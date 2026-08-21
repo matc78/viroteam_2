@@ -65,17 +65,36 @@ class AnnouncementService {
     required String message,
     required String targetType,
     required List<String> targetIds,
+    required DateTime endsAt,
   }) async {
+    final trimmed = message.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('Le message est obligatoire.');
+    }
     await _announcements(clubId).add({
       FirestoreFields.senderId: senderId,
       FirestoreFields.senderFirstName: senderFirstName,
       FirestoreFields.senderLastName: senderLastName,
-      FirestoreFields.message: message.trim(),
+      FirestoreFields.message: trimmed,
       FirestoreFields.targetType: targetType,
-      FirestoreFields.targetIds: targetType == AnnouncementTargetTypes.tousLesMembres
-          ? <String>[]
-          : targetIds,
+      FirestoreFields.targetIds:
+          targetType == AnnouncementTargetTypes.tousLesMembres
+              ? <String>[]
+              : targetIds,
+      FirestoreFields.endsAt: Timestamp.fromDate(endsAt),
       FirestoreFields.createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Clôture manuellement une annonce (reste listée côté staff, masquée aux membres).
+  Future<void> closeAnnouncement({
+    required String clubId,
+    required String announcementId,
+    required String closedBy,
+  }) async {
+    await _announcements(clubId).doc(announcementId).update({
+      FirestoreFields.closedAt: FieldValue.serverTimestamp(),
+      FirestoreFields.closedBy: closedBy,
     });
   }
 

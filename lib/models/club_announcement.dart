@@ -13,6 +13,8 @@ class ClubAnnouncement {
     required this.createdAt,
     this.targetType = AnnouncementTargetTypes.tousLesMembres,
     this.targetIds = const [],
+    this.endsAt,
+    this.closedAt,
   });
 
   final String id;
@@ -24,6 +26,8 @@ class ClubAnnouncement {
   final DateTime createdAt;
   final String targetType;
   final List<String> targetIds;
+  final DateTime? endsAt;
+  final DateTime? closedAt;
 
   String get authorName => '$senderFirstName $senderLastName'.trim();
 
@@ -31,7 +35,16 @@ class ClubAnnouncement {
       targetType == AnnouncementTargetTypes.tousLesMembres ||
       targetType == 'all';
 
+  /// Annonce encore visible pour les destinataires (ni clôturée ni expirée).
+  bool get isActive {
+    if (closedAt != null) return false;
+    final limit = endsAt;
+    if (limit != null && !limit.isAfter(DateTime.now())) return false;
+    return true;
+  }
+
   bool matchesMember({
+    required String memberId,
     required List<String> memberTeamIds,
     required Set<String> memberCategories,
   }) {
@@ -45,6 +58,9 @@ class ClubAnnouncement {
       case AnnouncementTargetTypes.categories:
         if (targetIds.isEmpty) return false;
         return targetIds.any((c) => memberCategories.contains(c));
+      case AnnouncementTargetTypes.personnes:
+        if (targetIds.isEmpty) return false;
+        return targetIds.contains(memberId);
       default:
         return false;
     }
@@ -65,6 +81,10 @@ class ClubAnnouncement {
         if (targetIds.isEmpty) return 'Catégories';
         if (targetIds.length == 1) return targetIds.first;
         return '${targetIds.length} catégories';
+      case AnnouncementTargetTypes.personnes:
+        if (targetIds.isEmpty) return 'Personnes';
+        if (targetIds.length == 1) return '1 personne';
+        return '${targetIds.length} personnes';
       default:
         return targetType;
     }
@@ -92,6 +112,8 @@ class ClubAnnouncement {
               ?.whereType<String>()
               .toList() ??
           [],
+      endsAt: (data[FirestoreFields.endsAt] as Timestamp?)?.toDate(),
+      closedAt: (data[FirestoreFields.closedAt] as Timestamp?)?.toDate(),
     );
   }
 }

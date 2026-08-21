@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/announcements/announcement_target_types.dart';
@@ -53,6 +54,14 @@ class _CreateAnnouncementSheetState
   final _selectedIds = <String>{};
   var _isSending = false;
   String? _targetType;
+  late DateTime _endsAt;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _endsAt = DateTime(now.year, now.month, now.day + 7, now.hour);
+  }
 
   @override
   void dispose() {
@@ -68,10 +77,39 @@ class _CreateAnnouncementSheetState
         : AnnouncementTargetTypes.coachOptions;
   }
 
+  Future<void> _pickEndsAt() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _endsAt,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (pickedDate == null || !mounted) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_endsAt),
+    );
+    if (pickedTime == null || !mounted) return;
+    setState(() {
+      _endsAt = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+    });
+  }
+
   Future<void> _publish() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) {
       ViroSnackBar.show(context, 'Veuillez saisir un message.');
+      return;
+    }
+
+    if (!_endsAt.isAfter(DateTime.now())) {
+      ViroSnackBar.show(context, 'La date limite doit être dans le futur.');
       return;
     }
 
@@ -100,6 +138,7 @@ class _CreateAnnouncementSheetState
             message: message,
             targetType: targetType,
             targetIds: _selectedIds.toList(),
+            endsAt: _endsAt,
           );
 
       if (!mounted) return;
@@ -121,6 +160,8 @@ class _CreateAnnouncementSheetState
     final teamsAsync = ref.watch(clubTeamsProvider(widget.clubId));
     final options = _targetOptions;
     final targetType = _resolveTargetType(options);
+    final endsAtLabel = MaterialLocalizations.of(context).formatFullDate(_endsAt);
+    final endsAtTime = TimeOfDay.fromDateTime(_endsAt).format(context);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -145,6 +186,17 @@ class _CreateAnnouncementSheetState
             ),
             const SizedBox(height: ViroSpacing.lg),
             Text(
+              'Date limite',
+              style: theme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: ViroSpacing.sm),
+            OutlinedButton.icon(
+              onPressed: _isSending ? null : _pickEndsAt,
+              icon: ViroIcon(ViroIcons.calendar, size: 18),
+              label: Text('$endsAtLabel · $endsAtTime'),
+            ),
+            const SizedBox(height: ViroSpacing.lg),
+            Text(
               'Destinataires',
               style: theme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
@@ -160,7 +212,7 @@ class _CreateAnnouncementSheetState
             const SizedBox(height: ViroSpacing.md),
             clubAsync.when(
               loading: () => const SizedBox.shrink(),
-              error: (_, _) => const SizedBox.shrink(),
+              error: (error, stackTrace) => const SizedBox.shrink(),
               data: (club) => _TargetPicker(
                 club: club,
                 targetType: targetType,

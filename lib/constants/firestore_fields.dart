@@ -118,6 +118,9 @@ abstract final class FirestoreFields {
   static const String targetType = 'targetType';
   static const String targetIds = 'targetIds';
   static const String durationDays = 'durationDays';
+  static const String endsAt = 'endsAt';
+  static const String closedAt = 'closedAt';
+  static const String closedBy = 'closedBy';
   static const String dismissedAnnouncementIds = 'dismissedAnnouncementIds';
 
   // fee_seasons / member_fees

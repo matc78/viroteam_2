@@ -22,6 +22,9 @@ Set<String> memberCategoriesFromTeams({
 
 abstract final class AnnouncementFilter {
   /// Filtre par ciblage destinataire (sans tenir compte du dismiss).
+  ///
+  /// Les non-staff ne voient que les annonces encore actives.
+  /// Le staff voit l’historique complet (en cours + terminées).
   static List<ClubAnnouncement> forMemberAudience({
     required List<ClubAnnouncement> announcements,
     required ClubMember? member,
@@ -37,8 +40,10 @@ abstract final class AnnouncementFilter {
     );
 
     return announcements
+        .where((a) => a.isActive)
         .where(
           (a) => a.matchesMember(
+            memberId: member.memberId,
             memberTeamIds: member.teamIds,
             memberCategories: categories,
           ),
@@ -59,7 +64,10 @@ abstract final class AnnouncementFilter {
       member: member,
       clubTeams: clubTeams,
       staffSeesAll: staffSeesAll,
-    ).where((a) => !dismissedIds.contains(a.id)).toList();
+    )
+        .where((a) => a.isActive)
+        .where((a) => !dismissedIds.contains(a.id))
+        .toList();
   }
 
   static bool isStaffRole(String? role) {

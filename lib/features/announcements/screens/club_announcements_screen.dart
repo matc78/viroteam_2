@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -7,6 +8,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/announcements/widgets/announcement_message_sheet.dart';
 import 'package:viro_team_v2/features/announcements/widgets/create_announcement_sheet.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
@@ -15,6 +17,7 @@ import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubAnnouncementsScreen extends ConsumerWidget {
@@ -56,54 +59,74 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
           : null,
       body: announcementsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const ViroErrorState(),
+        error: (error, stackTrace) => const ViroErrorState(),
         data: (announcements) {
-          if (announcements.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(ViroSpacing.xl),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ViroIcon(
-                      ViroIcons.bell,
-                      size: 48,
-                      color: ViroColors.gray300,
-                    ),
-                    const SizedBox(height: ViroSpacing.md),
-                    Text(
-                      'Aucune annonce pour le moment',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: ViroColors.gray400,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
-            itemCount: announcements.length,
-            separatorBuilder: (_, _) => const SizedBox(height: ViroSpacing.sm),
-            itemBuilder: (context, index) {
-              final announcement = announcements[index];
-              return _AnnouncementHistoryCard(
-                announcement: announcement,
-                targetLabel: announcement.targetLabel(
-                  teamNamesById: teamNames,
-                ),
-                canManage: canManage,
-                onTap: () => showAnnouncementMessageSheet(
-                  context,
-                  announcement: announcement,
-                ),
-                onEdit: () => _showEditDialog(context, ref, announcement),
-                onDelete: () => _confirmDelete(context, ref, announcement),
-              );
+          return ViroRefreshIndicator(
+            onRefresh: () async {
+              await Future.wait([
+                ref.refresh(clubAnnouncementsProvider(clubId).future),
+                ref.refresh(clubMemberProvider(clubId).future),
+                ref.refresh(clubTeamsProvider(clubId).future),
+              ]);
             },
+            child: announcements.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(ViroSpacing.xl),
+                    children: [
+                      SizedBox(
+                        height: MediaQuery.sizeOf(context).height * 0.4,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            ViroIcon(
+                              ViroIcons.bell,
+                              size: 48,
+                              color: ViroColors.gray300,
+                            ),
+                            const SizedBox(height: ViroSpacing.md),
+                            Text(
+                              'Aucune annonce pour le moment',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(color: ViroColors.gray400),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding:
+                        const EdgeInsets.all(ViroSpacing.screenHorizontal),
+                    itemCount: announcements.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: ViroSpacing.sm),
+                    itemBuilder: (context, index) {
+                      final announcement = announcements[index];
+                      return _AnnouncementHistoryCard(
+                        announcement: announcement,
+                        targetLabel: announcement.targetLabel(
+                          teamNamesById: teamNames,
+                        ),
+                        canManage: canManage,
+                        onTap: () => showAnnouncementMessageSheet(
+                          context,
+                          announcement: announcement,
+                        ),
+                        onEdit: () =>
+                            _showEditDialog(context, ref, announcement),
+                        onClose: announcement.isActive
+                            ? () => _confirmClose(context, ref, announcement)
+                            : null,
+                        onDelete: () =>
+                            _confirmDelete(context, ref, announcement),
+                      );
+                    },
+                  ),
           );
         },
       ),
@@ -156,6 +179,55 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
       }
     } finally {
       controller.dispose();
+    }
+  }
+
+  Future<void> _confirmClose(
+    BuildContext context,
+    WidgetRef ref,
+    ClubAnnouncement announcement,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clôturer l\'annonce ?'),
+        content: const Text(
+          'Elle ne sera plus visible pour les destinataires, mais restera dans l\'historique.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clôturer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final auth = ref.read(authStateProvider).value;
+    if (auth == null) {
+      ViroSnackBar.show(context, 'Session expirée, reconnectez-vous.');
+      return;
+    }
+
+    try {
+      await ref.read(announcementServiceProvider).closeAnnouncement(
+            clubId: clubId,
+            announcementId: announcement.id,
+            closedBy: auth.uid,
+          );
+      if (context.mounted) {
+        ViroSnackBar.show(context, 'Annonce clôturée.');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ViroSnackBar.show(context, 'Erreur : $e');
+      }
     }
   }
 
@@ -213,6 +285,7 @@ class _AnnouncementHistoryCard extends StatelessWidget {
     required this.onTap,
     required this.onEdit,
     required this.onDelete,
+    this.onClose,
   });
 
   final ClubAnnouncement announcement;
@@ -221,6 +294,7 @@ class _AnnouncementHistoryCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -253,6 +327,8 @@ class _AnnouncementHistoryCard extends StatelessWidget {
                     switch (value) {
                       case 'edit':
                         onEdit();
+                      case 'close':
+                        onClose?.call();
                       case 'delete':
                         onDelete();
                     }
@@ -262,6 +338,11 @@ class _AnnouncementHistoryCard extends StatelessWidget {
                       value: 'edit',
                       child: Text('Modifier'),
                     ),
+                    if (onClose != null)
+                      const PopupMenuItem(
+                        value: 'close',
+                        child: Text('Clôturer'),
+                      ),
                     const PopupMenuItem(
                       value: 'delete',
                       child: Text('Supprimer'),
@@ -288,6 +369,20 @@ class _AnnouncementHistoryCard extends StatelessWidget {
               ),
             ),
           ),
+          if (announcement.endsAt != null) ...[
+            const SizedBox(height: ViroSpacing.xs),
+            Text(
+              'Jusqu’au ${DateFormat('d MMM yyyy HH:mm', 'fr_FR').format(announcement.endsAt!)}'
+              '${announcement.closedAt != null ? ' · Clôturée' : ''}',
+              style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+            ),
+          ] else if (announcement.closedAt != null) ...[
+            const SizedBox(height: ViroSpacing.xs),
+            Text(
+              'Clôturée',
+              style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+            ),
+          ],
           const SizedBox(height: ViroSpacing.sm),
           Text(
             announcement.message,

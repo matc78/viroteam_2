@@ -1,8 +1,8 @@
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import type { DocumentData } from "firebase-admin/firestore";
-import { db } from "./db";
+import { db, defineDualCallable } from "./db";
 
 const MAX_ACTIVE_GUARDIANS_PER_MEMBER = 1;
 const INVITE_TTL_DAYS = 7;
@@ -408,8 +408,12 @@ async function loadPendingGuardianInvite(params: {
 
 /**
  * Admin ou titulaire de fiche : invite un parent (plafond V1 = 1).
+ * Prod → v2-prod ; `inviteGuardianDev` → v2-dev.
  */
-export const inviteGuardian = onCall(async (request) => {
+export const {
+  prod: inviteGuardian,
+  dev: inviteGuardianDev,
+} = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const memberId = requireString(request.data?.memberId, "memberId");
@@ -540,8 +544,12 @@ async function findPendingGuardianInvitation(params: {
 
 /**
  * Adulte connecté : active le lien guardian + parentLinks (les deux faces).
+ * Prod → v2-prod ; `linkGuardianDev` → v2-dev.
  */
-export const linkGuardian = onCall(async (request) => {
+export const {
+  prod: linkGuardian,
+  dev: linkGuardianDev,
+} = defineDualCallable(async (request: CallableRequest) => {
   const parentUid = requireUid(request);
   const tokenEmail = request.auth?.token?.email;
   if (typeof tokenEmail !== "string" || !tokenEmail.trim()) {
@@ -645,8 +653,12 @@ export const linkGuardian = onCall(async (request) => {
 
 /**
  * Admin ou titulaire de fiche : révoque le lien parent (purge parentLinks).
+ * Prod → v2-prod ; `revokeGuardianDev` → v2-dev.
  */
-export const revokeGuardian = onCall(async (request) => {
+export const {
+  prod: revokeGuardian,
+  dev: revokeGuardianDev,
+} = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const memberId = requireString(request.data?.memberId, "memberId");
@@ -712,8 +724,12 @@ export const revokeGuardian = onCall(async (request) => {
 
 /**
  * Admin ou titulaire : change l’e-mail d’une invitation parent encore pending.
+ * Prod → v2-prod ; `updateGuardianInviteEmailDev` → v2-dev.
  */
-export const updateGuardianInviteEmail = onCall(async (request) => {
+export const {
+  prod: updateGuardianInviteEmail,
+  dev: updateGuardianInviteEmailDev,
+} = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const memberId = requireString(request.data?.memberId, "memberId");
@@ -792,8 +808,12 @@ export const updateGuardianInviteEmail = onCall(async (request) => {
 
 /**
  * Admin ou titulaire : prolonge l’expiration d’une invitation parent pending.
+ * Prod → v2-prod ; `extendGuardianInviteDev` → v2-dev.
  */
-export const extendGuardianInvite = onCall(async (request) => {
+export const {
+  prod: extendGuardianInvite,
+  dev: extendGuardianInviteDev,
+} = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const memberId = requireString(request.data?.memberId, "memberId");
@@ -829,8 +849,12 @@ export const extendGuardianInvite = onCall(async (request) => {
 
 /**
  * Admin ou titulaire : nouveau code + reset expiration (renvoyer l’invite).
+ * Prod → v2-prod ; `regenerateGuardianInviteDev` → v2-dev.
  */
-export const regenerateGuardianInvite = onCall(async (request) => {
+export const {
+  prod: regenerateGuardianInvite,
+  dev: regenerateGuardianInviteDev,
+} = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const memberId = requireString(request.data?.memberId, "memberId");
@@ -870,8 +894,12 @@ export const regenerateGuardianInvite = onCall(async (request) => {
 
 /**
  * RSVP pour soi ou pour un enfant lié (clé events.rsvp[memberId]).
+ * Prod → v2-prod ; `setEventRsvpDev` → v2-dev.
  */
-export const setEventRsvp = onCall(async (request) => {
+export const {
+  prod: setEventRsvp,
+  dev: setEventRsvpDev,
+} = defineDualCallable(async (request: CallableRequest) => {
   const uid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const eventId = requireString(request.data?.eventId, "eventId");

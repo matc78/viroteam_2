@@ -1,22 +1,28 @@
 import * as admin from "firebase-admin";
 import { getStorage } from "firebase-admin/storage";
-import { onCall, HttpsError, onRequest } from "firebase-functions/v2/https";
+import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
-import PDFDocument from "pdfkit";
-import { db } from "./db";
+import { db, defineDualCallable, defineDualRequest } from "./db";
 import { assertCanActForMember } from "./guardians";
 
 export {
   inviteGuardian,
+  inviteGuardianDev,
   linkGuardian,
+  linkGuardianDev,
   revokeGuardian,
+  revokeGuardianDev,
   updateGuardianInviteEmail,
+  updateGuardianInviteEmailDev,
   extendGuardianInvite,
+  extendGuardianInviteDev,
   regenerateGuardianInvite,
+  regenerateGuardianInviteDev,
   setEventRsvp,
+  setEventRsvpDev,
 } from "./guardians";
 
-export { sendMemberInvites } from "./memberInvites";
+export { sendMemberInvites, sendMemberInvitesDev } from "./memberInvites";
 
 const helloAssoClientId = defineSecret("HELLOASSO_CLIENT_ID");
 const helloAssoClientSecret = defineSecret("HELLOASSO_CLIENT_SECRET");
@@ -41,8 +47,12 @@ let tokenCache: TokenCache | null = null;
 
 /**
  * Accepte une invitation (à brancher depuis le client à la place de l'update direct).
+ * Prod → v2-prod ; `acceptInvitationDev` → v2-dev.
  */
-export const acceptInvitation = onCall(async (request) => {
+export const {
+  prod: acceptInvitation,
+  dev: acceptInvitationDev,
+} = defineDualCallable(async (request: CallableRequest) => {
   if (!request.auth?.uid) {
     throw new HttpsError("unauthenticated", "Connexion requise");
   }
@@ -84,10 +94,14 @@ export const acceptInvitation = onCall(async (request) => {
 /**
  * Crée un checkout HelloAsso (1× ou 3×) après application des aides déclarées.
  * Ne marque jamais la cotisation payée — réservé au webhook.
+ * Prod → v2-prod ; `createHelloAssoCheckoutDev` → v2-dev.
  */
-export const createHelloAssoCheckout = onCall(
+export const {
+  prod: createHelloAssoCheckout,
+  dev: createHelloAssoCheckoutDev,
+} = defineDualCallable(
   { secrets: [helloAssoClientId, helloAssoClientSecret] },
-  async (request) => {
+  async (request: CallableRequest) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Connexion requise");
     }
@@ -300,8 +314,12 @@ export const createHelloAssoCheckout = onCall(
 /**
  * Webhook HelloAsso — seule source de vérité pour marquer un paiement CB.
  * Configurer l'URL dans Mon Compte > Intégrations et API (Order + Payment).
+ * Prod → v2-prod ; `helloAssoWebhookDev` → v2-dev.
  */
-export const helloAssoWebhook = onRequest(
+export const {
+  prod: helloAssoWebhook,
+  dev: helloAssoWebhookDev,
+} = defineDualRequest(
   { secrets: [helloAssoClientId, helloAssoClientSecret] },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -709,6 +727,9 @@ function buildReceiptPdf(input: {
   paymentId: string;
   paidAt: Date;
 }): Promise<Buffer> {
+  // Lazy-load : pdfkit ralentit trop le discovery Firebase au deploy.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const PDFDocument = require("pdfkit") as typeof import("pdfkit");
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 50 });
     const chunks: Buffer[] = [];

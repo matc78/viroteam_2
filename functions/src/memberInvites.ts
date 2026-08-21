@@ -1,8 +1,8 @@
 import * as admin from "firebase-admin";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { escapeHtml, sendBrevoTransactionalEmail } from "./brevo";
-import { db } from "./db";
+import { db, defineDualCallable } from "./db";
 import { assertClubAdmin } from "./guardians";
 
 const brevoApiKey = defineSecret("BREVO_API_KEY");
@@ -166,13 +166,17 @@ function buildInviteHtml(params: {
 /**
  * Envoie les e-mails d’invitation membre via Brevo (admin club uniquement).
  * Chaque membre reçoit son code pending individuel.
+ * Prod → v2-prod ; `sendMemberInvitesDev` → v2-dev.
  */
-export const sendMemberInvites = onCall(
+export const {
+  prod: sendMemberInvites,
+  dev: sendMemberInvitesDev,
+} = defineDualCallable(
   {
     secrets: [brevoApiKey],
     timeoutSeconds: 120,
   },
-  async (request): Promise<SendMemberInvitesResponse> => {
+  async (request: CallableRequest): Promise<SendMemberInvitesResponse> => {
     const callerUid = requireUid(request);
     const clubId = requireClubId(request.data?.clubId);
     const memberIds = normalizeMemberIds(request.data?.memberIds);

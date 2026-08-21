@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/members", label: "Membres", toneClass: "toneGreen" },
   { href: "/planning", label: "Planning", toneClass: "toneBlue" },
   { href: "/fees", label: "Cotisations", toneClass: "toneYellow" },
+  { href: "/announcements", label: "Annonces", toneClass: "toneBlue" },
 ] as const;
 
 const WIDE_PATH_PREFIXES = ["/members", "/planning"] as const;
@@ -60,9 +61,11 @@ export function DashboardShell() {
   });
   const resolvedAdminName = profile?.displayName ?? "Admin";
   const wide = isWidePath(pathname);
+  const fillViewport =
+    pathname === "/planning" || pathname.startsWith("/planning/");
 
   return (
-    <div className={styles.page}>
+    <div className={fillViewport ? `${styles.page} ${styles.pageFill}` : styles.page}>
       <header className={styles.header}>
         <div className={styles.inner}>
           <div className={styles.brandBlock}>
@@ -143,7 +146,15 @@ export function DashboardShell() {
           </div>
         </div>
       </header>
-      <main className={wide ? `${styles.main} ${styles.mainWide}` : styles.main}>
+      <main
+        className={[
+          styles.main,
+          wide ? styles.mainWide : "",
+          fillViewport ? styles.mainFill : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <DashboardModulePanels />
       </main>
     </div>

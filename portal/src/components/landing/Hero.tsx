@@ -59,9 +59,9 @@ export function Hero() {
           initial="hidden"
           animate="show"
         >
-          Le bureau organise le planning, relance et suit les cotisations.
-          Membres et parents retrouvent tout simplement dans l&apos;app — un
-          compte, plusieurs clubs.
+          Le bureau organise le planning et suit les cotisations. Membres et
+          parents retrouvent tout simplement dans l&apos;app — un compte,
+          plusieurs clubs.
         </motion.p>
 
         <motion.div

@@ -50,7 +50,8 @@
 
 .lead {
   color: var(--color-gray-600);
-  text-align: left;
+  text-align: justify;
+  text-wrap: pretty;
 }
 
 .list {
@@ -104,6 +105,8 @@
 .desc {
   color: var(--color-gray-600);
   font-size: 1rem;
+  text-align: justify;
+  text-wrap: pretty;
 }
 
 @media (max-width: 719px) {

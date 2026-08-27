@@ -12,17 +12,17 @@ const roles = [
   },
   {
     name: "Coach",
-    desc: "Gérer l’équipe, les événements et les présences sur le terrain.",
+    desc: "Gérer l’équipe, les événements et les réponses aux convocations.",
     color: "var(--color-role-coach)",
   },
   {
     name: "Parent",
-    desc: "Calendrier de l’enfant et statut de cotisation, sans relancer le coach.",
+    desc: "Calendrier de l’enfant et statut de cotisation, sans solliciter le coach.",
     color: "var(--color-role-parent)",
   },
   {
     name: "Admin",
-    desc: "Piloter planning, relances et cotisations depuis l’espace club.",
+    desc: "Piloter planning et cotisations depuis l’espace club.",
     color: "var(--color-role-admin)",
   },
 ] as const;

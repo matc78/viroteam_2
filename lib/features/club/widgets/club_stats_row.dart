@@ -33,9 +33,9 @@ class ClubStatsRow extends StatelessWidget {
         SizedBox(
           width: 150,
           child: ViroStatsCard(
-            label: 'Présence (30 j)',
+            label: 'Réponses (30 j)',
             value: '${attendanceRate!.round()} %',
-            subtitle: 'Séances pointées',
+            subtitle: 'RSVP positifs',
             onTap: onAttendanceTap,
           ),
         ),

@@ -185,11 +185,6 @@ class _InvitationPreviewScreenState
                 outlined: true,
                 onPressed: _decline,
               ),
-              if (!invite.isGuardian)
-                TextButton(
-                  onPressed: () => context.push(AppRoutes.joinRequestRole),
-                  child: const Text('Demander un autre rôle'),
-                ),
             ],
           ),
         ),

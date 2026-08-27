@@ -123,6 +123,49 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
     return count;
   }, [data, selectedIds]);
 
+  /** Ouvre un mailto BCC vers la sélection (ignore les lignes sans e-mail). */
+  function handleRelanceMailto() {
+    if (!data || selectedIds.size === 0) return;
+
+    const emails: string[] = [];
+    let withoutEmail = 0;
+    for (const row of data.rows) {
+      if (!selectedIds.has(row.memberId)) continue;
+      const email = row.email?.trim();
+      if (email) {
+        emails.push(email);
+      } else {
+        withoutEmail += 1;
+      }
+    }
+
+    const uniqueEmails = [...new Set(emails)];
+    if (uniqueEmails.length === 0) {
+      showToast(
+        withoutEmail > 0
+          ? "Aucun e-mail sur la sélection."
+          : "Sélection vide.",
+        "error",
+      );
+      return;
+    }
+
+    const subject = encodeURIComponent(
+      `Rappel cotisation — ${club.name} (saison ${data.season.seasonLabel})`,
+    );
+    const body = encodeURIComponent(
+      `Bonjour,\n\nSauf erreur de notre part, votre cotisation pour la saison ${data.season.seasonLabel} n’est pas encore à jour.\n\nMerci de régulariser dès que possible.\n\nCordialement,\nLe bureau — ${club.name}\n`,
+    );
+    window.location.href = `mailto:?bcc=${uniqueEmails.map(encodeURIComponent).join(",")}&subject=${subject}&body=${body}`;
+
+    if (withoutEmail > 0) {
+      showToast(
+        `${uniqueEmails.length} e-mail${uniqueEmails.length > 1 ? "s" : ""} · ${withoutEmail} sans adresse ignoré${withoutEmail > 1 ? "s" : ""}.`,
+        "info",
+      );
+    }
+  }
+
   const hasActiveFilters =
     search.trim() !== "" ||
     tierFilter !== "all" ||
@@ -747,6 +790,14 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
                 />
               </label>
             ) : null}
+            <button
+              type="button"
+              className={styles.barSecondaryButton}
+              disabled={busy}
+              onClick={handleRelanceMailto}
+            >
+              Relancer par e-mail
+            </button>
             <button
               type="button"
               className={styles.primaryButton}

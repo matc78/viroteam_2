@@ -2,13 +2,13 @@
 export const site = {
   name: "ViroTeam",
   url: "https://www.viroteam.com",
-  tagline: "Organisez. Relancez. Suivez.",
+  tagline: "Organisez. Suivez. Pilotez.",
   logoMark: "/logo-mark.png",
   logoStacked: "/logo.png",
   logoWordmark: "/logo-wordmark.png",
   ogImage: "/og-image.png",
   description:
-    "Planning, relances et suivi des cotisations pour le bureau. Membres et parents suivent simplement — multiclub inclus.",
+    "Planning, convocations et suivi des cotisations pour le bureau. Membres et parents suivent simplement — multiclub inclus.",
   seoTitle: "ViroTeam — L'app de gestion pour les clubs amateurs",
   seoDescription:
     "ViroTeam est l'application de gestion pour les clubs amateurs. Elle centralise planning, convocations, cotisations et équipes — pour le bureau, les coachs, les joueurs et les parents.",

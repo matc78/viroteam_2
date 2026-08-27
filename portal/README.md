@@ -39,8 +39,9 @@ Le mot de passe saisi n’est **pas vérifié** en mode dev bypass — seul l’
 ### Accès
 
 - Login / signup via **Firebase Auth** (email + mot de passe).
-- Dashboard (`/home`, `/fees`) : uniquement si `clubMemberships` contient un club avec `role === admin`.
-- Joueur / coach / sans club admin → `/access-denied` (message + stores + déconnexion).
+- Dashboard bureau (`/home`, `/members`, `/planning`, …) : si `clubMemberships` contient un club avec rôle **admin**, **coach** ou **joueur** — la nav est filtrée par rôle (`bureauPermissions`).
+- Parent seul (guardian) → espace `/family` (pas le dashboard bureau).
+- Sans club / sans droit → `/access-denied` (message + stores + déconnexion).
 - Création de club : **app mobile uniquement**.
 
 ## Routes
@@ -50,9 +51,13 @@ Le mot de passe saisi n’est **pas vérifié** en mode dev bypass — seul l’
 | `/` | Landing marketing |
 | `/login` | Connexion Firebase |
 | `/signup` | Inscription + profil `users/{uid}` |
-| `/access-denied` | Accès refusé non-admin |
-| `/home` | Home dashboard (agrégats Firestore) |
-| `/fees` | Cotisations : saison + HelloAsso (lecture/écriture) |
+| `/access-denied` | Accès refusé |
+| `/home` | Home dashboard (admin / coach / joueur) |
+| `/members` | Membres, équipes, invitations |
+| `/planning` | Calendrier + création d’événements |
+| `/fees` | Cotisations (admin : config + suivi ; joueur : self) |
+| `/announcements` | Annonces (admin / coach) |
+| `/family` | Espace parent |
 
 ## Liens stores
 

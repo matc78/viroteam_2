@@ -9,6 +9,8 @@ import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningEventDetailPanel.module.css";
 
+type RsvpRowStatus = "yes" | "no" | "pending";
+
 /** Props du panneau détail événement. */
 type PlanningEventDetailPanelProps = {
   event: ClubEventView;
@@ -17,16 +19,61 @@ type PlanningEventDetailPanelProps = {
   /** Si fourni, affiche les boutons RSVP pour ce membre. */
   linkedMemberId?: string | null;
   onRsvpUpdated?: () => void;
+  /** Noms affichables indexés par memberId / accountUid. */
+  memberNamesById?: Record<string, string>;
 };
 
-/** Détail lecture seule d'un événement avec stats RSVP. */
+function resolveRsvpRowStatus(
+  memberId: string,
+  rsvpByMemberId: Record<string, string>,
+): RsvpRowStatus {
+  const value = (rsvpByMemberId[memberId] ?? "").toLowerCase();
+  if (value === "yes") return "yes";
+  if (value === "no") return "no";
+  return "pending";
+}
+
+function rsvpRowLabel(status: RsvpRowStatus): string {
+  switch (status) {
+    case "yes":
+      return "Présent";
+    case "no":
+      return "Absent";
+    default:
+      return "En attente";
+  }
+}
+
+const STATUS_ORDER: Record<RsvpRowStatus, number> = {
+  yes: 0,
+  no: 1,
+  pending: 2,
+};
+
+/** Détail lecture seule d'un événement avec stats et liste RSVP. */
 export function PlanningEventDetailPanel({
   event,
   onClose,
   clubId,
   linkedMemberId,
   onRsvpUpdated,
+  memberNamesById = {},
 }: PlanningEventDetailPanelProps) {
+  const rsvpRows = event.teamMemberIds
+    .map((memberId) => {
+      const status = resolveRsvpRowStatus(memberId, event.rsvpByMemberId);
+      return {
+        memberId,
+        name: memberNamesById[memberId]?.trim() || "Membre",
+        status,
+      };
+    })
+    .sort((left, right) => {
+      const byStatus = STATUS_ORDER[left.status] - STATUS_ORDER[right.status];
+      if (byStatus !== 0) return byStatus;
+      return left.name.localeCompare(right.name, "fr");
+    });
+
   return (
     <div
       className={styles.backdrop}
@@ -80,7 +127,7 @@ export function PlanningEventDetailPanel({
         </dl>
 
         <section className={styles.rsvpSection} aria-label="Statistiques RSVP">
-          <h3 className={styles.rsvpTitle}>Présences</h3>
+          <h3 className={styles.rsvpTitle}>Réponses</h3>
           <div className={styles.rsvpGrid}>
             <div className={styles.rsvpStat} data-tone="green">
               <span className={styles.rsvpValue}>{event.rsvpYes}</span>
@@ -105,6 +152,25 @@ export function PlanningEventDetailPanel({
               : "Aucune convocation enregistrée"}
           </p>
         </section>
+
+        {rsvpRows.length > 0 ? (
+          <section className={styles.rsvpSection} aria-label="Liste des réponses">
+            <h3 className={styles.rsvpTitle}>Convoqués</h3>
+            <ul className={styles.rsvpList}>
+              {rsvpRows.map((row) => (
+                <li key={row.memberId} className={styles.rsvpRow}>
+                  <span className={styles.rsvpName}>{row.name}</span>
+                  <span
+                    className={styles.rsvpBadge}
+                    data-status={row.status}
+                  >
+                    {rsvpRowLabel(row.status)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {clubId && linkedMemberId ? (
           <section className={styles.rsvpSection} aria-label="Votre réponse">

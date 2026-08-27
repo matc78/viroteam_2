@@ -646,7 +646,10 @@ class EventService {
     return null;
   }
 
-  /// Taux de présence sur les 30 derniers jours (events passés pointés).
+  /// Taux de réponses positives (RSVP yes) sur les 30 derniers jours.
+  ///
+  /// Lit `rsvp` ; bascule sur le legacy `attendance` via [ClubEvent.rsvpStatusForUser]
+  /// si `rsvp` est vide.
   Future<double?> computeAttendanceRate({
     required String clubId,
     required String authUid,
@@ -668,25 +671,23 @@ class EventService {
         )
         .get();
 
-    var total = 0;
-    var present = 0;
+    var answered = 0;
+    var yesCount = 0;
 
     for (final doc in snap.docs) {
-      final data = doc.data();
-      if (data[FirestoreFields.canceled] == true) continue;
-      final attendance =
-          data[FirestoreFields.attendance] as Map<String, dynamic>? ?? {};
-      final entry = attendance[audienceId] ?? attendance[authUid];
-      if (entry == null) continue;
-      total++;
-      final status = entry is Map
-          ? entry[FirestoreFields.status] as String?
-          : entry.toString();
-      if (status == 'present' || status == 'yes') present++;
+      final event = ClubEvent.fromFirestore(clubId: clubId, doc: doc);
+      if (event.canceled) continue;
+      final status = event.rsvpStatusForUser(
+        authUid,
+        memberId: audienceId,
+      );
+      if (status == RsvpStatus.none) continue;
+      answered++;
+      if (status == RsvpStatus.yes) yesCount++;
     }
 
-    if (total == 0) return null;
-    return present / total * 100;
+    if (answered == 0) return null;
+    return yesCount / answered * 100;
   }
 
   /// Ajoute un convoqué aux événements à venir d'une équipe (ex. coach aussi joueur).

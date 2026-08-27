@@ -232,7 +232,10 @@ function MembersPageContent() {
       role: activeClubRole,
       viewerUid: user?.uid ?? null,
       viewerLinkedMemberId: linkedMemberId,
-      target: member,
+      target: {
+        memberId: member.memberId,
+        accountUid: member.accountUid ?? null,
+      },
       teams: data?.teams ?? [],
     });
   }

@@ -28,17 +28,30 @@ Pour le quotidien (`flutter run`), le keystore release n’est pas obligatoire. 
 
 ## CI — secrets GitHub
 
-Une fois les fichiers récupérés, dépose-les en **secrets du repo** GitHub. Ils restent hors git ; le workflow [`.github/workflows/release.yml`](.github/workflows/release.yml) les reconstruit sur le runner avant le build APK.
+Une fois les fichiers récupérés, dépose-les en **secrets du repo** GitHub. Ils restent hors git ; le workflow [`.github/workflows/release-android.yml`](.github/workflows/release-android.yml) les reconstruit sur le runner avant le build APK/AAB.
 
-Les secrets sont **obligatoires** pour le job **Release APK** (tags `v*` / déclenchement manuel). Ils ne sont **pas** requis pour la CI analyze + tests (`.github/workflows/ci.yml`).
+Les secrets ci-dessous sont **obligatoires** pour les releases / deploys. Ils ne sont **pas** requis pour la CI qualité (`.github/workflows/ci.yml`).
 
 **Settings → Secrets and variables → Actions** sur ce repo :
 
 | Secret GitHub | Contenu | Obligatoire |
 |---|---|---|
-| `ANDROID_KEYSTORE_BASE64` | keystore release encodé en base64 | oui (release) |
-| `ANDROID_KEY_PROPERTIES` | contenu de `key.properties` avec chemin **relatif CI** | oui (release) |
+| `ANDROID_KEYSTORE_BASE64` | keystore release encodé en base64 | oui (Release Android) |
+| `ANDROID_KEY_PROPERTIES` | contenu de `key.properties` avec chemin **relatif CI** | oui (Release Android) |
 | `ANDROID_DEBUG_KEYSTORE_BASE64` | `android/app/debug.keystore` en base64 | non |
+| `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | JSON compte de service Play Console (upload AAB) | oui (tags `v*` / `release-v*`) |
+| `FIREBASE_SERVICE_ACCOUNT_PORTAL` | JSON SA GCP — rollouts App Hosting | oui (tag `portal-v*`) |
+| `FIREBASE_SERVICE_ACCOUNT_DEPLOY` | JSON SA GCP — Functions + Firestore (peut être le même JSON que le SA portal si rôles suffisants : Functions Admin, Cloud Datastore Owner / Firebase Rules) | oui (tags `functions-*` / `firestore-*`) |
+
+### Environments GitHub (recommandé)
+
+Créer sous **Settings → Environments** :
+
+| Environment | Workflows | Protection |
+|---|---|---|
+| `play-store` | Release Android → upload Play | reviewers optionnels |
+| `firebase-dev` | Deploy functions / firestore (cible dev) | — |
+| `firebase-prod` | Deploy portal + functions / firestore (cible prod) | reviewers recommandés |
 
 ### Contenu de `ANDROID_KEY_PROPERTIES`
 
@@ -75,16 +88,19 @@ Le workflow release restaure ainsi avant `flutter build apk --release` :
     printf '%s\n' "$ANDROID_KEY_PROPERTIES" > android/key.properties
 ```
 
-### Publier un APK (tag de release)
+### Publier Android (tags)
 
 ```bash
+# Track Play internal + GitHub Release (APK + AAB)
 git tag v1.0.0
 git push origin v1.0.0
+
+# Track Play production (pas de GitHub Release)
+git tag release-v1.0.0
+git push origin release-v1.0.0
 ```
 
-Le workflow crée une **GitHub Release** avec l’APK signé `viro-team-v2-1.0.0.apk`.  
-Build manuel (sans tag) : onglet **Actions → Release APK → Run workflow** (artifact téléchargeable, pas de Release GitHub).
-
+Build manuel (sans tag) : **Actions → Release Android → Run workflow** (artifacts seuls, pas Play ni GitHub Release).
 ## Android — Firebase
 
 `android/app/google-services.json` est déjà présent dans ce repo (app Android `com.viroteam.viro_team`, même package que la v1 Play Store).

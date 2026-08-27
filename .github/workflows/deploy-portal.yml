@@ -1,3 +1,6 @@
+# Déploie le portail Next.js sur Firebase App Hosting (backendId: portal).
+# Taguer uniquement depuis main vert. Prod → Firestore v2-prod (apphosting.yaml).
+
 name: Deploy portal
 
 on:
@@ -17,9 +20,12 @@ permissions:
 
 jobs:
   deploy:
+    name: App Hosting rollout
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: firebase-prod
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2

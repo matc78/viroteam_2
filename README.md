@@ -73,23 +73,38 @@ Détails : [`functions/README.md`](functions/README.md).
 
 ## CI / Releases
 
-- **Push / PR** : [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — `flutter analyze` + `flutter test` (Flutter 3.44.8). Aucun secret requis.
-- **Tag `v*`** : [`.github/workflows/release.yml`](.github/workflows/release.yml) — build APK release **signé**, publié sur **GitHub → Releases**.
-- **Tag `portal-v*`** : [`.github/workflows/deploy-portal.yml`](.github/workflows/deploy-portal.yml) — déploiement du portail Next.js sur **Firebase App Hosting** (budget alerte 5 €/mois).
+Taguer **uniquement depuis `main` vert**. Aucun secret requis pour la CI qualité.
+
+| Déclencheur | Workflow | Effet |
+|-------------|----------|--------|
+| Push `main` / PR | [`ci.yml`](.github/workflows/ci.yml) | Flutter analyze+test · portal lint+build · functions build (path filters sur PR ; full matrix sur `main`) |
+| Tag `v1.2.3` | [`release-android.yml`](.github/workflows/release-android.yml) | APK/AAB signés → GitHub Release + Play Store **internal** |
+| Tag `release-v1.2.3` | idem | APK/AAB → Play Store **production** (pas de GitHub Release) |
+| Tag `portal-v1.2.3` | [`deploy-portal.yml`](.github/workflows/deploy-portal.yml) | Rollout Firebase App Hosting (`v2-prod`) |
+| Tag `functions-dev-v*` / `functions-v*` | [`deploy-functions.yml`](.github/workflows/deploy-functions.yml) | Deploy Cloud Functions (dual `*Dev` + prod) |
+| Tag `firestore-dev-v*` / `firestore-v*` | [`deploy-firestore.yml`](.github/workflows/deploy-firestore.yml) | Rules + indexes sur `v2-dev` ou `v2-prod` |
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+# Android — track internal + GitHub Release
+git tag v1.0.0 && git push origin v1.0.0
 
-git tag portal-v0.1.0
-git push origin portal-v0.1.0
+# Android — track production
+git tag release-v1.0.0 && git push origin release-v1.0.0
+
+# Portail App Hosting
+git tag portal-v0.1.0 && git push origin portal-v0.1.0
+
+# Functions / Firestore (dev puis prod)
+git tag functions-dev-v1.0.0 && git push origin functions-dev-v1.0.0
+git tag firestore-dev-v1.0.0 && git push origin firestore-dev-v1.0.0
+git tag functions-v1.0.0 && git push origin functions-v1.0.0
+git tag firestore-v1.0.0 && git push origin firestore-v1.0.0
 ```
 
-L'APK apparaît sur la page Releases du repo (`viro-team-v2-1.0.0.apk`). Build manuel sans tag : **Actions → Release APK → Run workflow**.
+Build Android manuel (artifacts seuls) : **Actions → Release Android → Run workflow**.  
+Deploys Firebase aussi via **workflow_dispatch** (cible `dev` / `prod`).
 
-Secrets Android (une fois) : voir [`SETUP_LOCAL.md`](SETUP_LOCAL.md).  
-Secret portail (une fois) : `FIREBASE_SERVICE_ACCOUNT_PORTAL` — voir [`portal/README.md`](portal/README.md).
-
+Secrets et environments GitHub : [`SETUP_LOCAL.md`](SETUP_LOCAL.md). Portail : [`portal/README.md`](portal/README.md). Functions : [`functions/README.md`](functions/README.md).
 ## Structure du projet
 
 ```
@@ -174,7 +189,7 @@ firebase deploy --only firestore
 | Firebase Console | Auth, Firestore, Storage, Functions, Crashlytics, App Hosting | [console.firebase.google.com](https://console.firebase.google.com/project/viroteam-75303) |
 | PostHog | Analytics app + portail | [eu.posthog.com](https://eu.posthog.com) |
 | Sentry | Monitoring erreurs portail | [sentry.io](https://sentry.io) |
-| GitHub Actions | CI (analyze + test), Release APK, Deploy portail | onglet **Actions** du repo |
+| GitHub Actions | CI, Release Android / Play Store, deploy portal / functions / Firestore | onglet **Actions** du repo |
 | Google Cloud Billing | Budget / alertes (5 €/mois) | [console.cloud.google.com/billing](https://console.cloud.google.com/billing) |
 
 ## Conventions

@@ -1,3 +1,7 @@
+# Quality gates monorepo — Flutter, portal Next.js, Cloud Functions.
+# Push sur main/master/develop : full matrix.
+# PR : jobs filtrés par chemins touchés (plus ci.yml lui-même).
+
 name: CI
 
 on:
@@ -11,10 +15,59 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      flutter: ${{ steps.filter.outputs.flutter }}
+      portal: ${{ steps.filter.outputs.portal }}
+      functions: ${{ steps.filter.outputs.functions }}
+      force_all: ${{ steps.force.outputs.value }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Force full matrix on protected branches
+        id: force
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && {
+            [ "${{ github.ref }}" = "refs/heads/main" ] ||
+            [ "${{ github.ref }}" = "refs/heads/master" ] ||
+            [ "${{ github.ref }}" = "refs/heads/develop" ]
+          }; then
+            echo "value=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            flutter:
+              - 'lib/**'
+              - 'test/**'
+              - 'pubspec.yaml'
+              - 'pubspec.lock'
+              - 'analysis_options.yaml'
+              - 'android/**'
+              - '.fvmrc'
+              - '.fvm/**'
+              - '.github/workflows/ci.yml'
+            portal:
+              - 'portal/**'
+              - '.github/workflows/ci.yml'
+            functions:
+              - 'functions/**'
+              - '.github/workflows/ci.yml'
+
   flutter:
     name: Flutter analyze & test
+    needs: changes
+    if: needs.changes.outputs.force_all == 'true' || needs.changes.outputs.flutter == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -33,13 +86,16 @@ jobs:
 
   portal:
     name: Portal lint & build
+    needs: changes
+    if: needs.changes.outputs.force_all == 'true' || needs.changes.outputs.portal == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
       run:
         working-directory: portal
+    # Clés Firebase web publiques (même projet que apphosting.yaml) — pas de secrets Admin.
+    # CI valide contre v2-dev ; App Hosting prod utilise v2-prod (apphosting.yaml).
     env:
-      # Config web publique (même projet que apphosting.yaml) — pas de secrets Admin
       NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyDC11KSpLJY-C07QNExa3AHuXHKk_DpXkQ
       NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: viroteam-75303.firebaseapp.com
       NEXT_PUBLIC_FIREBASE_PROJECT_ID: viroteam-75303
@@ -64,6 +120,8 @@ jobs:
 
   functions:
     name: Functions build
+    needs: changes
+    if: needs.changes.outputs.force_all == 'true' || needs.changes.outputs.functions == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:

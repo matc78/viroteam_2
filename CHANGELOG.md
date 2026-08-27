@@ -9,6 +9,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- CI/CD : workflows deploy Functions (`functions-v*` / `functions-dev-v*`) et Firestore (`firestore-v*` / `firestore-dev-v*`) + `workflow_dispatch`
 - Icône app ViroTeam (Android/iOS) + splash natif (logo + formes colorées)
 - Portal planning : sélecteurs custom (heure, équipe) style Google Calendar
 - Portal planning : picker invités multi (équipes, catégories, personnes) pour tournois et événements « Autre »
@@ -30,6 +31,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- CI/CD : path filters PR, release Android (Play internal/prod, environment `play-store`), deploy portal sur `firebase-prod`, docs secrets/tags alignées
 - Portal planning : dialog création d'événement compacté et branché sur les nouveaux sélecteurs
 - Portal planning : calendrier — survol des événements empilés et titres multilignes
 - Specs produit déplacées vers `docs/specs/` (renommage `viroheam_*` → `viroteam_*`)

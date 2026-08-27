@@ -22,11 +22,27 @@ import { site } from "@/lib/site";
 import formStyles from "./AuthForm.module.css";
 import styles from "./AccessDenied.module.css";
 
+const ACCESS_DENIED_FIRST_NAME_KEY = "viro.accessDeniedFirstName";
+
+function readStoredAccessDeniedFirstName(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const value = sessionStorage.getItem(ACCESS_DENIED_FIRST_NAME_KEY)?.trim();
+    if (value) sessionStorage.removeItem(ACCESS_DENIED_FIRST_NAME_KEY);
+    return value ?? "";
+  } catch {
+    return "";
+  }
+}
+
 /** Écran réservé aux admins — onboarding join si pas de club. */
 export function AccessDeniedContent() {
   const { logout, status, profile } = useAuth();
   const searchParams = useSearchParams();
   const fromSignup = searchParams.get("from") === "signup";
+  const reason = searchParams.get("reason");
+  const forceAppMessage = reason === "unknown" || reason === "role";
+  const [storedFirstName] = useState(readStoredAccessDeniedFirstName);
   const [clubNames, setClubNames] = useState<string[]>([]);
   const [joinCompleted, setJoinCompleted] = useState<{
     clubName: string;
@@ -37,9 +53,14 @@ export function AccessDeniedContent() {
   const isParent = (profile?.parentLinks ?? []).some(
     (link) => link.status === GuardianStatuses.active,
   );
-  const needsJoinOnboarding = status === "signedIn" && !hasClubs && !isParent;
+  const needsJoinOnboarding =
+    status === "signedIn" && !hasClubs && !isParent && !forceAppMessage;
 
   useEffect(() => {
+    if (forceAppMessage) {
+      setClubNames([]);
+      return;
+    }
     const clubIds =
       profile?.clubMemberships.map((membership) => membership.clubId) ?? [];
     if (clubIds.length === 0) {
@@ -56,21 +77,27 @@ export function AccessDeniedContent() {
     return () => {
       cancelled = true;
     };
-  }, [profile]);
+  }, [profile, forceAppMessage]);
 
   const firstName = useMemo(() => {
+    if (forceAppMessage) return storedFirstName;
     const fromProfile = profile?.firstName?.trim();
     if (fromProfile) return fromProfile;
     return splitDisplayName(profile?.displayName ?? "").firstName;
-  }, [profile]);
+  }, [profile, forceAppMessage, storedFirstName]);
 
-  const title = buildAccessDeniedTitle({ fromSignup, needsJoinOnboarding });
+  const title = buildAccessDeniedTitle({
+    fromSignup,
+    needsJoinOnboarding,
+    forceAppMessage,
+  });
   const lead = needsJoinOnboarding
     ? buildJoinOnboardingLead(firstName)
     : buildAccessDeniedLead({
         firstName,
         clubNames,
         fromSignup,
+        forceAppMessage,
       });
 
   async function handleLogout() {
@@ -98,7 +125,7 @@ export function AccessDeniedContent() {
         )}
 
         <div className={styles.actions}>
-          {status === "signedIn" ? (
+          {status === "signedIn" && !forceAppMessage ? (
             <button
               type="button"
               className={formStyles.submit}

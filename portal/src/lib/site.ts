@@ -9,9 +9,9 @@ export const site = {
   ogImage: "/og-image.png",
   description:
     "Planning, relances et suivi des cotisations pour le bureau. Membres et parents suivent simplement — multiclub inclus.",
-  seoTitle: "ViroTeam — Gestion de club pour le bureau et les parents",
+  seoTitle: "ViroTeam — L'app de gestion pour les clubs amateurs",
   seoDescription:
-    "ViroTeam organise le planning, les relances et le suivi des cotisations. Le bureau pilote, membres et parents suivent simplement. Un compte, plusieurs clubs.",
+    "ViroTeam est l'application de gestion pour les clubs amateurs. Elle centralise planning, convocations, cotisations et équipes — pour le bureau, les coachs, les joueurs et les parents.",
   playStoreUrl:
     "https://play.google.com/store/apps/details?id=com.viroteam.viro_team",
   /** App Store pas encore publié. */

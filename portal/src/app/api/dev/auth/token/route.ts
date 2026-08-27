@@ -45,6 +45,19 @@ export async function POST(request: NextRequest) {
     if (error instanceof DevAuthConfigError) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: unknown }).code ?? "")
+        : "";
+    if (code === "auth/user-not-found") {
+      return NextResponse.json(
+        {
+          error: "Aucun compte ViroTeam avec cet e-mail.",
+          code: "auth/user-not-found",
+        },
+        { status: 404 },
+      );
+    }
     return NextResponse.json(
       {
         error:

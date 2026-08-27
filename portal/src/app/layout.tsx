@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   category: "sports",
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/icon-48.png", sizes: "48x48", type: "image/png" },
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/logo-mark.png", type: "image/png" },

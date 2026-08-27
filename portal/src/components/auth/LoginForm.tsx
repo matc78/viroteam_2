@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { AuthDivider, GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { handleGoogleAuthError } from "@/lib/auth/handleGoogleAuthError";
 import { usePostAuthRedirect } from "@/lib/auth/usePostAuthRedirect";
 import { validateEmail } from "@/lib/auth/validateEmail";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { isUnknownAccountAuthError } from "@/lib/firebase/authErrors";
 import styles from "./AuthForm.module.css";
 
 type FieldErrors = {
@@ -16,6 +18,7 @@ type FieldErrors = {
 };
 
 function LoginFormContent() {
+  const router = useRouter();
   const { signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -46,6 +49,10 @@ function LoginFormContent() {
     try {
       await signIn(email, password);
     } catch (error) {
+      if (isUnknownAccountAuthError(error)) {
+        router.replace("/access-denied?reason=unknown");
+        return;
+      }
       setErrors({
         form:
           error instanceof Error
@@ -63,6 +70,10 @@ function LoginFormContent() {
     try {
       await signInWithGoogle();
     } catch (error) {
+      if (isUnknownAccountAuthError(error)) {
+        router.replace("/access-denied?reason=unknown");
+        return;
+      }
       const result = handleGoogleAuthError(error);
       if (result.emailToPrefill) setEmail(result.emailToPrefill);
       setErrors({ form: result.formMessage });

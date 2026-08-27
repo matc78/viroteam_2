@@ -32,6 +32,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Portail : titre et meta description SEO (style marque + phrase d’autorité)
 - CI/CD : path filters PR, release Android (Play internal/prod, environment `play-store`), deploy portal sur `firebase-prod`, docs secrets/tags alignées
 - Portal planning : dialog création d'événement compacté et branché sur les nouveaux sélecteurs
 - Portal planning : calendrier — survol des événements empilés et titres multilignes
@@ -48,6 +49,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Portail : `/favicon.ico` manquant (logo Vercel dans Google) — favicon ViroTeam servi
 - Nettoyage `project_config` (retrait `legacyLibPath` monorepo)
 - `.gitignore` : ignore `android/.gradle/` et artefacts FVM
 - Icône profil home (boucle `/` → `/profile`)

@@ -679,7 +679,7 @@ class EventService {
       if (event.canceled) continue;
       final status = event.rsvpStatusForUser(
         authUid,
-        memberId: audienceId,
+        clubAudienceId: audienceId,
       );
       if (status == RsvpStatus.none) continue;
       answered++;

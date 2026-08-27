@@ -71,8 +71,7 @@ Configurés dans [`src/lib/site.ts`](src/lib/site.ts) :
 ## Déploiement (Firebase App Hosting)
 
 Prod : backend App Hosting **`portal`**, Firestore **`v2-prod`**, région **`europe-west4`**.  
-Config runtime : [`apphosting.yaml`](apphosting.yaml). Déploiement **uniquement** via tag `portal-v*` (pas à chaque push sur `main`).
-
+Config runtime : [`apphosting.yaml`](apphosting.yaml). Déploiement **uniquement** via tag `portal-v*` (pas à chaque push sur `main`). Taguer depuis **`main` vert**. Environment GitHub : `firebase-prod`.
 ### Prérequis une fois (console)
 
 1. **Blaze** sur `viroteam-75303` : [passer en Blaze](https://console.firebase.google.com/project/viroteam-75303/overview?purchaseBillingPlan=metered).

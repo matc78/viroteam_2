@@ -56,4 +56,24 @@ npm run build
 firebase deploy --only functions
 ```
 
+Un `firebase deploy --only functions` pousse **toutes** les callables duales (`acceptInvitation` + `acceptInvitationDev`, etc.).
+
+## Déploiement CI
+
+Taguer depuis `main` vert. Workflow : [`.github/workflows/deploy-functions.yml`](../.github/workflows/deploy-functions.yml).
+
+| Déclencheur | Environment GitHub | Effet |
+|-------------|-------------------|--------|
+| Tag `functions-dev-v1.2.3` | `firebase-dev` | Deploy all functions (dual) |
+| Tag `functions-v1.2.3` | `firebase-prod` | Deploy all functions (dual) |
+| **Actions → Deploy functions → Run workflow** (`dev` / `prod`) | idem | Idem sans tag |
+
+Secret requis : `FIREBASE_SERVICE_ACCOUNT_DEPLOY` (voir [`SETUP_LOCAL.md`](../SETUP_LOCAL.md)).  
+Les secrets runtime (Brevo, HelloAsso) restent gérés via `firebase functions:secrets`, pas via GitHub Actions.
+
+```bash
+git tag functions-dev-v1.0.0 && git push origin functions-dev-v1.0.0
+git tag functions-v1.0.0 && git push origin functions-v1.0.0
+```
+
 **Important** : le `returnUrl` client ne doit jamais marquer une cotisation `paye`.

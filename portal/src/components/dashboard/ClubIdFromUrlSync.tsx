@@ -10,18 +10,18 @@ import { useAuth } from "@/lib/firebase/AuthProvider";
  */
 export function ClubIdFromUrlSync() {
   const searchParams = useSearchParams();
-  const { adminClubs, familyClubs, setActiveClubId, status } = useAuth();
+  const { bureauClubs, familyClubs, setActiveClubId, status } = useAuth();
 
   useEffect(() => {
     if (status !== "signedIn") return;
     const clubId = searchParams.get("clubId")?.trim();
     if (!clubId) return;
-    const allowed = [...adminClubs, ...familyClubs].some(
+    const allowed = [...bureauClubs, ...familyClubs].some(
       (club) => club.id === clubId,
     );
     if (!allowed) return;
     setActiveClubId(clubId);
-  }, [adminClubs, familyClubs, searchParams, setActiveClubId, status]);
+  }, [bureauClubs, familyClubs, searchParams, setActiveClubId, status]);
 
   return null;
 }

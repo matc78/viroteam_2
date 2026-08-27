@@ -328,6 +328,11 @@
   min-width: 0;
 }
 
+.card[data-highlighted="true"] {
+  outline: 2px solid var(--cat-accent);
+  outline-offset: 2px;
+}
+
 .card[data-tone="green"] {
   --cat-accent: var(--tone-green);
   --cat-soft: var(--tone-green-soft);

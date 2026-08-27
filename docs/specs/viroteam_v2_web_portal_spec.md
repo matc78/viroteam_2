@@ -11,8 +11,8 @@
 
 ### Portail web
 1. **Site public** — présenter l’app et ses fonctionnalités (modèle apps sportives type SportEasy / TeamApp).
-2. **Connexion** — même compte que l’app → dashboard bureau (admin) ou espace famille (parent).
-3. **Dashboard bureau** — suivi membres / cotisations, config HelloAsso, inventaire équipements, droits coachs.
+2. **Connexion** — même compte que l’app → dashboard bureau (admin / coach / joueur adapté) ou espace famille (parent).
+3. **Dashboard bureau** — suivi membres / cotisations (admin), vues équipes (coach), planning / RSVP (joueur), inventaire équipements, droits coachs.
 4. **Espace famille** — planning / RSVP / cotisation payeur pour les enfants liés (voir spec parents). Hors MVP bureau actuel ; prévu Phase 8.
 
 ### App mobile (ajustement)
@@ -28,7 +28,7 @@ Garder le **terrain** et les **actions urgentes / simples**. Déplacer le **pilo
 | Tournois / événements lourds | **Hors scope** — prochaine partie |
 | Rôle `owner` | **N’existe pas** (créateur = `admin`) |
 | Rôle `treasurer` | **Pas encore** — au MVP, **tout admin = trésorier** (droits finance + HelloAsso) |
-| Accès dashboard **bureau** | `role == admin` uniquement |
+| Accès dashboard **bureau** | `role` ∈ {`admin`, `coach`, `player`} — pages et actions filtrées par rôle |
 | Accès espace **famille** | `parentLinks` actifs (guardian) — Phase 8 ; spec parents |
 | Équipements | Inventaire **simple** (CRUD) ; prêts / retours plus tard |
 | Stack | **React** (entraînement) + Firebase |
@@ -46,7 +46,7 @@ Garder le **terrain** et les **actions urgentes / simples**. Déplacer le **pilo
 
 | | **App mobile** | **Dashboard web (React)** |
 |---|---|---|
-| Public | Joueur, coach, parent ; admin en déplacement | Bureau : admin (= trésorier MVP). Famille : parent (Phase 8) |
+| Public | Joueur, coach, parent ; admin en déplacement | Bureau : admin (cockpit), coach / joueur (vues adaptées). Famille : parent (Phase 8) |
 | UI | Écrans courts, actions rapides | Tableaux, filtres, config |
 | Cotisations admin | Vue légère (voir retards, relancer, hors-ligne ponctuel) | Cockpit complet + HelloAsso |
 | Membres | Ajouter / inviter un oublié, gestes simples | Liste riche, filtres, export |
@@ -67,7 +67,7 @@ Sans page pricing.
 |-------|---------|
 | `/` | Landing : marque, promesse, CTA (créer un club / se connecter / stores) |
 | `/features` | Modules : équipes, planning / RSVP, cotisations HelloAsso, invitations, présences |
-| `/login` | Connexion Firebase → bureau si admin, espace famille si guardian (Phase 8), sinon access-denied |
+| `/login` | Connexion Firebase → bureau si admin/coach/joueur, espace famille si guardian, sinon access-denied / onboarding |
 | `/legal/*` | CGU, confidentialité |
 
 Landing : une composition claire, brand fort, pas de faux dashboard marketing.  
@@ -79,11 +79,23 @@ CTA : stores + « Espace club ».
 
 1. Login Firebase Auth (même projet que l’app).
 2. Charger `users/{uid}` : `clubMemberships` + `parentLinks`.
-3. Si `role == admin` → espace **bureau** (sélecteur de club si plusieurs).
-4. Si `parentLinks` actifs (et pas admin sur ce club) → espace **famille** (Phase 8). Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).
-5. Sinon (joueur / coach seul) → message access-denied + lien vers l’app.
-6. Admin **et** parent sur le même club → sélecteur d’espace (bureau vs famille), navs non mélangées.
-7. Rules Firestore : writes dashboard bureau = admin ; lecture / RSVP / paiement famille = guardian du `memberId` cible. Pas d’élargissement coach/joueur au bureau.
+3. Si `role` ∈ {`admin`, `coach`, `player`} → espace **bureau** (sélecteur de club si plusieurs). L’UI et les actions dépendent du rôle du **club actif** (`admin` > `coach` > `player`).
+4. Si `parentLinks` actifs → espace **famille** (Phase 8). Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).
+5. Sinon (aucun club / aucun parentLink) → access-denied ou onboarding join.
+6. Bureau **et** parent → sélecteur d’espace (Bureau ↔ Famille), navs non mélangées.
+7. Rules Firestore : lecture club pour tout membre ; writes admin pour config cotisations / rôles ; coach peut créer events / annonces / ajouter joueurs à ses équipes ; joueur RSVP + lecture de sa cotisation.
+
+### Matrice Bureau (club actif)
+
+| Zone | Admin | Coach | Joueur |
+|------|-------|-------|--------|
+| Nav | Home, Membres, Planning, Cotisations, Annonces | Home, Membres, Planning, Annonces | Home, Membres, Planning, Cotisations |
+| Scope données | Club entier | Équipes où `coachIds` contient le viewer | Ses équipes / convocations |
+| Contacts | Complets | Pas d’email/tél des autres | Email/tél des coachs de ses équipes uniquement |
+| Membres | CRUD complet | Ajout joueur / roster ses équipes (aligné app) | Lecture seule |
+| Planning | Complet | Création + filtre ses équipes | Son planning + RSVP |
+| Cotisations | Config + suivi | Masqué | Sa fiche (sinon « rien à faire » / « déjà payé ») |
+| Annonces | Complet | Filtre / ciblage ses équipes | Pas de page ; bandeau sur Home |
 
 ---
 
@@ -203,7 +215,7 @@ Tournois / championnats restent retirés du mobile (Phase 1 roadmap).
 - Tournois & événements lourds
 - Rôle `treasurer` distinct
 - Rôle `owner`
-- Dashboard web **bureau** pour coach / joueur (l’espace **famille** parent est Phase 8, pas le cockpit admin)
+- Mode « vue coach » séparée pour un admin (le rôle club actif suffit)
 - Prêts / retours équipements
 - Multi-prestataires paiement
 - 2ᵉ parent / grands-parents (schéma prêt, plafond V1 = 1)
@@ -213,7 +225,7 @@ Tournois / championnats restent retirés du mobile (Phase 1 roadmap).
 ## 10. Critères de succès MVP
 
 - Un admin se connecte sur le web et pilote cotisations + HelloAsso sans Excel.
-- Un joueur / coach **sans** `parentLinks` ne peut pas entrer dans le dashboard bureau.
+- Un coach / joueur entre dans le bureau avec pages et actions filtrées (scope équipes).
 - Un parent (Phase 8) entre dans l’espace famille, pas dans les KPI / config HelloAsso.
 - L’inventaire simple est utilisable sur le web.
 - Les droits coachs se configurent sur le web et s’appliquent dans l’app.

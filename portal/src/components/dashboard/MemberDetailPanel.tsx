@@ -28,6 +28,13 @@ type MemberDetailPanelProps = {
   member: MemberRow;
   busy: boolean;
   error: string | null;
+  /** Affiche l’e-mail (sinon masqué). */
+  canSeeContact?: boolean;
+  /** Édition profil / licence / invitations. */
+  canEditMember?: boolean;
+  canEditRole?: boolean;
+  canRemoveMember?: boolean;
+  canManageParents?: boolean;
   onClose: () => void;
   onSaveProfile: (input: {
     firstName: string;
@@ -51,6 +58,11 @@ export function MemberDetailPanel({
   member,
   busy,
   error,
+  canSeeContact = true,
+  canEditMember = true,
+  canEditRole = true,
+  canRemoveMember = true,
+  canManageParents = true,
   onClose,
   onSaveProfile,
   onSaveLicense,
@@ -98,6 +110,10 @@ export function MemberDetailPanel({
   ]);
 
   useEffect(() => {
+    if (!canManageParents) {
+      setGuardian(null);
+      return;
+    }
     let cancelled = false;
     void getMemberGuardian(clubId, member.memberId)
       .then((view) => {
@@ -109,7 +125,7 @@ export function MemberDetailPanel({
     return () => {
       cancelled = true;
     };
-  }, [clubId, member.memberId]);
+  }, [clubId, member.memberId, canManageParents]);
 
   function requestClose() {
     if (busy || guardianBusy) return;
@@ -117,7 +133,7 @@ export function MemberDetailPanel({
   }
 
   function startEditingName() {
-    if (busy || guardianBusy || member.hasLinkedAccount) return;
+    if (busy || guardianBusy || member.hasLinkedAccount || !canEditMember) return;
     setEmail(member.email ?? "");
     setProfileError(null);
     setEditingEmail(false);
@@ -133,7 +149,15 @@ export function MemberDetailPanel({
   }
 
   function startEditingEmail() {
-    if (busy || guardianBusy || member.hasLinkedAccount) return;
+    if (
+      busy ||
+      guardianBusy ||
+      member.hasLinkedAccount ||
+      !canEditMember ||
+      !canSeeContact
+    ) {
+      return;
+    }
     setFirstName(member.firstName);
     setLastName(member.lastName);
     setEmail(member.email ?? "");
@@ -259,7 +283,7 @@ export function MemberDetailPanel({
 
   const panelBusy = busy || guardianBusy;
   const isPending = !member.hasLinkedAccount;
-  const showInviteActions = isPending;
+  const showInviteActions = isPending && canEditMember;
   const hasValidInvite = isMemberInviteValid(member);
   const inviteExpired =
     Boolean(member.pendingInviteCode) &&
@@ -270,7 +294,11 @@ export function MemberDetailPanel({
     member.teamLabels.length > 0
       ? member.teamLabels.join(", ")
       : "Aucune";
-  const emailDisplay = member.email?.trim() || "—";
+  const emailDisplay = canSeeContact
+    ? member.email?.trim() || "—"
+    : "—";
+  const showAdminSection = canEditMember || canEditRole;
+  const showDangerSection = canRemoveMember;
 
   return (
     <div
@@ -345,7 +373,7 @@ export function MemberDetailPanel({
                 <h2 id="member-detail-title" className={dialogStyles.title}>
                   {member.displayName}
                 </h2>
-                {isPending ? (
+                {isPending && canEditMember ? (
                   <button
                     type="button"
                     className={styles.pencilButton}
@@ -432,7 +460,7 @@ export function MemberDetailPanel({
                     >
                       {emailDisplay}
                     </span>
-                    {isPending ? (
+                    {isPending && canEditMember && canSeeContact ? (
                       <button
                         type="button"
                         className={styles.pencilButton}
@@ -464,283 +492,314 @@ export function MemberDetailPanel({
           </div>
         </section>
 
-        <section className={styles.section} data-tone="amber">
-          <h3 className={styles.sectionTitle}>Accès</h3>
-          <div className={styles.sectionBody}>
-            <div
-              className={`${styles.accessGrid}${
-                showInviteActions ? "" : ` ${styles.accessGridSingle}`
-              }`}
-            >
-              <div className={styles.accessColumn}>
-                <p className={styles.blockLabel}>Parent</p>
-                <div className={styles.accessLead}>
-                  {guardian?.status ? (
-                    <>
-                      <p className={styles.inviteCode}>
-                        {guardian.displayName || guardian.email || "Parent invité"}
-                        {guardian.inviteExpired
-                          ? " · invitation expirée"
-                          : guardian.status === "pending"
-                            ? " · en attente"
-                            : ""}
-                      </p>
-                      {guardian.invitationCode ? (
-                        <p className={styles.inviteMeta}>
-                          Code : {guardian.invitationCode}
-                          {guardian.expiresAt
-                            ? ` · ${guardian.inviteExpired ? "expiré" : "expire"} le ${guardian.expiresAt.toLocaleDateString("fr-FR")}`
-                            : ""}
+        {(canManageParents || showInviteActions) ? (
+          <section className={styles.section} data-tone="amber">
+            <h3 className={styles.sectionTitle}>Accès</h3>
+            <div className={styles.sectionBody}>
+              <div
+                className={`${styles.accessGrid}${
+                  showInviteActions && canManageParents
+                    ? ""
+                    : ` ${styles.accessGridSingle}`
+                }`}
+              >
+                {canManageParents ? (
+                  <div className={styles.accessColumn}>
+                    <p className={styles.blockLabel}>Parent</p>
+                    <div className={styles.accessLead}>
+                      {guardian?.status ? (
+                        <>
+                          <p className={styles.inviteCode}>
+                            {guardian.displayName ||
+                              guardian.email ||
+                              "Parent invité"}
+                            {guardian.inviteExpired
+                              ? " · invitation expirée"
+                              : guardian.status === "pending"
+                                ? " · en attente"
+                                : ""}
+                          </p>
+                          {guardian.invitationCode ? (
+                            <p className={styles.inviteMeta}>
+                              Code : {guardian.invitationCode}
+                              {guardian.expiresAt
+                                ? ` · ${guardian.inviteExpired ? "expiré" : "expire"} le ${guardian.expiresAt.toLocaleDateString("fr-FR")}`
+                                : ""}
+                            </p>
+                          ) : null}
+                        </>
+                      ) : guardianError ? (
+                        <p className={styles.centeredNote} role="alert">
+                          {guardianError}
+                        </p>
+                      ) : (
+                        <p className={styles.centeredNote}>
+                          Un parent par enfant — planning, RSVP et cotisation.
+                        </p>
+                      )}
+                    </div>
+                    <div className={styles.accessActions}>
+                      {guardian?.status ? (
+                        <button
+                          type="button"
+                          className={dialogStyles.buttonSecondary}
+                          disabled={panelBusy}
+                          onClick={() => void handleRevokeParent()}
+                        >
+                          Révoquer
+                        </button>
+                      ) : (
+                        <form
+                          className={styles.row}
+                          onSubmit={handleInviteParent}
+                        >
+                          <input
+                            className={styles.input}
+                            type="email"
+                            value={guardianEmail}
+                            onChange={(event) =>
+                              setGuardianEmail(event.target.value)
+                            }
+                            placeholder="email du parent"
+                            disabled={panelBusy}
+                            aria-label="E-mail du parent"
+                          />
+                          <button
+                            type="submit"
+                            className={`${dialogStyles.buttonSecondary} ${styles.rowAction}`}
+                            disabled={panelBusy}
+                          >
+                            Inviter
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                    <div className={styles.accessFooter}>
+                      {guardianError && guardian?.status ? (
+                        <p className={styles.centeredNote} role="alert">
+                          {guardianError}
                         </p>
                       ) : null}
-                    </>
-                  ) : guardianError ? (
-                    <p className={styles.centeredNote} role="alert">
-                      {guardianError}
-                    </p>
-                  ) : (
+                    </div>
+                  </div>
+                ) : null}
+
+                {showInviteActions ? (
+                  <div className={styles.accessColumn}>
+                    <p className={styles.blockLabel}>Code invitation</p>
+                    <div className={styles.accessLead}>
+                      {member.pendingInviteCode ? (
+                        <>
+                          <p className={styles.inviteCode}>
+                            {member.pendingInviteCode}
+                          </p>
+                          {member.pendingInviteExpiresAt ? (
+                            <p className={styles.inviteMeta}>
+                              {inviteExpired ? "Expiré le" : "Expire le"}{" "}
+                              {member.pendingInviteExpiresAt.toLocaleDateString(
+                                "fr-FR",
+                              )}
+                            </p>
+                          ) : null}
+                        </>
+                      ) : (
+                        <p className={styles.centeredNote}>
+                          Aucune invitation active
+                        </p>
+                      )}
+                    </div>
+                    <div className={styles.accessActions}>
+                      {member.pendingInviteCode ? (
+                        <div className={styles.inviteActions}>
+                          <button
+                            type="button"
+                            className={`${dialogStyles.buttonSecondary} ${styles.inviteAction}`}
+                            disabled={panelBusy}
+                            onClick={() => void onExtendInvite()}
+                          >
+                            Prolonger
+                          </button>
+                          <button
+                            type="button"
+                            className={`${dialogStyles.buttonSecondary} ${styles.inviteAction}`}
+                            disabled={panelBusy}
+                            onClick={() => void onRegenerateInvite()}
+                          >
+                            Nouveau code
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className={dialogStyles.buttonSecondary}
+                          disabled={panelBusy}
+                          onClick={() => void onRegenerateInvite()}
+                        >
+                          Créer un code
+                        </button>
+                      )}
+                    </div>
+                    <div className={styles.accessFooter}>
+                      <div className={styles.primaryActions}>
+                        {hasValidInvite ? (
+                          <>
+                            {canEmailInvite ? (
+                              <InviteEmailButton
+                                onSend={onEmailInvite}
+                                disabled={panelBusy}
+                              />
+                            ) : null}
+                            <button
+                              type="button"
+                              className={
+                                canEmailInvite
+                                  ? dialogStyles.buttonSecondary
+                                  : dialogStyles.button
+                              }
+                              onClick={onCopyInvite}
+                              disabled={panelBusy}
+                            >
+                              Copier l’invitation
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className={dialogStyles.button}
+                            disabled={panelBusy}
+                            onClick={() => void onRegenerateInvite()}
+                          >
+                            Générer nouveau code
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {showAdminSection ? (
+          <section className={styles.section} data-tone="green">
+            <h3 className={styles.sectionTitle}>Admin</h3>
+            <div className={styles.sectionBody}>
+              <div className={styles.gridTwo}>
+                {canEditMember ? (
+                  <form className={styles.block} onSubmit={handleLicenseSubmit}>
+                    <label
+                      className={styles.blockLabel}
+                      htmlFor="member-license"
+                    >
+                      Numéro de licence
+                    </label>
+                    <div className={styles.row}>
+                      <input
+                        id="member-license"
+                        className={styles.input}
+                        value={license}
+                        onChange={(event) => setLicense(event.target.value)}
+                        placeholder="Ex. LIC-12345"
+                        disabled={panelBusy}
+                      />
+                      <button
+                        type="submit"
+                        className={`${dialogStyles.buttonSecondary} ${styles.rowActionCompact}`}
+                        disabled={busy || license.trim() === member.license}
+                      >
+                        OK
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className={styles.block}>
+                    <p className={styles.blockLabel}>Numéro de licence</p>
                     <p className={styles.centeredNote}>
-                      Un parent par enfant — planning, RSVP et cotisation.
+                      {member.license || "—"}
                     </p>
-                  )}
-                </div>
-                <div className={styles.accessActions}>
-                  {guardian?.status ? (
+                  </div>
+                )}
+
+                {canEditRole ? (
+                  <form className={styles.block} onSubmit={handleRoleSubmit}>
+                    <label className={styles.blockLabel} htmlFor="member-role">
+                      Rôle
+                    </label>
+                    <div className={styles.row}>
+                      <div className={styles.grow}>
+                        <PlanningSelect
+                          id="member-role"
+                          value={role}
+                          disabled={panelBusy}
+                          options={[
+                            { value: MemberRoles.admin, label: "Admin" },
+                            { value: MemberRoles.coach, label: "Coach" },
+                            { value: MemberRoles.player, label: "Joueur" },
+                          ]}
+                          onChange={(next) => setRole(next as ClubMemberRole)}
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className={`${dialogStyles.buttonSecondary} ${styles.rowActionCompact}`}
+                        disabled={busy || role === member.role}
+                      >
+                        OK
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {showDangerSection ? (
+          <section className={styles.section} data-tone="danger">
+            <h3 className={styles.sectionTitle}>Zone sensible</h3>
+            <div className={styles.sectionBody}>
+              {member.role !== MemberRoles.admin ? (
+                confirmRemove ? (
+                  <div className={styles.dangerRow}>
+                    <p className={styles.centeredNote}>
+                      Confirmer la suppression de {member.displayName} ?
+                    </p>
+                    <button
+                      type="button"
+                      className={dialogStyles.buttonDanger}
+                      disabled={panelBusy}
+                      onClick={() => void onRemove()}
+                    >
+                      Confirmer
+                    </button>
                     <button
                       type="button"
                       className={dialogStyles.buttonSecondary}
                       disabled={panelBusy}
-                      onClick={() => void handleRevokeParent()}
+                      onClick={() => setConfirmRemove(false)}
                     >
-                      Révoquer
+                      Annuler
                     </button>
-                  ) : (
-                    <form className={styles.row} onSubmit={handleInviteParent}>
-                      <input
-                        className={styles.input}
-                        type="email"
-                        value={guardianEmail}
-                        onChange={(event) => setGuardianEmail(event.target.value)}
-                        placeholder="email du parent"
-                        disabled={panelBusy}
-                        aria-label="E-mail du parent"
-                      />
-                      <button
-                        type="submit"
-                        className={`${dialogStyles.buttonSecondary} ${styles.rowAction}`}
-                        disabled={panelBusy}
-                      >
-                        Inviter
-                      </button>
-                    </form>
-                  )}
-                </div>
-                <div className={styles.accessFooter}>
-                  {guardianError && guardian?.status ? (
-                    <p className={styles.centeredNote} role="alert">
-                      {guardianError}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              {showInviteActions ? (
-                <div className={styles.accessColumn}>
-                  <p className={styles.blockLabel}>Code invitation</p>
-                  <div className={styles.accessLead}>
-                    {member.pendingInviteCode ? (
-                      <>
-                        <p className={styles.inviteCode}>
-                          {member.pendingInviteCode}
-                        </p>
-                        {member.pendingInviteExpiresAt ? (
-                          <p className={styles.inviteMeta}>
-                            {inviteExpired ? "Expiré le" : "Expire le"}{" "}
-                            {member.pendingInviteExpiresAt.toLocaleDateString(
-                              "fr-FR",
-                            )}
-                          </p>
-                        ) : null}
-                      </>
-                    ) : (
-                      <p className={styles.centeredNote}>
-                        Aucune invitation active
-                      </p>
-                    )}
                   </div>
-                  <div className={styles.accessActions}>
-                    {member.pendingInviteCode ? (
-                      <div className={styles.inviteActions}>
-                        <button
-                          type="button"
-                          className={`${dialogStyles.buttonSecondary} ${styles.inviteAction}`}
-                          disabled={panelBusy}
-                          onClick={() => void onExtendInvite()}
-                        >
-                          Prolonger
-                        </button>
-                        <button
-                          type="button"
-                          className={`${dialogStyles.buttonSecondary} ${styles.inviteAction}`}
-                          disabled={panelBusy}
-                          onClick={() => void onRegenerateInvite()}
-                        >
-                          Nouveau code
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className={dialogStyles.buttonSecondary}
-                        disabled={panelBusy}
-                        onClick={() => void onRegenerateInvite()}
-                      >
-                        Créer un code
-                      </button>
-                    )}
-                  </div>
-                  <div className={styles.accessFooter}>
-                    <div className={styles.primaryActions}>
-                      {hasValidInvite ? (
-                        <>
-                          {canEmailInvite ? (
-                            <InviteEmailButton
-                              onSend={onEmailInvite}
-                              disabled={panelBusy}
-                            />
-                          ) : null}
-                          <button
-                            type="button"
-                            className={
-                              canEmailInvite
-                                ? dialogStyles.buttonSecondary
-                                : dialogStyles.button
-                            }
-                            onClick={onCopyInvite}
-                            disabled={panelBusy}
-                          >
-                            Copier l’invitation
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          className={dialogStyles.button}
-                          disabled={panelBusy}
-                          onClick={() => void onRegenerateInvite()}
-                        >
-                          Générer nouveau code
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.section} data-tone="green">
-          <h3 className={styles.sectionTitle}>Admin</h3>
-          <div className={styles.sectionBody}>
-            <div className={styles.gridTwo}>
-              <form className={styles.block} onSubmit={handleLicenseSubmit}>
-                <label className={styles.blockLabel} htmlFor="member-license">
-                  Numéro de licence
-                </label>
-                <div className={styles.row}>
-                  <input
-                    id="member-license"
-                    className={styles.input}
-                    value={license}
-                    onChange={(event) => setLicense(event.target.value)}
-                    placeholder="Ex. LIC-12345"
-                    disabled={panelBusy}
-                  />
-                  <button
-                    type="submit"
-                    className={`${dialogStyles.buttonSecondary} ${styles.rowActionCompact}`}
-                    disabled={busy || license.trim() === member.license}
-                  >
-                    OK
-                  </button>
-                </div>
-              </form>
-
-              <form className={styles.block} onSubmit={handleRoleSubmit}>
-                <label className={styles.blockLabel} htmlFor="member-role">
-                  Rôle
-                </label>
-                <div className={styles.row}>
-                  <div className={styles.grow}>
-                    <PlanningSelect
-                      id="member-role"
-                      value={role}
-                      disabled={panelBusy}
-                      options={[
-                        { value: MemberRoles.admin, label: "Admin" },
-                        { value: MemberRoles.coach, label: "Coach" },
-                        { value: MemberRoles.player, label: "Joueur" },
-                      ]}
-                      onChange={(next) => setRole(next as ClubMemberRole)}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className={`${dialogStyles.buttonSecondary} ${styles.rowActionCompact}`}
-                    disabled={busy || role === member.role}
-                  >
-                    OK
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.section} data-tone="danger">
-          <h3 className={styles.sectionTitle}>Zone sensible</h3>
-          <div className={styles.sectionBody}>
-            {member.role !== MemberRoles.admin ? (
-              confirmRemove ? (
-                <div className={styles.dangerRow}>
-                  <p className={styles.centeredNote}>
-                    Confirmer la suppression de {member.displayName} ?
-                  </p>
+                ) : (
                   <button
                     type="button"
                     className={dialogStyles.buttonDanger}
                     disabled={panelBusy}
-                    onClick={() => void onRemove()}
+                    onClick={() => setConfirmRemove(true)}
                   >
-                    Confirmer
+                    Supprimer le membre
                   </button>
-                  <button
-                    type="button"
-                    className={dialogStyles.buttonSecondary}
-                    disabled={panelBusy}
-                    onClick={() => setConfirmRemove(false)}
-                  >
-                    Annuler
-                  </button>
-                </div>
+                )
               ) : (
-                <button
-                  type="button"
-                  className={dialogStyles.buttonDanger}
-                  disabled={panelBusy}
-                  onClick={() => setConfirmRemove(true)}
-                >
-                  Supprimer le membre
-                </button>
-              )
-            ) : (
-              <p className={styles.centeredNote}>
-                Un administrateur ne peut pas être supprimé depuis cette fiche.
-              </p>
-            )}
-          </div>
-        </section>
+                <p className={styles.centeredNote}>
+                  Un administrateur ne peut pas être supprimé depuis cette fiche.
+                </p>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         {error ? (
           <p className={dialogStyles.error} role="alert">

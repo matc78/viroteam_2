@@ -26,6 +26,14 @@ type TeamsPanelProps = {
   sport: string;
   busy: boolean;
   error: string | null;
+  highlightedTeamId?: string | null;
+  canCreateTeam?: boolean;
+  canEditTeam?: boolean;
+  canDeleteTeam?: boolean;
+  canManageCoaches?: boolean;
+  canRemovePlayers?: boolean;
+  /** True si le viewer peut ajouter un joueur à cette équipe. */
+  canAddPlayerToTeam?: (team: TeamOption) => boolean;
   onClearError?: () => void;
   onCreateTeam: (values: TeamFormValues) => Promise<void>;
   onUpdateTeam: (
@@ -54,6 +62,13 @@ export function TeamsPanel({
   sport,
   busy,
   error,
+  highlightedTeamId = null,
+  canCreateTeam = true,
+  canEditTeam = true,
+  canDeleteTeam = true,
+  canManageCoaches = true,
+  canRemovePlayers = true,
+  canAddPlayerToTeam,
   onClearError,
   onCreateTeam,
   onUpdateTeam,
@@ -139,7 +154,7 @@ export function TeamsPanel({
     setShowCreate(true);
   }
 
-  const addTeamTile = (
+  const addTeamTile = canCreateTeam ? (
     <button
       type="button"
       className={styles.addTeamTile}
@@ -152,7 +167,7 @@ export function TeamsPanel({
       </span>
       <span className={styles.addTeamTileLabel}>Nouvelle équipe</span>
     </button>
-  );
+  ) : null;
 
   return (
     <div className={styles.layout}>
@@ -191,10 +206,14 @@ export function TeamsPanel({
         <div className={styles.emptyBlock}>
           <p className={styles.empty}>
             {teams.length === 0
-              ? "Aucune équipe pour ce club. Créez la première pour organiser joueurs et coachs."
+              ? canCreateTeam
+                ? "Aucune équipe pour ce club. Créez la première pour organiser joueurs et coachs."
+                : "Aucune équipe pour ce club."
               : "Aucune équipe ne correspond aux filtres."}
           </p>
-          <div className={styles.addTeamColumn}>{addTeamTile}</div>
+          {addTeamTile ? (
+            <div className={styles.addTeamColumn}>{addTeamTile}</div>
+          ) : null}
         </div>
       ) : (
         <div className={styles.groups}>
@@ -214,6 +233,17 @@ export function TeamsPanel({
                     members={members}
                     busy={busy}
                     searchQuery={search}
+                    highlighted={highlightedTeamId === team.id}
+                    canEdit={canEditTeam}
+                    canDelete={canDeleteTeam}
+                    canAddCoach={canManageCoaches}
+                    canRemoveCoach={canManageCoaches}
+                    canAddPlayer={
+                      canAddPlayerToTeam
+                        ? canAddPlayerToTeam(team)
+                        : true
+                    }
+                    canRemovePlayer={canRemovePlayers}
                     onEdit={() => {
                       onClearError?.();
                       setEditingTeam(team);
@@ -245,11 +275,13 @@ export function TeamsPanel({
               </div>
             </section>
           ))}
-          <div className={styles.addTeamColumn}>{addTeamTile}</div>
+          {addTeamTile ? (
+            <div className={styles.addTeamColumn}>{addTeamTile}</div>
+          ) : null}
         </div>
       )}
 
-      {showCreate ? (
+      {showCreate && canCreateTeam ? (
         <CreateTeamDialog
           sport={sport}
           busy={busy}

@@ -122,6 +122,11 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         member != null &&
         MemberRoleHierarchy.isCoachOrAbove(member.role);
     final isAdmin = !isChildView && member?.role == MemberRoles.admin;
+    final isBureauMember = !isChildView &&
+        member != null &&
+        (member.role == MemberRoles.admin ||
+            member.role == MemberRoles.coach ||
+            member.role == MemberRoles.player);
     final familyTargets =
         ref.watch(clubFamilyTargetsProvider(clubId)).value ?? const [];
     final isParent = familyTargets.any((t) => t.isChild);
@@ -209,12 +214,15 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ClubAudienceSwitcher(clubId: clubId),
-          if ((isAdmin || isParent) && !_portalBannerDismissed)
+          if ((isBureauMember || isParent) && !_portalBannerDismissed)
             PortalAdminBanner(
               portalUrl: portalPlanningUrl(clubId: clubId),
               compact: true,
-              message:
-                  'Vue calendrier détaillée, filtres multi-équipes.',
+              message: isAdmin
+                  ? 'Vue calendrier détaillée, filtres multi-équipes.'
+                  : isParent
+                      ? 'Planning et RSVP aussi disponibles sur le portail famille.'
+                      : 'Planning et RSVP aussi disponibles sur le portail web.',
               ctaLabel: 'www.viroteam.com',
               onDismiss: () => setState(() => _portalBannerDismissed = true),
             ),

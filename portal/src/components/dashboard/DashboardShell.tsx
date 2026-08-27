@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
+import { BureauRouteGuard } from "@/components/auth/BureauRouteGuard";
 import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
 import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePanels";
 import { PlanningSelect } from "@/components/dashboard/PlanningSelect";
+import {
+  bureauCapabilities,
+  bureauRoleChipLabel,
+} from "@/lib/auth/bureauPermissions";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
 import { clubLabelWithSportEmoji } from "@/lib/sports/sportEmoji";
@@ -44,12 +49,23 @@ export function DashboardShell() {
   const pathname = usePathname();
   const {
     activeClub,
-    adminClubs,
+    bureauClubs,
+    activeClubRole,
     profile,
     setActiveClubId,
     logout,
   } = useAuth();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  const caps = useMemo(
+    () => bureauCapabilities(activeClubRole),
+    [activeClubRole],
+  );
+  const allowedHrefs = useMemo(() => new Set(caps.navHrefs), [caps.navHrefs]);
+  const visibleNavItems = useMemo(
+    () => NAV_ITEMS.filter((item) => allowedHrefs.has(item.href)),
+    [allowedHrefs],
+  );
 
   useEffect(() => {
     setPendingHref(null);
@@ -59,13 +75,15 @@ export function DashboardShell() {
     name: activeClub?.name ?? "Club",
     sport: activeClub?.sport,
   });
-  const resolvedAdminName = profile?.displayName ?? "Admin";
+  const resolvedUserName = profile?.displayName ?? "Membre";
+  const roleChip = bureauRoleChipLabel(activeClubRole);
   const wide = isWidePath(pathname);
   const fillViewport =
     pathname === "/planning" || pathname.startsWith("/planning/");
 
   return (
     <div className={fillViewport ? `${styles.page} ${styles.pageFill}` : styles.page}>
+      <BureauRouteGuard />
       <header className={styles.header}>
         <div className={styles.inner}>
           <div className={styles.brandBlock}>
@@ -81,14 +99,14 @@ export function DashboardShell() {
               <span className={styles.wordmark}>{site.name}</span>
             </Link>
             <span className={styles.clubDivider} aria-hidden="true" />
-            {adminClubs.length > 1 ? (
+            {bureauClubs.length > 1 ? (
               <label className={styles.clubSelectLabel}>
                 <span className={styles.srOnly}>Club actif</span>
                 <PlanningSelect
                   id="dashboard-active-club"
                   value={activeClub?.id ?? ""}
                   aria-label="Sélectionner le club"
-                  options={adminClubs.map((club) => ({
+                  options={bureauClubs.map((club) => ({
                     value: club.id,
                     label: clubLabelWithSportEmoji({
                       name: club.name,
@@ -104,7 +122,7 @@ export function DashboardShell() {
           </div>
 
           <nav className={styles.nav} aria-label="Modules espace club">
-            {NAV_ITEMS.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive = isNavItemActive(pathname, item.href);
               const isPending = pendingHref === item.href && !isActive;
               return (
@@ -129,11 +147,11 @@ export function DashboardShell() {
             <SpaceSwitcher />
             <div className={styles.userBlock}>
               <span className={styles.avatar} aria-hidden="true">
-                {userInitials(resolvedAdminName)}
+                {userInitials(resolvedUserName)}
               </span>
               <div className={styles.userMeta}>
-                <span className={styles.userName}>{resolvedAdminName}</span>
-                <span className={styles.roleChip}>Admin</span>
+                <span className={styles.userName}>{resolvedUserName}</span>
+                <span className={styles.roleChip}>{roleChip}</span>
               </div>
             </div>
             <button

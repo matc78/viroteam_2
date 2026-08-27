@@ -18,7 +18,7 @@ import {
   useState,
 } from "react";
 import { getFirebaseAuth } from "@/lib/firebase/app";
-import { authErrorMessage } from "@/lib/firebase/authErrors";
+import { toAuthActionError } from "@/lib/firebase/authErrors";
 import { isDevAuthBypassEnabled } from "@/lib/firebase/devAuth";
 import {
   EmailUsedWithPasswordError,
@@ -29,11 +29,14 @@ import { ClubRecord, getClubsByIds } from "@/lib/firebase/clubService";
 import {
   ACTIVE_CLUB_STORAGE_KEY,
   ACTIVE_SPACE_STORAGE_KEY,
+  MemberRoles,
 } from "@/lib/firebase/constants";
 import { claimPendingGuardianInvites } from "@/lib/firebase/guardianService";
 import {
   adminClubIds,
+  bureauClubIds,
   familyClubIds,
+  membershipRoleForClub,
   ViroUserProfile,
 } from "@/lib/firebase/types";
 import {
@@ -53,17 +56,29 @@ type AuthContextValue = {
   user: User | null;
   /** Document Firestore `users/{uid}`. */
   profile: ViroUserProfile | null;
-  /** Clubs où l’utilisateur a un rôle admin. */
+  /** Clubs où l’utilisateur est admin (sous-ensemble de bureauClubs). */
   adminClubs: ClubRecord[];
+  /** Clubs avec accès Bureau (admin, coach ou joueur). */
+  bureauClubs: ClubRecord[];
   /** Clubs où l’utilisateur a un lien parent actif. */
   familyClubs: ClubRecord[];
   /** Club sélectionné dans l’espace courant. */
   activeClub: ClubRecord | null;
+  /** Rôle membership du club actif (admin | coach | player), ou null. */
+  activeClubRole: string | null;
   /** Vrai si l’utilisateur administre au moins un club. */
   isAdmin: boolean;
+  /** Vrai si accès Bureau (admin, coach ou joueur sur au moins un club). */
+  isBureauUser: boolean;
+  /** Vrai si le club actif a le rôle admin. */
+  isActiveClubAdmin: boolean;
+  /** Vrai si le club actif a le rôle coach (pas admin). */
+  isActiveClubCoach: boolean;
+  /** Vrai si le club actif a le rôle player (pas admin/coach). */
+  isActiveClubPlayer: boolean;
   /** Vrai si au moins un parentLink est active. */
   isParent: boolean;
-  /** Espace courant (bureau admin vs famille). */
+  /** Espace courant (bureau vs famille). */
   activeSpace: PortalSpace;
   /** Persiste le club actif (localStorage). */
   setActiveClubId: (clubId: string) => void;
@@ -135,23 +150,24 @@ function pickActiveClub(
 }
 
 function resolveSpace(params: {
-  isAdmin: boolean;
+  isBureauUser: boolean;
   isParent: boolean;
   stored: PortalSpace | null;
 }): PortalSpace {
-  if (params.isAdmin && params.isParent) {
+  if (params.isBureauUser && params.isParent) {
     return params.stored ?? "bureau";
   }
   if (params.isParent) return "family";
   return "bureau";
 }
 
-/** Provider Auth + clubs admin / famille pour le portail. */
+/** Provider Auth + clubs bureau / famille pour le portail. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ViroUserProfile | null>(null);
   const [adminClubs, setAdminClubs] = useState<ClubRecord[]>([]);
+  const [bureauClubs, setBureauClubs] = useState<ClubRecord[]>([]);
   const [familyClubs, setFamilyClubs] = useState<ClubRecord[]>([]);
   const [activeClubId, setActiveClubIdState] = useState<string | null>(null);
   const [activeSpace, setActiveSpaceState] = useState<PortalSpace>("bureau");
@@ -161,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setProfile(null);
       setAdminClubs([]);
+      setBureauClubs([]);
       setFamilyClubs([]);
       setActiveClubIdState(null);
       setStatus("signedOut");
@@ -186,25 +203,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(userProfile);
 
     const adminIds = adminClubIds(userProfile);
+    const bureauIds = bureauClubIds(userProfile);
     const familyIds = familyClubIds(userProfile);
-    const [loadedAdminClubs, loadedFamilyClubs] = await Promise.all([
-      adminIds.length > 0 ? getClubsByIds(adminIds) : Promise.resolve([]),
-      familyIds.length > 0 ? getClubsByIds(familyIds) : Promise.resolve([]),
-    ]);
+    const [loadedAdminClubs, loadedBureauClubs, loadedFamilyClubs] =
+      await Promise.all([
+        adminIds.length > 0 ? getClubsByIds(adminIds) : Promise.resolve([]),
+        bureauIds.length > 0 ? getClubsByIds(bureauIds) : Promise.resolve([]),
+        familyIds.length > 0 ? getClubsByIds(familyIds) : Promise.resolve([]),
+      ]);
     setAdminClubs(loadedAdminClubs);
+    setBureauClubs(loadedBureauClubs);
     setFamilyClubs(loadedFamilyClubs);
 
-    const isAdminUser = loadedAdminClubs.length > 0;
+    const isBureau = loadedBureauClubs.length > 0;
     const isParentUser = loadedFamilyClubs.length > 0;
     const nextSpace = resolveSpace({
-      isAdmin: isAdminUser,
+      isBureauUser: isBureau,
       isParent: isParentUser,
       stored: readStoredSpace(),
     });
     setActiveSpaceState(nextSpace);
     writeStoredSpace(nextSpace);
 
-    const clubPool = nextSpace === "family" ? loadedFamilyClubs : loadedAdminClubs;
+    const clubPool =
+      nextSpace === "family" ? loadedFamilyClubs : loadedBureauClubs;
     const preferred = readStoredClubId();
     const active = pickActiveClub(clubPool, preferred);
     setActiveClubIdState(active?.id ?? null);
@@ -221,6 +243,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setProfile(null);
         setAdminClubs([]);
+        setBureauClubs([]);
         setFamilyClubs([]);
         setActiveClubIdState(null);
         setStatus("signedOut");
@@ -231,21 +254,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setActiveClubId = useCallback(
     (clubId: string) => {
-      const allowed = [...adminClubs, ...familyClubs].some(
+      const allowed = [...bureauClubs, ...familyClubs].some(
         (club) => club.id === clubId,
       );
       if (!allowed) return;
       setActiveClubIdState(clubId);
       writeStoredClubId(clubId);
     },
-    [adminClubs, familyClubs],
+    [bureauClubs, familyClubs],
   );
 
   const setActiveSpace = useCallback(
     (space: PortalSpace) => {
       setActiveSpaceState(space);
       writeStoredSpace(space);
-      const pool = space === "family" ? familyClubs : adminClubs;
+      const pool = space === "family" ? familyClubs : bureauClubs;
       setActiveClubIdState((currentId) => {
         if (currentId && pool.some((club) => club.id === currentId)) {
           return currentId;
@@ -255,7 +278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return next?.id ?? null;
       });
     },
-    [adminClubs, familyClubs],
+    [bureauClubs, familyClubs],
   );
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -269,9 +292,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const payload = (await response.json()) as {
           token?: string;
           error?: string;
+          code?: string;
         };
         if (!response.ok || !payload.token) {
-          throw new Error(payload.error ?? "Connexion dev impossible.");
+          throw toAuthActionError({
+            message: payload.error ?? "Connexion dev impossible.",
+            code: payload.code,
+          });
         }
         await signInWithCustomToken(getFirebaseAuth(), payload.token);
         return;
@@ -283,7 +310,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
       );
     } catch (error) {
-      throw new Error(authErrorMessage(error));
+      throw toAuthActionError(error);
     }
   }, []);
 
@@ -298,7 +325,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error instanceof Error && error.message === GOOGLE_SIGN_IN_CANCELLED) {
           return;
         }
-        throw new Error(authErrorMessage(error));
+        throw toAuthActionError(error);
       }
     },
     [],
@@ -322,7 +349,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           displayName: params.displayName.trim(),
         });
       } catch (error) {
-        throw new Error(authErrorMessage(error));
+        throw toAuthActionError(error);
       }
     },
     [],
@@ -338,10 +365,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadSession(user);
   }, [loadSession, user]);
 
-  const clubPool = activeSpace === "family" ? familyClubs : adminClubs;
+  const clubPool = activeSpace === "family" ? familyClubs : bureauClubs;
   const activeClub = useMemo(
     () => clubPool.find((club) => club.id === activeClubId) ?? clubPool[0] ?? null,
     [clubPool, activeClubId],
+  );
+
+  const activeClubRole = useMemo(
+    () => membershipRoleForClub(profile, activeClub?.id),
+    [profile, activeClub?.id],
   );
 
   const value = useMemo<AuthContextValue>(
@@ -350,9 +382,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       adminClubs,
+      bureauClubs,
       familyClubs,
       activeClub,
+      activeClubRole,
       isAdmin: adminClubs.length > 0,
+      isBureauUser: bureauClubs.length > 0,
+      isActiveClubAdmin: activeClubRole === MemberRoles.admin,
+      isActiveClubCoach: activeClubRole === MemberRoles.coach,
+      isActiveClubPlayer: activeClubRole === MemberRoles.player,
       isParent: familyClubs.length > 0,
       activeSpace,
       setActiveClubId,
@@ -368,8 +406,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       adminClubs,
+      bureauClubs,
       familyClubs,
       activeClub,
+      activeClubRole,
       activeSpace,
       setActiveClubId,
       setActiveSpace,

@@ -26,6 +26,8 @@ service cloud.firestore {
       return get(memberDocRef(clubId)).data.role;
     }
 
+    // Portail web Bureau : admin (cockpit), coach / joueur (vues filtrées côté app).
+    // Les writes sensibles (rôles, fees config, delete) restent isClubAdmin.
     function isClubAdmin(clubId) {
       return isSignedIn() && (
         (isClubMember(clubId) && clubMemberRole(clubId) == 'admin')

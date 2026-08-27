@@ -37,7 +37,14 @@ export function useAsyncClubResource<T>(
   const depsKey = JSON.stringify(deps);
 
   useEffect(() => {
-    if (!activeClub) return;
+    if (!activeClub) {
+      setData(null);
+      setLoading(false);
+      setRefreshing(false);
+      setError(null);
+      loadedClubIdRef.current = null;
+      return;
+    }
 
     let cancelled = false;
     const isClubSwitch =

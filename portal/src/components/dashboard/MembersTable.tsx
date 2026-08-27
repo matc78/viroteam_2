@@ -43,6 +43,18 @@ type MembersTableProps = {
   hasSeason: boolean;
   bulkBusy: boolean;
   inviteableSelectedCount: number;
+  /** Affiche le bouton d’ajout (admin / coach). */
+  canAddMember?: boolean;
+  /** Affiche l’import CSV (admin). */
+  canImportMembers?: boolean;
+  /** Affiche cases à cocher + barre groupée. */
+  canSelectRows?: boolean;
+  /** Affiche les actions invitation en ligne. */
+  canInviteActions?: boolean;
+  /** Cotisation / rôle groupés (admin). */
+  showAdminBulkActions?: boolean;
+  /** True si l’e-mail du membre peut être affiché. */
+  canSeeContact?: (member: MemberRow) => boolean;
   onFiltersChange: (next: MembersFilters) => void;
   onSelectMember: (memberId: string) => void;
   onToggleSelect: (memberId: string) => void;
@@ -71,6 +83,12 @@ export function MembersTable({
   hasSeason,
   bulkBusy,
   inviteableSelectedCount,
+  canAddMember = true,
+  canImportMembers = true,
+  canSelectRows = true,
+  canInviteActions = true,
+  showAdminBulkActions = true,
+  canSeeContact,
   onFiltersChange,
   onSelectMember,
   onToggleSelect,
@@ -215,29 +233,33 @@ export function MembersTable({
           >
             Exporter CSV
           </button>
-          <button
-            type="button"
-            className={styles.buttonSecondary}
-            onClick={onImportClick}
-          >
-            Importer CSV
-          </button>
-          <button
-            type="button"
-            className={styles.buttonIcon}
-            onClick={onAddClick}
-            aria-label="Ajouter un membre et envoyer une invitation"
-            title="Ajouter un membre"
-          >
-            <span aria-hidden="true">+</span>
-          </button>
+          {canImportMembers ? (
+            <button
+              type="button"
+              className={styles.buttonSecondary}
+              onClick={onImportClick}
+            >
+              Importer CSV
+            </button>
+          ) : null}
+          {canAddMember ? (
+            <button
+              type="button"
+              className={styles.buttonIcon}
+              onClick={onAddClick}
+              aria-label="Ajouter un membre et envoyer une invitation"
+              title="Ajouter un membre"
+            >
+              <span aria-hidden="true">+</span>
+            </button>
+          ) : null}
         </div>
       </div>
 
       <p className={styles.meta}>
         {rows.length} membre{rows.length > 1 ? "s" : ""}
         {seasonLabel ? ` · Saison ${seasonLabel}` : " · Aucune saison active"}
-        {selectedIds.size > 0
+        {canSelectRows && selectedIds.size > 0
           ? ` · ${selectedIds.size} sélectionné${selectedIds.size > 1 ? "s" : ""}`
           : ""}
       </p>
@@ -250,18 +272,20 @@ export function MembersTable({
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th scope="col" className={styles.checkCol}>
-                    <input
-                      type="checkbox"
-                      className={styles.checkbox}
-                      checked={allSelected}
-                      ref={(element) => {
-                        if (element) element.indeterminate = someSelected;
-                      }}
-                      onChange={onToggleSelectAll}
-                      aria-label="Sélectionner tous les membres visibles"
-                    />
-                  </th>
+                  {canSelectRows ? (
+                    <th scope="col" className={styles.checkCol}>
+                      <input
+                        type="checkbox"
+                        className={styles.checkbox}
+                        checked={allSelected}
+                        ref={(element) => {
+                          if (element) element.indeterminate = someSelected;
+                        }}
+                        onChange={onToggleSelectAll}
+                        aria-label="Sélectionner tous les membres visibles"
+                      />
+                    </th>
+                  ) : null}
                   <SortableHeader
                     label="Nom"
                     column="name"
@@ -304,115 +328,133 @@ export function MembersTable({
                     direction={sortDirection}
                     onSort={handleSort}
                   />
-                  <th scope="col">Actions invitation</th>
+                  {canInviteActions ? (
+                    <th scope="col">Actions invitation</th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
-                {sortedRows.map((row) => (
-                  <tr
-                    key={row.memberId}
-                    data-selected={selectedMemberId === row.memberId}
-                    data-checked={selectedIds.has(row.memberId)}
-                    onClick={() => onSelectMember(row.memberId)}
-                  >
-                    <td className={styles.checkCol}>
-                      <input
-                        type="checkbox"
-                        className={styles.checkbox}
-                        checked={selectedIds.has(row.memberId)}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={() => onToggleSelect(row.memberId)}
-                        aria-label={`Sélectionner ${row.displayName}`}
-                      />
-                    </td>
-                    <td>
-                      <div className={styles.nameCell}>
-                        <span className={styles.name}>{row.displayName}</span>
-                        {row.email ? (
-                          <span className={styles.sub}>{row.email}</span>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={styles.badge} data-tone={row.role}>
-                        <RoleBadgeIcon role={row.role} />
-                        {memberRoleLabel(row.role)}
-                      </span>
-                    </td>
-                    <td>
-                      {row.teamLabels.length > 0
-                        ? row.teamLabels.join(", ")
-                        : "—"}
-                    </td>
-                    <td>
-                      {row.hasLinkedAccount ? (
-                        <span className={styles.badge} data-tone="ok">
-                          Inscrit
+                {sortedRows.map((row) => {
+                  const showContact =
+                    canSeeContact?.(row) ?? Boolean(row.email);
+                  return (
+                    <tr
+                      key={row.memberId}
+                      data-selected={selectedMemberId === row.memberId}
+                      data-checked={
+                        canSelectRows && selectedIds.has(row.memberId)
+                      }
+                      onClick={() => onSelectMember(row.memberId)}
+                    >
+                      {canSelectRows ? (
+                        <td className={styles.checkCol}>
+                          <input
+                            type="checkbox"
+                            className={styles.checkbox}
+                            checked={selectedIds.has(row.memberId)}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={() => onToggleSelect(row.memberId)}
+                            aria-label={`Sélectionner ${row.displayName}`}
+                          />
+                        </td>
+                      ) : null}
+                      <td>
+                        <div className={styles.nameCell}>
+                          <span className={styles.name}>{row.displayName}</span>
+                          {showContact && row.email ? (
+                            <span className={styles.sub}>{row.email}</span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={styles.badge} data-tone={row.role}>
+                          <RoleBadgeIcon role={row.role} />
+                          {memberRoleLabel(row.role)}
                         </span>
-                      ) : (
-                        <span className={styles.badge} data-tone="pending">
-                          Pas encore
-                        </span>
-                      )}
-                    </td>
-                    <td>{row.license || "—"}</td>
-                    <td>{row.feeStatusLabel}</td>
-                    <td>
-                      <div className={styles.rowActions}>
-                        {!row.hasLinkedAccount && isMemberInviteValid(row) ? (
-                          <>
-                            {row.email ? (
-                              <InviteEmailButton
-                                variant="ghost"
-                                stopPropagation
-                                onSend={() => onEmailInvite(row)}
-                              />
+                      </td>
+                      <td>
+                        {row.teamLabels.length > 0
+                          ? row.teamLabels.join(", ")
+                          : "—"}
+                      </td>
+                      <td>
+                        {row.hasLinkedAccount ? (
+                          <span className={styles.badge} data-tone="ok">
+                            Inscrit
+                          </span>
+                        ) : (
+                          <span className={styles.badge} data-tone="pending">
+                            Pas encore
+                          </span>
+                        )}
+                      </td>
+                      <td>{row.license || "—"}</td>
+                      <td>{row.feeStatusLabel}</td>
+                      {canInviteActions ? (
+                        <td>
+                          <div className={styles.rowActions}>
+                            {!row.hasLinkedAccount &&
+                            isMemberInviteValid(row) ? (
+                              <>
+                                {row.email ? (
+                                  <InviteEmailButton
+                                    variant="ghost"
+                                    stopPropagation
+                                    onSend={() => onEmailInvite(row)}
+                                  />
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className={styles.buttonGhost}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    onCopyInvite(row);
+                                  }}
+                                >
+                                  Copier
+                                </button>
+                              </>
                             ) : null}
-                            <button
-                              type="button"
-                              className={styles.buttonGhost}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onCopyInvite(row);
-                              }}
-                            >
-                              Copier
-                            </button>
-                          </>
-                        ) : null}
-                        {!row.hasLinkedAccount && !isMemberInviteValid(row) ? (
-                          <button
-                            type="button"
-                            className={styles.buttonGhost}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onRegenerateInvite(row);
-                            }}
-                          >
-                            Générer code invitation app
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                            {!row.hasLinkedAccount &&
+                            !isMemberInviteValid(row) ? (
+                              <button
+                                type="button"
+                                className={styles.buttonGhost}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onRegenerateInvite(row);
+                                }}
+                              >
+                                Générer code invitation app
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </FadeScrollArea>
         </div>
       )}
 
-      <MembersBulkBar
-        selectedCount={selectedIds.size}
-        busy={bulkBusy}
-        hasSeason={hasSeason}
-        inviteableCount={inviteableSelectedCount}
-        onClear={onClearSelection}
-        onSendInvites={onBulkSendInvites}
-        onSetFeeStatus={onBulkSetFeeStatus}
-        onSetRole={onBulkSetRole}
-        onExportSelected={onBulkExport}
-      />
+      {canSelectRows ? (
+        <MembersBulkBar
+          selectedCount={selectedIds.size}
+          busy={bulkBusy}
+          hasSeason={hasSeason}
+          inviteableCount={inviteableSelectedCount}
+          showInviteActions={canInviteActions}
+          showAdminBulkActions={showAdminBulkActions}
+          onClear={onClearSelection}
+          onSendInvites={onBulkSendInvites}
+          onSetFeeStatus={onBulkSetFeeStatus}
+          onSetRole={onBulkSetRole}
+          onExportSelected={onBulkExport}
+        />
+      ) : null}
     </div>
   );
 }

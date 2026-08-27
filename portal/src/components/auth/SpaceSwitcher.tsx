@@ -6,8 +6,8 @@ import styles from "@/components/dashboard/DashboardShell.module.css";
 
 /** Switcher Bureau / Famille — visible seulement si les deux espaces existent. */
 export function SpaceSwitcher() {
-  const { isAdmin, isParent, activeSpace } = useAuth();
-  if (!isAdmin || !isParent) return null;
+  const { isBureauUser, isParent, activeSpace } = useAuth();
+  if (!isBureauUser || !isParent) return null;
 
   return (
     <nav className={styles.spaceSwitch} aria-label="Espace">

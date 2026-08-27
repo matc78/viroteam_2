@@ -340,7 +340,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                   clubName: club.name,
                   clubColor: accent,
                   onPresent: () => _setRsvp(next, RsvpStatus.yes),
-                  onMaybe: () => _setRsvp(next, RsvpStatus.maybe),
                   onAbsent: () => _setRsvp(next, RsvpStatus.no),
                 ),
               ),

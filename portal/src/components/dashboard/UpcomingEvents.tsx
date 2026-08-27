@@ -24,7 +24,7 @@ function withPlanningQuery(
   return `${baseHref}${separator}${query}`;
 }
 
-/** Aperçu des prochains événements club avec détail des présences. */
+/** Aperçu des prochains événements club avec détail des réponses RSVP. */
 export function UpcomingEvents({
   events,
   planningHref = "/planning",
@@ -42,7 +42,7 @@ export function UpcomingEvents({
           <h2 id="upcoming-title" className={styles.title}>
             Prochains événements
           </h2>
-          <p className={styles.subtitle}>14 prochains jours · présences</p>
+          <p className={styles.subtitle}>14 prochains jours · réponses RSVP</p>
         </div>
         <Link
           href={withPlanningQuery(planningHref, { teams: "all" })}

@@ -69,12 +69,12 @@ export default function HomePage() {
           id="cotisations"
           eyebrow="Cotisations"
           titleId="showcase-fees-title"
-          title="Cotisations suivies, relances simplifiées"
-          lead="Configurez la saison et les tarifs, suivez qui a payé et ce qui reste dû. Les relances deviennent claires pour le bureau ; membres et parents voient le statut sans demander."
+          title="Cotisations suivies, restes dus clairs"
+          lead="Configurez la saison et les tarifs, suivez qui a payé et ce qui reste dû. Membres et parents voient le statut sans demander."
           bullets={[
             "Bureau : saison, tarifs, puis suivi (à payer, partiel, reste dû).",
             "Parents et membres : montant et échéance visibles, simplement.",
-            "Relances ciblées grâce au suivi des restes dus.",
+            "Paiement hors-ligne suivi ; paiement en ligne bientôt disponible.",
           ]}
           screenshots={[
             {

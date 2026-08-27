@@ -154,3 +154,59 @@
   font-size: 0.85rem;
   color: var(--color-gray-600);
 }
+
+.rsvpList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.rsvpRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-gray-100);
+  background: var(--color-gray-50);
+}
+
+.rsvpName {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-primary-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rsvpBadge {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+.rsvpBadge[data-status="yes"] {
+  background: color-mix(in srgb, var(--color-success) 16%, white);
+  color: var(--color-success);
+}
+
+.rsvpBadge[data-status="no"] {
+  background: color-mix(in srgb, var(--color-sport-orange) 16%, white);
+  color: var(--color-sport-orange);
+}
+
+.rsvpBadge[data-status="pending"] {
+  background: var(--tone-amber-soft);
+  color: var(--color-gray-700);
+}

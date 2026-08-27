@@ -11,7 +11,12 @@ export function KpiCard({ kpi }: KpiCardProps) {
   return (
     <article className={`${styles.card} ${styles[kpi.tone]}`}>
       <p className={styles.label}>{kpi.label}</p>
-      <p className={styles.value}>{kpi.value}</p>
+      <p className={styles.value}>
+        {kpi.value}
+        {kpi.suffix ? (
+          <span className={styles.suffix}>{kpi.suffix}</span>
+        ) : null}
+      </p>
       <p className={styles.hint}>{kpi.hint}</p>
     </article>
   );

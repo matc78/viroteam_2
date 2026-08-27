@@ -42,7 +42,7 @@ class OnboardingEntryScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: ViroSpacing.md),
                           Text(
-                            'Gérez votre club sportif : planning, présences, cotisations et communication — tout en un seul endroit.',
+                            'Gérez votre club sportif : planning, convocations, cotisations et communication — tout en un seul endroit.',
                             style: theme.bodyLarge?.copyWith(
                               color: ViroColors.gray600,
                             ),
@@ -57,7 +57,7 @@ class OnboardingEntryScreen extends StatelessWidget {
                           _BenefitRow(
                             icon: ViroIcons.users,
                             iconColor: ViroColors.sportGreen,
-                            text: 'Suivez les présences en temps réel',
+                            text: 'Suivez les réponses aux convocations',
                           ),
                           _BenefitRow(
                             icon: ViroIcons.bell,

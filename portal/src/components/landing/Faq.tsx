@@ -4,7 +4,7 @@ const questions = [
   {
     question: "ViroTeam, c’est quoi ?",
     answer:
-      "Une app pour organiser le club : planning, relances et suivi des cotisations. Le bureau pilote ; membres et parents suivent simplement. Un compte peut rejoindre plusieurs clubs.",
+      "Une app pour organiser le club : planning, convocations et suivi des cotisations. Le bureau pilote ; membres et parents suivent simplement. Un compte peut rejoindre plusieurs clubs.",
   },
   {
     question: "Comment organiser le planning du club ?",
@@ -17,9 +17,9 @@ const questions = [
       "Le bureau suit licences et invitations, filtre l’effectif, et compose les équipes par catégorie avec joueurs et coachs. Parents et membres rejoignent le club sur invitation.",
   },
   {
-    question: "Comment suivre les cotisations et les relances ?",
+    question: "Comment suivre les cotisations ?",
     answer:
-      "Le bureau configure la saison et les tarifs, puis suit qui a payé et les restes dus. Les relances s’appuient sur ce suivi ; parents et membres voient montant et échéance.",
+      "Le bureau configure la saison et les tarifs, puis suit qui a payé et les restes dus. Un rappel par e-mail groupé est possible depuis le suivi ; parents et membres voient montant et échéance.",
   },
   {
     question: "Peut-on gérer plusieurs clubs ?",

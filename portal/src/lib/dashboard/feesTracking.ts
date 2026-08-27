@@ -28,6 +28,8 @@ export type FeeTrackingRow = {
   displayName: string;
   firstName: string;
   lastName: string;
+  /** E-mail membre (snapshot ou compte lié), pour relance mailto. */
+  email: string | null;
   fee: MemberFeeRecord | null;
   tierId: string | null;
   status: string | null;
@@ -149,6 +151,7 @@ export async function loadFeesTrackingData(
       displayName: fee?.memberDisplayName || member.displayName,
       firstName: member.firstName,
       lastName: member.lastName,
+      email: member.email,
       fee,
       tierId: fee?.tierId ?? null,
       status,

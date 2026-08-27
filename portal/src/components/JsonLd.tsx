@@ -19,7 +19,7 @@ const softwareApplicationJsonLd = {
     "Planning partagé des entraînements et matchs",
     "Gestion des membres, licences et équipes",
     "Convocations et RSVP",
-    "Suivi des cotisations et relances",
+    "Suivi des cotisations et restes dus",
     "Multiclub — plusieurs clubs par compte",
     "Vues bureau, membres et parents",
   ],
@@ -43,7 +43,7 @@ const faqJsonLd = {
       name: "ViroTeam, c’est quoi ?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "ViroTeam organise le planning, les relances et le suivi des cotisations. Le bureau pilote ; membres et parents suivent simplement. Un compte peut rejoindre plusieurs clubs.",
+        text: "ViroTeam organise le planning, les convocations et le suivi des cotisations. Le bureau pilote ; membres et parents suivent simplement. Un compte peut rejoindre plusieurs clubs.",
       },
     },
     {
@@ -64,10 +64,10 @@ const faqJsonLd = {
     },
     {
       "@type": "Question",
-      name: "Comment suivre les cotisations et les relances ?",
+      name: "Comment suivre les cotisations ?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Le bureau configure la saison et les tarifs, puis suit qui a payé et les restes dus. Parents et membres voient montant et échéance.",
+        text: "Le bureau configure la saison et les tarifs, puis suit qui a payé et les restes dus. Un rappel par e-mail groupé est possible depuis le suivi ; parents et membres voient montant et échéance.",
       },
     },
     {

@@ -11,6 +11,7 @@ import {
   getActiveSeason,
   listMemberFees,
   MemberFeeRecord,
+  remainingCents,
 } from "./feeService";
 import {
   getLinkedMemberId,
@@ -37,6 +38,8 @@ export type HomeKpi = {
   value: number;
   hint: string;
   tone: "neutral" | "warning" | "success" | "accent";
+  /** Suffixe affiché après la valeur (ex. %, €). */
+  suffix?: string;
 };
 
 export type FeeStatusSegment = {
@@ -356,14 +359,40 @@ export async function loadHomeDashboard(params: {
   const allUpcomingEvents = await loadUpcomingEvents(params.club.id);
   const upcomingEvents = allUpcomingEvents.slice(0, HOME_PREVIEW_EVENT_LIMIT);
   const upcomingEventCount = allUpcomingEvents.length;
-  const pendingRsvpCount = allUpcomingEvents.reduce(
-    (sum, event) => sum + event.rsvpPending,
-    0,
-  );
   const pendingAids = countPendingAids(fees);
   const segments = buildFeeSegments(fees);
-  const unpaidCount =
-    segments.find((segment) => segment.status === "a_payer")?.count ?? 0;
+
+  const billableFees = fees.filter(
+    (fee) => fee.status !== MemberFeeStatuses.exonere,
+  );
+  const paidCount = billableFees.filter(
+    (fee) => fee.status === MemberFeeStatuses.paye,
+  ).length;
+  const paidPercent =
+    billableFees.length > 0
+      ? Math.round((paidCount / billableFees.length) * 100)
+      : 0;
+
+  const remainingDueEuros = season
+    ? Math.round(
+        fees.reduce((sum, fee) => sum + remainingCents(fee, season), 0) / 100,
+      )
+    : 0;
+
+  const eventsWithInvitees = allUpcomingEvents.filter(
+    (event) => event.rsvpTotal > 0,
+  );
+  const averageRsvpPercent =
+    eventsWithInvitees.length > 0
+      ? Math.round(
+          (eventsWithInvitees.reduce(
+            (sum, event) => sum + event.rsvpYes / event.rsvpTotal,
+            0,
+          ) /
+            eventsWithInvitees.length) *
+            100,
+        )
+      : 0;
 
   return {
     clubName: params.club.name,
@@ -378,25 +407,28 @@ export async function loadHomeDashboard(params: {
         tone: "neutral",
       },
       {
-        id: "rsvp",
-        label: "RSVP en attente",
-        value: pendingRsvpCount,
-        hint: "Réponses manquantes",
+        id: "rsvp-rate",
+        label: "Taux RSVP moyen",
+        value: averageRsvpPercent,
+        suffix: "%",
+        hint: "Oui / convoqués · 14 j",
         tone: "accent",
       },
       {
-        id: "due",
-        label: "À payer",
-        value: unpaidCount,
-        hint: season ? "Cotisations ouvertes" : "Crée une saison",
-        tone: "warning",
+        id: "paid-rate",
+        label: "Cotisations soldées",
+        value: paidPercent,
+        suffix: "%",
+        hint: season ? "Hors exonérés" : "Crée une saison",
+        tone: "success",
       },
       {
-        id: "aids",
-        label: "Aides en attente",
-        value: pendingAids,
-        hint: "Justificatifs à valider",
-        tone: "success",
+        id: "due-euros",
+        label: "Reste dû",
+        value: remainingDueEuros,
+        suffix: "€",
+        hint: season ? "À encaisser" : "Crée une saison",
+        tone: "warning",
       },
     ],
     feeStatus: segments,

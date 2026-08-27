@@ -227,7 +227,7 @@ function CoachHomeView({
               aria-labelledby="week-rsvp-title"
             >
               <h2 id="week-rsvp-title" className={styles.sectionTitle}>
-                Semaine prochaine — présences
+                Semaine prochaine — réponses RSVP
               </h2>
               {data.weekEvents.length === 0 ? (
                 <p className={styles.emptyHint}>

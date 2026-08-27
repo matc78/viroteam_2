@@ -11,6 +11,7 @@ import {
   seasonRecordToFeesConfig,
 } from "@/lib/dashboard/feesConfig";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import { HELLOASSO_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
@@ -178,6 +179,15 @@ function PlayerFeesSelfView() {
             ) : null}
           </dl>
         )}
+
+        {showDetails &&
+        !HELLOASSO_PAYMENTS_LIVE &&
+        data!.remaining > 0 ? (
+          <p className={familyStyles.empty}>
+            Le paiement en ligne via HelloAsso arrive bientôt. En attendant,
+            suivez les consignes ci-dessus.
+          </p>
+        ) : null}
 
         {showDetails &&
         data!.fee!.status === MemberFeeStatuses.paye ? (

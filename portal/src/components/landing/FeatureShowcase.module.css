@@ -68,7 +68,8 @@
   color: var(--color-gray-600);
   font-size: 1.05rem;
   line-height: 1.55;
-  text-align: left;
+  text-align: justify;
+  text-wrap: pretty;
 }
 
 .bullets {
@@ -88,6 +89,8 @@
   color: var(--color-gray-600);
   font-size: 0.98rem;
   line-height: 1.5;
+  text-align: justify;
+  text-wrap: pretty;
 }
 
 .bullet:last-child {

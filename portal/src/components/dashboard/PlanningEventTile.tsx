@@ -36,7 +36,7 @@ export function PlanningEventTile({
     : formatEventTime(event.startsAt);
 
   const rsvpBlock = detailedRsvp ? (
-    <div className={styles.rsvpBreakdown} aria-label="Présences">
+    <div className={styles.rsvpBreakdown} aria-label="Réponses RSVP">
       <span className={styles.rsvpStat} data-tone="green">
         <span className={styles.rsvpStatValue}>{event.rsvpYes}</span>
         <span className={styles.rsvpStatLabel}>

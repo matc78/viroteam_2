@@ -247,6 +247,24 @@ function PlanningPageContent() {
     );
   }, [data, filters, visibleEvents, scopedTeams, caps.isAdmin, roleScopeReady]);
 
+  const memberNamesById = useMemo(() => {
+    if (!data) return {};
+    const names: Record<string, string> = {};
+    for (const person of [
+      ...data.players,
+      ...data.coaches,
+      ...data.admins,
+    ]) {
+      if (person.name.trim()) {
+        names[person.id] = person.name;
+        for (const matchId of person.matchIds) {
+          names[matchId] = person.name;
+        }
+      }
+    }
+    return names;
+  }, [data]);
+
   useEffect(() => {
     if (!data || !selectAllTeams || !roleScopeReady) return;
     if (initialEventId) return;
@@ -459,6 +477,7 @@ function PlanningPageContent() {
           }
           linkedMemberId={caps.isPlayer ? linkedMemberId : null}
           onRsvpUpdated={reload}
+          memberNamesById={memberNamesById}
         />
       ) : null}
 

@@ -50,7 +50,8 @@
 
 .lead {
   color: var(--color-gray-600);
-  text-align: left;
+  text-align: justify;
+  text-wrap: pretty;
 }
 
 .steps {
@@ -87,6 +88,8 @@
 .stepBody {
   color: var(--color-gray-600);
   font-size: 1rem;
+  text-align: justify;
+  text-wrap: pretty;
 }
 
 .photo {

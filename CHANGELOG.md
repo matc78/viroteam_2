@@ -9,6 +9,20 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+### Modifié
+
+### Corrigé
+
+## [1.1.0] - 2026-08-27
+
+### Ajouté
+
+- Docs déploiement : [`docs/DEPLOY_IOS.md`](docs/DEPLOY_IOS.md), [`docs/DEPLOY_SUITE.md`](docs/DEPLOY_SUITE.md)
+- Mentions légales (template), privacy enrichie, case CGU à l’inscription (app + portail)
+- Bannière consentement cookies PostHog (portail)
+- Suppression de compte in-app (Profil) + liens légaux
+- Privacy Manifest iOS (`PrivacyInfo.xcprivacy`)
+- Callable `acceptInvitation` complète (transaction Admin SDK) branchée côté Flutter
 - Portail Bureau adapté coach / joueur : nav, home, membres, planning, annonces et cotisations self filtrés par rôle et équipes
 - CI/CD : workflows deploy Functions (`functions-v*` / `functions-dev-v*`) et Firestore (`firestore-v*` / `firestore-dev-v*`) + `workflow_dispatch`
 - Icône app ViroTeam (Android/iOS) + splash natif (logo + formes colorées)
@@ -32,6 +46,9 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Storage rules : upload logo club réservé aux admins (`v2-dev` / `v2-prod`)
+- PostHog Android : DEBUG désactivé en release
+- Info.plist iOS : `CFBundleName`, photo library, export compliance
 - Portail : titre et meta description SEO (style marque + phrase d’autorité)
 - CI/CD : path filters PR, release Android (Play internal/prod, environment `play-store`), deploy portal sur `firebase-prod`, docs secrets/tags alignées
 - Portal planning : dialog création d'événement compacté et branché sur les nouveaux sélecteurs

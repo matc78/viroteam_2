@@ -2,20 +2,22 @@
 
 import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { initPostHog, posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog";
 
-/// Initialise PostHog et capture les page views à chaque navigation.
+const CONSENT_KEY = "viro.cookieConsent";
+
+/** Capture les page views PostHog si le consentement a déjà été accepté. */
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    initPostHog();
-  }, []);
-
-  useEffect(() => {
     if (!posthog.__loaded) return;
-    const url = window.origin + pathname + (searchParams?.toString() ? `?${searchParams}` : "");
+    if (window.localStorage.getItem(CONSENT_KEY) !== "accepted") return;
+    const url =
+      window.origin +
+      pathname +
+      (searchParams?.toString() ? `?${searchParams}` : "");
     posthog.capture("$pageview", { $current_url: url });
   }, [pathname, searchParams]);
 

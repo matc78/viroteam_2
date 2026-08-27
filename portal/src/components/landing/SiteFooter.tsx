@@ -15,6 +15,7 @@ const footerLinks = [
 const legalLinks = [
   { href: "/legal/cgu", label: "CGU" },
   { href: "/legal/privacy", label: "Confidentialité" },
+  { href: "/legal/mentions", label: "Mentions légales" },
 ] as const;
 
 /** Pied de page léger. */

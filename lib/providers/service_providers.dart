@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/services/account_service.dart';
 import 'package:viro_team_v2/services/announcement_service.dart';
 import 'package:viro_team_v2/services/auth_service.dart';
 import 'package:viro_team_v2/services/club_service.dart';
@@ -14,6 +15,9 @@ import 'package:viro_team_v2/services/team_service.dart';
 import 'package:viro_team_v2/services/user_service.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+
+final accountServiceProvider =
+    Provider<AccountService>((ref) => AccountService());
 
 final userServiceProvider = Provider<UserService>((ref) => UserService());
 

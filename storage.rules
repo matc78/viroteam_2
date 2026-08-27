@@ -17,6 +17,28 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // Bucket Storage partagé ; vérifier admin sur v2-dev OU v2-prod.
+    function isClubAdminOnDb(databaseId, clubId) {
+      let clubPath = /databases/$(databaseId)/documents/clubs/$(clubId);
+      let accountPath =
+        /databases/$(databaseId)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid);
+      let memberPath = exists(accountPath)
+        ? /databases/$(databaseId)/documents/clubs/$(clubId)/members/$(firestore.get(accountPath).data.memberId)
+        : /databases/$(databaseId)/documents/clubs/$(clubId)/members/$(request.auth.uid);
+      return isSignedIn()
+        && (
+          (exists(clubPath)
+            && request.auth.uid in firestore.get(clubPath).data.get('adminIds', []))
+          || (exists(memberPath)
+            && firestore.get(memberPath).data.role == 'admin')
+        );
+    }
+
+    function isClubAdmin(clubId) {
+      return isClubAdminOnDb('v2-dev', clubId)
+        || isClubAdminOnDb('v2-prod', clubId);
+    }
+
     match /users/{userId}/{allPaths=**} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId) && isImageUnder2Mb();
@@ -24,8 +46,7 @@ service firebase.storage {
 
     match /clubs/{clubId}/logo.jpg {
       allow read: if true;
-      // Gate métier : seul un admin peut ensuite écrire clubs.logoUrl.
-      allow write: if isSignedIn() && isImageUnder2Mb();
+      allow write: if isClubAdmin(clubId) && isImageUnder2Mb();
     }
   }
 }

@@ -1,7 +1,7 @@
 name: viro_team_v2
 description: "ViroTeam v2 — gestion sportive (invitation uniquement)."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+1
 
 environment:
   sdk: ^3.11.4

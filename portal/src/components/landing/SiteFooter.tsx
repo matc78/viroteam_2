@@ -12,6 +12,11 @@ const footerLinks = [
   { href: "#faq", label: "FAQ" },
 ] as const;
 
+const legalLinks = [
+  { href: "/legal/cgu", label: "CGU" },
+  { href: "/legal/privacy", label: "Confidentialité" },
+] as const;
+
 /** Pied de page léger. */
 export function SiteFooter() {
   const year = new Date().getFullYear();
@@ -35,6 +40,11 @@ export function SiteFooter() {
           <Link href="/login" className={styles.link}>
             Espace club
           </Link>
+          {legalLinks.map((item) => (
+            <Link key={item.href} href={item.href} className={styles.link}>
+              {item.label}
+            </Link>
+          ))}
         </nav>
       </div>
     </footer>

@@ -3,6 +3,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
+import 'package:viro_team_v2/utils/sport_emoji.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
@@ -36,7 +37,7 @@ class ClubListTile extends StatelessWidget {
         onTap: onTap,
         child: Row(
           children: [
-            _ClubAvatar(logoUrl: club.logoUrl, name: club.name),
+            _ClubAvatar(logoUrl: club.logoUrl, sport: club.sport),
             const SizedBox(width: ViroSpacing.md),
             Expanded(
               child: Column(
@@ -69,13 +70,16 @@ class ClubListTile extends StatelessWidget {
 }
 
 class _ClubAvatar extends StatelessWidget {
-  const _ClubAvatar({required this.logoUrl, required this.name});
+  const _ClubAvatar({required this.logoUrl, required this.sport});
 
   final String? logoUrl;
-  final String name;
+  final String sport;
 
   @override
   Widget build(BuildContext context) {
+    final trimmedLogo = logoUrl?.trim();
+    final hasLogo = trimmedLogo != null && trimmedLogo.isNotEmpty;
+
     return Container(
       width: 52,
       height: 52,
@@ -83,24 +87,20 @@ class _ClubAvatar extends StatelessWidget {
         color: ViroColors.primary50,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: ViroColors.primary100),
-        image: logoUrl != null
+        image: hasLogo
             ? DecorationImage(
-                image: NetworkImage(logoUrl!),
+                image: NetworkImage(trimmedLogo),
                 fit: BoxFit.cover,
               )
             : null,
       ),
       alignment: Alignment.center,
-      child: logoUrl == null
-          ? Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: ViroColors.primary600,
-              ),
-            )
-          : null,
+      child: hasLogo
+          ? null
+          : Text(
+              sportEmoji(sport),
+              style: const TextStyle(fontSize: 24),
+            ),
     );
   }
 }

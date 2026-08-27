@@ -78,8 +78,9 @@ function formatDateTime(value: Date | null): string {
 export function AnnouncementsPageClient() {
   const { activeClub, activeClubRole, user, profile } = useAuth();
   const caps = useMemo(
-    () => bureauCapabilities(activeClubRole),
-    [activeClubRole],
+    () =>
+      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
+    [activeClubRole, activeClub?.coachPermissions],
   );
   const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,

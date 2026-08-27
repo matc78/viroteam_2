@@ -12,6 +12,31 @@ export function defaultSeasonEndDate(around: Date = new Date()): Date {
 }
 
 /**
+ * Plafond produit : 31 juillet de la saison en cours / prochaine.
+ * Après le 31 juillet → 31 juillet de l’année suivante.
+ */
+export function maxSeasonEndDate(around: Date = new Date()): Date {
+  const year =
+    around.getMonth() > 6 ? around.getFullYear() + 1 : around.getFullYear();
+  return new Date(year, 6, 31);
+}
+
+/** Vrai si la date (jour local) dépasse le plafond 31 juillet. */
+export function isSeasonEndAfterMax(
+  candidate: Date,
+  around: Date = new Date(),
+): boolean {
+  const max = maxSeasonEndDate(around);
+  const day = new Date(
+    candidate.getFullYear(),
+    candidate.getMonth(),
+    candidate.getDate(),
+  );
+  const maxDay = new Date(max.getFullYear(), max.getMonth(), max.getDate());
+  return day.getTime() > maxDay.getTime();
+}
+
+/**
  * Résout la fin de saison : date club si encore valide, sinon défaut.
  */
 export function resolveSeasonEndDate(

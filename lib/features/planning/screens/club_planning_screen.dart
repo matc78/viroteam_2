@@ -9,6 +9,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
@@ -116,11 +117,15 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
     final member = ref.watch(clubMemberProvider(clubId)).value;
+    final club = ref.watch(clubProvider(clubId)).value;
     final target = ref.watch(selectedClubAudienceProvider(clubId));
     final isChildView = target?.isChild == true;
     final canManage = !isChildView &&
         member != null &&
-        MemberRoleHierarchy.isCoachOrAbove(member.role);
+        (club?.coachPermissions ?? CoachPermissions.defaults).allowsCreateEvents(
+          isAdmin: member.role == MemberRoles.admin,
+          isCoach: member.role == MemberRoles.coach,
+        );
     final isAdmin = !isChildView && member?.role == MemberRoles.admin;
     final isBureauMember = !isChildView &&
         member != null &&
@@ -141,7 +146,6 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     final membersByUid =
         clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
 
-    final club = ref.watch(clubProvider(clubId)).value;
     final clubColor = club != null
         ? clubAccentColor(brandColorHex: club.brandColorHex, clubId: clubId)
         : null;
@@ -268,7 +272,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                     ),
                   ],
                 ),
-                error: (_, _) => ListView(
+                error: (error, stackTrace) => ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: const [
                     SizedBox(height: 240, child: ViroErrorState()),
@@ -308,7 +312,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                       ViroSpacing.xl,
                     ),
                     itemCount: events.length,
-                    separatorBuilder: (_, _) =>
+                    separatorBuilder: (context, index) =>
                         const SizedBox(height: ViroSpacing.sm),
                     itemBuilder: (context, index) {
                       final event = events[index];

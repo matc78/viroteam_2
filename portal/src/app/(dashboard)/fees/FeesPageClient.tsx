@@ -198,21 +198,37 @@ function PlayerFeesSelfView() {
   );
 }
 
-/** Contenu page Cotisations branché sur Firestore (admin ou joueur). */
+/** Contenu page Cotisations branché sur Firestore (admin, coach lecture, joueur). */
 export function FeesPageClient() {
   const { activeClub, activeClubRole, user, refreshProfile } = useAuth();
   const isPlayer = activeClubRole === MemberRoles.player;
+  const isAdmin = activeClubRole === MemberRoles.admin;
+  const isCoachRead =
+    activeClubRole === MemberRoles.coach &&
+    Boolean(activeClub?.coachPermissions.canViewFees);
 
   const { data: config, loading, refreshing, error, reload } =
     useAsyncClubResource(
-      !isPlayer ? activeClub : null,
+      isAdmin || isCoachRead ? activeClub : null,
       loadFeesConfigForClub,
-      [isPlayer],
+      [isAdmin, isCoachRead],
     );
   const [tab, setTab] = useState<FeesTab>("config");
 
   if (isPlayer) {
     return <PlayerFeesSelfView />;
+  }
+
+  if (!isAdmin && !isCoachRead) {
+    return (
+      <div>
+        <DashboardPageIntro
+          eyebrow="Espace club"
+          heading="Cotisations"
+          lead="Accès réservé aux administrateurs."
+        />
+      </div>
+    );
   }
 
   if (loading && !config) {
@@ -224,7 +240,11 @@ export function FeesPageClient() {
       <DashboardPageIntro
         eyebrow="Espace club"
         heading="Cotisations"
-        lead={`Configurez la saison et suivez les paiements de ${activeClub?.name ?? "votre club"}.`}
+        lead={
+          isCoachRead && !isAdmin
+            ? `Suivi en lecture des cotisations de ${activeClub?.name ?? "votre club"}.`
+            : `Configurez la saison et suivez les paiements de ${activeClub?.name ?? "votre club"}.`
+        }
         onRefresh={reload}
         refreshing={refreshing}
       />
@@ -237,32 +257,34 @@ export function FeesPageClient() {
 
       {config && user && activeClub ? (
         <>
-          <div className={tabStyles.tabs} role="tablist" aria-label="Cotisations">
-            <button
-              type="button"
-              role="tab"
-              id="fees-tab-config"
-              aria-selected={tab === "config"}
-              aria-controls="fees-panel-config"
-              className={`${tabStyles.tab} ${tab === "config" ? tabStyles.tabActive : ""}`}
-              onClick={() => setTab("config")}
-            >
-              Configuration
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id="fees-tab-tracking"
-              aria-selected={tab === "tracking"}
-              aria-controls="fees-panel-tracking"
-              className={`${tabStyles.tab} ${tab === "tracking" ? tabStyles.tabActive : ""}`}
-              onClick={() => setTab("tracking")}
-            >
-              Suivi
-            </button>
-          </div>
+          {isAdmin ? (
+            <div className={tabStyles.tabs} role="tablist" aria-label="Cotisations">
+              <button
+                type="button"
+                role="tab"
+                id="fees-tab-config"
+                aria-selected={tab === "config"}
+                aria-controls="fees-panel-config"
+                className={`${tabStyles.tab} ${tab === "config" ? tabStyles.tabActive : ""}`}
+                onClick={() => setTab("config")}
+              >
+                Configuration
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="fees-tab-tracking"
+                aria-selected={tab === "tracking"}
+                aria-controls="fees-panel-tracking"
+                className={`${tabStyles.tab} ${tab === "tracking" ? tabStyles.tabActive : ""}`}
+                onClick={() => setTab("tracking")}
+              >
+                Suivi
+              </button>
+            </div>
+          ) : null}
 
-          {tab === "config" ? (
+          {isAdmin && tab === "config" ? (
             <div
               id="fees-panel-config"
               role="tabpanel"
@@ -284,7 +306,17 @@ export function FeesPageClient() {
               role="tabpanel"
               aria-labelledby="fees-tab-tracking"
             >
-              <FeesTrackingPanel key={activeClub.id} club={activeClub} />
+              {isCoachRead && !isAdmin ? (
+                <p className={introStyles.lead}>
+                  Lecture seule — les actions d’encaissement restent réservées
+                  aux administrateurs.
+                </p>
+              ) : null}
+              <FeesTrackingPanel
+                key={activeClub.id}
+                club={activeClub}
+                readOnly={isCoachRead && !isAdmin}
+              />
             </div>
           )}
         </>

@@ -57,7 +57,12 @@ Le mot de passe saisi n’est **pas vérifié** en mode dev bypass — seul l’
 | `/planning` | Calendrier + création d’événements |
 | `/fees` | Cotisations (admin : config + suivi ; joueur : self) |
 | `/announcements` | Annonces (admin / coach) |
+| `/equipment` | Inventaire équipements (admin) |
+| `/settings` | Paramètres club (saison, logo, droits coachs) + compte |
 | `/family` | Espace parent |
+| `/family/settings` | Paramètres compte (espace famille) |
+| `/legal/cgu` | Conditions générales |
+| `/legal/privacy` | Politique de confidentialité |
 
 ## Liens stores
 

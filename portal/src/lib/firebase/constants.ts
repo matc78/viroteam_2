@@ -11,6 +11,7 @@ export const Collections = {
   invitations: "invitations",
   guardians: "guardians",
   announcements: "announcements",
+  equipment: "equipment",
 } as const;
 
 /** Noms de champs Firestore alignés sur FirestoreFields Flutter. */
@@ -24,6 +25,13 @@ export const Fields = {
   displayName: "displayName",
   phone: "phone",
   avatarUrl: "avatarUrl",
+  logoUrl: "logoUrl",
+  coachPermissions: "coachPermissions",
+  canCreateEvents: "canCreateEvents",
+  canManageTeamRoster: "canManageTeamRoster",
+  canInvitePlayers: "canInvitePlayers",
+  canTakeAttendance: "canTakeAttendance",
+  canViewFees: "canViewFees",
   clubMemberships: "clubMemberships",
   parentLinks: "parentLinks",
   parentClubIds: "parentClubIds",
@@ -126,7 +134,28 @@ export const Fields = {
   endsAt: "endsAt",
   closedAt: "closedAt",
   closedBy: "closedBy",
+  quantity: "quantity",
+  condition: "condition",
+  assignedTeamId: "assignedTeamId",
+  notes: "notes",
+  updatedBy: "updatedBy",
+  coachPermissions: "coachPermissions",
+  canCreateEvents: "canCreateEvents",
+  canManageTeamRoster: "canManageTeamRoster",
+  canInvitePlayers: "canInvitePlayers",
+  canTakeAttendance: "canTakeAttendance",
+  canViewFees: "canViewFees",
 } as const;
+
+/** États d’un item d’inventaire. */
+export const EquipmentConditions = {
+  ok: "ok",
+  use: "use",
+  hs: "hs",
+} as const;
+
+export type EquipmentCondition =
+  (typeof EquipmentConditions)[keyof typeof EquipmentConditions];
 
 /** Rôles membre club. */
 export const MemberRoles = {

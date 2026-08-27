@@ -148,6 +148,27 @@
   min-width: 0;
 }
 
+.userBlockLink {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.25rem;
+  transition: background 140ms ease;
+}
+
+.userBlockLink:hover {
+  background: color-mix(in srgb, var(--color-primary-400) 12%, transparent);
+}
+
+.userBlockLink:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
+}
+
 .avatar {
   display: inline-flex;
   align-items: center;
@@ -164,6 +185,14 @@
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.avatarImage {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  object-fit: cover;
   flex-shrink: 0;
 }
 
@@ -184,17 +213,9 @@
 }
 
 .roleChip {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  background: var(--tone-blue-soft);
-  color: var(--tone-blue-text);
+  /* Taille un peu plus compacte dans le header. */
   font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  padding: 0.12rem 0.45rem 0.12rem 0.25rem;
 }
 
 .spaceSwitch {

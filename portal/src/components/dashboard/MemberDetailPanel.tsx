@@ -20,6 +20,7 @@ import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import { PlanningSelect } from "./PlanningSelect";
 import { InviteEmailButton } from "./InviteEmailButton";
+import { MemberAvatar } from "./MemberAvatar";
 import styles from "./MemberDetailPanel.module.css";
 
 /** Props du panneau détail membre. */
@@ -370,6 +371,11 @@ export function MemberDetailPanel({
               </form>
             ) : (
               <div className={styles.titleRow}>
+                <MemberAvatar
+                  displayName={member.displayName}
+                  avatarUrl={member.avatarUrl}
+                  hasLinkedAccount={member.hasLinkedAccount}
+                />
                 <h2 id="member-detail-title" className={dialogStyles.title}>
                   {member.displayName}
                 </h2>

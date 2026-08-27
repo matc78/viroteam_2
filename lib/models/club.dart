@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 
 class PracticeLocation {
   const PracticeLocation({required this.name, this.address});
@@ -40,6 +41,7 @@ class Club {
     this.onlinePaymentEnabled = false,
     this.seasonEndDate,
     this.createdAt,
+    this.coachPermissions = CoachPermissions.defaults,
   });
 
   final String id;
@@ -61,6 +63,8 @@ class Club {
   /// Fin de saison sportive (récurrence planning).
   final DateTime? seasonEndDate;
   final DateTime? createdAt;
+  /// Droits coach du club (édition portail).
+  final CoachPermissions coachPermissions;
 
   factory Club.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -68,6 +72,8 @@ class Club {
         data[FirestoreFields.practiceLocations] as List<dynamic>? ?? [];
     final objectivesRaw =
         data[FirestoreFields.objectives] as List<dynamic>? ?? [];
+    final permissionsRaw =
+        data[FirestoreFields.coachPermissions] as Map<String, dynamic>?;
 
     return Club(
       id: doc.id,
@@ -96,6 +102,7 @@ class Club {
       seasonEndDate:
           (data[FirestoreFields.seasonEndDate] as Timestamp?)?.toDate(),
       createdAt: (data[FirestoreFields.createdAt] as Timestamp?)?.toDate(),
+      coachPermissions: CoachPermissions.fromMap(permissionsRaw),
     );
   }
 }

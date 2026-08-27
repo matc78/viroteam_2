@@ -28,6 +28,7 @@ export type ViroUserProfile = {
   firstName: string;
   lastName: string;
   displayName: string;
+  avatarUrl: string | null;
   clubMemberships: ClubMembership[];
   parentLinks: ParentLink[];
   parentClubIds: string[];
@@ -61,6 +62,7 @@ export function parseUserProfile(
     [];
   const rawParentClubIds = (data?.[Fields.parentClubIds] as unknown[] | undefined) ?? [];
 
+  const rawAvatar = data?.[Fields.avatarUrl];
   return {
     uid: (data?.[Fields.uid] as string | undefined) ?? uid,
     email: (data?.[Fields.email] as string | undefined) ?? "",
@@ -68,6 +70,10 @@ export function parseUserProfile(
     firstName: (data?.[Fields.firstName] as string | undefined) ?? "",
     lastName: (data?.[Fields.lastName] as string | undefined) ?? "",
     displayName: (data?.[Fields.displayName] as string | undefined) ?? "",
+    avatarUrl:
+      typeof rawAvatar === "string" && rawAvatar.trim()
+        ? rawAvatar.trim()
+        : null,
     clubMemberships: rawMemberships
       .map((item) => ({
         clubId: String(item[Fields.clubId] ?? ""),

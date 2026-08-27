@@ -1,0 +1,6 @@
+/* Styles locaux page settings — layout délégué à settingsShared. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}

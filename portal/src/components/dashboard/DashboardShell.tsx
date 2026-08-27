@@ -8,10 +8,8 @@ import { BureauRouteGuard } from "@/components/auth/BureauRouteGuard";
 import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
 import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePanels";
 import { PlanningSelect } from "@/components/dashboard/PlanningSelect";
-import {
-  bureauCapabilities,
-  bureauRoleChipLabel,
-} from "@/lib/auth/bureauPermissions";
+import { RoleBadge } from "@/components/dashboard/RoleBadge";
+import { bureauCapabilities } from "@/lib/auth/bureauPermissions";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
 import { clubLabelWithSportEmoji } from "@/lib/sports/sportEmoji";
@@ -22,10 +20,12 @@ const NAV_ITEMS = [
   { href: "/members", label: "Membres", toneClass: "toneGreen" },
   { href: "/planning", label: "Planning", toneClass: "toneBlue" },
   { href: "/fees", label: "Cotisations", toneClass: "toneYellow" },
-  { href: "/announcements", label: "Annonces", toneClass: "toneBlue" },
+  { href: "/announcements", label: "Annonces", toneClass: "toneOrange" },
+  { href: "/equipment", label: "Équipements", toneClass: "toneGreen" },
+  { href: "/settings", label: "Paramètres", toneClass: "toneBlue" },
 ] as const;
 
-const WIDE_PATH_PREFIXES = ["/members", "/planning"] as const;
+const WIDE_PATH_PREFIXES = ["/members", "/planning", "/equipment"] as const;
 
 function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -44,7 +44,7 @@ function userInitials(displayName: string): string {
   return `${nameParts[0]!.slice(0, 1)}${nameParts[1]!.slice(0, 1)}`.toUpperCase();
 }
 
-/** Coquille espace club : header bureau + nav modules + logout. */
+/** Coquille espace club : header bureau + nav modules. */
 export function DashboardShell() {
   const pathname = usePathname();
   const {
@@ -53,13 +53,13 @@ export function DashboardShell() {
     activeClubRole,
     profile,
     setActiveClubId,
-    logout,
   } = useAuth();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const caps = useMemo(
-    () => bureauCapabilities(activeClubRole),
-    [activeClubRole],
+    () =>
+      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
+    [activeClubRole, activeClub?.coachPermissions],
   );
   const allowedHrefs = useMemo(() => new Set(caps.navHrefs), [caps.navHrefs]);
   const visibleNavItems = useMemo(
@@ -71,12 +71,8 @@ export function DashboardShell() {
     setPendingHref(null);
   }, [pathname]);
 
-  const resolvedClubName = clubLabelWithSportEmoji({
-    name: activeClub?.name ?? "Club",
-    sport: activeClub?.sport,
-  });
+  const resolvedClubName = activeClub?.name?.trim() || "Club";
   const resolvedUserName = profile?.displayName ?? "Membre";
-  const roleChip = bureauRoleChipLabel(activeClubRole);
   const wide = isWidePath(pathname);
   const fillViewport =
     pathname === "/planning" || pathname.startsWith("/planning/");
@@ -117,7 +113,12 @@ export function DashboardShell() {
                 />
               </label>
             ) : (
-              <span className={styles.clubName}>{resolvedClubName}</span>
+              <span className={styles.clubName}>
+                {clubLabelWithSportEmoji({
+                  name: resolvedClubName,
+                  sport: activeClub?.sport,
+                })}
+              </span>
             )}
           </div>
 
@@ -145,22 +146,31 @@ export function DashboardShell() {
 
           <div className={styles.actions}>
             <SpaceSwitcher />
-            <div className={styles.userBlock}>
-              <span className={styles.avatar} aria-hidden="true">
-                {userInitials(resolvedUserName)}
-              </span>
+            <Link
+              href="/settings"
+              className={styles.userBlockLink}
+              aria-label="Ouvrir les paramètres"
+              onClick={() => {
+                if (pathname !== "/settings") setPendingHref("/settings");
+              }}
+            >
+              {profile?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatarUrl}
+                  alt=""
+                  className={styles.avatarImage}
+                />
+              ) : (
+                <span className={styles.avatar} aria-hidden="true">
+                  {userInitials(resolvedUserName)}
+                </span>
+              )}
               <div className={styles.userMeta}>
                 <span className={styles.userName}>{resolvedUserName}</span>
-                <span className={styles.roleChip}>{roleChip}</span>
+                <RoleBadge role={activeClubRole} className={styles.roleChip} />
               </div>
-            </div>
-            <button
-              type="button"
-              className={styles.logoutButton}
-              onClick={() => void logout()}
-            >
-              Déconnexion
-            </button>
+            </Link>
           </div>
         </div>
       </header>

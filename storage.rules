@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// Storage ViroTeam — logos club + avatars user.
+// La maj Firestore (logoUrl / avatarUrl) reste gate admin / owner.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isImageUnder2Mb() {
+      return request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /users/{userId}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) && isImageUnder2Mb();
+    }
+
+    match /clubs/{clubId}/logo.jpg {
+      allow read: if true;
+      // Gate métier : seul un admin peut ensuite écrire clubs.logoUrl.
+      allow write: if isSignedIn() && isImageUnder2Mb();
+    }
+  }
+}

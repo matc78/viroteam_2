@@ -50,8 +50,9 @@ import styles from "./page.module.css";
 function PlanningPageContent() {
   const { activeClub, activeClubRole, user } = useAuth();
   const caps = useMemo(
-    () => bureauCapabilities(activeClubRole),
-    [activeClubRole],
+    () =>
+      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
+    [activeClubRole, activeClub?.coachPermissions],
   );
   const router = useRouter();
   const pathname = usePathname();

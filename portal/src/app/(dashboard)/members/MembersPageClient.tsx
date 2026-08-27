@@ -20,6 +20,8 @@ import {
   bureauCapabilities,
   canAddPlayerToTeam,
   canSeeMemberContact,
+  membersVisibleToViewer,
+  teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import { useAuth } from "@/lib/firebase/AuthProvider";
@@ -95,8 +97,9 @@ type MembersTab = "roster" | "parents" | "teams";
 function MembersPageContent() {
   const { activeClub, activeClubRole, user } = useAuth();
   const caps = useMemo(
-    () => bureauCapabilities(activeClubRole),
-    [activeClubRole],
+    () =>
+      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
+    [activeClubRole, activeClub?.coachPermissions],
   );
   const router = useRouter();
   const pathname = usePathname();
@@ -105,8 +108,9 @@ function MembersPageContent() {
   const { showToast } = useToast();
   const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
-    loadMembersPageData,
-    [],
+    (club) =>
+      loadMembersPageData(club, { role: activeClubRole }),
+    [activeClubRole],
   );
 
   const teamIdsSyncToastShownRef = useRef(false);
@@ -165,9 +169,19 @@ function MembersPageContent() {
     };
   }, [activeClub?.id, user?.uid]);
 
+  const scopedTeams = useMemo(() => {
+    if (!data) return [];
+    return teamsVisibleToViewer({
+      role: activeClubRole,
+      uid: user?.uid ?? null,
+      linkedMemberId,
+      teams: data.teams,
+    });
+  }, [data, activeClubRole, user?.uid, linkedMemberId]);
+
   useEffect(() => {
     if (!teamQuery || !data) return;
-    const exists = data.teams.some((team) => team.id === teamQuery);
+    const exists = scopedTeams.some((team) => team.id === teamQuery);
     if (!exists) {
       router.replace(pathname, { scroll: false });
       return;
@@ -176,7 +190,7 @@ function MembersPageContent() {
     setHighlightedTeamId(teamQuery);
     setMembersTab("teams");
     router.replace(pathname, { scroll: false });
-  }, [teamQuery, data, pathname, router]);
+  }, [teamQuery, data, scopedTeams, pathname, router]);
 
   useEffect(() => {
     if (!caps.canManageParents && membersTab === "parents") {
@@ -190,21 +204,62 @@ function MembersPageContent() {
     showToast("Changement appliqué.", "success");
   }, [data?.teamIdsSynced, showToast]);
 
-  const filteredRows = useMemo(
-    () => filterMemberRows(data?.members ?? [], filters),
-    [data?.members, filters],
-  );
+  const filteredRows = useMemo(() => {
+    if (!data) return [];
+    const scopedMembers = membersVisibleToViewer({
+      role: activeClubRole,
+      uid: user?.uid ?? null,
+      linkedMemberId,
+      teams: data.teams,
+      members: data.members,
+    });
+    return filterMemberRows(scopedMembers, filters);
+  }, [data, filters, activeClubRole, user?.uid, linkedMemberId]);
 
   const selectedInviteableCount = useMemo(() => {
     if (!data) return 0;
-    return data.members.filter(
+    const scopedMembers = membersVisibleToViewer({
+      role: activeClubRole,
+      uid: user?.uid ?? null,
+      linkedMemberId,
+      teams: data.teams,
+      members: data.members,
+    });
+    return scopedMembers.filter(
       (row) =>
         selectedIds.has(row.memberId) &&
         !row.hasLinkedAccount &&
         Boolean(row.email?.trim()) &&
         isMemberInviteValid(row),
     ).length;
-  }, [data, selectedIds]);
+  }, [
+    data,
+    selectedIds,
+    activeClubRole,
+    user?.uid,
+    linkedMemberId,
+  ]);
+
+  const selectedMember = useMemo(() => {
+    if (!data || !selectedMemberId) return null;
+    const scopedMembers = membersVisibleToViewer({
+      role: activeClubRole,
+      uid: user?.uid ?? null,
+      linkedMemberId,
+      teams: data.teams,
+      members: data.members,
+    });
+    return (
+      scopedMembers.find((member) => member.memberId === selectedMemberId) ??
+      null
+    );
+  }, [
+    data,
+    selectedMemberId,
+    activeClubRole,
+    user?.uid,
+    linkedMemberId,
+  ]);
 
   const filteredParents = useMemo(
     () => filterParentRows(data?.parents ?? [], parentFilters),
@@ -219,10 +274,6 @@ function MembersPageContent() {
       ),
     [data?.members, data?.parents],
   );
-
-  const selectedMember =
-    data?.members.find((member) => member.memberId === selectedMemberId) ??
-    null;
 
   function memberContactVisible(member: {
     memberId: string;
@@ -397,6 +448,7 @@ function MembersPageContent() {
           uid: user?.uid ?? null,
           linkedMemberId,
           team,
+          coachPermissions: activeClub?.coachPermissions,
         })
       ) {
         return;
@@ -1347,7 +1399,7 @@ function MembersPageContent() {
         {data && membersTab === "roster" ? (
           <MembersTable
             rows={filteredRows}
-            teams={data.teams}
+            teams={scopedTeams}
             filters={filters}
             selectedMemberId={selectedMemberId}
             selectedIds={selectedIds}
@@ -1438,8 +1490,14 @@ function MembersPageContent() {
         {data && membersTab === "teams" && activeClub ? (
           <TeamsPanel
             clubId={activeClub.id}
-            teams={data.teams}
-            members={data.members}
+            teams={scopedTeams}
+            members={membersVisibleToViewer({
+              role: activeClubRole,
+              uid: user?.uid ?? null,
+              linkedMemberId,
+              teams: data.teams,
+              members: data.members,
+            })}
             sport={activeClub.sport}
             busy={busy}
             error={actionError}
@@ -1455,6 +1513,7 @@ function MembersPageContent() {
                 uid: user?.uid ?? null,
                 linkedMemberId,
                 team,
+                coachPermissions: activeClub?.coachPermissions,
               })
             }
             onClearError={() => setActionError(null)}

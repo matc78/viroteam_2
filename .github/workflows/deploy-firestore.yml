@@ -1,0 +1,88 @@
+# Déploie rules + indexes Firestore sur v2-dev ou v2-prod.
+#
+# Tags :
+#   firestore-dev-v1.2.3 → v2-dev (environment firebase-dev)
+#   firestore-v1.2.3     → v2-prod (environment firebase-prod)
+# workflow_dispatch      → input target = dev | prod
+
+name: Deploy firestore
+
+on:
+  push:
+    tags:
+      - "firestore-v*"
+      - "firestore-dev-v*"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Base Firestore (dev = v2-dev, prod = v2-prod)"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  resolve-target:
+    name: Resolve target
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      target: ${{ steps.resolve.outputs.target }}
+      database: ${{ steps.resolve.outputs.database }}
+      environment: ${{ steps.resolve.outputs.environment }}
+    steps:
+      - name: Resolve Firestore target
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            target="${{ inputs.target }}"
+          elif [[ "${{ github.ref }}" == refs/tags/firestore-dev-v* ]]; then
+            target="dev"
+          elif [[ "${{ github.ref }}" == refs/tags/firestore-v* ]]; then
+            target="prod"
+          else
+            echo "Tag ou cible non reconnue."
+            exit 1
+          fi
+          echo "target=${target}" >> "$GITHUB_OUTPUT"
+          if [ "$target" = "prod" ]; then
+            echo "database=v2-prod" >> "$GITHUB_OUTPUT"
+            echo "environment=firebase-prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "database=v2-dev" >> "$GITHUB_OUTPUT"
+            echo "environment=firebase-dev" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Deploy Firestore rules & indexes
+    needs: resolve-target
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ needs.resolve-target.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DEPLOY }}
+
+      - name: Set up Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy Firestore database
+        run: |
+          database="${{ needs.resolve-target.outputs.database }}"
+          echo "Déploiement rules + indexes sur ${database}"
+          firebase deploy --only "firestore:${database}" \
+            --project viroteam-75303 \
+            --non-interactive

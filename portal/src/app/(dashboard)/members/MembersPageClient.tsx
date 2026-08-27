@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AddMemberDialog } from "@/components/dashboard/AddMemberDialog";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -15,6 +16,11 @@ import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import tabStyles from "@/components/dashboard/MembersTabs.module.css";
 import { useToast } from "@/components/ToastProvider";
+import {
+  bureauCapabilities,
+  canAddPlayerToTeam,
+  canSeeMemberContact,
+} from "@/lib/auth/bureauPermissions";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
@@ -32,6 +38,7 @@ import {
   assignMemberToTeam,
   buildInviteMessage,
   extendMemberInvitation,
+  getLinkedMemberId,
   isMemberInviteValid,
   regenerateMemberInvitation,
   removeMember,
@@ -85,8 +92,16 @@ const DEFAULT_PARENT_FILTERS: ParentsFilters = {
 type MembersTab = "roster" | "parents" | "teams";
 
 /** Contenu page Membres branché sur Firestore. */
-export function MembersPageClient() {
-  const { activeClub, user } = useAuth();
+function MembersPageContent() {
+  const { activeClub, activeClubRole, user } = useAuth();
+  const caps = useMemo(
+    () => bureauCapabilities(activeClubRole),
+    [activeClubRole],
+  );
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const teamQuery = searchParams.get("team");
   const { showToast } = useToast();
   const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
@@ -95,28 +110,10 @@ export function MembersPageClient() {
   );
 
   const teamIdsSyncToastShownRef = useRef(false);
-
-  useEffect(() => {
-    teamIdsSyncToastShownRef.current = false;
-    setFilters(DEFAULT_FILTERS);
-    setParentFilters(DEFAULT_PARENT_FILTERS);
-    setSelectedMemberId(null);
-    setSelectedIds(new Set());
-    setShowAdd(false);
-    setShowImport(false);
-    setShowInviteParent(false);
-    setActionError(null);
-    setCreatedMember(null);
-    setImportReport(null);
-    setMembersTab("roster");
-  }, [activeClub?.id]);
-
-  useEffect(() => {
-    if (!data?.teamIdsSynced || teamIdsSyncToastShownRef.current) return;
-    teamIdsSyncToastShownRef.current = true;
-    showToast("Changement appliqué.", "success");
-  }, [data?.teamIdsSynced, showToast]);
-
+  const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
+  const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(
+    null,
+  );
   const [membersTab, setMembersTab] = useState<MembersTab>("roster");
   const [filters, setFilters] = useState<MembersFilters>(DEFAULT_FILTERS);
   const [parentFilters, setParentFilters] = useState<ParentsFilters>(
@@ -135,6 +132,63 @@ export function MembersPageClient() {
   const [importReport, setImportReport] = useState<MemberImportReport | null>(
     null,
   );
+
+  useEffect(() => {
+    teamIdsSyncToastShownRef.current = false;
+    setFilters(DEFAULT_FILTERS);
+    setParentFilters(DEFAULT_PARENT_FILTERS);
+    setSelectedMemberId(null);
+    setSelectedIds(new Set());
+    setShowAdd(false);
+    setShowImport(false);
+    setShowInviteParent(false);
+    setActionError(null);
+    setCreatedMember(null);
+    setImportReport(null);
+    setMembersTab("roster");
+    setHighlightedTeamId(null);
+  }, [activeClub?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLinked() {
+      if (!activeClub || !user) {
+        setLinkedMemberId(null);
+        return;
+      }
+      const id = await getLinkedMemberId(activeClub.id, user.uid);
+      if (!cancelled) setLinkedMemberId(id);
+    }
+    void loadLinked();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeClub?.id, user?.uid]);
+
+  useEffect(() => {
+    if (!teamQuery || !data) return;
+    const exists = data.teams.some((team) => team.id === teamQuery);
+    if (!exists) {
+      router.replace(pathname, { scroll: false });
+      return;
+    }
+    setFilters((current) => ({ ...current, teamId: teamQuery }));
+    setHighlightedTeamId(teamQuery);
+    setMembersTab("teams");
+    router.replace(pathname, { scroll: false });
+  }, [teamQuery, data, pathname, router]);
+
+  useEffect(() => {
+    if (!caps.canManageParents && membersTab === "parents") {
+      setMembersTab("roster");
+    }
+  }, [caps.canManageParents, membersTab]);
+
+  useEffect(() => {
+    if (!data?.teamIdsSynced || teamIdsSyncToastShownRef.current) return;
+    teamIdsSyncToastShownRef.current = true;
+    showToast("Changement appliqué.", "success");
+  }, [data?.teamIdsSynced, showToast]);
 
   const filteredRows = useMemo(
     () => filterMemberRows(data?.members ?? [], filters),
@@ -169,6 +223,19 @@ export function MembersPageClient() {
   const selectedMember =
     data?.members.find((member) => member.memberId === selectedMemberId) ??
     null;
+
+  function memberContactVisible(member: {
+    memberId: string;
+    accountUid?: string | null;
+  }): boolean {
+    return canSeeMemberContact({
+      role: activeClubRole,
+      viewerUid: user?.uid ?? null,
+      viewerLinkedMemberId: linkedMemberId,
+      target: member,
+      teams: data?.teams ?? [],
+    });
+  }
 
   /**
    * Exécute une action membre avec busy / erreur / toast succès partagés.
@@ -317,6 +384,21 @@ export function MembersPageClient() {
     role: TeamRosterRole;
   }) {
     if (!activeClub) return;
+    if (params.role === MemberRoles.coach && !caps.isAdmin) return;
+    if (params.role === MemberRoles.player) {
+      const team = data?.teams.find((item) => item.id === params.teamId);
+      if (
+        !team ||
+        !canAddPlayerToTeam({
+          role: activeClubRole,
+          uid: user?.uid ?? null,
+          linkedMemberId,
+          team,
+        })
+      ) {
+        return;
+      }
+    }
     const ok = await runMemberAction(
       async () => {
         await addMemberToTeam({
@@ -1240,15 +1322,17 @@ export function MembersPageClient() {
           >
             Équipes
           </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={membersTab === "parents"}
-            className={`${tabStyles.tab} ${membersTab === "parents" ? tabStyles.tabActive : ""}`}
-            onClick={() => setMembersTab("parents")}
-          >
-            Parents
-          </button>
+          {caps.canManageParents ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={membersTab === "parents"}
+              className={`${tabStyles.tab} ${membersTab === "parents" ? tabStyles.tabActive : ""}`}
+              onClick={() => setMembersTab("parents")}
+            >
+              Parents
+            </button>
+          ) : null}
         </div>
 
         {error ? (
@@ -1268,6 +1352,12 @@ export function MembersPageClient() {
             hasSeason={Boolean(data.seasonId)}
             bulkBusy={busy}
             inviteableSelectedCount={selectedInviteableCount}
+            canAddMember={caps.canAddMember}
+            canImportMembers={caps.canImportMembers}
+            canSelectRows={!caps.isPlayer}
+            canInviteActions={caps.canAddMember}
+            showAdminBulkActions={caps.isAdmin}
+            canSeeContact={memberContactVisible}
             onFiltersChange={setFilters}
             onSelectMember={setSelectedMemberId}
             onToggleSelect={toggleSelect}
@@ -1310,7 +1400,7 @@ export function MembersPageClient() {
           />
         ) : null}
 
-        {data && membersTab === "parents" ? (
+        {data && membersTab === "parents" && caps.canManageParents ? (
           <ParentsTable
             rows={filteredParents}
             filters={parentFilters}
@@ -1350,6 +1440,20 @@ export function MembersPageClient() {
             sport={activeClub.sport}
             busy={busy}
             error={actionError}
+            highlightedTeamId={highlightedTeamId}
+            canCreateTeam={caps.canCreateTeam}
+            canEditTeam={caps.isAdmin}
+            canDeleteTeam={caps.isAdmin}
+            canManageCoaches={caps.isAdmin}
+            canRemovePlayers={caps.isAdmin}
+            canAddPlayerToTeam={(team) =>
+              canAddPlayerToTeam({
+                role: activeClubRole,
+                uid: user?.uid ?? null,
+                linkedMemberId,
+                team,
+              })
+            }
             onClearError={() => setActionError(null)}
             onCreateTeam={handleCreateTeam}
             onUpdateTeam={handleUpdateTeam}
@@ -1366,6 +1470,11 @@ export function MembersPageClient() {
           member={selectedMember}
           busy={busy}
           error={actionError}
+          canSeeContact={memberContactVisible(selectedMember)}
+          canEditMember={caps.canAddMember}
+          canEditRole={caps.canEditRole}
+          canRemoveMember={caps.canRemoveMember}
+          canManageParents={caps.canManageParents}
           onClose={() => {
             setSelectedMemberId(null);
             setActionError(null);
@@ -1390,7 +1499,7 @@ export function MembersPageClient() {
         />
       ) : null}
 
-      {showAdd ? (
+      {showAdd && caps.canAddMember ? (
         <AddMemberDialog
           busy={busy}
           error={actionError}
@@ -1415,7 +1524,7 @@ export function MembersPageClient() {
         />
       ) : null}
 
-      {showImport && data && activeClub ? (
+      {showImport && data && activeClub && caps.canImportMembers ? (
         <ImportMembersDialog
           sport={activeClub.sport}
           existingMembers={data.members}
@@ -1433,7 +1542,7 @@ export function MembersPageClient() {
         />
       ) : null}
 
-      {showInviteParent ? (
+      {showInviteParent && caps.canManageParents ? (
         <InviteParentDialog
           busy={busy}
           error={actionError}
@@ -1446,5 +1555,14 @@ export function MembersPageClient() {
         />
       ) : null}
     </>
+  );
+}
+
+/** Client Membres (Suspense pour searchParams). */
+export function MembersPageClient() {
+  return (
+    <Suspense fallback={<DashboardSkeleton variant="members" />}>
+      <MembersPageContent />
+    </Suspense>
   );
 }

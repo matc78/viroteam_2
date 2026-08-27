@@ -36,6 +36,8 @@ type PlanningSidebarProps = {
   onCursorChange: (cursor: Date) => void;
   onDaySelect: (day: Date) => void;
   onCreateClick: () => void;
+  /** Affiche le bouton Créer (masqué pour joueur). */
+  canCreate?: boolean;
   onRefresh?: () => void;
   refreshing?: boolean;
 };
@@ -68,6 +70,7 @@ export function PlanningSidebar({
   onCursorChange,
   onDaySelect,
   onCreateClick,
+  canCreate = true,
   onRefresh,
   refreshing = false,
 }: PlanningSidebarProps) {
@@ -136,12 +139,14 @@ export function PlanningSidebar({
 
   return (
     <aside className={styles.sidebar} aria-label="Navigation et filtres planning">
-      <button type="button" className={styles.createButton} onClick={onCreateClick}>
-        <span className={styles.createPlus} aria-hidden="true">
-          +
-        </span>
-        Créer
-      </button>
+      {canCreate ? (
+        <button type="button" className={styles.createButton} onClick={onCreateClick}>
+          <span className={styles.createPlus} aria-hidden="true">
+            +
+          </span>
+          Créer
+        </button>
+      ) : null}
       {onRefresh ? (
         <button
           type="button"

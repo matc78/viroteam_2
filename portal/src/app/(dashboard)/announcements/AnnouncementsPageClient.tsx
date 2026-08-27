@@ -1,9 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CreateAnnouncementDialog } from "@/components/dashboard/CreateAnnouncementDialog";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import {
+  announcementVisibleToCoach,
+  bureauCapabilities,
+  coachedTeamsForViewer,
+} from "@/lib/auth/bureauPermissions";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import {
   announcementTargetLabel,
@@ -24,6 +29,7 @@ import {
   type PlanningPersonOption,
   type TeamOption,
 } from "@/lib/firebase/eventService";
+import { getLinkedMemberId } from "@/lib/firebase/memberService";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import tabStyles from "@/components/dashboard/MembersTabs.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
@@ -70,7 +76,11 @@ function formatDateTime(value: Date | null): string {
 
 /** Contenu page Annonces branché sur Firestore. */
 export function AnnouncementsPageClient() {
-  const { activeClub, user, profile } = useAuth();
+  const { activeClub, activeClubRole, user, profile } = useAuth();
+  const caps = useMemo(
+    () => bureauCapabilities(activeClubRole),
+    [activeClubRole],
+  );
   const { data, loading, refreshing, error, reload } = useAsyncClubResource(
     activeClub,
     loadAnnouncementsPageData,
@@ -82,6 +92,39 @@ export function AnnouncementsPageClient() {
   const [createBusy, setCreateBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLinked() {
+      if (!activeClub || !user) {
+        setLinkedMemberId(null);
+        return;
+      }
+      const id = await getLinkedMemberId(activeClub.id, user.uid);
+      if (!cancelled) setLinkedMemberId(id);
+    }
+    void loadLinked();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeClub?.id, user?.uid]);
+
+  const coachedTeams = useMemo(() => {
+    if (!data) return [];
+    if (caps.isAdmin) return data.teams;
+    return coachedTeamsForViewer({
+      role: activeClubRole,
+      uid: user?.uid ?? null,
+      linkedMemberId,
+      teams: data.teams,
+    });
+  }, [data, caps.isAdmin, activeClubRole, user?.uid, linkedMemberId]);
+
+  const coachedTeamIds = useMemo(
+    () => new Set(coachedTeams.map((team) => team.id)),
+    [coachedTeams],
+  );
 
   const teamNamesById = useMemo(() => {
     const map = new Map<string, string>();
@@ -91,12 +134,37 @@ export function AnnouncementsPageClient() {
     return map;
   }, [data?.teams]);
 
+  const roleFilteredAnnouncements = useMemo(() => {
+    const all = data?.announcements ?? [];
+    if (caps.isAdmin) return all;
+    if (caps.isCoach) {
+      return all.filter((announcement) =>
+        announcementVisibleToCoach({
+          announcement,
+          coachedTeamIds,
+        }),
+      );
+    }
+    return [];
+  }, [data?.announcements, caps.isAdmin, caps.isCoach, coachedTeamIds]);
+
   const { active, finished } = useMemo(
-    () => partitionAnnouncements(data?.announcements ?? []),
-    [data?.announcements],
+    () => partitionAnnouncements(roleFilteredAnnouncements),
+    [roleFilteredAnnouncements],
   );
 
   const visibleList = tab === "active" ? active : finished;
+
+  const createTeams = caps.isCoach ? coachedTeams : (data?.teams ?? []);
+  const createCategories = caps.isCoach
+    ? Array.from(
+        new Set(
+          coachedTeams
+            .map((team) => team.category.trim())
+            .filter((category) => category.length > 0),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "fr"))
+    : (data?.categories ?? []);
 
   async function handleCreate(values: {
     message: string;
@@ -108,10 +176,17 @@ export function AnnouncementsPageClient() {
     setCreateBusy(true);
     setCreateError(null);
     try {
+      const allClub = caps.isAdmin ? values.allClub : false;
+      const guests = caps.isCoach
+        ? values.guests.filter(
+            (guest) =>
+              guest.kind === "team" && coachedTeamIds.has(guest.id),
+          )
+        : values.guests;
       const audience = mapGuestsToAnnouncementTarget({
-        allClub: values.allClub,
-        guests: values.guests,
-        teams: data.teams,
+        allClub,
+        guests,
+        teams: createTeams,
         people: data.people,
       });
       if (
@@ -233,16 +308,18 @@ export function AnnouncementsPageClient() {
                 Terminées ({finished.length})
               </button>
             </div>
-            <button
-              type="button"
-              className={styles.createButton}
-              onClick={() => {
-                setCreateError(null);
-                setCreateOpen(true);
-              }}
-            >
-              Nouvelle annonce
-            </button>
+            {caps.canManageAnnouncements ? (
+              <button
+                type="button"
+                className={styles.createButton}
+                onClick={() => {
+                  setCreateError(null);
+                  setCreateOpen(true);
+                }}
+              >
+                Nouvelle annonce
+              </button>
+            ) : null}
           </div>
 
           {actionError ? (
@@ -299,7 +376,7 @@ export function AnnouncementsPageClient() {
                       ) : null}
                     </div>
                     <p className={styles.message}>{announcement.message}</p>
-                    {tab === "active" ? (
+                    {tab === "active" && caps.canManageAnnouncements ? (
                       <div className={styles.actions}>
                         <button
                           type="button"
@@ -331,11 +408,13 @@ export function AnnouncementsPageClient() {
         </>
       ) : null}
 
-      {createOpen && data ? (
+      {createOpen && data && caps.canManageAnnouncements ? (
         <CreateAnnouncementDialog
-          teams={data.teams}
-          categories={data.categories}
-          people={data.people}
+          teams={createTeams}
+          categories={createCategories}
+          people={caps.isAdmin ? data.people : []}
+          allowAllClub={caps.isAdmin}
+          allowedKinds={caps.isCoach ? ["team"] : undefined}
           busy={createBusy}
           error={createError}
           onClose={() => {

@@ -85,12 +85,49 @@ export function parseUserProfile(
   };
 }
 
+/** Rôles avec accès à l’espace Bureau du portail. */
+const BUREAU_ROLES = new Set<string>([
+  MemberRoles.admin,
+  MemberRoles.coach,
+  MemberRoles.player,
+]);
+
 /** Clubs où l’utilisateur est admin. */
 export function adminClubIds(profile: ViroUserProfile | null): string[] {
   if (!profile) return [];
   return profile.clubMemberships
     .filter((membership) => membership.role === MemberRoles.admin)
     .map((membership) => membership.clubId);
+}
+
+/** Clubs où l’utilisateur a un rôle bureau (admin, coach ou joueur). */
+export function bureauClubIds(profile: ViroUserProfile | null): string[] {
+  if (!profile) return [];
+  const ids = new Set<string>();
+  for (const membership of profile.clubMemberships) {
+    if (BUREAU_ROLES.has(membership.role) && membership.clubId) {
+      ids.add(membership.clubId);
+    }
+  }
+  return [...ids];
+}
+
+/**
+ * Rôle club pour un club donné.
+ * En cas de multi-adhésions, privilégie admin > coach > player.
+ */
+export function membershipRoleForClub(
+  profile: ViroUserProfile | null,
+  clubId: string | null | undefined,
+): string | null {
+  if (!profile || !clubId) return null;
+  const roles = profile.clubMemberships
+    .filter((membership) => membership.clubId === clubId)
+    .map((membership) => membership.role);
+  if (roles.includes(MemberRoles.admin)) return MemberRoles.admin;
+  if (roles.includes(MemberRoles.coach)) return MemberRoles.coach;
+  if (roles.includes(MemberRoles.player)) return MemberRoles.player;
+  return roles[0] ?? null;
 }
 
 /** Liens parent actifs (espace famille). */

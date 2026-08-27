@@ -5,6 +5,7 @@ import {
 } from "@/lib/firebase/eventService";
 import { rsvpStatLabel } from "@/lib/planning/rsvpLabels";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningEventDetailPanel.module.css";
 
@@ -12,12 +13,19 @@ import styles from "./PlanningEventDetailPanel.module.css";
 type PlanningEventDetailPanelProps = {
   event: ClubEventView;
   onClose: () => void;
+  clubId?: string;
+  /** Si fourni, affiche les boutons RSVP pour ce membre. */
+  linkedMemberId?: string | null;
+  onRsvpUpdated?: () => void;
 };
 
 /** Détail lecture seule d'un événement avec stats RSVP. */
 export function PlanningEventDetailPanel({
   event,
   onClose,
+  clubId,
+  linkedMemberId,
+  onRsvpUpdated,
 }: PlanningEventDetailPanelProps) {
   return (
     <div
@@ -97,6 +105,18 @@ export function PlanningEventDetailPanel({
               : "Aucune convocation enregistrée"}
           </p>
         </section>
+
+        {clubId && linkedMemberId ? (
+          <section className={styles.rsvpSection} aria-label="Votre réponse">
+            <h3 className={styles.rsvpTitle}>Votre réponse</h3>
+            <FamilyRsvpButtons
+              clubId={clubId}
+              event={event}
+              memberId={linkedMemberId}
+              onUpdated={onRsvpUpdated}
+            />
+          </section>
+        ) : null}
       </FadeScrollArea>
     </div>
   );

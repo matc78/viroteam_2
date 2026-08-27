@@ -232,6 +232,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                       AppRoutes.clubMyFeePath(clubId),
                                     )
                                 : null,
+                            onPortal: m.role == MemberRoles.player
+                                ? () => openPortalUrl(
+                                      portalHomeUrl(clubId: clubId),
+                                    )
+                                : null,
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(
@@ -256,11 +261,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                         AppRoutes.clubFeesPath(clubId),
                                       )
                                   : null,
-                              onPortal: m.role == MemberRoles.admin
-                                  ? () => openPortalUrl(
-                                        portalHomeUrl(clubId: clubId),
-                                      )
-                                  : null,
+                              onPortal: () => openPortalUrl(
+                                portalHomeUrl(clubId: clubId),
+                              ),
                             ),
                           ],
                           const SizedBox(height: ViroSpacing.xl),

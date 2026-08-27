@@ -1,7 +1,7 @@
 import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 
-/// Construit une URL vers une page du portail admin.
+/// Construit une URL vers une page du portail web (bureau / famille).
 Uri portalPageUrl(String path, {String? clubId}) {
   final normalizedPath = path.startsWith('/') ? path : '/$path';
   var base = ProjectConfig.portalBaseUrl;

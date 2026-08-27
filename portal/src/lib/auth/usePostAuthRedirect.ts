@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 
 type PostAuthRedirectOptions = {
-  /** Query `from=signup` sur access-denied pour les non-admins. */
+  /** Query `from=signup` sur access-denied pour les comptes sans club. */
   accessDeniedFromSignup?: boolean;
 };
 
@@ -14,15 +14,21 @@ function isSafeRedirect(path: string | null): path is string {
 }
 
 /**
- * Redirige après connexion : bureau, famille, ou access-denied.
+ * Redirige après connexion : bureau, famille, ou access-denied / onboarding.
+ * Coach et joueur ont accès au Bureau (pages filtrées ensuite).
  */
 export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status, isAdmin, isParent, activeSpace } = useAuth();
+  const { status, isBureauUser, isParent, activeSpace } = useAuth();
+  const denyingRef = useRef(false);
 
   useEffect(() => {
-    if (status !== "signedIn") return;
+    if (status !== "signedIn") {
+      denyingRef.current = false;
+      return;
+    }
+    if (denyingRef.current) return;
 
     const nextPath = searchParams.get("next");
     if (isSafeRedirect(nextPath)) {
@@ -43,17 +49,17 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
         router.replace(nextPath);
         return;
       }
-      if (isBureauPath && isAdmin) {
+      if (isBureauPath && isBureauUser) {
         router.replace(nextPath);
         return;
       }
     }
 
-    if (isAdmin && isParent) {
+    if (isBureauUser && isParent) {
       router.replace(activeSpace === "family" ? "/family" : "/home");
       return;
     }
-    if (isAdmin) {
+    if (isBureauUser) {
       router.replace("/home");
       return;
     }
@@ -62,13 +68,17 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
       return;
     }
 
-    const accessDeniedPath = options?.accessDeniedFromSignup
-      ? "/access-denied?from=signup"
-      : "/access-denied";
-    router.replace(accessDeniedPath);
+    // Signup sans club : onboarding join (reste connecté).
+    if (options?.accessDeniedFromSignup) {
+      router.replace("/access-denied?from=signup");
+      return;
+    }
+
+    denyingRef.current = true;
+    router.replace("/access-denied?reason=role");
   }, [
     status,
-    isAdmin,
+    isBureauUser,
     isParent,
     activeSpace,
     router,

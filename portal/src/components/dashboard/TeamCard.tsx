@@ -25,6 +25,13 @@ type TeamCardProps = {
   busy: boolean;
   /** Texte de recherche à surligner dans les noms (joueurs / coachs). */
   searchQuery?: string;
+  highlighted?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canAddPlayer?: boolean;
+  canAddCoach?: boolean;
+  canRemovePlayer?: boolean;
+  canRemoveCoach?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onAddMember: (role: TeamRosterRole) => void;
@@ -144,6 +151,13 @@ export function TeamCard({
   members,
   busy,
   searchQuery = "",
+  highlighted = false,
+  canEdit = true,
+  canDelete = true,
+  canAddPlayer = true,
+  canAddCoach = true,
+  canRemovePlayer = true,
+  canRemoveCoach = true,
   onEdit,
   onDelete,
   onAddMember,
@@ -204,8 +218,14 @@ export function TeamCard({
     };
   }, [menuOpen]);
 
+  const showMenu = canEdit || canDelete;
+
   return (
-    <article className={styles.card} data-tone={categoryTone}>
+    <article
+      className={styles.card}
+      data-tone={categoryTone}
+      data-highlighted={highlighted ? "true" : undefined}
+    >
       <div className={styles.cardTop}>
         <button
           type="button"
@@ -230,65 +250,73 @@ export function TeamCard({
           </span>
         </button>
 
-        <div className={styles.cardMenu} ref={menuRef}>
-          <button
-            type="button"
-            className={styles.menuTrigger}
-            aria-label={`Actions pour ${team.name}`}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            disabled={busy}
-            onClick={(event) => {
-              event.stopPropagation();
-              setMenuOpen((current) => !current);
-            }}
-          >
-            ⋮
-          </button>
-          {menuOpen ? (
-            <div className={styles.menuDropdown} role="menu">
-              <button
-                type="button"
-                className={styles.menuItem}
-                role="menuitem"
-                disabled={busy}
-                onClick={() => {
-                  setMenuOpen(false);
-                  onEdit();
-                }}
-              >
-                Modifier
-              </button>
-              <button
-                type="button"
-                className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                role="menuitem"
-                disabled={busy}
-                onClick={() => {
-                  setMenuOpen(false);
-                  onDelete();
-                }}
-              >
-                Supprimer l’équipe
-              </button>
-            </div>
-          ) : null}
-        </div>
+        {showMenu ? (
+          <div className={styles.cardMenu} ref={menuRef}>
+            <button
+              type="button"
+              className={styles.menuTrigger}
+              aria-label={`Actions pour ${team.name}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              disabled={busy}
+              onClick={(event) => {
+                event.stopPropagation();
+                setMenuOpen((current) => !current);
+              }}
+            >
+              ⋮
+            </button>
+            {menuOpen ? (
+              <div className={styles.menuDropdown} role="menu">
+                {canEdit ? (
+                  <button
+                    type="button"
+                    className={styles.menuItem}
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onEdit();
+                    }}
+                  >
+                    Modifier
+                  </button>
+                ) : null}
+                {canDelete ? (
+                  <button
+                    type="button"
+                    className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDelete();
+                    }}
+                  >
+                    Supprimer l’équipe
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.coachBlock}>
         <div className={styles.sectionHeader}>
           <h4 className={styles.sectionTitle}>Coachs</h4>
-          <button
-            type="button"
-            className={styles.fabMini}
-            disabled={busy}
-            aria-label="Ajouter un coach"
-            title="Ajouter un coach"
-            onClick={() => onAddMember(MemberRoles.coach)}
-          >
-            +
-          </button>
+          {canAddCoach ? (
+            <button
+              type="button"
+              className={styles.fabMini}
+              disabled={busy}
+              aria-label="Ajouter un coach"
+              title="Ajouter un coach"
+              onClick={() => onAddMember(MemberRoles.coach)}
+            >
+              +
+            </button>
+          ) : null}
         </div>
         {coaches.length === 0 ? (
           <p className={styles.rosterEmpty}>Aucun coach</p>
@@ -302,16 +330,18 @@ export function TeamCard({
                     query={searchQuery}
                   />
                 </span>
-                <button
-                  type="button"
-                  className={styles.chipRemove}
-                  disabled={busy}
-                  aria-label={`Retirer ${person.displayName}`}
-                  title="Retirer"
-                  onClick={() => onRemoveMember(person, MemberRoles.coach)}
-                >
-                  ×
-                </button>
+                {canRemoveCoach ? (
+                  <button
+                    type="button"
+                    className={styles.chipRemove}
+                    disabled={busy}
+                    aria-label={`Retirer ${person.displayName}`}
+                    title="Retirer"
+                    onClick={() => onRemoveMember(person, MemberRoles.coach)}
+                  >
+                    ×
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -323,16 +353,18 @@ export function TeamCard({
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
               <h4 className={styles.sectionTitle}>Joueurs</h4>
-              <button
-                type="button"
-                className={styles.fabMini}
-                disabled={busy}
-                aria-label="Ajouter un joueur"
-                title="Ajouter un joueur"
-                onClick={() => onAddMember(MemberRoles.player)}
-              >
-                +
-              </button>
+              {canAddPlayer ? (
+                <button
+                  type="button"
+                  className={styles.fabMini}
+                  disabled={busy}
+                  aria-label="Ajouter un joueur"
+                  title="Ajouter un joueur"
+                  onClick={() => onAddMember(MemberRoles.player)}
+                >
+                  +
+                </button>
+              ) : null}
             </div>
             {players.length === 0 ? (
               <p className={styles.rosterEmpty}>Aucun joueur</p>
@@ -346,18 +378,20 @@ export function TeamCard({
                         query={searchQuery}
                       />
                     </span>
-                    <button
-                      type="button"
-                      className={styles.chipRemove}
-                      disabled={busy}
-                      aria-label={`Retirer ${person.displayName}`}
-                      title="Retirer"
-                      onClick={() =>
-                        onRemoveMember(person, MemberRoles.player)
-                      }
-                    >
-                      ×
-                    </button>
+                    {canRemovePlayer ? (
+                      <button
+                        type="button"
+                        className={styles.chipRemove}
+                        disabled={busy}
+                        aria-label={`Retirer ${person.displayName}`}
+                        title="Retirer"
+                        onClick={() =>
+                          onRemoveMember(person, MemberRoles.player)
+                        }
+                      >
+                        ×
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>

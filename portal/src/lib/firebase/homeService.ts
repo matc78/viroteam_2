@@ -1,6 +1,7 @@
 import { ClubRecord } from "./clubService";
 import {
   HOME_PREVIEW_EVENT_LIMIT,
+  loadTeamsForClub,
   loadUpcomingEvents,
   type UpcomingEvent,
 } from "./eventService";
@@ -11,6 +12,21 @@ import {
   listMemberFees,
   MemberFeeRecord,
 } from "./feeService";
+import {
+  getLinkedMemberId,
+  listClubMembers,
+  type ClubMemberRecord,
+} from "./memberService";
+import {
+  loadAnnouncementsForMember,
+} from "./announcementService";
+import {
+  eventTouchesTeams,
+  eventVisibleToPlayer,
+  teamsCoachedByViewer,
+  viewerMatchIds,
+} from "@/lib/teams/viewerTeamScope";
+import { resolveMemberTeams } from "@/lib/members/membersView";
 
 
 type FeeStatus = "paye" | "partiel" | "a_payer" | "exonere";
@@ -262,6 +278,72 @@ function buildAttention(params: {
   return items.slice(0, MAX_ATTENTION_ITEMS);
 }
 
+/** Équipe entraînée (home coach). */
+export type CoachHomeTeam = {
+  id: string;
+  name: string;
+  category: string;
+  playerCount: number;
+};
+
+/** Ligne RSVP / attendance pour la semaine à venir (home coach). */
+export type CoachWeekEventSummary = {
+  id: string;
+  title: string;
+  startsAt: string;
+  type: string;
+  teamLabels: string[];
+  rsvpYes: number;
+  rsvpNo: number;
+  rsvpPending: number;
+  rsvpTotal: number;
+};
+
+/** Données home coach (scope équipes). */
+export type CoachHomeDashboardData = {
+  clubName: string;
+  displayName: string;
+  memberCount: number;
+  teams: CoachHomeTeam[];
+  trainingCount: number;
+  upcomingEvents: UpcomingEvent[];
+  weekEvents: CoachWeekEventSummary[];
+};
+
+/** Données home joueur. */
+export type PlayerHomeDashboardData = {
+  clubName: string;
+  displayName: string;
+  linkedMemberId: string | null;
+  upcomingEvents: UpcomingEvent[];
+  announcements: Array<{
+    id: string;
+    message: string;
+    senderName: string;
+    createdAt: Date | null;
+  }>;
+};
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+/** Fenêtre « semaine qui arrive » : du lundi prochain au dimanche suivant (7 j). */
+function nextWeekWindow(clock = new Date()): { start: Date; end: Date } {
+  const today = startOfDay(clock);
+  const day = today.getDay(); // 0=dim … 6=sam
+  const daysUntilNextMonday = day === 0 ? 1 : day === 1 ? 7 : 8 - day;
+  const start = addDays(today, daysUntilNextMonday);
+  const end = addDays(start, 7);
+  return { start, end };
+}
+
 /**
  * Agrège les données home admin depuis Firestore (KPIs, charts, events).
  */
@@ -326,5 +408,174 @@ export async function loadHomeDashboard(params: {
       events: allUpcomingEvents,
       pendingAids,
     }),
+  };
+}
+
+/**
+ * Home coach : KPIs scope équipes entraînées, events et RSVP semaine prochaine.
+ */
+export async function loadCoachHomeDashboard(params: {
+  club: ClubRecord;
+  displayName: string;
+  uid: string;
+}): Promise<CoachHomeDashboardData> {
+  const [teams, members, allUpcomingEvents, linkedMemberId] = await Promise.all([
+    loadTeamsForClub(params.club.id),
+    listClubMembers(params.club.id),
+    loadUpcomingEvents(params.club.id),
+    getLinkedMemberId(params.club.id, params.uid),
+  ]);
+
+  const matchIds = viewerMatchIds({
+    uid: params.uid,
+    memberId: linkedMemberId,
+  });
+  const coachedTeams = teamsCoachedByViewer(teams, matchIds);
+  const viewerTeamIdSet = new Set(coachedTeams.map((team) => team.id));
+
+  const memberIdSet = new Set<string>();
+  for (const team of coachedTeams) {
+    for (const playerId of team.playerIds) {
+      if (playerId) memberIdSet.add(playerId);
+    }
+    for (const coachId of team.coachIds) {
+      if (coachId) memberIdSet.add(coachId);
+    }
+  }
+  for (const member of members) {
+    const resolved = resolveMemberTeams(member, teams);
+    if (resolved.teamIds.some((teamId) => viewerTeamIdSet.has(teamId))) {
+      memberIdSet.add(member.memberId);
+      if (member.accountUid) memberIdSet.add(member.accountUid);
+    }
+  }
+
+  const scopedMembers = members.filter((member) => {
+    const ids = [member.memberId, member.accountUid].filter(Boolean) as string[];
+    return ids.some((id) => memberIdSet.has(id));
+  });
+
+  const scopedEvents = allUpcomingEvents.filter((event) =>
+    eventTouchesTeams(event, viewerTeamIdSet),
+  );
+
+  const { start, end } = nextWeekWindow();
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  const weekEvents: CoachWeekEventSummary[] = scopedEvents
+    .filter((event) => {
+      const ms = new Date(event.startsAt).getTime();
+      return ms >= startMs && ms < endMs;
+    })
+    .map((event) => ({
+      id: event.id,
+      title: event.title,
+      startsAt: event.startsAt,
+      type: event.type,
+      teamLabels: event.teamLabels,
+      rsvpYes: event.rsvpYes,
+      rsvpNo: event.rsvpNo,
+      rsvpPending: event.rsvpPending,
+      rsvpTotal: event.rsvpTotal,
+    }));
+
+  const trainingCount = scopedEvents.filter(
+    (event) => event.type === "training",
+  ).length;
+
+  return {
+    clubName: params.club.name,
+    displayName: params.displayName,
+    memberCount: scopedMembers.length,
+    teams: coachedTeams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      category: team.category,
+      playerCount: team.playerIds.length,
+    })),
+    trainingCount,
+    upcomingEvents: scopedEvents.slice(0, HOME_PREVIEW_EVENT_LIMIT),
+    weekEvents,
+  };
+}
+
+/**
+ * Home joueur : prochains events + RSVP, annonces actives visibles.
+ */
+export async function loadPlayerHomeDashboard(params: {
+  club: ClubRecord;
+  displayName: string;
+  uid: string;
+}): Promise<PlayerHomeDashboardData> {
+  const linkedMemberId = await getLinkedMemberId(params.club.id, params.uid);
+  const [teams, allUpcomingEvents, members] = await Promise.all([
+    loadTeamsForClub(params.club.id),
+    loadUpcomingEvents(params.club.id),
+    listClubMembers(params.club.id),
+  ]);
+
+  const matchIds = viewerMatchIds({
+    uid: params.uid,
+    memberId: linkedMemberId,
+  });
+  const playerTeams = teams.filter((team) =>
+    team.playerIds.some((id) => matchIds.has(id)),
+  );
+  const viewerTeamIdSet = new Set(playerTeams.map((team) => team.id));
+
+  const scopedEvents = allUpcomingEvents
+    .filter((event) =>
+      eventVisibleToPlayer({
+        event,
+        viewerTeamIds: viewerTeamIdSet,
+        playerMatchIds: matchIds,
+      }),
+    )
+    .slice(0, HOME_PREVIEW_EVENT_LIMIT);
+
+  let announcements: PlayerHomeDashboardData["announcements"] = [];
+  const member =
+    (linkedMemberId
+      ? members.find((row) => row.memberId === linkedMemberId)
+      : null) ??
+    members.find(
+      (row) =>
+        row.accountUid === params.uid || row.memberId === params.uid,
+    ) ??
+    null;
+
+  if (member) {
+    const memberWithTeams: ClubMemberRecord = {
+      ...member,
+      teamIds:
+        member.teamIds.length > 0
+          ? member.teamIds
+          : resolveMemberTeams(member, teams).teamIds,
+    };
+    const teamCategoryById = new Map(
+      teams.map((team) => [team.id, team.category]),
+    );
+    const loaded = await loadAnnouncementsForMember({
+      clubId: params.club.id,
+      member: memberWithTeams,
+      teamCategoryById,
+    });
+    announcements = loaded.map((announcement) => ({
+      id: announcement.id,
+      message: announcement.message,
+      senderName: [announcement.senderFirstName, announcement.senderLastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || "Club",
+      createdAt: announcement.createdAt,
+    }));
+  }
+
+  return {
+    clubName: params.club.name,
+    displayName: params.displayName,
+    linkedMemberId,
+    upcomingEvents: scopedEvents,
+    announcements,
   };
 }

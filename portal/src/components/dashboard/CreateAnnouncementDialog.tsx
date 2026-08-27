@@ -26,6 +26,10 @@ type CreateAnnouncementDialogProps = {
   people: PlanningPersonOption[];
   busy: boolean;
   error: string | null;
+  /** Autorise « Tout le club » (admin). Défaut true. */
+  allowAllClub?: boolean;
+  /** Kinds autorisés dans le picker (coach : équipes seulement). */
+  allowedKinds?: Array<"team" | "category" | "person">;
   onClose: () => void;
   onSubmit: (values: CreateAnnouncementFormValues) => Promise<void>;
 };
@@ -45,18 +49,19 @@ export function CreateAnnouncementDialog({
   people,
   busy,
   error,
+  allowAllClub = true,
+  allowedKinds: allowedKindsProp,
   onClose,
   onSubmit,
 }: CreateAnnouncementDialogProps) {
   const [message, setMessage] = useState("");
-  const [allClub, setAllClub] = useState(true);
+  const [allClub, setAllClub] = useState(allowAllClub);
   const [guests, setGuests] = useState<PlanningGuestSelection[]>([]);
   const [endsAtLocal, setEndsAtLocal] = useState(defaultEndsAtLocalValue);
 
-  const allowedKinds = useMemo(
-    () => ["team", "category", "person"] as const,
-    [],
-  );
+  const allowedKinds = useMemo((): Array<"team" | "category" | "person"> => {
+    return allowedKindsProp ?? ["team", "category", "person"];
+  }, [allowedKindsProp]);
 
   function requestClose() {
     if (busy) return;
@@ -127,23 +132,25 @@ export function CreateAnnouncementDialog({
             />
           </label>
 
-          <label className={styles.toggleRow}>
-            <input
-              type="checkbox"
-              checked={allClub}
-              disabled={busy}
-              onChange={(changeEvent) => {
-                setAllClub(changeEvent.target.checked);
-                if (changeEvent.target.checked) setGuests([]);
-              }}
-            />
-            <span className={styles.toggleLabel}>
-              Tout le club
-              <span className={styles.toggleHint}>
-                Sinon, ciblez des équipes, catégories ou personnes.
+          {allowAllClub ? (
+            <label className={styles.toggleRow}>
+              <input
+                type="checkbox"
+                checked={allClub}
+                disabled={busy}
+                onChange={(changeEvent) => {
+                  setAllClub(changeEvent.target.checked);
+                  if (changeEvent.target.checked) setGuests([]);
+                }}
+              />
+              <span className={styles.toggleLabel}>
+                Tout le club
+                <span className={styles.toggleHint}>
+                  Sinon, ciblez des équipes, catégories ou personnes.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+          ) : null}
 
           {!allClub ? (
             <div className={dialogStyles.field}>
@@ -156,7 +163,11 @@ export function CreateAnnouncementDialog({
                 allowedKinds={[...allowedKinds]}
                 value={guests}
                 disabled={busy}
-                placeholder="Ajouter équipes, catégories, personnes…"
+                placeholder={
+                  allowedKinds.length === 1 && allowedKinds[0] === "team"
+                    ? "Ajouter des équipes…"
+                    : "Ajouter équipes, catégories, personnes…"
+                }
                 onChange={setGuests}
               />
             </div>

@@ -13,12 +13,18 @@ export function buildAccessDeniedLead(params: {
   firstName: string;
   clubNames: string[];
   fromSignup?: boolean;
+  /** Compte inconnu ou joueur/coach : message app, session fermée. */
+  forceAppMessage?: boolean;
 }): string {
   const firstName = params.firstName.trim() || "champion";
   const clubsLabel = formatClubList(params.clubNames);
   const multipleClubs = params.clubNames.length > 1;
   const possessive = multipleClubs ? "tes" : "ton";
   const clubWord = multipleClubs ? "clubs" : "club";
+
+  if (params.forceAppMessage) {
+    return `Désolé ${firstName}, cette partie est réservée aux admins de club. Pour jouer, coacher ou suivre ton équipe, ouvre l’application mobile.`;
+  }
 
   if (params.fromSignup) {
     if (clubsLabel) {
@@ -38,7 +44,11 @@ export function buildAccessDeniedLead(params: {
 export function buildAccessDeniedTitle(params?: {
   fromSignup?: boolean;
   needsJoinOnboarding?: boolean;
+  forceAppMessage?: boolean;
 }): string {
+  if (params?.forceAppMessage) {
+    return "Pas sur ce terrain";
+  }
   if (params?.needsJoinOnboarding) {
     return params.fromSignup ? "Compte créé, bienvenue !" : "Rejoins ton équipe";
   }

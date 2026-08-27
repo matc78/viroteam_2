@@ -5,10 +5,15 @@ import {
 import type { TeamOption } from "@/lib/firebase/eventService";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import {
+  DEFAULT_COACH_PERMISSIONS,
+  type CoachPermissions,
+} from "@/lib/auth/coachPermissions";
+import {
   memberIsCoachOfPlayerTeams,
   memberMatchIds,
   rosterContains,
   teamsCoachedByViewer,
+  teamsPlayedByViewer,
   viewerMatchIds,
   viewerTeamIdsForRole,
 } from "@/lib/teams/viewerTeamScope";
@@ -21,7 +26,7 @@ export type BureauPermissionContext = {
   linkedMemberId: string | null;
 };
 
-/** Capacités UI / actions dérivées du rôle club. */
+/** Capacités UI / actions dérivées du rôle club (+ flags coach). */
 export type BureauCapabilities = {
   role: string | null;
   isAdmin: boolean;
@@ -29,6 +34,8 @@ export type BureauCapabilities = {
   isPlayer: boolean;
   canAccessFeesAdmin: boolean;
   canAccessFeesSelf: boolean;
+  /** Coach avec canViewFees : suivi cotisations en lecture. */
+  canAccessFeesCoachRead: boolean;
   canAccessAnnouncementsPage: boolean;
   canCreateEvent: boolean;
   canManageAnnouncements: boolean;
@@ -38,7 +45,10 @@ export type BureauCapabilities = {
   canManageParents: boolean;
   canImportMembers: boolean;
   canCreateTeam: boolean;
+  canManageTeamRoster: boolean;
   canSeeAllContacts: boolean;
+  canAccessEquipment: boolean;
+  canAccessSettings: boolean;
   navHrefs: readonly string[];
 };
 
@@ -48,19 +58,44 @@ const NAV_ADMIN = [
   "/planning",
   "/fees",
   "/announcements",
+  "/equipment",
+  "/settings",
 ] as const;
 
-const NAV_COACH = ["/home", "/members", "/planning", "/announcements"] as const;
+const NAV_COACH_BASE = [
+  "/home",
+  "/members",
+  "/planning",
+  "/announcements",
+] as const;
 
 const NAV_PLAYER = ["/home", "/members", "/planning", "/fees"] as const;
 
-/** Construit les capacités Bureau selon le rôle du club actif. */
+/** Construit les capacités Bureau selon le rôle + droits coach du club. */
 export function bureauCapabilities(
   role: string | null,
+  coachPermissions: CoachPermissions = DEFAULT_COACH_PERMISSIONS,
 ): BureauCapabilities {
   const isAdmin = role === MemberRoles.admin;
   const isCoach = role === MemberRoles.coach;
   const isPlayer = role === MemberRoles.player;
+  const coach = coachPermissions;
+
+  const canCreateEvent = isAdmin || (isCoach && coach.canCreateEvents);
+  const canAddMember = isAdmin || (isCoach && coach.canInvitePlayers);
+  const canManageTeamRoster =
+    isAdmin || (isCoach && coach.canManageTeamRoster);
+  const canAccessFeesCoachRead = isCoach && coach.canViewFees;
+
+  let navHrefs: readonly string[] = NAV_ADMIN;
+  if (isCoach) {
+    const coachNav = canAccessFeesCoachRead
+      ? [...NAV_COACH_BASE, "/fees"]
+      : [...NAV_COACH_BASE];
+    navHrefs = [...coachNav, "/settings"];
+  } else if (isPlayer) {
+    navHrefs = [...NAV_PLAYER, "/settings"];
+  }
 
   return {
     role,
@@ -69,23 +104,22 @@ export function bureauCapabilities(
     isPlayer,
     canAccessFeesAdmin: isAdmin,
     canAccessFeesSelf: isPlayer || isAdmin,
+    canAccessFeesCoachRead,
     canAccessAnnouncementsPage: isAdmin || isCoach,
-    canCreateEvent: isAdmin || isCoach,
+    canCreateEvent,
     canManageAnnouncements: isAdmin || isCoach,
-    canAddMember: isAdmin || isCoach,
+    canAddMember,
     canEditRole: isAdmin,
     canRemoveMember: isAdmin,
     canManageParents: isAdmin,
     canImportMembers: isAdmin,
     canCreateTeam: isAdmin,
+    canManageTeamRoster,
     canSeeAllContacts: isAdmin,
-    navHrefs: isAdmin
-      ? NAV_ADMIN
-      : isCoach
-        ? NAV_COACH
-        : isPlayer
-          ? NAV_PLAYER
-          : NAV_ADMIN,
+    canAccessEquipment: isAdmin,
+    /** Page paramètres : compte pour tous ; section club réservée admin. */
+    canAccessSettings: true,
+    navHrefs,
   };
 }
 
@@ -95,9 +129,12 @@ export function canAddPlayerToTeam(params: {
   uid: string | null;
   linkedMemberId?: string | null;
   team: TeamOption;
+  coachPermissions?: CoachPermissions;
 }): boolean {
   if (params.role === MemberRoles.admin) return true;
   if (params.role !== MemberRoles.coach) return false;
+  const permissions = params.coachPermissions ?? DEFAULT_COACH_PERMISSIONS;
+  if (!permissions.canManageTeamRoster) return false;
   const matchIds = viewerMatchIds({
     uid: params.uid,
     memberId: params.linkedMemberId,
@@ -175,6 +212,74 @@ export function coachedTeamsForViewer(params: {
       memberId: params.linkedMemberId,
     }),
   );
+}
+
+/**
+ * Équipes visibles pour le viewer (admin = toutes, coach = coached,
+ * joueur = ses équipes).
+ */
+export function teamsVisibleToViewer(params: {
+  role: string | null;
+  uid: string | null;
+  linkedMemberId?: string | null;
+  teams: TeamOption[];
+}): TeamOption[] {
+  if (params.role === MemberRoles.admin) return params.teams;
+  const matchIds = viewerMatchIds({
+    uid: params.uid,
+    memberId: params.linkedMemberId,
+  });
+  if (params.role === MemberRoles.coach) {
+    return teamsCoachedByViewer(params.teams, matchIds);
+  }
+  if (params.role === MemberRoles.player) {
+    return teamsPlayedByViewer(params.teams, matchIds);
+  }
+  return [];
+}
+
+/**
+ * Membres visibles pour le viewer : admin = tous ;
+ * coach/joueur = membres des équipes dans le scope (+ soi-même).
+ */
+export function membersVisibleToViewer<
+  T extends { memberId: string; accountUid?: string | null },
+>(params: {
+  role: string | null;
+  uid: string | null;
+  linkedMemberId?: string | null;
+  teams: TeamOption[];
+  members: T[];
+}): T[] {
+  if (params.role === MemberRoles.admin) return params.members;
+
+  const viewerIds = viewerMatchIds({
+    uid: params.uid,
+    memberId: params.linkedMemberId,
+  });
+  const scopedTeams = teamsVisibleToViewer({
+    role: params.role,
+    uid: params.uid,
+    linkedMemberId: params.linkedMemberId,
+    teams: params.teams,
+  });
+  const rosterIds = new Set<string>();
+  for (const team of scopedTeams) {
+    for (const id of team.playerIds) {
+      if (id) rosterIds.add(id);
+    }
+    for (const id of team.coachIds) {
+      if (id) rosterIds.add(id);
+    }
+  }
+
+  return params.members.filter((member) => {
+    const ids = memberMatchIds(member);
+    for (const id of ids) {
+      if (viewerIds.has(id) || rosterIds.has(id)) return true;
+    }
+    return false;
+  });
 }
 
 /** Libellé court du rôle pour le chip header. */

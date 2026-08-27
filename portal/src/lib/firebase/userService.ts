@@ -1,4 +1,10 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import { getAppFirestore } from "./app";
 import { Collections, Fields } from "./constants";
 import { parseUserProfile, splitDisplayName, ViroUserProfile } from "./types";
@@ -42,6 +48,45 @@ export async function createUserProfile(params: {
     [Fields.createdAt]: serverTimestamp(),
     [Fields.updatedAt]: serverTimestamp(),
   });
+}
+
+/** Met à jour l’avatar utilisateur (et snapshot membre du club actif si fourni). */
+export async function updateUserAvatarUrl(params: {
+  uid: string;
+  avatarUrl: string;
+  /** Club dont la fiche membre `members/{uid}` doit être sync. */
+  syncMemberClubId?: string | null;
+}): Promise<void> {
+  await updateDoc(doc(getAppFirestore(), Collections.users, params.uid), {
+    [Fields.avatarUrl]: params.avatarUrl,
+    [Fields.updatedAt]: serverTimestamp(),
+  });
+
+  const clubId = params.syncMemberClubId?.trim();
+  if (!clubId) return;
+  try {
+    const memberRef = doc(
+      getAppFirestore(),
+      Collections.clubs,
+      clubId,
+      Collections.members,
+      params.uid,
+    );
+    const memberSnap = await getDoc(memberRef);
+    if (!memberSnap.exists()) return;
+    const data = memberSnap.data() as Record<string, unknown>;
+    const snapshot =
+      data[Fields.snapshot] && typeof data[Fields.snapshot] === "object"
+        ? { ...(data[Fields.snapshot] as Record<string, unknown>) }
+        : {};
+    snapshot[Fields.avatarUrl] = params.avatarUrl;
+    await updateDoc(memberRef, {
+      [Fields.snapshot]: snapshot,
+      [Fields.updatedAt]: serverTimestamp(),
+    });
+  } catch {
+    // Sync membre best-effort — ne bloque pas l’avatar user.
+  }
 }
 
 /** Met à jour le profil utilisateur avant de rejoindre un club sur l’app. */

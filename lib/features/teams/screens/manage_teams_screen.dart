@@ -7,6 +7,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/widgets/create_team_dialog.dart';
@@ -55,6 +56,8 @@ class ManageTeamsScreen extends ConsumerWidget {
     final permissions = TeamManagePermissions(
       viewerRole: viewerRole,
       currentUid: authUid,
+      coachPermissions:
+          clubAsync.value?.coachPermissions ?? CoachPermissions.defaults,
     );
 
     return ViroScaffold(
@@ -79,7 +82,7 @@ class ManageTeamsScreen extends ConsumerWidget {
           : null,
       body: clubAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const ViroErrorState(),
+        error: (error, stackTrace) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
             return const Center(child: Text('Club introuvable'));
@@ -92,7 +95,7 @@ class ManageTeamsScreen extends ConsumerWidget {
 
           return teamsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) => const ViroErrorState(),
+            error: (error, stackTrace) => const ViroErrorState(),
             data: (teams) {
               return ViroRefreshIndicator(
                 onRefresh: () async {

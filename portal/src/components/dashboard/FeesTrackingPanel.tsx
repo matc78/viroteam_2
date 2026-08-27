@@ -33,6 +33,8 @@ const DEFAULT_OFFLINE_METHOD: OfflinePaymentMethod = "especes";
 /** Props du panneau suivi cotisations. */
 type FeesTrackingPanelProps = {
   club: ClubRecord;
+  /** Masque sélection et actions d’écriture (vue coach). */
+  readOnly?: boolean;
 };
 
 function formatEuros(cents: number): string {
@@ -58,7 +60,10 @@ function feeStatusTone(status: string | null): string {
  * Suivi cotisations simplifié : tableau filtrable, actions directes
  * (assigner / exonérer / marquer payé / valider aides).
  */
-export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
+export function FeesTrackingPanel({
+  club,
+  readOnly = false,
+}: FeesTrackingPanelProps) {
   const { showToast } = useToast();
   const { data, loading, error, reload } = useAsyncClubResource(
     club,
@@ -479,8 +484,9 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
         Suivi des cotisations
       </h2>
       <p className={styles.lead}>
-        Assignez un tarif, marquez comme payé, ou validez une aide — saison{" "}
-        {data.season.seasonLabel}.
+        {readOnly
+          ? `Vue lecture — saison ${data.season.seasonLabel}.`
+          : `Assignez un tarif, marquez comme payé, ou validez une aide — saison ${data.season.seasonLabel}.`}
       </p>
 
       {error ? (
@@ -504,7 +510,7 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
             </span>
           ) : null}
         </div>
-        {smartApplyCandidates.length > 0 ? (
+        {!readOnly && smartApplyCandidates.length > 0 ? (
           <button
             type="button"
             className={styles.smartButton}
@@ -683,39 +689,41 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th scope="col" className={styles.checkCol}>
-                  <input
-                    className={styles.checkbox}
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    ref={(element) => {
-                      if (element) element.indeterminate = someVisibleSelected;
-                    }}
-                    aria-label="Tout sélectionner"
-                    onChange={() => {
-                      setSelectedIds((current) => {
-                        if (allVisibleSelected) {
+                {!readOnly ? (
+                  <th scope="col" className={styles.checkCol}>
+                    <input
+                      className={styles.checkbox}
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      ref={(element) => {
+                        if (element) element.indeterminate = someVisibleSelected;
+                      }}
+                      aria-label="Tout sélectionner"
+                      onChange={() => {
+                        setSelectedIds((current) => {
+                          if (allVisibleSelected) {
+                            const next = new Set(current);
+                            for (const row of visibleRows) {
+                              next.delete(row.memberId);
+                            }
+                            return next;
+                          }
                           const next = new Set(current);
                           for (const row of visibleRows) {
-                            next.delete(row.memberId);
+                            next.add(row.memberId);
                           }
                           return next;
-                        }
-                        const next = new Set(current);
-                        for (const row of visibleRows) {
-                          next.add(row.memberId);
-                        }
-                        return next;
-                      });
-                    }}
-                  />
-                </th>
+                        });
+                      }}
+                    />
+                  </th>
+                ) : null}
                 <th scope="col">Nom</th>
                 <th scope="col">Statut</th>
                 <th scope="col">Cotisation</th>
                 <th scope="col">Équipe</th>
                 <th scope="col">Reste dû</th>
-                <th scope="col">Actions</th>
+                {!readOnly ? <th scope="col">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -727,6 +735,7 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
                   checked={selectedIds.has(row.memberId)}
                   busy={busyMemberId === row.memberId}
                   disabled={busy}
+                  readOnly={readOnly}
                   onToggleSelect={() => {
                     setSelectedIds((current) => {
                       const next = new Set(current);
@@ -748,7 +757,7 @@ export function FeesTrackingPanel({ club }: FeesTrackingPanelProps) {
         </FadeScrollArea>
       )}
 
-      {selectedIds.size > 0 ? (
+      {!readOnly && selectedIds.size > 0 ? (
         <div
           className={styles.bar}
           role="region"
@@ -826,6 +835,7 @@ type FeeTrackingRowItemProps = {
   checked: boolean;
   busy: boolean;
   disabled: boolean;
+  readOnly?: boolean;
   onToggleSelect: () => void;
   onAssignTier: (tierId: string) => void;
   onExonerate: () => void;
@@ -844,6 +854,7 @@ function FeeTrackingRowItem({
   checked,
   busy,
   disabled,
+  readOnly = false,
   onToggleSelect,
   onAssignTier,
   onExonerate,
@@ -869,16 +880,18 @@ function FeeTrackingRowItem({
         data-done={row.needsAction ? undefined : "true"}
         data-checked={checked ? "true" : undefined}
       >
-        <td className={styles.checkCol}>
-          <input
-            className={styles.checkbox}
-            type="checkbox"
-            checked={checked}
-            disabled={disabled}
-            aria-label={`Sélectionner ${row.displayName}`}
-            onChange={onToggleSelect}
-          />
-        </td>
+        {!readOnly ? (
+          <td className={styles.checkCol}>
+            <input
+              className={styles.checkbox}
+              type="checkbox"
+              checked={checked}
+              disabled={disabled}
+              aria-label={`Sélectionner ${row.displayName}`}
+              onChange={onToggleSelect}
+            />
+          </td>
+        ) : null}
         <td>
           <span className={styles.rowName}>{row.displayName}</span>
           {row.sportCategories.length > 0 ? (
@@ -921,78 +934,82 @@ function FeeTrackingRowItem({
             <span className={styles.muted}>—</span>
           )}
         </td>
-        <td>
-          <div className={styles.rowActions}>
-            {needsTier ? (
-              <>
-                <PlanningSelect
-                  id={`fees-tier-${row.memberId}`}
-                  value=""
-                  placeholder="Choisir…"
-                  aria-label={`Assigner cotisation ${row.displayName}`}
-                  disabled={disabled || tiers.length === 0}
-                  options={tierSelectOptions}
-                  onChange={(next) => {
-                    if (next) onAssignTier(next);
-                  }}
-                />
+        {!readOnly ? (
+          <td>
+            <div className={styles.rowActions}>
+              {needsTier ? (
+                <>
+                  <PlanningSelect
+                    id={`fees-tier-${row.memberId}`}
+                    value=""
+                    placeholder="Choisir…"
+                    aria-label={`Assigner cotisation ${row.displayName}`}
+                    disabled={disabled || tiers.length === 0}
+                    options={tierSelectOptions}
+                    onChange={(next) => {
+                      if (next) onAssignTier(next);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className={styles.ghostButton}
+                    disabled={disabled}
+                    onClick={onExonerate}
+                  >
+                    Exonérer
+                  </button>
+                </>
+              ) : null}
+
+              {canMarkPaid ? (
                 <button
                   type="button"
-                  className={styles.ghostButton}
+                  className={styles.actionButton}
                   disabled={disabled}
-                  onClick={onExonerate}
+                  onClick={onMarkPaid}
                 >
-                  Exonérer
+                  {busy ? "…" : `Payé (${formatEuros(row.remainingCents)})`}
                 </button>
-              </>
-            ) : null}
+              ) : null}
 
-            {canMarkPaid ? (
-              <button
-                type="button"
-                className={styles.actionButton}
-                disabled={disabled}
-                onClick={onMarkPaid}
-              >
-                {busy ? "…" : `Payé (${formatEuros(row.remainingCents)})`}
-              </button>
-            ) : null}
-
-            {!row.needsAction ? (
-              <span className={styles.doneHint}>À jour</span>
-            ) : null}
-          </div>
-        </td>
+              {!row.needsAction ? (
+                <span className={styles.doneHint}>À jour</span>
+              ) : null}
+            </div>
+          </td>
+        ) : null}
       </tr>
 
       {row.pendingAids.map((aid) => (
         <tr key={`${row.memberId}-${aid.id}`} className={styles.aidRow}>
-          <td />
-          <td colSpan={5}>
+          {!readOnly ? <td /> : null}
+          <td colSpan={readOnly ? 5 : 5}>
             <span className={styles.aidLabel}>
               Aide · {aid.label || aid.type} — {formatEuros(aid.amountCents)}
             </span>
           </td>
-          <td>
-            <div className={styles.rowActions}>
-              <button
-                type="button"
-                className={styles.actionButton}
-                disabled={disabled}
-                onClick={() => onAidStatus(aid.id, FeeAidStatuses.validated)}
-              >
-                Valider
-              </button>
-              <button
-                type="button"
-                className={styles.ghostButton}
-                disabled={disabled}
-                onClick={() => onAidStatus(aid.id, FeeAidStatuses.rejected)}
-              >
-                Refuser
-              </button>
-            </div>
-          </td>
+          {!readOnly ? (
+            <td>
+              <div className={styles.rowActions}>
+                <button
+                  type="button"
+                  className={styles.actionButton}
+                  disabled={disabled}
+                  onClick={() => onAidStatus(aid.id, FeeAidStatuses.validated)}
+                >
+                  Valider
+                </button>
+                <button
+                  type="button"
+                  className={styles.ghostButton}
+                  disabled={disabled}
+                  onClick={() => onAidStatus(aid.id, FeeAidStatuses.rejected)}
+                >
+                  Refuser
+                </button>
+              </div>
+            </td>
+          ) : null}
         </tr>
       ))}
     </>

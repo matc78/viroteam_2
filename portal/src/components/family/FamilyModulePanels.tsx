@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import { FamilyFeesClient } from "@/components/family/FamilyFeesClient";
 import { FamilyHomeClient } from "@/components/family/FamilyHomeClient";
 import { FamilyPlanningClient } from "@/components/family/FamilyPlanningClient";
+import { FamilySettingsClient } from "@/components/family/FamilySettingsClient";
 import styles from "@/components/dashboard/DashboardModulePanels.module.css";
 
-type ModuleId = "home" | "planning" | "fees";
+type ModuleId = "home" | "planning" | "fees" | "settings";
 
 type ModuleDef = {
   id: ModuleId;
@@ -34,6 +35,13 @@ const MODULES: ModuleDef[] = [
       pathname === "/family/fees" || pathname.startsWith("/family/fees/"),
     render: () => <FamilyFeesClient />,
   },
+  {
+    id: "settings",
+    match: (pathname) =>
+      pathname === "/family/settings" ||
+      pathname.startsWith("/family/settings/"),
+    render: () => <FamilySettingsClient />,
+  },
 ];
 
 function resolveModuleId(pathname: string): ModuleId {
@@ -46,7 +54,9 @@ function resolveModuleId(pathname: string): ModuleId {
 export function FamilyModulePanels() {
   const pathname = usePathname();
   const activeId = resolveModuleId(pathname);
-  const [mountedIds, setMountedIds] = useState(() => new Set<ModuleId>([activeId]));
+  const [mountedIds, setMountedIds] = useState(
+    () => new Set<ModuleId>([activeId]),
+  );
 
   useEffect(() => {
     setMountedIds((previous) => {

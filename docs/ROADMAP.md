@@ -98,8 +98,8 @@ V1 : 1 guardian actif par enfant ; N enfants par parent. Hors V1 : 2ᵉ adulte, 
 - [x] Liens app → portail (tuile Espace club, bannières, deep link `?clubId=`)
 - [x] Alléger écran cotisations admin mobile (suivi seulement, config → portail)
 - [x] Suivi cotisations portail (paiement hors-ligne, validation aides)
-- [ ] Inventaire équipements (CRUD simple)
-- [ ] Matrice droits coachs (web) + lecture app
+- [x] Inventaire équipements (CRUD simple)
+- [x] Matrice droits coachs (web) + lecture app
 - [x] Espace famille parent (voir Phase 8) — garde et nav distinctes du bureau admin
 
 ## Phase 10 — Partenariat HelloAsso (paiements en ligne live)

@@ -123,6 +123,21 @@ abstract final class FirestoreFields {
   static const String closedBy = 'closedBy';
   static const String dismissedAnnouncementIds = 'dismissedAnnouncementIds';
 
+  // clubs/{clubId}/equipment/{itemId} — inventaire simple (pas de prêts MVP)
+  static const String quantity = 'quantity';
+  static const String condition = 'condition';
+  static const String assignedTeamId = 'assignedTeamId';
+  static const String notes = 'notes';
+  static const String updatedBy = 'updatedBy';
+
+  // clubs/{clubId}.coachPermissions — flags UI coach (édition portail)
+  static const String coachPermissions = 'coachPermissions';
+  static const String canCreateEvents = 'canCreateEvents';
+  static const String canManageTeamRoster = 'canManageTeamRoster';
+  static const String canInvitePlayers = 'canInvitePlayers';
+  static const String canTakeAttendance = 'canTakeAttendance';
+  static const String canViewFees = 'canViewFees';
+
   // fee_seasons / member_fees
   static const String seasonLabel = 'seasonLabel';
   static const String isActive = 'isActive';

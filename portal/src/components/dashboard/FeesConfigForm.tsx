@@ -20,7 +20,7 @@ import {
   parseDateInput,
   updateSeason,
 } from "@/lib/firebase/feeService";
-import { defaultSeasonEndDate } from "@/lib/planning/seasonEnd";
+import { defaultSeasonEndDate, isSeasonEndAfterMax, maxSeasonEndDate } from "@/lib/planning/seasonEnd";
 import { HELLOASSO_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
@@ -227,6 +227,15 @@ export function FeesConfigForm({
       });
 
       const parsedSeasonEnd = parseDateInput(seasonEndDate);
+      if (parsedSeasonEnd && isSeasonEndAfterMax(parsedSeasonEnd)) {
+        showToast(
+          `La fin de saison ne peut pas dépasser le ${toDateInputValue(maxSeasonEndDate())} (31 juillet).`,
+          "error",
+        );
+        savingRef.current = false;
+        setSaving(false);
+        return;
+      }
       if (parsedSeasonEnd) {
         await updateClubSeasonEndDate({
           clubId,
@@ -300,6 +309,7 @@ export function FeesConfigForm({
               className={styles.input}
               type="date"
               value={seasonEndDate}
+              max={toDateInputValue(maxSeasonEndDate())}
               onChange={(e) => setSeasonEndDate(e.target.value)}
               required
             />

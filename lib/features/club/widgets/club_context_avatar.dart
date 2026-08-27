@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/utils/sport_emoji.dart';
 
-/// Avatar contextuel : enfant suivi en mode parent, sinon logo / initiale club.
+/// Avatar contextuel : enfant suivi en mode parent, sinon logo / emoji sport.
 class ClubContextAvatar extends StatelessWidget {
   const ClubContextAvatar({
     super.key,
@@ -26,8 +27,8 @@ class ClubContextAvatar extends StatelessWidget {
       return MemberAvatar(member: childMember!, size: size);
     }
 
-    final initial = club.name.isNotEmpty ? club.name[0].toUpperCase() : '?';
-    final logoUrl = club.logoUrl;
+    final logoUrl = club.logoUrl?.trim();
+    final hasLogo = logoUrl != null && logoUrl.isNotEmpty;
 
     return Container(
       width: size,
@@ -38,7 +39,7 @@ class ClubContextAvatar extends StatelessWidget {
         border: borderRadius >= size / 2
             ? Border.all(color: accentColor, width: 1.5)
             : null,
-        image: logoUrl != null
+        image: hasLogo
             ? DecorationImage(
                 image: NetworkImage(logoUrl),
                 fit: BoxFit.cover,
@@ -46,16 +47,12 @@ class ClubContextAvatar extends StatelessWidget {
             : null,
       ),
       alignment: Alignment.center,
-      child: logoUrl == null
-          ? Text(
-              initial,
-              style: TextStyle(
-                color: accentColor,
-                fontWeight: FontWeight.w700,
-                fontSize: size * 0.4,
-              ),
-            )
-          : null,
+      child: hasLogo
+          ? null
+          : Text(
+              sportEmoji(club.sport),
+              style: TextStyle(fontSize: size * 0.48),
+            ),
     );
   }
 }

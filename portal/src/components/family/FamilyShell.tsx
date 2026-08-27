@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: "/family", label: "Accueil", toneClass: "toneOrange" },
   { href: "/family/planning", label: "Planning", toneClass: "toneBlue" },
   { href: "/family/fees", label: "Cotisations", toneClass: "toneYellow" },
+  { href: "/family/settings", label: "Paramètres", toneClass: "toneBlue" },
 ] as const;
 
 function isNavItemActive(pathname: string, href: string): boolean {
@@ -39,7 +40,6 @@ export function FamilyShell() {
     familyClubs,
     profile,
     setActiveClubId,
-    logout,
   } = useAuth();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
@@ -47,10 +47,7 @@ export function FamilyShell() {
     setPendingHref(null);
   }, [pathname]);
 
-  const resolvedClubName = clubLabelWithSportEmoji({
-    name: activeClub?.name ?? "Club",
-    sport: activeClub?.sport,
-  });
+  const resolvedClubName = activeClub?.name?.trim() || "Club";
   const resolvedName = profile?.displayName ?? "Famille";
   const wide = pathname.startsWith("/family/planning");
 
@@ -89,7 +86,12 @@ export function FamilyShell() {
                 />
               </label>
             ) : (
-              <span className={styles.clubName}>{resolvedClubName}</span>
+              <span className={styles.clubName}>
+                {clubLabelWithSportEmoji({
+                  name: resolvedClubName,
+                  sport: activeClub?.sport,
+                })}
+              </span>
             )}
           </div>
 
@@ -117,22 +119,33 @@ export function FamilyShell() {
 
           <div className={styles.actions}>
             <SpaceSwitcher />
-            <div className={styles.userBlock}>
-              <span className={styles.avatar} aria-hidden="true">
-                {userInitials(resolvedName)}
-              </span>
+            <Link
+              href="/family/settings"
+              className={styles.userBlockLink}
+              aria-label="Ouvrir les paramètres"
+              onClick={() => {
+                if (pathname !== "/family/settings") {
+                  setPendingHref("/family/settings");
+                }
+              }}
+            >
+              {profile?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatarUrl}
+                  alt=""
+                  className={styles.avatarImage}
+                />
+              ) : (
+                <span className={styles.avatar} aria-hidden="true">
+                  {userInitials(resolvedName)}
+                </span>
+              )}
               <div className={styles.userMeta}>
                 <span className={styles.userName}>{resolvedName}</span>
                 <span className={styles.roleChip}>Famille</span>
               </div>
-            </div>
-            <button
-              type="button"
-              className={styles.logoutButton}
-              onClick={() => void logout()}
-            >
-              Déconnexion
-            </button>
+            </Link>
           </div>
         </div>
       </header>

@@ -65,10 +65,9 @@ Sans page pricing.
 
 | Route | Contenu |
 |-------|---------|
-| `/` | Landing : marque, promesse, CTA (créer un club / se connecter / stores) |
-| `/features` | Modules : équipes, planning / RSVP, cotisations HelloAsso, invitations, présences |
+| `/` | Landing : marque, promesse, CTA (créer un club / se connecter / stores). Modules détaillés via ancres (`#planning`, `#membres`, `#cotisations`, …) — pas de page `/features` séparée. |
 | `/login` | Connexion Firebase → bureau si admin/coach/joueur, espace famille si guardian, sinon access-denied / onboarding |
-| `/legal/*` | CGU, confidentialité |
+| `/legal/cgu`, `/legal/privacy` | CGU, confidentialité |
 
 Landing : une composition claire, brand fort, pas de faux dashboard marketing.  
 CTA : stores + « Espace club ».
@@ -84,18 +83,21 @@ CTA : stores + « Espace club ».
 5. Sinon (aucun club / aucun parentLink) → access-denied ou onboarding join.
 6. Bureau **et** parent → sélecteur d’espace (Bureau ↔ Famille), navs non mélangées.
 7. Rules Firestore : lecture club pour tout membre ; writes admin pour config cotisations / rôles ; coach peut créer events / annonces / ajouter joueurs à ses équipes ; joueur RSVP + lecture de sa cotisation.
+   Les flags `clubs/{clubId}.coachPermissions` masquent les actions côté UI (portail + app) ; le resserrage rules éventuel est reporté.
 
 ### Matrice Bureau (club actif)
 
 | Zone | Admin | Coach | Joueur |
 |------|-------|-------|--------|
-| Nav | Home, Membres, Planning, Cotisations, Annonces | Home, Membres, Planning, Annonces | Home, Membres, Planning, Cotisations |
+| Nav | Home, Membres, Planning, Cotisations, Annonces, Équipements, Paramètres | Home, Membres, Planning, Annonces (+ Cotisations si `canViewFees`) | Home, Membres, Planning, Cotisations |
 | Scope données | Club entier | Équipes où `coachIds` contient le viewer | Ses équipes / convocations |
 | Contacts | Complets | Pas d’email/tél des autres | Email/tél des coachs de ses équipes uniquement |
-| Membres | CRUD complet | Ajout joueur / roster ses équipes (aligné app) | Lecture seule |
-| Planning | Complet | Création + filtre ses équipes | Son planning + RSVP |
-| Cotisations | Config + suivi | Masqué | Sa fiche (sinon « rien à faire » / « déjà payé ») |
+| Membres | CRUD complet | Ajout joueur / roster ses équipes (aligné app + flags) | Lecture seule (ses équipes) |
+| Planning | Complet | Création + filtre ses équipes (si `canCreateEvents`) | Son planning + RSVP |
+| Cotisations | Config + suivi | Lecture suivi si `canViewFees` ; sinon masqué | Sa fiche (sinon « rien à faire » / « déjà payé ») |
 | Annonces | Complet | Filtre / ciblage ses équipes | Pas de page ; bandeau sur Home |
+| Équipements | CRUD inventaire | Masqué | Masqué |
+| Paramètres | Droits coachs | Masqué | Masqué |
 
 ---
 
@@ -228,7 +230,7 @@ Tournois / championnats restent retirés du mobile (Phase 1 roadmap).
 - Un coach / joueur entre dans le bureau avec pages et actions filtrées (scope équipes).
 - Un parent (Phase 8) entre dans l’espace famille, pas dans les KPI / config HelloAsso.
 - L’inventaire simple est utilisable sur le web.
-- Les droits coachs se configurent sur le web et s’appliquent dans l’app.
+- Les droits coachs se configurent sur le web et s’appliquent dans l’app (masquage UI ; rules encore basées sur le rôle).
 - Sur mobile, l’admin gère surtout les urgences cotisations / membres, pas la config lourde.
 
 ---

@@ -1,4 +1,9 @@
 import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
+import {
+  coachPermissionsToFirestore,
+  parseCoachPermissions,
+  type CoachPermissions,
+} from "@/lib/auth/coachPermissions";
 import { getAppFirestore } from "./app";
 import { Collections, Fields } from "./constants";
 import { toDate } from "./types";
@@ -14,7 +19,11 @@ export type ClubRecord = {
   onlinePaymentEnabled: boolean;
   /** Fin de saison sportive (planning / récurrence), si configurée. */
   seasonEndDate: Date | null;
+  /** URL du logo club (Storage), si présent. */
+  logoUrl: string | null;
   createdAt: Date | null;
+  /** Droits coach du club (defaults si absents). */
+  coachPermissions: CoachPermissions;
 };
 
 /** Parse un document clubs/{clubId}. */
@@ -23,6 +32,7 @@ export function parseClub(
   data: Record<string, unknown>,
 ): ClubRecord {
   const adminIdsRaw = data[Fields.adminIds];
+  const rawLogo = data[Fields.logoUrl];
   return {
     id,
     name: String(data[Fields.name] ?? ""),
@@ -36,7 +46,10 @@ export function parseClub(
     ),
     onlinePaymentEnabled: Boolean(data[Fields.onlinePaymentEnabled]),
     seasonEndDate: toDate(data[Fields.seasonEndDate]),
+    logoUrl:
+      typeof rawLogo === "string" && rawLogo.trim() ? rawLogo.trim() : null,
     createdAt: toDate(data[Fields.createdAt]),
+    coachPermissions: parseCoachPermissions(data[Fields.coachPermissions]),
   };
 }
 
@@ -77,6 +90,28 @@ export async function updateClubSeasonEndDate(params: {
     [Fields.seasonEndDate]: Timestamp.fromDate(
       new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate())),
     ),
+    [Fields.updatedAt]: Timestamp.now(),
+  });
+}
+
+/** Met à jour l’URL du logo club. */
+export async function updateClubLogoUrl(params: {
+  clubId: string;
+  logoUrl: string;
+}): Promise<void> {
+  await updateDoc(doc(getAppFirestore(), Collections.clubs, params.clubId), {
+    [Fields.logoUrl]: params.logoUrl,
+    [Fields.updatedAt]: Timestamp.now(),
+  });
+}
+
+/** Met à jour la matrice des droits coach du club. */
+export async function updateClubCoachPermissions(params: {
+  clubId: string;
+  permissions: CoachPermissions;
+}): Promise<void> {
+  await updateDoc(doc(getAppFirestore(), Collections.clubs, params.clubId), {
+    [Fields.coachPermissions]: coachPermissionsToFirestore(params.permissions),
     [Fields.updatedAt]: Timestamp.now(),
   });
 }

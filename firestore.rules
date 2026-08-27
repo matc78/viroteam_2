@@ -191,6 +191,12 @@ service cloud.firestore {
         allow delete: if isClubAdmin(clubId);
       }
 
+      // Inventaire simple (CRUD admin) — pas de prêts / retours MVP.
+      match /equipment/{itemId} {
+        allow read: if isClubMember(clubId) || isClubAdmin(clubId);
+        allow create, update, delete: if isClubAdmin(clubId);
+      }
+
       match /pending_members/{docId} {
         allow read: if isClubMember(clubId);
         allow create, update, delete: if isClubCoachOrAdmin(clubId);
@@ -201,7 +207,10 @@ service cloud.firestore {
         allow write: if isClubAdmin(clubId);
 
         match /member_fees/{memberId} {
+          // Admin / coach : list + get (suivi cotisations, colonne Membres).
+          // Joueur / guardian : get de sa fiche seulement (list refuse les autres docs).
           allow read: if isClubAdmin(clubId)
+            || isClubCoach(clubId)
             || ownsMemberDoc(clubId, memberId)
             || isActiveGuardianOf(clubId, memberId);
           // Admin manuel (hors-ligne / aides) ; CB via Cloud Functions (Admin SDK).

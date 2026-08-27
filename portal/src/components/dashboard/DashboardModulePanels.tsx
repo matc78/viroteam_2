@@ -3,13 +3,22 @@
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnnouncementsPageClient } from "@/app/(dashboard)/announcements/AnnouncementsPageClient";
+import { EquipmentPageClient } from "@/app/(dashboard)/equipment/EquipmentPageClient";
 import { FeesPageClient } from "@/app/(dashboard)/fees/FeesPageClient";
 import { HomePageClient } from "@/app/(dashboard)/home/HomePageClient";
 import { MembersPageClient } from "@/app/(dashboard)/members/MembersPageClient";
 import { PlanningPageClient } from "@/app/(dashboard)/planning/PlanningPageClient";
+import { SettingsPageClient } from "@/app/(dashboard)/settings/SettingsPageClient";
 import styles from "./DashboardModulePanels.module.css";
 
-type ModuleId = "home" | "members" | "planning" | "fees" | "announcements";
+type ModuleId =
+  | "home"
+  | "members"
+  | "planning"
+  | "fees"
+  | "announcements"
+  | "equipment"
+  | "settings";
 
 type ModuleDef = {
   id: ModuleId;
@@ -46,6 +55,18 @@ const MODULES: ModuleDef[] = [
       pathname === "/announcements" || pathname.startsWith("/announcements/"),
     render: () => <AnnouncementsPageClient />,
   },
+  {
+    id: "equipment",
+    match: (pathname) =>
+      pathname === "/equipment" || pathname.startsWith("/equipment/"),
+    render: () => <EquipmentPageClient />,
+  },
+  {
+    id: "settings",
+    match: (pathname) =>
+      pathname === "/settings" || pathname.startsWith("/settings/"),
+    render: () => <SettingsPageClient />,
+  },
 ];
 
 function resolveModuleId(pathname: string): ModuleId {
@@ -59,7 +80,9 @@ function resolveModuleId(pathname: string): ModuleId {
 export function DashboardModulePanels() {
   const pathname = usePathname();
   const activeId = resolveModuleId(pathname);
-  const [mountedIds, setMountedIds] = useState(() => new Set<ModuleId>([activeId]));
+  const [mountedIds, setMountedIds] = useState(
+    () => new Set<ModuleId>([activeId]),
+  );
 
   useEffect(() => {
     setMountedIds((previous) => {

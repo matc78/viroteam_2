@@ -1,0 +1,52 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  padding: 0.2rem 0.55rem 0.2rem 0.3rem;
+  border-radius: 0.5rem;
+  color: var(--color-white);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.badge[data-tone="admin"] {
+  background: linear-gradient(135deg, #a78bfa 0%, var(--color-role-admin) 100%);
+  box-shadow: 0 3px 10px
+    color-mix(in srgb, var(--color-role-admin) 40%, transparent);
+}
+
+.badge[data-tone="coach"] {
+  background: linear-gradient(135deg, #fb923c 0%, var(--color-role-coach) 100%);
+  box-shadow: 0 3px 10px
+    color-mix(in srgb, var(--color-role-coach) 40%, transparent);
+}
+
+.badge[data-tone="player"] {
+  background: linear-gradient(
+    135deg,
+    var(--color-role-player) 0%,
+    #1d4ed8 100%
+  );
+  box-shadow: 0 3px 10px
+    color-mix(in srgb, var(--color-role-player) 40%, transparent);
+}
+
+.badgeIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, white 20%, transparent);
+  flex-shrink: 0;
+}
+
+.badgeIcon svg {
+  display: block;
+  width: 0.7rem;
+  height: 0.7rem;
+}

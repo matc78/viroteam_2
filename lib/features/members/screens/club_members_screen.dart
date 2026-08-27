@@ -7,6 +7,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/add_member_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/change_role_sheet.dart';
@@ -15,7 +16,9 @@ import 'package:viro_team_v2/features/members/widgets/member_list_tile.dart';
 import 'package:viro_team_v2/features/members/widgets/parents_section.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/portal_admin_banner.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
@@ -46,8 +49,12 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   bool get _canAdd {
     final member = ref.read(clubMemberProvider(widget.clubId)).value;
     if (member == null) return false;
-    return member.role == MemberRoles.admin ||
-        member.role == MemberRoles.coach;
+    final club = ref.read(clubForMembersProvider(widget.clubId)).value;
+    return (club?.coachPermissions ?? CoachPermissions.defaults)
+        .allowsInvitePlayers(
+      isAdmin: member.role == MemberRoles.admin,
+      isCoach: member.role == MemberRoles.coach,
+    );
   }
 
   bool get _isAdmin {
@@ -186,7 +193,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
           : null,
       body: clubAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const ViroErrorState(),
+        error: (error, stackTrace) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
             return const Center(child: Text('Club introuvable'));
@@ -194,7 +201,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
 
           return membersAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) => const ViroErrorState(),
+            error: (error, stackTrace) => const ViroErrorState(),
             data: (members) {
               final viewerRole =
                   ref.watch(clubMemberProvider(clubId)).value?.role ??
@@ -214,6 +221,15 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                 child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
+                  if (_isAdmin)
+                    SliverToBoxAdapter(
+                      child: PortalAdminBanner(
+                        portalUrl: portalMembersUrl(clubId: clubId),
+                        message:
+                            'Liste filtrable, import CSV, équipes et invitations '
+                            'parents : sur le portail web.',
+                      ),
+                    ),
                   if (_isAdmin)
                     SliverToBoxAdapter(
                       child: SingleChildScrollView(

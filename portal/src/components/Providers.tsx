@@ -2,6 +2,7 @@
 
 import { AuthProvider } from "@/lib/firebase/AuthProvider";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
+import { CookieConsent } from "@/components/CookieConsent";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import { ReactNode, Suspense } from "react";
@@ -13,7 +14,10 @@ export function Providers({ children }: { children: ReactNode }) {
       <AnalyticsProvider>
         <Suspense fallback={null}>
           <PostHogProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <ToastProvider>
+              {children}
+              <CookieConsent />
+            </ToastProvider>
           </PostHogProvider>
         </Suspense>
       </AnalyticsProvider>

@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/join/providers/pending_invitation_provider
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
+import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -37,6 +38,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   bool _googleLoading = false;
+  bool _acceptedTerms = false;
   String? _error;
   bool _prefillApplied = false;
 
@@ -97,6 +99,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedTerms) {
+      setState(() {
+        _error =
+            'Tu dois accepter les CGU et la politique de confidentialité.';
+      });
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -147,6 +156,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Future<void> _signUpWithGoogle() async {
+    if (!_acceptedTerms) {
+      setState(() {
+        _error =
+            'Tu dois accepter les CGU et la politique de confidentialité.';
+      });
+      return;
+    }
     setState(() {
       _googleLoading = true;
       _error = null;
@@ -277,6 +293,51 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   decoration: const InputDecoration(labelText: 'Mot de passe'),
                   validator: (v) =>
                       v != null && v.length >= 8 ? null : '8 caractères minimum',
+                ),
+                const SizedBox(height: ViroSpacing.md),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _acceptedTerms,
+                      onChanged: isBusy
+                          ? null
+                          : (value) => setState(
+                                () => _acceptedTerms = value ?? false,
+                              ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'J’accepte les CGU et la politique de confidentialité.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: ViroColors.gray600),
+                            ),
+                            Row(
+                              children: [
+                                TextButton(
+                                  onPressed: () => openPortalUrl(
+                                    portalPageUrl('/legal/cgu'),
+                                  ),
+                                  child: const Text('CGU'),
+                                ),
+                                TextButton(
+                                  onPressed: () => openPortalUrl(
+                                    portalPageUrl('/legal/privacy'),
+                                  ),
+                                  child: const Text('Confidentialité'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: ViroSpacing.md),

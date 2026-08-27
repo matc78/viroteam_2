@@ -7,6 +7,7 @@
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && tsc -p tsconfig.test.json && node --test lib/acceptInvitation.test.js",
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions"
   },

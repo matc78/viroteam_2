@@ -105,6 +105,14 @@ Build Android manuel (artifacts seuls) : **Actions → Release Android → Run w
 Deploys Firebase aussi via **workflow_dispatch** (cible `dev` / `prod`).
 
 Secrets et environments GitHub : [`SETUP_LOCAL.md`](SETUP_LOCAL.md). Portail : [`portal/README.md`](portal/README.md). Functions : [`functions/README.md`](functions/README.md).
+
+Checklists déploiement :
+
+| Doc | Contenu |
+|-----|---------|
+| [`docs/DEPLOY_SUITE.md`](docs/DEPLOY_SUITE.md) | Secrets, DNS, tags prod, Play Console, légal à compléter, suite produit |
+| [`docs/DEPLOY_IOS.md`](docs/DEPLOY_IOS.md) | Bundle ID, Firebase iOS, Google Sign-In, TestFlight, App Store |
+
 ## Structure du projet
 
 ```
@@ -200,7 +208,8 @@ Règles agents Cursor : [`.cursor/rules/`](.cursor/rules/).
 
 ## Roadmap
 
-Plan d'évolution priorisé : [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Plan d’évolution priorisé : [`docs/ROADMAP.md`](docs/ROADMAP.md).  
+Déploiement : [`docs/DEPLOY_SUITE.md`](docs/DEPLOY_SUITE.md) · iOS : [`docs/DEPLOY_IOS.md`](docs/DEPLOY_IOS.md).
 
 ## Specs produit
 

@@ -265,17 +265,25 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.actions,
     this.leading,
     this.onTitleTap,
+    this.bottom,
   });
 
   final Widget? title;
   final List<Widget>? actions;
   final Widget? leading;
+  final PreferredSizeWidget? bottom;
 
   /// Tap sur le titre (ex. « ViroTeam » → retour à la home globale).
   final VoidCallback? onTitleTap;
 
   @override
-  Size get preferredSize => const Size.fromHeight(ViroSpacing.topBarHeight);
+  Size get preferredSize {
+    var height = ViroSpacing.topBarHeight;
+    if (bottom != null) {
+      height += bottom!.preferredSize.height;
+    }
+    return Size.fromHeight(height);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -307,6 +315,7 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ),
       titleTextStyle: textTheme.titleMedium?.copyWith(color: ViroColors.primary800),
+      bottom: bottom,
       flexibleSpace: DecoratedBox(
         decoration: BoxDecoration(
           color: ViroColors.white,

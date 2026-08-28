@@ -56,6 +56,8 @@ abstract final class FirestoreFields {
   static const String logoUrl = 'logoUrl';
   static const String brandColorHex = 'brandColorHex';
   static const String objectives = 'objectives';
+  static const String objectivesLabels = 'objectivesLabels';
+  static const String memberCountRange = 'memberCountRange';
   static const String practiceLocations = 'practiceLocations';
   static const String adminIds = 'adminIds';
   static const String memberCount = 'memberCount';
@@ -296,6 +298,11 @@ abstract final class ClubObjectives {
   static const String fees = 'fees';
   static const String equipment = 'equipment';
   static const String communication = 'communication';
+  static const String members = 'members';
+  static const String teams = 'teams';
+  static const String documents = 'documents';
+  static const String parents = 'parents';
+  static const String stats = 'stats';
 
   /// Conservé pour lecture de clubs créés avant le retrait des tournois.
   static const String tournamentsLegacy = 'tournaments';
@@ -306,6 +313,11 @@ abstract final class ClubObjectives {
     fees,
     equipment,
     communication,
+    members,
+    teams,
+    documents,
+    parents,
+    stats,
   ];
 
   static String label(String key) => switch (key) {
@@ -314,8 +326,28 @@ abstract final class ClubObjectives {
         fees => 'Cotisations',
         equipment => 'Équipement',
         communication => 'Annonces',
+        members => 'Gestion des membres',
+        teams => 'Équipes & catégories',
+        documents => 'Documents',
+        parents => 'Espace parents',
+        stats => 'Statistiques',
         tournamentsLegacy => 'Tournois',
         _ => key,
+      };
+
+  static String subtitle(String key) => switch (key) {
+        planning => 'Entraînements, matchs et convocations',
+        attendance => 'Suivi des présences et absences',
+        fees => 'Gestion des paiements et relances',
+        equipment => 'Inventaire et prêts de matériel',
+        communication => 'Infos club, rappels et actualités',
+        members => 'Fiches, rôles et invitations',
+        teams => 'U15, seniors, groupes d\'entraînement',
+        documents => 'Statuts, assurances, autorisations',
+        parents => 'Suivi des enfants, infos famille',
+        stats => 'Tableaux de bord et suivi de saison',
+        tournamentsLegacy => 'Organisation de tournois',
+        _ => '',
       };
 }
 

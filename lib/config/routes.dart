@@ -7,6 +7,8 @@ import 'package:viro_team_v2/config/router_refresh.dart';
 
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 
+import 'package:viro_team_v2/features/auth/screens/auth_loading_screen.dart';
+
 import 'package:viro_team_v2/features/auth/screens/login_screen.dart';
 
 import 'package:viro_team_v2/features/auth/screens/onboarding_entry_screen.dart';
@@ -51,6 +53,8 @@ import 'package:viro_team_v2/screens/dev/design_system_preview_screen.dart';
 abstract final class AppRoutes {
 
   static const entry = '/';
+
+  static const loading = '/loading';
 
   static const login = '/login';
 
@@ -140,6 +144,8 @@ final routerRefreshProvider = Provider<RouterRefreshNotifier>((ref) {
 
   ref.listen(authStateProvider, (_, _) => notifier.notify());
 
+  ref.listen(firestoreAuthReadyProvider, (_, _) => notifier.notify());
+
   ref.listen(viroUserProvider, (_, _) => notifier.notify());
 
   ref.listen(sessionProvider, (_, _) => notifier.notify());
@@ -162,7 +168,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
 
-    initialLocation: AppRoutes.entry,
+    initialLocation: AppRoutes.loading,
 
     refreshListenable: refresh,
 
@@ -174,17 +180,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       final auth = ref.read(authStateProvider);
 
+      final firestoreAuth = ref.read(firestoreAuthReadyProvider);
+
       final profile = ref.read(viroUserProvider);
 
       final pending = ref.read(pendingInvitationProvider);
 
 
 
+      final path = state.matchedLocation;
+
       final isAuth = auth.maybeWhen(data: (u) => u != null, orElse: () => false);
 
       final user = profile.maybeWhen(data: (u) => u, orElse: () => null);
 
-      final path = state.matchedLocation;
+      final sessionResolving = auth.isLoading ||
+          (isAuth && (firestoreAuth.isLoading || profile.isLoading));
 
 
 
@@ -200,11 +211,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
 
 
+      if (sessionResolving) {
+
+        return path == AppRoutes.loading ? null : AppRoutes.loading;
+
+      }
+
+
+
       if (!isAuth) {
 
         if (path == AppRoutes.joinPreview && pending.hasInvitation) {
 
           return null;
+
+        }
+
+        if (path == AppRoutes.loading) {
+
+          return AppRoutes.entry;
 
         }
 
@@ -226,11 +251,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       if (user == null) {
 
-        final authLoading = auth.isLoading;
-
-        final isAuthed = auth.maybeWhen(data: (u) => u != null, orElse: () => false);
-
-        if (authLoading || (isAuthed && path == AppRoutes.clubSetup)) {
+        if (path == AppRoutes.clubSetup) {
 
           return null;
 
@@ -264,7 +285,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           path == AppRoutes.login ||
 
-          path == AppRoutes.signup) {
+          path == AppRoutes.signup ||
+
+          path == AppRoutes.loading) {
 
         if (user.hasClubs) {
 
@@ -289,6 +312,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     },
 
     routes: [
+
+      GoRoute(
+
+        path: AppRoutes.loading,
+
+        builder: (_, _) => const AuthLoadingScreen(),
+
+      ),
 
       GoRoute(
 

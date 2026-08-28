@@ -19,7 +19,7 @@ class MemberEventsState {
 
 /// Planning global du membre — tous les clubs, temps réel.
 final memberEventsProvider = StreamProvider<MemberEventsState>((ref) {
-  final auth = ref.watch(authStateProvider).value;
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   final user = ref.watch(viroUserProvider).value;
 
   if (auth == null || user == null || !user.hasClubs) {

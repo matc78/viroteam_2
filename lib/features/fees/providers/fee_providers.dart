@@ -30,12 +30,18 @@ class HomeFeeReminderItem {
 
 final activeSeasonProvider =
     StreamProvider.family<FeeSeason?, String>((ref, clubId) {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
+  if (auth == null) return Stream.value(null);
   return ref.read(feeServiceProvider).watchActiveSeason(clubId);
 });
 
 final myFeeProvider = StreamProvider.family<
     ({MemberFee? fee, FeeSeason? season}),
     ({String clubId, String memberId})>((ref, params) {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
+  if (auth == null) {
+    return Stream.value((fee: null, season: null));
+  }
   return ref.read(feeServiceProvider).watchActiveMemberFee(
         clubId: params.clubId,
         memberId: params.memberId,
@@ -61,7 +67,7 @@ final feeStatsProvider = Provider.family<FeeStats, String>((ref, clubId) {
 /// Bannières cotisation due sur la home (tous clubs).
 final homeFeeRemindersProvider =
     StreamProvider<List<HomeFeeReminderItem>>((ref) {
-  final auth = ref.watch(authStateProvider).value;
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   final clubs = ref.watch(userClubsProvider).value;
 
   if (auth == null || clubs == null || clubs.isEmpty) {

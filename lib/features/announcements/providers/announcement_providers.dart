@@ -27,6 +27,8 @@ class HomeAnnouncementItem {
 
 final clubAnnouncementsProvider =
     StreamProvider.family<List<ClubAnnouncement>, String>((ref, clubId) {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
+  if (auth == null) return Stream.value([]);
   return ref.read(announcementServiceProvider).watchAnnouncements(
         clubId: clubId,
       );
@@ -71,7 +73,7 @@ final visibleClubAnnouncementsProvider =
 /// Bandeau home : annonces non dismissées, tous clubs.
 final homeActiveAnnouncementsProvider =
     StreamProvider<List<HomeAnnouncementItem>>((ref) {
-  final auth = ref.watch(authStateProvider).value;
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   final clubs = ref.watch(userClubsProvider).value;
   final teamsByClub = ref.watch(homeClubTeamsProvider).value ?? {};
 

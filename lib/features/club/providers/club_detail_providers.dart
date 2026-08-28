@@ -24,7 +24,7 @@ final clubProvider = FutureProvider.family<Club?, String>((ref, clubId) {
 
 final clubMemberProvider =
     StreamProvider.family<ClubMember?, String>((ref, clubId) {
-  final auth = ref.watch(authStateProvider).value;
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return Stream.value(null);
   return ref.read(eventServiceProvider).watchClubMember(
         clubId: clubId,
@@ -49,7 +49,7 @@ final clubEventsProvider =
 
 final clubAttendanceRateProvider =
     FutureProvider.family<double?, String>((ref, clubId) async {
-  final auth = ref.watch(authStateProvider).value;
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return null;
   return ref.read(eventServiceProvider).computeAttendanceRate(
         clubId: clubId,
@@ -60,6 +60,8 @@ final clubAttendanceRateProvider =
 /// Planning d’une fiche cible (enfant) — pas de fusion avec le calendrier sénior.
 final clubEventsForMemberProvider = StreamProvider.family<ClubEventsState,
     ({String clubId, String memberId})>((ref, params) {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
+  if (auth == null) return Stream.value(ClubEventsState.empty);
   final eventService = ref.read(eventServiceProvider);
   return eventService
       .watchEventsForTargetMember(

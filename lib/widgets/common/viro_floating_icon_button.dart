@@ -58,19 +58,25 @@ class ViroFloatingActionButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.label,
+    this.accentColor,
   });
 
   final IconData icon;
   final VoidCallback onPressed;
   final String? label;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
+    final accent =
+        accentColor ?? Theme.of(context).colorScheme.primary;
+    final accentDark = Color.lerp(accent, Colors.black, 0.18)!;
+
     return ViroPressable(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(16),
       child: Material(
-        color: ViroColors.primary600,
+        color: accent,
         elevation: 0,
         shadowColor: Colors.transparent,
         shape: RoundedRectangleBorder(
@@ -83,10 +89,10 @@ class ViroFloatingActionButton extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [ViroColors.primary600, ViroColors.primary800],
+              colors: [accent, accentDark],
             ),
             boxShadow: ViroMotion.floatingShadow(opacity: 0.22, blur: 20, y: 8),
           ),

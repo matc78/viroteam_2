@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
 /// Carte flottante réutilisable (événements, stats, listes).
@@ -14,6 +15,7 @@ class ViroCard extends StatelessWidget {
     this.padding,
     this.margin,
     this.accentColor,
+    this.accentColorSecondary,
     this.borderColor,
     this.elevated = true,
   });
@@ -24,8 +26,7 @@ class ViroCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final Color? accentColor;
-
-  /// Couleur de bordure ; par défaut [ViroColors.primary100] à 45 % d'opacité.
+  final Color? accentColorSecondary;
   final Color? borderColor;
   final bool elevated;
 
@@ -56,7 +57,8 @@ class ViroCard extends StatelessWidget {
                   gradient: LinearGradient(
                     colors: [
                       accentColor!,
-                      accentColor!.withValues(alpha: 0.5),
+                      accentColorSecondary ??
+                          accentColor!.withValues(alpha: 0.5),
                     ],
                   ),
                 ),
@@ -91,12 +93,14 @@ class ViroStatsCard extends StatelessWidget {
     required this.value,
     this.subtitle,
     this.onTap,
+    this.accentColor,
   });
 
   final String label;
   final String value;
   final String? subtitle;
   final VoidCallback? onTap;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +108,10 @@ class ViroStatsCard extends StatelessWidget {
 
     return ViroCard(
       onTap: onTap,
+      accentColor: accentColor,
+      borderColor: accentColor != null
+          ? ClubAccentStyle(accentColor!).border
+          : null,
       padding: const EdgeInsets.symmetric(
         horizontal: ViroSpacing.md,
         vertical: ViroSpacing.sm + 2,
@@ -129,7 +137,7 @@ class ViroStatsCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: textTheme.titleSmall?.copyWith(
-              color: ViroColors.primary800,
+              color: accentColor ?? ViroColors.primary800,
               fontWeight: FontWeight.w700,
               height: 1.2,
             ),

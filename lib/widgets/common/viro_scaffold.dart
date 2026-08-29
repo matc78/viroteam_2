@@ -288,13 +288,22 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final appBarTheme = Theme.of(context).appBarTheme;
+    final titleColor =
+        appBarTheme.titleTextStyle?.color ??
+        appBarTheme.foregroundColor ??
+        ViroColors.primary800;
+    final iconColor =
+        appBarTheme.iconTheme?.color ??
+        appBarTheme.foregroundColor ??
+        ViroColors.primary800;
 
     return AppBar(
       elevation: 0,
       scrolledUnderElevation: 0,
       backgroundColor: ViroColors.white,
       surfaceTintColor: Colors.transparent,
-      foregroundColor: ViroColors.primary800,
+      foregroundColor: iconColor,
       leading: leading,
       actions: actions,
       title: title == null
@@ -308,13 +317,17 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: DefaultTextStyle(
                       style: textTheme.titleMedium!.copyWith(
-                        color: ViroColors.primary800,
+                        color: titleColor,
+                        fontWeight: FontWeight.w700,
                       ),
                       child: title!,
                     ),
                   ),
                 ),
-      titleTextStyle: textTheme.titleMedium?.copyWith(color: ViroColors.primary800),
+      titleTextStyle: textTheme.titleMedium?.copyWith(
+        color: titleColor,
+        fontWeight: FontWeight.w700,
+      ),
       bottom: bottom,
       flexibleSpace: DecoratedBox(
         decoration: BoxDecoration(

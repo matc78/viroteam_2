@@ -56,42 +56,6 @@
           ]
         }
       }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:396501317680:android:34abd5cd41ec5c626fd5f5",
-        "android_client_info": {
-          "package_name": "com.viroteam.viro_team_v2"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "396501317680-afnku6clj84s00aa5f8ejcjm4oigphom.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAn6hnBTL6x-gmNGzyeTU4e7HOD8W1PX5c"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "396501317680-afnku6clj84s00aa5f8ejcjm4oigphom.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "396501317680-d94lrua9ulfad571djclnb5aajmsfi4e.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.viroteam.viroTeam"
-              }
-            }
-          ]
-        }
-      }
     }
   ],
   "configuration_version": "1"

@@ -41,7 +41,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAn6hnBTL6x-gmNGzyeTU4e7HOD8W1PX5c',
-    appId: '1:396501317680:android:34abd5cd41ec5c626fd5f5',
+    appId: '1:396501317680:android:022270ffcb6477b66fd5f5',
     messagingSenderId: '396501317680',
     projectId: 'viroteam-75303',
     storageBucket: 'viroteam-75303.firebasestorage.app',

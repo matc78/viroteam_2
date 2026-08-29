@@ -13,6 +13,17 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+## [2.1.1] - 2026-08-29
+
+### Modifié
+
+- Release Android conditionnée à une CI Flutter réussie sur le commit tagué
+
+### Corrigé
+
+- Tests CI compatibles Flutter 3.44 (`add_member_sheet`, session paramètres)
+- `SettingsListTile` : ancêtre `Material` pour `ListTile` dans `ViroCard`
+
 ## [2.1.0] - 2026-08-29
 
 ### Ajouté

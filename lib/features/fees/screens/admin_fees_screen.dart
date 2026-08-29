@@ -12,7 +12,8 @@ import 'package:viro_team_v2/features/fees/widgets/fee_members_tracking_tab.dart
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
-import 'package:viro_team_v2/widgets/common/portal_admin_banner.dart';
+import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
+import 'package:viro_team_v2/widgets/common/persistent_portal_admin_banner.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -79,7 +80,8 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
       ),
       body: Column(
         children: [
-          PortalAdminBanner(
+          PersistentPortalAdminBanner(
+            bannerId: PortalBannerIds.fees,
             portalUrl: portalFeesUrl(clubId: widget.clubId),
             accentColor: accent,
             message:

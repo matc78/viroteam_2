@@ -11,6 +11,7 @@ import 'package:viro_team_v2/services/invitation_service.dart';
 import 'package:viro_team_v2/services/join_request_service.dart';
 import 'package:viro_team_v2/services/member_invite_service.dart';
 import 'package:viro_team_v2/services/member_service.dart';
+import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
@@ -63,4 +64,8 @@ final paymentServiceProvider = Provider<PaymentService>(
 
 final guardianServiceProvider = Provider<GuardianService>(
   (ref) => GuardianService(),
+);
+
+final portalBannerPrefsServiceProvider = Provider<PortalBannerPrefsService>(
+  (ref) => PortalBannerPrefsService(),
 );

@@ -20,7 +20,8 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
-import 'package:viro_team_v2/widgets/common/portal_admin_banner.dart';
+import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
+import 'package:viro_team_v2/widgets/common/persistent_portal_admin_banner.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
@@ -248,7 +249,8 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                 slivers: [
                   if (_isAdmin)
                     SliverToBoxAdapter(
-                      child: PortalAdminBanner(
+                      child: PersistentPortalAdminBanner(
+                        bannerId: PortalBannerIds.members,
                         portalUrl: portalMembersUrl(clubId: clubId),
                         accentColor: accent,
                         message:

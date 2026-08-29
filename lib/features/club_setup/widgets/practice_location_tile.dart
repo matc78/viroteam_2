@@ -26,6 +26,7 @@ class PracticeLocationTile extends StatelessWidget {
 
     return ViroCard(
       elevated: false,
+      accentColor: iconColor,
       margin: const EdgeInsets.only(bottom: ViroSpacing.sm),
       padding: const EdgeInsets.symmetric(
         horizontal: ViroSpacing.md,

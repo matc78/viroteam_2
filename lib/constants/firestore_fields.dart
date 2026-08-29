@@ -132,6 +132,11 @@ abstract final class FirestoreFields {
   static const String notes = 'notes';
   static const String updatedBy = 'updatedBy';
 
+  // equipment.condition
+  static const String equipmentConditionOk = 'ok';
+  static const String equipmentConditionUse = 'use';
+  static const String equipmentConditionHs = 'hs';
+
   // clubs/{clubId}.coachPermissions — flags UI coach (édition portail)
   static const String coachPermissions = 'coachPermissions';
   static const String canCreateEvents = 'canCreateEvents';
@@ -238,6 +243,13 @@ abstract final class GuardianStatuses {
   static const String revoked = 'revoked';
 }
 
+/// États inventaire équipement (`equipment.condition`).
+abstract final class EquipmentConditions {
+  static const String ok = FirestoreFields.equipmentConditionOk;
+  static const String use = FirestoreFields.equipmentConditionUse;
+  static const String hs = FirestoreFields.equipmentConditionHs;
+}
+
 /// Statuts cotisation membre (member_fees).
 abstract final class MemberFeeStatuses {
   static const String aPayer = 'a_payer';
@@ -272,6 +284,18 @@ abstract final class FeePaymentMethods {
     ancv,
     chequesVacances,
   ];
+
+  /// Options affichées dans la config admin saison.
+  /// [includeOnlineCard] : CB HelloAsso (uniquement si paiement live activé).
+  static List<String> seasonConfigOptions({required bool includeOnlineCard}) {
+    if (includeOnlineCard) return List<String>.from(all);
+    return all.where((method) => method != carteBancaire).toList();
+  }
+
+  /// Retire la CB HelloAsso d’une liste persistée (ex. saison créée sur le portail).
+  static List<String> withoutOnlineCard(Iterable<String> methods) {
+    return methods.where((method) => method != carteBancaire).toList();
+  }
 
   static String label(String key) => switch (key) {
         virement => 'Virement',

@@ -4,6 +4,7 @@ import 'package:viro_team_v2/services/account_service.dart';
 import 'package:viro_team_v2/services/announcement_service.dart';
 import 'package:viro_team_v2/services/auth_service.dart';
 import 'package:viro_team_v2/services/club_service.dart';
+import 'package:viro_team_v2/services/equipment_service.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/services/fee_service.dart';
 import 'package:viro_team_v2/services/guardian_service.dart';
@@ -29,6 +30,9 @@ final accountServiceProvider =
 final userServiceProvider = Provider<UserService>((ref) => UserService());
 
 final clubServiceProvider = Provider<ClubService>((ref) => ClubService());
+
+final equipmentServiceProvider =
+    Provider<EquipmentService>((ref) => EquipmentService());
 
 final eventServiceProvider = Provider<EventService>((ref) => EventService());
 

@@ -24,3 +24,18 @@ DateTime recurrenceEndForEventDay(DateTime eventDay, DateTime seasonEnd) {
   final end = DateTime(seasonEnd.year, seasonEnd.month, seasonEnd.day);
   return end.isBefore(start) ? start : end;
 }
+
+/// Plafond produit : 31 juillet (saison en cours ou suivante).
+DateTime maxSeasonEndDate([DateTime? around]) {
+  final now = around ?? DateTime.now();
+  final year = now.month > 7 ? now.year + 1 : now.year;
+  return DateTime(year, 7, 31);
+}
+
+/// Vrai si [candidate] dépasse le plafond [maxSeasonEndDate].
+bool isSeasonEndAfterMax(DateTime candidate, [DateTime? around]) {
+  final max = maxSeasonEndDate(around);
+  final day = DateTime(candidate.year, candidate.month, candidate.day);
+  final maxDay = DateTime(max.year, max.month, max.day);
+  return day.isAfter(maxDay);
+}

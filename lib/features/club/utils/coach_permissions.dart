@@ -61,4 +61,30 @@ class CoachPermissions {
     if (isAdmin) return true;
     return isCoach && canViewFees;
   }
+
+  /// Payload Firestore pour `clubs/{clubId}.coachPermissions`.
+  Map<String, bool> toMap() => {
+        FirestoreFields.canCreateEvents: canCreateEvents,
+        FirestoreFields.canManageTeamRoster: canManageTeamRoster,
+        FirestoreFields.canInvitePlayers: canInvitePlayers,
+        FirestoreFields.canTakeAttendance: canTakeAttendance,
+        FirestoreFields.canViewFees: canViewFees,
+      };
+
+  CoachPermissions copyWith({
+    bool? canCreateEvents,
+    bool? canManageTeamRoster,
+    bool? canInvitePlayers,
+    bool? canTakeAttendance,
+    bool? canViewFees,
+  }) {
+    return CoachPermissions(
+      canCreateEvents: canCreateEvents ?? this.canCreateEvents,
+      canManageTeamRoster:
+          canManageTeamRoster ?? this.canManageTeamRoster,
+      canInvitePlayers: canInvitePlayers ?? this.canInvitePlayers,
+      canTakeAttendance: canTakeAttendance ?? this.canTakeAttendance,
+      canViewFees: canViewFees ?? this.canViewFees,
+    );
+  }
 }

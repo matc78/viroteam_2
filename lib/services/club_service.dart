@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
+import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
@@ -214,6 +215,28 @@ class ClubService {
         FirestoreFields.helloAssoOrganizationSlug: slug
       else
         FirestoreFields.helloAssoOrganizationSlug: FieldValue.delete(),
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Met à jour la date de fin de saison sportive.
+  Future<void> updateSeasonEndDate({
+    required String clubId,
+    required DateTime seasonEndDate,
+  }) async {
+    await _clubs.doc(clubId).update({
+      FirestoreFields.seasonEndDate: Timestamp.fromDate(seasonEndDate),
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Met à jour les droits coachs configurables du club.
+  Future<void> updateCoachPermissions({
+    required String clubId,
+    required CoachPermissions permissions,
+  }) async {
+    await _clubs.doc(clubId).update({
+      FirestoreFields.coachPermissions: permissions.toMap(),
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     });
   }

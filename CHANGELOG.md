@@ -13,6 +13,13 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+## [2.1.2] - 2026-08-29
+
+### Corrigé
+
+- Connexion sans fiche Firestore : redirection vers la création de compte au lieu d’une boucle sur la page Bienvenue
+- Page Bienvenue : bandeau explicite et finalisation du profil pour utilisateurs Auth déjà connectés
+
 ## [2.1.1] - 2026-08-29
 
 ### Modifié

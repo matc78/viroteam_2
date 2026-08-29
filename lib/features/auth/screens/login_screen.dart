@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 
@@ -64,6 +66,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
 
 
+  /// Redirige vers la création de compte si Auth OK mais pas de fiche Firestore.
+  Future<bool> _redirectIfMissingFirestoreProfile(User firebaseUser) async {
+    final existingProfile =
+        await ref.read(userServiceProvider).getUser(firebaseUser.uid);
+    if (existingProfile != null) return false;
+    if (!mounted) return true;
+    context.go('${AppRoutes.signup}?complete=1');
+    return true;
+  }
+
   Future<void> _submit() async {
 
     if (!_formKey.currentState!.validate()) return;
@@ -78,13 +90,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
 
-      await ref.read(authServiceProvider).signInWithEmail(
-
+      final credential = await ref.read(authServiceProvider).signInWithEmail(
             email: _emailController.text,
-
             password: _passwordController.text,
-
           );
+      final firebaseUser = credential.user;
+      if (firebaseUser != null) {
+        final redirected = await _redirectIfMissingFirestoreProfile(firebaseUser);
+        if (redirected) return;
+      }
 
     } catch (e) {
 
@@ -112,7 +126,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
 
-      await ref.read(authServiceProvider).signInWithGoogle();
+      final credential = await ref.read(authServiceProvider).signInWithGoogle();
+      final firebaseUser = credential.user;
+      if (firebaseUser != null) {
+        final redirected = await _redirectIfMissingFirestoreProfile(firebaseUser);
+        if (redirected) return;
+      }
 
     } on EmailUsedWithPasswordException catch (error) {
 

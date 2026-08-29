@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
@@ -29,6 +30,52 @@ class UserService {
 
   Future<void> createUserProfile(ViroUser user) async {
     await _userRef(user.uid).set(user.toCreateMap());
+  }
+
+  /// Crée un profil Firestore minimal si l'utilisateur Auth n'en a pas encore.
+  ///
+  /// Utile après connexion (compte Auth existant sans fiche `users/{uid}` en prod).
+  Future<ViroUser> ensureUserProfileFromAuth(
+    User firebaseUser, {
+    String? firstName,
+    String? lastName,
+  }) async {
+    final existingProfile = await getUser(firebaseUser.uid);
+    if (existingProfile != null) return existingProfile;
+
+    final email = firebaseUser.email?.trim() ?? '';
+    final parsedName = _splitDisplayName(firebaseUser.displayName);
+    final resolvedFirst = firstName?.trim().isNotEmpty == true
+        ? firstName!.trim()
+        : parsedName.$1;
+    final resolvedLast = lastName?.trim().isNotEmpty == true
+        ? lastName!.trim()
+        : parsedName.$2;
+    final displayName = firebaseUser.displayName?.trim().isNotEmpty == true
+        ? firebaseUser.displayName!.trim()
+        : [resolvedFirst, resolvedLast].where((part) => part.isNotEmpty).join(' ');
+
+    final profile = ViroUser(
+      uid: firebaseUser.uid,
+      email: email,
+      emailNorm: email.toLowerCase(),
+      firstName: resolvedFirst,
+      lastName: resolvedLast,
+      displayName: displayName,
+      profileCompleted: false,
+    );
+    await createUserProfile(profile);
+    return profile;
+  }
+
+  (String, String) _splitDisplayName(String? displayName) {
+    final trimmed = displayName?.trim() ?? '';
+    if (trimmed.isEmpty) return ('', '');
+
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length == 1) return (parts.first, '');
+
+    return (parts.first, parts.sublist(1).join(' '));
   }
 
   /// Met à jour le profil utilisateur (prénom, nom, téléphone).

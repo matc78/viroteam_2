@@ -23,10 +23,13 @@ class SignUpScreen extends ConsumerStatefulWidget {
     super.key,
     this.intentParam,
     this.codeParam,
+    this.completeParam,
   });
 
   final String? intentParam;
   final String? codeParam;
+  /// `1` : utilisateur Auth connecté sans fiche Firestore — finalisation du compte.
+  final String? completeParam;
 
   @override
   ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
@@ -43,6 +46,26 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _acceptedTerms = false;
   String? _error;
   bool _prefillApplied = false;
+
+  bool get _isCompleteProfileMode => widget.completeParam == '1';
+
+  void _applyAuthPrefill() {
+    final authUser = ref.read(authStateProvider).value;
+    if (authUser == null) return;
+
+    final email = authUser.email?.trim();
+    if (email != null && email.isNotEmpty && _emailController.text.isEmpty) {
+      _emailController.text = email;
+    }
+
+    final names = splitGoogleDisplayName(authUser.displayName);
+    if (names.firstName.isNotEmpty && _firstNameController.text.isEmpty) {
+      _firstNameController.text = names.firstName;
+    }
+    if (names.lastName.isNotEmpty && _lastNameController.text.isEmpty) {
+      _lastNameController.text = names.lastName;
+    }
+  }
 
   void _applyInvitationPrefill(PendingInvitationState pending) {
     if (_prefillApplied || !pending.hasInvitation) return;
@@ -75,6 +98,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_isCompleteProfileMode) {
+        final authUser = ref.read(authStateProvider).value;
+        if (authUser == null) {
+          context.go(AppRoutes.signup);
+          return;
+        }
+        _applyAuthPrefill();
+      }
+
       final intent = widget.intentParam == 'join'
           ? SignUpIntent.join
           : SignUpIntent.founder;
@@ -97,6 +129,58 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _submitCompleteProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedTerms) {
+      setState(() {
+        _error =
+            'Tu dois accepter les CGU et la politique de confidentialité.';
+      });
+      return;
+    }
+
+    final authUser = ref.read(authStateProvider).value;
+    if (authUser == null) {
+      if (mounted) context.go(AppRoutes.signup);
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final userService = ref.read(userServiceProvider);
+      final existingProfile = await userService.getUser(authUser.uid);
+      if (existingProfile != null) {
+        await _navigateAfterSignUp();
+        return;
+      }
+
+      final email = authUser.email?.trim() ?? _emailController.text.trim();
+      final first = _firstNameController.text.trim();
+      final last = _lastNameController.text.trim();
+
+      final profile = ViroUser(
+        uid: authUser.uid,
+        email: email,
+        emailNorm: email.toLowerCase(),
+        firstName: first,
+        lastName: last,
+        displayName: '$first $last'.trim(),
+        profileCompleted: false,
+      );
+      await userService.createUserProfile(profile);
+
+      await _navigateAfterSignUp();
+    } catch (e) {
+      setState(() => _error = AuthErrorMessage.from(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -222,11 +306,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
   }
 
+  Future<void> _signOutAndLeave() async {
+    await ref.read(authServiceProvider).signOut();
+    if (mounted) context.go(AppRoutes.entry);
+  }
+
   @override
   Widget build(BuildContext context) {
     final intent = ref.watch(signUpIntentProvider);
     final isJoin = intent == SignUpIntent.join;
     final isBusy = _loading || _googleLoading;
+    final isCompleteProfile = _isCompleteProfileMode;
 
     ref.listen(pendingInvitationProvider, (_, next) {
       if (isJoin) _applyInvitationPrefill(next);
@@ -238,7 +328,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
-        title: Text(isJoin ? 'Créer un compte' : 'Compte fondateur'),
+        title: Text(
+          isCompleteProfile
+              ? 'Créer ton compte ViroTeam'
+              : (isJoin ? 'Créer un compte' : 'Compte fondateur'),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -260,6 +354,28 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                   ),
                 ),
+                if (isCompleteProfile) ...[
+                  const SizedBox(height: ViroSpacing.lg),
+                  Container(
+                    padding: const EdgeInsets.all(ViroSpacing.md),
+                    decoration: BoxDecoration(
+                      color: ViroColors.sportYellow.withValues(alpha: 0.12),
+                      borderRadius:
+                          BorderRadius.circular(ViroSpacing.cardRadius),
+                      border: Border.all(
+                        color: ViroColors.sportYellow.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Text(
+                      'Tu es connecté(e) mais tu n’as pas encore de compte '
+                      'ViroTeam sur cet environnement. Complète ton profil pour '
+                      'continuer.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: ViroColors.gray600,
+                          ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: ViroSpacing.xl),
                 TextFormField(
                   controller: _firstNameController,
@@ -284,21 +400,24 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  readOnly: isCompleteProfile,
                   decoration: const InputDecoration(labelText: 'Email'),
                   validator: (v) =>
                       v != null && v.contains('@') ? null : 'Email invalide',
                 ),
-                const SizedBox(height: ViroSpacing.md),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Mot de passe',
-                    helperText: PasswordPolicy.hint,
-                    helperMaxLines: 2,
+                if (!isCompleteProfile) ...[
+                  const SizedBox(height: ViroSpacing.md),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Mot de passe',
+                      helperText: PasswordPolicy.hint,
+                      helperMaxLines: 2,
+                    ),
+                    validator: PasswordPolicy.validate,
                   ),
-                  validator: PasswordPolicy.validate,
-                ),
+                ],
                 const SizedBox(height: ViroSpacing.md),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,15 +474,28 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 ],
                 const SizedBox(height: ViroSpacing.xl),
                 ViroPrimaryButton(
-                  label: 'Créer mon compte',
+                  label: isCompleteProfile
+                      ? 'Créer mon compte ViroTeam'
+                      : 'Créer mon compte',
                   isLoading: _loading,
-                  onPressed: isBusy ? null : _submit,
+                  onPressed: isBusy
+                      ? null
+                      : (isCompleteProfile ? _submitCompleteProfile : _submit),
                 ),
-                const AuthDivider(),
-                GoogleSignInButton(
-                  isLoading: _googleLoading,
-                  onPressed: isBusy ? null : _signUpWithGoogle,
-                ),
+                if (!isCompleteProfile) ...[
+                  const AuthDivider(),
+                  GoogleSignInButton(
+                    isLoading: _googleLoading,
+                    onPressed: isBusy ? null : _signUpWithGoogle,
+                  ),
+                ],
+                if (isCompleteProfile) ...[
+                  const SizedBox(height: ViroSpacing.md),
+                  TextButton(
+                    onPressed: isBusy ? null : _signOutAndLeave,
+                    child: const Text('Utiliser un autre compte'),
+                  ),
+                ],
               ],
             ),
           ),

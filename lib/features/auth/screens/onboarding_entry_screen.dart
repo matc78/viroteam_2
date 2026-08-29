@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
-class OnboardingEntryScreen extends StatelessWidget {
+class OnboardingEntryScreen extends ConsumerWidget {
   const OnboardingEntryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
+    final authUser = ref.watch(authStateProvider).value;
+    final profileAsync = ref.watch(viroUserProvider);
+    final needsViroTeamAccount = authUser != null &&
+        profileAsync.hasValue &&
+        profileAsync.value == null;
 
     return ViroScaffold(
       body: SafeArea(
@@ -32,6 +41,44 @@ class OnboardingEntryScreen extends StatelessWidget {
                         children: [
                           const Center(child: ViroLogo(height: 128)),
                           const SizedBox(height: ViroSpacing.xl),
+                          if (needsViroTeamAccount) ...[
+                            ViroCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      ViroIcon(
+                                        ViroIcons.user,
+                                        color: ViroColors.sportYellow,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: ViroSpacing.sm),
+                                      Expanded(
+                                        child: Text(
+                                          'Compte ViroTeam introuvable',
+                                          style: theme.titleSmall?.copyWith(
+                                            color: ViroColors.primary800,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: ViroSpacing.sm),
+                                  Text(
+                                    'Tu es connecté(e) mais tu n’as pas encore de '
+                                    'compte sur cet environnement. Crée ton compte '
+                                    'ou rejoins un club avec un code d’invitation.',
+                                    style: theme.bodyMedium?.copyWith(
+                                      color: ViroColors.gray600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: ViroSpacing.lg),
+                          ],
                           Text(
                             'Bienvenue sur ViroTeam',
                             style: theme.headlineMedium?.copyWith(
@@ -80,14 +127,27 @@ class OnboardingEntryScreen extends StatelessWidget {
                             color: ViroColors.primary600,
                             outlined: true,
                             onPressed: () => context.push(
-                              '${AppRoutes.signup}?intent=founder',
+                              needsViroTeamAccount
+                                  ? '${AppRoutes.signup}?intent=founder&complete=1'
+                                  : '${AppRoutes.signup}?intent=founder',
                             ),
                           ),
                           const SizedBox(height: ViroSpacing.md),
-                          TextButton(
-                            onPressed: () => context.push(AppRoutes.login),
-                            child: const Text('Déjà un compte ? Se connecter'),
-                          ),
+                          if (needsViroTeamAccount)
+                            TextButton(
+                              onPressed: () async {
+                                await ref.read(authServiceProvider).signOut();
+                                if (context.mounted) {
+                                  context.go(AppRoutes.entry);
+                                }
+                              },
+                              child: const Text('Se déconnecter'),
+                            )
+                          else
+                            TextButton(
+                              onPressed: () => context.push(AppRoutes.login),
+                              child: const Text('Déjà un compte ? Se connecter'),
+                            ),
                         ],
                       ),
                     ],

@@ -267,15 +267,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
 
       if (user == null) {
+        const allowedWithoutProfile = {
+          AppRoutes.entry,
+          AppRoutes.clubSetup,
+          AppRoutes.join,
+          AppRoutes.joinPreview,
+          AppRoutes.joinRequestRole,
+          AppRoutes.signup,
+        };
 
-        if (path == AppRoutes.clubSetup) {
-
-          return null;
-
+        if (path == AppRoutes.login) {
+          return '${AppRoutes.signup}?complete=1';
         }
 
-        return path == AppRoutes.entry ? null : AppRoutes.entry;
+        if (allowedWithoutProfile.contains(path)) {
+          return null;
+        }
 
+        return AppRoutes.entry;
       }
 
 
@@ -363,6 +372,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           intentParam: state.uri.queryParameters['intent'],
 
           codeParam: state.uri.queryParameters['code'],
+
+          completeParam: state.uri.queryParameters['complete'],
 
         ),
 

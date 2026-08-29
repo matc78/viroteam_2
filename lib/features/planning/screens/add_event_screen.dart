@@ -14,9 +14,12 @@ import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/season_end.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
+import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -266,8 +269,12 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
     }
 
     final teamsAsync = ref.watch(clubTeamsProvider(widget.clubId));
+    final accent = ref.watch(clubManagementAccentProvider(widget.clubId));
+    final memberAccent = ref.watch(clubMemberAccentProvider(widget.clubId));
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: memberAccent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
           icon: ViroIcon(ViroIcons.chevronLeft),
@@ -292,7 +299,23 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
           return ListView(
             padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
             children: [
-              const _FieldLabel('Type'),
+              ViroCard(
+                margin: const EdgeInsets.only(bottom: ViroSpacing.md),
+                accentColor: accent,
+                borderColor: ClubAccentStyle(accent).border,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: ViroSpacing.md,
+                  vertical: ViroSpacing.sm,
+                ),
+                child: Text(
+                  'Nouvel événement pour le club',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+              _FieldLabel('Type', accentColor: accent),
               DropdownButtonFormField<String>(
                 initialValue: _type,
                 decoration: _inputDecoration(),
@@ -314,7 +337,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
               ),
               const SizedBox(height: ViroSpacing.md),
               if (_type != EventTypes.other) ...[
-                const _FieldLabel('Équipe'),
+                _FieldLabel('Équipe', accentColor: accent),
                 DropdownButtonFormField<String>(
                   initialValue:
                       teams.any((t) => t.id == _teamId) ? _teamId : null,
@@ -336,7 +359,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.md),
               ] else ...[
-                const _FieldLabel('Titre'),
+                _FieldLabel('Titre', accentColor: accent),
                 TextField(
                   controller: _titleController,
                   decoration: _inputDecoration(hint: 'Réunion, stage…'),
@@ -345,8 +368,12 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 const SizedBox(height: ViroSpacing.md),
               ],
               if (_isMatch) ...[
-                const _FieldLabel('Domicile ou extérieur'),
+                _FieldLabel('Domicile ou extérieur', accentColor: accent),
                 SegmentedButton<String>(
+                  style: ClubAccentTheme.segmentedButtonStyle(
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.onPrimary,
+                  ),
                   segments: const [
                     ButtonSegment(
                       value: MatchVenues.home,
@@ -364,7 +391,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 ),
                 if (_matchVenue == MatchVenues.away) ...[
                   const SizedBox(height: ViroSpacing.md),
-                  const _FieldLabel('Lieu du match'),
+                  _FieldLabel('Lieu du match', accentColor: accent),
                   TextField(
                     controller: _locationController,
                     decoration: _inputDecoration(hint: 'Ville, stade adverse…'),
@@ -374,14 +401,14 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 const SizedBox(height: ViroSpacing.md),
               ],
               if (_isMatch)
-                const _FieldLabel('Jour du match')
+                _FieldLabel('Jour du match', accentColor: accent)
               else
-                const _FieldLabel('Date'),
+                _FieldLabel('Date', accentColor: accent),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(formatEventDate(_date)),
                 trailing:
-                    ViroIcon(ViroIcons.calendar, color: ViroColors.primary600),
+                    ViroIcon(ViroIcons.calendar, color: accent),
                 onTap: _saving ? null : () => _pickDate(isRecurrenceEnd: false),
               ),
               const SizedBox(height: ViroSpacing.sm),
@@ -392,7 +419,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const _FieldLabel('Heure du match'),
+                          _FieldLabel('Heure du match', accentColor: accent),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(_formatTime(_start)),
@@ -410,7 +437,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const _FieldLabel('Heure de RDV'),
+                          _FieldLabel('Heure de RDV', accentColor: accent),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(_formatTime(_meetingTime)),
@@ -433,7 +460,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const _FieldLabel('Début'),
+                          _FieldLabel('Début', accentColor: accent),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(_formatTime(_start)),
@@ -451,7 +478,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const _FieldLabel('Fin'),
+                          _FieldLabel('Fin', accentColor: accent),
                           ListTile(
                             contentPadding: EdgeInsets.zero,
                             title: Text(_formatTime(_end)),
@@ -468,7 +495,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   ],
                 ),
                 const SizedBox(height: ViroSpacing.md),
-                const _FieldLabel('Lieu'),
+                _FieldLabel('Lieu', accentColor: accent),
                 TextField(
                   controller: _locationController,
                   decoration: _inputDecoration(),
@@ -495,7 +522,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                           }),
                 ),
                 if (_isRecurring) ...[
-                  const _FieldLabel('Fin de saison'),
+                  _FieldLabel('Fin de saison', accentColor: accent),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
@@ -509,7 +536,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                     ),
                     trailing: ViroIcon(
                       ViroIcons.calendar,
-                      color: ViroColors.primary600,
+                      color: accent,
                     ),
                     onTap: _saving
                         ? null
@@ -521,7 +548,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
               FilledButton(
                 onPressed: _saving ? null : _save,
                 style: FilledButton.styleFrom(
-                  backgroundColor: ViroColors.primary600,
+                  backgroundColor: accent,
                   minimumSize: const Size.fromHeight(48),
                 ),
                 child: _saving
@@ -541,6 +568,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
           );
         },
       ),
+      ),
     );
   }
 
@@ -556,9 +584,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
 }
 
 class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
+  const _FieldLabel(this.text, {this.accentColor});
 
   final String text;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -568,7 +597,7 @@ class _FieldLabel extends StatelessWidget {
         text,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w600,
-              color: ViroColors.primary800,
+              color: accentColor ?? ViroColors.primary800,
             ),
       ),
     );

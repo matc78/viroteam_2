@@ -24,6 +24,7 @@ class PlanningDayPicker extends StatelessWidget {
     required this.useManagerView,
     this.scrollController,
     this.todayBorderColor,
+    this.selectedDayColor,
   });
 
   final List<DateTime> days;
@@ -33,6 +34,7 @@ class PlanningDayPicker extends StatelessWidget {
   final String clubId;
   final bool useManagerView;
   final Color? todayBorderColor;
+  final Color? selectedDayColor;
 
   static const double _itemWidth = 77;
 
@@ -59,6 +61,7 @@ class PlanningDayPicker extends StatelessWidget {
             clubId: clubId,
             useManagerView: useManagerView,
             todayBorderColor: todayBorderColor,
+            selectedDayColor: selectedDayColor,
           );
         },
       ),
@@ -75,6 +78,7 @@ class _DayTile extends ConsumerWidget {
     required this.clubId,
     required this.useManagerView,
     this.todayBorderColor,
+    this.selectedDayColor,
   });
 
   final DateTime date;
@@ -83,6 +87,7 @@ class _DayTile extends ConsumerWidget {
   final String clubId;
   final bool useManagerView;
   final Color? todayBorderColor;
+  final Color? selectedDayColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -105,6 +110,7 @@ class _DayTile extends ConsumerWidget {
     final (bg, border, fg, subFg) = _tileColors(
       isSelected: isSelected,
       isPast: isPast,
+      selectedDayColor: selectedDayColor,
     );
 
     final effectiveBorder =
@@ -179,9 +185,11 @@ class _DayTile extends ConsumerWidget {
 (Color bg, Color border, Color fg, Color subFg) _tileColors({
   required bool isSelected,
   required bool isPast,
+  Color? selectedDayColor,
 }) {
   if (isSelected) {
-    final bg = isPast ? ViroColors.gray400 : ViroColors.primary600;
+    final accent = selectedDayColor ?? ViroColors.primary600;
+    final bg = isPast ? ViroColors.gray400 : accent;
     return (bg, bg, ViroColors.white, ViroColors.white.withValues(alpha: 0.75));
   }
   if (isPast) {
@@ -194,8 +202,8 @@ class _DayTile extends ConsumerWidget {
   }
   return (
     ViroColors.surfaceCard,
-    ViroColors.primary100.withValues(alpha: 0.5),
-    ViroColors.primary800,
+    (selectedDayColor ?? ViroColors.primary100).withValues(alpha: 0.5),
+    selectedDayColor ?? ViroColors.primary800,
     ViroColors.gray600,
   );
 }

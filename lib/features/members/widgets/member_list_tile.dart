@@ -23,6 +23,7 @@ class MemberListTile extends StatelessWidget {
     this.onRemove,
     this.onInviteParent,
     this.showClubAdminActions = true,
+    this.accentColor,
   });
 
   final ClubMember member;
@@ -34,6 +35,7 @@ class MemberListTile extends StatelessWidget {
 
   /// `false` dans un roster d'équipe : pas de menu admin ni copie d'invitation.
   final bool showClubAdminActions;
+  final Color? accentColor;
 
   bool get _isAdmin => viewerRole == MemberRoles.admin;
   bool get _canCopyInvite =>
@@ -63,6 +65,7 @@ class MemberListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final accent = accentColor ?? ViroColors.primary600;
 
     return ViroCard(
       margin: const EdgeInsets.only(bottom: ViroSpacing.sm),
@@ -72,7 +75,7 @@ class MemberListTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          MemberAvatar(member: member),
+          MemberAvatar(member: member, accentColor: accent),
           const SizedBox(width: ViroSpacing.md),
           Expanded(
             child: Column(
@@ -84,7 +87,7 @@ class MemberListTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: theme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: ViroColors.primary800,
+                    color: accent,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -111,7 +114,7 @@ class MemberListTile extends StatelessWidget {
           ),
           if (_canCopyInvite)
             IconButton(
-              icon: ViroIcon(ViroIcons.copy, color: ViroColors.primary600),
+              icon: ViroIcon(ViroIcons.copy, color: accent),
               tooltip: 'Copier le code d\'invitation',
               onPressed: () => _copyInvite(context),
             ),

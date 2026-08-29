@@ -88,6 +88,8 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
         : <String, ClubMember>{};
 
     return ViroCard(
+      accentColor: widget.accent,
+      borderColor: widget.accent.withValues(alpha: 0.35),
       margin: const EdgeInsets.only(bottom: ViroSpacing.sm),
       padding: EdgeInsets.zero,
       child: Stack(
@@ -113,7 +115,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                 team.name,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: ViroColors.primary800,
+                      color: widget.accent,
                     ),
               ),
               subtitle: Text(
@@ -152,6 +154,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         member: member,
                         club: widget.club,
                         viewerRole: widget.viewerRole,
+                        accentColor: widget.accent,
                         showClubAdminActions: false,
                         onRemove: canRemoveCoach
                             ? () => _removeCoach(uid)
@@ -161,7 +164,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                   ),
                   _buildRosterSection(
                     title: 'Joueurs',
-                    titleColor: ViroColors.primary600,
+                    titleColor: widget.accent,
                     canAdd: canAddPlayer,
                     onAdd: canAddPlayer
                         ? () => _openAddSheet(TeamRosterSlot.player)
@@ -173,6 +176,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         member: member,
                         club: widget.club,
                         viewerRole: widget.viewerRole,
+                        accentColor: widget.accent,
                         showClubAdminActions: false,
                         onRemove: canRemovePlayer
                             ? () => _removePlayer(uid)
@@ -202,6 +206,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                             member: pendingAsClubMember(p),
                             club: widget.club,
                             viewerRole: widget.viewerRole,
+                            accentColor: widget.accent,
                             showClubAdminActions: false,
                             onRemove: canRemovePending
                                 ? () => _removePending(p.id)

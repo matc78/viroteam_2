@@ -7,9 +7,9 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_expansion_card.dart';
-import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class MyTeamsScreen extends ConsumerWidget {
@@ -21,8 +21,11 @@ class MyTeamsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final clubAsync = ref.watch(clubProvider(clubId));
     final teamsAsync = ref.watch(myTeamsProvider(clubId));
+    final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: memberAccent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
           icon: ViroIcon(ViroIcons.chevronLeft),
@@ -38,10 +41,7 @@ class MyTeamsScreen extends ConsumerWidget {
             return const Center(child: Text('Club introuvable'));
           }
 
-          final accent = clubAccentColor(
-            brandColorHex: club.brandColorHex,
-            clubId: club.id,
-          );
+          final accent = ref.watch(clubMemberAccentProvider(clubId));
 
           return teamsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -95,6 +95,7 @@ class MyTeamsScreen extends ConsumerWidget {
             },
           );
         },
+      ),
       ),
     );
   }

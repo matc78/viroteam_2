@@ -19,6 +19,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/portal_admin_banner.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
@@ -74,28 +75,31 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
     required String label,
     required bool selected,
     required ValueChanged<bool> onSelected,
+    Color? accentColor,
   }) {
+    final accent = accentColor ?? ViroColors.primary600;
     return FilterChip(
       label: Text(
         label,
         style: TextStyle(
-          color: selected ? ViroColors.white : ViroColors.primary800,
+          color: selected ? ViroColors.white : accent,
           fontWeight: FontWeight.w600,
         ),
       ),
       selected: selected,
       onSelected: onSelected,
       showCheckmark: false,
-      selectedColor: ViroColors.primary600,
+      selectedColor: accent,
       backgroundColor: ViroColors.gray50,
       side: BorderSide(
-        color: selected ? ViroColors.primary600 : ViroColors.gray200,
+        color: selected ? accent : ViroColors.gray200,
       ),
     );
   }
 
   Future<void> _addMember() async {
-    final form = await showAddMemberSheet(context);
+    final accent = ref.read(clubMemberAccentProvider(widget.clubId));
+    final form = await showAddMemberSheet(context, accentColor: accent);
     if (form == null || !mounted) return;
 
     final club = await ref.read(clubForMembersProvider(widget.clubId).future);
@@ -122,7 +126,12 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   }
 
   Future<void> _changeRole(ClubMember member) async {
-    final newRole = await showChangeRoleSheet(context, member: member);
+    final accent = ref.read(clubMemberAccentProvider(widget.clubId));
+    final newRole = await showChangeRoleSheet(
+      context,
+      member: member,
+      accentColor: accent,
+    );
     if (newRole == null || newRole == member.role) return;
 
     try {
@@ -140,7 +149,9 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   Future<void> _removeMember(ClubMember member) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => Theme(
+        data: Theme.of(context),
+        child: AlertDialog(
         title: const Text('Supprimer ce membre ?'),
         content: Text(
           '${member.fullName} sera retiré(e) du club.',
@@ -152,9 +163,13 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Supprimer'),
+            child: Text(
+              'Supprimer',
+              style: TextStyle(color: ViroColors.error),
+            ),
           ),
         ],
+        ),
       ),
     );
 
@@ -176,8 +191,12 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
     final clubId = widget.clubId;
     final membersAsync = ref.watch(clubMembersProvider(clubId));
     final clubAsync = ref.watch(clubForMembersProvider(clubId));
+    final accent = ref.watch(clubManagementAccentProvider(clubId));
+    final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: memberAccent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
           icon: ViroIcon(ViroIcons.chevronLeft),
@@ -225,6 +244,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                     SliverToBoxAdapter(
                       child: PortalAdminBanner(
                         portalUrl: portalMembersUrl(clubId: clubId),
+                        accentColor: accent,
                         message:
                             'Liste filtrable, import CSV, équipes et invitations '
                             'parents : sur le portail web.',
@@ -245,6 +265,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                             _roleFilterChip(
                               label: 'Membres',
                               selected: _section == 'roster',
+                              accentColor: accent,
                               onSelected: (_) =>
                                   setState(() => _section = 'roster'),
                             ),
@@ -252,6 +273,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                             _roleFilterChip(
                               label: 'Parents',
                               selected: _section == 'parents',
+                              accentColor: accent,
                               onSelected: (_) =>
                                   setState(() => _section = 'parents'),
                             ),
@@ -265,6 +287,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                         clubId: clubId,
                         club: club,
                         members: members,
+                        accentColor: accent,
                       ),
                     )
                   else ...[
@@ -297,6 +320,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                             _roleFilterChip(
                               label: 'Tous',
                               selected: _roleFilter == null,
+                              accentColor: accent,
                               onSelected: (_) =>
                                   setState(() => _roleFilter = null),
                             ),
@@ -304,6 +328,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                             _roleFilterChip(
                               label: 'Joueurs',
                               selected: _roleFilter == MemberRoles.player,
+                              accentColor: accent,
                               onSelected: (_) => setState(
                                 () => _roleFilter = MemberRoles.player,
                               ),
@@ -312,6 +337,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                             _roleFilterChip(
                               label: 'Coachs',
                               selected: _roleFilter == MemberRoles.coach,
+                              accentColor: accent,
                               onSelected: (_) => setState(
                                 () => _roleFilter = MemberRoles.coach,
                               ),
@@ -321,6 +347,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                               _roleFilterChip(
                                 label: 'Admins',
                                 selected: _roleFilter == MemberRoles.admin,
+                                accentColor: accent,
                                 onSelected: (_) => setState(
                                   () => _roleFilter = MemberRoles.admin,
                                 ),
@@ -361,6 +388,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                 member: member,
                                 club: club,
                                 viewerRole: viewerRole,
+                                accentColor: accent,
                                 onChangeRole: _isAdmin
                                     ? () => _changeRole(member)
                                     : null,
@@ -391,6 +419,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
             },
           );
         },
+      ),
       ),
     );
   }

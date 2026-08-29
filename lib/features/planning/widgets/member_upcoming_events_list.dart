@@ -23,6 +23,7 @@ class MemberUpcomingEventsList extends ConsumerWidget {
     required this.events,
     required this.clubNames,
     required this.clubColors,
+    this.clubSecondaryColors = const {},
     required this.teamsByClub,
     required this.onShowDetail,
     required this.onSetRsvp,
@@ -32,6 +33,7 @@ class MemberUpcomingEventsList extends ConsumerWidget {
   final List<ClubEvent> events;
   final Map<String, String> clubNames;
   final Map<String, Color> clubColors;
+  final Map<String, Color?> clubSecondaryColors;
   final Map<String, Map<String, ClubTeam>> teamsByClub;
   final void Function({
     required ClubEvent event,
@@ -74,6 +76,7 @@ class MemberUpcomingEventsList extends ConsumerWidget {
             event: event,
             clubNames: clubNames,
             clubColors: clubColors,
+            clubSecondaryColors: clubSecondaryColors,
             teamsByClub: teamsByClub,
             onShowDetail: onShowDetail,
             onSetRsvp: onSetRsvp,
@@ -94,6 +97,7 @@ class _MemberEventCard extends ConsumerWidget {
     required this.event,
     required this.clubNames,
     required this.clubColors,
+    this.clubSecondaryColors = const {},
     required this.teamsByClub,
     required this.onShowDetail,
     required this.onSetRsvp,
@@ -102,6 +106,7 @@ class _MemberEventCard extends ConsumerWidget {
   final ClubEvent event;
   final Map<String, String> clubNames;
   final Map<String, Color> clubColors;
+  final Map<String, Color?> clubSecondaryColors;
   final Map<String, Map<String, ClubTeam>> teamsByClub;
   final void Function({
     required ClubEvent event,
@@ -159,6 +164,7 @@ class _MemberEventCard extends ConsumerWidget {
       event: event,
       clubName: clubNames[event.clubId] ?? 'Club',
       clubColor: clubColors[event.clubId] ?? ViroColors.primary600,
+      clubColorSecondary: clubSecondaryColors[event.clubId],
       coachView: coachView,
       teamRsvpCounts: counts,
       onCoachTap: coachView
@@ -196,6 +202,7 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
     required this.events,
     required this.clubNames,
     required this.clubColors,
+    this.clubSecondaryColors = const {},
     required this.teamsByClub,
     required this.onShowDetail,
     required this.onSetRsvp,
@@ -205,6 +212,7 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
   final List<ClubEvent> events;
   final Map<String, String> clubNames;
   final Map<String, Color> clubColors;
+  final Map<String, Color?> clubSecondaryColors;
   final Map<String, Map<String, ClubTeam>> teamsByClub;
   final void Function({
     required ClubEvent event,
@@ -228,6 +236,7 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
           events: events,
           clubNames: clubNames,
           clubColors: clubColors,
+          clubSecondaryColors: clubSecondaryColors,
           teamsByClub: teamsByClub,
           onShowDetail: onShowDetail,
           onSetRsvp: onSetRsvp,

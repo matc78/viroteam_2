@@ -9,10 +9,12 @@ class MemberAvatar extends StatelessWidget {
     super.key,
     required this.member,
     this.size = 44,
+    this.accentColor,
   });
 
   final ClubMember member;
   final double size;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +22,8 @@ class MemberAvatar extends StatelessWidget {
     final photoUrl = member.avatarUrl?.trim();
     final hasPhoto =
         hasAccount && photoUrl != null && photoUrl.isNotEmpty;
+
+    final accent = accentColor ?? ViroColors.primary600;
 
     final Widget avatar;
     if (hasPhoto) {
@@ -30,11 +34,11 @@ class MemberAvatar extends StatelessWidget {
     } else if (hasAccount) {
       avatar = CircleAvatar(
         radius: size / 2,
-        backgroundColor: ViroColors.primary100,
+        backgroundColor: accent.withValues(alpha: 0.15),
         child: Text(
           member.initials,
           style: TextStyle(
-            color: ViroColors.primary800,
+            color: accent,
             fontWeight: FontWeight.w700,
             fontSize: size * 0.35,
           ),

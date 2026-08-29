@@ -2,14 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/utils/team_categories.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 
 Future<({String name, String category})?> showCreateTeamDialog({
   required BuildContext context,
   required String sport,
+  Color? accentColor,
 }) {
+  final accent =
+      accentColor ?? Theme.of(context).colorScheme.primary;
+
   return showDialog<({String name, String category})>(
     context: context,
-    builder: (ctx) => _CreateTeamDialog(sport: sport),
+    builder: (ctx) => ClubAccentTheme(
+      accentColor: accent,
+      child: _CreateTeamDialog(sport: sport),
+    ),
   );
 }
 

@@ -13,8 +13,8 @@ import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/widgets/create_team_dialog.dart';
 import 'package:viro_team_v2/features/teams/widgets/manage_team_card.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
-import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
@@ -26,7 +26,12 @@ class ManageTeamsScreen extends ConsumerWidget {
   final String clubId;
 
   Future<void> _createTeam(BuildContext context, WidgetRef ref, String sport) async {
-    final result = await showCreateTeamDialog(context: context, sport: sport);
+    final accent = ref.read(clubMemberAccentProvider(clubId));
+    final result = await showCreateTeamDialog(
+      context: context,
+      sport: sport,
+      accentColor: accent,
+    );
     if (result == null || !context.mounted) return;
 
     try {
@@ -59,8 +64,11 @@ class ManageTeamsScreen extends ConsumerWidget {
       coachPermissions:
           clubAsync.value?.coachPermissions ?? CoachPermissions.defaults,
     );
+    final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: memberAccent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
           icon: ViroIcon(ViroIcons.chevronLeft),
@@ -88,10 +96,7 @@ class ManageTeamsScreen extends ConsumerWidget {
             return const Center(child: Text('Club introuvable'));
           }
 
-          final accent = clubAccentColor(
-            brandColorHex: club.brandColorHex,
-            clubId: club.id,
-          );
+          final accent = ref.watch(clubManagementAccentProvider(clubId));
 
           return teamsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -160,6 +165,7 @@ class ManageTeamsScreen extends ConsumerWidget {
             },
           );
         },
+      ),
       ),
     );
   }

@@ -16,10 +16,12 @@ class MyParentSection extends ConsumerWidget {
     super.key,
     required this.club,
     required this.member,
+    this.accentColor,
   });
 
   final Club club;
   final ClubMember member;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,6 +29,7 @@ class MyParentSection extends ConsumerWidget {
       _myGuardianProvider((clubId: club.id, memberId: member.memberId)),
     );
     final theme = Theme.of(context).textTheme;
+    final accent = accentColor ?? ViroColors.primary600;
 
     return guardianAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -44,6 +47,7 @@ class MyParentSection extends ConsumerWidget {
         return Padding(
           padding: const EdgeInsets.only(bottom: ViroSpacing.md),
           child: ViroCard(
+            accentColor: accent,
             padding: const EdgeInsets.all(ViroSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -52,7 +56,7 @@ class MyParentSection extends ConsumerWidget {
                   'Mon parent',
                   style: theme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: ViroColors.primary800,
+                    color: accent,
                   ),
                 ),
                 const SizedBox(height: ViroSpacing.xs),

@@ -15,6 +15,7 @@ class EventPlanningCard extends StatelessWidget {
     required this.event,
     required this.clubName,
     required this.clubColor,
+    this.clubColorSecondary,
     required this.coachView,
     this.teamRsvpCounts,
     this.rsvpStatus,
@@ -29,6 +30,7 @@ class EventPlanningCard extends StatelessWidget {
   final ClubEvent event;
   final String clubName;
   final Color clubColor;
+  final Color? clubColorSecondary;
 
   /// Coach seul : compteurs agrégés uniquement (pas de RSVP perso).
   final bool coachView;
@@ -71,6 +73,7 @@ class EventPlanningCard extends StatelessWidget {
       onTap: coachView ? onCoachTap : (showRsvpButtons ? null : onToggleRsvp),
       onLongPress: onLongPress,
       accentColor: clubColor,
+      accentColorSecondary: clubColorSecondary,
       padding: const EdgeInsets.symmetric(
         horizontal: ViroSpacing.md,
         vertical: ViroSpacing.sm + 2,

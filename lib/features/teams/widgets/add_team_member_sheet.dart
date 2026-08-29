@@ -5,12 +5,14 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 
 enum TeamRosterSlot { player, coach }
 
@@ -26,23 +28,28 @@ Future<void> showAddTeamMemberSheet({
 
   if (!context.mounted) return;
 
+  final accent = ref.read(clubMemberAccentProvider(clubId));
+
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (ctx) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.65,
-      minChildSize: 0.4,
-      maxChildSize: 0.9,
-      builder: (_, scrollController) => _AddTeamMemberSheet(
-        clubId: clubId,
-        team: team,
-        slot: slot,
-        scrollController: scrollController,
-        onAdd: onAdd,
+    builder: (ctx) => ClubAccentTheme(
+      accentColor: accent,
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.65,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (_, scrollController) => _AddTeamMemberSheet(
+          clubId: clubId,
+          team: team,
+          slot: slot,
+          scrollController: scrollController,
+          onAdd: onAdd,
+        ),
       ),
     ),
   );
@@ -118,7 +125,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: ViroColors.primary800,
+                  color: Theme.of(context).appBarTheme.foregroundColor,
                 ),
           ),
         ),
@@ -253,12 +260,14 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                         const SizedBox(height: ViroSpacing.md),
                         _sectionLabel(context, 'En attente de compte'),
                         ...pendingAvailable.map(
-                          (p) => ListTile(
+                          (p) {
+                            final accent = Theme.of(context).colorScheme.primary;
+                            return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: ViroColors.primary100,
+                              backgroundColor: accent.withValues(alpha: 0.12),
                               child: Icon(
                                 Icons.person_outline,
-                                color: ViroColors.primary600,
+                                color: accent,
                               ),
                             ),
                             title: Text(
@@ -266,10 +275,11 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                             ),
                             trailing: ViroIcon(
                               ViroIcons.add,
-                              color: ViroColors.primary600,
+                              color: accent,
                             ),
                             onTap: () => _add(context, p.id),
-                          ),
+                          );
+                          },
                         ),
                       ],
                       const SizedBox(height: ViroSpacing.xl),
@@ -379,13 +389,15 @@ class _MemberPickTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+
     return ListTile(
       leading: MemberAvatar(member: member, size: 40),
       title: Text(
         member.fullName.isEmpty ? 'Membre' : member.fullName,
         style: const TextStyle(fontWeight: FontWeight.w500),
       ),
-      trailing: ViroIcon(ViroIcons.add, color: ViroColors.primary600),
+      trailing: ViroIcon(ViroIcons.add, color: accent),
       onTap: onTap,
     );
   }

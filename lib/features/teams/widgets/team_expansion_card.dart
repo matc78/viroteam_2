@@ -104,7 +104,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
             team.name,
             style: theme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: ViroColors.primary800,
+              color: widget.accent,
             ),
           ),
           subtitle: Padding(
@@ -173,6 +173,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                       member: pendingAsClubMember(p),
                       club: club,
                       viewerRole: viewerRole,
+                      accentColor: widget.accent,
                       showClubAdminActions: false,
                     ),
                   ),
@@ -196,7 +197,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
 
     final titleColor = title.contains('Coach')
         ? const Color(0xFFEA580C)
-        : ViroColors.primary600;
+        : widget.accent;
 
     return [
       _sectionHeader(context, title, titleColor),
@@ -207,6 +208,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
           member: member,
           club: widget.club,
           viewerRole: viewerRole,
+          accentColor: widget.accent,
           showClubAdminActions: false,
         );
       }),

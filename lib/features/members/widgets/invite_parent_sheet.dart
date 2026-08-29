@@ -9,8 +9,10 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/member_guardian.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 /// Ouvre la feuille d’invitation / révocation du parent (V1, plafond 1).
@@ -19,10 +21,18 @@ Future<void> showInviteParentSheet(
   required Club club,
   required ClubMember member,
 }) {
+  final accent = clubAccentColor(
+    brandColorHex: club.brandColorHex,
+    clubId: club.id,
+  );
+
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => InviteParentSheet(club: club, member: member),
+    builder: (_) => ClubAccentTheme(
+      accentColor: accent,
+      child: InviteParentSheet(club: club, member: member),
+    ),
   );
 }
 
@@ -165,7 +175,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
             'Parent de $_childFirstName',
             style: theme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
-              color: ViroColors.primary800,
+              color: Theme.of(context).appBarTheme.foregroundColor,
             ),
           ),
           const SizedBox(height: ViroSpacing.sm),

@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/club_chip.dart';
 import 'package:viro_team_v2/widgets/common/rsvp_choice_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
@@ -14,6 +15,7 @@ class EventRsvpCard extends StatelessWidget {
     required this.event,
     required this.clubName,
     required this.clubColor,
+    this.clubColorSecondary,
     required this.onPresent,
     required this.onAbsent,
     this.onMaybe,
@@ -22,6 +24,7 @@ class EventRsvpCard extends StatelessWidget {
   final ClubEvent event;
   final String clubName;
   final Color clubColor;
+  final Color? clubColorSecondary;
   final VoidCallback onPresent;
   final VoidCallback onAbsent;
   final VoidCallback? onMaybe;
@@ -33,6 +36,9 @@ class EventRsvpCard extends StatelessWidget {
     final timeStr = formatEventTime(event.startTime);
 
     return ViroCard(
+      accentColor: clubColor,
+      accentColorSecondary: clubColorSecondary,
+      borderColor: ClubAccentStyle(clubColor, secondary: clubColorSecondary).border,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

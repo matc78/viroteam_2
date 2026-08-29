@@ -29,6 +29,7 @@ import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubPlanningScreen extends ConsumerStatefulWidget {
@@ -146,9 +147,14 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     final membersByUid =
         clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
 
-    final clubColor = club != null
-        ? clubAccentColor(brandColorHex: club.brandColorHex, clubId: clubId)
+    final clubBrandColors = club != null
+        ? resolveClubBrandColors(
+            brandColorHex: club.brandColorHex,
+            clubId: clubId,
+          )
         : null;
+    final clubColor = clubBrandColors?.primary;
+    final clubColorSecondary = clubBrandColors?.secondary;
 
     final teamsById = teamsAsync.value?.fold<Map<String, ClubTeam>>(
           {},
@@ -156,7 +162,11 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         ) ??
         {};
 
-    return ViroScaffold(
+    final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
+
+    return ClubAccentTheme(
+      accentColor: memberAccent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
           icon: ViroIcon(ViroIcons.chevronLeft),
@@ -221,6 +231,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           if ((isBureauMember || isParent) && !_portalBannerDismissed)
             PortalAdminBanner(
               portalUrl: portalPlanningUrl(clubId: clubId),
+              accentColor: clubColor,
               compact: true,
               message: isAdmin
                   ? 'Vue calendrier détaillée, filtres multi-équipes.'
@@ -245,6 +256,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
               clubId: clubId,
               useManagerView: canManage,
               todayBorderColor: clubColor,
+              selectedDayColor: clubColor,
             ),
           const Divider(height: 1, color: ViroColors.gray200),
           Expanded(
@@ -328,6 +340,8 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                         event: event,
                         teamLabel: label,
                         excludeCoachUids: excludeCoaches,
+                        clubColor: clubColor,
+                        clubColorSecondary: clubColorSecondary,
                         onTap: () => _showEventSheet(
                           event,
                           teamsById,
@@ -341,6 +355,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

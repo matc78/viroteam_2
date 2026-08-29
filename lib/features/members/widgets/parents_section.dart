@@ -21,11 +21,13 @@ class ParentsSection extends ConsumerStatefulWidget {
     required this.clubId,
     required this.club,
     this.members = const [],
+    this.accentColor,
   });
 
   final String clubId;
   final Club club;
   final List<ClubMember> members;
+  final Color? accentColor;
 
   @override
   ConsumerState<ParentsSection> createState() => _ParentsSectionState();
@@ -324,21 +326,22 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
     required bool selected,
     required ValueChanged<bool> onSelected,
   }) {
+    final accent = widget.accentColor ?? ViroColors.primary600;
     return FilterChip(
       label: Text(
         label,
         style: TextStyle(
-          color: selected ? ViroColors.white : ViroColors.primary800,
+          color: selected ? ViroColors.white : accent,
           fontWeight: FontWeight.w600,
         ),
       ),
       selected: selected,
       onSelected: onSelected,
       showCheckmark: false,
-      selectedColor: ViroColors.primary600,
+      selectedColor: accent,
       backgroundColor: ViroColors.gray50,
       side: BorderSide(
-        color: selected ? ViroColors.primary600 : ViroColors.gray200,
+        color: selected ? accent : ViroColors.gray200,
       ),
     );
   }

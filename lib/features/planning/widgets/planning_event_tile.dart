@@ -14,12 +14,16 @@ class PlanningEventTile extends StatelessWidget {
     required this.event,
     this.teamLabel,
     this.excludeCoachUids = const {},
+    this.clubColor,
+    this.clubColorSecondary,
     this.onTap,
   });
 
   final ClubEvent event;
   final String? teamLabel;
   final Set<String> excludeCoachUids;
+  final Color? clubColor;
+  final Color? clubColorSecondary;
   final VoidCallback? onTap;
 
   IconData get _typeIcon => switch (event.type) {
@@ -40,8 +44,12 @@ class PlanningEventTile extends StatelessWidget {
     final subtitle = PlanningEventDisplay.subtitle(event, teamLabel);
     final location = PlanningEventDisplay.locationLine(event);
 
+    final accent = clubColor ?? ViroColors.primary600;
+
     return ViroCard(
       onTap: onTap,
+      accentColor: clubColor,
+      accentColorSecondary: clubColorSecondary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -58,7 +66,7 @@ class PlanningEventTile extends StatelessWidget {
                         startStr,
                         style: theme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: ViroColors.primary600,
+                          color: accent,
                           height: 1.1,
                         ),
                       ),
@@ -95,7 +103,7 @@ class PlanningEventTile extends StatelessWidget {
                         ViroIcon(
                           _typeIcon,
                           size: 18,
-                          color: ViroColors.primary600,
+                          color: accent,
                         ),
                         const SizedBox(width: ViroSpacing.xs),
                         Expanded(
@@ -103,7 +111,7 @@ class PlanningEventTile extends StatelessWidget {
                             headline,
                             style: theme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: ViroColors.primary800,
+                              color: accent,
                             ),
                           ),
                         ),

@@ -68,6 +68,14 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
           ),
       };
 
+  Map<String, Color?> _clubSecondaryColors(List<UserClubEntry> clubs) => {
+        for (final e in clubs)
+          e.club.id: resolveClubBrandColors(
+            brandColorHex: e.club.brandColorHex,
+            clubId: e.club.id,
+          ).secondary,
+      };
+
   void _showEventDetail({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
@@ -162,6 +170,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
 
           final names = _clubNames(clubs);
           final colors = _clubColors(clubs);
+          final secondaryColors = _clubSecondaryColors(clubs);
 
           return Stack(
             children: [
@@ -209,6 +218,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                               events: state.upcoming,
                               clubNames: names,
                               clubColors: colors,
+                              clubSecondaryColors: secondaryColors,
                               teamsByClub: teamsByClub,
                               maxEvents: memberHomePlanningPreviewLimit,
                               onShowDetail: _showEventDetail,

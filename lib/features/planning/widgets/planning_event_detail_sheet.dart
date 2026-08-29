@@ -13,9 +13,11 @@ import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart'
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 
 enum _CancelScope { single, series }
@@ -50,6 +52,8 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     bool canManageEvents = true,
     required VoidCallback onCanceled,
   }) {
+    final accent = ref.read(clubMemberAccentProvider(clubId));
+
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -58,19 +62,22 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (sheetContext) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.65,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        builder: (_, scrollController) => PlanningEventDetailSheet(
-          clubId: clubId,
-          event: event,
-          scrollController: scrollController,
-          teamLabel: teamLabel,
-          excludeCoachUids: excludeCoachUids,
-          canManageEvents: canManageEvents,
-          onCanceled: onCanceled,
+      builder: (sheetContext) => ClubAccentTheme(
+        accentColor: accent,
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.65,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          builder: (_, scrollController) => PlanningEventDetailSheet(
+            clubId: clubId,
+            event: event,
+            scrollController: scrollController,
+            teamLabel: teamLabel,
+            excludeCoachUids: excludeCoachUids,
+            canManageEvents: canManageEvents,
+            onCanceled: onCanceled,
+          ),
         ),
       ),
     );
@@ -238,6 +245,7 @@ class _PlanningEventDetailSheetState
   Widget build(BuildContext context) {
     final event = widget.event;
     final theme = Theme.of(context).textTheme;
+    final accent = Theme.of(context).colorScheme.primary;
     final headline = PlanningEventDisplay.headline(event);
     final subtitle = PlanningEventDisplay.subtitle(event, widget.teamLabel);
     final location = PlanningEventDisplay.locationLine(event);
@@ -275,7 +283,7 @@ class _PlanningEventDetailSheetState
                                   startStr,
                                   style: theme.titleLarge?.copyWith(
                                     fontWeight: FontWeight.w800,
-                                    color: ViroColors.primary600,
+                                    color: accent,
                                     height: 1.1,
                                   ),
                                 ),
@@ -313,7 +321,7 @@ class _PlanningEventDetailSheetState
                                   ViroIcon(
                                     _typeIcon,
                                     size: 20,
-                                    color: ViroColors.primary600,
+                                    color: accent,
                                   ),
                                   const SizedBox(width: ViroSpacing.xs),
                                   Expanded(
@@ -321,7 +329,7 @@ class _PlanningEventDetailSheetState
                                       headline,
                                       style: theme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.w700,
-                                        color: ViroColors.primary800,
+                                        color: accent,
                                       ),
                                     ),
                                   ),
@@ -405,7 +413,7 @@ class _PlanningEventDetailSheetState
                       'Réponses ($playerCount)',
                       style: theme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: ViroColors.primary800,
+                        color: accent,
                       ),
                     ),
                     const SizedBox(height: ViroSpacing.sm),

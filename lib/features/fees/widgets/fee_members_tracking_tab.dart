@@ -59,6 +59,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     required this.onSelect,
     required this.onOpenBulk,
     this.accentColor,
+    this.onOpenConfig,
   });
 
   final String clubId;
@@ -72,6 +73,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   final void Function(String id, bool selected) onSelect;
   final VoidCallback onOpenBulk;
   final Color? accentColor;
+  final VoidCallback? onOpenConfig;
 
   List<MemberFee> _applySearchAndTier(List<MemberFee> fees) {
     return fees.where((f) {
@@ -449,8 +451,12 @@ class FeeMembersTrackingTab extends ConsumerWidget {
       error: (_, _) => const ViroErrorState(),
       data: (season) {
         if (season == null) {
-          return const Center(
-            child: Text('Créez d\'abord une saison dans l\'onglet Configuration'),
+          return ViroEmptyState(
+            message:
+                'Aucune saison active. Configurez la saison pour suivre les cotisations.',
+            icon: ViroIcons.payments,
+            actionLabel: onOpenConfig != null ? 'Configurer la saison' : null,
+            onAction: onOpenConfig,
           );
         }
 

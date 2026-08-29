@@ -3,8 +3,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
-import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
+import 'package:viro_team_v2/features/club_setup/services/club_setup_analytics.dart';
 import 'package:viro_team_v2/features/club_setup/services/club_setup_persistence_service.dart';
+import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
+import 'package:viro_team_v2/providers/service_providers.dart';
 
 class ClubSetupNotifier extends Notifier<ClubSetupDraft> {
   String? _userId;
@@ -95,8 +97,8 @@ class ClubSetupNotifier extends Notifier<ClubSetupDraft> {
 
 final clubSetupPersistenceServiceProvider =
     Provider<ClubSetupPersistenceService>(
-  (ref) => ClubSetupPersistenceService(),
-);
+      (ref) => ClubSetupPersistenceService(),
+    );
 
 final frenchAddressServiceProvider = Provider<FrenchAddressService>((ref) {
   final service = FrenchAddressService();
@@ -104,5 +106,10 @@ final frenchAddressServiceProvider = Provider<FrenchAddressService>((ref) {
   return service;
 });
 
-final clubSetupProvider =
-    NotifierProvider<ClubSetupNotifier, ClubSetupDraft>(ClubSetupNotifier.new);
+final clubSetupProvider = NotifierProvider<ClubSetupNotifier, ClubSetupDraft>(
+  ClubSetupNotifier.new,
+);
+
+final clubSetupAnalyticsProvider = Provider<ClubSetupAnalytics>(
+  (ref) => ClubSetupAnalytics(analytics: ref.watch(analyticsServiceProvider)),
+);

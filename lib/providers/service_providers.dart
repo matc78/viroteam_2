@@ -16,6 +16,7 @@ import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
+import 'package:viro_team_v2/services/user_avatar_storage.dart';
 import 'package:viro_team_v2/services/user_service.dart';
 
 final analyticsServiceProvider = Provider<AnalyticsService>(
@@ -27,7 +28,11 @@ final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 final accountServiceProvider =
     Provider<AccountService>((ref) => AccountService());
 
+final userAvatarStorageProvider =
+    Provider<UserAvatarStorage>((ref) => UserAvatarStorage());
+
 final userServiceProvider = Provider<UserService>((ref) => UserService());
+
 
 final clubServiceProvider = Provider<ClubService>((ref) => ClubService());
 

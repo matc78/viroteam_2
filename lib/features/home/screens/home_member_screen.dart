@@ -150,8 +150,8 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
         onTitleTap: _scrollToTop,
         actions: [
           IconButton(
-            icon: ViroIcon(ViroIcons.user),
-            onPressed: () => context.push(AppRoutes.profile),
+            icon: ViroIcon(ViroIcons.settings),
+            onPressed: () => context.push(AppRoutes.userSettings),
           ),
         ],
       ),

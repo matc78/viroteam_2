@@ -31,6 +31,78 @@ class UserService {
     await _userRef(user.uid).set(user.toCreateMap());
   }
 
+  /// Met à jour le profil utilisateur (prénom, nom, téléphone).
+  Future<void> updateProfile({
+    required String uid,
+    required String firstName,
+    required String lastName,
+    String? phone,
+  }) async {
+    final trimmedFirst = firstName.trim();
+    final trimmedLast = lastName.trim();
+    final displayName =
+        [trimmedFirst, trimmedLast].where((part) => part.isNotEmpty).join(' ');
+
+    final update = <String, dynamic>{
+      FirestoreFields.firstName: trimmedFirst,
+      FirestoreFields.lastName: trimmedLast,
+      FirestoreFields.displayName: displayName,
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    };
+    final trimmedPhone = phone?.trim();
+    if (trimmedPhone != null && trimmedPhone.isNotEmpty) {
+      update[FirestoreFields.phone] = trimmedPhone;
+    } else {
+      update[FirestoreFields.phone] = FieldValue.delete();
+    }
+
+    await _userRef(uid).set(update, SetOptions(merge: true));
+  }
+
+  /// Met à jour l’avatar utilisateur et sync la fiche membre du club actif.
+  Future<void> updateAvatarUrl({
+    required String uid,
+    required String avatarUrl,
+    String? syncMemberClubId,
+  }) async {
+    await _userRef(uid).set(
+      {
+        FirestoreFields.avatarUrl: avatarUrl,
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    final clubId = syncMemberClubId?.trim();
+    if (clubId == null || clubId.isEmpty) return;
+
+    try {
+      final memberRef = _db
+          .collection(ProjectConfig.clubsCollection)
+          .doc(clubId)
+          .collection(ProjectConfig.membersSubcollection)
+          .doc(uid);
+      final memberSnap = await memberRef.get();
+      if (!memberSnap.exists) return;
+
+      final data = memberSnap.data() ?? {};
+      final existingSnapshot =
+          data[FirestoreFields.snapshot] as Map<String, dynamic>? ?? {};
+      await memberRef.set(
+        {
+          FirestoreFields.snapshot: {
+            ...existingSnapshot,
+            FirestoreFields.avatarUrl: avatarUrl,
+          },
+          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+    } catch (_) {
+      // Sync membre best-effort — ne bloque pas l’avatar user.
+    }
+  }
+
   Future<void> addClubMembership({
     required String uid,
     required String clubId,

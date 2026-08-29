@@ -45,7 +45,7 @@ import 'package:viro_team_v2/features/join/screens/join_code_screen.dart';
 
 import 'package:viro_team_v2/features/join/screens/request_role_screen.dart';
 
-import 'package:viro_team_v2/features/profile/screens/profile_screen.dart';
+import 'package:viro_team_v2/features/settings/screens/user_settings_screen.dart';
 
 import 'package:viro_team_v2/providers/session_provider.dart';
 
@@ -76,6 +76,8 @@ abstract final class AppRoutes {
   static const memberPlanning = '/planning';
 
   static const profile = '/profile';
+
+  static const userSettings = '/settings';
 
   static const clubs = '/clubs';
 
@@ -420,9 +422,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       GoRoute(
 
+        path: AppRoutes.userSettings,
+
+        builder: (_, _) => const UserSettingsScreen(),
+
+      ),
+
+      GoRoute(
+
         path: AppRoutes.profile,
 
-        builder: (_, _) => const ProfileScreen(),
+        redirect: (_, _) => AppRoutes.userSettings,
 
       ),
 

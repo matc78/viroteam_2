@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
@@ -14,6 +15,7 @@ class PortalAdminBanner extends StatelessWidget {
     required this.message,
     this.compact = false,
     this.ctaLabel = 'Ouvrir l\'espace club',
+    this.accentColor,
     this.onDismiss,
   });
 
@@ -21,6 +23,7 @@ class PortalAdminBanner extends StatelessWidget {
   final String message;
   final bool compact;
   final String ctaLabel;
+  final Color? accentColor;
   final VoidCallback? onDismiss;
 
   Future<void> _openPortal() => openPortalUrl(portalUrl);
@@ -28,6 +31,8 @@ class PortalAdminBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final accent = accentColor ?? ViroColors.primary600;
+    final accentStyle = ClubAccentStyle(accent);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -38,6 +43,8 @@ class PortalAdminBanner extends StatelessWidget {
       ),
       child: ViroCard(
         margin: EdgeInsets.zero,
+        accentColor: accentColor,
+        borderColor: accentStyle.border,
         padding: EdgeInsets.all(compact ? ViroSpacing.sm : ViroSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,7 +55,7 @@ class PortalAdminBanner extends StatelessWidget {
                 ViroIcon(
                   ViroIcons.roleAdmin,
                   size: compact ? 18 : 20,
-                  color: ViroColors.primary600,
+                  color: accent,
                 ),
                 const SizedBox(width: ViroSpacing.sm),
                 Expanded(
@@ -108,7 +115,7 @@ class PortalAdminBanner extends StatelessWidget {
                       Text(
                         ctaLabel,
                         style: theme.labelLarge?.copyWith(
-                          color: ViroColors.primary600,
+                          color: accent,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -116,7 +123,7 @@ class PortalAdminBanner extends StatelessWidget {
                       ViroIcon(
                         ViroIcons.chevronRight,
                         size: 16,
-                        color: ViroColors.primary600,
+                        color: accent,
                       ),
                     ],
                   ),

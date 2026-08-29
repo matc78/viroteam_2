@@ -7,11 +7,13 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/calendar/services/calendar_sync_service.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 
@@ -49,10 +51,13 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
   @override
   Widget build(BuildContext context) {
     final clubAsync = ref.watch(clubProvider(widget.clubId));
+    final accent = ref.watch(clubMemberAccentProvider(widget.clubId));
     final eventsAsync = ref.watch(clubEventsProvider(widget.clubId));
     final theme = Theme.of(context).textTheme;
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: accent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
           icon: ViroIcon(ViroIcons.chevronLeft),
@@ -71,9 +76,13 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(ViroSpacing.lg),
         children: [
-          Text(
-            'Ajoutez le planning ViroTeam à l’agenda de votre téléphone.',
-            style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
+          ViroCard(
+            accentColor: accent,
+            borderColor: ClubAccentStyle(accent).border,
+            child: Text(
+              'Ajoutez le planning ViroTeam à l’agenda de votre téléphone.',
+              style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
+            ),
           ),
           const SizedBox(height: ViroSpacing.lg),
           Text(
@@ -152,8 +161,9 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
             style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: ViroSpacing.sm),
-          const _ManualStepsCard(
+          _ManualStepsCard(
             title: 'iPhone / iPad',
+            accentColor: accent,
             steps: [
               'Appuyez sur « Exporter le planning (.ics) » ci-dessus.',
               'Choisissez « Enregistrer dans Fichiers » ou partagez vers Mail.',
@@ -162,8 +172,9 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
             ],
           ),
           const SizedBox(height: ViroSpacing.sm),
-          const _ManualStepsCard(
+          _ManualStepsCard(
             title: 'Android',
+            accentColor: accent,
             steps: [
               'Exportez le fichier .ics via le bouton ci-dessus.',
               'Ouvrez le fichier avec Google Agenda (ou l’app Calendrier).',
@@ -175,20 +186,31 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
         ],
       ),
       ),
+      ),
     );
   }
 }
 
 class _ManualStepsCard extends StatelessWidget {
-  const _ManualStepsCard({required this.title, required this.steps});
+  const _ManualStepsCard({
+    required this.title,
+    required this.steps,
+    this.accentColor,
+  });
 
   final String title;
   final List<String> steps;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final accent = accentColor ?? ViroColors.primary600;
     return ViroCard(
+      accentColor: accentColor,
+      borderColor: accentColor != null
+          ? ClubAccentStyle(accentColor!).border
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -196,7 +218,7 @@ class _ManualStepsCard extends StatelessWidget {
             title,
             style: theme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: ViroColors.primary800,
+              color: accent,
             ),
           ),
           const SizedBox(height: ViroSpacing.sm),
@@ -208,7 +230,7 @@ class _ManualStepsCard extends StatelessWidget {
                   '${i + 1}.',
                   style: theme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: ViroColors.primary600,
+                    color: accent,
                   ),
                 ),
                 const SizedBox(width: ViroSpacing.sm),

@@ -275,7 +275,7 @@ class _ClubCard extends ConsumerWidget {
                       Text(
                         club.name,
                         style: theme.titleSmall?.copyWith(
-                          color: ViroColors.primary800,
+                          color: accentColor,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

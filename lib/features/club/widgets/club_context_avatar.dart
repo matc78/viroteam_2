@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -11,6 +13,7 @@ class ClubContextAvatar extends StatelessWidget {
     required this.club,
     required this.accentColor,
     this.childMember,
+    this.logoPreviewBytes,
     this.size = 44,
     this.borderRadius = 8,
   });
@@ -18,6 +21,7 @@ class ClubContextAvatar extends StatelessWidget {
   final Club club;
   final Color accentColor;
   final ClubMember? childMember;
+  final Uint8List? logoPreviewBytes;
   final double size;
   final double borderRadius;
 
@@ -28,7 +32,9 @@ class ClubContextAvatar extends StatelessWidget {
     }
 
     final logoUrl = club.logoUrl?.trim();
-    final hasLogo = logoUrl != null && logoUrl.isNotEmpty;
+    final hasPreview = logoPreviewBytes != null && logoPreviewBytes!.isNotEmpty;
+    final hasLogo = hasPreview ||
+        (logoUrl != null && logoUrl.isNotEmpty);
 
     return Container(
       width: size,
@@ -41,7 +47,9 @@ class ClubContextAvatar extends StatelessWidget {
             : null,
         image: hasLogo
             ? DecorationImage(
-                image: NetworkImage(logoUrl),
+                image: hasPreview
+                    ? MemoryImage(logoPreviewBytes!) as ImageProvider
+                    : NetworkImage(logoUrl!),
                 fit: BoxFit.cover,
               )
             : null,

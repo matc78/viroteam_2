@@ -13,6 +13,7 @@ import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/team_categories.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 Future<void> showCreateAnnouncementSheet(
@@ -20,6 +21,8 @@ Future<void> showCreateAnnouncementSheet(
   WidgetRef ref, {
   required String clubId,
 }) {
+  final accent = ref.read(clubMemberAccentProvider(clubId));
+
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -29,11 +32,14 @@ Future<void> showCreateAnnouncementSheet(
         top: Radius.circular(ViroSpacing.cardRadius),
       ),
     ),
-    builder: (ctx) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+    builder: (ctx) => ClubAccentTheme(
+      accentColor: accent,
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+        ),
+        child: _CreateAnnouncementSheet(clubId: clubId),
       ),
-      child: _CreateAnnouncementSheet(clubId: clubId),
     ),
   );
 }
@@ -172,7 +178,10 @@ class _CreateAnnouncementSheetState
           children: [
             Text(
               'Nouvelle annonce',
-              style: theme.titleLarge?.copyWith(color: ViroColors.primary800),
+              style: theme.titleLarge?.copyWith(
+                color: Theme.of(context).appBarTheme.foregroundColor,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: ViroSpacing.md),
             TextField(
@@ -266,6 +275,8 @@ class _TargetTypeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+
     return Wrap(
       spacing: ViroSpacing.sm,
       runSpacing: ViroSpacing.sm,
@@ -275,8 +286,8 @@ class _TargetTypeRow extends StatelessWidget {
           label: Text(type),
           selected: isSelected,
           onSelected: (_) => onSelected(type),
-          selectedColor: ViroColors.primary100,
-          checkmarkColor: ViroColors.primary800,
+          selectedColor: accent.withValues(alpha: 0.12),
+          checkmarkColor: accent,
         );
       }).toList(),
     );
@@ -301,6 +312,7 @@ class _TargetPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final accent = Theme.of(context).colorScheme.primary;
 
     if (targetType == AnnouncementTargetTypes.tousLesMembres) {
       return Text(
@@ -325,6 +337,17 @@ class _TargetPicker extends StatelessWidget {
             label: Text(team.name),
             selected: isSelected,
             onSelected: (v) => onToggle(team.id, v),
+            selectedColor: accent,
+            checkmarkColor: Theme.of(context).colorScheme.onPrimary,
+            labelStyle: TextStyle(
+              color: isSelected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : ViroColors.gray900,
+              fontWeight: FontWeight.w600,
+            ),
+            side: BorderSide(
+              color: isSelected ? accent : ViroColors.gray200,
+            ),
           );
         }).toList(),
       );
@@ -356,6 +379,17 @@ class _TargetPicker extends StatelessWidget {
             label: Text(cat),
             selected: isSelected,
             onSelected: (v) => onToggle(cat, v),
+            selectedColor: accent,
+            checkmarkColor: Theme.of(context).colorScheme.onPrimary,
+            labelStyle: TextStyle(
+              color: isSelected
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : ViroColors.gray900,
+              fontWeight: FontWeight.w600,
+            ),
+            side: BorderSide(
+              color: isSelected ? accent : ViroColors.gray200,
+            ),
           );
         }).toList(),
       );

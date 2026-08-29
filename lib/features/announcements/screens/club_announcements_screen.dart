@@ -13,8 +13,10 @@ import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart'
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
@@ -35,12 +37,15 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
           m != null && MemberRoleHierarchy.isCoachOrAbove(m.role),
       orElse: () => false,
     );
+    final accent = ref.watch(clubMemberAccentProvider(clubId));
 
     final teamNames = <String, String>{
       for (final t in teamsAsync.value ?? []) t.id: t.name,
     };
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: accent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
           icon: ViroIcon(ViroIcons.chevronLeft),
@@ -82,7 +87,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
                             ViroIcon(
                               ViroIcons.bell,
                               size: 48,
-                              color: ViroColors.gray300,
+                              color: accent.withValues(alpha: 0.35),
                             ),
                             const SizedBox(height: ViroSpacing.md),
                             Text(
@@ -112,6 +117,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
                         targetLabel: announcement.targetLabel(
                           teamNamesById: teamNames,
                         ),
+                        accentColor: accent,
                         canManage: canManage,
                         onTap: () => showAnnouncementMessageSheet(
                           context,
@@ -130,6 +136,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
           );
         },
       ),
+      ),
     );
   }
 
@@ -142,7 +149,9 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => Theme(
+        data: Theme.of(context),
+        child: AlertDialog(
         title: const Text('Modifier l\'annonce'),
         content: TextField(
           controller: controller,
@@ -154,11 +163,12 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Annuler'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Enregistrer'),
           ),
         ],
+        ),
       ),
     );
 
@@ -189,7 +199,9 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => Theme(
+        data: Theme.of(context),
+        child: AlertDialog(
         title: const Text('Clôturer l\'annonce ?'),
         content: const Text(
           'Elle ne sera plus visible pour les destinataires, mais restera dans l\'historique.',
@@ -199,11 +211,12 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Annuler'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Clôturer'),
           ),
         ],
+        ),
       ),
     );
 
@@ -238,7 +251,9 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => Theme(
+        data: Theme.of(context),
+        child: AlertDialog(
         title: const Text('Supprimer l\'annonce ?'),
         content: const Text(
           'Cette annonce sera définitivement supprimée pour tous les membres.',
@@ -256,6 +271,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
 
@@ -281,6 +297,7 @@ class _AnnouncementHistoryCard extends StatelessWidget {
   const _AnnouncementHistoryCard({
     required this.announcement,
     required this.targetLabel,
+    required this.accentColor,
     required this.canManage,
     required this.onTap,
     required this.onEdit,
@@ -290,6 +307,7 @@ class _AnnouncementHistoryCard extends StatelessWidget {
 
   final ClubAnnouncement announcement;
   final String targetLabel;
+  final Color accentColor;
   final bool canManage;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -302,17 +320,21 @@ class _AnnouncementHistoryCard extends StatelessWidget {
 
     return ViroCard(
       onTap: onTap,
+      accentColor: accentColor,
+      borderColor: ClubAccentStyle(accentColor).border,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              ViroIcon(ViroIcons.bell, size: 16, color: accentColor),
+              const SizedBox(width: ViroSpacing.xs),
               Expanded(
                 child: Text(
                   announcement.authorName,
                   style: theme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: ViroColors.primary800,
+                    color: accentColor,
                   ),
                 ),
               ),
@@ -358,13 +380,13 @@ class _AnnouncementHistoryCard extends StatelessWidget {
               vertical: 2,
             ),
             decoration: BoxDecoration(
-              color: ViroColors.primary50,
+              color: accentColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               targetLabel,
               style: theme.labelSmall?.copyWith(
-                color: ViroColors.primary800,
+                color: accentColor,
                 fontWeight: FontWeight.w600,
               ),
             ),

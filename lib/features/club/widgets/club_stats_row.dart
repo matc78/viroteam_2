@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 
 class ClubStatsRow extends StatelessWidget {
@@ -12,6 +13,7 @@ class ClubStatsRow extends StatelessWidget {
     required this.attendanceRate,
     required this.nextEvent,
     required this.club,
+    this.accentColor,
     this.onMembersTap,
     this.onNextEventTap,
     this.onAttendanceTap,
@@ -20,6 +22,7 @@ class ClubStatsRow extends StatelessWidget {
   final double? attendanceRate;
   final ClubEvent? nextEvent;
   final Club club;
+  final Color? accentColor;
   final VoidCallback? onMembersTap;
   final VoidCallback? onNextEventTap;
   final VoidCallback? onAttendanceTap;
@@ -36,6 +39,7 @@ class ClubStatsRow extends StatelessWidget {
             label: 'Réponses (30 j)',
             value: '${attendanceRate!.round()} %',
             subtitle: 'RSVP positifs',
+            accentColor: accentColor,
             onTap: onAttendanceTap,
           ),
         ),
@@ -51,6 +55,7 @@ class ClubStatsRow extends StatelessWidget {
             label: 'Prochain event',
             value:
                 '${eventTypeLabel(nextEvent!.type)} · ${formatEventDate(nextEvent!.date)}',
+            accentColor: accentColor,
             onTap: onNextEventTap,
           ),
         ),
@@ -62,6 +67,7 @@ class ClubStatsRow extends StatelessWidget {
       cards.add(
         _MemberCountStatCard(
           count: club.memberCount,
+          accentColor: accentColor,
           onTap: onMembersTap,
         ),
       );
@@ -99,10 +105,12 @@ class ClubStatsRow extends StatelessWidget {
 class _MemberCountStatCard extends StatelessWidget {
   const _MemberCountStatCard({
     required this.count,
+    this.accentColor,
     this.onTap,
   });
 
   final int count;
+  final Color? accentColor;
   final VoidCallback? onTap;
 
   static double _widthFor(int count) {
@@ -121,6 +129,10 @@ class _MemberCountStatCard extends StatelessWidget {
       width: _widthFor(count),
       child: ViroCard(
         onTap: onTap,
+        accentColor: accentColor,
+        borderColor: accentColor != null
+            ? ClubAccentStyle(accentColor!).border
+            : null,
         margin: EdgeInsets.zero,
         padding: const EdgeInsets.symmetric(
           horizontal: ViroSpacing.md + 2,
@@ -142,7 +154,7 @@ class _MemberCountStatCard extends StatelessWidget {
             Text(
               '$count',
               style: theme.titleLarge?.copyWith(
-                color: ViroColors.primary800,
+                color: accentColor ?? ViroColors.primary800,
                 fontWeight: FontWeight.w800,
                 height: 1.15,
               ),

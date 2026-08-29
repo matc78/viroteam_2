@@ -5,6 +5,10 @@ abstract final class PortalBannerIds {
   static const planning = 'planning';
   static const members = 'members';
   static const fees = 'fees';
+  static const teams = 'teams';
+  static const equipment = 'equipment';
+  static const settings = 'settings';
+  static const announcements = 'announcements';
 }
 
 /// Persistance locale du masquage des bannières « espace club » (par utilisateur + écran).

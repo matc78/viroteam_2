@@ -13,9 +13,6 @@ import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
-import 'package:viro_team_v2/utils/portal_links.dart';
-import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
-import 'package:viro_team_v2/widgets/common/persistent_portal_admin_banner.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
@@ -127,15 +124,6 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           isAdmin: member.role == MemberRoles.admin,
           isCoach: member.role == MemberRoles.coach,
         );
-    final isAdmin = !isChildView && member?.role == MemberRoles.admin;
-    final isBureauMember = !isChildView &&
-        member != null &&
-        (member.role == MemberRoles.admin ||
-            member.role == MemberRoles.coach ||
-            member.role == MemberRoles.player);
-    final familyTargets =
-        ref.watch(clubFamilyTargetsProvider(clubId)).value ?? const [];
-    final isParent = familyTargets.any((t) => t.isChild);
     final dayParams = (clubId: clubId, day: _selectedDay);
     final eventsAsync = canManage
         ? ref.watch(clubPlanningEventsProvider(dayParams))
@@ -228,19 +216,6 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ClubAudienceSwitcher(clubId: clubId),
-          if (isBureauMember || isParent)
-            PersistentPortalAdminBanner(
-              bannerId: PortalBannerIds.planning,
-              portalUrl: portalPlanningUrl(clubId: clubId),
-              accentColor: clubColor,
-              compact: true,
-              message: isAdmin
-                  ? 'Vue calendrier détaillée, filtres multi-équipes.'
-                  : isParent
-                      ? 'Planning et RSVP aussi disponibles sur le portail famille.'
-                      : 'Planning et RSVP aussi disponibles sur le portail web.',
-              ctaLabel: 'www.viroteam.com',
-            ),
           const SizedBox(height: ViroSpacing.sm),
           if (!_daysReady)
             const SizedBox(

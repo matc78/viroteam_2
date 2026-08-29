@@ -48,5 +48,27 @@ void main() {
         isFalse,
       );
     });
+
+    test('nouveaux bannerIds sont indépendants', () async {
+      await service.dismiss(
+        userId: 'user1',
+        bannerId: PortalBannerIds.teams,
+      );
+
+      expect(
+        await service.isDismissed(
+          userId: 'user1',
+          bannerId: PortalBannerIds.teams,
+        ),
+        isTrue,
+      );
+      expect(
+        await service.isDismissed(
+          userId: 'user1',
+          bannerId: PortalBannerIds.announcements,
+        ),
+        isFalse,
+      );
+    });
   });
 }

@@ -24,9 +24,35 @@ Uri portalFeesUrl({required String clubId}) =>
 Uri portalPlanningUrl({required String clubId}) =>
     portalPageUrl('/planning', clubId: clubId);
 
-/// Liste membres (`/members`).
-Uri portalMembersUrl({required String clubId}) =>
-    portalPageUrl('/members', clubId: clubId);
+/// Onglets page membres portail (`roster` | `teams` | `parents`).
+typedef PortalMembersTab = String;
+
+/// Liste membres (`/members`), avec onglet optionnel pour deep links futurs.
+Uri portalMembersUrl({
+  required String clubId,
+  PortalMembersTab? tab,
+}) {
+  final uri = portalPageUrl('/members', clubId: clubId);
+  if (tab == null || tab.isEmpty) return uri;
+  return uri.replace(
+    queryParameters: {
+      ...uri.queryParameters,
+      'tab': tab,
+    },
+  );
+}
+
+/// Inventaire équipements (`/equipment`).
+Uri portalEquipmentUrl({required String clubId}) =>
+    portalPageUrl('/equipment', clubId: clubId);
+
+/// Paramètres club / droits coachs (`/settings`).
+Uri portalSettingsUrl({required String clubId}) =>
+    portalPageUrl('/settings', clubId: clubId);
+
+/// Annonces club (`/announcements`).
+Uri portalAnnouncementsUrl({required String clubId}) =>
+    portalPageUrl('/announcements', clubId: clubId);
 
 /// Lien web pour rejoindre avec un code d’invitation (`/join?code=…`).
 Uri inviteJoinUrl(String code) {

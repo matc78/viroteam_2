@@ -449,6 +449,12 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
                     });
                     _syncClubHeadquartersLocation();
                   },
+                  onBrandColorChanged: (hex) {
+                    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+                      draft.brandColorHex = hex;
+                      return draft;
+                    });
+                  },
                   onDescriptionChanged: () {
                     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
                       draft.description = _descriptionController.text.trim();

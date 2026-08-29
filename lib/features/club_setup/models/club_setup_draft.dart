@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club_setup/club_setup_defaults.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/models/club.dart';
 
@@ -52,6 +53,7 @@ class ClubSetupDraft {
     this.description = '',
     this.currentStep = 0,
     this.memberCountRange,
+    this.brandColorHex = ClubSetupDefaults.brandColorHex,
   })  : sport = sport ?? ClubSports.all.first,
         objectives = objectives ?? <String>{},
         practiceLocations = practiceLocations ?? [];
@@ -68,6 +70,7 @@ class ClubSetupDraft {
   String description;
   int currentStep;
   String? memberCountRange;
+  String brandColorHex;
 
   /// Indique si le brouillon contient des données saisies (hors étape courante).
   bool get hasSavedProgress =>
@@ -79,7 +82,8 @@ class ClubSetupDraft {
       practiceLocations.isNotEmpty ||
       memberCountRange != null ||
       logoFilePath != null ||
-      currentStep > 0;
+      currentStep > 0 ||
+      brandColorHex != ClubSetupDefaults.brandColorHex;
 
   bool get canProceedIdentity => name.trim().length >= 2 && sport.isNotEmpty;
 
@@ -102,6 +106,7 @@ class ClubSetupDraft {
       description: description,
       currentStep: currentStep,
       memberCountRange: memberCountRange,
+      brandColorHex: brandColorHex,
     );
   }
 
@@ -118,6 +123,7 @@ class ClubSetupDraft {
         'description': description,
         'currentStep': currentStep,
         'memberCountRange': memberCountRange,
+        'brandColorHex': brandColorHex,
         'wizardVersion': ClubSetupSteps.wizardVersion,
       };
 
@@ -143,6 +149,8 @@ class ClubSetupDraft {
         wizardVersion: (json['wizardVersion'] as int?) ?? 1,
       ),
       memberCountRange: json['memberCountRange'] as String?,
+      brandColorHex: json['brandColorHex'] as String? ??
+          ClubSetupDefaults.brandColorHex,
     );
   }
 }

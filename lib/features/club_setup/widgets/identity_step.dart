@@ -6,9 +6,11 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club/widgets/club_brand_color_picker.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/sport_emoji.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
@@ -22,6 +24,7 @@ class IdentityStep extends StatelessWidget {
     required this.onPickLogo,
     required this.onNameChanged,
     required this.onSportChanged,
+    required this.onBrandColorChanged,
     required this.onDescriptionChanged,
   });
 
@@ -31,11 +34,13 @@ class IdentityStep extends StatelessWidget {
   final VoidCallback onPickLogo;
   final void Function(String name) onNameChanged;
   final void Function(String sport) onSportChanged;
+  final void Function(String brandColorHex) onBrandColorChanged;
   final VoidCallback onDescriptionChanged;
 
   @override
   Widget build(BuildContext context) {
     final sportAccent = ClubSetupUi.sportAccent(draft.sport);
+    final brandParts = splitBrandColorHex(draft.brandColorHex);
 
     return SetupStepShell(
       subtitle: 'Nom et sport pour démarrer. Logo et description, c\'est bonus.',
@@ -102,6 +107,38 @@ class IdentityStep extends StatelessWidget {
                     onTap: () => onSportChanged(sport),
                   );
                 }).toList(),
+              ),
+            ),
+            const SizedBox(height: ViroSpacing.sm),
+            Text(
+              'Couleur du club',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: ViroColors.primary800,
+                  ),
+            ),
+            const SizedBox(height: ViroSpacing.xs),
+            Center(
+              child: ClubBrandColorPicker(
+                selectedPrimaryHex: brandParts.primary,
+                selectedSecondaryHex: brandParts.secondary,
+                onPrimarySelected: (hex) {
+                  onBrandColorChanged(
+                    encodeBrandColorHex(
+                      primary: hex,
+                      secondary: brandParts.secondary,
+                    ),
+                  );
+                },
+                onSecondaryToggled: (hex) {
+                  onBrandColorChanged(
+                    encodeBrandColorHex(
+                      primary: brandParts.primary,
+                      secondary: hex,
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(height: ViroSpacing.sm),

@@ -7,6 +7,9 @@ name: CI
 on:
   push:
     branches: [main, master, develop]
+    tags:
+      - "v*"
+      - "release-v*"
   pull_request:
 
 concurrency:
@@ -30,13 +33,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Force full matrix on protected branches
+      - name: Force full matrix on protected branches and release tags
         id: force
         run: |
           if [ "${{ github.event_name }}" = "push" ] && {
             [ "${{ github.ref }}" = "refs/heads/main" ] ||
             [ "${{ github.ref }}" = "refs/heads/master" ] ||
-            [ "${{ github.ref }}" = "refs/heads/develop" ]
+            [ "${{ github.ref }}" = "refs/heads/develop" ] ||
+            [[ "${{ github.ref }}" == refs/tags/v* ]] ||
+            [[ "${{ github.ref }}" == refs/tags/release-v* ]]
           }; then
             echo "value=true" >> "$GITHUB_OUTPUT"
           else

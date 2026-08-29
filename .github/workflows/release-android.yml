@@ -1,5 +1,8 @@
 # Release Android — APK/AAB signés, GitHub Release, Play Store.
 #
+# Prérequis : le job « Flutter analyze & test » du workflow CI doit avoir réussi
+# sur le commit tagué (gate verify-ci). La CI tourne aussi sur les tags v* / release-v*.
+#
 # Tags :
 #   v1.2.3         → artifacts + GitHub Release + Play internal
 #   release-v1.2.3 → artifacts + Play production (pas de GitHub Release)
@@ -21,10 +24,26 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
+  verify-ci:
+    name: Verify CI passed on commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Wait for Flutter CI job success
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-regexp: ^Flutter analyze & test$
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success
+
   build:
     name: Build APK & AAB
+    needs: verify-ci
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:

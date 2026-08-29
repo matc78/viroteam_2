@@ -29,7 +29,6 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
-import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
@@ -253,11 +252,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                       AppRoutes.clubMyFeePath(clubId),
                                     )
                                 : null,
-                            onPortal: m.role == MemberRoles.player
-                                ? () => openPortalUrl(
-                                      portalHomeUrl(clubId: clubId),
-                                    )
-                                : null,
                           ),
                           Padding(
                             padding: const EdgeInsets.symmetric(
@@ -295,9 +289,16 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                         AppRoutes.clubAppearancePath(clubId),
                                       )
                                   : null,
-                              onPortal: () => openPortalUrl(
-                                portalHomeUrl(clubId: clubId),
-                              ),
+                              onEquipment: m.role == MemberRoles.admin
+                                  ? () => context.push(
+                                        AppRoutes.clubEquipmentPath(clubId),
+                                      )
+                                  : null,
+                              onSettings: m.role == MemberRoles.admin
+                                  ? () => context.push(
+                                        AppRoutes.clubSettingsPath(clubId),
+                                      )
+                                  : null,
                             ),
                           ],
                           const SizedBox(height: ViroSpacing.xl),

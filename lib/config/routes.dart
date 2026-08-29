@@ -18,6 +18,8 @@ import 'package:viro_team_v2/features/auth/screens/sign_up_screen.dart';
 import 'package:viro_team_v2/features/announcements/screens/club_announcements_screen.dart';
 import 'package:viro_team_v2/features/calendar/screens/calendar_sync_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_appearance_screen.dart';
+import 'package:viro_team_v2/features/club/screens/club_settings_screen.dart';
+import 'package:viro_team_v2/features/equipment/screens/club_equipment_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_detail_screen.dart';
 import 'package:viro_team_v2/features/fees/screens/admin_fees_screen.dart';
 import 'package:viro_team_v2/features/fees/screens/my_fee_screen.dart';
@@ -101,6 +103,10 @@ abstract final class AppRoutes {
 
   static const clubAppearance = '/club/:clubId/appearance';
 
+  static const clubEquipment = '/club/:clubId/equipment';
+
+  static const clubSettings = '/club/:clubId/settings';
+
   static const designPreview = '/dev/design';
 
 
@@ -138,6 +144,10 @@ abstract final class AppRoutes {
   }
 
   static String clubAppearancePath(String clubId) => '/club/$clubId/appearance';
+
+  static String clubEquipmentPath(String clubId) => '/club/$clubId/equipment';
+
+  static String clubSettingsPath(String clubId) => '/club/$clubId/settings';
 
 }
 
@@ -605,6 +615,34 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final clubId = state.pathParameters['clubId']!;
 
           return ClubAppearanceScreen(clubId: clubId);
+
+        },
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.clubEquipment,
+
+        builder: (_, state) {
+
+          final clubId = state.pathParameters['clubId']!;
+
+          return ClubEquipmentScreen(clubId: clubId);
+
+        },
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.clubSettings,
+
+        builder: (_, state) {
+
+          final clubId = state.pathParameters['clubId']!;
+
+          return ClubSettingsScreen(clubId: clubId);
 
         },
 

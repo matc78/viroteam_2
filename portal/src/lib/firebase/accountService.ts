@@ -10,6 +10,7 @@ import {
 } from "firebase/auth";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { authErrorMessage } from "./authErrors";
+import { validatePassword } from "@/lib/auth/passwordPolicy";
 import { getAppFirestore } from "./app";
 import { Collections, Fields } from "./constants";
 
@@ -98,8 +99,9 @@ export async function changeUserPassword(params: {
   if (!hasPasswordProvider(params.user)) {
     throw new Error("Ce compte n’utilise pas de mot de passe.");
   }
-  if (params.newPassword.trim().length < 6) {
-    throw new Error("Le nouveau mot de passe doit faire au moins 6 caractères.");
+  const policyError = validatePassword(params.newPassword);
+  if (policyError) {
+    throw new Error(policyError);
   }
   await reauthenticateUser({
     user: params.user,

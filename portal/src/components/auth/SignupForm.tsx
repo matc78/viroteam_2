@@ -6,6 +6,10 @@ import { AuthDivider, GoogleSignInButton } from "@/components/auth/GoogleSignInB
 import { handleGoogleAuthError } from "@/lib/auth/handleGoogleAuthError";
 import { usePostAuthRedirect } from "@/lib/auth/usePostAuthRedirect";
 import { validateEmail } from "@/lib/auth/validateEmail";
+import {
+  PASSWORD_POLICY_HINT,
+  validatePassword,
+} from "@/lib/auth/passwordPolicy";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import styles from "./AuthForm.module.css";
 
@@ -48,11 +52,8 @@ function SignupFormContent() {
     }
     const emailError = validateEmail(email);
     if (emailError) nextErrors.email = emailError;
-    if (!password) {
-      nextErrors.password = "Le mot de passe est requis.";
-    } else if (password.length < 8) {
-      nextErrors.password = "Au moins 8 caractères.";
-    }
+    const passwordError = validatePassword(password);
+    if (passwordError) nextErrors.password = passwordError;
     if (!confirmPassword) {
       nextErrors.confirmPassword = "Confirme ton mot de passe.";
     } else if (confirmPassword !== password) {
@@ -201,7 +202,9 @@ function SignupFormContent() {
             <p id="signup-password-error" className={styles.error} role="alert">
               {errors.password}
             </p>
-          ) : null}
+          ) : (
+            <p className={styles.hint}>{PASSWORD_POLICY_HINT}</p>
+          )}
         </div>
 
         <div className={styles.field}>

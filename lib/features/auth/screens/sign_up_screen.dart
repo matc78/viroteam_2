@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/join/providers/pending_invitation_provider
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
+import 'package:viro_team_v2/utils/password_policy.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
@@ -290,9 +291,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Mot de passe'),
-                  validator: (v) =>
-                      v != null && v.length >= 8 ? null : '8 caractères minimum',
+                  decoration: const InputDecoration(
+                    labelText: 'Mot de passe',
+                    helperText: PasswordPolicy.hint,
+                    helperMaxLines: 2,
+                  ),
+                  validator: PasswordPolicy.validate,
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 Row(

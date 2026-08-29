@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
+import 'package:viro_team_v2/utils/password_policy.dart';
 
 class AuthService {
   AuthService({
@@ -30,6 +31,10 @@ class AuthService {
     required String email,
     required String password,
   }) {
+    final policyError = PasswordPolicy.validate(password);
+    if (policyError != null) {
+      throw StateError(policyError);
+    }
     return _auth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password,

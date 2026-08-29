@@ -8,6 +8,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
+import { validatePassword } from "@/lib/auth/passwordPolicy";
 import {
   ReactNode,
   createContext,
@@ -337,6 +338,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: string;
       displayName: string;
     }) => {
+      const policyError = validatePassword(params.password);
+      if (policyError) {
+        throw new Error(policyError);
+      }
       try {
         const cred = await createUserWithEmailAndPassword(
           getFirebaseAuth(),

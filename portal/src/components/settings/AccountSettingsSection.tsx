@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { SettingsAccordion } from "@/components/settings/SettingsAccordion";
 import { useToast } from "@/components/ToastProvider";
+import { validatePassword, PASSWORD_POLICY_HINT } from "@/lib/auth/passwordPolicy";
 import {
   authProviderLabels,
   changeUserEmail,
@@ -117,6 +118,11 @@ export function AccountSettingsSection() {
     if (!user) return;
     if (newPassword !== confirmPassword) {
       setError("Les mots de passe ne correspondent pas.");
+      return;
+    }
+    const policyError = validatePassword(newPassword);
+    if (policyError) {
+      setError(policyError);
       return;
     }
     setBusy("password");
@@ -303,11 +309,12 @@ export function AccountSettingsSection() {
                   autoComplete="new-password"
                   value={newPassword}
                   required
-                  minLength={6}
+                  minLength={8}
                   disabled={busy !== null}
                   onChange={(event) => setNewPassword(event.target.value)}
                 />
               </label>
+              <p className={shared.hint}>{PASSWORD_POLICY_HINT}</p>
               <label className={shared.field}>
                 <span className={shared.label}>Confirmer</span>
                 <input

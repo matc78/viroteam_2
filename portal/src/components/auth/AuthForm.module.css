@@ -97,6 +97,12 @@
   color: #dc2626;
 }
 
+.hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-gray-600);
+}
+
 .submit {
   display: inline-flex;
   align-items: center;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viro_team_v2/config/viro_theme.dart';
 import 'package:viro_team_v2/features/settings/widgets/account_session_section.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/auth_service.dart';
@@ -13,8 +14,9 @@ void main() {
           overrides: [
             authServiceProvider.overrideWithValue(_FakeAuthService()),
           ],
-          child: const MaterialApp(
-            home: Scaffold(body: AccountSessionSection()),
+          child: MaterialApp(
+            theme: ViroTheme.light,
+            home: const Scaffold(body: AccountSessionSection()),
           ),
         ),
       );
@@ -34,8 +36,9 @@ void main() {
           overrides: [
             authServiceProvider.overrideWithValue(_FakeAuthService()),
           ],
-          child: const MaterialApp(
-            home: Scaffold(body: AccountSessionSection()),
+          child: MaterialApp(
+            theme: ViroTheme.light,
+            home: const Scaffold(body: AccountSessionSection()),
           ),
         ),
       );

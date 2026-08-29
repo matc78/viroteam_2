@@ -28,23 +28,26 @@ class SettingsListTile extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: icon != null
-              ? ViroIcon(icon!, color: ViroColors.primary800, size: 22)
-              : null,
-          title: Text(title),
-          subtitle: subtitle != null
-              ? Text(
-                  subtitle!,
-                  style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
-                )
-              : null,
-          trailing: trailing ??
-              (onTap != null
-                  ? ViroIcon(ViroIcons.chevronRight, color: ViroColors.gray600)
-                  : null),
-          onTap: onTap,
+        Material(
+          type: MaterialType.transparency,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: icon != null
+                ? ViroIcon(icon!, color: ViroColors.primary800, size: 22)
+                : null,
+            title: Text(title),
+            subtitle: subtitle != null
+                ? Text(
+                    subtitle!,
+                    style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                  )
+                : null,
+            trailing: trailing ??
+                (onTap != null
+                    ? ViroIcon(ViroIcons.chevronRight, color: ViroColors.gray600)
+                    : null),
+            onTap: onTap,
+          ),
         ),
         if (showDivider) const Divider(height: 1),
       ],

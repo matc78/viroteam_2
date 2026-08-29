@@ -1,6 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
+import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -21,6 +26,46 @@ class ClubEventsState {
 final clubProvider = FutureProvider.family<Club?, String>((ref, clubId) {
   return ref.read(clubServiceProvider).getClub(clubId);
 });
+
+/// Couleurs de marque résolues (uni ou bicolore).
+final clubBrandColorsProvider =
+    Provider.family<ClubBrandColors, String>((ref, clubId) {
+  final club = ref.watch(clubProvider(clubId)).value;
+  return resolveClubBrandColors(
+    brandColorHex: club?.brandColorHex,
+    clubId: clubId,
+  );
+});
+
+/// Couleur d'accent du club (brandColorHex ou fallback stable).
+final clubAccentColorProvider = Provider.family<Color, String>((ref, clubId) {
+  return ref.watch(clubBrandColorsProvider(clubId)).memberZoneColor;
+});
+
+/// Accent zone membre (accès rapides, planning perso…).
+final clubMemberAccentProvider = Provider.family<Color, String>((ref, clubId) {
+  return ref.watch(clubBrandColorsProvider(clubId)).memberZoneColor;
+});
+
+/// Accent zone gestion (coach / admin).
+final clubManagementAccentProvider =
+    Provider.family<Color, String>((ref, clubId) {
+  return ref.watch(clubBrandColorsProvider(clubId)).managementZoneColor;
+});
+
+/// Invalide les caches visuels club (couleur / logo) dans toute l'app.
+void invalidateClubVisualCaches(WidgetRef ref, String clubId) {
+  ref.invalidate(clubProvider(clubId));
+  ref.invalidate(clubBrandColorsProvider(clubId));
+  ref.invalidate(clubAccentColorProvider(clubId));
+  ref.invalidate(clubMemberAccentProvider(clubId));
+  ref.invalidate(clubManagementAccentProvider(clubId));
+  ref.invalidate(userClubsProvider);
+  ref.invalidate(userClubsWithEventsProvider);
+  ref.invalidate(homeActiveAnnouncementsProvider);
+  ref.invalidate(homeFeeRemindersProvider);
+  ref.invalidate(memberEventsProvider);
+}
 
 final clubMemberProvider =
     StreamProvider.family<ClubMember?, String>((ref, clubId) {

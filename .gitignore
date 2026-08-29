@@ -32,6 +32,7 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+devtools_options.yaml
 
 # Symbolication related
 app.*.symbols
@@ -44,6 +45,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/.gradle/
+/android/build/
 
 # Local signing / secrets (see SETUP_LOCAL.md)
 **/key.properties

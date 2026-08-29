@@ -32,6 +32,10 @@ abstract final class ProjectConfig {
         : 'http://localhost:3000';
   }
 
+  /// URL Play Store (alignée portail `site.playStoreUrl`).
+  static const String playStoreUrl =
+      'https://play.google.com/store/apps/details?id=com.viroteam.viro_team';
+
   // —— Docs ——
   static const String roadmapDoc = 'docs/ROADMAP.md';
 

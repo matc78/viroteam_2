@@ -1,7 +1,9 @@
 import 'dart:math';
 
+import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
+import 'package:viro_team_v2/utils/portal_links.dart';
 
 /// Génère un code d'invitation alphanumérique (6 caractères, uppercase).
 String generateInviteCode({int length = 6}) {
@@ -16,10 +18,13 @@ String buildInviteMessage({
   required Club club,
   required ClubInvitation invitation,
 }) {
+  final joinUrl = inviteJoinUrl(invitation.code).toString();
+  const storeLine = '\nApp Android : ${ProjectConfig.playStoreUrl}';
   return '''Rejoins ${club.name} sur ViroTeam !
 Ton code : ${invitation.code}
 Valable 7 jours.
-Ouvre l'app → « J'ai un code d'invitation » et saisis ce code.''';
+Lien : $joinUrl$storeLine
+Ou ouvre l'app → « J'ai un code d'invitation » et saisis ce code.''';
 }
 
 /// Message FR pour une invitation parent (pas un rôle club).

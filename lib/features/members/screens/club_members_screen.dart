@@ -5,7 +5,6 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
-import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
@@ -13,9 +12,12 @@ import 'package:viro_team_v2/features/members/widgets/add_member_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/change_role_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_list_tile.dart';
+import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
+import 'package:viro_team_v2/features/members/widgets/pending_member_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/parents_section.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/portal_admin_banner.dart';
@@ -98,30 +100,34 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   }
 
   Future<void> _addMember() async {
-    final accent = ref.read(clubMemberAccentProvider(widget.clubId));
-    final form = await showAddMemberSheet(context, accentColor: accent);
-    if (form == null || !mounted) return;
+    final club = ref.read(clubForMembersProvider(widget.clubId)).value;
+    if (club == null || !mounted) return;
+    await showAddMemberSheet(context, club: club);
+  }
 
-    final club = await ref.read(clubForMembersProvider(widget.clubId).future);
-    final auth = ref.read(authStateProvider).value;
-    if (club == null || auth == null) return;
-
+  Future<bool> _emailInvite(ClubMember member) async {
     try {
-      await ref.read(memberServiceProvider).addMemberWithInvitation(
-            clubId: widget.clubId,
-            firstName: form.firstName,
-            lastName: form.lastName,
-            role: form.role,
-            sentByUid: auth.uid,
-            club: club,
-          );
-
-      if (!mounted) return;
-
-      ViroSnackBar.show(context, '${form.firstName} ajouté(e)');
-    } catch (e) {
-      if (!mounted) return;
-      ViroSnackBar.show(context, 'Erreur : $e');
+      final result =
+          await ref.read(memberInviteServiceProvider).sendMemberInvites(
+                clubId: widget.clubId,
+                memberIds: [member.memberId],
+              );
+      if (result.sent > 0) return true;
+      final first = result.results.isNotEmpty ? result.results.first : null;
+      throw Exception(
+        first?.reason ?? 'Impossible d\'envoyer l\'invitation.',
+      );
+    } catch (error) {
+      if (mounted) {
+        ViroSnackBar.show(
+          context,
+          callableErrorMessage(
+            error,
+            fallback: 'Envoi de l\'invitation impossible.',
+          ),
+        );
+      }
+      return false;
     }
   }
 
@@ -389,6 +395,23 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                 club: club,
                                 viewerRole: viewerRole,
                                 accentColor: accent,
+                                onTap: member.hasLinkedAccount
+                                    ? () => showMemberDetailSheet(
+                                          context,
+                                          ref: ref,
+                                          club: club,
+                                          member: member,
+                                          viewerRole: viewerRole,
+                                          accentColor: accent,
+                                        )
+                                    : _canAdd
+                                        ? () => showPendingMemberSheet(
+                                              context,
+                                              club: club,
+                                              member: member,
+                                              canEdit: _canAdd,
+                                            )
+                                        : null,
                                 onChangeRole: _isAdmin
                                     ? () => _changeRole(member)
                                     : null,
@@ -402,6 +425,9 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                     : null,
                                 onRemove: _isAdmin
                                     ? () => _removeMember(member)
+                                    : null,
+                                onSendEmailInvite: _canAdd
+                                    ? () => _emailInvite(member)
                                     : null,
                               );
                             },

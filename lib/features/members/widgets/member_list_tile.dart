@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
+import 'package:viro_team_v2/features/members/widgets/invite_email_button.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -22,6 +23,8 @@ class MemberListTile extends StatelessWidget {
     this.onChangeRole,
     this.onRemove,
     this.onInviteParent,
+    this.onSendEmailInvite,
+    this.onTap,
     this.showClubAdminActions = true,
     this.accentColor,
   });
@@ -32,6 +35,8 @@ class MemberListTile extends StatelessWidget {
   final VoidCallback? onChangeRole;
   final VoidCallback? onRemove;
   final VoidCallback? onInviteParent;
+  final Future<bool> Function()? onSendEmailInvite;
+  final VoidCallback? onTap;
 
   /// `false` dans un roster d'équipe : pas de menu admin ni copie d'invitation.
   final bool showClubAdminActions;
@@ -42,6 +47,11 @@ class MemberListTile extends StatelessWidget {
       showClubAdminActions &&
       member.hasPendingInvite &&
       !member.hasLinkedAccount;
+
+  bool get _canEmailInvite =>
+      _canCopyInvite &&
+      (member.email?.trim().isNotEmpty ?? false) &&
+      onSendEmailInvite != null;
 
   Future<void> _copyInvite(BuildContext context) async {
     if (member.pendingInviteCode == null) return;
@@ -73,6 +83,7 @@ class MemberListTile extends StatelessWidget {
         horizontal: ViroSpacing.md,
         vertical: ViroSpacing.sm,
       ),
+      onTap: onTap,
       child: Row(
         children: [
           MemberAvatar(member: member, accentColor: accent),
@@ -112,7 +123,12 @@ class MemberListTile extends StatelessWidget {
               ],
             ),
           ),
-          if (_canCopyInvite)
+          if (_canEmailInvite)
+            InviteEmailButton(
+              variant: InviteEmailButtonVariant.ghost,
+              onSend: onSendEmailInvite!,
+            ),
+          if (_canCopyInvite && !_canEmailInvite)
             IconButton(
               icon: ViroIcon(ViroIcons.copy, color: accent),
               tooltip: 'Copier le code d\'invitation',

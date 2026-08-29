@@ -32,6 +32,7 @@ abstract final class ViroIcons {
   static IconData get check => PhosphorIconsBold.check;
   static IconData get search => PhosphorIconsRegular.magnifyingGlass;
   static IconData get copy => PhosphorIconsRegular.copy;
+  static IconData get envelope => PhosphorIconsRegular.envelopeSimple;
   static IconData get moreVertical => PhosphorIconsRegular.dotsThreeVertical;
   static IconData get eye => PhosphorIconsRegular.eye;
   static IconData get eyeSlash => PhosphorIconsRegular.eyeSlash;

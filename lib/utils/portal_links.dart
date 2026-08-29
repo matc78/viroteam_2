@@ -28,6 +28,14 @@ Uri portalPlanningUrl({required String clubId}) =>
 Uri portalMembersUrl({required String clubId}) =>
     portalPageUrl('/members', clubId: clubId);
 
+/// Lien web pour rejoindre avec un code d’invitation (`/join?code=…`).
+Uri inviteJoinUrl(String code) {
+  final normalized = code.trim().toUpperCase();
+  return portalPageUrl('/join').replace(
+    queryParameters: {'code': normalized},
+  );
+}
+
 /// Ouvre une URL du portail dans le navigateur externe.
 Future<bool> openPortalUrl(Uri url) =>
     launchUrl(url, mode: LaunchMode.externalApplication);

@@ -9,6 +9,7 @@ import 'package:viro_team_v2/services/fee_service.dart';
 import 'package:viro_team_v2/services/guardian_service.dart';
 import 'package:viro_team_v2/services/invitation_service.dart';
 import 'package:viro_team_v2/services/join_request_service.dart';
+import 'package:viro_team_v2/services/member_invite_service.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
@@ -43,6 +44,10 @@ final retourUserServiceProvider = Provider<RetourUserService>(
 );
 
 final memberServiceProvider = Provider<MemberService>((ref) => MemberService());
+
+final memberInviteServiceProvider = Provider<MemberInviteService>(
+  (ref) => MemberInviteService(),
+);
 
 final teamServiceProvider = Provider<TeamService>((ref) => TeamService());
 

@@ -129,6 +129,7 @@ service cloud.firestore {
         || isClubGuardian(clubId)
         || (isSignedIn() && request.auth.uid in resource.data.adminIds);
       allow update: if isClubAdmin(clubId);
+      // brandColorHex et autres champs club : réservés aux admins (isClubAdmin).
       allow delete: if false;
 
       match /members/{memberId} {

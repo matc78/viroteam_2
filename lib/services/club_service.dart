@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:typed_data';
+
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
-import 'package:viro_team_v2/features/club_setup/club_setup_defaults.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
@@ -112,7 +113,7 @@ class ClubService {
         if (draft.description.trim().isNotEmpty)
           FirestoreFields.description: draft.description.trim(),
         if (logoUrl != null) FirestoreFields.logoUrl: logoUrl,
-        FirestoreFields.brandColorHex: ClubSetupDefaults.brandColorHex,
+        FirestoreFields.brandColorHex: draft.brandColorHex,
         FirestoreFields.practiceLocations:
             draft.practiceLocations.map((l) => l.toMap()).toList(),
         FirestoreFields.adminIds: [founderUid],
@@ -169,6 +170,35 @@ class ClubService {
     }
 
     return clubRef.id;
+  }
+
+  /// Met à jour la couleur de marque du club (`brandColorHex`).
+  Future<void> updateBrandColor({
+    required String clubId,
+    required String brandColorHex,
+  }) async {
+    await _clubs.doc(clubId).update({
+      FirestoreFields.brandColorHex: brandColorHex,
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Met à jour le logo du club (upload Storage + URL Firestore).
+  Future<String> updateClubLogo({
+    required String clubId,
+    required Uint8List logoBytes,
+  }) async {
+    final storageRef = _storage.ref().child('clubs/$clubId/logo.jpg');
+    await storageRef.putData(
+      logoBytes,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+    final logoUrl = await storageRef.getDownloadURL();
+    await _clubs.doc(clubId).update({
+      FirestoreFields.logoUrl: logoUrl,
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+    return logoUrl;
   }
 
   /// Met à jour la config paiement en ligne HelloAsso du club.

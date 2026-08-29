@@ -36,6 +36,7 @@ import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 
@@ -116,8 +117,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final announcementsAsync =
         ref.watch(visibleClubAnnouncementsProvider(clubId));
     final attendanceAsync = ref.watch(clubAttendanceRateProvider(clubId));
+    final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: memberAccent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
           icon: ViroIcon(ViroIcons.chevronLeft),
@@ -134,10 +138,12 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             return const Center(child: Text('Club introuvable'));
           }
 
-          final accent = clubAccentColor(
+          final brandColors = resolveClubBrandColors(
             brandColorHex: club.brandColorHex,
             clubId: club.id,
           );
+          final memberAccent = brandColors.memberZoneColor;
+          final managementAccent = brandColors.managementZoneColor;
 
           return ViroRefreshIndicator(
             onRefresh: () async {
@@ -172,7 +178,13 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                   club: club,
                   member: isChildView ? null : memberAsync.value,
                   familyChild: familyChildAsync.value,
-                  accent: accent,
+                  accent: memberAccent,
+                  onAvatarLongPress: memberAsync.value?.role ==
+                          MemberRoles.admin
+                      ? () => context.push(
+                            AppRoutes.clubAppearancePath(clubId),
+                          )
+                      : null,
                 ),
               ),
               SliverToBoxAdapter(
@@ -181,7 +193,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               if (isChildView && selected != null)
                 ..._buildFamilySlivers(
                   club: club,
-                  accent: accent,
+                  memberAccent: memberAccent,
+                  managementAccent: managementAccent,
+                  accentSecondary: brandColors.secondary,
                   childMemberId: selected.memberId,
                   childLabel: selected.label,
                   eventsAsync: eventsAsync,
@@ -191,17 +205,20 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 ..._buildEventsSlivers(
                   eventsAsync: eventsAsync,
                   club: club,
-                  accent: accent,
+                  accent: memberAccent,
+                  accentSecondary: brandColors.secondary,
                 ),
                 ..._buildStatsSlivers(
                   attendanceAsync: attendanceAsync,
                   eventsAsync: eventsAsync,
                   club: club,
                   member: memberAsync.value,
+                  accent: memberAccent,
                 ),
                 ..._buildAnnouncementsSlivers(
                   announcementsAsync,
                   clubId: clubId,
+                  accent: memberAccent,
                 ),
                 SliverToBoxAdapter(
                   child: memberAsync.when(
@@ -216,8 +233,12 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const _SectionTitle(title: 'Accès rapides'),
+                          _SectionTitle(
+                            title: 'Accès rapides',
+                            accentColor: memberAccent,
+                          ),
                           MemberQuickActionsGrid(
+                            accentColor: memberAccent,
                             onPlanning: () => context.push(
                               AppRoutes.clubPlanningPath(clubId),
                             ),
@@ -243,13 +264,21 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                               horizontal: ViroSpacing.screenHorizontal,
                             ),
                             child: m.role == MemberRoles.player
-                                ? MyParentSection(club: club, member: m)
+                                ? MyParentSection(
+                                    club: club,
+                                    member: m,
+                                    accentColor: memberAccent,
+                                  )
                                 : const SizedBox.shrink(),
                           ),
                           if (MemberRoleHierarchy.isCoachOrAbove(m.role)) ...[
-                            const _SectionTitle(title: 'Gestion du club'),
+                            _SectionTitle(
+                              title: 'Gestion du club',
+                              accentColor: managementAccent,
+                            ),
                             ClubManagementActionsGrid(
                               role: m.role,
+                              accentColor: managementAccent,
                               onManageTeams: () => context.push(
                                 AppRoutes.clubManageTeamsPath(clubId),
                               ),
@@ -259,6 +288,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                               onFees: m.role == MemberRoles.admin
                                   ? () => context.push(
                                         AppRoutes.clubFeesPath(clubId),
+                                      )
+                                  : null,
+                              onAppearance: m.role == MemberRoles.admin
+                                  ? () => context.push(
+                                        AppRoutes.clubAppearancePath(clubId),
                                       )
                                   : null,
                               onPortal: () => openPortalUrl(
@@ -280,12 +314,15 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           );
         },
       ),
+      ),
     );
   }
 
   List<Widget> _buildFamilySlivers({
     required Club club,
-    required Color accent,
+    required Color memberAccent,
+    required Color managementAccent,
+    Color? accentSecondary,
     required String childMemberId,
     required String childLabel,
     required AsyncValue<ClubEventsState> eventsAsync,
@@ -313,8 +350,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           final next = state.upcoming.firstOrNull;
           if (next == null) {
             return [
-              const SliverToBoxAdapter(
-                child: _SectionTitle(title: 'Prochain événement'),
+              SliverToBoxAdapter(
+                child: _SectionTitle(
+                  title: 'Prochain événement',
+                  accentColor: memberAccent,
+                ),
               ),
               const SliverToBoxAdapter(
                 child: Padding(
@@ -327,8 +367,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             ];
           }
           return [
-            const SliverToBoxAdapter(
-              child: _SectionTitle(title: 'Prochain événement'),
+            SliverToBoxAdapter(
+              child: _SectionTitle(
+                title: 'Prochain événement',
+                accentColor: memberAccent,
+              ),
             ),
             SliverPadding(
               padding: const EdgeInsets.symmetric(
@@ -338,7 +381,8 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 child: EventRsvpCard(
                   event: next,
                   clubName: club.name,
-                  clubColor: accent,
+                  clubColor: memberAccent,
+                  clubColorSecondary: accentSecondary,
                   onPresent: () => _setRsvp(next, RsvpStatus.yes),
                   onAbsent: () => _setRsvp(next, RsvpStatus.no),
                 ),
@@ -381,13 +425,21 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           ];
         },
       ),
-      ..._buildAnnouncementsSlivers(announcementsAsync, clubId: clubId),
+      ..._buildAnnouncementsSlivers(
+        announcementsAsync,
+        clubId: clubId,
+        accent: memberAccent,
+      ),
       SliverToBoxAdapter(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _SectionTitle(title: 'Accès rapides'),
+            _SectionTitle(
+              title: 'Accès rapides',
+              accentColor: memberAccent,
+            ),
             FamilyQuickActionsGrid(
+              accentColor: memberAccent,
               onPlanning: () => context.push(
                 AppRoutes.clubPlanningPath(clubId),
               ),
@@ -407,6 +459,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     required AsyncValue<ClubEventsState> eventsAsync,
     required Club club,
     required Color accent,
+    Color? accentSecondary,
   }) {
     return eventsAsync.when(
       loading: () => [
@@ -426,8 +479,8 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             .toList();
         return [
           if (pending.isNotEmpty) ...[
-            const SliverToBoxAdapter(
-              child: _SectionTitle(title: 'À répondre'),
+            SliverToBoxAdapter(
+              child: _SectionTitle(title: 'À répondre', accentColor: accent),
             ),
             SliverPadding(
               padding: const EdgeInsets.symmetric(
@@ -441,6 +494,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                       event: event,
                       clubName: club.name,
                       clubColor: accent,
+                      clubColorSecondary: accentSecondary,
                       onPresent: () => _setRsvp(event, RsvpStatus.yes),
                       onAbsent: () => _setRsvp(event, RsvpStatus.no),
                     );
@@ -460,6 +514,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     required AsyncValue<ClubEventsState> eventsAsync,
     required Club club,
     required ClubMember? member,
+    required Color accent,
   }) {
     final clubId = club.id;
     final canOpenMembers = member != null &&
@@ -470,6 +525,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         attendanceRate: rate,
         nextEvent: next,
         club: club,
+        accentColor: accent,
         onMembersTap: canOpenMembers
             ? () => context.push(AppRoutes.clubMembersPath(clubId))
             : null,
@@ -492,6 +548,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   List<Widget> _buildAnnouncementsSlivers(
     AsyncValue<List<ClubAnnouncement>> announcementsAsync, {
     required String clubId,
+    required Color accent,
   }) {
     return announcementsAsync.when(
       loading: () => const [],
@@ -507,7 +564,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               ),
               child: Row(
                 children: [
-                  const Expanded(child: _SectionTitle(title: 'Annonces')),
+                  Expanded(
+                    child: _SectionTitle(title: 'Annonces', accentColor: accent),
+                  ),
                   TextButton(
                     onPressed: () => context.push(
                       AppRoutes.clubAnnouncementsPath(clubId),
@@ -528,6 +587,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                   padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
                   child: AnnouncementPreview(
                     announcement: previews[index],
+                    accentColor: accent,
                   ),
                 ),
                 childCount: previews.length,
@@ -546,12 +606,14 @@ class _ClubHeader extends StatelessWidget {
     required this.member,
     required this.accent,
     this.familyChild,
+    this.onAvatarLongPress,
   });
 
   final Club club;
   final ClubMember? member;
   final ClubMember? familyChild;
   final Color accent;
+  final VoidCallback? onAvatarLongPress;
 
   String get _familyChildTitle {
     final child = familyChild;
@@ -586,18 +648,21 @@ class _ClubHeader extends StatelessWidget {
           if (isFamilyView)
             MemberAvatar(member: familyChild!, size: 72)
           else
-            ClubContextAvatar(
-              club: club,
-              accentColor: accent,
-              size: 72,
-              borderRadius: 18,
+            GestureDetector(
+              onLongPress: onAvatarLongPress,
+              child: ClubContextAvatar(
+                club: club,
+                accentColor: accent,
+                size: 72,
+                borderRadius: 18,
+              ),
             ),
           const SizedBox(height: ViroSpacing.md),
           Text(
             isFamilyView ? _familyChildTitle : club.name,
             textAlign: TextAlign.center,
             style: theme.titleMedium?.copyWith(
-              color: ViroColors.primary800,
+              color: accent,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -620,25 +685,48 @@ class _ClubHeader extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title});
+  const _SectionTitle({
+    required this.title,
+    this.accentColor,
+  });
 
   final String title;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
+    final titleStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: accentColor ?? ViroColors.primary800,
+          fontWeight: FontWeight.w700,
+        );
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        ViroSpacing.screenHorizontal,
+      padding: EdgeInsets.fromLTRB(
+        accentColor != null ? 0 : ViroSpacing.screenHorizontal,
         ViroSpacing.lg,
         ViroSpacing.screenHorizontal,
         ViroSpacing.sm,
       ),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: ViroColors.primary800,
-              fontWeight: FontWeight.w700,
+      child: Row(
+        children: [
+          if (accentColor != null) ...[
+            Container(
+              width: 3,
+              height: 20,
+              margin: const EdgeInsets.only(
+                left: ViroSpacing.screenHorizontal,
+                right: ViroSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
+          ],
+          Expanded(
+            child: Text(title, style: titleStyle),
+          ),
+        ],
       ),
     );
   }
@@ -681,7 +769,7 @@ class _FamilyFeeBanner extends StatelessWidget {
                       'Cotisation de $label',
                       style: theme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: ViroColors.primary800,
+                        color: ViroColors.warning,
                       ),
                     ),
                     Text(

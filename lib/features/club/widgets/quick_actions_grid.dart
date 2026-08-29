@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
 class QuickAction {
@@ -19,9 +20,13 @@ class QuickAction {
 }
 
 class _QuickActionsGridBase extends StatelessWidget {
-  const _QuickActionsGridBase({required this.actions});
+  const _QuickActionsGridBase({
+    required this.actions,
+    this.accentColor,
+  });
 
   final List<QuickAction> actions;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +47,10 @@ class _QuickActionsGridBase extends StatelessWidget {
         ),
         itemCount: actions.length,
         itemBuilder: (context, index) {
-          return _QuickActionCell(action: actions[index]);
+          return _QuickActionCell(
+            action: actions[index],
+            accentColor: accentColor,
+          );
         },
       ),
     );
@@ -51,9 +59,13 @@ class _QuickActionsGridBase extends StatelessWidget {
 
 /// Cellule grille — remplit la hauteur de la cellule et centre le contenu.
 class _QuickActionCell extends StatelessWidget {
-  const _QuickActionCell({required this.action});
+  const _QuickActionCell({
+    required this.action,
+    this.accentColor,
+  });
 
   final QuickAction action;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +73,13 @@ class _QuickActionCell extends StatelessWidget {
     final labelStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
           fontWeight: FontWeight.w600,
         );
+    final accentStyle = accentColor != null
+        ? ClubAccentStyle(accentColor!)
+        : null;
+    final iconColor = accentColor ?? ViroColors.primary600;
+    final borderColor = accentStyle?.border ??
+        ViroColors.primary100.withValues(alpha: 0.45);
+    final labelColor = iconColor;
 
     return ViroPressable(
       onTap: action.onTap,
@@ -69,9 +88,7 @@ class _QuickActionCell extends StatelessWidget {
         decoration: BoxDecoration(
           color: ViroColors.surfaceCard,
           borderRadius: radius,
-          border: Border.all(
-            color: ViroColors.primary100.withValues(alpha: 0.45),
-          ),
+          border: Border.all(color: borderColor),
           boxShadow: ViroMotion.cardShadow(),
         ),
         child: Padding(
@@ -86,7 +103,7 @@ class _QuickActionCell extends StatelessWidget {
               ViroIcon(
                 action.icon,
                 size: 24,
-                color: ViroColors.primary600,
+                color: iconColor,
               ),
               const SizedBox(height: ViroSpacing.xs),
               Text(
@@ -94,7 +111,7 @@ class _QuickActionCell extends StatelessWidget {
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: labelStyle,
+                style: labelStyle?.copyWith(color: labelColor),
               ),
             ],
           ),
@@ -108,6 +125,7 @@ class _QuickActionCell extends StatelessWidget {
 class MemberQuickActionsGrid extends StatelessWidget {
   const MemberQuickActionsGrid({
     super.key,
+    this.accentColor,
     this.onPlanning,
     this.onMyTeams,
     this.onAnnouncements,
@@ -115,6 +133,7 @@ class MemberQuickActionsGrid extends StatelessWidget {
     this.onPortal,
   });
 
+  final Color? accentColor;
   final VoidCallback? onPlanning;
   final VoidCallback? onMyTeams;
   final VoidCallback? onAnnouncements;
@@ -124,6 +143,7 @@ class MemberQuickActionsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _QuickActionsGridBase(
+      accentColor: accentColor,
       actions: [
         if (onPlanning != null)
           QuickAction(
@@ -163,11 +183,13 @@ class MemberQuickActionsGrid extends StatelessWidget {
 class FamilyQuickActionsGrid extends StatelessWidget {
   const FamilyQuickActionsGrid({
     super.key,
+    this.accentColor,
     required this.onPlanning,
     required this.onFee,
     required this.onInfos,
   });
 
+  final Color? accentColor;
   final VoidCallback onPlanning;
   final VoidCallback onFee;
   final VoidCallback onInfos;
@@ -175,6 +197,7 @@ class FamilyQuickActionsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _QuickActionsGridBase(
+      accentColor: accentColor,
       actions: [
         QuickAction(
           label: 'Planning',
@@ -201,19 +224,23 @@ class ClubManagementActionsGrid extends StatelessWidget {
   const ClubManagementActionsGrid({
     super.key,
     required this.role,
+    this.accentColor,
     this.onPlanning,
     this.onManageTeams,
     this.onManageMembers,
     this.onFees,
     this.onPortal,
+    this.onAppearance,
   });
 
   final String role;
+  final Color? accentColor;
   final VoidCallback? onPlanning;
   final VoidCallback? onManageTeams;
   final VoidCallback? onManageMembers;
   final VoidCallback? onFees;
   final VoidCallback? onPortal;
+  final VoidCallback? onAppearance;
 
   List<QuickAction> get _actions {
     return [
@@ -240,6 +267,12 @@ class ClubManagementActionsGrid extends StatelessWidget {
           icon: ViroIcons.payments,
           onTap: onFees,
         ),
+      if (role == MemberRoles.admin && onAppearance != null)
+        QuickAction(
+          label: 'Apparence',
+          icon: ViroIcons.settings,
+          onTap: onAppearance,
+        ),
       if (onPortal != null)
         QuickAction(
           label: 'Espace club',
@@ -251,6 +284,6 @@ class ClubManagementActionsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _QuickActionsGridBase(actions: _actions);
+    return _QuickActionsGridBase(actions: _actions, accentColor: accentColor);
   }
 }

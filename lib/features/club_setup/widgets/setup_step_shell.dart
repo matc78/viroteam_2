@@ -11,6 +11,7 @@ class SetupStepShell extends StatelessWidget {
     required this.child,
     this.footer,
     this.scrollable = false,
+    this.centerBody = false,
   });
 
   final String? title;
@@ -21,40 +22,60 @@ class SetupStepShell extends StatelessWidget {
   /// `true` uniquement si le contenu peut dépasser (ex. liste longue).
   final bool scrollable;
 
+  /// Centre le [child] verticalement dans l'espace restant (scroll si trop haut).
+  final bool centerBody;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+
+    final header = <Widget>[
+      if (title != null) ...[
+        Text(
+          title!,
+          textAlign: TextAlign.center,
+          style: theme.titleLarge?.copyWith(
+            color: ViroColors.primary800,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        SizedBox(height: subtitle != null ? ViroSpacing.xs : ViroSpacing.sm),
+      ],
+      if (subtitle != null) ...[
+        Text(
+          subtitle!,
+          textAlign: TextAlign.center,
+          style: theme.bodySmall?.copyWith(
+            color: ViroColors.gray600,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: ViroSpacing.sm),
+      ],
+    ];
+
+    final stepBody = centerBody
+        ? _CenteredStepBody(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ...header,
+                child,
+              ],
+            ),
+          )
+        : child;
 
     final content = Column(
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (title != null) ...[
-          Text(
-            title!,
-            textAlign: TextAlign.center,
-            style: theme.titleLarge?.copyWith(
-              color: ViroColors.primary800,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          SizedBox(height: subtitle != null ? ViroSpacing.xs : ViroSpacing.sm),
-        ],
-        if (subtitle != null) ...[
-          Text(
-            subtitle!,
-            textAlign: TextAlign.center,
-            style: theme.bodySmall?.copyWith(
-              color: ViroColors.gray600,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: ViroSpacing.sm),
-        ],
+        if (!centerBody) ...header,
         if (scrollable)
-          Flexible(child: child)
+          Flexible(child: stepBody)
         else
-          Expanded(child: child),
+          Expanded(child: stepBody),
         if (footer != null) ...[
           const SizedBox(height: ViroSpacing.sm),
           footer!,
@@ -79,6 +100,30 @@ class SetupStepShell extends StatelessWidget {
               : content,
         ),
       ),
+    );
+  }
+}
+
+/// Centre [child] dans l'espace disponible ; scroll si le contenu dépasse.
+class _CenteredStepBody extends StatelessWidget {
+  const _CenteredStepBody({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Align(
+              alignment: Alignment.center,
+              child: child,
+            ),
+          ),
+        );
+      },
     );
   }
 }

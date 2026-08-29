@@ -18,12 +18,22 @@ abstract final class ClubMemberCountRanges {
     over300,
   ];
 
+  /// Libellé compact pour les puces de l'étape objectifs.
   static String label(String key) => switch (key) {
         under30 => '< 30',
         range30to100 => '30 – 100',
         range100to300 => '100 – 300',
         over300 => '300+',
         _ => key,
+      };
+
+  /// Libellé explicite pour le récapitulatif de création.
+  static String recapLabel(String key) => switch (key) {
+        under30 => 'Moins de 30 membres',
+        range30to100 => '30 à 100 membres',
+        range100to300 => '100 à 300 membres',
+        over300 => 'Plus de 300 membres',
+        _ => label(key),
       };
 }
 

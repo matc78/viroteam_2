@@ -27,9 +27,11 @@ class ObjectivesStep extends StatelessWidget {
     final theme = Theme.of(context).textTheme;
 
     return SetupStepShell(
+      centerBody: true,
       subtitle:
           'Sélectionnez ce qui compte le plus — vous pourrez tout utiliser ensuite.',
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Wrap(
@@ -70,7 +72,7 @@ class ObjectivesStep extends StatelessWidget {
                 selected: isSelected,
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
+                padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.xs),
                 onSelected: (value) {
                   onMemberCountChanged(value ? range : null);
                 },
@@ -86,7 +88,6 @@ class ObjectivesStep extends StatelessWidget {
               );
             }).toList(),
           ),
-          const Spacer(),
         ],
       ),
     );

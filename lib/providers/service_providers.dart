@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/services/analytics_service.dart';
 import 'package:viro_team_v2/services/account_service.dart';
 import 'package:viro_team_v2/services/announcement_service.dart';
 import 'package:viro_team_v2/services/auth_service.dart';
@@ -14,6 +15,10 @@ import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
 import 'package:viro_team_v2/services/user_service.dart';
 
+final analyticsServiceProvider = Provider<AnalyticsService>(
+  (ref) => AnalyticsService(),
+);
+
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 final accountServiceProvider =
@@ -25,27 +30,32 @@ final clubServiceProvider = Provider<ClubService>((ref) => ClubService());
 
 final eventServiceProvider = Provider<EventService>((ref) => EventService());
 
-final invitationServiceProvider =
-    Provider<InvitationService>((ref) => InvitationService());
+final invitationServiceProvider = Provider<InvitationService>(
+  (ref) => InvitationService(),
+);
 
-final joinRequestServiceProvider =
-    Provider<JoinRequestService>((ref) => JoinRequestService());
+final joinRequestServiceProvider = Provider<JoinRequestService>(
+  (ref) => JoinRequestService(),
+);
 
-final retourUserServiceProvider =
-    Provider<RetourUserService>((ref) => RetourUserService());
+final retourUserServiceProvider = Provider<RetourUserService>(
+  (ref) => RetourUserService(),
+);
 
-final memberServiceProvider =
-    Provider<MemberService>((ref) => MemberService());
+final memberServiceProvider = Provider<MemberService>((ref) => MemberService());
 
 final teamServiceProvider = Provider<TeamService>((ref) => TeamService());
 
-final announcementServiceProvider =
-    Provider<AnnouncementService>((ref) => AnnouncementService());
+final announcementServiceProvider = Provider<AnnouncementService>(
+  (ref) => AnnouncementService(),
+);
 
 final feeServiceProvider = Provider<FeeService>((ref) => FeeService());
 
-final paymentServiceProvider =
-    Provider<PaymentService>((ref) => HelloAssoPaymentService());
+final paymentServiceProvider = Provider<PaymentService>(
+  (ref) => HelloAssoPaymentService(),
+);
 
-final guardianServiceProvider =
-    Provider<GuardianService>((ref) => GuardianService());
+final guardianServiceProvider = Provider<GuardianService>(
+  (ref) => GuardianService(),
+);

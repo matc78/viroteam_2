@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -7,8 +8,9 @@ import 'package:viro_team_v2/utils/stream_combine.dart';
 /// Équipes de tous les clubs de l'utilisateur (aperçu home multi-clubs).
 final homeClubTeamsProvider =
     StreamProvider<Map<String, Map<String, ClubTeam>>>((ref) {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   final clubs = ref.watch(userClubsProvider).value;
-  if (clubs == null || clubs.isEmpty) return Stream.value({});
+  if (auth == null || clubs == null || clubs.isEmpty) return Stream.value({});
 
   final streams = clubs.map((entry) {
     final clubId = entry.club.id;

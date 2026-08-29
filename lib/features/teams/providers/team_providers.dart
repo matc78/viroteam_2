@@ -6,7 +6,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 
 final myTeamsProvider =
     StreamProvider.family<List<ClubTeam>, String>((ref, clubId) {
-  final auth = ref.watch(authStateProvider).value;
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return Stream.value([]);
 
   final member = ref.watch(clubMemberProvider(clubId)).value;
@@ -21,10 +21,14 @@ final myTeamsProvider =
 
 final clubTeamsProvider =
     StreamProvider.family<List<ClubTeam>, String>((ref, clubId) {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
+  if (auth == null) return Stream.value([]);
   return ref.read(teamServiceProvider).watchClubTeams(clubId: clubId);
 });
 
 final pendingTeamMembersProvider =
     StreamProvider.family<List<PendingTeamMember>, String>((ref, clubId) {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
+  if (auth == null) return Stream.value([]);
   return ref.read(teamServiceProvider).watchPendingMembers(clubId);
 });

@@ -19,6 +19,7 @@ class RetourUserService {
     required Set<String> objectiveKeys,
     String? clubName,
     String? clubSport,
+    String? memberCountRange,
   }) async {
     if (objectiveKeys.isEmpty) return;
 
@@ -31,7 +32,9 @@ class RetourUserService {
       if (clubName != null) FirestoreFields.clubName: clubName,
       if (clubSport != null) FirestoreFields.clubSport: clubSport,
       FirestoreFields.objectives: objectiveKeys.toList(),
-      'objectivesLabels': labels,
+      FirestoreFields.objectivesLabels: labels,
+      if (memberCountRange != null && memberCountRange.isNotEmpty)
+        FirestoreFields.memberCountRange: memberCountRange,
       FirestoreFields.createdAt: FieldValue.serverTimestamp(),
     });
   }

@@ -7,20 +7,35 @@ final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(authServiceProvider).authStateChanges();
 });
 
+/// Session Firestore prête : utilisateur connecté avec token ID chargé.
+///
+/// Évite les `PERMISSION_DENIED` au cold start quand [authStateChanges]
+/// émet l'utilisateur avant que Firestore n'ait reçu le jeton.
+final firestoreAuthReadyProvider = StreamProvider<User?>((ref) {
+  return ref
+      .watch(authServiceProvider)
+      .authStateChanges()
+      .asyncMap((user) async {
+    if (user == null) return null;
+    await user.getIdToken();
+    return user;
+  });
+});
+
 final viroUserProvider = StreamProvider<ViroUser?>((ref) {
-  final auth = ref.watch(authStateProvider);
+  final auth = ref.watch(firestoreAuthReadyProvider);
   return auth.when(
     data: (user) {
       if (user == null) return Stream.value(null);
       return ref.watch(userServiceProvider).watchUser(user.uid);
     },
     loading: () => Stream.value(null),
-    error: (_, _) => Stream.value(null),
+    error: (error, stackTrace) => Stream.value(null),
   );
 });
 
 final viroUserFutureProvider = FutureProvider<ViroUser?>((ref) async {
-  final auth = ref.watch(authStateProvider).value;
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return null;
   return ref.watch(userServiceProvider).getUser(auth.uid);
 });

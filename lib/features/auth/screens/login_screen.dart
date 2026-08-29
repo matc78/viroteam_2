@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
 
-import 'package:viro_team_v2/config/routes.dart';
-
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 
@@ -88,8 +86,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
           );
 
-      if (mounted) context.go(AppRoutes.home);
-
     } catch (e) {
 
       setState(() => _error = 'Connexion impossible. Vérifiez vos identifiants.');
@@ -117,8 +113,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
 
       await ref.read(authServiceProvider).signInWithGoogle();
-
-      if (mounted) context.go(AppRoutes.home);
 
     } on EmailUsedWithPasswordException catch (error) {
 

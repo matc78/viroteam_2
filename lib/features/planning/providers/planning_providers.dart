@@ -9,6 +9,8 @@ import 'package:viro_team_v2/services/event_service.dart';
 final clubPlanningEventsProvider =
     StreamProvider.family<List<ClubEvent>, ({String clubId, DateTime day})>(
   (ref, params) {
+    final auth = ref.watch(firestoreAuthReadyProvider).value;
+    if (auth == null) return Stream.value([]);
     return ref.read(eventServiceProvider).watchClubEventsOnDay(
           clubId: params.clubId,
           day: params.day,
@@ -20,7 +22,7 @@ final clubPlanningEventsProvider =
 final memberClubPlanningEventsProvider = StreamProvider.family<
     List<ClubEvent>,
     ({String clubId, DateTime day})>((ref, params) {
-  final auth = ref.watch(authStateProvider).value;
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return Stream.value([]);
 
   final member = ref.watch(clubMemberProvider(params.clubId)).value;

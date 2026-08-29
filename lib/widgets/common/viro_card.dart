@@ -14,6 +14,7 @@ class ViroCard extends StatelessWidget {
     this.padding,
     this.margin,
     this.accentColor,
+    this.borderColor,
     this.elevated = true,
   });
 
@@ -23,6 +24,9 @@ class ViroCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final Color? accentColor;
+
+  /// Couleur de bordure ; par défaut [ViroColors.primary100] à 45 % d'opacité.
+  final Color? borderColor;
   final bool elevated;
 
   @override
@@ -34,7 +38,7 @@ class ViroCard extends StatelessWidget {
         color: ViroColors.surfaceCard,
         borderRadius: radius,
         border: Border.all(
-          color: ViroColors.primary100.withValues(alpha: 0.45),
+          color: borderColor ?? ViroColors.primary100.withValues(alpha: 0.45),
           width: 1,
         ),
         boxShadow: ViroMotion.cardShadow(elevated: elevated),

@@ -42,8 +42,9 @@ class UserClubWithEvent {
 }
 
 final userClubsProvider = FutureProvider<List<UserClubEntry>>((ref) async {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
   final user = ref.watch(viroUserProvider).value;
-  if (user == null || !user.hasClubs) return [];
+  if (auth == null || user == null || !user.hasClubs) return [];
 
   final clubs = await ref.read(clubServiceProvider).getClubsForUser(user);
   final membershipById = {

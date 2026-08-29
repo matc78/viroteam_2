@@ -9,6 +9,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- PostHog wizard création club : événements `club_setup_started` / `club_setup_step_viewed` / `club_setup_completed` (objectifs, sport, taille — sans PII)
 ### Modifié
 
 ### Corrigé

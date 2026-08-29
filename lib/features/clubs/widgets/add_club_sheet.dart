@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club_setup/providers/club_setup_provider.dart';
 
 /// Propose de créer un club ou d'en rejoindre un via code d'invitation.
@@ -43,10 +44,17 @@ Future<void> showAddClubSheet(BuildContext context, WidgetRef ref) {
                 icon: ViroIcons.groups,
                 title: 'Créer un club',
                 subtitle: 'Devenez administrateur d\'un nouveau club',
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
-                  ref.read(clubSetupProvider.notifier).reset();
-                  context.push(AppRoutes.clubSetup);
+                  final authUser = ref.read(authStateProvider).value;
+                  if (authUser != null) {
+                    await ref
+                        .read(clubSetupProvider.notifier)
+                        .resetAndClear(authUser.uid);
+                  } else {
+                    ref.read(clubSetupProvider.notifier).reset();
+                  }
+                  if (context.mounted) context.push(AppRoutes.clubSetup);
                 },
               ),
               const SizedBox(height: ViroSpacing.sm),

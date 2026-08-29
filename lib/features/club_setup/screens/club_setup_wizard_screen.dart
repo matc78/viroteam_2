@@ -3,20 +3,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:viro_team_v2/config/routes.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/features/club_setup/providers/club_setup_provider.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/identity_step.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/location_step.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/objectives_step.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/prerequisites_step.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/recap_step.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/setup_progress_header.dart';
+import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
-import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_portal_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
+/// Écran wizard de création de club (5 étapes).
 class ClubSetupWizardScreen extends ConsumerStatefulWidget {
   const ClubSetupWizardScreen({super.key});
 
@@ -25,11 +33,15 @@ class ClubSetupWizardScreen extends ConsumerStatefulWidget {
       _ClubSetupWizardScreenState();
 }
 
-class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen> {
-  final _pageController = PageController();
+class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
+    with WidgetsBindingObserver {
+  PageController? _pageController;
   int _step = 0;
   bool _submitting = false;
-  static const _totalSteps = 6;
+  bool _isInitialized = false;
+  bool _hadPersistedDraft = false;
+  bool _useClubAddressAsFirstLocation = false;
+  PracticeLocation? _locationFromClubAddress;
 
   final _nameController = TextEditingController();
   final _cityController = TextEditingController();
@@ -40,8 +52,16 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen> {
   final _descriptionController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initWizard();
+  }
+
+  @override
   void dispose() {
-    _pageController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _pageController?.dispose();
     _nameController.dispose();
     _cityController.dispose();
     _postalController.dispose();
@@ -52,18 +72,78 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      ref.read(clubSetupProvider.notifier).persistImmediately();
+    }
+  }
+
+  Future<void> _initWizard() async {
+    final authUser = ref.read(authStateProvider).value;
+    if (authUser != null) {
+      final notifier = ref.read(clubSetupProvider.notifier);
+      notifier.setUserId(authUser.uid);
+      _hadPersistedDraft = await notifier.restoreForUser(authUser.uid);
+
+      final draft = ref.read(clubSetupProvider);
+      _hydrateControllers(draft);
+      _restoreHeadquartersLocationOption(draft);
+      _step = draft.currentStep;
+    }
+
+    _pageController = PageController(initialPage: _step);
+
+    if (mounted) {
+      setState(() => _isInitialized = true);
+      final analytics = ref.read(clubSetupAnalyticsProvider);
+      analytics.trackStarted(resumed: _hadPersistedDraft, initialStep: _step);
+      analytics.trackStepViewed(_step);
+      if (_hadPersistedDraft && _step > ClubSetupSteps.prerequisites) {
+        ViroSnackBar.show(context, 'Reprise de votre création en cours');
+      }
+    }
+  }
+
+  void _hydrateControllers(ClubSetupDraft draft) {
+    _nameController.text = draft.name;
+    _cityController.text = draft.city;
+    _postalController.text = draft.postalCode;
+    _addressController.text = draft.address;
+    _descriptionController.text = draft.description;
+  }
+
+  /// Recolle l'option « adresse du club » au lieu persisté, s'il correspond au siège.
+  void _restoreHeadquartersLocationOption(ClubSetupDraft draft) {
+    final headquartersIndex = ClubSetupFormat.headquartersLocationIndex(
+      address: draft.address,
+      postalCode: draft.postalCode,
+      city: draft.city,
+      sport: draft.sport,
+      locations: draft.practiceLocations,
+    );
+    if (headquartersIndex < 0) {
+      _useClubAddressAsFirstLocation = false;
+      _locationFromClubAddress = null;
+      return;
+    }
+    _useClubAddressAsFirstLocation = true;
+    _locationFromClubAddress = draft.practiceLocations[headquartersIndex];
+  }
+
   void _dismissKeyboard() {
     FocusManager.instance.primaryFocus?.unfocus();
   }
 
   void _syncDraftFromControllers() {
-    ref.read(clubSetupProvider.notifier).updateDraft((d) {
-      d.name = _nameController.text.trim();
-      d.description = _descriptionController.text.trim();
-      d.city = _cityController.text.trim();
-      d.postalCode = _postalController.text.trim();
-      d.address = _addressController.text.trim();
-      return d;
+    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+      draft.name = _nameController.text.trim();
+      draft.description = _descriptionController.text.trim();
+      draft.city = _cityController.text.trim();
+      draft.postalCode = _postalController.text.trim();
+      draft.address = _addressController.text.trim();
+      return draft;
     });
   }
 
@@ -77,48 +157,62 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen> {
     return ref.read(userServiceProvider).getUser(authUser.uid);
   }
 
+  String _continueLabel() {
+    if (_step == ClubSetupSteps.prerequisites) return 'C\'est parti';
+    return 'Continuer';
+  }
+
   void _next() {
     _dismissKeyboard();
-    if (_step == 1 || _step == 3) {
+    if (_step == ClubSetupSteps.identity || _step == ClubSetupSteps.location) {
       _syncDraftFromControllers();
     }
+
     final draft = ref.read(clubSetupProvider);
-    if (_step == 1 && !draft.canProceedIdentity) {
-      _showError('Nom du club et sport requis.');
+    if (_step == ClubSetupSteps.identity && !draft.canProceedIdentity) {
+      _showError('Nom du club (2 caractères min.) et sport requis.');
       return;
     }
-    if (_step == 2 && !draft.canProceedObjectives) {
+    if (_step == ClubSetupSteps.objectives && !draft.canProceedObjectives) {
       _showError('Sélectionnez au moins un objectif.');
       return;
     }
-    if (_step == 3 && !draft.canProceedInfo) {
+    if (_step == ClubSetupSteps.location && !draft.canProceedInfo) {
       _showError('Ville et au moins un lieu de pratique requis.');
       return;
     }
-    if (_step < _totalSteps - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
+
+    if (_step < ClubSetupSteps.total - 1) {
+      final nextStep = _step + 1;
+      _pageController!.nextPage(
+        duration: ViroMotion.modal,
+        curve: ViroMotion.enter,
       );
-      setState(() => _step++);
+      setState(() => _step = nextStep);
+      ref.read(clubSetupProvider.notifier).setCurrentStep(nextStep);
+      ref.read(clubSetupAnalyticsProvider).trackStepViewed(nextStep);
     }
   }
 
   void _back() {
     _dismissKeyboard();
-    if (_step == 0) {
+    if (_step == ClubSetupSteps.prerequisites) {
+      ref.read(clubSetupProvider.notifier).persistImmediately();
       context.pop();
       return;
     }
-    _pageController.previousPage(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+    final previousStep = _step - 1;
+    _pageController!.previousPage(
+      duration: ViroMotion.modal,
+      curve: ViroMotion.enter,
     );
-    setState(() => _step--);
+    setState(() => _step = previousStep);
+    ref.read(clubSetupProvider.notifier).setCurrentStep(previousStep);
+    ref.read(clubSetupAnalyticsProvider).trackStepViewed(previousStep);
   }
 
-  void _showError(String msg) {
-    ViroSnackBar.show(context, msg);
+  void _showError(String message) {
+    ViroSnackBar.show(context, message);
   }
 
   Future<void> _pickLogo() async {
@@ -131,30 +225,119 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen> {
     );
     if (file == null) return;
     final bytes = await file.readAsBytes();
-    ref.read(clubSetupProvider.notifier).updateDraft(
-          (d) => d..logoBytes = bytes,
-        );
-    setState(() {});
+    await ref.read(clubSetupProvider.notifier).setLogoBytes(bytes);
   }
 
-  Future<void> _addLocation() async {
-    final name = _locationNameController.text.trim();
-    if (name.isEmpty) return;
-    ref.read(clubSetupProvider.notifier).updateDraft((d) {
-      d.practiceLocations = [
-        ...d.practiceLocations,
+  /// Construit le lieu siège à partir du brouillon, ou `null` si trop incomplet.
+  PracticeLocation? _buildHeadquartersLocation() {
+    _syncDraftFromControllers();
+    final draft = ref.read(clubSetupProvider);
+    if (draft.city.trim().isEmpty && draft.address.trim().isEmpty) {
+      return null;
+    }
+    return ClubSetupFormat.headquartersPracticeLocation(
+      sport: draft.sport,
+      address: draft.address,
+      postalCode: draft.postalCode,
+      city: draft.city,
+    );
+  }
+
+  /// Insère ou remplace le lieu dérivé du siège.
+  bool _upsertClubHeadquartersLocation({required bool showErrorIfEmpty}) {
+    final clubAddressLocation = _buildHeadquartersLocation();
+    if (clubAddressLocation == null) {
+      if (showErrorIfEmpty) {
+        _showError('Renseignez d\'abord la ville du club.');
+      }
+      return false;
+    }
+
+    final previousLocation = _locationFromClubAddress;
+    if (previousLocation != null &&
+        ClubSetupFormat.isSameLocation(previousLocation, clubAddressLocation)) {
+      return true;
+    }
+
+    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+      final locations = List<PracticeLocation>.of(draft.practiceLocations);
+      if (previousLocation != null) {
+        locations.removeWhere(
+          (location) =>
+              ClubSetupFormat.isSameLocation(location, previousLocation),
+        );
+      }
+      final alreadyPresent = locations.any(
+        (location) =>
+            ClubSetupFormat.isSameLocation(location, clubAddressLocation),
+      );
+      draft.practiceLocations = alreadyPresent
+          ? locations
+          : [clubAddressLocation, ...locations];
+      return draft;
+    });
+    _locationFromClubAddress = clubAddressLocation;
+    return true;
+  }
+
+  /// Retire le lieu créé depuis l'adresse du siège.
+  void _removeClubHeadquartersAsLocation() {
+    final clubAddressLocation = _locationFromClubAddress;
+    if (clubAddressLocation == null) return;
+
+    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+      draft.practiceLocations = draft.practiceLocations
+          .where(
+            (location) =>
+                !ClubSetupFormat.isSameLocation(location, clubAddressLocation),
+          )
+          .toList();
+      return draft;
+    });
+    _locationFromClubAddress = null;
+  }
+
+  /// Recalcule le lieu siège après un changement de ville, d'adresse ou de sport.
+  void _syncClubHeadquartersLocation() {
+    if (!_useClubAddressAsFirstLocation) return;
+    final updated = _upsertClubHeadquartersLocation(showErrorIfEmpty: false);
+    if (!updated && mounted) {
+      _removeClubHeadquartersAsLocation();
+      setState(() => _useClubAddressAsFirstLocation = false);
+    }
+  }
+
+  void _onUseClubAddressChanged(bool useClubAddress) {
+    if (useClubAddress) {
+      final added = _upsertClubHeadquartersLocation(showErrorIfEmpty: true);
+      setState(() => _useClubAddressAsFirstLocation = added);
+      return;
+    }
+    _removeClubHeadquartersAsLocation();
+    setState(() => _useClubAddressAsFirstLocation = false);
+  }
+
+  void _addLocation() {
+    final locationName = _locationNameController.text.trim();
+    if (locationName.isEmpty) {
+      _showError('Indiquez un nom pour le lieu de pratique.');
+      return;
+    }
+
+    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+      draft.practiceLocations = [
+        ...draft.practiceLocations,
         PracticeLocation(
-          name: name,
+          name: locationName,
           address: _locationAddressController.text.trim().isEmpty
               ? null
               : _locationAddressController.text.trim(),
         ),
       ];
-      return d;
+      return draft;
     });
     _locationNameController.clear();
     _locationAddressController.clear();
-    setState(() {});
   }
 
   Future<void> _submit() async {
@@ -185,17 +368,26 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen> {
 
     setState(() => _submitting = true);
     try {
-      await ref.read(clubServiceProvider).createClubFromDraft(
+      await ref
+          .read(clubServiceProvider)
+          .createClubFromDraft(
             founderUid: user.uid,
             founder: user,
             draft: draft,
           );
-      ref.read(clubSetupProvider.notifier).reset();
+      ref
+          .read(clubSetupAnalyticsProvider)
+          .trackCompleted(
+            sport: draft.sport,
+            objectives: draft.objectives,
+            memberCountRange: draft.memberCountRange,
+          );
+      await ref.read(clubSetupProvider.notifier).resetAndClear(user.uid);
       ref.invalidate(viroUserProvider);
       ref.invalidate(viroUserFutureProvider);
       if (mounted) context.go(AppRoutes.home);
-    } catch (e) {
-      _showError('Erreur lors de la création : $e');
+    } catch (error) {
+      _showError('Erreur lors de la création : $error');
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -203,8 +395,18 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_isInitialized || _pageController == null) {
+      return const ViroScaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final draft = ref.watch(clubSetupProvider);
-    final theme = Theme.of(context).textTheme;
+    final stepLabel = ClubSetupSteps.labels[_step];
+    final showResumeBanner =
+        _hadPersistedDraft &&
+        draft.hasSavedProgress &&
+        _step == ClubSetupSteps.prerequisites;
 
     return ViroScaffold(
       appBar: ViroAppBar(
@@ -212,388 +414,124 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen> {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: _back,
         ),
-        title: Text('Création du club (${_step + 1}/$_totalSteps)'),
+        title: AnimatedSwitcher(
+          duration: ViroMotion.standard,
+          child: Text(stepLabel, key: ValueKey(stepLabel)),
+        ),
+        bottom: SetupProgressHeader(
+          currentStep: _step,
+          totalSteps: ClubSetupSteps.total,
+        ),
       ),
       body: Column(
         children: [
-          LinearProgressIndicator(
-            value: (_step + 1) / _totalSteps,
-            backgroundColor: ViroColors.primary50,
-            color: ViroColors.primary600,
-          ),
           Expanded(
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _WelcomeStep(theme: theme),
-                _IdentityStep(
+                PrerequisitesStep(showResumeBanner: showResumeBanner),
+                IdentityStep(
                   draft: draft,
                   nameController: _nameController,
                   descriptionController: _descriptionController,
                   onPickLogo: _pickLogo,
-                  onChanged: (name, sport) {
-                    ref.read(clubSetupProvider.notifier).updateDraft((d) {
-                      d.name = name;
-                      d.sport = sport;
-                      return d;
+                  onNameChanged: (name) {
+                    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+                      draft.name = name;
+                      return draft;
+                    });
+                  },
+                  onSportChanged: (sport) {
+                    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+                      draft.sport = sport;
+                      return draft;
+                    });
+                    _syncClubHeadquartersLocation();
+                  },
+                  onDescriptionChanged: () {
+                    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+                      draft.description = _descriptionController.text.trim();
+                      return draft;
                     });
                   },
                 ),
-                _ObjectivesStep(
+                ObjectivesStep(
                   selected: draft.objectives,
+                  memberCountRange: draft.memberCountRange,
                   onToggle: (key) {
                     ref.read(clubSetupProvider.notifier).toggleObjective(key);
                   },
+                  onMemberCountChanged: (range) {
+                    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+                      draft.memberCountRange = range;
+                      return draft;
+                    });
+                  },
                 ),
-                _InfoStep(
+                LocationStep(
                   cityController: _cityController,
                   postalController: _postalController,
                   addressController: _addressController,
                   locationNameController: _locationNameController,
                   locationAddressController: _locationAddressController,
                   locations: draft.practiceLocations,
+                  addressService: ref.read(frenchAddressServiceProvider),
+                  useClubAddressAsFirstLocation: _useClubAddressAsFirstLocation,
+                  onUseClubAddressChanged: _onUseClubAddressChanged,
                   onFieldChanged: () {
-                    ref.read(clubSetupProvider.notifier).updateDraft((d) {
-                      d.city = _cityController.text;
-                      d.postalCode = _postalController.text;
-                      d.address = _addressController.text;
-                      d.description = _descriptionController.text;
-                      return d;
+                    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+                      draft.city = _cityController.text;
+                      draft.postalCode = _postalController.text;
+                      draft.address = _addressController.text;
+                      return draft;
                     });
+                    _syncClubHeadquartersLocation();
                   },
                   onAddLocation: _addLocation,
-                  onRemoveLocation: (i) {
-                    ref.read(clubSetupProvider.notifier).updateDraft((d) {
-                      d.practiceLocations = List.of(d.practiceLocations)
-                        ..removeAt(i);
-                      return d;
+                  onRemoveLocation: (index) {
+                    final locations = ref
+                        .read(clubSetupProvider)
+                        .practiceLocations;
+                    if (index < 0 || index >= locations.length) return;
+                    final removedLocation = locations[index];
+                    final clubAddressLocation = _locationFromClubAddress;
+                    if (clubAddressLocation != null &&
+                        ClubSetupFormat.isSameLocation(
+                          removedLocation,
+                          clubAddressLocation,
+                        )) {
+                      setState(() {
+                        _useClubAddressAsFirstLocation = false;
+                        _locationFromClubAddress = null;
+                      });
+                    }
+                    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+                      draft.practiceLocations = List.of(draft.practiceLocations)
+                        ..removeAt(index);
+                      return draft;
                     });
-                    setState(() {});
                   },
                 ),
-                _BrandingStep(
-                  colorHex: draft.brandColorHex,
-                  onColor: (hex) {
-                    ref.read(clubSetupProvider.notifier).updateDraft(
-                          (d) => d..brandColorHex = hex,
-                        );
-                  },
-                ),
-                _RecapStep(draft: draft),
+                RecapStep(draft: draft),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(ViroSpacing.lg),
-            child: _step < _totalSteps - 1
-                ? ViroPrimaryButton(label: 'Continuer', onPressed: _next)
-                : ViroPrimaryButton(
+            padding: const EdgeInsets.fromLTRB(
+              ViroSpacing.lg,
+              ViroSpacing.sm,
+              ViroSpacing.lg,
+              ViroSpacing.md,
+            ),
+            child: _step < ClubSetupSteps.total - 1
+                ? ViroPortalButton(label: _continueLabel(), onPressed: _next)
+                : ViroPortalButton(
                     label: 'Créer le club',
                     isLoading: _submitting,
                     onPressed: _submit,
                   ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WelcomeStep extends StatelessWidget {
-  const _WelcomeStep({required this.theme});
-
-  final TextTheme theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(ViroSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Votre club, mieux organisé',
-            style: theme.headlineSmall?.copyWith(
-              color: ViroColors.primary800,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: ViroSpacing.md),
-          const Text(
-            'ViroTeam centralise le planning, les présences, les cotisations et la vie du club. '
-            'En quelques minutes, configurez votre espace et invitez vos membres par code.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IdentityStep extends StatelessWidget {
-  const _IdentityStep({
-    required this.draft,
-    required this.nameController,
-    required this.descriptionController,
-    required this.onPickLogo,
-    required this.onChanged,
-  });
-
-  final ClubSetupDraft draft;
-  final TextEditingController nameController;
-  final TextEditingController descriptionController;
-  final VoidCallback onPickLogo;
-  final void Function(String name, String sport) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(ViroSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextFormField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: 'Nom du club'),
-            onChanged: (v) => onChanged(v, draft.sport),
-          ),
-          const SizedBox(height: ViroSpacing.md),
-          DropdownButtonFormField<String>(
-            initialValue: draft.sport,
-            decoration: const InputDecoration(labelText: 'Sport'),
-            items: ClubSports.all
-                .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                .toList(),
-            onChanged: (v) {
-              if (v != null) onChanged(draft.name, v);
-            },
-          ),
-          const SizedBox(height: ViroSpacing.md),
-          OutlinedButton.icon(
-            onPressed: onPickLogo,
-            icon: ViroIcon(ViroIcons.image),
-            label: Text(
-              draft.logoBytes != null ? 'Logo sélectionné' : 'Logo (optionnel)',
-            ),
-          ),
-          const SizedBox(height: ViroSpacing.md),
-          TextFormField(
-            controller: descriptionController,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Description courte (optionnel)',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ObjectivesStep extends StatelessWidget {
-  const _ObjectivesStep({
-    required this.selected,
-    required this.onToggle,
-  });
-
-  final Set<String> selected;
-  final void Function(String key) onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(ViroSpacing.lg),
-      children: [
-        Text(
-          'Quels sont vos objectifs principaux ?',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: ViroSpacing.md),
-        ...ClubObjectives.all.map(
-          (key) => CheckboxListTile(
-            value: selected.contains(key),
-            onChanged: (_) => onToggle(key),
-            title: Text(ClubObjectives.label(key)),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoStep extends StatelessWidget {
-  const _InfoStep({
-    required this.cityController,
-    required this.postalController,
-    required this.addressController,
-    required this.locationNameController,
-    required this.locationAddressController,
-    required this.locations,
-    required this.onFieldChanged,
-    required this.onAddLocation,
-    required this.onRemoveLocation,
-  });
-
-  final TextEditingController cityController;
-  final TextEditingController postalController;
-  final TextEditingController addressController;
-  final TextEditingController locationNameController;
-  final TextEditingController locationAddressController;
-  final List<PracticeLocation> locations;
-  final VoidCallback onFieldChanged;
-  final VoidCallback onAddLocation;
-  final void Function(int index) onRemoveLocation;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(ViroSpacing.lg),
-      children: [
-        TextFormField(
-          controller: cityController,
-          decoration: const InputDecoration(labelText: 'Ville'),
-          onChanged: (_) => onFieldChanged(),
-        ),
-        const SizedBox(height: ViroSpacing.md),
-        TextFormField(
-          controller: postalController,
-          decoration: const InputDecoration(labelText: 'Code postal'),
-          onChanged: (_) => onFieldChanged(),
-        ),
-        const SizedBox(height: ViroSpacing.md),
-        TextFormField(
-          controller: addressController,
-          decoration: const InputDecoration(labelText: 'Adresse du club'),
-          onChanged: (_) => onFieldChanged(),
-        ),
-        const SizedBox(height: ViroSpacing.xl),
-        Text(
-          'Lieux de pratique',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        TextFormField(
-          controller: locationNameController,
-          decoration: const InputDecoration(labelText: 'Nom du lieu'),
-        ),
-        const SizedBox(height: ViroSpacing.sm),
-        TextFormField(
-          controller: locationAddressController,
-          decoration: const InputDecoration(labelText: 'Adresse du lieu'),
-        ),
-        TextButton(onPressed: onAddLocation, child: const Text('Ajouter ce lieu')),
-        ...locations.asMap().entries.map(
-              (e) => ListTile(
-                title: Text(e.value.name),
-                subtitle: e.value.address != null ? Text(e.value.address!) : null,
-                trailing: IconButton(
-                  icon: ViroIcon(ViroIcons.close),
-                  onPressed: () => onRemoveLocation(e.key),
-                ),
-              ),
-            ),
-      ],
-    );
-  }
-}
-
-class _BrandingStep extends StatelessWidget {
-  const _BrandingStep({required this.colorHex, required this.onColor});
-
-  final String? colorHex;
-  final void Function(String? hex) onColor;
-
-  static const _presets = [
-    '#1E88E5',
-    '#43A047',
-    '#E53935',
-    '#8E24AA',
-    '#FB8C00',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(ViroSpacing.lg),
-      children: [
-        Text(
-          'Couleur du club (optionnel)',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: ViroSpacing.md),
-        Wrap(
-          spacing: 12,
-          children: _presets.map((hex) {
-            final color = Color(int.parse(hex.replaceFirst('#', '0xFF')));
-            final selected = colorHex == hex;
-            return GestureDetector(
-              onTap: () => onColor(selected ? null : hex),
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border: selected
-                      ? Border.all(color: ViroColors.primary800, width: 3)
-                      : null,
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: ViroSpacing.md),
-        TextButton(
-          onPressed: () => onColor(null),
-          child: const Text('Pas de couleur personnalisée'),
-        ),
-      ],
-    );
-  }
-}
-
-class _RecapStep extends StatelessWidget {
-  const _RecapStep({required this.draft});
-
-  final ClubSetupDraft draft;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(ViroSpacing.lg),
-      children: [
-        Text(
-          'Récapitulatif',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: ViroSpacing.md),
-        _Line('Club', draft.name),
-        _Line('Sport', draft.sport),
-        _Line('Ville', draft.city),
-        _Line('Lieux', '${draft.practiceLocations.length}'),
-        _Line('Objectifs', '${draft.objectives.length}'),
-        if (draft.brandColorHex != null) _Line('Couleur', draft.brandColorHex!),
-      ],
-    );
-  }
-}
-
-class _Line extends StatelessWidget {
-  const _Line(this.label, this.value);
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          Expanded(child: Text(value)),
         ],
       ),
     );

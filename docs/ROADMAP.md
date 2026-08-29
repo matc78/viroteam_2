@@ -72,7 +72,7 @@ Specs produit : [`docs/specs/`](specs/).
 - [x] Webhook `helloAssoWebhook` + reçu PDF
 - [x] UI membre (sheet checkout) + UI trésorier (hors-ligne / justificatifs)
 - [ ] Déployer secrets HelloAsso + slug orga par club *(après partenariat HelloAsso — voir séquence produit)*
-- [ ] Brancher `acceptInvitation` côté client
+- [x] Brancher `acceptInvitation` côté client
 - [ ] Upload photo justificatif d’aide (v2)
 
 ## Phase 8 — Parents (espace famille)

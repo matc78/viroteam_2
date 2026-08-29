@@ -24,6 +24,11 @@ export {
 
 export { sendMemberInvites, sendMemberInvitesDev } from "./memberInvites";
 
+export {
+  acceptInvitation,
+  acceptInvitationDev,
+} from "./acceptInvitation";
+
 const helloAssoClientId = defineSecret("HELLOASSO_CLIENT_ID");
 const helloAssoClientSecret = defineSecret("HELLOASSO_CLIENT_SECRET");
 const helloAssoApiBase = defineString("HELLOASSO_API_BASE", {
@@ -44,52 +49,6 @@ type TokenCache = {
 };
 
 let tokenCache: TokenCache | null = null;
-
-/**
- * Accepte une invitation (à brancher depuis le client à la place de l'update direct).
- * Prod → v2-prod ; `acceptInvitationDev` → v2-dev.
- */
-export const {
-  prod: acceptInvitation,
-  dev: acceptInvitationDev,
-} = defineDualCallable(async (request: CallableRequest) => {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Connexion requise");
-  }
-  const clubId = request.data?.clubId as string | undefined;
-  const invitationId = request.data?.invitationId as string | undefined;
-  if (!clubId || !invitationId) {
-    throw new HttpsError("invalid-argument", "clubId et invitationId requis");
-  }
-
-  const inviteRef = db()
-    .collection("clubs")
-    .doc(clubId)
-    .collection("invitations")
-    .doc(invitationId);
-  const inviteSnap = await inviteRef.get();
-  if (!inviteSnap.exists) {
-    throw new HttpsError("not-found", "Invitation introuvable");
-  }
-  const invite = inviteSnap.data()!;
-  if (invite.status !== "pending") {
-    throw new HttpsError("failed-precondition", "Invitation déjà traitée");
-  }
-  if (String(invite.type ?? "member") === "guardian") {
-    throw new HttpsError(
-      "failed-precondition",
-      "Invitation parent : utilise linkGuardian",
-    );
-  }
-
-  await inviteRef.update({
-    status: "accepted",
-    acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
-    acceptedBy: request.auth.uid,
-  });
-
-  return { ok: true };
-});
 
 /**
  * Crée un checkout HelloAsso (1× ou 3×) après application des aides déclarées.

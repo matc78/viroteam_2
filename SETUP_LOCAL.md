@@ -118,7 +118,7 @@ flutterfire configure --project=viroteam-75303
 | `ios/Runner/GoogleService-Info.plist` (si tu l’as en local) | `ios/Runner/GoogleService-Info.plist` |
 | idem macOS si besoin | `macos/Runner/GoogleService-Info.plist` |
 
-Note : `lib/firebase_options.dart` pointe encore le bundle iOS `com.viroteam.viroTeam` (app Firebase beta). Le bundle Xcode local est `com.viroteam.viroTeamV2`. À aligner plus tard avec `flutterfire configure` si Auth / Crashlytics iOS posent problème.
+Note : `lib/firebase_options.dart` pointe encore le bundle iOS `com.viroteam.viroTeam` (app Firebase beta). Le bundle Xcode local est `com.viroteam.viroTeamV2`. À aligner avec `flutterfire configure` avant TestFlight — checklist complète : [`docs/DEPLOY_IOS.md`](docs/DEPLOY_IOS.md). Suite manuelle (secrets, DNS, stores) : [`docs/DEPLOY_SUITE.md`](docs/DEPLOY_SUITE.md).
 
 ## Portail web (Next.js)
 

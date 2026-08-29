@@ -139,12 +139,6 @@ export const Fields = {
   assignedTeamId: "assignedTeamId",
   notes: "notes",
   updatedBy: "updatedBy",
-  coachPermissions: "coachPermissions",
-  canCreateEvents: "canCreateEvents",
-  canManageTeamRoster: "canManageTeamRoster",
-  canInvitePlayers: "canInvitePlayers",
-  canTakeAttendance: "canTakeAttendance",
-  canViewFees: "canViewFees",
 } as const;
 
 /** États d’un item d’inventaire. */

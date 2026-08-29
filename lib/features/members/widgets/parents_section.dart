@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
@@ -387,8 +388,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
               ),
               child: TextField(
                 controller: _searchController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Rechercher un parent…',
+                  prefixIcon: ViroIcon(ViroIcons.search),
                 ),
                 onChanged: (value) =>
                     setState(() => _search = value.trim()),
@@ -423,8 +425,15 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                     ),
                   ),
                   const SizedBox(width: ViroSpacing.sm),
-                  TextButton(
+                  OutlinedButton(
                     onPressed: _busy ? null : _inviteFromList,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          widget.accentColor ?? ViroColors.primary600,
+                      side: BorderSide(
+                        color: widget.accentColor ?? ViroColors.primary600,
+                      ),
+                    ),
                     child: const Text('Inviter'),
                   ),
                 ],

@@ -3,17 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_email_button.dart';
+import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/models/member_guardian.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
-import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
+import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 /// Ouvre la fiche d’un membre pas encore inscrit (édition + invitation).
@@ -23,21 +28,21 @@ Future<void> showPendingMemberSheet(
   required ClubMember member,
   required bool canEdit,
 }) {
-  final accent = clubAccentColor(
-    brandColorHex: club.brandColorHex,
-    clubId: club.id,
-  );
-
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => ClubAccentTheme(
-      accentColor: accent,
-      child: PendingMemberSheet(
-        club: club,
-        member: member,
-        canEdit: canEdit,
-      ),
+    builder: (sheetContext) => Consumer(
+      builder: (context, ref, _) {
+        final memberAccent = ref.watch(clubMemberAccentProvider(club.id));
+        return ClubAccentTheme(
+          accentColor: memberAccent,
+          child: PendingMemberSheet(
+            club: club,
+            member: member,
+            canEdit: canEdit,
+          ),
+        );
+      },
     ),
   );
 }
@@ -64,8 +69,15 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
   late final TextEditingController _firstNameController;
   late final TextEditingController _lastNameController;
   late final TextEditingController _emailController;
+  MemberGuardianView? _guardian;
   bool _busy = false;
+  bool _loadingGuardian = false;
   String? _error;
+
+  bool get _isAdmin {
+    final viewer = ref.read(clubMemberProvider(widget.club.id)).value;
+    return viewer?.role == MemberRoles.admin;
+  }
 
   @override
   void initState() {
@@ -78,6 +90,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
       text: widget.member.lastName ?? '',
     );
     _emailController = TextEditingController(text: widget.member.email ?? '');
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadGuardian());
   }
 
   @override
@@ -236,11 +249,54 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     ViroSnackBar.show(context, 'Message copié dans le presse-papiers');
   }
 
+  Future<void> _loadGuardian() async {
+    if (!_isAdmin || widget.member.role != MemberRoles.player) return;
+
+    setState(() => _loadingGuardian = true);
+    try {
+      final view = await ref.read(guardianServiceProvider).getMemberGuardian(
+            clubId: widget.club.id,
+            memberId: widget.member.memberId,
+          );
+      if (!mounted) return;
+      setState(() {
+        _guardian = view;
+        _loadingGuardian = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingGuardian = false);
+    }
+  }
+
+  Future<void> _openParentSheet() async {
+    await showInviteParentSheet(
+      context,
+      club: widget.club,
+      member: widget.member,
+    );
+    await _loadGuardian();
+  }
+
+  String? _parentSubtitle() {
+    if (_loadingGuardian) return 'Chargement…';
+    final guardian = _guardian;
+    if (guardian?.hasOccupant != true) {
+      return 'Aucun parent lié';
+    }
+    final name = guardian!.displayName ?? guardian.email ?? 'Parent invité';
+    if (guardian.inviteExpired) return '$name · invitation expirée';
+    if (guardian.isPending) return '$name · en attente';
+    return name;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final titleColor = theme.appBarTheme.foregroundColor;
     final accent = theme.colorScheme.primary;
+    final managementAccent =
+        ref.watch(clubManagementAccentProvider(widget.club.id));
 
     return Padding(
       padding: EdgeInsets.only(
@@ -296,6 +352,61 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               ),
               onChanged: (_) => setState(() {}),
             ),
+            if (_isAdmin && widget.member.role == MemberRoles.player) ...[
+              const SizedBox(height: ViroSpacing.lg),
+              Text(
+                'Parent',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: titleColor,
+                ),
+              ),
+              const SizedBox(height: ViroSpacing.sm),
+              ViroCard(
+                margin: EdgeInsets.zero,
+                padding: EdgeInsets.zero,
+                accentColor: managementAccent,
+                child: ViroPressable(
+                  onTap: _busy ? null : _openParentSheet,
+                  borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ViroSpacing.md,
+                      vertical: ViroSpacing.sm + 2,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Accès parent',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: ViroColors.gray600,
+                                ),
+                              ),
+                              if (_parentSubtitle() != null)
+                                Text(
+                                  _parentSubtitle()!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: ViroColors.gray600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        ViroIcon(
+                          ViroIcons.chevronRight,
+                          size: 18,
+                          color: managementAccent,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: ViroSpacing.md),
               Text(

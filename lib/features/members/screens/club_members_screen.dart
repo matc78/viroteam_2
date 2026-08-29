@@ -7,7 +7,9 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/members/utils/parent_status_for_member.dart';
 import 'package:viro_team_v2/features/members/widgets/add_member_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/change_role_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
@@ -18,10 +20,7 @@ import 'package:viro_team_v2/features/members/widgets/parents_section.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
-import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
-import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
-import 'package:viro_team_v2/widgets/common/persistent_portal_admin_banner.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
@@ -41,8 +40,12 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   final _searchController = TextEditingController();
   String _search = '';
   String? _roleFilter;
-  /// `roster` | `parents`
+  /// `roster` | `teams` | `parents`
   String _section = 'roster';
+
+  Future<void> _openManageTeams() async {
+    await context.push(AppRoutes.clubManageTeamsPath(widget.clubId));
+  }
 
   @override
   void dispose() {
@@ -233,6 +236,12 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                   ref.watch(clubMemberProvider(clubId)).value?.role ??
                       MemberRoles.player;
               final filtered = _filterMembers(members);
+              final parentStatusByMemberId = _isAdmin
+                  ? ref.watch(clubParentsProvider(clubId)).maybeWhen(
+                        data: buildParentStatusByMemberId,
+                        orElse: () => const <String, ParentLinkStatus>{},
+                      )
+                  : const <String, ParentLinkStatus>{};
 
               return ViroRefreshIndicator(
                 onRefresh: () async {
@@ -247,17 +256,6 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                 child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-                  if (_isAdmin)
-                    SliverToBoxAdapter(
-                      child: PersistentPortalAdminBanner(
-                        bannerId: PortalBannerIds.members,
-                        portalUrl: portalMembersUrl(clubId: clubId),
-                        accentColor: accent,
-                        message:
-                            'Liste filtrable, import CSV, équipes et invitations '
-                            'parents : sur le portail web.',
-                      ),
-                    ),
                   if (_isAdmin)
                     SliverToBoxAdapter(
                       child: SingleChildScrollView(
@@ -276,6 +274,13 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                               accentColor: accent,
                               onSelected: (_) =>
                                   setState(() => _section = 'roster'),
+                            ),
+                            const SizedBox(width: ViroSpacing.xs),
+                            _roleFilterChip(
+                              label: 'Équipes',
+                              selected: false,
+                              accentColor: accent,
+                              onSelected: (_) => _openManageTeams(),
                             ),
                             const SizedBox(width: ViroSpacing.xs),
                             _roleFilterChip(
@@ -430,6 +435,11 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                     : null,
                                 onSendEmailInvite: _canAdd
                                     ? () => _emailInvite(member)
+                                    : null,
+                                parentLinkStatus: _isAdmin &&
+                                        member.role == MemberRoles.player
+                                    ? parentStatusByMemberId[member.memberId] ??
+                                        ParentLinkStatus.none
                                     : null,
                               );
                             },

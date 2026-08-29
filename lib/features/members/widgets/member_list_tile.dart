@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_email_button.dart';
+import 'package:viro_team_v2/features/members/utils/parent_status_for_member.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -27,6 +28,7 @@ class MemberListTile extends StatelessWidget {
     this.onTap,
     this.showClubAdminActions = true,
     this.accentColor,
+    this.parentLinkStatus,
   });
 
   final ClubMember member;
@@ -41,6 +43,7 @@ class MemberListTile extends StatelessWidget {
   /// `false` dans un roster d'équipe : pas de menu admin ni copie d'invitation.
   final bool showClubAdminActions;
   final Color? accentColor;
+  final ParentLinkStatus? parentLinkStatus;
 
   bool get _isAdmin => viewerRole == MemberRoles.admin;
   bool get _canCopyInvite =>
@@ -118,6 +121,22 @@ class MemberListTile extends StatelessWidget {
                           color: ViroColors.gray600,
                         ),
                       ),
+                    if (parentLinkStatus != null &&
+                        parentLinkStatus != ParentLinkStatus.none &&
+                        member.role == MemberRoles.player) ...[
+                      ViroRoleBadge(
+                        role: ViroRole.parent,
+                        compact: true,
+                      ),
+                      Text(
+                        parentLinkStatus == ParentLinkStatus.active
+                            ? 'Connecté'
+                            : 'En attente',
+                        style: theme.bodySmall?.copyWith(
+                          color: ViroColors.gray600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],

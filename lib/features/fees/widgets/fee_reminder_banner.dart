@@ -158,7 +158,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                             'Cotisation ${item.season.seasonLabel}',
                             style: theme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
-                              color: ViroColors.primary800,
+                              color: accent,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -174,9 +174,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                           amount,
                           style: theme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: isOverdue
-                                ? ViroColors.error
-                                : ViroColors.primary800,
+                            color: isOverdue ? ViroColors.error : accent,
                           ),
                         ),
                         const SizedBox(width: ViroSpacing.xs),

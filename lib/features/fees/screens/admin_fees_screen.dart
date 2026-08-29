@@ -13,6 +13,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/portal_admin_banner.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 /// Vue opérationnelle admin : suivi des cotisations membres (config → portail).
@@ -49,6 +50,8 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
   @override
   Widget build(BuildContext context) {
     final member = ref.watch(clubMemberProvider(widget.clubId)).value;
+    final accent = ref.watch(clubManagementAccentProvider(widget.clubId));
+    final memberAccent = ref.watch(clubMemberAccentProvider(widget.clubId));
     if (member != null && member.role != MemberRoles.admin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.replace(AppRoutes.clubMyFeePath(widget.clubId));
@@ -58,7 +61,9 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
       );
     }
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: memberAccent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         title: const Text('Suivi cotisations'),
         actions: [
@@ -76,6 +81,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
         children: [
           PortalAdminBanner(
             portalUrl: portalFeesUrl(clubId: widget.clubId),
+            accentColor: accent,
             message:
                 'Configuration de la saison, paliers, IBAN et HelloAsso : '
                 'espace club sur le web.',
@@ -83,6 +89,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
           Expanded(
             child: FeeMembersTrackingTab(
               clubId: widget.clubId,
+              accentColor: accent,
               tierFilter: _tierFilter,
               onTierFilterChanged: (value) => setState(() => _tierFilter = value),
               searchCtrl: _searchCtrl,
@@ -112,6 +119,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
               label: Text('${_selectedIds.length} sélectionné(s)'),
             )
           : null,
+      ),
     );
   }
 

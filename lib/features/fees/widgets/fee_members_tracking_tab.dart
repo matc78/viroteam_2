@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
@@ -58,6 +58,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     required this.onToggleSelection,
     required this.onSelect,
     required this.onOpenBulk,
+    this.accentColor,
   });
 
   final String clubId;
@@ -70,6 +71,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   final VoidCallback onToggleSelection;
   final void Function(String id, bool selected) onSelect;
   final VoidCallback onOpenBulk;
+  final Color? accentColor;
 
   List<MemberFee> _applySearchAndTier(List<MemberFee> fees) {
     return fees.where((f) {
@@ -116,6 +118,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   }
 
   Widget _sectionTitle(BuildContext context, String title) {
+    final accent = accentColor ?? ViroColors.primary800;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         ViroSpacing.screenHorizontal,
@@ -127,7 +130,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
         title,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: ViroColors.primary800,
+              color: accent,
             ),
       ),
     );
@@ -261,7 +264,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                     Text(fee.displayStatus(season.paymentDeadlineAt).label),
               ),
               ListTile(
-                leading: ViroIcon(ViroIcons.payments, color: ViroColors.primary600),
+                leading: ViroIcon(ViroIcons.payments, color: accentColor ?? ViroColors.primary600),
                 title: const Text('Valider hors-ligne'),
                 subtitle: const Text('Chèque, espèces, ANCV, virement…'),
                 onTap: () async {
@@ -340,7 +343,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                 const Divider(),
                 for (final aid in fee.aids.where((a) => a.isPendingProof)) ...[
                   ListTile(
-                    leading: ViroIcon(ViroIcons.note, color: ViroColors.primary600),
+                    leading: ViroIcon(ViroIcons.note, color: accentColor ?? ViroColors.primary600),
                     title: Text('Valider ${aid.label}'),
                     subtitle: Text(
                       '${aid.amountCents / 100} € �€� justificatif',
@@ -399,7 +402,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                   ),
               ],
               ListTile(
-                leading: ViroIcon(ViroIcons.note, color: ViroColors.primary600),
+                leading: ViroIcon(ViroIcons.note, color: accentColor ?? ViroColors.primary600),
                 title: const Text('Note admin'),
                 onTap: () async {
                   Navigator.pop(ctx);

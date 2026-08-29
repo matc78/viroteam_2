@@ -22,11 +22,13 @@ import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_status_chip.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class MyFeeScreen extends ConsumerStatefulWidget {
@@ -77,11 +79,16 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
         ? 'Cotisation de ${selected!.label}'
         : 'Ma cotisation';
 
+    final memberAccent = ref.watch(clubMemberAccentProvider(widget.clubId));
+
     final audienceId = _audienceId;
     if (audienceId == null) {
-      return ViroScaffold(
+      return ClubAccentTheme(
+        accentColor: memberAccent,
+        child: ViroScaffold(
         appBar: ViroAppBar(title: Text(title)),
         body: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
@@ -89,7 +96,9 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
       myFeeProvider((clubId: widget.clubId, memberId: audienceId)),
     );
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: memberAccent,
+      child: ViroScaffold(
       appBar: ViroAppBar(
         title: Text(title),
       ),
@@ -180,6 +189,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 }
@@ -204,6 +214,7 @@ class _FeeContent extends ConsumerWidget {
     final remaining = fee.remainingCents(season);
     final deadline = season.paymentDeadlineAt;
     final club = ref.watch(clubProvider(clubId)).value;
+    final accent = ref.watch(clubMemberAccentProvider(clubId));
     final onlinePaymentEnabled = FeatureFlags.helloAssoPaymentsLive &&
         (club?.onlinePaymentEnabled ?? false);
     final canPay = display == MemberFeeDisplayStatus.aPayer ||
@@ -288,7 +299,7 @@ class _FeeContent extends ConsumerWidget {
                       if (uri == null) return;
                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                     },
-                    icon: ViroIcon(ViroIcons.share, color: ViroColors.primary600),
+                    icon: ViroIcon(ViroIcons.share, color: accent),
                     label: const Text('Télécharger l\'attestation PDF'),
                   ),
                 ],
@@ -304,47 +315,57 @@ class _FeeContent extends ConsumerWidget {
             ),
           ),
         ] else ...[
-          Center(
-            child: Text(
-              formatFeeAmountCents(amount),
-              style: theme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: ViroColors.primary800,
-              ),
-            ),
-          ),
-          const SizedBox(height: ViroSpacing.sm),
-          Center(
-            child: FeeStatusChip(status: display),
-          ),
-          if (fee.amountPaidCents > 0 || fee.pendingAidsCents > 0) ...[
-            const SizedBox(height: ViroSpacing.sm),
-            Center(
-              child: Text(
-                [
-                  if (fee.amountPaidCents > 0)
-                    'Payé : ${formatFeeAmountCents(fee.amountPaidCents)}',
-                  if (fee.pendingAidsCents > 0)
-                    'Aide en attente : ${formatFeeAmountCents(fee.pendingAidsCents)}',
-                  if (remaining > 0)
-                    'Reste : ${formatFeeAmountCents(remaining)}',
-                ].join(' · '),
-                textAlign: TextAlign.center,
-                style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
-              ),
-            ),
-          ],
-          if (tier != null) ...[
-            const SizedBox(height: ViroSpacing.sm),
-            Center(
-              child: Text(
-                'Catégorie : ${tier.label}',
-                style: theme.bodyLarge?.copyWith(
-                  color: ViroColors.gray600,
+          ViroCard(
+            accentColor: accent,
+            borderColor: ClubAccentStyle(accent).border,
+            child: Column(
+              children: [
+                Center(
+                  child: Text(
+                    formatFeeAmountCents(amount),
+                    style: theme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: accent,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: ViroSpacing.sm),
+                Center(
+                  child: FeeStatusChip(status: display),
+                ),
+                if (fee.amountPaidCents > 0 || fee.pendingAidsCents > 0) ...[
+                  const SizedBox(height: ViroSpacing.sm),
+                  Center(
+                    child: Text(
+                      [
+                        if (fee.amountPaidCents > 0)
+                          'Payé : ${formatFeeAmountCents(fee.amountPaidCents)}',
+                        if (fee.pendingAidsCents > 0)
+                          'Aide en attente : ${formatFeeAmountCents(fee.pendingAidsCents)}',
+                        if (remaining > 0)
+                          'Reste : ${formatFeeAmountCents(remaining)}',
+                      ].join(' · '),
+                      textAlign: TextAlign.center,
+                      style: theme.bodyMedium?.copyWith(
+                        color: ViroColors.gray600,
+                      ),
+                    ),
+                  ),
+                ],
+                if (tier != null) ...[
+                  const SizedBox(height: ViroSpacing.sm),
+                  Center(
+                    child: Text(
+                      'Catégorie : ${tier.label}',
+                      style: theme.bodyLarge?.copyWith(
+                        color: ViroColors.gray600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
           if (fee.aids.isNotEmpty) ...[
             const SizedBox(height: ViroSpacing.md),
             ...fee.aids.map(
@@ -383,7 +404,7 @@ class _FeeContent extends ConsumerWidget {
             ViroCard(
               child: Row(
                 children: [
-                  ViroIcon(ViroIcons.calendar, color: ViroColors.primary600),
+                  ViroIcon(ViroIcons.calendar, color: accent),
                   const SizedBox(width: ViroSpacing.sm),
                   Expanded(
                     child: Column(
@@ -467,7 +488,7 @@ class _FeeContent extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    icon: ViroIcon(ViroIcons.copy, color: ViroColors.primary600),
+                    icon: ViroIcon(ViroIcons.copy, color: accent),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: season.iban!));
                       ViroSnackBar.show(context, 'IBAN copié');
@@ -504,7 +525,7 @@ class _FeeContent extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ViroIcon(ViroIcons.bell, color: ViroColors.primary600, size: 20),
+              ViroIcon(ViroIcons.bell, color: accent, size: 20),
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: Text(

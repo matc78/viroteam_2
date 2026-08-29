@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 /// Placeholder affiché à la place du portail de paiement HelloAsso.
-class PaymentSoonScreen extends StatelessWidget {
-  const PaymentSoonScreen({super.key});
+class PaymentSoonScreen extends ConsumerWidget {
+  const PaymentSoonScreen({super.key, required this.clubId});
+
+  final String clubId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
+    final accent = ref.watch(clubMemberAccentProvider(clubId));
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: accent,
+      child: ViroScaffold(
       appBar: const ViroAppBar(
         title: Text('Payer en ligne'),
       ),
@@ -21,12 +30,14 @@ class PaymentSoonScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
           child: ViroCard(
+            accentColor: accent,
+            borderColor: ClubAccentStyle(accent).border,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ViroIcon(
                   ViroIcons.payments,
-                  color: ViroColors.primary600,
+                  color: accent,
                   size: 40,
                 ),
                 const SizedBox(height: ViroSpacing.md),
@@ -35,7 +46,7 @@ class PaymentSoonScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: theme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: ViroColors.primary800,
+                    color: accent,
                   ),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
@@ -53,6 +64,7 @@ class PaymentSoonScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

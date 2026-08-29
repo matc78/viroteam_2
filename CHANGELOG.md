@@ -9,10 +9,35 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-- PostHog wizard création club : événements `club_setup_started` / `club_setup_step_viewed` / `club_setup_completed` (objectifs, sport, taille — sans PII)
 ### Modifié
 
 ### Corrigé
+
+## [2.1.0] - 2026-08-29
+
+### Ajouté
+
+- Écran paramètres utilisateur (profil, e-mail, mot de passe, session)
+- Écran paramètres club avec droits coachs et configuration saison cotisations
+- Gestion inventaire équipements club (liste, formulaire, accès depuis l’accueil)
+- Personnalisation apparence club : logo, couleurs bicolores, accents sur l’app
+- Wizard création club refondu (étapes modulaires, persistance, récap, autocomplete adresse)
+- PostHog wizard création club : événements `club_setup_started` / `club_setup_step_viewed` / `club_setup_completed` (sans PII)
+- Invitations e-mail membres, fiches détail et édition pending
+- Module parents (liste, mon parent, invitation) + callables Brevo
+- Portail : Bureau coach/joueur, membres/parents, annonces, cotisations enrichies, planning
+- CI/CD monorepo (release Android Play internal/prod, deploy portal/functions/firestore)
+
+### Modifié
+
+- Harmonisation politique mot de passe app + portail
+- Deep links planning étendus, bannières portail retirées
+- Accents club sur accueil, membres, planning, équipes, cotisations et annonces
+
+### Corrigé
+
+- Alignement appId Firebase Android sur `com.viroteam.viro_team`
+- Messages d’erreur Auth en français
 
 ## [1.1.0] - 2026-08-27
 

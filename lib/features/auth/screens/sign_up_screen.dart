@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/join/providers/pending_invitation_provider
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
+import 'package:viro_team_v2/utils/auth_error_message.dart';
 import 'package:viro_team_v2/utils/password_policy.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
@@ -136,7 +137,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
       await _navigateAfterSignUp();
     } catch (e) {
-      setState(() => _error = 'Impossible de créer le compte. Réessayez.');
+      setState(() => _error = AuthErrorMessage.from(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

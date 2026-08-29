@@ -71,14 +71,12 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
   Future<void> _openForm({ClubEquipmentItem? existing}) async {
     final teams = ref.read(clubTeamsProvider(widget.clubId)).value ?? [];
     final club = ref.read(clubProvider(widget.clubId)).value;
-    final memberAccent = ref.read(clubMemberAccentProvider(widget.clubId));
     final managementAccent = ref.read(clubManagementAccentProvider(widget.clubId));
     final input = await showEquipmentFormSheet(
       context,
       existing: existing,
       teams: teams,
       clubSport: club?.sport ?? '',
-      memberAccent: memberAccent,
       managementAccent: managementAccent,
     );
     if (input == null || !mounted) return;

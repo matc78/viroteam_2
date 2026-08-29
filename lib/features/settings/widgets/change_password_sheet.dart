@@ -1,10 +1,10 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/auth_error_message.dart';
 import 'package:viro_team_v2/utils/password_policy.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
@@ -80,19 +80,9 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
         ViroSnackBar.show(context, 'Mot de passe mis à jour');
         Navigator.of(context).pop(true);
       }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        setState(
-          () => _error = e.message ?? 'Changement de mot de passe impossible.',
-        );
-      }
     } catch (e) {
       if (mounted) {
-        setState(
-          () => _error = e is StateError
-              ? e.message
-              : 'Changement de mot de passe impossible.',
-        );
+        setState(() => _error = AuthErrorMessage.from(e));
       }
     } finally {
       if (mounted) setState(() => _saving = false);

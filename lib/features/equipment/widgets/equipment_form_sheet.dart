@@ -20,7 +20,6 @@ Future<EquipmentFormResult?> showEquipmentFormSheet(
   ClubEquipmentItem? existing,
   required List<ClubTeam> teams,
   required String clubSport,
-  required Color memberAccent,
   required Color managementAccent,
 }) {
   return showModalBottomSheet<EquipmentFormResult>(
@@ -33,7 +32,7 @@ Future<EquipmentFormResult?> showEquipmentFormSheet(
       ),
     ),
     builder: (sheetContext) => ClubAccentTheme(
-      accentColor: memberAccent,
+      accentColor: managementAccent,
       child: Padding(
         padding: EdgeInsets.only(
           bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
@@ -124,45 +123,43 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
   bool get _showOtherCategory =>
       EquipmentCategoryPresets.isOther(_categoryPreset);
 
-  bool get _needsScroll {
-    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
-    return keyboardOpen || _showOtherCategory;
-  }
+  String get _categoryDropdownValue =>
+      _showOtherCategory || !_categoryLabels.contains(_categoryPreset)
+          ? EquipmentCategoryPresets.other
+          : _categoryPreset;
 
-  bool get _isFormValid {
+  bool get _isFormValid => _validateForm() == null;
+
+  /// Retourne un message d’erreur ou `null` si le formulaire est valide.
+  String? _validateForm() {
     final name = _nameController.text.trim();
     final category = EquipmentCategoryPresets.storedValue(
       preset: _categoryPreset,
       customLabel: _customCategoryController.text,
     );
     final quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
-    return name.isNotEmpty && category.isNotEmpty && quantity > 0;
+
+    if (name.isEmpty) return 'Indiquez un nom.';
+    if (category.isEmpty) {
+      return _showOtherCategory ? 'Précisez le type.' : 'Choisissez un type.';
+    }
+    if (quantity <= 0) return 'Quantité min. 1.';
+    return null;
   }
 
   void _submit() {
+    final validationError = _validateForm();
+    if (validationError != null) {
+      setState(() => _error = validationError);
+      return;
+    }
+
     final name = _nameController.text.trim();
     final category = EquipmentCategoryPresets.storedValue(
       preset: _categoryPreset,
       customLabel: _customCategoryController.text,
     );
-    final quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
-
-    if (name.isEmpty) {
-      setState(() => _error = 'Indiquez un nom.');
-      return;
-    }
-    if (category.isEmpty) {
-      setState(
-        () => _error = _showOtherCategory
-            ? 'Précisez le type.'
-            : 'Choisissez un type.',
-      );
-      return;
-    }
-    if (quantity <= 0) {
-      setState(() => _error = 'Quantité min. 1.');
-      return;
-    }
+    final quantity = int.parse(_quantityController.text.trim());
 
     Navigator.pop(
       context,
@@ -223,10 +220,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
           const SizedBox(height: ViroSpacing.sm),
           DropdownButtonFormField<String>(
             key: ValueKey('cat_$_categoryPreset'),
-            initialValue: _showOtherCategory ||
-                    !_categoryLabels.contains(_categoryPreset)
-                ? EquipmentCategoryPresets.other
-                : _categoryPreset,
+            initialValue: _categoryDropdownValue,
             decoration: _denseDecoration.copyWith(
               labelText: 'Type',
             ),
@@ -314,7 +308,6 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
           ),
           const SizedBox(height: ViroSpacing.sm),
           DropdownButtonFormField<String?>(
-            key: ValueKey('team_$_assignedTeamId'),
             initialValue: _assignedTeamId,
             decoration: _denseDecoration.copyWith(
               labelText: 'Équipe',
@@ -353,7 +346,6 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isEdit = widget.existing != null;
-    final scrollable = _needsScroll;
 
     final content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -424,9 +416,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
           ViroSpacing.screenHorizontal,
           ViroSpacing.sm,
         ),
-        child: scrollable
-            ? SingleChildScrollView(child: content)
-            : content,
+        child: SingleChildScrollView(child: content),
       ),
     );
   }

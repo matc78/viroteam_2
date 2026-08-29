@@ -6,6 +6,7 @@ import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
 /// Sélectionne une photo et met à jour l’avatar utilisateur.
 Future<bool> pickAndUploadUserAvatar(
@@ -115,8 +116,9 @@ class UserSettingsAvatar extends StatelessWidget {
 
     if (onTap == null) return avatar;
 
-    return GestureDetector(
+    return ViroPressable(
       onTap: busy ? null : onTap,
+      borderRadius: BorderRadius.circular(32),
       child: avatar,
     );
   }

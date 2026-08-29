@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,7 +13,6 @@ import 'package:viro_team_v2/features/settings/widgets/change_password_sheet.dar
 import 'package:viro_team_v2/features/settings/widgets/edit_profile_sheet.dart';
 import 'package:viro_team_v2/features/settings/widgets/user_settings_avatar.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
-import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/account_service.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
@@ -54,9 +52,9 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
     final userAsync = ref.watch(viroUserProvider);
     final clubsAsync = ref.watch(userClubsProvider);
     final theme = Theme.of(context).textTheme;
-    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final firebaseUser = ref.watch(authStateProvider).value;
     final passwordAccount = firebaseUser != null &&
-        ref.read(accountServiceProvider).hasPasswordProvider(firebaseUser);
+        AccountService.userHasPasswordProvider(firebaseUser);
     final providerLabels = firebaseUser != null
         ? AccountService.authProviderLabels(firebaseUser)
         : const <String>[];

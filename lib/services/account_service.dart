@@ -22,13 +22,6 @@ class AccountService {
   final GoogleSignIn _googleSignIn;
 
   /// Indique si le compte a le provider email / mot de passe.
-  bool hasPasswordProvider(User user) =>
-      userHasPasswordProvider(user);
-
-  /// Indique si le compte a le provider Google.
-  bool hasGoogleProvider(User user) => userHasGoogleProvider(user);
-
-  /// Indique si le compte a le provider email / mot de passe.
   static bool userHasPasswordProvider(User user) =>
       user.providerData.any((p) => p.providerId == 'password');
 
@@ -67,7 +60,15 @@ class AccountService {
     await reauthenticate(user: user, password: currentPassword);
     await user.verifyBeforeUpdateEmail(trimmedEmail);
 
-    // L’e-mail Auth est mis à jour après validation du lien ; pas de sync Firestore ici.
+    // Sync Firestore tout de suite pour l’affichage in-app (Auth après validation du lien).
+    await _db.collection(ProjectConfig.usersCollection).doc(user.uid).set(
+      {
+        FirestoreFields.email: trimmedEmail,
+        FirestoreFields.emailNorm: trimmedEmail.toLowerCase(),
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   /// Change le mot de passe (provider password uniquement).
@@ -79,7 +80,7 @@ class AccountService {
     if (user == null) {
       throw StateError('Aucun utilisateur connecté.');
     }
-    if (!hasPasswordProvider(user)) {
+    if (!userHasPasswordProvider(user)) {
       throw StateError('Ce compte n’utilise pas de mot de passe.');
     }
     final policyError = PasswordPolicy.validate(newPassword);
@@ -96,7 +97,7 @@ class AccountService {
     required User user,
     String? password,
   }) async {
-    if (hasPasswordProvider(user)) {
+    if (userHasPasswordProvider(user)) {
       final email = user.email?.trim();
       if (email == null || email.isEmpty) {
         throw StateError('E-mail manquant pour la réauthentification.');
@@ -113,7 +114,7 @@ class AccountService {
       return;
     }
 
-    if (hasGoogleProvider(user)) {
+    if (userHasGoogleProvider(user)) {
       final googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         throw const AuthCanceledException();

@@ -6,8 +6,8 @@ import styles from "./HowItWorks.module.css";
 
 const steps = [
   {
-    title: "Créez votre club dans l’app",
-    body: "Configurez le club en quelques minutes sur mobile, puis invitez votre bureau.",
+    title: "Créez votre club sur le web",
+    body: "Configurez le club en quelques minutes, puis invitez votre bureau.",
   },
   {
     title: "Invitez les membres",

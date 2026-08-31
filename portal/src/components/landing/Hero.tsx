@@ -72,7 +72,10 @@ export function Hero() {
           animate="show"
         >
           <StoreBadges />
-          <Link href="/login" className={styles.clubLink}>
+          <Link href="/signup?intent=founder" className={styles.clubLink}>
+            Créer mon club
+          </Link>
+          <Link href="/login" className={styles.clubLinkSecondary}>
             Accéder à l&apos;espace club
           </Link>
         </motion.div>

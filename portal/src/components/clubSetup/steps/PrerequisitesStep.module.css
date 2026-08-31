@@ -1,0 +1,72 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.bubbleRow {
+  display: flex;
+  width: 100%;
+}
+
+.bubbleRowLeft {
+  justify-content: flex-start;
+}
+
+.bubbleRowRight {
+  justify-content: flex-end;
+}
+
+.bubble {
+  width: 88%;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--bubble-accent, var(--color-gray-200)) 28%, var(--color-gray-200));
+  background: color-mix(in srgb, var(--bubble-accent, white) 7%, white);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--bubble-accent, var(--color-primary-900)) 10%, transparent);
+}
+
+.bubbleContent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0.55rem 0.85rem;
+}
+
+.bubbleMirrored .bubbleContent {
+  flex-direction: row-reverse;
+}
+
+.bubbleMirrored .textBlock {
+  text-align: right;
+}
+
+.iconWrap {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.textBlock {
+  min-width: 0;
+  flex: 1;
+}
+
+.bubbleTitle {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-primary-800);
+  line-height: 1.25;
+}
+
+.bubbleSubtitle {
+  margin: 0.1rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-gray-600);
+  line-height: 1.3;
+}

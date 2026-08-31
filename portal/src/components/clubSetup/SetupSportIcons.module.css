@@ -1,0 +1,71 @@
+.neonIcon {
+  position: relative;
+  display: block;
+  width: 2.65rem;
+  height: 2.65rem;
+}
+
+.neonOff,
+.neonBloom,
+.neonTube,
+.neonCore {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  pointer-events: none;
+}
+
+.neonOff {
+  background-color: var(--color-gray-300);
+}
+
+.neonBloom {
+  background-color: var(--icon-accent, var(--color-primary-600));
+  transform: scale(1.14);
+  opacity: 0.45;
+  filter: blur(4px);
+}
+
+.neonTube {
+  background-color: var(--icon-accent, var(--color-primary-600));
+  filter:
+    drop-shadow(0 0 1px color-mix(in srgb, white 90%, var(--icon-accent)))
+    drop-shadow(0 0 3px var(--icon-accent))
+    drop-shadow(0 0 8px color-mix(in srgb, var(--icon-accent) 85%, transparent));
+}
+
+.neonCore {
+  background-color: #ffffff;
+  transform: scale(0.86);
+  opacity: 0.92;
+  mix-blend-mode: screen;
+}
+
+.neonIconCurrent .neonBloom {
+  opacity: 0.58;
+  filter: blur(5px);
+}
+
+.neonIconCurrent .neonTube {
+  filter:
+    drop-shadow(0 0 1px #fff)
+    drop-shadow(0 0 4px var(--icon-accent))
+    drop-shadow(0 0 10px var(--icon-accent))
+    drop-shadow(0 0 18px color-mix(in srgb, var(--icon-accent) 75%, transparent));
+}
+
+.neonIconCurrent .neonCore {
+  opacity: 1;
+}
+
+@media (max-width: 540px) {
+  .neonIcon {
+    width: 2rem;
+    height: 2rem;
+  }
+}

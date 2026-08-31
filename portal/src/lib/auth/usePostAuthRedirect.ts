@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { isFounderSignupIntent } from "@/lib/auth/signupIntent";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 
 type PostAuthRedirectOptions = {
@@ -40,7 +41,12 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
         nextPath.startsWith("/fees") ||
         nextPath.startsWith("/announcements");
       const isJoinPath = nextPath.startsWith("/join");
+      const isClubSetupPath = nextPath.startsWith("/club-setup");
 
+      if (isClubSetupPath) {
+        router.replace(nextPath);
+        return;
+      }
       if (isJoinPath) {
         router.replace(nextPath);
         return;
@@ -65,6 +71,12 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
     }
     if (isParent) {
       router.replace("/family");
+      return;
+    }
+
+    // Signup fondateur sans club : wizard création.
+    if (options?.accessDeniedFromSignup && isFounderSignupIntent()) {
+      router.replace("/club-setup");
       return;
     }
 

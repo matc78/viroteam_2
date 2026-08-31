@@ -92,6 +92,18 @@
   color: var(--color-primary-800);
 }
 
+.clubLinkSecondary {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.clubLinkSecondary:hover {
+  color: var(--color-primary-700);
+}
+
 @media (max-width: 900px) {
   .hero {
     min-height: auto;

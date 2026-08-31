@@ -1,0 +1,6 @@
+.setupCard {
+  background: var(--color-white);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-gray-200);
+  padding: var(--space-md);
+}

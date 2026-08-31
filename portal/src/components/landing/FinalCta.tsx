@@ -40,6 +40,9 @@ export function FinalCta() {
               </p>
               <div className={styles.actions}>
                 <StoreBadges />
+                <Link href="/signup?intent=founder" className={styles.clubLink}>
+                  Créer mon club
+                </Link>
                 <Link href="/login" className={styles.clubLink}>
                   Espace club
                 </Link>

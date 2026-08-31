@@ -35,9 +35,9 @@ function isAnimatedProps(props: AuthShellProps): props is AuthShellAnimatedProps
 }
 
 /**
- * Coquille auth : header, panneau centré, footer.
+ * Coquille auth : header, panneau centré, footer optionnel.
  * - `static` : intro intégrée (join, access-denied).
- * - `animated` : transition login ↔ signup (layout partagé).
+ * - `animated` : transition login ↔ signup (layout partagé, sans footer).
  */
 export function AuthShell(props: AuthShellProps) {
   if (isAnimatedProps(props)) {
@@ -82,7 +82,7 @@ function AuthShellAnimated({ children }: { children: ReactNode }) {
 
   const isSignup = pathname.startsWith("/signup");
   const panelClass = isSignup
-    ? `${styles.panel} ${styles.panelOrange}`
+    ? `${styles.panel} ${styles.panelOrange} ${styles.panelWide}`
     : `${styles.panel} ${styles.panelCyan}`;
 
   if (previousPathnameRef.current !== pathname) {
@@ -126,7 +126,6 @@ function AuthShellAnimated({ children }: { children: ReactNode }) {
           </AnimatePresence>
         </div>
       </main>
-      <SiteFooter />
     </div>
   );
 }

@@ -1,0 +1,71 @@
+.layout {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.objectiveGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+@container (min-width: 32rem) {
+  .objectiveGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 48rem) {
+  .objectiveGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+}
+
+@container (min-width: 60rem) {
+  .objectiveGrid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.memberCountSection {
+  text-align: center;
+}
+
+.memberCountTitle {
+  margin: 0 0 0.45rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-primary-800);
+}
+
+.memberCountRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.rangeChip {
+  border-radius: 999px;
+  border: 1.5px solid var(--color-gray-200);
+  background: white;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.rangeChip:hover {
+  border-color: var(--color-gray-300);
+  background: var(--color-gray-50);
+}
+
+.rangeChipSelected {
+  border-width: 1.5px;
+  font-weight: 700;
+}

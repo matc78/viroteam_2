@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthDivider, GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { handleGoogleAuthError } from "@/lib/auth/handleGoogleAuthError";
+import { captureFounderIntentFromSearch, isFounderSignupIntent } from "@/lib/auth/signupIntent";
 import { usePostAuthRedirect } from "@/lib/auth/usePostAuthRedirect";
 import { validateEmail } from "@/lib/auth/validateEmail";
 import {
@@ -32,6 +34,7 @@ export function SignupForm() {
 }
 
 function SignupFormContent() {
+  const searchParams = useSearchParams();
   const { signUp, signInWithGoogle } = useAuth();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -42,6 +45,12 @@ function SignupFormContent() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [isFounderIntent, setIsFounderIntent] = useState(false);
+
+  useEffect(() => {
+    captureFounderIntentFromSearch(searchParams.toString());
+    setIsFounderIntent(isFounderSignupIntent());
+  }, [searchParams]);
 
   usePostAuthRedirect({ accessDeniedFromSignup: true });
 
@@ -109,127 +118,136 @@ function SignupFormContent() {
 
   return (
     <>
-      <form className={styles.form} onSubmit={handleSubmit} noValidate>
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="signup-name">
-            Nom affiché
-          </label>
-          <input
-            id="signup-name"
-            className={`${styles.input}${errors.displayName ? ` ${styles.inputInvalid}` : ""}`}
-            type="text"
-            name="displayName"
-            autoComplete="name"
-            placeholder="Tristan Heraud"
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            aria-invalid={Boolean(errors.displayName)}
-            aria-describedby={
-              errors.displayName ? "signup-name-error" : undefined
-            }
-          />
-          {errors.displayName ? (
-            <p id="signup-name-error" className={styles.error} role="alert">
-              {errors.displayName}
-            </p>
-          ) : null}
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="signup-email">
-            E-mail
-          </label>
-          <input
-            id="signup-email"
-            className={`${styles.input}${errors.email ? ` ${styles.inputInvalid}` : ""}`}
-            type="email"
-            name="email"
-            autoComplete="email"
-            placeholder="toi@club.fr"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            aria-invalid={Boolean(errors.email)}
-            aria-describedby={errors.email ? "signup-email-error" : undefined}
-          />
-          {errors.email ? (
-            <p id="signup-email-error" className={styles.error} role="alert">
-              {errors.email}
-            </p>
-          ) : null}
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="signup-password">
-            Mot de passe
-          </label>
-          <div className={styles.passwordField}>
+      {isFounderIntent ? (
+        <p className={styles.hint}>
+          Crée ton compte, puis configure ton club en quelques étapes.
+        </p>
+      ) : null}
+      <form className={`${styles.form} ${styles.formCompact}`} onSubmit={handleSubmit} noValidate>
+        <div className={styles.fieldRow}>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="signup-name">
+              Nom affiché
+            </label>
             <input
-              id="signup-password"
-              className={`${styles.input}${errors.password ? ` ${styles.inputInvalid}` : ""}`}
-              type={showPassword ? "text" : "password"}
-              name="password"
+              id="signup-name"
+              className={`${styles.input}${errors.displayName ? ` ${styles.inputInvalid}` : ""}`}
+              type="text"
+              name="displayName"
+              autoComplete="name"
+              placeholder="Tristan Heraud"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              aria-invalid={Boolean(errors.displayName)}
+              aria-describedby={
+                errors.displayName ? "signup-name-error" : undefined
+              }
+            />
+            {errors.displayName ? (
+              <p id="signup-name-error" className={styles.error} role="alert">
+                {errors.displayName}
+              </p>
+            ) : null}
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="signup-email">
+              E-mail
+            </label>
+            <input
+              id="signup-email"
+              className={`${styles.input}${errors.email ? ` ${styles.inputInvalid}` : ""}`}
+              type="email"
+              name="email"
+              autoComplete="email"
+              placeholder="toi@club.fr"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={errors.email ? "signup-email-error" : undefined}
+            />
+            {errors.email ? (
+              <p id="signup-email-error" className={styles.error} role="alert">
+                {errors.email}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className={styles.fieldRow}>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="signup-password">
+              Mot de passe
+            </label>
+            <div className={styles.passwordField}>
+              <input
+                id="signup-password"
+                className={`${styles.input}${errors.password ? ` ${styles.inputInvalid}` : ""}`}
+                type={showPassword ? "text" : "password"}
+                name="password"
+                autoComplete="new-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                aria-invalid={Boolean(errors.password)}
+                aria-describedby={
+                  errors.password ? "signup-password-error" : undefined
+                }
+              />
+              <button
+                type="button"
+                className={styles.passwordToggle}
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={
+                  showPassword
+                    ? "Masquer le mot de passe"
+                    : "Afficher le mot de passe"
+                }
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+                    <path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.14C55.46,186.53,83.34,200,112,200a117.55,117.55,0,0,0,32.9-4.73l30.17,33.17a8,8,0,1,0,11.84-10.76ZM128,184c-22.09,0-42.15-9.15-58.25-26.08a133.16,133.16,0,0,1-18.22-24.47L76.69,152A32,32,0,0,0,128,184Z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+                    <path d="M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.14C202.57,57.67,174.69,44,144,44S85.43,57.67,66.34,86.62C47.51,105.18,39,124,38.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.14C85.43,198.33,113.31,212,144,212s58.57-13.67,77.66-42.62c18.83-18.57,27.3-37.35,27.65-38.14A8,8,0,0,0,247.31,124.76ZM144,196c-22.09,0-42.15-9.15-58.25-26.08a133.16,133.16,0,0,1-18.22-24.47A133.16,133.16,0,0,1,85.75,121.08C101.85,104.15,121.91,95,144,95s42.15,9.15,58.25,26.08a133.16,133.16,0,0,1,18.22,24.47A133.16,133.16,0,0,1,202.25,169.92C186.15,186.85,166.09,196,144,196Zm0-84a32,32,0,1,0,32,32A32,32,0,0,0,144,112Zm0,48a16,16,0,1,1,16-16A16,16,0,0,1,144,160Z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            {errors.password ? (
+              <p id="signup-password-error" className={styles.error} role="alert">
+                {errors.password}
+              </p>
+            ) : (
+              <p className={styles.hint}>{PASSWORD_POLICY_HINT}</p>
+            )}
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="signup-confirm">
+              Confirmer le mot de passe
+            </label>
+            <input
+              id="signup-confirm"
+              className={`${styles.input}${errors.confirmPassword ? ` ${styles.inputInvalid}` : ""}`}
+              type="password"
+              name="confirmPassword"
               autoComplete="new-password"
               placeholder="••••••••"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              aria-invalid={Boolean(errors.password)}
-            aria-describedby={
-              errors.password ? "signup-password-error" : undefined
-            }
-            />
-            <button
-              type="button"
-              className={styles.passwordToggle}
-              onClick={() => setShowPassword((visible) => !visible)}
-              aria-label={
-                showPassword
-                  ? "Masquer le mot de passe"
-                  : "Afficher le mot de passe"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              aria-invalid={Boolean(errors.confirmPassword)}
+              aria-describedby={
+                errors.confirmPassword ? "signup-confirm-error" : undefined
               }
-            >
-              {showPassword ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
-                  <path d="M53.92,34.62A8,8,0,1,0,42.08,45.38L61.32,66.55C25,88.84,9.38,123.2,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.14C55.46,186.53,83.34,200,112,200a117.55,117.55,0,0,0,32.9-4.73l30.17,33.17a8,8,0,1,0,11.84-10.76ZM128,184c-22.09,0-42.15-9.15-58.25-26.08a133.16,133.16,0,0,1-18.22-24.47L76.69,152A32,32,0,0,0,128,184Z" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
-                  <path d="M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.14C202.57,57.67,174.69,44,144,44S85.43,57.67,66.34,86.62C47.51,105.18,39,124,38.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.14C85.43,198.33,113.31,212,144,212s58.57-13.67,77.66-42.62c18.83-18.57,27.3-37.35,27.65-38.14A8,8,0,0,0,247.31,124.76ZM144,196c-22.09,0-42.15-9.15-58.25-26.08a133.16,133.16,0,0,1-18.22-24.47A133.16,133.16,0,0,1,85.75,121.08C101.85,104.15,121.91,95,144,95s42.15,9.15,58.25,26.08a133.16,133.16,0,0,1,18.22,24.47A133.16,133.16,0,0,1,202.25,169.92C186.15,186.85,166.09,196,144,196Zm0-84a32,32,0,1,0,32,32A32,32,0,0,0,144,112Zm0,48a16,16,0,1,1,16-16A16,16,0,0,1,144,160Z" />
-                </svg>
-              )}
-            </button>
+            />
+            {errors.confirmPassword ? (
+              <p id="signup-confirm-error" className={styles.error} role="alert">
+                {errors.confirmPassword}
+              </p>
+            ) : null}
           </div>
-          {errors.password ? (
-            <p id="signup-password-error" className={styles.error} role="alert">
-              {errors.password}
-            </p>
-          ) : (
-            <p className={styles.hint}>{PASSWORD_POLICY_HINT}</p>
-          )}
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="signup-confirm">
-            Confirmer le mot de passe
-          </label>
-          <input
-            id="signup-confirm"
-            className={`${styles.input}${errors.confirmPassword ? ` ${styles.inputInvalid}` : ""}`}
-            type="password"
-            name="confirmPassword"
-            autoComplete="new-password"
-            placeholder="••••••••"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            aria-invalid={Boolean(errors.confirmPassword)}
-            aria-describedby={
-              errors.confirmPassword ? "signup-confirm-error" : undefined
-            }
-          />
-          {errors.confirmPassword ? (
-            <p id="signup-confirm-error" className={styles.error} role="alert">
-              {errors.confirmPassword}
-            </p>
-          ) : null}
         </div>
 
         <div className={styles.field}>

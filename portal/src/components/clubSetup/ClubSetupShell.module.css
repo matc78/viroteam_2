@@ -1,0 +1,210 @@
+.page {
+  min-height: 100dvh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: var(--space-sm) var(--space-lg) var(--space-lg);
+  gap: var(--space-md);
+}
+
+.mainCompact {
+  justify-content: flex-start;
+}
+
+.mainWide {
+  justify-content: flex-start;
+  gap: var(--space-md);
+  padding: var(--space-lg) clamp(0.75rem, 2vw, 1.25rem) var(--space-sm);
+}
+
+.wizardStack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 42rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.wizardStackWide {
+  max-width: min(100%, 72rem);
+  flex: 0 1 auto;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.wizardStackCompact {
+  flex: 0 1 auto;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  padding: clamp(1.5rem, 3.5vw, 2rem);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-white) 92%, transparent);
+  border: 2px solid var(--step-accent, var(--color-sport-orange));
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+  transition: border-color 320ms ease;
+}
+
+.panelCompact {
+  flex: 0 1 auto;
+  min-height: auto;
+  padding-bottom: clamp(1rem, 2.5vw, 1.25rem);
+}
+
+.panelBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 calc(-1 * var(--space-xs));
+  padding: 0 var(--space-xs);
+  scrollbar-width: thin;
+}
+
+.panelBodyCompact {
+  flex: 0 1 auto;
+  overflow: visible;
+}
+
+.stepContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.actions {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: var(--space-sm);
+  align-items: center;
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.actionsCompact {
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  padding-bottom: 0;
+}
+
+.actionsSingle {
+  grid-template-columns: 1fr;
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.55rem 1rem;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-gray-900);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  border-color: var(--color-gray-300);
+  background: var(--color-gray-50);
+  transform: translateY(-1px);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.previewBanner,
+.resumeBanner {
+  margin: 0 0 var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.panelWide .previewBanner,
+.panelWide .resumeBanner {
+  margin-bottom: var(--space-xs);
+  padding: 0.35rem var(--space-xs);
+  font-size: 0.75rem;
+}
+
+.previewBanner {
+  background: color-mix(in srgb, var(--color-sport-cyan) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-sport-cyan) 35%, transparent);
+  color: var(--color-primary-800);
+}
+
+.resumeBanner {
+  background: color-mix(in srgb, var(--color-sport-green) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--color-sport-green) 35%, transparent);
+  color: var(--color-primary-800);
+}
+
+.panelWide {
+  flex: 0 1 auto;
+  min-height: auto;
+  padding: clamp(0.85rem, 1.8vw, 1.25rem) clamp(1rem, 2.5vw, 1.5rem);
+}
+
+.panelBodyWide {
+  flex: 0 1 auto;
+  overflow: visible;
+}
+
+.actionsWide {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-md);
+}
+
+.loadingText {
+  margin: 0;
+  text-align: center;
+  color: var(--color-gray-600);
+}
+
+@media (max-width: 540px) {
+  .actions:not(.actionsSingle) {
+    grid-template-columns: 1fr;
+  }
+
+  .main {
+    padding: var(--space-xs) var(--space-md) var(--space-md);
+    gap: var(--space-sm);
+  }
+
+  .panel {
+    padding: 1.25rem;
+  }
+}

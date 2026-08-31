@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { AuthPageIntro } from "@/components/auth/AuthPageIntro";
-import { SignupForm } from "@/components/auth/SignupForm";
+import { Suspense } from "react";
+import { SignupPageClient } from "@/components/auth/SignupPageClient";
 
 export const metadata: Metadata = {
   title: "Inscription — ViroTeam",
@@ -10,13 +10,8 @@ export const metadata: Metadata = {
 /** Page d’inscription Firebase Auth. */
 export default function SignupPage() {
   return (
-    <>
-      <AuthPageIntro
-        eyebrow="Espace club"
-        title="Inscription"
-        lead="Crée ton compte. L’espace web est réservé aux administrateurs de club."
-      />
-      <SignupForm />
-    </>
+    <Suspense fallback={<p>Chargement…</p>}>
+      <SignupPageClient />
+    </Suspense>
   );
 }

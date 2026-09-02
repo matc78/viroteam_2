@@ -70,3 +70,8 @@ portal/.next/
 portal/out/
 portal/.env.local
 portal/.env.sentry-build-plugin
+
+# Tests des règles Firestore
+rules-tests/node_modules/
+rules-tests/firestore-debug.log
+rules-tests/*.log

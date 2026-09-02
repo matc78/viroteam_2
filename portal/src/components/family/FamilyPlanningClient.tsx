@@ -13,13 +13,25 @@ import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   loadUpcomingEvents,
+  loadUpcomingEventsForGuardian,
   type ClubEventView,
 } from "@/lib/firebase/eventService";
+import { getClubMember } from "@/lib/firebase/memberService";
 import styles from "./FamilyHomeClient.module.css";
 
 function eventForMember(event: ClubEventView, memberId: string): boolean {
   if (event.teamMemberIds.length === 0) return false;
   return event.teamMemberIds.includes(memberId);
+}
+
+/** Vue parent : événement convoquant l’enfant ou visant l’une de ses équipes. */
+function eventForChild(
+  event: ClubEventView,
+  memberId: string,
+  childTeamIds: string[],
+): boolean {
+  if (event.teamMemberIds.includes(memberId)) return true;
+  return event.teamIds.some((teamId) => childTeamIds.includes(teamId));
 }
 
 /** Planning famille filtré sur la fiche cible + RSVP. */
@@ -32,10 +44,24 @@ export function FamilyPlanningClient() {
     activeClub,
     async (club) => {
       if (!selectedMemberId) return [] as ClubEventView[];
+      if (selectedTarget?.kind === "child") {
+        // Parent : pas de lecture globale des events — une requête par
+        // équipe de l’enfant (règles Firestore guardian).
+        const child = await getClubMember(club.id, selectedMemberId);
+        const childTeamIds = child?.teamIds ?? [];
+        const events = await loadUpcomingEventsForGuardian(
+          club.id,
+          childTeamIds,
+          { limit: 50 },
+        );
+        return events.filter((event) =>
+          eventForChild(event, selectedMemberId, childTeamIds),
+        );
+      }
       const events = await loadUpcomingEvents(club.id, { limit: 50 });
       return events.filter((event) => eventForMember(event, selectedMemberId));
     },
-    [selectedMemberId],
+    [selectedMemberId, selectedTarget?.kind],
   );
 
   if ((loading || audienceLoading) && !data) {

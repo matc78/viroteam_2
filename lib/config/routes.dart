@@ -169,6 +169,8 @@ final routerRefreshProvider = Provider<RouterRefreshNotifier>((ref) {
 
   ref.listen(pendingInvitationProvider, (_, _) => notifier.notify());
 
+  ref.listen(signUpIntentProvider, (_, _) => notifier.notify());
+
   ref.onDispose(notifier.dispose);
 
   return notifier;

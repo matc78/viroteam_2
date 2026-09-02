@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseAcceptInvitationArgs } from "../lib/acceptInvitationArgs.js";
+import { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
 
 test("parseAcceptInvitationArgs exige clubId et invitationId", () => {
   assert.throws(() => parseAcceptInvitationArgs({}), (error: unknown) => {

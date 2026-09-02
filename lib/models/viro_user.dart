@@ -61,6 +61,12 @@ class ViroUser {
   /// `true` si l’adulte a une fiche membre dans ce club.
   bool isLicensedInClub(String clubId) => membershipInClub(clubId) != null;
 
+  /// `true` si l'utilisateur n'est que parent dans ce club (lien actif, pas de
+  /// fiche membre) : ses lectures Firestore sont limitées aux équipes de ses
+  /// enfants (`parentTeamIds`).
+  bool isGuardianOnlyInClub(String clubId) =>
+      !isLicensedInClub(clubId) && activeParentLinksInClub(clubId).isNotEmpty;
+
   factory ViroUser.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     final flags = data[FirestoreFields.flags] as Map<String, dynamic>? ?? {};

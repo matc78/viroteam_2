@@ -48,5 +48,11 @@ service firebase.storage {
       allow read: if true;
       allow write: if isClubAdmin(clubId) && isImageUnder2Mb();
     }
+
+    // Reçus de cotisation (PDF générés par les Cloud Functions) : jamais lus
+    // directement par les clients — la callable renvoie une URL signée.
+    match /receipts/{allPaths=**} {
+      allow read, write: if false;
+    }
   }
 }

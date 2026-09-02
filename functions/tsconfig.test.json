@@ -4,6 +4,8 @@
     "rootDir": "src",
     "outDir": "lib"
   },
-  "include": ["src/acceptInvitationArgs.ts", "src/acceptInvitation.test.ts"],
+  "include": [
+    "src/**/*.test.ts"
+  ],
   "exclude": []
 }

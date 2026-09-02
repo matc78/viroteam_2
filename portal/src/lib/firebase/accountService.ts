@@ -2,7 +2,6 @@ import {
   EmailAuthProvider,
   GoogleAuthProvider,
   User,
-  deleteUser,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   updateEmail,
@@ -12,6 +11,7 @@ import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { authErrorMessage } from "./authErrors";
 import { validatePassword } from "@/lib/auth/passwordPolicy";
 import { getAppFirestore } from "./app";
+import { deleteMyAccount } from "./callableService";
 import { Collections, Fields } from "./constants";
 
 const googleProvider = new GoogleAuthProvider();
@@ -115,24 +115,22 @@ export async function changeUserPassword(params: {
 }
 
 /**
- * Désactive le profil Firestore puis supprime le compte Auth.
- * Nécessite une réauthentification récente.
+ * Supprime le compte via la callable `deleteMyAccount` : anonymisation des
+ * fiches membre (historique club conservé), nettoyage des liens parent puis
+ * suppression Auth côté serveur. Nécessite une réauthentification récente.
+ * L’appelant doit ensuite déconnecter la session (`signOut`).
  */
 export async function deleteUserAccount(params: {
   user: User;
   currentPassword?: string;
-}): Promise<void> {
+}): Promise<{ anonymizedMembers: number }> {
   await reauthenticateUser({
     user: params.user,
     password: params.currentPassword,
   });
-  await updateDoc(doc(getAppFirestore(), Collections.users, params.user.uid), {
-    [`${Fields.flags}.${Fields.disabled}`]: true,
-    [Fields.updatedAt]: serverTimestamp(),
-  });
-  try {
-    await deleteUser(params.user);
-  } catch (error) {
-    throw new Error(authErrorMessage(error));
+  const result = await deleteMyAccount();
+  if (!result.ok) {
+    throw new Error("Suppression du compte impossible. Réessaie plus tard.");
   }
+  return { anonymizedMembers: result.anonymizedMembers };
 }

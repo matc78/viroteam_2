@@ -3,6 +3,7 @@ import 'package:viro_team_v2/features/announcements/utils/announcement_filter.da
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -29,6 +30,18 @@ final clubAnnouncementsProvider =
     StreamProvider.family<List<ClubAnnouncement>, String>((ref, clubId) {
   final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return Stream.value([]);
+  // Parent : pas de lecture globale → « Tous les membres » + équipes enfant.
+  if (ref.watch(isGuardianOnlyInClubProvider(clubId))) {
+    return Stream.fromFuture(
+      ref.watch(guardianChildTeamIdsProvider(clubId).future),
+    ).asyncExpand(
+      (childTeamIds) =>
+          ref.read(announcementServiceProvider).watchAnnouncementsForGuardian(
+                clubId: clubId,
+                childTeamIds: childTeamIds,
+              ),
+    );
+  }
   return ref.read(announcementServiceProvider).watchAnnouncements(
         clubId: clubId,
       );
@@ -84,9 +97,48 @@ final homeActiveAnnouncementsProvider =
   final authUid = auth.uid;
   final announcementService = ref.read(announcementServiceProvider);
   final eventService = ref.read(eventServiceProvider);
+  final guardianService = ref.read(guardianServiceProvider);
 
   final streams = clubs.map<Stream<List<HomeAnnouncementItem>>>((entry) {
     final club = entry.club;
+
+    // Parent sans fiche : annonces filtrées par les équipes de l'enfant,
+    // ciblage évalué sur la fiche du 1er enfant (pas de `watchClubMember`).
+    if (!entry.isLicensed && entry.hasFamilyLinks) {
+      return Stream.fromFuture(
+        guardianService.getClubMember(
+          clubId: club.id,
+          memberId: entry.parentLinks.first.memberId,
+        ),
+      ).asyncExpand((child) {
+        final childTeamIds = child?.teamIds ?? const <String>[];
+        final teams = teamsByClub[club.id]?.values.toList() ?? [];
+        return announcementService
+            .watchAnnouncementsForGuardian(
+              clubId: club.id,
+              childTeamIds: childTeamIds,
+            )
+            .map(
+              (announcements) => AnnouncementFilter.activeForHome(
+                announcements: announcements,
+                member: child,
+                clubTeams: teams,
+                staffSeesAll: false,
+                dismissedIds: child?.dismissedAnnouncementIds.toSet() ?? {},
+              )
+                  .map(
+                    (a) => HomeAnnouncementItem(
+                      clubId: club.id,
+                      clubName: club.name,
+                      brandColorHex: club.brandColorHex,
+                      announcement: a,
+                    ),
+                  )
+                  .toList(),
+            );
+      });
+    }
+
     return eventService.watchClubMember(clubId: club.id, uid: authUid).asyncExpand(
       (member) {
         final dismissed =

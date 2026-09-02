@@ -701,6 +701,140 @@ export async function loadUpcomingEvents(
   return parsed.slice(0, maxItems);
 }
 
+/**
+ * Charge des équipes par id (un `getDoc` par équipe).
+ * Pour un parent : les règles n’autorisent que `teams/{teamId}` avec
+ * `teamId ∈ parentTeamIds` — jamais de `getDocs(teams)`.
+ * Les équipes absentes ou refusées sont ignorées.
+ */
+export async function loadTeamsByIds(
+  clubId: string,
+  teamIds: string[],
+): Promise<TeamOption[]> {
+  const uniqueIds = [...new Set(teamIds.map(String).filter(Boolean))];
+  if (uniqueIds.length === 0) return [];
+  const teamsCol = collection(
+    getAppFirestore(),
+    Collections.clubs,
+    clubId,
+    Collections.teams,
+  );
+  const results = await Promise.all(
+    uniqueIds.map(async (teamId) => {
+      try {
+        const snap = await getDoc(doc(teamsCol, teamId));
+        if (!snap.exists()) return null;
+        const data = snap.data() as Record<string, unknown>;
+        const playerIdsRaw = data[Fields.playerIds];
+        const coachIdsRaw = data[Fields.coachIds];
+        return {
+          id: snap.id,
+          name: String(data[Fields.name] ?? "Équipe"),
+          category:
+            typeof data[Fields.category] === "string"
+              ? String(data[Fields.category]).trim()
+              : "",
+          playerIds: Array.isArray(playerIdsRaw) ? playerIdsRaw.map(String) : [],
+          coachIds: Array.isArray(coachIdsRaw) ? coachIdsRaw.map(String) : [],
+        } satisfies TeamOption;
+      } catch {
+        // Équipe non lisible pour ce compte (règles) : on l’ignore.
+        return null;
+      }
+    }),
+  );
+  return results
+    .filter((team): team is TeamOption => team !== null)
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+}
+
+/**
+ * Événements à venir d’une équipe pour un parent : uniquement
+ * `where teamIds array-contains <teamId>` (seule forme autorisée par les
+ * règles). Tente d’abord la requête indexée (`date >=`), sinon filtre la date
+ * côté client — jamais de lecture globale des events.
+ */
+async function queryUpcomingTeamEventsForGuardian(
+  clubId: string,
+  teamId: string,
+): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+  const today = dateOnly(new Date());
+  const eventsCol = eventsCollection(clubId);
+  try {
+    const snap = await getDocs(
+      query(
+        eventsCol,
+        where(Fields.teamIds, "array-contains", teamId),
+        where(Fields.date, ">=", Timestamp.fromDate(today)),
+        limit(200),
+      ),
+    );
+    return snap.docs.map((docSnap) => ({
+      id: docSnap.id,
+      data: docSnap.data() as Record<string, unknown>,
+    }));
+  } catch {
+    const snap = await getDocs(
+      query(
+        eventsCol,
+        where(Fields.teamIds, "array-contains", teamId),
+        limit(300),
+      ),
+    );
+    return snap.docs
+      .map((docSnap) => ({
+        id: docSnap.id,
+        data: docSnap.data() as Record<string, unknown>,
+      }))
+      .filter(({ data }) => {
+        const eventDate =
+          toDate(data[Fields.date]) ?? toDate(data[Fields.startTime]);
+        return (
+          eventDate !== null &&
+          dateOnly(eventDate).getTime() >= today.getTime()
+        );
+      });
+  }
+}
+
+/**
+ * Événements à venir (fenêtre 14 jours) visibles par un parent : une requête
+ * par équipe de l’enfant, dédoublonnées, sans synchronisation d’audience
+ * (un parent ne peut pas écrire les events).
+ */
+export async function loadUpcomingEventsForGuardian(
+  clubId: string,
+  childTeamIds: string[],
+  options: { limit?: number; teams?: TeamOption[] } = {},
+): Promise<ClubEventView[]> {
+  const teamIds = [...new Set(childTeamIds.map(String).filter(Boolean))];
+  if (teamIds.length === 0) return [];
+
+  const teams = options.teams ?? (await loadTeamsByIds(clubId, teamIds));
+  const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
+
+  const perTeam = await Promise.all(
+    teamIds.map((teamId) => queryUpcomingTeamEventsForGuardian(clubId, teamId)),
+  );
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const rows of perTeam) {
+    for (const { id, data } of rows) {
+      if (!byId.has(id)) byId.set(id, data);
+    }
+  }
+
+  const parsed = [...byId.entries()]
+    .map(([id, data]) => parseClubEvent(id, data, teamNameById))
+    .filter((event): event is ClubEventView => event !== null)
+    .filter((event) => isWithinUpcomingPlanningWindow(new Date(event.startsAt)))
+    .sort(
+      (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+    );
+
+  const maxItems = options.limit ?? parsed.length;
+  return parsed.slice(0, maxItems);
+}
+
 /** Charge les données complètes de la page planning (plage calendrier élargie). */
 export async function loadPlanningPageData(
   clubId: string,

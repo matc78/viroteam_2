@@ -51,7 +51,10 @@
   text-align: center;
 }
 
-.optional {
+.fieldHint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--color-gray-500);
   text-transform: none;

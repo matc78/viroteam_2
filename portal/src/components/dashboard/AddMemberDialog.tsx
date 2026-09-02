@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import { validateEmail } from "@/lib/auth/validateEmail";
 import { MemberRoles } from "@/lib/firebase/constants";
 import type { AddMemberResult } from "@/lib/firebase/memberService";
 import panelStyles from "./DashboardPanel.module.css";
@@ -26,7 +27,10 @@ type AddMemberDialogProps = {
   onEmailInvite: () => Promise<boolean>;
 };
 
-/** Dialog ajout membre (prénom / nom / e-mail optionnel / rôle joueur|coach). */
+/**
+ * Dialog ajout membre (prénom / nom / e-mail obligatoire / rôle joueur|coach).
+ * L’e-mail est requis : seule l’adresse invitée pourra accepter l’invitation.
+ */
 export function AddMemberDialog({
   busy,
   error,
@@ -39,6 +43,7 @@ export function AddMemberDialog({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [role, setRole] = useState<
     typeof MemberRoles.player | typeof MemberRoles.coach
   >(MemberRoles.player);
@@ -50,7 +55,14 @@ export function AddMemberDialog({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    await onSubmit({ firstName, lastName, email, role });
+    const normalizedEmail = email.trim().toLowerCase();
+    const validationError = validateEmail(normalizedEmail);
+    if (validationError) {
+      setEmailError(validationError);
+      return;
+    }
+    setEmailError(null);
+    await onSubmit({ firstName, lastName, email: normalizedEmail, role });
   }
 
   return (
@@ -152,18 +164,30 @@ export function AddMemberDialog({
               />
             </label>
             <label className={dialogStyles.field}>
-              <span className={dialogStyles.label}>
-                E-mail <span className={styles.optional}>(optionnel)</span>
-              </span>
+              <span className={dialogStyles.label}>E-mail</span>
               <input
                 className={styles.input}
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  if (emailError) setEmailError(null);
+                }}
+                required
                 disabled={busy}
                 autoComplete="off"
-                placeholder="pour préremplir l’invitation"
+                placeholder="prenom.nom@exemple.fr"
+                aria-invalid={emailError ? true : undefined}
+                aria-describedby="add-member-email-hint"
               />
+              <span id="add-member-email-hint" className={styles.fieldHint}>
+                Obligatoire : seule cette adresse pourra accepter l’invitation.
+              </span>
+              {emailError ? (
+                <span className={dialogStyles.error} role="alert">
+                  {emailError}
+                </span>
+              ) : null}
             </label>
             <label className={dialogStyles.field}>
               <span className={dialogStyles.label}>Rôle</span>

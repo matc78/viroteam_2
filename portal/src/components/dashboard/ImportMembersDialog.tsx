@@ -506,6 +506,12 @@ export function ImportMembersDialog({
                 </p>
                 <ul className={styles.helpList}>
                   <li>
+                    <strong>email</strong> : obligatoire et valide pour chaque
+                    ligne (sauf membre déjà inscrit). Seule cette adresse
+                    pourra accepter l’invitation ; un même e-mail ne peut pas
+                    apparaître sur deux lignes.
+                  </li>
+                  <li>
                     <strong>role</strong> :{" "}
                     <code className={styles.code}>player</code>,{" "}
                     <code className={styles.code}>coach</code> ou{" "}
@@ -588,6 +594,11 @@ export function ImportMembersDialog({
                   <li>
                     Une ligne = un membre. Pas de cellules fusionnées, pas de
                     titre au-dessus des en-têtes, pas de lignes vides au milieu.
+                  </li>
+                  <li>
+                    <strong>email</strong> obligatoire et valide sur chaque
+                    ligne (sauf membre déjà inscrit) : seule cette adresse
+                    pourra accepter l’invitation.
                   </li>
                   <li>
                     <strong>role</strong> :{" "}
@@ -771,8 +782,8 @@ export function ImportMembersDialog({
                   />
                   <span className={styles.checkBox} aria-hidden="true" />
                   <span className={styles.checkLabel}>
-                    Envoyer les invitations par e-mail (Brevo) aux lignes avec
-                    e-mail
+                    Envoyer les invitations par e-mail (Brevo) aux membres
+                    créés ou mis à jour
                   </span>
                 </label>
 

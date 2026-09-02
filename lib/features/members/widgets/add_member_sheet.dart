@@ -13,6 +13,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
+import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
@@ -65,9 +66,17 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
     super.dispose();
   }
 
+  /// Erreur de format e-mail affichée sous le champ (une fois saisi).
+  String? get _emailFieldError {
+    final rawEmail = _emailController.text;
+    if (rawEmail.trim().isEmpty) return null;
+    return requiredEmailError(rawEmail);
+  }
+
   bool get _isFormValid =>
       _firstNameController.text.trim().isNotEmpty &&
-      _lastNameController.text.trim().isNotEmpty;
+      _lastNameController.text.trim().isNotEmpty &&
+      requiredEmailError(_emailController.text) == null;
 
   ClubInvitation get _invitation => _created!.invitation;
 
@@ -95,7 +104,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
             role: _role,
             sentByUid: auth.uid,
             club: widget.club,
-            email: _emailController.text.trim(),
+            email: normalizeEmail(_emailController.text),
           );
       if (!mounted) return;
       setState(() {
@@ -105,7 +114,12 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = error is ArgumentError
+            ? error.message.toString()
+            : callableErrorMessage(
+                error,
+                fallback: 'Création du membre impossible.',
+              );
         _busy = false;
       });
     }
@@ -180,9 +194,10 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           keyboardType: TextInputType.emailAddress,
           autocorrect: false,
           enabled: !_busy,
-          decoration: const InputDecoration(
-            labelText: 'E-mail (optionnel)',
-            hintText: 'pour préremplir l\'invitation',
+          decoration: InputDecoration(
+            labelText: 'E-mail *',
+            hintText: 'seul ce compte pourra accepter l\'invitation',
+            errorText: _emailFieldError,
           ),
           onChanged: (_) => setState(() {}),
         ),

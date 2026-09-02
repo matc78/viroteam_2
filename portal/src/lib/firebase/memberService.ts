@@ -12,12 +12,18 @@ import {
   type DocumentReference,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
+import { validateEmail } from "@/lib/auth/validateEmail";
 import { site, webJoinRedirectPath } from "@/lib/site";
+import {
+  removeMember as removeMemberCallable,
+  setMemberRole as setMemberRoleCallable,
+} from "./callableService";
 import type { ClubRecord } from "./clubService";
 import {
   Collections,
   Fields,
   InvitationStatus,
+  InvitationTypes,
   MemberRoles,
 } from "./constants";
 import { addMemberToTeam } from "./teamService";
@@ -103,6 +109,25 @@ export function isMemberInviteValid(member: {
       : new Date(member.pendingInviteExpiresAt);
   if (Number.isNaN(expiresAt.getTime())) return false;
   return expiresAt.getTime() >= Date.now();
+}
+
+/**
+ * Normalise un e-mail d’invitation (trim + lowercase) et vérifie qu’il est
+ * présent et valide. L’e-mail est obligatoire : une invitation ne peut être
+ * acceptée que par l’adresse invitée.
+ */
+export function normalizeRequiredInviteEmail(raw: string | undefined): string {
+  const normalized = (raw ?? "").trim().toLowerCase();
+  if (!normalized) {
+    throw new Error(
+      "L’e-mail est obligatoire : l’invitation ne peut être acceptée que par l’adresse invitée.",
+    );
+  }
+  const formatError = validateEmail(normalized);
+  if (formatError) {
+    throw new Error(`E-mail invalide (« ${normalized} »). ${formatError}`);
+  }
+  return normalized;
 }
 
 /** Génère un code d’invitation alphanumérique (6 car., uppercase). */
@@ -355,6 +380,8 @@ export async function listClubMembers(
 /**
  * Ajoute un membre pré-créé + invitation pending (miroir Flutter).
  * Rôles autorisés : joueur, coach ou admin (import CSV / ajout bureau).
+ * L’e-mail est obligatoire : il est normalisé (trim + lowercase) et écrit sur
+ * `invitations/{id}.email` ET `members.snapshot.email`.
  */
 export async function addMemberWithInvitation(params: {
   clubId: string;
@@ -366,15 +393,15 @@ export async function addMemberWithInvitation(params: {
     | typeof MemberRoles.admin;
   sentByUid: string;
   club: Pick<ClubRecord, "name" | "sport">;
-  /** Email optionnel stocké dans `snapshot.email` (import CSV). */
-  email?: string;
+  /** E-mail de l’invité (obligatoire, seul ce compte pourra accepter). */
+  email: string;
 }): Promise<AddMemberResult> {
   const trimmedFirst = params.firstName.trim();
   const trimmedLast = params.lastName.trim();
-  const trimmedEmail = params.email?.trim() ?? "";
   if (!trimmedFirst || !trimmedLast) {
     throw new Error("Le prénom et le nom sont obligatoires.");
   }
+  const trimmedEmail = normalizeRequiredInviteEmail(params.email);
   if (
     params.role !== MemberRoles.player &&
     params.role !== MemberRoles.coach &&
@@ -399,10 +426,8 @@ export async function addMemberWithInvitation(params: {
 
     const snapshot: Record<string, unknown> = {
       [Fields.displayName]: displayName,
+      [Fields.email]: trimmedEmail,
     };
-    if (trimmedEmail) {
-      snapshot[Fields.email] = trimmedEmail;
-    }
 
     const memberPayload: Record<string, unknown> = {
       [Fields.memberId]: memberRef.id,
@@ -428,8 +453,10 @@ export async function addMemberWithInvitation(params: {
 
     tx.set(inviteRef, {
       [Fields.code]: code,
+      [Fields.type]: InvitationTypes.member,
       [Fields.role]: params.role,
       [Fields.status]: InvitationStatus.pending,
+      [Fields.email]: trimmedEmail,
       [Fields.memberId]: memberRef.id,
       [Fields.sentBy]: params.sentByUid,
       [Fields.sentAt]: serverTimestamp(),
@@ -454,7 +481,7 @@ export async function addMemberWithInvitation(params: {
     lastName: trimmedLast,
     displayName,
     accountUid: null,
-    email: trimmedEmail || null,
+    email: trimmedEmail,
     avatarUrl: null,
     teamIds: [],
     license: "",
@@ -587,6 +614,14 @@ export async function regenerateMemberInvitation(params: {
     const displayName =
       String(snapshot[Fields.displayName] ?? "").trim() ||
       [firstName, lastName].filter(Boolean).join(" ");
+    const snapshotEmail = String(snapshot[Fields.email] ?? "")
+      .trim()
+      .toLowerCase();
+    if (!snapshotEmail) {
+      throw new Error(
+        "Ajoutez un e-mail à ce membre avant de régénérer son invitation : seule l’adresse invitée pourra l’accepter.",
+      );
+    }
 
     const previousInviteId =
       typeof memberData[Fields.activeInvitationId] === "string"
@@ -614,8 +649,10 @@ export async function regenerateMemberInvitation(params: {
 
     tx.set(newInviteRef, {
       [Fields.code]: code,
+      [Fields.type]: InvitationTypes.member,
       [Fields.role]: role,
       [Fields.status]: InvitationStatus.pending,
+      [Fields.email]: snapshotEmail,
       [Fields.memberId]: memberId,
       [Fields.sentBy]: sentByUid,
       [Fields.sentAt]: serverTimestamp(),
@@ -636,7 +673,9 @@ export async function regenerateMemberInvitation(params: {
 }
 
 /**
- * Change le rôle d’un membre (garde dernier admin + sync adminIds / memberships).
+ * Change le rôle d’un membre via la callable `setMemberRole`.
+ * Le serveur garde le dernier admin et synchronise `club.adminIds` et
+ * `users/{uid}.clubMemberships` (écritures interdites côté client).
  */
 export async function updateMemberRole(params: {
   clubId: string;
@@ -652,192 +691,20 @@ export async function updateMemberRole(params: {
     throw new Error("Rôle invalide.");
   }
 
-  const db = getAppFirestore();
-  const memberDocument = doc(membersCol(clubId), memberId);
-  const clubDocument = clubRef(clubId);
-
-  await runTransaction(db, async (tx) => {
-    const memberSnap = await tx.get(memberDocument);
-    const clubSnap = await tx.get(clubDocument);
-    if (!memberSnap.exists()) {
-      throw new Error("Membre introuvable.");
-    }
-
-    const data = memberSnap.data() as Record<string, unknown>;
-    const oldRole = String(data[Fields.role] ?? MemberRoles.player);
-    const accountUid =
-      String(data[Fields.accountUid] ?? data[Fields.userId] ?? "").trim() ||
-      null;
-
-    const adminIdsRaw = clubSnap.data()?.[Fields.adminIds];
-    const adminIds = Array.isArray(adminIdsRaw)
-      ? adminIdsRaw.map(String)
-      : [];
-
-    if (
-      oldRole === MemberRoles.admin &&
-      newRole !== MemberRoles.admin
-    ) {
-      const adminKey = accountUid ?? memberId;
-      if (adminIds.length <= 1 && adminIds.includes(adminKey)) {
-        throw new Error(
-          "Impossible de retirer le dernier administrateur.",
-        );
-      }
-    }
-
-    const userDocument = accountUid
-      ? doc(db, Collections.users, accountUid)
-      : null;
-    const userSnap = userDocument ? await tx.get(userDocument) : null;
-
-    tx.update(memberDocument, {
-      [Fields.role]: newRole,
-      [Fields.updatedAt]: serverTimestamp(),
-    });
-
-    let updatedAdminIds = [...adminIds];
-    if (accountUid) {
-      if (
-        newRole === MemberRoles.admin &&
-        !updatedAdminIds.includes(accountUid)
-      ) {
-        updatedAdminIds = [...updatedAdminIds, accountUid];
-      } else if (
-        oldRole === MemberRoles.admin &&
-        newRole !== MemberRoles.admin
-      ) {
-        updatedAdminIds = updatedAdminIds.filter((id) => id !== accountUid);
-      }
-
-      if (
-        updatedAdminIds.length !== adminIds.length ||
-        updatedAdminIds.some((id, index) => id !== adminIds[index])
-      ) {
-        tx.update(clubDocument, {
-          [Fields.adminIds]: updatedAdminIds,
-          [Fields.updatedAt]: serverTimestamp(),
-        });
-      }
-
-      if (userDocument && userSnap?.exists()) {
-        const userData = userSnap.data() as Record<string, unknown>;
-        const membershipsRaw = userData[Fields.clubMemberships];
-        const memberships = Array.isArray(membershipsRaw)
-          ? membershipsRaw
-              .filter(
-                (item): item is Record<string, unknown> =>
-                  !!item && typeof item === "object",
-              )
-              .map((item) => ({ ...item }))
-          : [];
-
-        for (let index = 0; index < memberships.length; index += 1) {
-          if (String(memberships[index]![Fields.clubId] ?? "") === clubId) {
-            memberships[index] = {
-              [Fields.clubId]: clubId,
-              [Fields.role]: newRole,
-            };
-            break;
-          }
-        }
-
-        tx.update(userDocument, {
-          [Fields.clubMemberships]: memberships,
-          [Fields.updatedAt]: serverTimestamp(),
-        });
-      }
-    }
-  });
+  await setMemberRoleCallable({ clubId, memberId, role: newRole });
 }
 
 /**
- * Supprime un membre (interdit pour admin). Expire l’invitation pending et nettoie l’index compte.
+ * Retire un membre du club via la callable `removeMember`.
+ * Le serveur refuse de retirer le dernier admin, supprime la fiche et l’index
+ * `member_accounts`, décrémente `memberCount`, retire des équipes, révoque
+ * l’invitation pending et nettoie `users/{uid}.clubMemberships`.
  */
 export async function removeMember(params: {
   clubId: string;
   memberId: string;
 }): Promise<void> {
-  const { clubId, memberId } = params;
-  const db = getAppFirestore();
-  const memberDocument = doc(membersCol(clubId), memberId);
-  const clubDocument = clubRef(clubId);
-
-  await runTransaction(db, async (tx) => {
-    const memberSnap = await tx.get(memberDocument);
-    const clubSnap = await tx.get(clubDocument);
-    if (!memberSnap.exists()) return;
-
-    const data = memberSnap.data() as Record<string, unknown>;
-    const role = String(data[Fields.role] ?? MemberRoles.player);
-    if (role === MemberRoles.admin) {
-      throw new Error("Impossible de supprimer un administrateur.");
-    }
-
-    const accountUid =
-      String(data[Fields.accountUid] ?? data[Fields.userId] ?? "").trim() ||
-      null;
-    const inviteId =
-      typeof data[Fields.activeInvitationId] === "string"
-        ? String(data[Fields.activeInvitationId])
-        : null;
-
-    const inviteDocument = inviteId
-      ? doc(invitationsCol(clubId), inviteId)
-      : null;
-    const inviteSnap = inviteDocument ? await tx.get(inviteDocument) : null;
-
-    const userDocument = accountUid
-      ? doc(db, Collections.users, accountUid)
-      : null;
-    const userSnap = userDocument ? await tx.get(userDocument) : null;
-
-    const accountIndexRef = accountUid
-      ? doc(collection(clubDocument, Collections.memberAccounts), accountUid)
-      : null;
-    const indexSnap = accountIndexRef ? await tx.get(accountIndexRef) : null;
-
-    tx.delete(memberDocument);
-
-    const memberCount = Number(clubSnap.data()?.[Fields.memberCount] ?? 0) || 0;
-    tx.update(clubDocument, {
-      [Fields.memberCount]: memberCount > 0 ? memberCount - 1 : 0,
-      [Fields.updatedAt]: serverTimestamp(),
-    });
-
-    if (
-      inviteDocument &&
-      inviteSnap?.exists() &&
-      String(inviteSnap.data()?.[Fields.status] ?? "") ===
-        InvitationStatus.pending
-    ) {
-      tx.update(inviteDocument, {
-        [Fields.status]: InvitationStatus.expired,
-        [Fields.updatedAt]: serverTimestamp(),
-      });
-    }
-
-    if (userDocument && userSnap?.exists()) {
-      const userData = userSnap.data() as Record<string, unknown>;
-      const membershipsRaw = userData[Fields.clubMemberships];
-      const memberships = Array.isArray(membershipsRaw)
-        ? membershipsRaw.filter(
-            (item): item is Record<string, unknown> =>
-              !!item &&
-              typeof item === "object" &&
-              String(item[Fields.clubId] ?? "") !== clubId,
-          )
-        : [];
-      tx.update(userDocument, {
-        [Fields.clubMemberships]: memberships,
-        [Fields.updatedAt]: serverTimestamp(),
-      });
-    }
-
-    if (accountIndexRef && indexSnap?.exists()) {
-      tx.delete(accountIndexRef);
-    }
-  });
+  await removeMemberCallable(params);
 }
 
 /** Met à jour `playerInfo.license` (crée playerInfo si absent). */
@@ -869,7 +736,8 @@ export async function updateMemberLicense(params: {
 
 /**
  * Met à jour prénom / nom / e-mail d’un membre pas encore inscrit.
- * Synchronise aussi l’invitation active si présente.
+ * L’e-mail reste obligatoire (normalisé) et est synchronisé sur l’invitation
+ * active, qui ne peut être acceptée que par cette adresse.
  */
 export async function updatePendingMemberProfile(params: {
   clubId: string;
@@ -880,10 +748,10 @@ export async function updatePendingMemberProfile(params: {
 }): Promise<void> {
   const trimmedFirst = params.firstName.trim();
   const trimmedLast = params.lastName.trim();
-  const trimmedEmail = params.email.trim();
   if (!trimmedFirst || !trimmedLast) {
     throw new Error("Le prénom et le nom sont obligatoires.");
   }
+  const trimmedEmail = normalizeRequiredInviteEmail(params.email);
 
   const db = getAppFirestore();
   const memberDocument = doc(membersCol(params.clubId), params.memberId);
@@ -918,12 +786,8 @@ export async function updatePendingMemberProfile(params: {
     const nextSnapshot: Record<string, unknown> = {
       ...existingSnapshot,
       [Fields.displayName]: displayName,
+      [Fields.email]: trimmedEmail,
     };
-    if (trimmedEmail) {
-      nextSnapshot[Fields.email] = trimmedEmail;
-    } else {
-      delete nextSnapshot[Fields.email];
-    }
 
     tx.update(memberDocument, {
       [Fields.firstName]: trimmedFirst,
@@ -936,6 +800,8 @@ export async function updatePendingMemberProfile(params: {
       tx.update(inviteDocument, {
         [Fields.firstName]: trimmedFirst,
         [Fields.lastName]: trimmedLast,
+        [Fields.email]: trimmedEmail,
+        [Fields.updatedAt]: serverTimestamp(),
       });
     }
   });

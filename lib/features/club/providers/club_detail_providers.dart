@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
@@ -71,6 +72,10 @@ final clubMemberProvider =
     StreamProvider.family<ClubMember?, String>((ref, clubId) {
   final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return Stream.value(null);
+  // Parent sans fiche : `members/{uid}` n'existe pas et n'est pas lisible.
+  if (ref.watch(isGuardianOnlyInClubProvider(clubId))) {
+    return Stream.value(null);
+  }
   return ref.read(eventServiceProvider).watchClubMember(
         clubId: clubId,
         uid: auth.uid,
@@ -96,6 +101,8 @@ final clubAttendanceRateProvider =
     FutureProvider.family<double?, String>((ref, clubId) async {
   final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return null;
+  // Pas de taux de présence pour un parent (lecture `teamMemberIds` refusée).
+  if (ref.watch(isGuardianOnlyInClubProvider(clubId))) return null;
   return ref.read(eventServiceProvider).computeAttendanceRate(
         clubId: clubId,
         authUid: auth.uid,
@@ -108,11 +115,30 @@ final clubEventsForMemberProvider = StreamProvider.family<ClubEventsState,
   final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return Stream.value(ClubEventsState.empty);
   final eventService = ref.read(eventServiceProvider);
-  return eventService
-      .watchEventsForTargetMember(
+
+  // Parent : uniquement les événements des équipes de l'enfant (rules).
+  final Stream<List<ClubEvent>> eventsStream;
+  if (ref.watch(isGuardianOnlyInClubProvider(params.clubId))) {
+    final guardianService = ref.read(guardianServiceProvider);
+    eventsStream = Stream.fromFuture(
+      guardianService.getClubMember(
         clubId: params.clubId,
         memberId: params.memberId,
-      )
+      ),
+    ).asyncExpand(
+      (child) => eventService.watchUpcomingEventsForGuardian(
+        clubId: params.clubId,
+        childTeamIds: child?.teamIds ?? const [],
+      ),
+    );
+  } else {
+    eventsStream = eventService.watchEventsForTargetMember(
+      clubId: params.clubId,
+      memberId: params.memberId,
+    );
+  }
+
+  return eventsStream
       .map(
         (events) => categorizeMemberEvents(
           events,

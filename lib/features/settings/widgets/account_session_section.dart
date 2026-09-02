@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/account_service.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
+import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/lists/settings_list_tile.dart';
@@ -153,6 +155,18 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
       if (mounted) context.go(AppRoutes.entry);
     } on AuthCanceledException {
       // Annulation volontaire.
+    } on AccountDeletionException catch (error) {
+      if (mounted) ViroSnackBar.show(context, error.message);
+    } on FirebaseAuthException catch (error) {
+      if (mounted) {
+        ViroSnackBar.show(
+          context,
+          error.code == 'wrong-password' ||
+                  error.code == 'invalid-credential'
+              ? 'Mot de passe incorrect'
+              : callableErrorMessage(error, fallback: 'Suppression impossible'),
+        );
+      }
     } catch (_) {
       if (mounted) {
         ViroSnackBar.show(context, 'Suppression impossible');

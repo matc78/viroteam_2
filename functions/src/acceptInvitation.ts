@@ -155,6 +155,14 @@ async function handleAcceptInvitation(
   }
   const uid = request.auth.uid;
   const authEmail = request.auth.token.email as string | undefined;
+  // L'e-mail du compte Auth est la seule identité comparée à l'invitation.
+  const authEmailNorm = normalizeEmail(authEmail ?? "");
+  if (!authEmailNorm) {
+    throw new HttpsError(
+      "failed-precondition",
+      "E-mail du compte introuvable — reconnecte-toi avec un compte e-mail",
+    );
+  }
   const { clubId, invitationId } = parseAcceptInvitationArgs(request.data);
 
   const clubRef = db().collection("clubs").doc(clubId);
@@ -187,12 +195,16 @@ async function handleAcceptInvitation(
       throw new HttpsError("failed-precondition", "Invitation expirée");
     }
 
+    // Décision produit : une invitation n'est acceptable QUE par l'e-mail invité.
     const inviteEmail =
       typeof invite.email === "string" ? normalizeEmail(invite.email) : "";
-    const userEmail = normalizeEmail(
-      String(userSnap.data()?.emailNorm ?? userSnap.data()?.email ?? authEmail ?? ""),
-    );
-    if (inviteEmail && userEmail && inviteEmail !== userEmail) {
+    if (!inviteEmail) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Invitation sans e-mail — demande à l'admin de la renvoyer",
+      );
+    }
+    if (inviteEmail !== authEmailNorm) {
       throw new HttpsError(
         "permission-denied",
         "Cette invitation est réservée à un autre email",
@@ -203,7 +215,7 @@ async function handleAcceptInvitation(
     const firstName = String(userData.firstName ?? "").trim();
     const lastName = String(userData.lastName ?? "").trim();
     const displayName = resolvedDisplayName(userData, authEmail);
-    const email = userEmail || authEmail?.trim() || "";
+    const email = authEmailNorm;
     const avatarUrl =
       typeof userData.avatarUrl === "string" ? userData.avatarUrl : null;
     const profilePatch = memberProfilePatch({
@@ -234,7 +246,8 @@ async function handleAcceptInvitation(
         ...profilePatch,
         activeInvitationId: admin.firestore.FieldValue.delete(),
       });
-      tx.set(accountIndexRef, { linkedMemberId });
+      // Index compte → fiche : clé `memberId` (lue par assertClubAdmin et les règles).
+      tx.set(accountIndexRef, { memberId: linkedMemberId });
     } else if (!memberSnap.exists) {
       tx.set(memberRef, {
         memberId: uid,

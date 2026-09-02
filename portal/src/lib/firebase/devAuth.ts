@@ -4,7 +4,8 @@ export function isDevAuthBypassEnabled(): boolean {
     return false;
   }
 
-  const databaseId =
-    process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID?.trim() || "v2-dev";
+  // Sans base explicite, on ne suppose jamais « dev » : bypass désactivé.
+  const databaseId = process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID?.trim();
+  if (!databaseId) return false;
   return databaseId !== "v2-prod";
 }

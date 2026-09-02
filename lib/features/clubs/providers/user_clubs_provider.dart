@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
@@ -69,12 +70,27 @@ final userClubsProvider = FutureProvider<List<UserClubEntry>>((ref) async {
 final userClubsWithEventsProvider =
     FutureProvider<List<UserClubWithEvent>>((ref) async {
   final entries = await ref.watch(userClubsProvider.future);
+  final user = ref.watch(viroUserProvider).value;
   final eventService = ref.read(eventServiceProvider);
+  final guardianService = ref.read(guardianServiceProvider);
 
   return Future.wait(
     entries.map((entry) async {
-      final event =
-          await eventService.getHighlightEventForClub(entry.club.id);
+      // Parent sans fiche : pas de lecture globale des events du club.
+      final ClubEvent? event;
+      if (!entry.isLicensed && entry.hasFamilyLinks && user != null) {
+        final childTeamIds = await loadGuardianChildTeamIds(
+          guardianService: guardianService,
+          user: user,
+          clubId: entry.club.id,
+        );
+        event = await eventService.getHighlightEventForGuardian(
+          clubId: entry.club.id,
+          childTeamIds: childTeamIds,
+        );
+      } else {
+        event = await eventService.getHighlightEventForClub(entry.club.id);
+      }
       return UserClubWithEvent(
         club: entry.club,
         membership: entry.membership,

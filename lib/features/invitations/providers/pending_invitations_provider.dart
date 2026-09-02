@@ -8,10 +8,12 @@ final pendingInvitationsProvider =
   final user = await ref.watch(viroUserFutureProvider.future);
   if (user == null) return [];
 
-  final email = user.emailNorm.isNotEmpty ? user.emailNorm : user.email;
-  if (email.isEmpty) return [];
+  // E-mail du compte Auth (pas du profil Firestore) : la règle Firestore
+  // compare `invitations.email` à `request.auth.token.email`.
+  final authEmail = ref.watch(authStateProvider).value?.email?.trim() ?? '';
+  if (authEmail.isEmpty) return [];
 
   return ref.read(invitationServiceProvider).getPendingInvitationsForEmail(
-        email,
+        authEmail,
       );
 });

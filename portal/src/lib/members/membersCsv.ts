@@ -1,4 +1,5 @@
 import type { MemberRow } from "./membersView";
+import { validateEmail } from "@/lib/auth/validateEmail";
 import { MemberRoles } from "@/lib/firebase/constants";
 import { teamCategoriesForSport } from "@/lib/teams/teamCategories";
 
@@ -419,6 +420,9 @@ export function buildMembersImportPlan(params: {
       ]);
 
   const existingByKey = new Map<string, string>();
+  const existingById = new Map(
+    params.existingMembers.map((member) => [member.memberId, member]),
+  );
   for (const member of params.existingMembers) {
     const key = `${normalizeCompareKey(member.firstName)}|${normalizeCompareKey(member.lastName)}`;
     if (!existingByKey.has(key)) {
@@ -436,8 +440,10 @@ export function buildMembersImportPlan(params: {
   const categoriesListLabel = allowedCategories.join(", ");
   const rows: MemberImportRow[] = [];
   const seenInCsv = new Map<string, number>();
+  const seenEmailInCsv = new Map<string, number>();
   const teamCategoryInCsv = new Map<string, { category: string; lineNumber: number }>();
   const blockingErrors: string[] = [];
+  const missingEmailLineNumbers: number[] = [];
 
   for (let offset = 0; offset < dataLines.length; offset += 1) {
     const line = dataLines[offset]!;
@@ -453,7 +459,8 @@ export function buildMembersImportPlan(params: {
     const lastName = cell("lastName");
     const roleRaw = cell("role");
     const role = normalizeImportRole(roleRaw);
-    const email = cell("email");
+    // E-mail normalisé (trim + lowercase) : c’est l’adresse qui pourra accepter.
+    const email = cell("email").toLowerCase();
     const license = cell("license");
     const teamNameRaw = cell("team");
     const categoryRaw = cell("category");
@@ -463,8 +470,25 @@ export function buildMembersImportPlan(params: {
     let category = "";
     let teamIgnoredForAdmin = false;
 
+    // E-mail obligatoire sauf pour un membre déjà inscrit (compte lié) : son
+    // e-mail CSV est ignoré à l’import.
+    const personKeyForEmail =
+      firstName && lastName
+        ? `${normalizeCompareKey(firstName)}|${normalizeCompareKey(lastName)}`
+        : "";
+    const existingForEmail = personKeyForEmail
+      ? existingById.get(existingByKey.get(personKeyForEmail) ?? "")
+      : undefined;
+    const emailRequired = !existingForEmail?.accountUid?.trim();
+
     if (!firstName || !lastName) {
       error = "Prénom et nom obligatoires.";
+    } else if (emailRequired && !email) {
+      missingEmailLineNumbers.push(lineNumber);
+      error =
+        "E-mail obligatoire : seule l’adresse invitée pourra accepter l’invitation. Corrigez le fichier puis réessayez.";
+    } else if (email && validateEmail(email)) {
+      error = `E-mail invalide (« ${email} »). Utilisez le format prenom.nom@exemple.fr, puis réessayez.`;
     } else if (!role) {
       error = `Rôle invalide (« ${roleRaw || "vide"} »). Utilisez player, coach ou admin (ou joueur, entraîneur, administrateur). Corrigez le fichier puis réessayez.`;
     } else if (role === MemberRoles.admin && teamNameRaw) {
@@ -507,6 +531,17 @@ export function buildMembersImportPlan(params: {
       }
     }
 
+    if (!error && email) {
+      const previousEmailLine = seenEmailInCsv.get(email);
+      if (previousEmailLine != null) {
+        blockingErrors.push(
+          `Import impossible : l’e-mail « ${email} » est utilisé sur deux lignes (${previousEmailLine} et ${lineNumber}). Un e-mail ne peut accepter qu’une seule invitation : corrigez le fichier puis réessayez.`,
+        );
+      } else {
+        seenEmailInCsv.set(email, lineNumber);
+      }
+    }
+
     const personKey =
       firstName && lastName
         ? `${normalizeCompareKey(firstName)}|${normalizeCompareKey(lastName)}`
@@ -534,6 +569,12 @@ export function buildMembersImportPlan(params: {
       error,
       existingMemberId,
     });
+  }
+
+  if (missingEmailLineNumbers.length > 1) {
+    blockingErrors.push(
+      `Import impossible : ${missingEmailLineNumbers.length} lignes sans e-mail (lignes ${missingEmailLineNumbers.join(", ")}). L’e-mail est obligatoire pour chaque membre à inviter : complétez le fichier puis réessayez.`,
+    );
   }
 
   const uniqueLineBlocking = [...new Set(blockingErrors)];

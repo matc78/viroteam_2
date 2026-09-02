@@ -168,6 +168,14 @@ class _InvitationPreviewScreenState
                   style: theme.bodySmall,
                   textAlign: TextAlign.center,
                 ),
+                if (invite.emailHint?.trim().isNotEmpty ?? false) ...[
+                  const SizedBox(height: ViroSpacing.sm),
+                  Text(
+                    'Invitation réservée au compte ${invite.emailHint!.trim()}',
+                    style: theme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ],
               if (_error != null) ...[
                 const SizedBox(height: ViroSpacing.md),

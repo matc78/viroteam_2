@@ -21,7 +21,7 @@ Même projet que l’app mobile : **`viroteam-75303`**.
 | Variable | Rôle |
 |----------|------|
 | `NEXT_PUBLIC_FIREBASE_*` | Config web (voir `lib/firebase_options.dart`) |
-| `NEXT_PUBLIC_FIRESTORE_DATABASE_ID` | `v2-dev` (local) ou `v2-prod` (prod) |
+| `NEXT_PUBLIC_FIRESTORE_DATABASE_ID` | **Obligatoire** : `v2-dev` (local) ou `v2-prod` (prod). Aucun fallback : absente ⇒ erreur explicite au démarrage |
 
 **Important** : jamais la base Firestore default — toujours `v2-dev` / `v2-prod` (miroir `appFirestore` Flutter).
 

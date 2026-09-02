@@ -12,9 +12,20 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-/** ID de base Firestore — jamais la base default (miroir appFirestore Flutter). */
+const MISSING_DATABASE_ID_MESSAGE =
+  "NEXT_PUBLIC_FIRESTORE_DATABASE_ID manquant : définis `v2-dev` (local, portal/.env.local) ou `v2-prod` (apphosting.yaml). Aucun fallback n’est appliqué pour éviter d’écrire dans la mauvaise base.";
+
+/**
+ * ID de base Firestore — jamais la base default (miroir appFirestore Flutter).
+ * Lève une erreur explicite si la variable d’environnement est absente :
+ * pas de fallback silencieux vers `v2-dev`.
+ */
 export function getFirestoreDatabaseId(): string {
-  return process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID?.trim() || "v2-dev";
+  const databaseId = process.env.NEXT_PUBLIC_FIRESTORE_DATABASE_ID?.trim();
+  if (!databaseId) {
+    throw new Error(MISSING_DATABASE_ID_MESSAGE);
+  }
+  return databaseId;
 }
 
 function assertConfig(): void {
@@ -23,6 +34,8 @@ function assertConfig(): void {
       "Config Firebase manquante. Copie portal/.env.local.example vers portal/.env.local.",
     );
   }
+  // Lève si NEXT_PUBLIC_FIRESTORE_DATABASE_ID est absent.
+  getFirestoreDatabaseId();
 }
 
 /** Initialise (ou réutilise) l’app Firebase web. */

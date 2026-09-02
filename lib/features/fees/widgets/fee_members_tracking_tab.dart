@@ -293,7 +293,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                           currentFee: fee,
                         );
                     if (context.mounted) {
-                      ViroSnackBar.show(context, 'Paiement hors-ligne enregistr�');
+                      ViroSnackBar.show(context, 'Paiement hors-ligne enregistré');
                     }
                   } catch (e) {
                     if (context.mounted) {
@@ -304,7 +304,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
               ),
               ListTile(
                 leading: ViroIcon(ViroIcons.check, color: ViroColors.success),
-                title: const Text('Marquer pay�'),
+                title: const Text('Marquer payé'),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await ref.read(feeServiceProvider).setMemberFeeStatus(
@@ -317,7 +317,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
               ),
               ListTile(
                 leading: ViroIcon(ViroIcons.clock, color: ViroColors.warning),
-                title: const Text('Marquer � payer'),
+                title: const Text('Marquer à payer'),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await ref.read(feeServiceProvider).setMemberFeeStatus(
@@ -330,7 +330,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
               ),
               ListTile(
                 leading: ViroIcon(ViroIcons.block, color: ViroColors.gray600),
-                title: const Text('Marquer exon�r�'),
+                title: const Text('Marquer exonéré'),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await ref.read(feeServiceProvider).setMemberFeeStatus(
@@ -348,7 +348,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                     leading: ViroIcon(ViroIcons.note, color: accentColor ?? ViroColors.primary600),
                     title: Text('Valider ${aid.label}'),
                     subtitle: Text(
-                      '${aid.amountCents / 100} € �€� justificatif',
+                      '${aid.amountCents / 100} € — justificatif',
                     ),
                     onTap: () async {
                       Navigator.pop(ctx);
@@ -362,7 +362,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             currentFee: fee,
                           );
                       if (context.mounted) {
-                        ViroSnackBar.show(context, 'Aide valid�e');
+                        ViroSnackBar.show(context, 'Aide validée');
                       }
                     },
                   ),
@@ -381,7 +381,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             currentFee: fee,
                           );
                       if (context.mounted) {
-                        ViroSnackBar.show(context, 'Aide refus�e');
+                        ViroSnackBar.show(context, 'Aide refusée');
                       }
                     },
                   ),
@@ -391,7 +391,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                 const Divider(),
                 for (final tier in season.tiers)
                   ListTile(
-                    title: Text('cat�gorie : ${tier.label}'),
+                    title: Text('catégorie : ${tier.label}'),
                     onTap: () async {
                       Navigator.pop(ctx);
                       await ref.read(feeServiceProvider).setMemberFeeTier(
@@ -424,7 +424,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                         note: saved,
                       );
                   if (context.mounted) {
-                    ViroSnackBar.show(context, 'Note enregistr�e');
+                    ViroSnackBar.show(context, 'Note enregistrée');
                   }
                 },
               ),
@@ -484,8 +484,8 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                     children: [
                       Text(
                         '${stats.paid} / ${stats.total} ont payé '
-                        '(${stats.total > 0 ? (stats.paidPercent * 100).round() : 0} %) �� '
-                        '${stats.exempt} exonéré${stats.exempt > 1 ? 's' : ''} �� '
+                        '(${stats.total > 0 ? (stats.paidPercent * 100).round() : 0} %) · '
+                        '${stats.exempt} exonéré${stats.exempt > 1 ? 's' : ''} · '
                         '${stats.awaiting} en attente',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: ViroColors.gray600,

@@ -365,8 +365,9 @@ export function AccountSettingsSection() {
           tone="danger"
         >
           <p className={shared.hint}>
-            Ton compte Auth sera supprimé. Les données club ne sont pas
-            purgées automatiquement.
+            Ton compte sera supprimé et tes fiches membre anonymisées (« Membre
+            supprimé »). L’historique des clubs est conservé, tes invitations en
+            attente sont révoquées.
           </p>
           <label className={shared.checkRow}>
             <input

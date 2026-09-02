@@ -1,13 +1,5 @@
-import {
-  collectionGroup,
-  getDocs,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
-import { getAppFirestore } from "./app";
-import { getClub } from "./clubService";
-import { Collections, Fields, InvitationStatus, InvitationTypes } from "./constants";
+import { lookupInvitationByCode } from "./callableService";
+import { InvitationTypes } from "./constants";
 
 export type InvitationLookupResult = {
   invitationId: string;
@@ -19,49 +11,44 @@ export type InvitationLookupResult = {
   clubName: string;
   firstName?: string;
   lastName?: string;
-  email?: string;
+  /** E-mail masqué renvoyé par le serveur — affichage uniquement. */
+  emailHint?: string;
+  expiresAt?: Date;
 };
 
-/** Recherche une invitation active par code (aligné InvitationService Flutter). */
+/**
+ * Recherche une invitation active par code via la callable
+ * `lookupInvitationByCode` (la lecture collection group par code est interdite
+ * côté client par les règles Firestore).
+ */
 export async function findInvitationByCode(
   rawCode: string,
 ): Promise<InvitationLookupResult | null> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return null;
 
-  const snap = await getDocs(
-    query(
-      collectionGroup(getAppFirestore(), Collections.invitations),
-      where(Fields.code, "==", code),
-      where(Fields.status, "==", InvitationStatus.pending),
-      limit(1),
-    ),
-  );
+  const result = await lookupInvitationByCode({ code });
+  if (!result.found) return null;
 
-  if (snap.empty) return null;
+  const invitation = result.invitation;
+  if (!invitation.clubId || !invitation.invitationId) return null;
 
-  const inviteDoc = snap.docs[0];
-  const data = inviteDoc.data() as Record<string, unknown>;
-  const clubId = inviteDoc.ref.parent.parent?.id ?? "";
-  if (!clubId) return null;
-
-  let clubName = String(data[Fields.clubName] ?? "").trim();
-  if (!clubName) {
-    const club = await getClub(clubId);
-    clubName = club?.name ?? "";
-  }
-  if (!clubName) return null;
+  const expiresAt = invitation.expiresAt
+    ? new Date(invitation.expiresAt)
+    : null;
 
   return {
-    invitationId: inviteDoc.id,
-    clubId,
-    code,
-    role: String(data[Fields.role] ?? ""),
-    type: String(data[Fields.type] ?? InvitationTypes.member),
-    memberId: String(data[Fields.memberId] ?? ""),
-    clubName,
-    firstName: String(data[Fields.firstName] ?? "").trim() || undefined,
-    lastName: String(data[Fields.lastName] ?? "").trim() || undefined,
-    email: String(data[Fields.email] ?? "").trim() || undefined,
+    invitationId: invitation.invitationId,
+    clubId: invitation.clubId,
+    code: invitation.code || code,
+    role: invitation.role,
+    type: invitation.type || InvitationTypes.member,
+    memberId: invitation.memberId ?? "",
+    clubName: invitation.clubName,
+    firstName: invitation.firstName.trim() || undefined,
+    lastName: invitation.lastName.trim() || undefined,
+    emailHint: invitation.emailHint.trim() || undefined,
+    expiresAt:
+      expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : undefined,
   };
 }

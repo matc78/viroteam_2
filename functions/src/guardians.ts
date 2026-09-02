@@ -3,6 +3,7 @@ import * as crypto from "crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import type { DocumentData } from "firebase-admin/firestore";
 import { db, defineDualCallable } from "./db";
+import { recomputeParentTeamIdsSafe } from "./parentTeams";
 
 const MAX_ACTIVE_GUARDIANS_PER_MEMBER = 1;
 const INVITE_TTL_DAYS = 7;
@@ -641,6 +642,9 @@ export const {
     invitedBy,
   });
 
+  // Le parent ne voit que les équipes de ses enfants : recalcul serveur.
+  await recomputeParentTeamIdsSafe(db(), parentUid);
+
   await invitationsCol(invitation.clubId).doc(invitation.invitationId).update({
     status: "accepted",
     acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -703,6 +707,7 @@ export const {
       status: GUARDIAN_STATUS_REVOKED,
       invitedBy: String(guardianSnap.data()?.invitedBy ?? callerUid),
     });
+    await recomputeParentTeamIdsSafe(db(), parentUid);
   }
 
   const invitesSnap = await invitationsCol(clubId)
@@ -769,6 +774,7 @@ export const {
       status: GUARDIAN_STATUS_REVOKED,
       invitedBy: String(guardianDoc.data().invitedBy ?? callerUid),
     });
+    await recomputeParentTeamIdsSafe(db(), guardianDoc.id);
   }
 
   await invite.ref.update({

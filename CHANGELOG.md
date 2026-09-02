@@ -7,11 +7,26 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Sécurité (lot 1 — 2026-09-02)
+
+- Règles Firestore réécrites et testées (`rules-tests/`, 41 scénarios dans l'émulateur) : plus d'auto-promotion admin par création de sa propre fiche, rôle/statut/équipes non modifiables par le titulaire, `member_accounts` et `adminIds` réservés aux Cloud Functions
+- Invitations lisibles uniquement par le club (coach/admin) ou l'e-mail invité ; recherche par code via la callable `lookupInvitationByCode` (e-mail masqué) ; e-mail obligatoire à l'invitation (app + portail + import CSV) ; un coach ne peut plus inviter un admin
+- `acceptInvitation` : réservée à l'e-mail invité (côté serveur), correction de l'index `member_accounts` (`memberId` au lieu de `linkedMemberId`) qui verrouillait les utilisateurs après acceptation
+- Nouvelles callables `setMemberRole`, `removeMember` (garde « dernier admin ») et `deleteMyAccount` (anonymisation en cascade puis suppression Auth) ; app et portail n'écrivent plus `users/{autre}` ni `member_accounts`
+- Parents : lecture limitée aux équipes de leurs enfants (`users.parentTeamIds` maintenu par les functions + trigger `onTeamWritten`) pour événements, annonces (club entier ou équipe) et équipes ; app et portail interrogent par équipe
+- Webhook HelloAsso verrouillé par le secret `HELLOASSO_WEBHOOK_TOKEN` (503 sans secret, 401 sans jeton, 400 sans identifiant de paiement) ; alias `paymentWebhook` supprimé ; reçus PDF servis par URL signée (plus de `makePublic`)
+- Document club et fiches pré-créées plus lisibles sans authentification ; `receipts/**` fermé dans Storage
+- Portail : plus de repli silencieux sur `v2-dev` quand `NEXT_PUBLIC_FIRESTORE_DATABASE_ID` manque
+
+### Corrigé
+
+- Onglet suivi cotisations : 11 libellés corrompus (caractère U+FFFD) ; test d'encodage des sources
+- Routeur : la redirection réagit aux changements de `signUpIntentProvider`
+- iOS : projet prêt pour TestFlight interne (bundle `com.viroteam.viroTeam`, iOS 15, Google Sign-In, SPM désactivé pour `cloud_firestore`, contournement `path_provider_foundation`)
+
 ### Ajouté
 
 ### Modifié
-
-### Corrigé
 
 ## [2.1.2] - 2026-08-29
 

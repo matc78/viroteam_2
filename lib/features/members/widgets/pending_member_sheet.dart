@@ -14,6 +14,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/member_guardian.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
+import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
@@ -132,14 +133,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     );
   }
 
-  String? _validateEmail(String rawEmail) {
-    final trimmed = rawEmail.trim();
-    if (trimmed.isEmpty) return null;
-    if (!trimmed.contains('@') || trimmed.startsWith('@')) {
-      return 'Saisis un e-mail valide.';
-    }
-    return null;
-  }
+  String? _validateEmail(String rawEmail) => requiredEmailError(rawEmail);
 
   Future<void> _saveProfile() async {
     if (!widget.canEdit || _busy) return;
@@ -173,7 +167,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
             memberId: _member.memberId,
             firstName: firstName,
             lastName: lastName,
-            email: email,
+            email: normalizeEmail(email),
           );
       if (!mounted) return;
       setState(() {
@@ -186,7 +180,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
           lastName: lastName,
           displayName: '$firstName $lastName',
           avatarUrl: _member.avatarUrl,
-          email: email.isEmpty ? null : email,
+          email: normalizeEmail(email),
           teamIds: _member.teamIds,
           joinedAt: _member.joinedAt,
           activeInvitationId: _member.activeInvitationId,
@@ -347,8 +341,8 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               autocorrect: false,
               enabled: widget.canEdit && !_busy,
               decoration: const InputDecoration(
-                labelText: 'E-mail (optionnel)',
-                hintText: 'pour envoyer l’invitation par mail',
+                labelText: 'E-mail *',
+                hintText: 'seul ce compte pourra accepter l’invitation',
               ),
               onChanged: (_) => setState(() {}),
             ),

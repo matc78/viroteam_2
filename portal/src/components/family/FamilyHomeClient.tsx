@@ -11,13 +11,19 @@ import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
-import { loadAnnouncementsForMember } from "@/lib/firebase/announcementService";
+import {
+  loadAnnouncementsForGuardian,
+  loadAnnouncementsForMember,
+  type ClubAnnouncementRecord,
+} from "@/lib/firebase/announcementService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { MemberFeeStatuses } from "@/lib/firebase/constants";
 import {
   HOME_PREVIEW_EVENT_LIMIT,
+  loadTeamsByIds,
   loadTeamsForClub,
   loadUpcomingEvents,
+  loadUpcomingEventsForGuardian,
   type ClubEventView,
 } from "@/lib/firebase/eventService";
 import {
@@ -42,6 +48,16 @@ function formatEuros(cents: number): string {
 function eventForMember(event: ClubEventView, memberId: string): boolean {
   if (event.teamMemberIds.length === 0) return false;
   return event.teamMemberIds.includes(memberId);
+}
+
+/** Vue parent : événement convoquant l’enfant ou visant l’une de ses équipes. */
+function eventForChild(
+  event: ClubEventView,
+  memberId: string,
+  childTeamIds: string[],
+): boolean {
+  if (event.teamMemberIds.includes(memberId)) return true;
+  return event.teamIds.some((teamId) => childTeamIds.includes(teamId));
 }
 
 type FamilyHomeData = {
@@ -79,26 +95,64 @@ export function FamilyHomeClient() {
         } satisfies FamilyHomeData;
       }
 
-      const [member, events, teams, season] = await Promise.all([
-        getClubMember(club.id, selectedMemberId),
-        loadUpcomingEvents(club.id, { limit: 20 }),
-        loadTeamsForClub(club.id),
-        getActiveSeason(club.id),
-      ]);
+      // Parent (cible enfant) : lectures restreintes par les règles Firestore
+      // → équipes de l’enfant par id, events par équipe, annonces ciblées.
+      // Membre du club (cible « Moi ») : lectures bureau inchangées.
+      const isGuardianView = selectedTarget?.kind === "child";
 
-      const filtered = events.filter((event) =>
-        eventForMember(event, selectedMemberId),
-      );
-      const teamCategoryById = new Map(
-        teams.map((team) => [team.id, team.category]),
-      );
-      const announcements = member
-        ? await loadAnnouncementsForMember({
-            clubId: club.id,
-            member,
-            teamCategoryById,
-          })
-        : [];
+      let filtered: ClubEventView[];
+      let announcements: ClubAnnouncementRecord[];
+      let member: Awaited<ReturnType<typeof getClubMember>>;
+      let season: FeeSeasonRecord | null;
+
+      if (isGuardianView) {
+        [member, season] = await Promise.all([
+          getClubMember(club.id, selectedMemberId),
+          getActiveSeason(club.id),
+        ]);
+        const childTeamIds = member?.teamIds ?? [];
+        const teams = await loadTeamsByIds(club.id, childTeamIds);
+        const events = await loadUpcomingEventsForGuardian(
+          club.id,
+          childTeamIds,
+          { limit: 20, teams },
+        );
+        filtered = events.filter((event) =>
+          eventForChild(event, selectedMemberId, childTeamIds),
+        );
+        announcements = member
+          ? await loadAnnouncementsForGuardian({
+              clubId: club.id,
+              member,
+              childTeamIds,
+              teamCategoryById: new Map(
+                teams.map((team) => [team.id, team.category]),
+              ),
+            })
+          : [];
+      } else {
+        let events: ClubEventView[];
+        let teams: Awaited<ReturnType<typeof loadTeamsForClub>>;
+        [member, events, teams, season] = await Promise.all([
+          getClubMember(club.id, selectedMemberId),
+          loadUpcomingEvents(club.id, { limit: 20 }),
+          loadTeamsForClub(club.id),
+          getActiveSeason(club.id),
+        ]);
+        filtered = events.filter((event) =>
+          eventForMember(event, selectedMemberId),
+        );
+        const teamCategoryById = new Map(
+          teams.map((team) => [team.id, team.category]),
+        );
+        announcements = member
+          ? await loadAnnouncementsForMember({
+              clubId: club.id,
+              member,
+              teamCategoryById,
+            })
+          : [];
+      }
 
       let fee: MemberFeeRecord | null = null;
       let remaining = 0;
@@ -128,7 +182,12 @@ export function FamilyHomeClient() {
         })),
       } satisfies FamilyHomeData;
     },
-    [selectedMemberId, selectedTarget?.label, profile?.firstName],
+    [
+      selectedMemberId,
+      selectedTarget?.label,
+      selectedTarget?.kind,
+      profile?.firstName,
+    ],
   );
 
   if ((loading || audienceLoading) && !data) {

@@ -16,6 +16,7 @@ import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/member_guardian.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
@@ -176,7 +177,10 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       Navigator.of(context).pop();
     } catch (error) {
       if (!mounted) return;
-      ViroSnackBar.show(context, 'Erreur : $error');
+      ViroSnackBar.show(
+        context,
+        callableErrorMessage(error, fallback: 'Changement de rôle impossible.'),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -195,7 +199,10 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       ViroSnackBar.show(context, 'Membre supprimé');
     } catch (error) {
       if (!mounted) return;
-      ViroSnackBar.show(context, 'Erreur : $error');
+      ViroSnackBar.show(
+        context,
+        callableErrorMessage(error, fallback: 'Suppression du membre impossible.'),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }

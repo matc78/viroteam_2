@@ -198,15 +198,14 @@ export function MemberDetailPanel({
 
   async function handleEmailSubmit(event: FormEvent) {
     event.preventDefault();
-    const trimmedEmail = email.trim();
-    if (trimmedEmail) {
-      const emailError = validateEmail(trimmedEmail);
-      if (emailError) {
-        setProfileError(emailError);
-        return;
-      }
+    // E-mail obligatoire : l’invitation ne peut être acceptée que par cette adresse.
+    const trimmedEmail = email.trim().toLowerCase();
+    const emailError = validateEmail(trimmedEmail);
+    if (emailError) {
+      setProfileError(emailError);
+      return;
     }
-    if (trimmedEmail === (member.email ?? "").trim()) {
+    if (trimmedEmail === (member.email ?? "").trim().toLowerCase()) {
       setEditingEmail(false);
       return;
     }

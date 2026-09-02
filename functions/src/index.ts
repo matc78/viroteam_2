@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import * as crypto from "crypto";
 import { getStorage } from "firebase-admin/storage";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
@@ -29,8 +30,26 @@ export {
   acceptInvitationDev,
 } from "./acceptInvitation";
 
+export {
+  lookupInvitationByCode,
+  lookupInvitationByCodeDev,
+} from "./invitationLookup";
+
+export { deleteMyAccount, deleteMyAccountDev } from "./deleteAccount";
+
+export {
+  setMemberRole,
+  setMemberRoleDev,
+  removeMember,
+  removeMemberDev,
+} from "./memberAdmin";
+
+export { onTeamWritten, onTeamWrittenDev } from "./parentTeams";
+
 const helloAssoClientId = defineSecret("HELLOASSO_CLIENT_ID");
 const helloAssoClientSecret = defineSecret("HELLOASSO_CLIENT_SECRET");
+/** Jeton partagé exigé sur le webhook ; vide/non défini ⇒ webhook désactivé (503). */
+const helloAssoWebhookToken = defineSecret("HELLOASSO_WEBHOOK_TOKEN");
 const helloAssoApiBase = defineString("HELLOASSO_API_BASE", {
   default: "https://api.helloasso.com",
 });
@@ -279,10 +298,24 @@ export const {
   prod: helloAssoWebhook,
   dev: helloAssoWebhookDev,
 } = defineDualRequest(
-  { secrets: [helloAssoClientId, helloAssoClientSecret] },
+  {
+    secrets: [helloAssoClientId, helloAssoClientSecret, helloAssoWebhookToken],
+  },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    // Verrou : pas de secret ⇒ webhook désactivé ; mauvais jeton ⇒ 401.
+    const expectedToken = helloAssoWebhookToken.value().trim();
+    if (!expectedToken) {
+      res.status(503).json({ error: "webhook disabled" });
+      return;
+    }
+    const providedToken = webhookTokenFromRequest(req);
+    if (!providedToken || !safeEqual(providedToken, expectedToken)) {
+      res.status(401).json({ error: "unauthorized" });
       return;
     }
 
@@ -346,6 +379,12 @@ export const {
       const externalOrderId = String(
         orderObj?.id ?? data.orderId ?? data.id ?? "",
       );
+
+      // Sans identifiant externe, aucune idempotence possible : on refuse le crédit.
+      if (!externalPaymentId.trim()) {
+        res.status(400).json({ error: "externalPaymentId missing" });
+        return;
+      }
 
       const feeRef = db()
         .collection("clubs")
@@ -477,8 +516,26 @@ export const {
   },
 );
 
-/** @deprecated Utiliser [helloAssoWebhook]. Conservé pour compat déploiement. */
-export const paymentWebhook = helloAssoWebhook;
+/** Jeton du webhook : query `token` ou header `x-webhook-token`. */
+function webhookTokenFromRequest(req: {
+  query: Record<string, unknown>;
+  get: (name: string) => string | undefined;
+}): string {
+  const fromQuery = req.query.token;
+  if (typeof fromQuery === "string" && fromQuery.trim()) {
+    return fromQuery.trim();
+  }
+  const fromHeader = req.get("x-webhook-token");
+  return typeof fromHeader === "string" ? fromHeader.trim() : "";
+}
+
+/** Comparaison à temps constant (évite les attaques par timing). */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "utf8");
+  const bufB = Buffer.from(b, "utf8");
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 function aidLabel(type: string): string {
   switch (type) {
@@ -665,19 +722,16 @@ async function generateAndStoreReceipt(params: {
     contentType: "application/pdf",
     metadata: { cacheControl: "private, max-age=3600" },
   });
-  await file.makePublic().catch(() => undefined);
 
-  // URL publique si makePublic OK, sinon signed URL 7j.
-  try {
-    return `https://storage.googleapis.com/${bucket.name}/${path}`;
-  } catch {
-    const [url] = await file.getSignedUrl({
-      action: "read",
-      expires: Date.now() + 7 * 24 * 3600 * 1000,
-    });
-    return url;
-  }
+  // Plus de fichier public : URL signée 1 h (lecture client interdite sur receipts/**).
+  const [url] = await file.getSignedUrl({
+    action: "read",
+    expires: Date.now() + RECEIPT_SIGNED_URL_TTL_MS,
+  });
+  return url;
 }
+
+const RECEIPT_SIGNED_URL_TTL_MS = 60 * 60 * 1000;
 
 function buildReceiptPdf(input: {
   clubName: string;

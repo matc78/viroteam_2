@@ -44,6 +44,78 @@ async function callFunction<TReq, TRes>(
   }
 }
 
+/** Rôle club accepté par `setMemberRole`. */
+export type CallableMemberRole = "player" | "coach" | "admin";
+
+/**
+ * Change le rôle d’un membre (admin du club uniquement).
+ * Le serveur synchronise `club.adminIds` et `users/{uid}.clubMemberships`
+ * et refuse de rétrograder le dernier admin.
+ */
+export async function setMemberRole(params: {
+  clubId: string;
+  memberId: string;
+  role: CallableMemberRole;
+}): Promise<{ ok: boolean }> {
+  return callFunction("setMemberRole", params);
+}
+
+/**
+ * Retire un membre du club (admin du club uniquement).
+ * Le serveur nettoie `member_accounts`, `adminIds`, `memberCount`, les équipes,
+ * l’invitation pending et `users/{uid}.clubMemberships`.
+ */
+export async function removeMember(params: {
+  clubId: string;
+  memberId: string;
+}): Promise<{ ok: boolean }> {
+  return callFunction("removeMember", params);
+}
+
+/** Invitation trouvée par `lookupInvitationByCode` (jamais l’e-mail complet). */
+export type LookupInvitationPayload = {
+  clubId: string;
+  invitationId: string;
+  code: string;
+  role: string;
+  type: "member" | "guardian";
+  status: "pending";
+  firstName: string;
+  lastName: string;
+  /** E-mail masqué, ex. « m•••@gmail.com ». */
+  emailHint: string;
+  clubName: string;
+  clubSport: string;
+  memberId: string | null;
+  /** ISO 8601 ou null. */
+  expiresAt: string | null;
+};
+
+export type LookupInvitationResult =
+  | { found: false; reason?: "expired" }
+  | { found: true; invitation: LookupInvitationPayload };
+
+/**
+ * Recherche une invitation pending par code (sans authentification).
+ * Remplace la requête collection group côté client, interdite par les règles.
+ */
+export async function lookupInvitationByCode(params: {
+  code: string;
+}): Promise<LookupInvitationResult> {
+  return callFunction("lookupInvitationByCode", params);
+}
+
+/**
+ * Anonymise les fiches membre puis supprime le compte Auth de l’appelant.
+ * Le client doit se réauthentifier avant, puis `signOut` après.
+ */
+export async function deleteMyAccount(): Promise<{
+  ok: boolean;
+  anonymizedMembers: number;
+}> {
+  return callFunction("deleteMyAccount", {});
+}
+
 /** Résultat d’un envoi d’invitation membre via Brevo. */
 export type SendMemberInvitesResult = {
   ok: true;

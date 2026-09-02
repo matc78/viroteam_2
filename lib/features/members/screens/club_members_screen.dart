@@ -150,9 +150,12 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
             memberId: member.memberId,
             newRole: newRole,
           );
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      ViroSnackBar.show(context, 'Erreur : $e');
+      ViroSnackBar.show(
+        context,
+        callableErrorMessage(error, fallback: 'Changement de rôle impossible.'),
+      );
     }
   }
 
@@ -190,9 +193,12 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
             clubId: widget.clubId,
             memberId: member.memberId,
           );
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
-      ViroSnackBar.show(context, 'Erreur : $e');
+      ViroSnackBar.show(
+        context,
+        callableErrorMessage(error, fallback: 'Suppression du membre impossible.'),
+      );
     }
   }
 

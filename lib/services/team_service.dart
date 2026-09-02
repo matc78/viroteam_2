@@ -36,6 +36,36 @@ class TeamService {
     });
   }
 
+  /// Équipes lues une par une par id (`get` individuel, pas de `list`).
+  ///
+  /// Requête compatible avec les droits d'un parent : il ne peut lire que
+  /// `teams/{teamId}` pour `teamId ∈ parentTeamIds`. Les ids inconnus sont
+  /// ignorés.
+  Stream<List<ClubTeam>> watchTeamsByIds({
+    required String clubId,
+    required List<String> teamIds,
+  }) {
+    final uniqueIds = teamIds.where((id) => id.isNotEmpty).toSet().toList();
+    if (uniqueIds.isEmpty) return Stream.value(<ClubTeam>[]);
+
+    final streams = uniqueIds
+        .map(
+          (teamId) => _teams(clubId).doc(teamId).snapshots().map(
+                (doc) => doc.exists
+                    ? [ClubTeam.fromFirestore(clubId: clubId, doc: doc)]
+                    : <ClubTeam>[],
+              ),
+        )
+        .toList();
+
+    return combineLatestListStreams(streams).map(
+      (teams) => teams.toList()
+        ..sort(
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        ),
+    );
+  }
+
   /// Équipes où [uid] (et [alternateUid] si fourni) est joueur ou coach.
   Stream<List<ClubTeam>> watchUserTeams({
     required String clubId,

@@ -9,6 +9,7 @@ import {
   Timestamp,
   updateDoc,
   doc,
+  where,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
 import {
@@ -318,6 +319,73 @@ export async function loadAnnouncementsForMember(params: {
         params.teamCategoryById,
       ),
     )
+    .slice(0, 5);
+}
+
+/**
+ * Annonces actives visibles par un parent pour la fiche de son enfant.
+ * Les règles n’autorisent que deux formes de requête pour un guardian :
+ * `targetType in ['Tous les membres', 'all']` et
+ * `targetType == 'Équipes' && targetIds array-contains-any <équipes enfant>`.
+ * Les annonces « Catégories » / « Personnes » ne sont pas lisibles par un
+ * parent (non couvertes par les règles) : elles ne sont pas chargées.
+ */
+export async function loadAnnouncementsForGuardian(params: {
+  clubId: string;
+  member: ClubMemberRecord;
+  childTeamIds: string[];
+  teamCategoryById?: Map<string, string>;
+}): Promise<ClubAnnouncementRecord[]> {
+  const announcementsCol = announcementsCollection(params.clubId);
+  const teamIds = [
+    ...new Set(params.childTeamIds.map(String).filter(Boolean)),
+  ].slice(0, 10); // limite Firestore `array-contains-any`
+
+  const queries = [
+    getDocs(
+      query(
+        announcementsCol,
+        where(Fields.targetType, "in", [
+          AnnouncementTargetTypes.allMembers,
+          "all",
+        ]),
+      ),
+    ),
+  ];
+  if (teamIds.length > 0) {
+    queries.push(
+      getDocs(
+        query(
+          announcementsCol,
+          where(Fields.targetType, "==", AnnouncementTargetTypes.teams),
+          where(Fields.targetIds, "array-contains-any", teamIds),
+        ),
+      ),
+    );
+  }
+
+  const snapshots = await Promise.all(queries);
+  const byId = new Map<string, ClubAnnouncementRecord>();
+  for (const snap of snapshots) {
+    for (const announcementDoc of snap.docs) {
+      if (byId.has(announcementDoc.id)) continue;
+      byId.set(
+        announcementDoc.id,
+        mapAnnouncementDoc({
+          id: announcementDoc.id,
+          data: () => announcementDoc.data() as Record<string, unknown>,
+        }),
+      );
+    }
+  }
+
+  const teamCategoryById = params.teamCategoryById ?? new Map<string, string>();
+  return [...byId.values()]
+    .filter((announcement) => isAnnouncementActive(announcement))
+    .filter((announcement) =>
+      announcementMatchesMember(announcement, params.member, teamCategoryById),
+    )
+    .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))
     .slice(0, 5);
 }
 

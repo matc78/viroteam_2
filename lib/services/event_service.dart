@@ -271,6 +271,106 @@ class EventService {
     });
   }
 
+  /// Événements à venir d'une équipe (`teamIds array-contains teamId`).
+  ///
+  /// Seule requête lisible par un parent : les rules exigent que
+  /// `event.teamIds` croise `users/{uid}.parentTeamIds`.
+  Stream<List<ClubEvent>> _watchUpcomingEventsForTeam({
+    required String clubId,
+    required String teamId,
+    required Timestamp lowerBound,
+  }) {
+    return _events(clubId)
+        .where(FirestoreFields.teamIds, arrayContains: teamId)
+        .where(FirestoreFields.date, isGreaterThanOrEqualTo: lowerBound)
+        .orderBy(FirestoreFields.date)
+        .snapshots()
+        .map(
+          (snap) => sortedByDate(
+            _filterUpcomingWindow(
+              snap.docs.map(
+                (d) => ClubEvent.fromFirestore(clubId: clubId, doc: d),
+              ),
+            ),
+          ),
+        );
+  }
+
+  /// Événements à venir visibles par un parent : uniquement ceux des équipes
+  /// de l'enfant ([childTeamIds] = `members/{child}.teamIds`), une requête
+  /// par équipe. Pas de lecture globale ni de fallback v1 `teamName`.
+  Stream<List<ClubEvent>> watchUpcomingEventsForGuardian({
+    required String clubId,
+    required List<String> childTeamIds,
+  }) {
+    final teamIds = childTeamIds.where((id) => id.isNotEmpty).toSet();
+    if (teamIds.isEmpty) return Stream.value(<ClubEvent>[]);
+
+    final lowerBound = _upcomingQueryLowerBound;
+    final streams = teamIds
+        .map(
+          (teamId) => _watchUpcomingEventsForTeam(
+            clubId: clubId,
+            teamId: teamId,
+            lowerBound: lowerBound,
+          ),
+        )
+        .toList();
+    return combineLatestListStreams(streams).map(_dedupeEvents);
+  }
+
+  /// Aperçu club côté parent : prochain événement à venir des équipes de
+  /// l'enfant, sinon le plus récent passé. Requêtes filtrées par équipe.
+  Future<ClubEvent?> getHighlightEventForGuardian({
+    required String clubId,
+    required List<String> childTeamIds,
+  }) async {
+    final teamIds = childTeamIds.where((id) => id.isNotEmpty).toSet();
+    if (teamIds.isEmpty) return null;
+    final today = _startOfToday();
+
+    ClubEvent? nextUpcoming;
+    for (final teamId in teamIds) {
+      final upcoming = await _events(clubId)
+          .where(FirestoreFields.teamIds, arrayContains: teamId)
+          .where(
+            FirestoreFields.date,
+            isGreaterThanOrEqualTo: Timestamp.fromDate(today),
+          )
+          .orderBy(FirestoreFields.date)
+          .limit(3)
+          .get();
+      for (final doc in upcoming.docs) {
+        final event = ClubEvent.fromFirestore(clubId: clubId, doc: doc);
+        if (event.canceled) continue;
+        if (nextUpcoming == null || event.date.isBefore(nextUpcoming.date)) {
+          nextUpcoming = event;
+        }
+        break;
+      }
+    }
+    if (nextUpcoming != null) return nextUpcoming;
+
+    ClubEvent? latestPast;
+    for (final teamId in teamIds) {
+      final past = await _events(clubId)
+          .where(FirestoreFields.teamIds, arrayContains: teamId)
+          .where(FirestoreFields.date, isLessThan: Timestamp.fromDate(today))
+          .orderBy(FirestoreFields.date, descending: true)
+          .limit(5)
+          .get();
+      for (final doc in past.docs) {
+        final event = ClubEvent.fromFirestore(clubId: clubId, doc: doc);
+        if (event.canceled) continue;
+        if (latestPast == null || event.date.isAfter(latestPast.date)) {
+          latestPast = event;
+        }
+        break;
+      }
+    }
+    return latestPast;
+  }
+
   static int compareByDate(ClubEvent a, ClubEvent b) =>
       a.date.compareTo(b.date);
 

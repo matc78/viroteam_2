@@ -14,7 +14,8 @@ void main() {
     city: 'Paris',
   );
 
-  testWidgets('bouton Créer et inviter désactivé si champs vides', (tester) async {
+  testWidgets('bouton Créer et inviter désactivé tant que l’e-mail est absent ou invalide',
+      (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -46,6 +47,20 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), 'Dupont');
     await tester.pump();
 
+    // Prénom + nom sans e-mail : toujours désactivé (e-mail obligatoire).
+    expect(tester.widget<ViroPrimaryButton>(addButton).onPressed, isNull);
+    expect(find.text('E-mail *'), findsOneWidget);
+
+    // E-mail mal formé : erreur affichée, bouton désactivé.
+    await tester.enterText(find.byType(TextField).at(2), 'jean@dupont');
+    await tester.pump();
+    expect(tester.widget<ViroPrimaryButton>(addButton).onPressed, isNull);
+    expect(find.text('Saisis un e-mail valide.'), findsOneWidget);
+
+    // E-mail valide : bouton activé.
+    await tester.enterText(find.byType(TextField).at(2), 'Jean@Dupont.fr');
+    await tester.pump();
     expect(tester.widget<ViroPrimaryButton>(addButton).onPressed, isNotNull);
+    expect(find.text('Saisis un e-mail valide.'), findsNothing);
   });
 }

@@ -4,6 +4,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/announcements/announcement_target_types.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
+import 'package:viro_team_v2/utils/stream_combine.dart';
 
 class AnnouncementService {
   AnnouncementService({FirebaseFirestore? firestore})
@@ -42,6 +43,77 @@ class AnnouncementService {
               )
               .toList(),
         );
+  }
+
+  /// Annonces lisibles par un parent : « Tous les membres » (+ `all` v1) et
+  /// « Équipes » ciblant une équipe de l'enfant (une requête par équipe).
+  ///
+  /// Pas de lecture globale : les rules refusent les annonces « Catégories »
+  /// et « Personnes » à un parent. Tri client (plus récentes d'abord), sans
+  /// `orderBy` serveur pour éviter des index composites.
+  Stream<List<ClubAnnouncement>> watchAnnouncementsForGuardian({
+    required String clubId,
+    required List<String> childTeamIds,
+    int limit = 50,
+  }) {
+    final teamIds = childTeamIds.where((id) => id.isNotEmpty).toSet();
+
+    Stream<List<ClubAnnouncement>> mapQuery(
+      Query<Map<String, dynamic>> query,
+    ) =>
+        query.snapshots().map(
+              (snap) => snap.docs
+                  .map(
+                    (d) => ClubAnnouncement.fromFirestore(
+                      clubId: clubId,
+                      doc: d,
+                    ),
+                  )
+                  .toList(),
+            );
+
+    final streams = <Stream<List<ClubAnnouncement>>>[
+      mapQuery(
+        _announcements(clubId).where(
+          FirestoreFields.targetType,
+          isEqualTo: AnnouncementTargetTypes.tousLesMembres,
+        ),
+      ),
+      mapQuery(
+        _announcements(clubId).where(
+          FirestoreFields.targetType,
+          isEqualTo: AnnouncementTargetTypes.legacyAll,
+        ),
+      ),
+      for (final teamId in teamIds)
+        mapQuery(
+          _announcements(clubId)
+              .where(
+                FirestoreFields.targetType,
+                isEqualTo: AnnouncementTargetTypes.equipes,
+              )
+              .where(FirestoreFields.targetIds, arrayContains: teamId),
+        ),
+    ];
+
+    return combineLatestListStreams(streams).map(
+      (announcements) => mergeGuardianAnnouncements(announcements, limit: limit),
+    );
+  }
+
+  /// Fusionne les résultats des requêtes parent : dédoublonne par id, trie
+  /// par `createdAt` décroissant et tronque à [limit].
+  static List<ClubAnnouncement> mergeGuardianAnnouncements(
+    List<ClubAnnouncement> announcements, {
+    int limit = 50,
+  }) {
+    final byId = <String, ClubAnnouncement>{};
+    for (final announcement in announcements) {
+      byId[announcement.id] = announcement;
+    }
+    final merged = byId.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return merged.take(limit).toList();
   }
 
   Stream<Set<String>> watchDismissedAnnouncementIds({

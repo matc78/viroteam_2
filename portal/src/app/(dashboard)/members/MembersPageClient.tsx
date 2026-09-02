@@ -370,7 +370,7 @@ function MembersPageContent() {
           role: input.role,
           sentByUid: user.uid,
           club: activeClub,
-          email: input.email.trim() || undefined,
+          email: input.email,
         });
         setCreatedMember(result);
         reload();

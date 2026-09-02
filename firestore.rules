@@ -1,7 +1,23 @@
 rules_version = '2';
 
+// Règles Firestore ViroTeam v2 — appliquées aux bases `v2-dev` et `v2-prod`
+// (voir firebase.json). Tests : `cd rules-tests && npm test`.
+//
+// Principes (lot 1 sécurité, 2 sept. 2026) :
+// - Tout ce qui touche aux rôles, aux comptes liés et aux invitations acceptées
+//   passe par les Cloud Functions (Admin SDK). Les clients ne font que lire.
+// - Un membre ne modifie que son profil (liste blanche de champs).
+// - Une invitation n'est lisible que par le club (coach/admin) ou par l'e-mail invité.
+//   La recherche par code passe par la callable `lookupInvitationByCode`.
+// - Un parent (guardian) ne voit que les équipes de ses enfants et ce qui les concerne
+//   (`users/{uid}.parentTeamIds`, maintenu côté serveur).
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ————————————————————————————————————————————————————————————
+    // Helpers identité
+    // ————————————————————————————————————————————————————————————
 
     function isSignedIn() {
       return request.auth != null;
@@ -10,6 +26,21 @@ service cloud.firestore {
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
+
+    /// E-mail du compte connecté, normalisé (minuscules). Chaîne vide si absent.
+    function authEmail() {
+      return isSignedIn() && request.auth.token.get('email', '') is string
+        ? request.auth.token.get('email', '').lower()
+        : '';
+    }
+
+    function userDoc() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    // ————————————————————————————————————————————————————————————
+    // Appartenance au club
+    // ————————————————————————————————————————————————————————————
 
     function memberDocRef(clubId) {
       let accountIndex = /databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid);
@@ -26,14 +57,17 @@ service cloud.firestore {
       return get(memberDocRef(clubId)).data.role;
     }
 
-    // Portail web Bureau : admin (cockpit), coach / joueur (vues filtrées côté app).
-    // Les writes sensibles (rôles, fees config, delete) restent isClubAdmin.
+    function isInClubAdminIds(clubId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/clubs/$(clubId))
+        && request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId))
+          .data.get('adminIds', []);
+    }
+
     function isClubAdmin(clubId) {
       return isSignedIn() && (
         (isClubMember(clubId) && clubMemberRole(clubId) == 'admin')
-        || (exists(/databases/$(database)/documents/clubs/$(clubId))
-          && request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId))
-            .data.get('adminIds', []))
+        || isInClubAdminIds(clubId)
       );
     }
 
@@ -45,6 +79,8 @@ service cloud.firestore {
       return isClubAdmin(clubId) || isClubCoach(clubId);
     }
 
+    /// Le compte connecté est le titulaire de la fiche `memberId`
+    /// (fiche à son uid, ou index `member_accounts` qui pointe vers elle).
     function ownsMemberDoc(clubId, memberId) {
       return isOwner(memberId)
         || (isSignedIn()
@@ -59,6 +95,10 @@ service cloud.firestore {
         : request.auth.uid;
     }
 
+    // ————————————————————————————————————————————————————————————
+    // Parents (guardians)
+    // ————————————————————————————————————————————————————————————
+
     function guardianDoc(clubId, memberId) {
       return /databases/$(database)/documents/clubs/$(clubId)/members/$(memberId)/guardians/$(request.auth.uid);
     }
@@ -71,41 +111,80 @@ service cloud.firestore {
 
     function isClubGuardian(clubId) {
       return isSignedIn()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && clubId in get(/databases/$(database)/documents/users/$(request.auth.uid))
-          .data.get('parentClubIds', []);
+        && exists(userDoc())
+        && clubId in get(userDoc()).data.get('parentClubIds', []);
     }
 
-    function canReadClubFamily(clubId) {
-      return isClubMember(clubId) || isClubGuardian(clubId);
+    /// Équipes des enfants du parent connecté (maintenu par les Cloud Functions).
+    function parentTeamIds() {
+      return exists(userDoc()) ? get(userDoc()).data.get('parentTeamIds', []) : [];
     }
 
-    // RSVP : le membre ne peut modifier que sa propre clé dans `rsvp`.
+    function guardianCanSeeTeams(clubId, teamIds) {
+      return isClubGuardian(clubId) && teamIds.hasAny(parentTeamIds());
+    }
+
+    /// Annonce visible d'un parent : tout le club, ou une équipe de ses enfants.
+    function guardianCanSeeAnnouncement(clubId) {
+      return isClubGuardian(clubId) && (
+        resource.data.get('targetType', 'Tous les membres') in ['Tous les membres', 'all']
+        || (resource.data.get('targetType', '') == 'Équipes'
+          && resource.data.get('targetIds', []).hasAny(parentTeamIds()))
+      );
+    }
+
+    // ————————————————————————————————————————————————————————————
+    // Helpers de mutation
+    // ————————————————————————————————————————————————————————————
+
+    function affectedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    /// RSVP : le membre ne peut modifier que sa propre clé dans `rsvp`.
     function onlyOwnRsvpUpdate(clubId) {
-      let affected = request.resource.data.diff(resource.data).affectedKeys();
       let rsvpAffected = request.resource.data.get('rsvp', {})
         .diff(resource.data.get('rsvp', {})).affectedKeys();
       return isClubMember(clubId)
-        && affected.hasOnly(['rsvp', 'updatedAt'])
+        && affectedKeys().hasOnly(['rsvp', 'updatedAt'])
         && rsvpAffected.hasOnly([audienceMemberId(clubId)]);
     }
 
-    function isLinkingAccountToPrecreatedMember() {
-      return isSignedIn()
-        && resource.data.get('activeInvitationId', null) != null
-        && resource.data.get('accountUid', null) == null
-        && request.resource.data.get('accountUid', null) == request.auth.uid
-        && request.resource.data.get('userId', null) == request.auth.uid;
+    /// Le titulaire d'une fiche ne modifie que son profil affiché.
+    function isOwnProfileUpdate(clubId, memberId) {
+      return ownsMemberDoc(clubId, memberId)
+        && affectedKeys().hasOnly([
+          'firstName', 'lastName', 'snapshot', 'dismissedAnnouncementIds', 'updatedAt'
+        ]);
     }
 
-    // Acceptation d'invitation côté client (en attendant Cloud Function dédiée).
-    function isAcceptingPendingInvitation() {
-      return isSignedIn()
-        && resource.data.status == 'pending'
-        && request.resource.data.status == 'accepted'
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['status', 'acceptedAt', 'acceptedBy', 'updatedAt']);
+    /// Un coach gère les équipes et les infos sportives, pas les rôles ni les comptes.
+    function isCoachMemberUpdate(clubId) {
+      return isClubCoach(clubId)
+        && !affectedKeys().hasAny([
+          'role', 'status', 'accountUid', 'userId', 'activeInvitationId', 'memberId'
+        ]);
     }
+
+    /// L'invité (même e-mail) décline son invitation.
+    function isInviteeDeclining() {
+      return isSignedIn()
+        && authEmail() != ''
+        && resource.data.get('email', '') == authEmail()
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'declined'
+        && affectedKeys().hasOnly(['status', 'updatedAt']);
+    }
+
+    function isInvitee() {
+      return isSignedIn()
+        && authEmail() != ''
+        && resource.data.get('email', '') == authEmail();
+    }
+
+    // ————————————————————————————————————————————————————————————
+    // users
+    // ————————————————————————————————————————————————————————————
 
     match /users/{uid} {
       // get pour afficher coéquipiers ; pas de list global (scraping).
@@ -113,88 +192,111 @@ service cloud.firestore {
       allow list: if false;
       allow create: if isOwner(uid)
         && request.resource.data.get('parentLinks', []) == []
-        && request.resource.data.get('parentClubIds', []) == [];
+        && request.resource.data.get('parentClubIds', []) == []
+        && request.resource.data.get('parentTeamIds', []) == [];
+      // Les index parent sont maintenus par les Cloud Functions.
       allow update: if isOwner(uid)
-        && !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['parentLinks', 'parentClubIds']);
+        && !affectedKeys().hasAny(['parentLinks', 'parentClubIds', 'parentTeamIds', 'deleted']);
+      // Suppression de compte : callable `deleteMyAccount` (anonymisation).
       allow delete: if false;
     }
 
+    // ————————————————————————————————————————————————————————————
+    // clubs
+    // ————————————————————————————————————————————————————————————
+
     match /clubs/{clubId} {
-      allow create: if isSignedIn();
-      // Aperçu club pour rejoindre par code (y compris hors session).
-      // À resserrer quand l'aperçu passera par une Cloud Function.
-      allow get: if true;
+      // Fondateur : il est le seul admin du club qu'il crée.
+      allow create: if isSignedIn()
+        && request.resource.data.get('adminIds', []) == [request.auth.uid];
+      // L'aperçu « rejoindre par code » passe par `lookupInvitationByCode`.
+      allow get: if isSignedIn();
       allow list: if isClubMember(clubId)
         || isClubGuardian(clubId)
-        || (isSignedIn() && request.auth.uid in resource.data.adminIds);
-      allow update: if isClubAdmin(clubId);
-      // brandColorHex et autres champs club : réservés aux admins (isClubAdmin).
+        || (isSignedIn() && request.auth.uid in resource.data.get('adminIds', []));
+      // `adminIds` n'est modifié que par les Cloud Functions (rôles, retrait, suppression).
+      // Un coach qui pré-crée une fiche ne touche qu'au compteur.
+      allow update: if (isClubAdmin(clubId) && !affectedKeys().hasAny(['adminIds']))
+        || (isClubCoach(clubId) && affectedKeys().hasOnly(['memberCount', 'updatedAt']));
       allow delete: if false;
 
+      // ——— Fiches membres ———
       match /members/{memberId} {
         allow get: if isClubMember(clubId)
-          || isActiveGuardianOf(clubId, memberId)
-          || (resource.data.get('activeInvitationId', null) != null
-            && resource.data.get('accountUid', null) == null);
+          || isActiveGuardianOf(clubId, memberId);
         allow list: if isClubMember(clubId);
+        // Création : coach/admin (fiche pré-créée + invitation) ou fondateur.
+        // L'arrivée d'un invité passe par la callable `acceptInvitation`.
         allow create: if isClubCoachOrAdmin(clubId)
-          || isOwner(memberId)
-          || (isSignedIn()
-            && request.auth.uid in get(/databases/$(database)/documents/clubs/$(clubId)).data.adminIds);
-        allow update: if ownsMemberDoc(clubId, memberId)
-          || isClubAdmin(clubId)
-          || isLinkingAccountToPrecreatedMember();
-        allow delete: if isClubAdmin(clubId);
+          || (isOwner(memberId) && isInClubAdminIds(clubId));
+        allow update: if isClubAdmin(clubId)
+          || isCoachMemberUpdate(clubId)
+          || isOwnProfileUpdate(clubId, memberId);
+        // Retrait d'un membre : callable `removeMember`.
+        allow delete: if false;
 
         match /guardians/{parentUid} {
-          // Lecture : membres du club (portail bureau / app admin).
+          // Lecture : membres du club, le parent lui-même, le titulaire de la fiche.
           // Écriture : Cloud Functions uniquement.
           allow read: if isClubMember(clubId)
-            || (isSignedIn() && request.auth.uid == parentUid)
+            || isOwner(parentUid)
             || ownsMemberDoc(clubId, memberId);
           allow write: if false;
         }
       }
 
+      // ——— Index compte → fiche (Cloud Functions uniquement) ———
       match /member_accounts/{accountUid} {
         allow read: if isClubMember(clubId) || isOwner(accountUid);
-        allow create: if isOwner(accountUid);
-        allow update, delete: if false;
+        allow write: if false;
       }
 
+      // ——— Invitations ———
       match /invitations/{inviteId} {
-        allow read: if isSignedIn() || resource.data.status == 'pending';
-        // Invites parent (type guardian) : Cloud Functions uniquement.
+        allow get, list: if isClubCoachOrAdmin(clubId) || isInvitee();
+        // E-mail obligatoire ; un coach n'invite pas d'admin ; parents via Cloud Functions.
         allow create: if isClubCoachOrAdmin(clubId)
-          && request.resource.data.get('type', 'member') != 'guardian';
-        allow update: if isClubCoachOrAdmin(clubId)
-          || (isAcceptingPendingInvitation()
-            && resource.data.get('type', 'member') != 'guardian');
+          && request.resource.data.get('type', 'member') != 'guardian'
+          && request.resource.data.get('email', '') is string
+          && request.resource.data.get('email', '').size() > 0
+          && request.resource.data.get('status', '') == 'pending'
+          && (
+            request.resource.data.get('role', '') in ['player', 'coach']
+            || (isClubAdmin(clubId) && request.resource.data.get('role', '') == 'admin')
+          );
+        allow update: if (isClubCoachOrAdmin(clubId)
+            && request.resource.data.get('status', '') != 'accepted'
+            && !affectedKeys().hasAny(['memberId', 'type']))
+          || isInviteeDeclining();
         allow delete: if isClubAdmin(clubId);
       }
 
+      // ——— Événements ———
       match /events/{eventId} {
-        allow read: if canReadClubFamily(clubId);
-        allow create: if isClubAdmin(clubId) || isClubCoach(clubId);
+        allow read: if isClubMember(clubId)
+          || guardianCanSeeTeams(clubId, resource.data.get('teamIds', []));
+        allow create: if isClubCoachOrAdmin(clubId);
         allow update: if isClubCoachOrAdmin(clubId) || onlyOwnRsvpUpdate(clubId);
         allow delete: if isClubAdmin(clubId);
       }
 
+      // ——— Annonces ———
       match /announcements/{announcementId} {
-        allow read: if canReadClubFamily(clubId);
-        allow create, update, delete: if isClubAdmin(clubId) || isClubCoach(clubId);
+        allow read: if isClubMember(clubId) || guardianCanSeeAnnouncement(clubId);
+        allow create, update, delete: if isClubCoachOrAdmin(clubId);
       }
 
+      // ——— Équipes ———
       match /teams/{teamId} {
-        allow read: if canReadClubFamily(clubId);
+        allow read: if isClubMember(clubId)
+          || guardianCanSeeTeams(clubId, [teamId]);
         allow create, update: if isClubCoachOrAdmin(clubId);
         allow delete: if isClubAdmin(clubId);
       }
 
       // Inventaire simple (CRUD admin) — pas de prêts / retours MVP.
       match /equipment/{itemId} {
-        allow read: if isClubMember(clubId) || isClubAdmin(clubId);
+        allow read: if isClubMember(clubId);
         allow create, update, delete: if isClubAdmin(clubId);
       }
 
@@ -203,15 +305,14 @@ service cloud.firestore {
         allow create, update, delete: if isClubCoachOrAdmin(clubId);
       }
 
+      // ——— Cotisations ———
       match /fee_seasons/{seasonId} {
-        allow read: if canReadClubFamily(clubId);
+        allow read: if isClubMember(clubId) || isClubGuardian(clubId);
         allow write: if isClubAdmin(clubId);
 
         match /member_fees/{memberId} {
-          // Admin / coach : list + get (suivi cotisations, colonne Membres).
-          // Joueur / guardian : get de sa fiche seulement (list refuse les autres docs).
-          allow read: if isClubAdmin(clubId)
-            || isClubCoach(clubId)
+          // Admin / coach : list + get. Joueur / parent : sa fiche seulement.
+          allow read: if isClubCoachOrAdmin(clubId)
             || ownsMemberDoc(clubId, memberId)
             || isActiveGuardianOf(clubId, memberId);
           // Admin manuel (hors-ligne / aides) ; CB via Cloud Functions (Admin SDK).
@@ -224,6 +325,10 @@ service cloud.firestore {
         }
       }
     }
+
+    // ————————————————————————————————————————————————————————————
+    // Collections racine
+    // ————————————————————————————————————————————————————————————
 
     match /retour_user/{docId} {
       allow create: if isSignedIn()
@@ -244,8 +349,9 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // « Mes invitations en attente » : uniquement celles adressées à mon e-mail.
     match /{path=**}/invitations/{inviteId} {
-      allow read: if isSignedIn() || resource.data.status == 'pending';
+      allow read: if isInvitee();
     }
   }
 }

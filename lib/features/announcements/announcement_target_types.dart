@@ -5,6 +5,9 @@ abstract final class AnnouncementTargetTypes {
   static const String categories = 'Catégories';
   static const String personnes = 'Personnes';
 
+  /// Valeur v1 équivalente à [tousLesMembres] (compat lecture).
+  static const String legacyAll = 'all';
+
   static const List<String> adminOptions = [
     tousLesMembres,
     equipes,

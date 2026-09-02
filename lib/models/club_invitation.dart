@@ -11,6 +11,7 @@ class ClubInvitation {
     this.type = InvitationTypes.member,
     this.memberId,
     this.email,
+    this.emailHint,
     this.sentBy,
     this.sentAt,
     this.expiresAt,
@@ -30,6 +31,11 @@ class ClubInvitation {
   final String type;
   final String? memberId;
   final String? email;
+
+  /// E-mail masqué renvoyé par `lookupInvitationByCode` (ex. `m•••@gmail.com`).
+  ///
+  /// Uniquement pour l'affichage : jamais utilisé pour préremplir un champ.
+  final String? emailHint;
   final String? sentBy;
   final DateTime? sentAt;
   final DateTime? expiresAt;
@@ -57,6 +63,7 @@ class ClubInvitation {
     String? firstName,
     String? lastName,
     String? email,
+    String? emailHint,
     String? memberId,
     String? type,
     String? relation,
@@ -70,6 +77,7 @@ class ClubInvitation {
       type: type ?? this.type,
       memberId: memberId ?? this.memberId,
       email: email ?? this.email,
+      emailHint: emailHint ?? this.emailHint,
       sentBy: sentBy,
       sentAt: sentAt,
       expiresAt: expiresAt,
@@ -99,6 +107,37 @@ class ClubInvitation {
       id: doc.id,
       clubId: doc.reference.parent.parent?.id ?? '',
       data: doc.data(),
+    );
+  }
+
+  /// Construit une invitation depuis l'objet `invitation` renvoyé par la
+  /// callable `lookupInvitationByCode` (dates ISO 8601, e-mail masqué).
+  ///
+  /// [email] reste `null` : la callable ne renvoie jamais l'e-mail complet.
+  factory ClubInvitation.fromLookup(Map<String, dynamic> lookup) {
+    final expiresAtRaw = lookup['expiresAt'];
+    final expiresAt = expiresAtRaw is String && expiresAtRaw.isNotEmpty
+        ? DateTime.tryParse(expiresAtRaw)
+        : null;
+    final memberIdRaw = lookup[FirestoreFields.memberId];
+    final memberId = memberIdRaw is String && memberIdRaw.isNotEmpty
+        ? memberIdRaw
+        : null;
+    return ClubInvitation(
+      id: lookup['invitationId'] as String? ?? '',
+      clubId: lookup[FirestoreFields.clubId] as String? ?? '',
+      code: lookup[FirestoreFields.code] as String? ?? '',
+      role: lookup[FirestoreFields.role] as String? ?? MemberRoles.player,
+      status:
+          lookup[FirestoreFields.status] as String? ?? InvitationStatus.pending,
+      type: lookup[FirestoreFields.type] as String? ?? InvitationTypes.member,
+      memberId: memberId,
+      emailHint: lookup['emailHint'] as String?,
+      expiresAt: expiresAt,
+      clubName: lookup[FirestoreFields.clubName] as String?,
+      clubSport: lookup[FirestoreFields.clubSport] as String?,
+      firstName: lookup[FirestoreFields.firstName] as String?,
+      lastName: lookup[FirestoreFields.lastName] as String?,
     );
   }
 

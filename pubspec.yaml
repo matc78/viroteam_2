@@ -69,3 +69,11 @@ flutter:
     - assets/icons/
     - assets/sons/
     - assets/branding/
+
+  config:
+    enable-swift-package-manager: false
+
+# Contournement : objective_c 9.x (via path_provider_foundation 2.6.0) fait planter
+# le build iOS depuis Xcode ("Bad state: No element" sur xcrun --show-sdk-path).
+dependency_overrides:
+  path_provider_foundation: 2.5.1

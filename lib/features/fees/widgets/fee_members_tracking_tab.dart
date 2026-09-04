@@ -108,6 +108,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
           exempt.add(f);
         case MemberFeeDisplayStatus.aPayer:
         case MemberFeeDisplayStatus.enRetard:
+        case MemberFeeDisplayStatus.echeanceAujourdhui:
         case MemberFeeDisplayStatus.partiel:
           unpaid.add(f);
       }

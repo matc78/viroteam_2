@@ -6,7 +6,7 @@ import 'package:viro_team_v2/features/fees/models/fee_tier.dart';
 
 enum MemberFeeStatus { aPayer, partiel, paye, exonere }
 
-enum MemberFeeDisplayStatus { aPayer, enRetard, partiel, paye, exonere }
+enum MemberFeeDisplayStatus { aPayer, echeanceAujourdhui, enRetard, partiel, paye, exonere }
 
 extension MemberFeeStatusX on MemberFeeStatus {
   String get firestoreValue => switch (this) {
@@ -41,6 +41,7 @@ extension MemberFeeStatusX on MemberFeeStatus {
 extension MemberFeeDisplayStatusX on MemberFeeDisplayStatus {
   String get label => switch (this) {
         MemberFeeDisplayStatus.aPayer => 'À payer',
+        MemberFeeDisplayStatus.echeanceAujourdhui => 'Échéance aujourd\'hui',
         MemberFeeDisplayStatus.enRetard => 'En retard',
         MemberFeeDisplayStatus.partiel => 'Partiel',
         MemberFeeDisplayStatus.paye => 'Payé',
@@ -201,6 +202,14 @@ class MemberFee {
     if (status == MemberFeeStatus.exonere) {
       return MemberFeeDisplayStatus.exonere;
     }
+    if (deadline != null && isDeadlineToday(deadline, clock)) {
+      if (status == MemberFeeStatus.partiel) {
+        return MemberFeeDisplayStatus.echeanceAujourdhui;
+      }
+      if (status == MemberFeeStatus.aPayer) {
+        return MemberFeeDisplayStatus.echeanceAujourdhui;
+      }
+    }
     if (status == MemberFeeStatus.partiel) {
       return MemberFeeDisplayStatus.partiel;
     }
@@ -208,6 +217,14 @@ class MemberFee {
       return MemberFeeDisplayStatus.enRetard;
     }
     return MemberFeeDisplayStatus.aPayer;
+  }
+
+  /// Vrai si [clock] tombe le jour calendaire de l'échéance.
+  static bool isDeadlineToday(DateTime deadline, [DateTime? clock]) {
+    final now = clock ?? DateTime.now();
+    final end = DateTime(deadline.year, deadline.month, deadline.day);
+    final today = DateTime(now.year, now.month, now.day);
+    return today.isAtSameMomentAs(end);
   }
 
   static bool _isDeadlineElapsed(DateTime deadline, DateTime? clock) {

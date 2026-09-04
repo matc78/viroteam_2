@@ -48,6 +48,10 @@ class FeeStatusChip extends StatelessWidget {
             Color.lerp(ViroColors.white, ViroColors.error, 0.12)!,
             ViroColors.error,
           ),
+        MemberFeeDisplayStatus.echeanceAujourdhui => (
+            Color.lerp(ViroColors.white, ViroColors.error, 0.12)!,
+            ViroColors.error,
+          ),
         MemberFeeDisplayStatus.partiel => (
             Color.lerp(ViroColors.white, ViroColors.primary600, 0.12)!,
             ViroColors.primary800,

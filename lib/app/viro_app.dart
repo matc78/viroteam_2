@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_theme.dart';
+import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ViroApp extends ConsumerStatefulWidget {
   const ViroApp({super.key});
@@ -27,6 +29,7 @@ class _ViroAppState extends ConsumerState<ViroApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(goRouterProvider);
+    final feeDeadlineUrgent = ref.watch(feeDeadlineUrgentBackgroundProvider);
 
     return MaterialApp.router(
       title: 'ViroTeam',
@@ -40,6 +43,12 @@ class _ViroAppState extends ConsumerState<ViroApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       routerConfig: router,
+      builder: (context, child) {
+        return FeeDeadlineBackground(
+          active: feeDeadlineUrgent,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

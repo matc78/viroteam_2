@@ -2,6 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
+/// Signal hérité : fond rouge jour J échéance cotisation.
+class FeeDeadlineBackground extends InheritedWidget {
+  const FeeDeadlineBackground({
+    super.key,
+    required this.active,
+    required super.child,
+  });
+
+  final bool active;
+
+  static bool of(BuildContext context) {
+    return context
+            .dependOnInheritedWidgetOfExactType<FeeDeadlineBackground>()
+            ?.active ??
+        false;
+  }
+
+  @override
+  bool updateShouldNotify(FeeDeadlineBackground oldWidget) {
+    return active != oldWidget.active;
+  }
+}
+
 /// Scaffold fond blanc avec formes décoratives colorées (accord portail web).
 class ViroScaffold extends StatelessWidget {
   const ViroScaffold({
@@ -17,14 +40,19 @@ class ViroScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final feeDeadlineUrgent = FeeDeadlineBackground.of(context);
+    final backgroundColor = feeDeadlineUrgent
+        ? Color.lerp(ViroColors.white, ViroColors.error, 0.1)!
+        : ViroColors.white;
+
     return Scaffold(
-      backgroundColor: ViroColors.white,
+      backgroundColor: backgroundColor,
       appBar: appBar,
       floatingActionButton: floatingActionButton,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const _DecorShapes(),
+          _DecorShapes(feeDeadlineUrgent: feeDeadlineUrgent),
           body,
         ],
       ),
@@ -34,10 +62,29 @@ class ViroScaffold extends StatelessWidget {
 
 /// Formes décoratives d'arrière-plan — reproduit le DecorShapes du portail web.
 class _DecorShapes extends StatelessWidget {
-  const _DecorShapes();
+  const _DecorShapes({this.feeDeadlineUrgent = false});
+
+  final bool feeDeadlineUrgent;
 
   @override
   Widget build(BuildContext context) {
+    if (feeDeadlineUrgent) {
+      return IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                ViroColors.error.withValues(alpha: 0.06),
+                ViroColors.error.withValues(alpha: 0.03),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final size = MediaQuery.sizeOf(context);
     final w = size.width;
     final h = size.height;

@@ -157,6 +157,7 @@ class FeeStats {
           exempt++;
         case MemberFeeDisplayStatus.enRetard:
           overdue++;
+        case MemberFeeDisplayStatus.echeanceAujourdhui:
         case MemberFeeDisplayStatus.aPayer:
         case MemberFeeDisplayStatus.partiel:
           pending++;

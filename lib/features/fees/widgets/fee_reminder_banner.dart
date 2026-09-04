@@ -21,7 +21,7 @@ class FeeReminderBanner extends ConsumerWidget {
 
     return itemsAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (error, stackTrace) => const SizedBox.shrink(),
       data: (items) {
         if (items.isEmpty) return const SizedBox.shrink();
 
@@ -67,15 +67,15 @@ class _FeeReminderCard extends StatefulWidget {
 
 class _FeeReminderCardState extends State<_FeeReminderCard>
     with SingleTickerProviderStateMixin {
-  late final AnimationController? _pulseController;
-  late final Animation<double>? _pulseAnimation;
+  AnimationController? _pulseController;
+  Animation<double>? _pulseAnimation;
 
   HomeFeeReminderItem get item => widget.item;
 
-  @override
-  void initState() {
-    super.initState();
-    if (item.isOverdue) {
+  bool get _shouldPulse => item.isUrgent;
+
+  void _syncPulseAnimation() {
+    if (_shouldPulse && _pulseController == null) {
       _pulseController = AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 1200),
@@ -83,10 +83,23 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
       _pulseAnimation = Tween<double>(begin: 0.35, end: 1.0).animate(
         CurvedAnimation(parent: _pulseController!, curve: Curves.easeInOut),
       );
-    } else {
+    } else if (!_shouldPulse && _pulseController != null) {
+      _pulseController!.dispose();
       _pulseController = null;
       _pulseAnimation = null;
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _syncPulseAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FeeReminderCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncPulseAnimation();
   }
 
   @override
@@ -103,7 +116,9 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
       clubId: item.clubId,
     );
     final isOverdue = item.isOverdue;
-    final statusColor = isOverdue ? ViroColors.error : accent;
+    final isDeadlineToday = item.isFeeDeadlineUrgentDay;
+    final isUrgent = item.isUrgent;
+    final statusColor = isUrgent ? ViroColors.error : accent;
 
     final amount = formatFeeAmountCents(item.fee.amountDueCents(item.season));
     final deadline = item.season.paymentDeadlineAt;
@@ -113,7 +128,9 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
 
     Widget card(Color borderColor) => DecoratedBox(
       decoration: BoxDecoration(
-        color: ViroColors.white,
+        color: isDeadlineToday
+            ? Color.lerp(ViroColors.white, ViroColors.error, 0.08)
+            : ViroColors.white,
         borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
         border: Border.all(color: borderColor, width: 1.5),
         boxShadow: [
@@ -135,14 +152,14 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: (isOverdue ? ViroColors.error : accent)
+                  color: (isUrgent ? ViroColors.error : accent)
                       .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
                 child: ViroIcon(
                   ViroIcons.payments,
-                  color: isOverdue ? ViroColors.error : accent,
+                  color: isUrgent ? ViroColors.error : accent,
                   size: 22,
                 ),
               ),
@@ -174,27 +191,19 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                           amount,
                           style: theme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: isOverdue ? ViroColors.error : accent,
+                            color: isUrgent ? ViroColors.error : accent,
                           ),
                         ),
                         const SizedBox(width: ViroSpacing.xs),
                         if (isOverdue)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: ViroColors.error.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'En retard',
-                              style: theme.labelSmall?.copyWith(
-                                color: ViroColors.error,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                          _StatusBadge(
+                            label: 'En retard',
+                            color: ViroColors.error,
+                          )
+                        else if (isDeadlineToday)
+                          _StatusBadge(
+                            label: 'Échéance aujourd\'hui',
+                            color: ViroColors.error,
                           )
                         else
                           Text(
@@ -205,7 +214,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                           ),
                       ],
                     ),
-                    if (!isOverdue && deadlineText != null) ...[
+                    if (!isUrgent && deadlineText != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         'avant le $deadlineText',
@@ -230,7 +239,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
     );
 
     final pulse = _pulseAnimation;
-    if (isOverdue && pulse != null) {
+    if (isUrgent && pulse != null) {
       return AnimatedBuilder(
         animation: pulse,
         builder: (context, _) => card(
@@ -240,5 +249,30 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
     }
 
     return card(statusColor);
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
   }
 }

@@ -26,6 +26,24 @@ class HomeFeeReminderItem {
   bool get isOverdue =>
       fee.displayStatus(season.paymentDeadlineAt) ==
       MemberFeeDisplayStatus.enRetard;
+
+  bool get isDeadlineToday {
+    final deadline = season.paymentDeadlineAt;
+    if (deadline == null) return false;
+    return MemberFee.isDeadlineToday(deadline);
+  }
+
+  /// Jour J avec cotisation encore due — fond rouge global.
+  bool get isFeeDeadlineUrgentDay {
+    if (!isDeadlineToday) return false;
+    if (fee.status == MemberFeeStatus.paye ||
+        fee.status == MemberFeeStatus.exonere) {
+      return false;
+    }
+    return fee.remainingCents(season) > 0;
+  }
+
+  bool get isUrgent => isOverdue || isFeeDeadlineUrgentDay;
 }
 
 final activeSeasonProvider =
@@ -104,6 +122,12 @@ final homeFeeRemindersProvider =
   return combineLatestListStreams<HomeFeeReminderItem>(streams).map(
     (items) => items.take(3).toList(),
   );
+});
+
+/// Fond rouge sur toute l'app si échéance cotisation aujourd'hui.
+final feeDeadlineUrgentBackgroundProvider = Provider<bool>((ref) {
+  final items = ref.watch(homeFeeRemindersProvider).value ?? [];
+  return items.any((item) => item.isFeeDeadlineUrgentDay);
 });
 
 List<HomeFeeReminderItem> _reminderFromFee({

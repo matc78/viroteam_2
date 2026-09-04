@@ -219,6 +219,7 @@ class _FeeContent extends ConsumerWidget {
         (club?.onlinePaymentEnabled ?? false);
     final canPay = display == MemberFeeDisplayStatus.aPayer ||
         display == MemberFeeDisplayStatus.enRetard ||
+        display == MemberFeeDisplayStatus.echeanceAujourdhui ||
         display == MemberFeeDisplayStatus.partiel;
 
     return ListView(
@@ -239,6 +240,14 @@ class _FeeContent extends ConsumerWidget {
           _WarningCard(
             text:
                 'Cotisation en retard. Merci de régulariser selon les consignes ci-dessous.',
+          ),
+          const SizedBox(height: ViroSpacing.md),
+        ],
+
+        if (display == MemberFeeDisplayStatus.echeanceAujourdhui) ...[
+          _WarningCard(
+            text:
+                'Échéance aujourd\'hui — merci de régler votre cotisation avant la fin de la journée.',
           ),
           const SizedBox(height: ViroSpacing.md),
         ],

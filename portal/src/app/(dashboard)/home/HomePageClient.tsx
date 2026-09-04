@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { AttentionList } from "@/components/dashboard/AttentionList";
 import { CollectionsChart } from "@/components/dashboard/CollectionsChart";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
@@ -10,8 +10,13 @@ import { FeeStatusChart } from "@/components/dashboard/FeeStatusChart";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
+import {
+  readableTextOnBrand,
+  splitBrandColorHex,
+} from "@/lib/clubSetup/clubBrandColors";
+import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { MemberRoles } from "@/lib/firebase/constants";
+import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
 import {
   loadCoachHomeDashboard,
   loadHomeDashboard,
@@ -20,6 +25,8 @@ import {
   type HomeDashboardData,
   type PlayerHomeDashboardData,
 } from "@/lib/firebase/homeService";
+import { isDeadlineToday } from "@/lib/firebase/feeService";
+import { feeStatusLabel } from "@/lib/members/membersView";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
@@ -36,6 +43,13 @@ function formatEventWhen(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatEuros(cents: number): string {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+  }).format(cents / 100);
 }
 
 /** Home admin (KPIs + charts cotisations). */
@@ -265,17 +279,44 @@ function CoachHomeView({
 /** Home joueur (events + RSVP + annonces). */
 function PlayerHomeView({
   clubId,
+  brandColorHex,
   data,
   refreshing,
   error,
   reload,
 }: {
   clubId: string;
+  brandColorHex: string | null;
   data: PlayerHomeDashboardData | null;
   refreshing: boolean;
   error: string | null;
   reload: () => void;
 }) {
+  const feeDue =
+    data?.fee &&
+    data.season &&
+    (data.fee.status === MemberFeeStatuses.aPayer ||
+      data.fee.status === MemberFeeStatuses.partiel) &&
+    data.remainingCents > 0;
+  const feeDeadlineToday =
+    feeDue &&
+    data?.season?.paymentDeadlineAt != null &&
+    isDeadlineToday(data.season.paymentDeadlineAt);
+  const feeStatus = data?.fee?.status ?? null;
+  const announcementCount = data?.announcements.length ?? 0;
+  const eventCount = data?.upcomingEvents.length ?? 0;
+  const brand = splitBrandColorHex(
+    brandColorHex ?? ClubSetupDefaults.brandColorHex,
+  );
+  const brandPrimary = brand.primary;
+  const brandAlt = brand.secondary ?? brand.primary;
+  const clubBrandStyle = {
+    "--club-brand": brandPrimary,
+    "--club-brand-alt": brandAlt,
+    "--club-brand-text": readableTextOnBrand(brandPrimary),
+    "--club-brand-alt-text": readableTextOnBrand(brandAlt),
+  } as CSSProperties;
+
   return (
     <div className={refreshing ? transitionStyles.refreshing : undefined}>
       <DashboardPageIntro
@@ -283,7 +324,7 @@ function PlayerHomeView({
         heading={data ? `Bonjour ${data.displayName}` : "Tableau de bord"}
         lead={
           data
-            ? `Vos prochains rendez-vous — ${data.clubName}.`
+            ? `Annonces, convocations et cotisation — ${data.clubName}.`
             : "Chargement de votre espace…"
         }
         onRefresh={reload}
@@ -297,27 +338,89 @@ function PlayerHomeView({
       ) : null}
 
       {data ? (
-        <>
+        <div className={styles.playerStack} style={clubBrandStyle}>
+          <div className={styles.summaryChips} aria-label="Résumé">
+            <span
+              className={`${styles.summaryChip} ${
+                feeDeadlineToday
+                  ? styles.summaryChipDeadline
+                  : feeDue
+                    ? styles.summaryChipAlert
+                    : styles.summaryChipOk
+              }`}
+            >
+              <span className={styles.summaryChipLabel}>Cotisation</span>
+              <span className={styles.summaryChipValue}>
+                {feeDue
+                  ? formatEuros(data.remainingCents)
+                  : feeStatus
+                    ? feeStatusLabel(feeStatus)
+                    : "—"}
+              </span>
+            </span>
+            <span className={styles.summaryChip}>
+              <span className={styles.summaryChipLabel}>Annonces</span>
+              <span className={styles.summaryChipValue}>{announcementCount}</span>
+            </span>
+            <span className={`${styles.summaryChip} ${styles.summaryChipAlt}`}>
+              <span className={styles.summaryChipLabel}>Événements</span>
+              <span className={styles.summaryChipValue}>{eventCount}</span>
+            </span>
+          </div>
+
+          {feeDue ? (
+            <section
+              className={`${panelStyles.panel} ${styles.playerPanel}${feeDeadlineToday ? ` ${styles.playerPanelDeadline}` : ""}`}
+              data-tone="brand"
+              aria-label="Cotisation"
+            >
+              <header className={styles.playerPanelHeader}>
+                <h2 className={styles.sectionTitle}>Cotisation</h2>
+                <span
+                  className={`${styles.statusChip} ${
+                    feeDeadlineToday
+                      ? styles.statusChipDeadline
+                      : styles.statusChipWarn
+                  }`}
+                >
+                  {feeDeadlineToday ? "Échéance aujourd'hui" : feeStatusLabel(feeStatus)}
+                </span>
+              </header>
+              <p className={styles.feeAmount}>{formatEuros(data.remainingCents)}</p>
+              <p className={styles.feeHint}>
+                {feeDeadlineToday
+                  ? "Dernier jour pour régler votre cotisation"
+                  : "Reste à régler pour la saison en cours"}
+              </p>
+              <Link href="/fees" className={styles.feeBannerLink}>
+                Voir la cotisation →
+              </Link>
+            </section>
+          ) : null}
+
           <section
-            className={`${panelStyles.panel} ${styles.announcementsPanel}`}
-            data-tone="orange"
+            className={`${panelStyles.panel} ${styles.playerPanel}`}
+            data-tone="brand"
             aria-labelledby="player-announcements-title"
           >
-            <h2 id="player-announcements-title" className={styles.sectionTitle}>
-              Annonces
-            </h2>
-            {data.announcements.length === 0 ? (
+            <header className={styles.playerPanelHeader}>
+              <h2 id="player-announcements-title" className={styles.sectionTitle}>
+                Annonces
+              </h2>
+              <span className={styles.countChip}>{announcementCount}</span>
+            </header>
+            {announcementCount === 0 ? (
               <p className={styles.emptyHint}>Aucune annonce en cours.</p>
             ) : (
-              <ul className={styles.announcementList}>
+              <ul className={styles.announcementChipList}>
                 {data.announcements.map((announcement) => (
-                  <li key={announcement.id} className={styles.announcementItem}>
+                  <li key={announcement.id} className={styles.announcementChip}>
                     <p className={styles.announcementMessage}>
                       {announcement.message}
                     </p>
-                    <p className={styles.announcementMeta}>
-                      {announcement.senderName}
-                    </p>
+                    <span className={styles.metaChip}>
+                      {announcement.senderName || "Club"}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -325,46 +428,53 @@ function PlayerHomeView({
           </section>
 
           <section
-            className={panelStyles.panel}
-            data-tone="cyan"
+            className={`${panelStyles.panel} ${styles.playerPanel}`}
+            data-tone="brand-alt"
             aria-labelledby="player-events-title"
           >
-            <header className={styles.playerEventsHeader}>
+            <header className={styles.playerPanelHeader}>
               <h2 id="player-events-title" className={styles.sectionTitle}>
                 Prochains événements
               </h2>
-              <Link href="/planning" className={styles.viewAllInline}>
-                Voir le planning →
-              </Link>
+              <div className={styles.playerPanelActions}>
+                <span className={`${styles.countChip} ${styles.countChipAlt}`}>
+                  {eventCount}
+                </span>
+                <Link href="/planning" className={styles.viewAllInline}>
+                  Planning →
+                </Link>
+              </div>
             </header>
-            {data.upcomingEvents.length === 0 ? (
+            {eventCount === 0 ? (
               <p className={styles.emptyHint}>
                 Aucun événement à venir pour vous.
               </p>
             ) : (
-              <ul className={styles.playerEventList}>
+              <ul className={styles.eventChipList}>
                 {data.upcomingEvents.map((event) => (
-                  <li key={event.id} className={styles.playerEventItem}>
-                    <div>
+                  <li key={event.id} className={styles.eventChip}>
+                    <span className={styles.eventWhenChip}>
+                      {formatEventWhen(event.startsAt)}
+                    </span>
+                    <div className={styles.eventChipBody}>
                       <p className={styles.weekTitle}>{event.title}</p>
-                      <p className={styles.weekMeta}>
-                        {formatEventWhen(event.startsAt)}
-                        {event.location ? ` · ${event.location}` : ""}
-                      </p>
+                      {event.location ? (
+                        <p className={styles.weekMeta}>{event.location}</p>
+                      ) : null}
+                      {data.linkedMemberId ? (
+                        <FamilyRsvpButtons
+                          clubId={clubId}
+                          event={event}
+                          memberId={data.linkedMemberId}
+                        />
+                      ) : null}
                     </div>
-                    {data.linkedMemberId ? (
-                      <FamilyRsvpButtons
-                        clubId={clubId}
-                        event={event}
-                        memberId={data.linkedMemberId}
-                      />
-                    ) : null}
                   </li>
                 ))}
               </ul>
             )}
           </section>
-        </>
+        </div>
       ) : null}
     </div>
   );
@@ -433,6 +543,7 @@ export function HomePageClient() {
     return (
       <PlayerHomeView
         clubId={activeClub?.id ?? ""}
+        brandColorHex={activeClub?.brandColorHex ?? null}
         data={playerResource.data}
         refreshing={playerResource.refreshing}
         error={playerResource.error}

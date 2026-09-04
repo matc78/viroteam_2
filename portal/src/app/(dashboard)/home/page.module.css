@@ -1,3 +1,383 @@
+.sectionTitle {
+  margin: 0 0 var(--space-sm);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--color-text-muted, #64748b);
+  font-size: 0.92rem;
+}
+
+.playerStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.summaryChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.15rem;
+}
+
+.summaryChip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 6.5rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 12px;
+  border: 1.5px solid
+    color-mix(in srgb, var(--club-brand, var(--color-primary-600)) 28%, var(--color-gray-200));
+  background: color-mix(
+    in srgb,
+    var(--club-brand, var(--color-primary-600)) 10%,
+    white
+  );
+  color: var(--color-primary-900);
+}
+
+.summaryChipAlert {
+  border-color: color-mix(
+    in srgb,
+    var(--club-brand, var(--color-sport-orange)) 55%,
+    white
+  );
+  background: color-mix(
+    in srgb,
+    var(--club-brand, var(--color-sport-orange)) 18%,
+    white
+  );
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--club-brand, var(--color-sport-orange)) 18%, transparent);
+}
+
+.summaryChipDeadline {
+  border-color: color-mix(in srgb, var(--color-fee-due) 45%, white);
+  background: color-mix(in srgb, var(--color-fee-due) 14%, white);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-fee-due) 22%, transparent);
+}
+
+.summaryChipDeadline .summaryChipValue {
+  color: var(--color-fee-due);
+}
+
+.summaryChipOk {
+  border-color: color-mix(in srgb, var(--color-sport-green) 40%, white);
+  background: color-mix(in srgb, var(--color-sport-green) 10%, white);
+}
+
+.summaryChipAlt {
+  border-color: color-mix(
+    in srgb,
+    var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 28%,
+    var(--color-gray-200)
+  );
+  background: color-mix(
+    in srgb,
+    var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 10%,
+    white
+  );
+}
+
+.summaryChipLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+}
+
+.summaryChipValue {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--club-brand, var(--color-primary-900));
+}
+
+.summaryChipAlt .summaryChipValue {
+  color: var(--club-brand-alt, var(--club-brand, var(--color-primary-900)));
+}
+
+.playerPanel {
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  min-height: 0;
+}
+
+.playerPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: 0.15rem;
+}
+
+.playerPanelHeader .sectionTitle {
+  margin: 0;
+}
+
+.playerPanelActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.countChip,
+.statusChip,
+.metaChip,
+.eventWhenChip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.countChip {
+  min-height: 1.45rem;
+  padding: 0.12rem 0.55rem;
+  font-size: 0.75rem;
+  background: color-mix(
+    in srgb,
+    var(--club-brand, var(--color-primary-600)) 14%,
+    white
+  );
+  color: var(--club-brand, var(--color-primary-800));
+  border: 1px solid
+    color-mix(in srgb, var(--club-brand, var(--color-primary-600)) 28%, white);
+}
+
+.countChipAlt {
+  background: color-mix(
+    in srgb,
+    var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 14%,
+    white
+  );
+  color: var(--club-brand-alt, var(--club-brand, var(--color-primary-800)));
+  border-color: color-mix(
+    in srgb,
+    var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 28%,
+    white
+  );
+}
+
+.statusChip {
+  min-height: 1.45rem;
+  padding: 0.12rem 0.6rem;
+  font-size: 0.72rem;
+}
+
+.statusChipWarn {
+  background: color-mix(
+    in srgb,
+    var(--club-brand, var(--color-sport-orange)) 18%,
+    white
+  );
+  color: var(--club-brand, #9a3412);
+  border: 1px solid
+    color-mix(in srgb, var(--club-brand, var(--color-sport-orange)) 40%, white);
+}
+
+.statusChipDeadline {
+  background: var(--color-fee-due-soft);
+  color: var(--color-fee-due);
+  border: 1px solid color-mix(in srgb, var(--color-fee-due) 35%, white);
+}
+
+.playerPanelDeadline {
+  border-color: color-mix(in srgb, var(--color-fee-due) 35%, white) !important;
+  background: color-mix(in srgb, var(--color-fee-due) 8%, white) !important;
+}
+
+.playerPanelDeadline .feeAmount {
+  color: var(--color-fee-due);
+}
+
+.feeAmount {
+  margin: 0;
+  font-size: clamp(1.85rem, 4vw, 2.35rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--club-brand, var(--color-primary-900));
+}
+
+.feeHint {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-gray-600);
+}
+
+.feeBannerLink {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--club-brand, var(--color-primary-700, #1d4ed8));
+  text-decoration: none;
+  margin-top: 0.15rem;
+}
+
+.feeBannerLink:hover {
+  text-decoration: underline;
+}
+
+.announcementChipList,
+.eventChipList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.announcementChip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1.5px solid
+    color-mix(in srgb, var(--club-brand, var(--color-primary-600)) 32%, var(--color-gray-200));
+  background: color-mix(
+    in srgb,
+    var(--club-brand, var(--color-primary-600)) 9%,
+    white
+  );
+}
+
+.announcementMessage {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 750;
+  line-height: 1.35;
+  color: var(--color-primary-900);
+  white-space: pre-wrap;
+}
+
+.metaChip {
+  min-height: 1.3rem;
+  padding: 0.1rem 0.55rem;
+  font-size: 0.7rem;
+  background: var(--color-white);
+  color: var(--color-gray-700);
+  border: 1px solid
+    color-mix(in srgb, var(--club-brand, var(--color-gray-200)) 22%, var(--color-gray-200));
+}
+
+.eventChip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1.5px solid
+    color-mix(
+      in srgb,
+      var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 32%,
+      var(--color-gray-200)
+    );
+  background: color-mix(
+    in srgb,
+    var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 9%,
+    white
+  );
+}
+
+.eventWhenChip {
+  min-height: 1.35rem;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  background: color-mix(
+    in srgb,
+    var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 16%,
+    white
+  );
+  color: var(--club-brand-alt, var(--club-brand, #0c4a6e));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 35%,
+      white
+    );
+}
+
+.eventChipBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.weekTitle {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 750;
+  color: var(--color-primary-900);
+}
+
+.weekMeta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #64748b);
+}
+
+.viewAllInline {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--club-brand-alt, var(--club-brand, var(--color-primary-700, #1d4ed8)));
+  text-decoration: none;
+}
+
+.viewAllInline:hover {
+  text-decoration: underline;
+}
+
+.teamsPanel {
+  margin-bottom: var(--space-lg);
+}
+
+.teamLinks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.teamLink {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  text-decoration: none;
+  color: inherit;
+  background: var(--color-surface-card, #fff);
+}
+
+.teamLink:hover {
+  border-color: var(--color-primary-200, #bfdbfe);
+  background: var(--color-primary-50, #eff6ff);
+}
+
+.teamLinkName {
+  font-weight: 650;
+}
+
+.teamLinkMeta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #64748b);
+}
+
 .homeActions {
   display: flex;
   flex-wrap: wrap;
@@ -46,57 +426,6 @@
   gap: var(--space-md);
 }
 
-.sectionTitle {
-  margin: 0 0 var(--space-sm);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--color-text, #0f172a);
-}
-
-.emptyHint {
-  margin: 0;
-  color: var(--color-text-muted, #64748b);
-  font-size: 0.92rem;
-}
-
-.teamsPanel {
-  margin-bottom: var(--space-lg);
-}
-
-.teamLinks {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-sm);
-}
-
-.teamLink {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: 10px;
-  border: 1px solid var(--color-border, #e2e8f0);
-  text-decoration: none;
-  color: inherit;
-  background: var(--color-surface-card, #fff);
-}
-
-.teamLink:hover {
-  border-color: var(--color-primary-200, #bfdbfe);
-  background: var(--color-primary-50, #eff6ff);
-}
-
-.teamLinkName {
-  font-weight: 650;
-}
-
-.teamLinkMeta {
-  font-size: 0.85rem;
-  color: var(--color-text-muted, #64748b);
-}
-
 .weekList,
 .playerEventList,
 .announcementList {
@@ -122,18 +451,6 @@
   border-bottom: none;
 }
 
-.weekTitle {
-  margin: 0;
-  font-weight: 650;
-}
-
-.weekMeta,
-.announcementMeta {
-  margin: 0.15rem 0 0;
-  font-size: 0.85rem;
-  color: var(--color-text-muted, #64748b);
-}
-
 .weekRsvp {
   margin: 0;
   font-size: 0.88rem;
@@ -149,12 +466,10 @@
   border-bottom: 1px solid var(--color-border, #e2e8f0);
 }
 
-.announcementMessage {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 650;
-  line-height: 1.45;
-  white-space: pre-wrap;
+.announcementMeta {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #64748b);
 }
 
 .playerEventsHeader {
@@ -167,17 +482,6 @@
 
 .playerEventsHeader .sectionTitle {
   margin-bottom: 0;
-}
-
-.viewAllInline {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--color-primary-700, #1d4ed8);
-  text-decoration: none;
-}
-
-.viewAllInline:hover {
-  text-decoration: underline;
 }
 
 @media (max-width: 960px) {
@@ -194,5 +498,9 @@
 @media (max-width: 520px) {
   .kpiGrid {
     grid-template-columns: 1fr;
+  }
+
+  .summaryChip {
+    flex: 1 1 calc(50% - 0.55rem);
   }
 }

@@ -222,8 +222,11 @@ service cloud.firestore {
 
       // ——— Fiches membres ———
       match /members/{memberId} {
+        // get : membres du club, parent de la fiche, ou parent du club
+        // (roster équipes enfants via IDs lus sur `teams` — pas de list).
         allow get: if isClubMember(clubId)
-          || isActiveGuardianOf(clubId, memberId);
+          || isActiveGuardianOf(clubId, memberId)
+          || isClubGuardian(clubId);
         allow list: if isClubMember(clubId);
         // Création : coach/admin (fiche pré-créée + invitation) ou fondateur.
         // L'arrivée d'un invité passe par la callable `acceptInvitation`.
@@ -247,7 +250,10 @@ service cloud.firestore {
 
       // ——— Index compte → fiche (Cloud Functions uniquement) ———
       match /member_accounts/{accountUid} {
-        allow read: if isClubMember(clubId) || isOwner(accountUid);
+        // Parent : résout accountUid → memberId pour afficher le roster enfant.
+        allow read: if isClubMember(clubId)
+          || isOwner(accountUid)
+          || isClubGuardian(clubId);
         allow write: if false;
       }
 

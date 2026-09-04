@@ -36,6 +36,7 @@ export const Fields = {
   clubMemberships: "clubMemberships",
   parentLinks: "parentLinks",
   parentClubIds: "parentClubIds",
+  parentTeamIds: "parentTeamIds",
   relation: "relation",
   parentUid: "parentUid",
   invitedBy: "invitedBy",

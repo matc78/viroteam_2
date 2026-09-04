@@ -269,3 +269,16 @@ export async function childFirstName(
   if (!member) return "Enfant";
   return member.firstName.trim() || member.displayName.split(" ")[0] || "Enfant";
 }
+
+/** Nom complet d’une fiche enfant (header / accueil famille). */
+export async function childDisplayName(
+  clubId: string,
+  memberId: string,
+): Promise<string> {
+  const member = await getClubMember(clubId, memberId);
+  if (!member) return "Enfant";
+  const full =
+    member.displayName.trim() ||
+    [member.firstName, member.lastName].filter(Boolean).join(" ");
+  return full || "Enfant";
+}

@@ -59,6 +59,11 @@ function relativeLuminance(hex: string): number {
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 }
 
+/** Texte lisible sur un fond de marque club (blanc ou presque noir). */
+export function readableTextOnBrand(hex: string): string {
+  return relativeLuminance(hex) > 0.45 ? "#0F172A" : "#FFFFFF";
+}
+
 /** Couleur autorisée pour la marque club (contraste sur fond blanc). */
 export function isAllowedClubBrandColor(hex: string): boolean {
   const normalized = hex.trim().toUpperCase();

@@ -21,6 +21,8 @@ export type ClubRecord = {
   seasonEndDate: Date | null;
   /** URL du logo club (Storage), si présent. */
   logoUrl: string | null;
+  /** Couleur de marque (`#RRGGBB` ou `#PRIMARY+#SECONDARY`). */
+  brandColorHex: string | null;
   createdAt: Date | null;
   /** Droits coach du club (defaults si absents). */
   coachPermissions: CoachPermissions;
@@ -33,6 +35,7 @@ export function parseClub(
 ): ClubRecord {
   const adminIdsRaw = data[Fields.adminIds];
   const rawLogo = data[Fields.logoUrl];
+  const rawBrand = data[Fields.brandColorHex];
   return {
     id,
     name: String(data[Fields.name] ?? ""),
@@ -48,6 +51,8 @@ export function parseClub(
     seasonEndDate: toDate(data[Fields.seasonEndDate]),
     logoUrl:
       typeof rawLogo === "string" && rawLogo.trim() ? rawLogo.trim() : null,
+    brandColorHex:
+      typeof rawBrand === "string" && rawBrand.trim() ? rawBrand.trim() : null,
     createdAt: toDate(data[Fields.createdAt]),
     coachPermissions: parseCoachPermissions(data[Fields.coachPermissions]),
   };

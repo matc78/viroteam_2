@@ -9,6 +9,8 @@ import { MemberFeeStatuses } from "./constants";
 import {
   FeeSeasonRecord,
   getActiveSeason,
+  getMemberFee,
+  isDeadlineElapsed,
   listMemberFees,
   MemberFeeRecord,
   remainingCents,
@@ -112,17 +114,6 @@ function countPendingAids(fees: MemberFeeRecord[]): number {
     }
   }
   return count;
-}
-
-function isDeadlineElapsed(deadline: Date | null, clock = new Date()): boolean {
-  if (!deadline) return false;
-  const end = new Date(
-    deadline.getFullYear(),
-    deadline.getMonth(),
-    deadline.getDate(),
-  );
-  const today = new Date(clock.getFullYear(), clock.getMonth(), clock.getDate());
-  return today.getTime() > end.getTime();
 }
 
 function buildCollections(fees: MemberFeeRecord[]): CollectionMonth[] {
@@ -325,6 +316,9 @@ export type PlayerHomeDashboardData = {
     senderName: string;
     createdAt: Date | null;
   }>;
+  fee: MemberFeeRecord | null;
+  season: FeeSeasonRecord | null;
+  remainingCents: number;
 };
 
 function startOfDay(date: Date): Date {
@@ -540,10 +534,11 @@ export async function loadPlayerHomeDashboard(params: {
   uid: string;
 }): Promise<PlayerHomeDashboardData> {
   const linkedMemberId = await getLinkedMemberId(params.club.id, params.uid);
-  const [teams, allUpcomingEvents, members] = await Promise.all([
+  const [teams, allUpcomingEvents, members, season] = await Promise.all([
     loadTeamsForClub(params.club.id),
     loadUpcomingEvents(params.club.id),
     listClubMembers(params.club.id),
+    getActiveSeason(params.club.id),
   ]);
 
   const matchIds = viewerMatchIds({
@@ -603,11 +598,29 @@ export async function loadPlayerHomeDashboard(params: {
     }));
   }
 
+  let fee: MemberFeeRecord | null = null;
+  let remainingFeeCents = 0;
+  const feeMemberId =
+    linkedMemberId ??
+    member?.memberId ??
+    null;
+  if (season && feeMemberId) {
+    try {
+      fee = await getMemberFee(params.club.id, season.id, feeMemberId);
+      if (fee) remainingFeeCents = remainingCents(fee, season);
+    } catch {
+      // Cotisation illisible : on laisse l’accueil sans encart frais.
+    }
+  }
+
   return {
     clubName: params.club.name,
     displayName: params.displayName,
     linkedMemberId,
     upcomingEvents: scopedEvents,
     announcements,
+    fee,
+    season,
+    remainingCents: remainingFeeCents,
   };
 }

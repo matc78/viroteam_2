@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase/firestore";
+import type { ClubRecord } from "./clubService";
 import {
   Fields,
   GuardianRelations,
@@ -32,6 +33,8 @@ export type ViroUserProfile = {
   clubMemberships: ClubMembership[];
   parentLinks: ParentLink[];
   parentClubIds: string[];
+  /** Équipes des enfants (index maintenu serveur). */
+  parentTeamIds: string[];
   profileCompleted: boolean;
   disabled: boolean;
 };
@@ -61,6 +64,7 @@ export function parseUserProfile(
     (data?.[Fields.parentLinks] as Array<Record<string, unknown>> | undefined) ??
     [];
   const rawParentClubIds = (data?.[Fields.parentClubIds] as unknown[] | undefined) ?? [];
+  const rawParentTeamIds = (data?.[Fields.parentTeamIds] as unknown[] | undefined) ?? [];
 
   const rawAvatar = data?.[Fields.avatarUrl];
   return {
@@ -84,6 +88,9 @@ export function parseUserProfile(
       .map(parseParentLink)
       .filter((link): link is ParentLink => link !== null),
     parentClubIds: rawParentClubIds
+      .map((item) => String(item ?? "").trim())
+      .filter(Boolean),
+    parentTeamIds: rawParentTeamIds
       .map((item) => String(item ?? "").trim())
       .filter(Boolean),
     profileCompleted: Boolean(flags[Fields.profileCompleted]),
@@ -148,6 +155,27 @@ export function activeParentLinks(profile: ViroUserProfile | null): ParentLink[]
 export function familyClubIds(profile: ViroUserProfile | null): string[] {
   const ids = new Set(activeParentLinks(profile).map((link) => link.clubId));
   return [...ids];
+}
+
+/** Club enrichi du rôle membership sur ce club. */
+export type ClubWithRole = ClubRecord & { role: string | null };
+
+/**
+ * Associe à chaque club le rôle de l’utilisateur (admin / coach / player).
+ * `roleForClub` permet de surcharger le libellé (ex. espace famille).
+ */
+export function clubsWithRole(
+  clubs: ClubRecord[],
+  profile: ViroUserProfile | null,
+  roleForClub: (
+    userProfile: ViroUserProfile | null,
+    clubId: string,
+  ) => string | null = membershipRoleForClub,
+): ClubWithRole[] {
+  return clubs.map((club) => ({
+    ...club,
+    role: roleForClub(profile, club.id),
+  }));
 }
 
 /** Sépare prénom / nom depuis un displayName libre. */

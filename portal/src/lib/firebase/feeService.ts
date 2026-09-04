@@ -381,6 +381,60 @@ export function remainingCents(
   return remaining < 0 ? 0 : remaining;
 }
 
+/** Début de journée calendaire (minuit local). */
+export function startOfCalendarDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/** Vrai si deux dates tombent le même jour (local). */
+export function isSameCalendarDay(a: Date, b: Date): boolean {
+  return startOfCalendarDay(a).getTime() === startOfCalendarDay(b).getTime();
+}
+
+/** Vrai si aujourd'hui est le jour de l'échéance. */
+export function isDeadlineToday(
+  deadline: Date | null,
+  clock = new Date(),
+): boolean {
+  if (!deadline) return false;
+  return isSameCalendarDay(deadline, clock);
+}
+
+/** Vrai si l'échéance est dépassée (strictement après le jour J). */
+export function isDeadlineElapsed(
+  deadline: Date | null,
+  clock = new Date(),
+): boolean {
+  if (!deadline) return false;
+  const end = startOfCalendarDay(deadline);
+  const today = startOfCalendarDay(clock);
+  return today.getTime() > end.getTime();
+}
+
+/** Membre avec cotisation encore due (hors payé / exonéré). */
+export function isMemberFeePaymentDue(
+  fee: MemberFeeRecord,
+  season: FeeSeasonRecord,
+): boolean {
+  if (
+    fee.status === MemberFeeStatuses.paye ||
+    fee.status === MemberFeeStatuses.exonere
+  ) {
+    return false;
+  }
+  return remainingCents(fee, season) > 0;
+}
+
+/** Jour J de l'échéance avec cotisation encore due. */
+export function isFeeDeadlineUrgentDay(
+  fee: MemberFeeRecord,
+  season: FeeSeasonRecord,
+  clock = new Date(),
+): boolean {
+  if (!isMemberFeePaymentDue(fee, season)) return false;
+  return isDeadlineToday(season.paymentDeadlineAt, clock);
+}
+
 /** Charge une fiche cotisation membre. */
 export async function getMemberFee(
   clubId: string,

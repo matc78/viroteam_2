@@ -275,6 +275,45 @@ export async function getClubMember(
   return parseClubMember(snap.id, snap.data() as Record<string, unknown>);
 }
 
+/**
+ * Charge des fiches membres à partir d’IDs roster (`memberId` ou `accountUid`).
+ * Un getDoc par id — adapté aux parents (pas de `list` sur `members`).
+ * Les docs absents / refusés sont ignorés.
+ */
+export async function loadMembersByRosterIds(
+  clubId: string,
+  rosterIds: string[],
+): Promise<ClubMemberRecord[]> {
+  const uniqueIds = [...new Set(rosterIds.map(String).filter(Boolean))];
+  if (uniqueIds.length === 0) return [];
+
+  const byMemberId = new Map<string, ClubMemberRecord>();
+
+  await Promise.all(
+    uniqueIds.map(async (rosterId) => {
+      try {
+        let member = await getClubMember(clubId, rosterId);
+        if (!member) {
+          const linkedMemberId = await getLinkedMemberId(clubId, rosterId);
+          if (linkedMemberId && linkedMemberId !== rosterId) {
+            member = await getClubMember(clubId, linkedMemberId);
+          }
+        }
+        if (!member) return;
+        byMemberId.set(member.memberId, member);
+      } catch {
+        // Doc non lisible pour ce compte : on ignore.
+      }
+    }),
+  );
+
+  return [...byMemberId.values()].sort((a, b) => {
+    const roleCmp = memberRoleLevel(b.role) - memberRoleLevel(a.role);
+    if (roleCmp !== 0) return roleCmp;
+    return sortKeyFirstName(a).localeCompare(sortKeyFirstName(b), "fr");
+  });
+}
+
 /** Résout la fiche licencié liée au compte Auth (Moi). */
 export async function getLinkedMemberId(
   clubId: string,
@@ -305,45 +344,55 @@ async function enrichMember(
   let enriched = { ...member };
 
   if (member.accountUid) {
-    const userSnap = await getDoc(
-      doc(getAppFirestore(), Collections.users, member.accountUid),
-    );
-    if (userSnap.exists()) {
-      const userData = userSnap.data() as Record<string, unknown>;
-      enriched = {
-        ...enriched,
-        hasLinkedAccount: true,
-        displayName:
-          enriched.displayName ||
-          String(userData[Fields.displayName] ?? "").trim() ||
-          enriched.displayName,
-        avatarUrl:
-          enriched.avatarUrl ??
-          (typeof userData[Fields.avatarUrl] === "string"
-            ? String(userData[Fields.avatarUrl])
-            : null),
-        email:
-          enriched.email ??
-          (typeof userData[Fields.email] === "string"
-            ? String(userData[Fields.email])
-            : null),
-      };
+    try {
+      const userSnap = await getDoc(
+        doc(getAppFirestore(), Collections.users, member.accountUid),
+      );
+      if (userSnap.exists()) {
+        const userData = userSnap.data() as Record<string, unknown>;
+        enriched = {
+          ...enriched,
+          hasLinkedAccount: true,
+          displayName:
+            enriched.displayName ||
+            String(userData[Fields.displayName] ?? "").trim() ||
+            enriched.displayName,
+          avatarUrl:
+            enriched.avatarUrl ??
+            (typeof userData[Fields.avatarUrl] === "string"
+              ? String(userData[Fields.avatarUrl])
+              : null),
+          email:
+            enriched.email ??
+            (typeof userData[Fields.email] === "string"
+              ? String(userData[Fields.email])
+              : null),
+        };
+      }
+    } catch {
+      // Profil user illisible : on garde la fiche membre seule.
     }
   }
 
   if (member.activeInvitationId) {
-    const inviteSnap = await getDoc(
-      doc(invitationsCol(clubId), member.activeInvitationId),
-    );
-    if (inviteSnap.exists()) {
-      const inviteData = inviteSnap.data() as Record<string, unknown>;
-      if (String(inviteData[Fields.status] ?? "") === InvitationStatus.pending) {
-        enriched = {
-          ...enriched,
-          pendingInviteCode: String(inviteData[Fields.code] ?? "") || null,
-          pendingInviteExpiresAt: toDate(inviteData[Fields.expiresAt]),
-        };
+    try {
+      const inviteSnap = await getDoc(
+        doc(invitationsCol(clubId), member.activeInvitationId),
+      );
+      if (inviteSnap.exists()) {
+        const inviteData = inviteSnap.data() as Record<string, unknown>;
+        if (
+          String(inviteData[Fields.status] ?? "") === InvitationStatus.pending
+        ) {
+          enriched = {
+            ...enriched,
+            pendingInviteCode: String(inviteData[Fields.code] ?? "") || null,
+            pendingInviteExpiresAt: toDate(inviteData[Fields.expiresAt]),
+          };
+        }
       }
+    } catch {
+      // Joueur / tiers : invitations d’autres membres illisibles (rules lot 1).
     }
   }
 

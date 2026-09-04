@@ -41,6 +41,7 @@ export async function createUserProfile(params: {
     [Fields.clubMemberships]: [],
     [Fields.parentLinks]: [],
     [Fields.parentClubIds]: [],
+    [Fields.parentTeamIds]: [],
     [Fields.flags]: {
       [Fields.profileCompleted]: Boolean(firstName),
       [Fields.disabled]: false,

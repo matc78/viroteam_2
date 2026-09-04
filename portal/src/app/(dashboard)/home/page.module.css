@@ -420,6 +420,18 @@
   align-items: start;
 }
 
+.rsvpStack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  align-items: start;
+}
+
+.weekPanel {
+  margin-bottom: var(--space-lg);
+}
+
 .chartsGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -490,6 +502,7 @@
   }
 
   .activityGrid,
+  .rsvpStack,
   .chartsGrid {
     grid-template-columns: 1fr;
   }

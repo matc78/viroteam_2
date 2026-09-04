@@ -1,57 +1,64 @@
-.header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
-}
-
-.title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-primary-900);
-}
-
-.subtitle {
-  margin-top: var(--space-xs);
-  font-size: 0.875rem;
-  color: var(--color-gray-600);
-}
-
-.viewAllLink {
-  flex-shrink: 0;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-primary-700);
-  text-decoration: none;
-  padding-top: 0.15rem;
-}
-
-.viewAllLink:hover {
-  text-decoration: underline;
-}
-
-.viewAllLink:focus-visible {
-  outline: 2px solid var(--color-primary-600);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-.empty {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--color-gray-600);
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.item {
-  margin: 0;
-}
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary-900);
+}
+
+.subtitle {
+  margin-top: var(--space-xs);
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+}
+
+.viewAllLink {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary-700);
+  text-decoration: none;
+  padding-top: 0.15rem;
+}
+
+.viewAllLink:hover {
+  text-decoration: underline;
+}
+
+.viewAllLink:focus-visible {
+  outline: 2px solid var(--color-primary-600);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-gray-600);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.item {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.rsvpRow {
+  padding-left: 0.15rem;
+}
 

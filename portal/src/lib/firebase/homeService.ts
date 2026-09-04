@@ -26,7 +26,9 @@ import {
 import {
   eventTouchesTeams,
   eventVisibleToPlayer,
+  eventVisibleToRosterMember,
   teamsCoachedByViewer,
+  teamsPlayedByViewer,
   viewerMatchIds,
 } from "@/lib/teams/viewerTeamScope";
 import { resolveMemberTeams } from "@/lib/members/membersView";
@@ -71,10 +73,20 @@ export type HomeDashboardData = {
   clubName: string;
   seasonLabel: string;
   adminDisplayName: string;
+  linkedMemberId: string | null;
+  /** True si l’admin entraîne au moins une équipe. */
+  hasCoachedTeams: boolean;
+  /** True si l’admin joue aussi dans au moins une équipe. */
+  hasPlayerTeams: boolean;
   kpis: HomeKpi[];
   feeStatus: FeeStatusSegment[];
   collections: CollectionMonth[];
+  /** Aperçu club (tous les events). */
   upcomingEvents: UpcomingEvent[];
+  /** Events des équipes entraînées par l’admin. */
+  coachedUpcomingEvents: UpcomingEvent[];
+  /** Events des équipes où l’admin joue (hors coachées). */
+  playerUpcomingEvents: UpcomingEvent[];
   attentionItems: AttentionItem[];
 };
 
@@ -297,10 +309,16 @@ export type CoachWeekEventSummary = {
 export type CoachHomeDashboardData = {
   clubName: string;
   displayName: string;
+  linkedMemberId: string | null;
   memberCount: number;
   teams: CoachHomeTeam[];
+  /** True si le viewer joue aussi dans au moins une équipe. */
+  hasPlayerTeams: boolean;
   trainingCount: number;
-  upcomingEvents: UpcomingEvent[];
+  /** Events des équipes entraînées (stats RSVP équipe). */
+  coachedUpcomingEvents: UpcomingEvent[];
+  /** Events des équipes où il est joueur (hors équipes coachées). */
+  playerUpcomingEvents: UpcomingEvent[];
   weekEvents: CoachWeekEventSummary[];
 };
 
@@ -341,20 +359,69 @@ function nextWeekWindow(clock = new Date()): { start: Date; end: Date } {
   return { start, end };
 }
 
+/** Sépare les events à venir : équipes entraînées vs équipes joueur. */
+function splitPersonalUpcomingEvents(params: {
+  events: UpcomingEvent[];
+  coachedTeamIds: Set<string>;
+  playedTeamIds: Set<string>;
+  matchIds: Set<string>;
+}): {
+  coachedUpcomingEvents: UpcomingEvent[];
+  playerUpcomingEvents: UpcomingEvent[];
+} {
+  const coachedUpcomingEvents = params.events
+    .filter((event) => eventTouchesTeams(event, params.coachedTeamIds))
+    .slice(0, HOME_PREVIEW_EVENT_LIMIT);
+
+  const playerUpcomingEvents = params.events
+    .filter((event) => {
+      if (eventTouchesTeams(event, params.coachedTeamIds)) return false;
+      return eventVisibleToPlayer({
+        event,
+        viewerTeamIds: params.playedTeamIds,
+        playerMatchIds: params.matchIds,
+      });
+    })
+    .slice(0, HOME_PREVIEW_EVENT_LIMIT);
+
+  return { coachedUpcomingEvents, playerUpcomingEvents };
+}
+
 /**
  * Agrège les données home admin depuis Firestore (KPIs, charts, events).
  */
 export async function loadHomeDashboard(params: {
   club: ClubRecord;
   adminDisplayName: string;
+  uid?: string;
 }): Promise<HomeDashboardData> {
-  const season = await getActiveSeason(params.club.id);
+  const linkedMemberId = params.uid
+    ? await getLinkedMemberId(params.club.id, params.uid)
+    : null;
+  const [season, teams, allUpcomingEvents] = await Promise.all([
+    getActiveSeason(params.club.id),
+    loadTeamsForClub(params.club.id),
+    loadUpcomingEvents(params.club.id),
+  ]);
   const fees = season ? await listMemberFees(params.club.id, season.id) : [];
-  const allUpcomingEvents = await loadUpcomingEvents(params.club.id);
   const upcomingEvents = allUpcomingEvents.slice(0, HOME_PREVIEW_EVENT_LIMIT);
   const upcomingEventCount = allUpcomingEvents.length;
   const pendingAids = countPendingAids(fees);
   const segments = buildFeeSegments(fees);
+
+  const matchIds = viewerMatchIds({
+    uid: params.uid ?? null,
+    memberId: linkedMemberId,
+  });
+  const coachedTeams = teamsCoachedByViewer(teams, matchIds);
+  const playedTeams = teamsPlayedByViewer(teams, matchIds);
+  const { coachedUpcomingEvents, playerUpcomingEvents } =
+    splitPersonalUpcomingEvents({
+      events: allUpcomingEvents,
+      coachedTeamIds: new Set(coachedTeams.map((team) => team.id)),
+      playedTeamIds: new Set(playedTeams.map((team) => team.id)),
+      matchIds,
+    });
 
   const billableFees = fees.filter(
     (fee) => fee.status !== MemberFeeStatuses.exonere,
@@ -392,6 +459,9 @@ export async function loadHomeDashboard(params: {
     clubName: params.club.name,
     seasonLabel: season ? `Saison ${season.seasonLabel}` : "Aucune saison active",
     adminDisplayName: params.adminDisplayName,
+    linkedMemberId,
+    hasCoachedTeams: coachedTeams.length > 0,
+    hasPlayerTeams: playedTeams.length > 0,
     kpis: [
       {
         id: "events",
@@ -428,6 +498,8 @@ export async function loadHomeDashboard(params: {
     feeStatus: segments,
     collections: buildCollections(fees),
     upcomingEvents,
+    coachedUpcomingEvents,
+    playerUpcomingEvents,
     attentionItems: buildAttention({
       fees,
       season,
@@ -438,7 +510,7 @@ export async function loadHomeDashboard(params: {
 }
 
 /**
- * Home coach : KPIs scope équipes entraînées, events et RSVP semaine prochaine.
+ * Home coach : KPIs équipes entraînées + 2 listes events (coach / joueur).
  */
 export async function loadCoachHomeDashboard(params: {
   club: ClubRecord;
@@ -457,7 +529,9 @@ export async function loadCoachHomeDashboard(params: {
     memberId: linkedMemberId,
   });
   const coachedTeams = teamsCoachedByViewer(teams, matchIds);
-  const viewerTeamIdSet = new Set(coachedTeams.map((team) => team.id));
+  const playedTeams = teamsPlayedByViewer(teams, matchIds);
+  const coachedTeamIdSet = new Set(coachedTeams.map((team) => team.id));
+  const playedTeamIdSet = new Set(playedTeams.map((team) => team.id));
 
   const memberIdSet = new Set<string>();
   for (const team of coachedTeams) {
@@ -470,7 +544,7 @@ export async function loadCoachHomeDashboard(params: {
   }
   for (const member of members) {
     const resolved = resolveMemberTeams(member, teams);
-    if (resolved.teamIds.some((teamId) => viewerTeamIdSet.has(teamId))) {
+    if (resolved.teamIds.some((teamId) => coachedTeamIdSet.has(teamId))) {
       memberIdSet.add(member.memberId);
       if (member.accountUid) memberIdSet.add(member.accountUid);
     }
@@ -481,14 +555,18 @@ export async function loadCoachHomeDashboard(params: {
     return ids.some((id) => memberIdSet.has(id));
   });
 
-  const scopedEvents = allUpcomingEvents.filter((event) =>
-    eventTouchesTeams(event, viewerTeamIdSet),
-  );
+  const { coachedUpcomingEvents, playerUpcomingEvents } =
+    splitPersonalUpcomingEvents({
+      events: allUpcomingEvents,
+      coachedTeamIds: coachedTeamIdSet,
+      playedTeamIds: playedTeamIdSet,
+      matchIds,
+    });
 
   const { start, end } = nextWeekWindow();
   const startMs = start.getTime();
   const endMs = end.getTime();
-  const weekEvents: CoachWeekEventSummary[] = scopedEvents
+  const weekEvents: CoachWeekEventSummary[] = coachedUpcomingEvents
     .filter((event) => {
       const ms = new Date(event.startsAt).getTime();
       return ms >= startMs && ms < endMs;
@@ -505,13 +583,21 @@ export async function loadCoachHomeDashboard(params: {
       rsvpTotal: event.rsvpTotal,
     }));
 
-  const trainingCount = scopedEvents.filter(
-    (event) => event.type === "training",
-  ).length;
+  // Compteur entraînements : équipes coachées + joueur (aperçu KPIs).
+  const trainingCount = allUpcomingEvents.filter((event) => {
+    if (event.type !== "training") return false;
+    if (eventTouchesTeams(event, coachedTeamIdSet)) return true;
+    return eventVisibleToPlayer({
+      event,
+      viewerTeamIds: playedTeamIdSet,
+      playerMatchIds: matchIds,
+    });
+  }).length;
 
   return {
     clubName: params.club.name,
     displayName: params.displayName,
+    linkedMemberId,
     memberCount: scopedMembers.length,
     teams: coachedTeams.map((team) => ({
       id: team.id,
@@ -519,8 +605,10 @@ export async function loadCoachHomeDashboard(params: {
       category: team.category,
       playerCount: team.playerIds.length,
     })),
+    hasPlayerTeams: playedTeams.length > 0,
     trainingCount,
-    upcomingEvents: scopedEvents.slice(0, HOME_PREVIEW_EVENT_LIMIT),
+    coachedUpcomingEvents,
+    playerUpcomingEvents,
     weekEvents,
   };
 }
@@ -552,10 +640,10 @@ export async function loadPlayerHomeDashboard(params: {
 
   const scopedEvents = allUpcomingEvents
     .filter((event) =>
-      eventVisibleToPlayer({
+      eventVisibleToRosterMember({
         event,
-        viewerTeamIds: viewerTeamIdSet,
-        playerMatchIds: matchIds,
+        rosterTeamIds: viewerTeamIdSet,
+        matchIds,
       }),
     )
     .slice(0, HOME_PREVIEW_EVENT_LIMIT);

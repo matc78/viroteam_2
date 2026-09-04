@@ -215,7 +215,7 @@ export function FeesPageClient() {
     );
   const [tab, setTab] = useState<FeesTab>("config");
 
-  if (isPlayer) {
+  if (isPlayer || (activeClubRole === MemberRoles.coach && !isCoachRead)) {
     return <PlayerFeesSelfView />;
   }
 

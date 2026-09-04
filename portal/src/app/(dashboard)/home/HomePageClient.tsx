@@ -54,18 +54,32 @@ function formatEuros(cents: number): string {
 
 /** Home admin (KPIs + charts cotisations). */
 function AdminHomeView({
+  clubId,
+  viewerUid,
   data,
   refreshing,
   error,
   reload,
   showHelloAsso,
 }: {
+  clubId: string;
+  viewerUid: string | null;
   data: HomeDashboardData | null;
   refreshing: boolean;
   error: string | null;
   reload: () => void;
   showHelloAsso: boolean;
 }) {
+  const showPersonalRsvp =
+    Boolean(data?.hasCoachedTeams) ||
+    Boolean(data?.hasPlayerTeams) ||
+    (data?.coachedUpcomingEvents.length ?? 0) > 0 ||
+    (data?.playerUpcomingEvents.length ?? 0) > 0;
+  const rsvpAudienceIds = [
+    data?.linkedMemberId,
+    viewerUid,
+  ].filter((id): id is string => Boolean(id));
+
   return (
     <div className={refreshing ? transitionStyles.refreshing : undefined}>
       <DashboardPageIntro
@@ -100,8 +114,45 @@ function AdminHomeView({
             ))}
           </section>
 
+          {showPersonalRsvp ? (
+            <section className={styles.rsvpStack} aria-label="Événements et RSVP">
+              {data.hasCoachedTeams || data.coachedUpcomingEvents.length > 0 ? (
+                <UpcomingEvents
+                  title="Équipes entraînées"
+                  subtitle="14 prochains jours · réponses de tes équipes"
+                  titleId="admin-coached-upcoming-title"
+                  events={data.coachedUpcomingEvents}
+                  detailedRsvp
+                  clubId={clubId}
+                  linkedMemberId={data.linkedMemberId}
+                  audienceIds={rsvpAudienceIds}
+                  onRsvpUpdated={reload}
+                />
+              ) : null}
+              {data.hasPlayerTeams || data.playerUpcomingEvents.length > 0 ? (
+                <UpcomingEvents
+                  title="Mes convocations"
+                  subtitle="Équipes où tu joues · ta réponse RSVP"
+                  titleId="admin-player-upcoming-title"
+                  events={data.playerUpcomingEvents}
+                  detailedRsvp={false}
+                  clubId={clubId}
+                  linkedMemberId={data.linkedMemberId}
+                  audienceIds={rsvpAudienceIds}
+                  onRsvpUpdated={reload}
+                />
+              ) : null}
+            </section>
+          ) : null}
+
           <section className={styles.activityGrid} aria-label="Planning et alertes">
-            <UpcomingEvents events={data.upcomingEvents} />
+            <UpcomingEvents
+              title="Prochains événements du club"
+              subtitle="14 prochains jours · vue club"
+              titleId="admin-club-upcoming-title"
+              events={data.upcomingEvents}
+              detailedRsvp
+            />
             <AttentionList items={data.attentionItems} />
           </section>
 
@@ -120,16 +171,25 @@ function AdminHomeView({
 
 /** Home coach (scope équipes). */
 function CoachHomeView({
+  clubId,
+  viewerUid,
   data,
   refreshing,
   error,
   reload,
 }: {
+  clubId: string;
+  viewerUid: string | null;
   data: CoachHomeDashboardData | null;
   refreshing: boolean;
   error: string | null;
   reload: () => void;
 }) {
+  const rsvpAudienceIds = [
+    data?.linkedMemberId,
+    viewerUid,
+  ].filter((id): id is string => Boolean(id));
+
   return (
     <div className={refreshing ? transitionStyles.refreshing : undefined}>
       <DashboardPageIntro
@@ -233,42 +293,66 @@ function CoachHomeView({
             )}
           </section>
 
-          <section className={styles.activityGrid} aria-label="Planning coach">
-            <UpcomingEvents events={data.upcomingEvents} />
-            <section
-              className={panelStyles.panel}
-              data-tone="cyan"
-              aria-labelledby="week-rsvp-title"
-            >
-              <h2 id="week-rsvp-title" className={styles.sectionTitle}>
-                Semaine prochaine — réponses RSVP
-              </h2>
-              {data.weekEvents.length === 0 ? (
-                <p className={styles.emptyHint}>
-                  Aucun événement la semaine prochaine sur vos équipes.
-                </p>
-              ) : (
-                <ul className={styles.weekList}>
-                  {data.weekEvents.map((event) => (
-                    <li key={event.id} className={styles.weekItem}>
-                      <div>
-                        <p className={styles.weekTitle}>{event.title}</p>
-                        <p className={styles.weekMeta}>
-                          {formatEventWhen(event.startsAt)}
-                          {event.teamLabels.length > 0
-                            ? ` · ${event.teamLabels.join(", ")}`
-                            : ""}
-                        </p>
-                      </div>
-                      <p className={styles.weekRsvp}>
-                        {event.rsvpYes} oui · {event.rsvpPending} att. ·{" "}
-                        {event.rsvpNo} non
+          <section className={styles.rsvpStack} aria-label="Événements et RSVP">
+            <UpcomingEvents
+              title="Équipes entraînées"
+              subtitle="14 prochains jours · réponses de tes équipes"
+              titleId="coached-upcoming-title"
+              events={data.coachedUpcomingEvents}
+              detailedRsvp
+              clubId={clubId}
+              linkedMemberId={data.linkedMemberId}
+              audienceIds={rsvpAudienceIds}
+              onRsvpUpdated={reload}
+            />
+            {data.hasPlayerTeams || data.playerUpcomingEvents.length > 0 ? (
+              <UpcomingEvents
+                title="Mes convocations"
+                subtitle="Équipes où tu joues · ta réponse RSVP"
+                titleId="player-upcoming-title"
+                events={data.playerUpcomingEvents}
+                detailedRsvp={false}
+                clubId={clubId}
+                linkedMemberId={data.linkedMemberId}
+                audienceIds={rsvpAudienceIds}
+                onRsvpUpdated={reload}
+              />
+            ) : null}
+          </section>
+
+          <section
+            className={`${panelStyles.panel} ${styles.weekPanel}`}
+            data-tone="cyan"
+            aria-labelledby="week-rsvp-title"
+          >
+            <h2 id="week-rsvp-title" className={styles.sectionTitle}>
+              Semaine prochaine — réponses RSVP
+            </h2>
+            {data.weekEvents.length === 0 ? (
+              <p className={styles.emptyHint}>
+                Aucun événement la semaine prochaine sur vos équipes.
+              </p>
+            ) : (
+              <ul className={styles.weekList}>
+                {data.weekEvents.map((event) => (
+                  <li key={event.id} className={styles.weekItem}>
+                    <div>
+                      <p className={styles.weekTitle}>{event.title}</p>
+                      <p className={styles.weekMeta}>
+                        {formatEventWhen(event.startsAt)}
+                        {event.teamLabels.length > 0
+                          ? ` · ${event.teamLabels.join(", ")}`
+                          : ""}
                       </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+                    </div>
+                    <p className={styles.weekRsvp}>
+                      {event.rsvpYes} oui · {event.rsvpPending} att. ·{" "}
+                      {event.rsvpNo} non
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </>
       ) : null}
@@ -279,6 +363,7 @@ function CoachHomeView({
 /** Home joueur (events + RSVP + annonces). */
 function PlayerHomeView({
   clubId,
+  viewerUid,
   brandColorHex,
   data,
   refreshing,
@@ -286,6 +371,7 @@ function PlayerHomeView({
   reload,
 }: {
   clubId: string;
+  viewerUid: string | null;
   brandColorHex: string | null;
   data: PlayerHomeDashboardData | null;
   refreshing: boolean;
@@ -466,6 +552,11 @@ function PlayerHomeView({
                           clubId={clubId}
                           event={event}
                           memberId={data.linkedMemberId}
+                          audienceIds={[
+                            data.linkedMemberId,
+                            ...(viewerUid ? [viewerUid] : []),
+                          ]}
+                          onUpdated={reload}
                         />
                       ) : null}
                     </div>
@@ -492,8 +583,9 @@ export function HomePageClient() {
       loadHomeDashboard({
         club,
         adminDisplayName: displayName,
+        uid: user?.uid,
       }),
-    [displayName, role],
+    [displayName, role, user?.uid],
   );
 
   const coachResource = useAsyncClubResource(
@@ -531,6 +623,8 @@ export function HomePageClient() {
   if (role === MemberRoles.coach) {
     return (
       <CoachHomeView
+        clubId={activeClub?.id ?? ""}
+        viewerUid={user?.uid ?? null}
         data={coachResource.data}
         refreshing={coachResource.refreshing}
         error={coachResource.error}
@@ -543,6 +637,7 @@ export function HomePageClient() {
     return (
       <PlayerHomeView
         clubId={activeClub?.id ?? ""}
+        viewerUid={user?.uid ?? null}
         brandColorHex={activeClub?.brandColorHex ?? null}
         data={playerResource.data}
         refreshing={playerResource.refreshing}
@@ -554,6 +649,8 @@ export function HomePageClient() {
 
   return (
     <AdminHomeView
+      clubId={activeClub?.id ?? ""}
+      viewerUid={user?.uid ?? null}
       data={adminResource.data}
       refreshing={adminResource.refreshing}
       error={adminResource.error}

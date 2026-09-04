@@ -347,6 +347,7 @@ export function PlanningEventDetailPanel({
               clubId={clubId}
               event={displayEvent}
               memberId={linkedMemberId}
+              audienceIds={linkedAliasIds}
               onUpdated={handleRsvpUpdated}
               variant="footer"
             />

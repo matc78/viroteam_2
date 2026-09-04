@@ -17,11 +17,11 @@ import {
 import {
   bureauCapabilities,
   coachedTeamsForViewer,
+  teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import { usePlanningChangeListener } from "@/lib/dashboard/usePlanningChangeListener";
-import { MemberRoles } from "@/lib/firebase/constants";
 import type { ClubEventView } from "@/lib/firebase/eventService";
 import {
   dateOnly,
@@ -42,10 +42,8 @@ import {
   writePlanningFilters,
 } from "@/lib/planning/planningFiltersStorage";
 import {
-  eventTouchesTeams,
-  eventVisibleToPlayer,
+  eventVisibleToRosterMember,
   viewerMatchIds,
-  viewerTeamIdsForRole,
 } from "@/lib/teams/viewerTeamScope";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
@@ -133,6 +131,17 @@ function PlanningPageContent() {
 
   const scopedTeams = useMemo(() => {
     if (!data) return [];
+    return teamsVisibleToViewer({
+      role: activeClubRole,
+      uid: user?.uid ?? null,
+      linkedMemberId,
+      teams: data.teams,
+    });
+  }, [data, activeClubRole, user?.uid, linkedMemberId]);
+
+  /** Équipes où le viewer peut créer (coach = entraînées, admin = toutes). */
+  const creatableTeams = useMemo(() => {
+    if (!data) return [];
     if (caps.isAdmin) return data.teams;
     if (caps.isCoach) {
       return coachedTeamsForViewer({
@@ -142,26 +151,14 @@ function PlanningPageContent() {
         teams: data.teams,
       });
     }
-    if (caps.isPlayer) {
-      const teamIds = new Set(
-        viewerTeamIdsForRole({
-          role: MemberRoles.player,
-          teams: data.teams,
-          matchIds: viewerIds,
-        }),
-      );
-      return data.teams.filter((team) => teamIds.has(team.id));
-    }
-    return data.teams;
+    return [];
   }, [
     data,
     caps.isAdmin,
     caps.isCoach,
-    caps.isPlayer,
     activeClubRole,
     user?.uid,
     linkedMemberId,
-    viewerIds,
   ]);
 
   const scopedTeamIdSet = useMemo(
@@ -241,22 +238,14 @@ function PlanningPageContent() {
   const visibleEvents = useMemo(() => {
     if (!data) return [];
     if (caps.isAdmin) return data.events;
-    if (caps.isCoach) {
-      return data.events.filter((event) =>
-        eventTouchesTeams(event, scopedTeamIdSet),
-      );
-    }
-    if (caps.isPlayer) {
-      return data.events.filter((event) =>
-        eventVisibleToPlayer({
-          event,
-          viewerTeamIds: scopedTeamIdSet,
-          playerMatchIds: viewerIds,
-        }),
-      );
-    }
-    return data.events;
-  }, [data, caps.isAdmin, caps.isCoach, caps.isPlayer, scopedTeamIdSet, viewerIds]);
+    return data.events.filter((event) =>
+      eventVisibleToRosterMember({
+        event,
+        rosterTeamIds: scopedTeamIdSet,
+        matchIds: viewerIds,
+      }),
+    );
+  }, [data, caps.isAdmin, scopedTeamIdSet, viewerIds]);
 
   const eventBlocks = useMemo(() => {
     if (!data || !roleScopeReady) return [];
@@ -330,18 +319,13 @@ function PlanningPageContent() {
           clearPlanningDeepLinkParams();
           return;
         }
-        if (caps.isPlayer) {
-          const allowed = eventVisibleToPlayer({
+        if (!caps.isAdmin) {
+          const allowed = eventVisibleToRosterMember({
             event: matchedEvent,
-            viewerTeamIds: scopedTeamIdSet,
-            playerMatchIds: viewerIds,
+            rosterTeamIds: scopedTeamIdSet,
+            matchIds: viewerIds,
           });
           if (!allowed) {
-            clearPlanningDeepLinkParams();
-            return;
-          }
-        } else if (caps.isCoach) {
-          if (!eventTouchesTeams(matchedEvent, scopedTeamIdSet)) {
             clearPlanningDeepLinkParams();
             return;
           }
@@ -389,8 +373,7 @@ function PlanningPageContent() {
     visibleEvents,
     scopedTeamIdSet,
     scopedTeams,
-    caps.isPlayer,
-    caps.isCoach,
+    caps.isAdmin,
     viewerIds,
   ]);
 
@@ -399,7 +382,7 @@ function PlanningPageContent() {
     if (caps.isCoach) {
       const people = [...data.players, ...data.coaches].filter((person) =>
         person.matchIds.some((id) => {
-          for (const team of scopedTeams) {
+          for (const team of creatableTeams) {
             if (
               team.playerIds.includes(id) ||
               team.coachIds.includes(id)
@@ -415,7 +398,7 @@ function PlanningPageContent() {
     return [...data.players, ...data.coaches, ...data.admins].sort((a, b) =>
       a.name.localeCompare(b.name, "fr"),
     );
-  }, [data, caps.isCoach, scopedTeams]);
+  }, [data, caps.isCoach, creatableTeams]);
 
   function openCreateForDay(day: Date) {
     if (!caps.canCreateEvent) return;
@@ -528,10 +511,8 @@ function PlanningPageContent() {
             setSelectedEventAnchor(null);
             setSelectedEventColor(null);
           }}
-          clubId={
-            caps.isPlayer && activeClub ? activeClub.id : undefined
-          }
-          linkedMemberId={caps.isPlayer ? linkedMemberId : null}
+          clubId={activeClub && linkedMemberId ? activeClub.id : undefined}
+          linkedMemberId={linkedMemberId}
           onRsvpUpdated={reload}
         />
       ) : null}
@@ -547,13 +528,13 @@ function PlanningPageContent() {
           anchor={createEventDraft.anchor}
           clubId={activeClub.id}
           creatorId={user.uid}
-          teams={scopedTeams}
+          teams={creatableTeams}
           categories={
             caps.isAdmin
               ? (data?.categories ?? [])
               : Array.from(
                   new Set(
-                    scopedTeams
+                    creatableTeams
                       .map((team) => team.category.trim())
                       .filter(Boolean),
                   ),

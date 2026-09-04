@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { setEventRsvp } from "@/lib/firebase/callableService";
 import type { ClubEventView } from "@/lib/firebase/eventService";
 import styles from "./FamilyRsvpButtons.module.css";
@@ -9,6 +9,11 @@ type FamilyRsvpButtonsProps = {
   clubId: string;
   event: ClubEventView;
   memberId: string;
+  /**
+   * Identifiants alternatifs (uid, memberId, etc.) pour lire / détecter
+   * la convocation quand `teamMemberIds` / `rsvp` mélangent les clés.
+   */
+  audienceIds?: string[];
   onUpdated?: (value: "yes" | "maybe" | "no") => void;
   /** `footer` : barre style popover « Tu viens ? ». */
   variant?: "default" | "footer";
@@ -20,15 +25,41 @@ const OPTIONS: Array<{ value: "yes" | "maybe" | "no"; label: string }> = [
   { value: "no", label: "Non" },
 ];
 
+/** Normalise la liste d’IDs audience (memberId + aliases). */
+function resolveAudienceAliases(
+  memberId: string,
+  audienceIds?: string[],
+): string[] {
+  const ids = new Set<string>();
+  for (const value of [memberId, ...(audienceIds ?? [])]) {
+    const trimmed = String(value ?? "").trim();
+    if (trimmed) ids.add(trimmed);
+  }
+  return [...ids];
+}
+
 /** Boutons RSVP Oui / Peut-être / Non pour la fiche cible. */
 export function FamilyRsvpButtons({
   clubId,
   event,
   memberId,
+  audienceIds,
   onUpdated,
   variant = "default",
 }: FamilyRsvpButtonsProps) {
-  const current = event.rsvpByMemberId[memberId] ?? "";
+  const aliases = useMemo(
+    () => resolveAudienceAliases(memberId, audienceIds),
+    [memberId, audienceIds],
+  );
+
+  const current = useMemo(() => {
+    for (const id of aliases) {
+      const value = event.rsvpByMemberId[id];
+      if (value) return value;
+    }
+    return "";
+  }, [aliases, event.rsvpByMemberId]);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [localValue, setLocalValue] = useState(current);
@@ -60,7 +91,8 @@ export function FamilyRsvpButtons({
   }
 
   const invited =
-    event.teamMemberIds.length === 0 || event.teamMemberIds.includes(memberId);
+    event.teamMemberIds.length === 0 ||
+    event.teamMemberIds.some((id) => aliases.includes(id));
   if (!invited) return null;
 
   return (

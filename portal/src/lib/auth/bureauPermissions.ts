@@ -12,8 +12,8 @@ import {
   memberIsCoachOfPlayerTeams,
   memberMatchIds,
   rosterContains,
+  rosterTeamsForViewer,
   teamsCoachedByViewer,
-  teamsPlayedByViewer,
   viewerMatchIds,
   viewerTeamIdsForRole,
 } from "@/lib/teams/viewerTeamScope";
@@ -92,10 +92,8 @@ export function bureauCapabilities(
 
   let navHrefs: readonly string[] = NAV_ADMIN;
   if (isCoach) {
-    const coachNav = canAccessFeesCoachRead
-      ? [...NAV_COACH_BASE, "/fees"]
-      : [...NAV_COACH_BASE];
-    navHrefs = [...coachNav, "/settings"];
+    // /fees : suivi club si canViewFees, sinon cotisation perso (coach aussi joueur).
+    navHrefs = [...NAV_COACH_BASE, "/fees", "/settings"];
   } else if (isPlayer) {
     navHrefs = [...NAV_PLAYER];
   }
@@ -106,7 +104,7 @@ export function bureauCapabilities(
     isCoach,
     isPlayer,
     canAccessFeesAdmin: isAdmin,
-    canAccessFeesSelf: isPlayer || isAdmin,
+    canAccessFeesSelf: isPlayer || isAdmin || isCoach,
     canAccessFeesCoachRead,
     canAccessAnnouncementsPage: isAdmin || isCoach,
     canCreateEvent,
@@ -218,8 +216,8 @@ export function coachedTeamsForViewer(params: {
 }
 
 /**
- * Équipes visibles pour le viewer (admin = toutes, coach = coached,
- * joueur = ses équipes).
+ * Équipes visibles pour le viewer (admin = toutes ;
+ * sinon roster coach ∪ joueur pour couvrir le double rôle).
  */
 export function teamsVisibleToViewer(params: {
   role: string | null;
@@ -232,11 +230,11 @@ export function teamsVisibleToViewer(params: {
     uid: params.uid,
     memberId: params.linkedMemberId,
   });
-  if (params.role === MemberRoles.coach) {
-    return teamsCoachedByViewer(params.teams, matchIds);
-  }
-  if (params.role === MemberRoles.player) {
-    return teamsPlayedByViewer(params.teams, matchIds);
+  if (
+    params.role === MemberRoles.coach ||
+    params.role === MemberRoles.player
+  ) {
+    return rosterTeamsForViewer(params.teams, matchIds);
   }
   return [];
 }

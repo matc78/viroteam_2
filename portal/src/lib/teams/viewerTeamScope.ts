@@ -51,6 +51,24 @@ export function teamsPlayedByViewer(
   return teams.filter((team) => rosterContains(team.playerIds, matchIds));
 }
 
+/**
+ * Équipes du viewer via roster : coachIds ∪ playerIds.
+ * Couvre le double rôle (ex. coach d’une équipe et joueur d’une autre).
+ */
+export function rosterTeamsForViewer(
+  teams: TeamOption[],
+  matchIds: Set<string>,
+): TeamOption[] {
+  const byId = new Map<string, TeamOption>();
+  for (const team of teamsCoachedByViewer(teams, matchIds)) {
+    byId.set(team.id, team);
+  }
+  for (const team of teamsPlayedByViewer(teams, matchIds)) {
+    byId.set(team.id, team);
+  }
+  return [...byId.values()];
+}
+
 /** IDs d’équipes du viewer selon son rôle club. */
 export function viewerTeamIdsForRole(params: {
   role: string | null;
@@ -61,7 +79,8 @@ export function viewerTeamIdsForRole(params: {
     return params.teams.map((team) => team.id);
   }
   if (params.role === "coach") {
-    return teamsCoachedByViewer(params.teams, params.matchIds).map(
+    // Coach (+ éventuel rôle joueur) : union des rosters.
+    return rosterTeamsForViewer(params.teams, params.matchIds).map(
       (team) => team.id,
     );
   }
@@ -128,4 +147,24 @@ export function eventVisibleToPlayer(params: {
     return true;
   }
   return eventTouchesTeams(params.event, params.viewerTeamIds);
+}
+
+/**
+ * Visibilité planning membre (non-admin) : équipes roster ∪ convocations perso.
+ * Utilisé aussi pour un coach qui joue dans d’autres équipes.
+ */
+export function eventVisibleToRosterMember(params: {
+  event: {
+    teamIds: string[];
+    teamMemberIds: string[];
+    allTeams?: boolean;
+  };
+  rosterTeamIds: Set<string>;
+  matchIds: Set<string>;
+}): boolean {
+  return eventVisibleToPlayer({
+    event: params.event,
+    viewerTeamIds: params.rosterTeamIds,
+    playerMatchIds: params.matchIds,
+  });
 }

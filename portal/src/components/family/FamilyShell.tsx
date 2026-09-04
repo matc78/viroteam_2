@@ -1,23 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
-import { PlanningSelect } from "@/components/dashboard/PlanningSelect";
-import { FamilyAudienceProvider } from "@/components/family/FamilyAudienceProvider";
+import { FamilyRouteGuard } from "@/components/auth/FamilyRouteGuard";
+import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
+import { RoleBadge } from "@/components/dashboard/RoleBadge";
+import {
+  FamilyAudienceProvider,
+  useFamilyAudience,
+} from "@/components/family/FamilyAudienceProvider";
 import { FamilyModulePanels } from "@/components/family/FamilyModulePanels";
+import { isFamilyRouteAllowed } from "@/lib/auth/bureauPermissions";
+import { useFamilyFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { MemberRoles } from "@/lib/firebase/constants";
 import { site } from "@/lib/site";
-import { clubLabelWithSportEmoji } from "@/lib/sports/sportEmoji";
+import { clubsWithRole } from "@/lib/firebase/types";
 import styles from "@/components/dashboard/DashboardShell.module.css";
 
 const NAV_ITEMS = [
   { href: "/family", label: "Accueil", toneClass: "toneOrange" },
+  { href: "/family/team", label: "Équipe", toneClass: "toneGreen" },
   { href: "/family/planning", label: "Planning", toneClass: "toneBlue" },
-  { href: "/family/fees", label: "Cotisations", toneClass: "toneYellow" },
-  { href: "/family/settings", label: "Paramètres", toneClass: "toneBlue" },
 ] as const;
 
 function isNavItemActive(pathname: string, href: string): boolean {
@@ -32,27 +39,58 @@ function userInitials(displayName: string): string {
   return `${nameParts[0]!.slice(0, 1)}${nameParts[1]!.slice(0, 1)}`.toUpperCase();
 }
 
-/** Coquille espace famille : nav distincte du bureau admin. */
-export function FamilyShell() {
+/** Header + nav famille (audience résolue pour le nom de l’enfant). */
+function FamilyShellChrome() {
   const pathname = usePathname();
+  const router = useRouter();
   const {
     activeClub,
     familyClubs,
     profile,
     setActiveClubId,
   } = useAuth();
+  const { selectedTarget } = useFamilyAudience();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const feeDeadlineUrgent = useFamilyFeeDeadlineUrgency(
+    selectedTarget?.memberId ?? null,
+  );
+
+  const clubsWithRoles = useMemo(
+    () =>
+      clubsWithRole(familyClubs, profile, () => "family"),
+    [familyClubs, profile],
+  );
+
+  const childHeaderLabel =
+    selectedTarget?.kind === "child"
+      ? selectedTarget.displayName
+      : selectedTarget?.label ?? "Famille";
 
   useEffect(() => {
     setPendingHref(null);
   }, [pathname]);
 
-  const resolvedClubName = activeClub?.name?.trim() || "Club";
+  function handleClubChange(clubId: string) {
+    setActiveClubId(clubId);
+    if (!isFamilyRouteAllowed(pathname)) {
+      router.replace("/family");
+    }
+  }
+
   const resolvedName = profile?.displayName ?? "Famille";
-  const wide = pathname.startsWith("/family/planning");
+  const isPlanning = pathname.startsWith("/family/planning");
+  const fillViewport = isPlanning;
 
   return (
-    <div className={styles.page}>
+    <div
+      className={[
+        fillViewport ? `${styles.page} ${styles.pageFill}` : styles.page,
+        feeDeadlineUrgent ? styles.pageFeeDeadline : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <FamilyRouteGuard />
       <header className={styles.header}>
         <div className={styles.inner}>
           <div className={styles.brandBlock}>
@@ -67,55 +105,15 @@ export function FamilyShell() {
               <BrandMark className={styles.mark} priority />
               <span className={styles.wordmark}>{site.name}</span>
             </Link>
-            <span className={styles.clubDivider} aria-hidden="true" />
-            {familyClubs.length > 1 ? (
-              <label className={styles.clubSelectLabel}>
-                <span className={styles.srOnly}>Club actif</span>
-                <PlanningSelect
-                  id="family-active-club"
-                  value={activeClub?.id ?? ""}
-                  aria-label="Sélectionner le club"
-                  options={familyClubs.map((club) => ({
-                    value: club.id,
-                    label: clubLabelWithSportEmoji({
-                      name: club.name,
-                      sport: club.sport,
-                    }),
-                  }))}
-                  onChange={setActiveClubId}
-                />
-              </label>
-            ) : (
-              <span className={styles.clubName}>
-                {clubLabelWithSportEmoji({
-                  name: resolvedClubName,
-                  sport: activeClub?.sport,
-                })}
-              </span>
-            )}
           </div>
 
-          <nav className={styles.nav} aria-label="Espace famille">
-            {NAV_ITEMS.map((item) => {
-              const isActive = isNavItemActive(pathname, item.href);
-              const isPending = pendingHref === item.href && !isActive;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  scroll={false}
-                  prefetch
-                  className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
-                  aria-current={isActive ? "page" : undefined}
-                  onClick={() => {
-                    if (!isActive) setPendingHref(item.href);
-                  }}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <ClubMembershipPicker
+            clubs={clubsWithRoles}
+            activeClubId={activeClub?.id ?? null}
+            compact
+            formatRoleLabel={() => childHeaderLabel}
+            onClubChange={handleClubChange}
+          />
 
           <div className={styles.actions}>
             <SpaceSwitcher />
@@ -143,17 +141,59 @@ export function FamilyShell() {
               )}
               <div className={styles.userMeta}>
                 <span className={styles.userName}>{resolvedName}</span>
-                <span className={styles.roleChip}>Famille</span>
+                <RoleBadge
+                  role={MemberRoles.player}
+                  label="Famille"
+                  className={styles.roleChip}
+                />
               </div>
             </Link>
           </div>
         </div>
+
+        <nav className={styles.navStrip} aria-label="Espace famille">
+          {NAV_ITEMS.map((item) => {
+            const isActive = isNavItemActive(pathname, item.href);
+            const isPending = pendingHref === item.href && !isActive;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                scroll={false}
+                prefetch
+                className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
+                aria-current={isActive ? "page" : undefined}
+                onClick={() => {
+                  if (!isActive) setPendingHref(item.href);
+                }}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
       </header>
-      <main className={wide ? `${styles.main} ${styles.mainWide}` : styles.main}>
-        <FamilyAudienceProvider>
-          <FamilyModulePanels />
-        </FamilyAudienceProvider>
+
+      <main
+        className={[
+          styles.main,
+          isPlanning ? styles.mainWide : "",
+          fillViewport ? styles.mainFill : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <FamilyModulePanels />
       </main>
     </div>
+  );
+}
+
+/** Coquille espace famille : nav distincte du bureau admin. */
+export function FamilyShell() {
+  return (
+    <FamilyAudienceProvider>
+      <FamilyShellChrome />
+    </FamilyAudienceProvider>
   );
 }

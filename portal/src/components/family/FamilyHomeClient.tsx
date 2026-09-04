@@ -1,15 +1,21 @@
 "use client";
 
+import Link from "next/link";
+import { useMemo, type CSSProperties } from "react";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
-import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 import { FamilyAudienceSwitcher } from "@/components/family/FamilyAudienceSwitcher";
 import { useFamilyAudience } from "@/components/family/FamilyAudienceProvider";
 import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
-import { PlanningEventTile } from "@/components/dashboard/PlanningEventTile";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
+import homeStyles from "@/app/(dashboard)/home/page.module.css";
+import {
+  readableTextOnBrand,
+  splitBrandColorHex,
+} from "@/lib/clubSetup/clubBrandColors";
+import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import {
   loadAnnouncementsForGuardian,
@@ -29,13 +35,13 @@ import {
 import {
   getActiveSeason,
   getMemberFee,
+  isDeadlineToday,
   remainingCents,
   type FeeSeasonRecord,
   type MemberFeeRecord,
 } from "@/lib/firebase/feeService";
 import { getClubMember } from "@/lib/firebase/memberService";
 import { feeStatusLabel } from "@/lib/members/membersView";
-import Link from "next/link";
 import styles from "./FamilyHomeClient.module.css";
 
 function formatEuros(cents: number): string {
@@ -43,6 +49,18 @@ function formatEuros(cents: number): string {
     style: "currency",
     currency: "EUR",
   }).format(cents / 100);
+}
+
+function formatEventWhen(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function eventForMember(event: ClubEventView, memberId: string): boolean {
@@ -61,6 +79,7 @@ function eventForChild(
 }
 
 type FamilyHomeData = {
+  memberDisplayName: string;
   memberFirstName: string;
   nextEvent: ClubEventView | null;
   upcoming: ClubEventView[];
@@ -74,7 +93,7 @@ type FamilyHomeData = {
   }>;
 };
 
-/** Accueil famille : prochain événement, RSVP, cotisation, annonces. */
+/** Accueil famille : chips + couleur club, nom enfant mis en avant. */
 export function FamilyHomeClient() {
   const { activeClub, profile } = useAuth();
   const { selectedMemberId, selectedTarget, loading: audienceLoading } =
@@ -85,6 +104,7 @@ export function FamilyHomeClient() {
     async (club) => {
       if (!selectedMemberId) {
         return {
+          memberDisplayName: "l’enfant",
           memberFirstName: "l’enfant",
           nextEvent: null,
           upcoming: [],
@@ -95,9 +115,6 @@ export function FamilyHomeClient() {
         } satisfies FamilyHomeData;
       }
 
-      // Parent (cible enfant) : lectures restreintes par les règles Firestore
-      // → équipes de l’enfant par id, events par équipe, annonces ciblées.
-      // Membre du club (cible « Moi ») : lectures bureau inchangées.
       const isGuardianView = selectedTarget?.kind === "child";
 
       let filtered: ClubEventView[];
@@ -161,13 +178,25 @@ export function FamilyHomeClient() {
         if (fee) remaining = remainingCents(fee, season);
       }
 
-      const firstName =
-        selectedTarget?.label === "Moi"
-          ? profile?.firstName || "toi"
-          : member?.firstName || selectedTarget?.label || "l’enfant";
+      const isSelf = selectedTarget?.kind === "self";
+      const memberDisplayName = isSelf
+        ? profile?.displayName ||
+          [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") ||
+          "toi"
+        : member?.displayName ||
+          selectedTarget?.displayName ||
+          [member?.firstName, member?.lastName].filter(Boolean).join(" ") ||
+          "l’enfant";
+      const memberFirstName = isSelf
+        ? profile?.firstName || "toi"
+        : member?.firstName ||
+          selectedTarget?.label ||
+          memberDisplayName.split(" ")[0] ||
+          "l’enfant";
 
       return {
-        memberFirstName: firstName,
+        memberDisplayName,
+        memberFirstName,
         nextEvent: filtered[0] ?? null,
         upcoming: filtered.slice(0, HOME_PREVIEW_EVENT_LIMIT),
         fee,
@@ -185,10 +214,27 @@ export function FamilyHomeClient() {
     [
       selectedMemberId,
       selectedTarget?.label,
+      selectedTarget?.displayName,
       selectedTarget?.kind,
       profile?.firstName,
+      profile?.lastName,
+      profile?.displayName,
     ],
   );
+
+  const brandStyle = useMemo(() => {
+    const brand = splitBrandColorHex(
+      activeClub?.brandColorHex ?? ClubSetupDefaults.brandColorHex,
+    );
+    const brandPrimary = brand.primary;
+    const brandAlt = brand.secondary ?? brand.primary;
+    return {
+      "--club-brand": brandPrimary,
+      "--club-brand-alt": brandAlt,
+      "--club-brand-text": readableTextOnBrand(brandPrimary),
+      "--club-brand-alt-text": readableTextOnBrand(brandAlt),
+    } as CSSProperties;
+  }, [activeClub?.brandColorHex]);
 
   if ((loading || audienceLoading) && !data) {
     return <DashboardSkeleton variant="home" />;
@@ -200,21 +246,28 @@ export function FamilyHomeClient() {
     (data.fee.status === MemberFeeStatuses.aPayer ||
       data.fee.status === MemberFeeStatuses.partiel) &&
     data.remaining > 0;
-
-  const headingName =
-    selectedTarget?.kind === "self"
-      ? profile?.firstName || "toi"
-      : data?.memberFirstName || "l’enfant";
+  const feeDeadlineToday =
+    feeDue &&
+    data?.season?.paymentDeadlineAt != null &&
+    isDeadlineToday(data.season.paymentDeadlineAt);
+  const feeStatus = data?.fee?.status ?? null;
+  const announcementCount = data?.announcements.length ?? 0;
+  const eventCount = data?.upcoming.length ?? 0;
+  const isSelf = selectedTarget?.kind === "self";
+  const focusName =
+    data?.memberDisplayName ||
+    selectedTarget?.displayName ||
+    (isSelf ? "toi" : "l’enfant");
 
   return (
     <div className={refreshing ? transitionStyles.refreshing : undefined}>
       <DashboardPageIntro
-        eyebrow="Espace famille"
-        heading={`Bonjour ${profile?.firstName || ""}`.trim()}
+        eyebrow={isSelf ? "Mon espace" : "Espace famille"}
+        heading={focusName}
         lead={
-          selectedTarget?.kind === "self"
-            ? `Planning, convocations et cotisation pour toi.`
-            : `Planning, convocations et cotisation pour ${headingName}.`
+          isSelf
+            ? `Planning, convocations et cotisation — ${activeClub?.name ?? "ton club"}.`
+            : `Suivi parent · planning, convocations et cotisation — ${activeClub?.name ?? "le club"}.`
         }
         onRefresh={reload}
         refreshing={refreshing}
@@ -228,68 +281,168 @@ export function FamilyHomeClient() {
       ) : null}
 
       {data ? (
-        <div className={styles.stack}>
+        <div className={homeStyles.playerStack} style={brandStyle}>
+          <div className={homeStyles.summaryChips} aria-label="Résumé">
+            <span className={styles.childChip} title={focusName}>
+              <span className={homeStyles.summaryChipLabel}>
+                {isSelf ? "Compte" : "Enfant"}
+              </span>
+              <span className={styles.childChipValue}>{focusName}</span>
+            </span>
+            <span
+              className={`${homeStyles.summaryChip} ${
+                feeDeadlineToday
+                  ? homeStyles.summaryChipDeadline
+                  : feeDue
+                    ? homeStyles.summaryChipAlert
+                    : homeStyles.summaryChipOk
+              }`}
+            >
+              <span className={homeStyles.summaryChipLabel}>Cotisation</span>
+              <span className={homeStyles.summaryChipValue}>
+                {feeDue
+                  ? formatEuros(data.remaining)
+                  : feeStatus
+                    ? feeStatusLabel(feeStatus)
+                    : "—"}
+              </span>
+            </span>
+            <span className={homeStyles.summaryChip}>
+              <span className={homeStyles.summaryChipLabel}>Annonces</span>
+              <span className={homeStyles.summaryChipValue}>
+                {announcementCount}
+              </span>
+            </span>
+            <span
+              className={`${homeStyles.summaryChip} ${homeStyles.summaryChipAlt}`}
+            >
+              <span className={homeStyles.summaryChipLabel}>Événements</span>
+              <span className={homeStyles.summaryChipValue}>{eventCount}</span>
+            </span>
+          </div>
+
           {feeDue ? (
             <section
-              className={panelStyles.panel}
-              data-tone="orange"
+              className={`${panelStyles.panel} ${homeStyles.playerPanel}${feeDeadlineToday ? ` ${homeStyles.playerPanelDeadline}` : ""}`}
+              data-tone="brand"
               aria-label="Cotisation"
             >
-              <p className={styles.bannerTitle}>
-                Cotisation {feeStatusLabel(data.fee?.status ?? null).toLowerCase()}
+              <header className={homeStyles.playerPanelHeader}>
+                <h2 className={homeStyles.sectionTitle}>Cotisation</h2>
+                <span
+                  className={`${homeStyles.statusChip} ${
+                    feeDeadlineToday
+                      ? homeStyles.statusChipDeadline
+                      : homeStyles.statusChipWarn
+                  }`}
+                >
+                  {feeDeadlineToday
+                    ? "Échéance aujourd'hui"
+                    : feeStatusLabel(feeStatus)}
+                </span>
+              </header>
+              <p className={homeStyles.feeAmount}>
+                {formatEuros(data.remaining)}
               </p>
-              <p className={styles.bannerLead}>
-                Reste dû : {formatEuros(data.remaining)}
-                {selectedTarget?.kind === "child"
-                  ? ` pour ${data.memberFirstName}`
-                  : ""}
-                .
+              <p className={homeStyles.feeHint}>
+                {feeDeadlineToday
+                  ? isSelf
+                    ? "Dernier jour pour régler votre cotisation"
+                    : `Dernier jour pour régler la cotisation de ${data.memberFirstName}`
+                  : isSelf
+                    ? "Reste à régler pour la saison en cours"
+                    : `Reste à régler pour ${data.memberFirstName}`}
               </p>
-              <Link href="/family/fees" className={styles.bannerLink}>
+              <Link href="/family/fees" className={homeStyles.feeBannerLink}>
                 Voir la cotisation →
               </Link>
             </section>
           ) : null}
 
-          {data.nextEvent ? (
-            <section className={panelStyles.panel} data-tone="cyan">
-              <p className={styles.bannerTitle}>Prochain événement</p>
-              <PlanningEventTile event={data.nextEvent} compact />
-              {activeClub ? (
-                <FamilyRsvpButtons
-                  clubId={activeClub.id}
-                  event={data.nextEvent}
-                  memberId={selectedMemberId ?? ""}
-                />
-              ) : null}
-            </section>
-          ) : (
-            <section className={panelStyles.panel} data-tone="cyan">
-              <p className={styles.bannerTitle}>Prochain événement</p>
-              <p className={styles.empty}>Aucun événement à venir pour cette fiche.</p>
-            </section>
-          )}
-
-          {data.announcements.length > 0 ? (
-            <section className={panelStyles.panel} data-tone="blue">
-              <p className={styles.bannerTitle}>Annonces</p>
-              <ul className={styles.announcements}>
+          <section
+            className={`${panelStyles.panel} ${homeStyles.playerPanel}`}
+            data-tone="brand"
+            aria-labelledby="family-announcements-title"
+          >
+            <header className={homeStyles.playerPanelHeader}>
+              <h2
+                id="family-announcements-title"
+                className={homeStyles.sectionTitle}
+              >
+                Annonces
+              </h2>
+              <span className={homeStyles.countChip}>{announcementCount}</span>
+            </header>
+            {announcementCount === 0 ? (
+              <p className={homeStyles.emptyHint}>Aucune annonce en cours.</p>
+            ) : (
+              <ul className={homeStyles.announcementChipList}>
                 {data.announcements.map((item) => (
-                  <li key={item.id}>
-                    <p className={styles.announcementAuthor}>
-                      {item.author || "Club"}
+                  <li key={item.id} className={homeStyles.announcementChip}>
+                    <p className={homeStyles.announcementMessage}>
+                      {item.message}
                     </p>
-                    <p className={styles.announcementBody}>{item.message}</p>
+                    <span className={homeStyles.metaChip}>
+                      {item.author || "Club"}
+                    </span>
                   </li>
                 ))}
               </ul>
-            </section>
-          ) : null}
+            )}
+          </section>
 
-          <UpcomingEvents
-            events={data.upcoming}
-            planningHref="/family/planning"
-          />
+          <section
+            className={`${panelStyles.panel} ${homeStyles.playerPanel}`}
+            data-tone="brand-alt"
+            aria-labelledby="family-events-title"
+          >
+            <header className={homeStyles.playerPanelHeader}>
+              <h2 id="family-events-title" className={homeStyles.sectionTitle}>
+                Prochains événements
+              </h2>
+              <div className={homeStyles.playerPanelActions}>
+                <span
+                  className={`${homeStyles.countChip} ${homeStyles.countChipAlt}`}
+                >
+                  {eventCount}
+                </span>
+                <Link
+                  href="/family/planning"
+                  className={homeStyles.viewAllInline}
+                >
+                  Planning →
+                </Link>
+              </div>
+            </header>
+            {eventCount === 0 ? (
+              <p className={homeStyles.emptyHint}>
+                Aucun événement à venir pour cette fiche.
+              </p>
+            ) : (
+              <ul className={homeStyles.eventChipList}>
+                {data.upcoming.map((event) => (
+                  <li key={event.id} className={homeStyles.eventChip}>
+                    <span className={homeStyles.eventWhenChip}>
+                      {formatEventWhen(event.startsAt)}
+                    </span>
+                    <div className={homeStyles.eventChipBody}>
+                      <p className={homeStyles.weekTitle}>{event.title}</p>
+                      {event.location ? (
+                        <p className={homeStyles.weekMeta}>{event.location}</p>
+                      ) : null}
+                      {activeClub && selectedMemberId ? (
+                        <FamilyRsvpButtons
+                          clubId={activeClub.id}
+                          event={event}
+                          memberId={selectedMemberId}
+                        />
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
       ) : null}
     </div>

@@ -11,14 +11,20 @@ import {
 } from "react";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { GuardianStatuses } from "@/lib/firebase/constants";
-import { childFirstName } from "@/lib/firebase/guardianService";
+import {
+  childDisplayName,
+  childFirstName,
+} from "@/lib/firebase/guardianService";
 import { getLinkedMemberId } from "@/lib/firebase/memberService";
 
 const TARGET_STORAGE_PREFIX = "viro.familyTarget.";
 
 export type FamilyTarget = {
   memberId: string;
+  /** Libellé court (puces switcher). */
   label: string;
+  /** Nom visible header / accueil. */
+  displayName: string;
   kind: "self" | "child";
 };
 
@@ -85,14 +91,27 @@ export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
       if (isLicensed) {
         const selfId = await getLinkedMemberId(clubId, uid);
         if (selfId) {
-          nextTargets.push({ memberId: selfId, label: "Moi", kind: "self" });
+          const selfDisplay =
+            profile.displayName.trim() ||
+            [profile.firstName, profile.lastName].filter(Boolean).join(" ") ||
+            "Moi";
+          nextTargets.push({
+            memberId: selfId,
+            label: "Moi",
+            displayName: selfDisplay,
+            kind: "self",
+          });
         }
       }
       for (const link of childLinks) {
-        const firstName = await childFirstName(clubId, link.memberId);
+        const [firstName, displayName] = await Promise.all([
+          childFirstName(clubId, link.memberId),
+          childDisplayName(clubId, link.memberId),
+        ]);
         nextTargets.push({
           memberId: link.memberId,
           label: firstName,
+          displayName,
           kind: "child",
         });
       }

@@ -1,28 +1,35 @@
-.stack {
-  display: flex;
+.childChip {
+  display: inline-flex;
   flex-direction: column;
-  gap: var(--space-lg);
-}
-
-.bannerTitle {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
+  gap: 0.12rem;
+  min-width: 8.5rem;
+  max-width: min(100%, 16rem);
+  padding: 0.55rem 0.85rem;
+  border-radius: 12px;
+  border: 1.5px solid
+    color-mix(in srgb, var(--club-brand, var(--color-primary-600)) 45%, white);
+  background: color-mix(
+    in srgb,
+    var(--club-brand, var(--color-primary-600)) 18%,
+    white
+  );
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--club-brand, var(--color-primary-600)) 12%, transparent);
   color: var(--color-primary-900);
 }
 
-.bannerLead {
-  margin: 0;
-  color: var(--color-gray-700);
-  font-size: 0.95rem;
+.childChipValue {
+  font-size: 1.15rem;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--club-brand, var(--color-primary-900));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.bannerLink {
-  font-size: 0.9rem;
-  font-weight: 650;
-  color: var(--color-primary-700);
-}
-
+/* Partagé cotisations / planning famille */
 .empty {
   margin: 0;
   color: var(--color-gray-600);

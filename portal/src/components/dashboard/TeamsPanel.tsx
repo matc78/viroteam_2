@@ -34,6 +34,11 @@ type TeamsPanelProps = {
   canRemovePlayers?: boolean;
   /** True si le viewer peut ajouter un joueur à cette équipe. */
   canAddPlayerToTeam?: (team: TeamOption) => boolean;
+  /**
+   * Vue joueur / parent : barre d’outils et tuiles centrées
+   * (comme l’accueil joueur).
+   */
+  centered?: boolean;
   onClearError?: () => void;
   onCreateTeam: (values: TeamFormValues) => Promise<void>;
   onUpdateTeam: (
@@ -69,6 +74,7 @@ export function TeamsPanel({
   canManageCoaches = true,
   canRemovePlayers = true,
   canAddPlayerToTeam,
+  centered = false,
   onClearError,
   onCreateTeam,
   onUpdateTeam,
@@ -170,7 +176,8 @@ export function TeamsPanel({
   ) : null;
 
   return (
-    <div className={styles.layout}>
+    <div className={`${styles.layout}${centered ? ` ${styles.layoutCentered}` : ""}`}>
+      {centered ? null : (
       <div className={styles.toolbar}>
         <div className={styles.filters}>
           <label className={`${styles.field} ${styles.fieldSearch}`}>
@@ -195,6 +202,7 @@ export function TeamsPanel({
           </label>
         </div>
       </div>
+      )}
 
       {error ? (
         <p className={styles.error} role="alert">

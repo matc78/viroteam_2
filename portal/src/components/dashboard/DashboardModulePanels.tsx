@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { TeamPageClient } from "@/app/(dashboard)/team/TeamPageClient";
 import { AnnouncementsPageClient } from "@/app/(dashboard)/announcements/AnnouncementsPageClient";
 import { EquipmentPageClient } from "@/app/(dashboard)/equipment/EquipmentPageClient";
 import { FeesPageClient } from "@/app/(dashboard)/fees/FeesPageClient";
@@ -14,6 +15,7 @@ import styles from "./DashboardModulePanels.module.css";
 type ModuleId =
   | "home"
   | "members"
+  | "team"
   | "planning"
   | "fees"
   | "announcements"
@@ -37,6 +39,11 @@ const MODULES: ModuleDef[] = [
     match: (pathname) =>
       pathname === "/members" || pathname.startsWith("/members/"),
     render: () => <MembersPageClient />,
+  },
+  {
+    id: "team",
+    match: (pathname) => pathname === "/team" || pathname.startsWith("/team/"),
+    render: () => <TeamPageClient />,
   },
   {
     id: "planning",

@@ -2,13 +2,14 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import { FamilyTeamClient } from "@/components/family/FamilyTeamClient";
 import { FamilyFeesClient } from "@/components/family/FamilyFeesClient";
 import { FamilyHomeClient } from "@/components/family/FamilyHomeClient";
 import { FamilyPlanningClient } from "@/components/family/FamilyPlanningClient";
 import { FamilySettingsClient } from "@/components/family/FamilySettingsClient";
 import styles from "@/components/dashboard/DashboardModulePanels.module.css";
 
-type ModuleId = "home" | "planning" | "fees" | "settings";
+type ModuleId = "home" | "team" | "planning" | "fees" | "settings";
 
 type ModuleDef = {
   id: ModuleId;
@@ -21,6 +22,12 @@ const MODULES: ModuleDef[] = [
     id: "home",
     match: (pathname) => pathname === "/family",
     render: () => <FamilyHomeClient />,
+  },
+  {
+    id: "team",
+    match: (pathname) =>
+      pathname === "/family/team" || pathname.startsWith("/family/team/"),
+    render: () => <FamilyTeamClient />,
   },
   {
     id: "planning",

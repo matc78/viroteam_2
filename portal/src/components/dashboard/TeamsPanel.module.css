@@ -4,6 +4,45 @@
   gap: var(--space-md);
 }
 
+.layoutCentered {
+  align-items: center;
+  max-width: 42rem;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.layoutCentered .toolbar {
+  width: 100%;
+  justify-content: center;
+}
+
+.layoutCentered .filters {
+  width: 100%;
+  justify-content: center;
+}
+
+.layoutCentered .fieldSearch {
+  flex: 1 1 auto;
+  max-width: 28rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.layoutCentered .groups {
+  justify-content: center;
+  width: 100%;
+}
+
+.layoutCentered .group {
+  flex: 0 1 20rem;
+  width: min(100%, 20rem);
+}
+
+.layoutCentered .emptyBlock {
+  width: 100%;
+  align-items: center;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

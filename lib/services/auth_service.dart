@@ -50,9 +50,13 @@ class AuthService {
     }
 
     final googleAuth = await googleUser.authentication;
+    final idToken = googleAuth.idToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw StateError('Jeton Google indisponible. Réessaie.');
+    }
     final credential = GoogleAuthProvider.credential(
       accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
+      idToken: idToken,
     );
 
     try {

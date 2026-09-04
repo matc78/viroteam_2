@@ -13,13 +13,16 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Erreurs framework (layout, polices, etc.) : non fatales — évite de
+  // gonfler le crash rate Play / Android Vitals. Les vrais crashes isolés
+  // restent fatals via [PlatformDispatcher.onError].
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
-    FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    FirebaseCrashlytics.instance.recordFlutterError(details);
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true; 
+    return true;
   };
   await FirebaseCrashlytics.instance
       .setCrashlyticsCollectionEnabled(!kDebugMode);

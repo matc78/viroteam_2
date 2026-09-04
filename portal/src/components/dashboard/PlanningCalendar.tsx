@@ -25,6 +25,8 @@ import {
   formatEventTime,
 } from "@/lib/firebase/eventService";
 import type { CalendarEventBlock } from "@/lib/planning/calendarEventBlocks";
+import type { PopoverAnchorRect } from "@/lib/planning/anchoredPopoverPosition";
+import { rectFromElement } from "@/lib/planning/anchoredPopoverPosition";
 import {
   overlappingClusterIds,
   packOverlappingEvents,
@@ -40,12 +42,7 @@ export type CreateEventDraft = {
   startTime: string;
   endTime: string;
   /** Rectangle d'ancrage (sélection / cellule) en coordonnées viewport. */
-  anchor: {
-    left: number;
-    top: number;
-    right: number;
-    bottom: number;
-  };
+  anchor: PopoverAnchorRect;
 };
 
 /** Props du calendrier planning style agenda. */
@@ -56,7 +53,11 @@ type PlanningCalendarProps = {
   cursor: Date;
   onViewChange: (view: CalendarView) => void;
   onCursorChange: (cursor: Date) => void;
-  onSelectEvent: (event: ClubEventView) => void;
+  onSelectEvent: (
+    event: ClubEventView,
+    anchor: PopoverAnchorRect,
+    color: string,
+  ) => void;
   onSelectDay: (day: Date) => void;
   /** Ouverture création d'événement (mois / semaine / jour). */
   onCreateEvent: (draft: CreateEventDraft) => void;
@@ -324,7 +325,11 @@ type MonthViewProps = {
   eventBlocks: CalendarEventBlock[];
   pendingDayKey: string | null;
   onSelectDay: (day: Date, anchor: CreateEventDraft["anchor"]) => void;
-  onSelectEvent: (event: ClubEventView) => void;
+  onSelectEvent: (
+    event: ClubEventView,
+    anchor: PopoverAnchorRect,
+    color: string,
+  ) => void;
 };
 
 function MonthView({
@@ -405,12 +410,17 @@ function MonthView({
                     key={block.blockId}
                     type="button"
                     className={styles.monthChip}
+                    data-event-id={block.event.id}
                     data-colored="true"
                     style={blockColorStyle(block)}
                     title={`${formatEventTime(block.event.startsAt)} · ${displayTitle}`}
                     onClick={(mouseEvent) => {
                       mouseEvent.stopPropagation();
-                      onSelectEvent(block.event);
+                      onSelectEvent(
+                        block.event,
+                        rectFromElement(mouseEvent.currentTarget),
+                        block.color,
+                      );
                     }}
                   >
                     <span className={styles.monthChipTime}>
@@ -440,7 +450,11 @@ type TimeGridViewProps = {
   /** Incrémente pour recentrer sur l'heure actuelle (ex. bouton Aujourd'hui). */
   scrollToNowNonce?: number;
   onSelectDay: (day: Date) => void;
-  onSelectEvent: (event: ClubEventView) => void;
+  onSelectEvent: (
+    event: ClubEventView,
+    anchor: PopoverAnchorRect,
+    color: string,
+  ) => void;
   onCreateEvent: (draft: CreateEventDraft) => void;
   singleDay?: boolean;
 };
@@ -778,7 +792,11 @@ function TimeGridView({
 type DayColumnEventsProps = {
   eventBlocks: CalendarEventBlock[];
   singleDay: boolean;
-  onSelectEvent: (event: ClubEventView) => void;
+  onSelectEvent: (
+    event: ClubEventView,
+    anchor: PopoverAnchorRect,
+    color: string,
+  ) => void;
 };
 
 /** Libellé affiché dans un bloc agenda (ex. « Entraînement - M18 »). */
@@ -944,6 +962,7 @@ function DayColumnEvents({
             type="button"
             className={styles.eventBlock}
             data-planning-event-block="true"
+            data-event-id={event.id}
             data-colored="true"
             data-compact={isCompact ? "true" : "false"}
             data-stacked={isStacked ? "true" : "false"}
@@ -961,7 +980,13 @@ function DayColumnEvents({
                 : `calc(${widthPercent}% - 0.24rem)`,
               zIndex,
             }}
-            onClick={() => onSelectEvent(event)}
+            onClick={(mouseEvent) =>
+              onSelectEvent(
+                event,
+                rectFromElement(mouseEvent.currentTarget),
+                block.color,
+              )
+            }
             onPointerDown={(pointerEvent) => pointerEvent.stopPropagation()}
             onPointerEnter={() => {
               if (hoverClearFrameRef.current !== null) {

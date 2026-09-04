@@ -31,6 +31,9 @@ export function useAsyncClubResource<T>(
   const [reloadToken, setReloadToken] = useState(0);
   const dataRef = useRef<T | null>(null);
   const loadedClubIdRef = useRef<string | null>(null);
+  /** Toujours le loader du dernier render (évite closure stale au reload). */
+  const loaderRef = useRef(loader);
+  loaderRef.current = loader;
 
   dataRef.current = data;
 
@@ -63,23 +66,22 @@ export function useAsyncClubResource<T>(
     }
     setError(null);
 
-    void loader(activeClub)
+    void loaderRef
+      .current(activeClub)
       .then((result) => {
-        if (!cancelled) {
-          setData(result);
-          loadedClubIdRef.current = activeClub.id;
-          setLoading(false);
-          setRefreshing(false);
-        }
+        if (cancelled) return;
+        setData(result);
+        loadedClubIdRef.current = activeClub.id;
+        setLoading(false);
+        setRefreshing(false);
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Impossible de charger les données.",
-          );
-          setLoading(false);
-          setRefreshing(false);
-        }
+        if (cancelled) return;
+        setError(
+          err instanceof Error ? err.message : "Impossible de charger les données.",
+        );
+        setLoading(false);
+        setRefreshing(false);
       });
 
     return () => {

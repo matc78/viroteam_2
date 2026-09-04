@@ -1,12 +1,13 @@
 .intro {
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-md);
 }
 
 .introMain {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
+  flex-wrap: wrap;
 }
 
 .eyebrow {
@@ -33,6 +34,7 @@
 }
 
 .refreshButton {
+  position: relative;
   flex-shrink: 0;
   margin-top: 0.15rem;
   padding: 0.55rem 0.95rem;
@@ -53,5 +55,45 @@
 .refreshButton:disabled {
   opacity: 0.65;
   cursor: wait;
+}
+
+/* Bouton accentué quand de nouvelles données sont disponibles */
+.refreshHighlight {
+  position: relative;
+  border-color: var(--refresh-accent, var(--color-primary-500));
+  background: var(--refresh-accent, var(--color-primary-500));
+  color: #fff;
+  animation: refreshPulse 1.8s ease-in-out infinite;
+}
+
+.refreshHighlight:hover:not(:disabled) {
+  border-color: var(--refresh-accent, var(--color-primary-600));
+  background: color-mix(in srgb, var(--refresh-accent, var(--color-primary-500)) 85%, #000);
+  color: #fff;
+}
+
+/* Pastille rouge « ! » */
+.refreshBadge {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: #e53e3e;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(229, 62, 62, 0.45);
+  pointer-events: none;
+}
+
+@keyframes refreshPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--refresh-accent, var(--color-primary-500)) 40%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--refresh-accent, var(--color-primary-500)) 0%, transparent); }
 }
 

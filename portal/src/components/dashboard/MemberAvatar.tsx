@@ -8,7 +8,9 @@ type MemberAvatarProps = {
   displayName: string;
   avatarUrl?: string | null;
   hasLinkedAccount: boolean;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
+  /** Fond initiales : défaut (bleu) ou blanc cassé. */
+  tone?: "default" | "offwhite";
 };
 
 /** Avatar membre (photo / initiales / icône), zoom au clic si photo. */
@@ -17,6 +19,7 @@ export function MemberAvatar({
   avatarUrl,
   hasLinkedAccount,
   size = "md",
+  tone = "default",
 }: MemberAvatarProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const photoUrl = avatarUrl?.trim() || null;
@@ -25,7 +28,7 @@ export function MemberAvatar({
 
   const avatar = (
     <span
-      className={`${styles.avatar} ${styles[size]}${canZoom ? ` ${styles.clickable}` : ""}`}
+      className={`${styles.avatar} ${styles[size]}${tone === "offwhite" ? ` ${styles.offwhite}` : ""}${canZoom ? ` ${styles.clickable}` : ""}`}
       aria-hidden={!canZoom}
     >
       {canZoom ? (

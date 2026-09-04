@@ -21,6 +21,13 @@
   font-weight: 700;
 }
 
+.avatar.xs {
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.55rem;
+  border-width: 1px;
+}
+
 .avatar.sm {
   width: 1.75rem;
   height: 1.75rem;
@@ -53,6 +60,16 @@
 .avatar:has(.initials) {
   background: var(--color-primary-100);
   border-color: transparent;
+}
+
+.avatar.offwhite,
+.avatar.offwhite:has(.initials) {
+  background: #f3f1ed;
+  border-color: var(--color-gray-200);
+}
+
+.avatar.offwhite .initials {
+  color: var(--color-primary-800);
 }
 
 .icon {

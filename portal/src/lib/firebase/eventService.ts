@@ -69,6 +69,13 @@ export type PlanningPersonOption = {
   matchIds: string[];
   name: string;
   role: "coach" | "player" | "admin" | "other";
+  avatarUrl: string | null;
+};
+
+/** Entrée annuaire pour la liste RSVP du popover événement. */
+export type PlanningGuestDirectoryEntry = {
+  name: string;
+  avatarUrl: string | null;
 };
 
 export type PlanningPageData = {
@@ -347,11 +354,17 @@ export async function loadPlanningPeopleForClub(
         roleRaw === MemberRoles.admin
           ? roleRaw
           : "other";
+      const snapshot =
+        (data[Fields.snapshot] as Record<string, unknown> | undefined) ?? {};
+      const avatarRaw = snapshot[Fields.avatarUrl];
+      const avatarUrl =
+        typeof avatarRaw === "string" ? avatarRaw.trim() || null : null;
       return {
         id: docSnap.id,
         matchIds,
         name,
         role,
+        avatarUrl,
       } satisfies PlanningPersonOption;
     })
     .sort((a, b) => a.name.localeCompare(b.name, "fr"));
@@ -833,6 +846,105 @@ export async function loadUpcomingEventsForGuardian(
 
   const maxItems = options.limit ?? parsed.length;
   return parsed.slice(0, maxItems);
+}
+
+/**
+ * Events d’une équipe dans une plage de dates (parent / guardian).
+ * Même contrainte règles : `teamIds array-contains` uniquement.
+ */
+async function queryTeamEventsInRangeForGuardian(
+  clubId: string,
+  teamId: string,
+  rangeStart: Date,
+  rangeEnd: Date,
+): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+  const start = dateOnly(rangeStart);
+  const end = dateOnly(rangeEnd);
+  const eventsCol = eventsCollection(clubId);
+  try {
+    const snap = await getDocs(
+      query(
+        eventsCol,
+        where(Fields.teamIds, "array-contains", teamId),
+        where(Fields.date, ">=", Timestamp.fromDate(start)),
+        where(Fields.date, "<=", Timestamp.fromDate(end)),
+        limit(400),
+      ),
+    );
+    return snap.docs.map((docSnap) => ({
+      id: docSnap.id,
+      data: docSnap.data() as Record<string, unknown>,
+    }));
+  } catch {
+    const snap = await getDocs(
+      query(
+        eventsCol,
+        where(Fields.teamIds, "array-contains", teamId),
+        limit(400),
+      ),
+    );
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+    return snap.docs
+      .map((docSnap) => ({
+        id: docSnap.id,
+        data: docSnap.data() as Record<string, unknown>,
+      }))
+      .filter(({ data }) => {
+        const eventDate =
+          toDate(data[Fields.date]) ?? toDate(data[Fields.startTime]);
+        if (!eventDate) return false;
+        const dayMs = dateOnly(eventDate).getTime();
+        return dayMs >= startMs && dayMs <= endMs;
+      });
+  }
+}
+
+/**
+ * Planning calendrier parent : events des équipes enfants sur une plage,
+ * une requête par équipe (pas de list globale).
+ */
+export async function loadPlanningEventsForGuardian(
+  clubId: string,
+  childTeamIds: string[],
+  options: { start: Date; end: Date; teams?: TeamOption[] },
+): Promise<{ events: ClubEventView[]; teams: TeamOption[] }> {
+  const teamIds = [...new Set(childTeamIds.map(String).filter(Boolean))];
+  if (teamIds.length === 0) {
+    return { events: [], teams: [] };
+  }
+
+  const teams = options.teams ?? (await loadTeamsByIds(clubId, teamIds));
+  const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
+  const start = dateOnly(options.start);
+  const end = dateOnly(options.end);
+
+  const perTeam = await Promise.all(
+    teamIds.map((teamId) =>
+      queryTeamEventsInRangeForGuardian(clubId, teamId, start, end),
+    ),
+  );
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const rows of perTeam) {
+    for (const { id, data } of rows) {
+      if (!byId.has(id)) byId.set(id, data);
+    }
+  }
+
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  const events = [...byId.entries()]
+    .map(([id, data]) => parseClubEvent(id, data, teamNameById))
+    .filter((event): event is ClubEventView => event !== null)
+    .filter((event) => {
+      const dayMs = dateOnly(new Date(event.startsAt)).getTime();
+      return dayMs >= startMs && dayMs <= endMs;
+    })
+    .sort(
+      (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+    );
+
+  return { events, teams };
 }
 
 /** Charge les données complètes de la page planning (plage calendrier élargie). */

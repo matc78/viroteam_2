@@ -15,6 +15,10 @@ import {
 } from "@/lib/planning/seasonEnd";
 import type { CreateEventDraft } from "./PlanningCalendar";
 import {
+  ANCHORED_POPOVER_FALLBACK_WIDTH_PX,
+  computeAnchoredPosition,
+} from "@/lib/planning/anchoredPopoverPosition";
+import {
   resolveGuestAudience,
   type PlanningGuestSelection,
 } from "@/lib/planning/resolveGuestAudience";
@@ -48,9 +52,6 @@ type PlanningNewEventDialogProps = {
 const EVENT_TYPES: EventType[] = ["training", "match", "tournament", "other"];
 const TIME_HOUR_START = 0;
 const TIME_HOUR_END = 24;
-const DIALOG_GAP_PX = 14;
-const DIALOG_MARGIN_PX = 16;
-const DIALOG_FALLBACK_WIDTH_PX = 416;
 
 const TYPE_TONE: Record<EventType, string> = {
   training: "blue",
@@ -131,39 +132,6 @@ function parseDateInputValue(value: string): Date | null {
   return parsed;
 }
 
-/**
- * Place le dialog au milieu vertical de l'écran, à gauche ou à droite
- * de l'ancre selon l'espace disponible.
- */
-function computeAnchoredPosition(
-  anchor: CreateEventDraft["anchor"],
-  panelWidth: number,
-  panelHeight: number,
-): { left: number; top: number; side: "left" | "right" } {
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const spaceRight = viewportWidth - anchor.right - DIALOG_MARGIN_PX;
-  const spaceLeft = anchor.left - DIALOG_MARGIN_PX;
-  const preferRight =
-    spaceRight >= panelWidth + DIALOG_GAP_PX || spaceRight >= spaceLeft;
-
-  let left = preferRight
-    ? anchor.right + DIALOG_GAP_PX
-    : anchor.left - DIALOG_GAP_PX - panelWidth;
-  left = Math.max(
-    DIALOG_MARGIN_PX,
-    Math.min(left, viewportWidth - panelWidth - DIALOG_MARGIN_PX),
-  );
-
-  let top = (viewportHeight - panelHeight) / 2;
-  top = Math.max(
-    DIALOG_MARGIN_PX,
-    Math.min(top, viewportHeight - panelHeight - DIALOG_MARGIN_PX),
-  );
-
-  return { left, top, side: preferRight ? "right" : "left" };
-}
-
 /** Dialog pour créer un événement (jour + plage horaire optionnelle). */
 export function PlanningNewEventDialog({
   day,
@@ -191,7 +159,11 @@ export function PlanningNewEventDialog({
     side: "left" | "right";
   } | null>(() => {
     if (typeof window === "undefined" || !anchor) return null;
-    return computeAnchoredPosition(anchor, DIALOG_FALLBACK_WIDTH_PX, 480);
+    return computeAnchoredPosition(
+      anchor,
+      ANCHORED_POPOVER_FALLBACK_WIDTH_PX,
+      480,
+    );
   });
   const [type, setType] = useState<EventType>("training");
   const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
@@ -253,7 +225,7 @@ export function PlanningNewEventDialog({
         return;
       }
       const panel = panelRef.current;
-      const width = panel?.offsetWidth || DIALOG_FALLBACK_WIDTH_PX;
+      const width = panel?.offsetWidth || ANCHORED_POPOVER_FALLBACK_WIDTH_PX;
       const height = panel?.offsetHeight || 480;
       setPosition(computeAnchoredPosition(anchor, width, height));
     }

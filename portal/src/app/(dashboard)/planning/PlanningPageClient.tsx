@@ -20,6 +20,7 @@ import {
 } from "@/lib/auth/bureauPermissions";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import { usePlanningChangeListener } from "@/lib/dashboard/usePlanningChangeListener";
 import { MemberRoles } from "@/lib/firebase/constants";
 import type { ClubEventView } from "@/lib/firebase/eventService";
 import {
@@ -27,6 +28,10 @@ import {
   getClubEvent,
   loadPlanningPageData,
 } from "@/lib/firebase/eventService";
+import type { PopoverAnchorRect } from "@/lib/planning/anchoredPopoverPosition";
+import { findEventBlockAnchor } from "@/lib/planning/anchoredPopoverPosition";
+import { buildGuestDirectoryFromPeople } from "@/lib/planning/eventGuestRows";
+import { colorForFilter } from "@/lib/planning/calendarColors";
 import { getLinkedMemberId } from "@/lib/firebase/memberService";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
 import {
@@ -66,6 +71,11 @@ function PlanningPageContent() {
   /** Club auquel `filters` appartient — évite d'écrire le state A sous la clé B. */
   const [filtersClubId, setFiltersClubId] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<ClubEventView | null>(null);
+  const [selectedEventAnchor, setSelectedEventAnchor] =
+    useState<PopoverAnchorRect | null>(null);
+  const [selectedEventColor, setSelectedEventColor] = useState<string | null>(
+    null,
+  );
   const [createEventDraft, setCreateEventDraft] = useState<CreateEventDraft | null>(
     null,
   );
@@ -159,6 +169,17 @@ function PlanningPageContent() {
     [scopedTeams],
   );
 
+  const { hasNewEvents, resetFlag } = usePlanningChangeListener(
+    activeClub?.id ?? null,
+    scopedTeams.map((team) => team.id),
+  );
+
+  /** Recharge les données et acquitte le flag de changement. */
+  function handleRefresh() {
+    resetFlag();
+    reload();
+  }
+
   useEffect(() => {
     if (!activeClub) {
       setFilters(emptyPlanningFilters());
@@ -248,23 +269,31 @@ function PlanningPageContent() {
     );
   }, [data, filters, visibleEvents, scopedTeams, caps.isAdmin, roleScopeReady]);
 
-  const memberNamesById = useMemo(() => {
+  const guestDirectory = useMemo(() => {
     if (!data) return {};
-    const names: Record<string, string> = {};
-    for (const person of [
+    return buildGuestDirectoryFromPeople([
       ...data.players,
       ...data.coaches,
       ...data.admins,
-    ]) {
-      if (person.name.trim()) {
-        names[person.id] = person.name;
-        for (const matchId of person.matchIds) {
-          names[matchId] = person.name;
-        }
-      }
-    }
-    return names;
+    ]);
   }, [data]);
+
+  /** Garde le popover ouvert synchronisé après un reload RSVP. */
+  useEffect(() => {
+    if (!selectedEvent) return;
+    const fresh = visibleEvents.find((event) => event.id === selectedEvent.id);
+    if (!fresh) return;
+    if (
+      fresh.rsvpYes === selectedEvent.rsvpYes &&
+      fresh.rsvpNo === selectedEvent.rsvpNo &&
+      fresh.rsvpPending === selectedEvent.rsvpPending &&
+      JSON.stringify(fresh.rsvpByMemberId) ===
+        JSON.stringify(selectedEvent.rsvpByMemberId)
+    ) {
+      return;
+    }
+    setSelectedEvent(fresh);
+  }, [visibleEvents, selectedEvent]);
 
   useEffect(() => {
     if (!data || !selectAllTeams || !roleScopeReady) return;
@@ -323,6 +352,12 @@ function PlanningPageContent() {
       setCursor(eventDay);
       setView("week");
       setSelectedEvent(matchedEvent);
+      setSelectedEventAnchor(null);
+      setSelectedEventColor(
+        matchedEvent.teamIds[0]
+          ? colorForFilter("team", matchedEvent.teamIds[0])
+          : null,
+      );
       setFilters({
         teamIds:
           matchedEvent.teamIds.length > 0
@@ -333,6 +368,11 @@ function PlanningPageContent() {
         playerIds: [],
       });
       clearPlanningDeepLinkParams();
+      // Ancre après paint du calendrier (bloc visible).
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        setSelectedEventAnchor(findEventBlockAnchor(matchedEvent.id));
+      });
     }
 
     void applyEventDeepLink();
@@ -445,8 +485,11 @@ function PlanningPageContent() {
             }}
             onCreateClick={() => openCreateForDay(cursor)}
             canCreate={caps.canCreateEvent}
-            onRefresh={reload}
+            teamsOnlyFilters={caps.isPlayer}
+            onRefresh={handleRefresh}
             refreshing={refreshing}
+            hasNewData={hasNewEvents}
+            accentColor={activeClub?.brandColorHex?.split("+")?.[0] ?? undefined}
           />
 
           <div className={styles.mainPane}>
@@ -457,7 +500,11 @@ function PlanningPageContent() {
               onViewChange={setView}
               onCursorChange={setCursor}
               onSelectDay={setCursor}
-              onSelectEvent={setSelectedEvent}
+              onSelectEvent={(event, anchor, color) => {
+                setSelectedEvent(event);
+                setSelectedEventAnchor(anchor);
+                setSelectedEventColor(color);
+              }}
               onCreateEvent={
                 caps.canCreateEvent
                   ? setCreateEventDraft
@@ -472,13 +519,20 @@ function PlanningPageContent() {
       {selectedEvent ? (
         <PlanningEventDetailPanel
           event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
+          anchor={selectedEventAnchor}
+          eventColor={selectedEventColor}
+          teams={scopedTeams}
+          guestDirectory={guestDirectory}
+          onClose={() => {
+            setSelectedEvent(null);
+            setSelectedEventAnchor(null);
+            setSelectedEventColor(null);
+          }}
           clubId={
             caps.isPlayer && activeClub ? activeClub.id : undefined
           }
           linkedMemberId={caps.isPlayer ? linkedMemberId : null}
           onRsvpUpdated={reload}
-          memberNamesById={memberNamesById}
         />
       ) : null}
 

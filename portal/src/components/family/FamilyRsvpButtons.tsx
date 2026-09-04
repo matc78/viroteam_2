@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { setEventRsvp } from "@/lib/firebase/callableService";
 import type { ClubEventView } from "@/lib/firebase/eventService";
 import styles from "./FamilyRsvpButtons.module.css";
@@ -10,6 +10,8 @@ type FamilyRsvpButtonsProps = {
   event: ClubEventView;
   memberId: string;
   onUpdated?: (value: "yes" | "maybe" | "no") => void;
+  /** `footer` : barre style popover « Tu viens ? ». */
+  variant?: "default" | "footer";
 };
 
 const OPTIONS: Array<{ value: "yes" | "maybe" | "no"; label: string }> = [
@@ -24,11 +26,16 @@ export function FamilyRsvpButtons({
   event,
   memberId,
   onUpdated,
+  variant = "default",
 }: FamilyRsvpButtonsProps) {
   const current = event.rsvpByMemberId[memberId] ?? "";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [localValue, setLocalValue] = useState(current);
+
+  useEffect(() => {
+    setLocalValue(current);
+  }, [current]);
 
   async function handleSelect(value: "yes" | "maybe" | "no") {
     if (busy) return;
@@ -57,7 +64,13 @@ export function FamilyRsvpButtons({
   if (!invited) return null;
 
   return (
-    <div className={styles.wrap}>
+    <div
+      className={styles.wrap}
+      data-variant={variant}
+    >
+      {variant === "footer" ? (
+        <span className={styles.prompt}>Tu viens ?</span>
+      ) : null}
       <div className={styles.row} role="group" aria-label="Réponse à la convocation">
         {OPTIONS.map((option) => {
           const selected = localValue === option.value;

@@ -64,6 +64,17 @@ service cloud.firestore {
           .data.get('adminIds', []);
     }
 
+    /// Comme [isInClubAdminIds], mais sur l'état **après** les écritures du
+    /// batch/transaction (`getAfter`). Nécessaire pour le parcours club-setup :
+    /// club + fiche admin fondateur sont créés dans la même transaction, et
+    /// `get()`/`exists()` ne voient que l'état **avant** (club encore absent).
+    function isInClubAdminIdsAfter(clubId) {
+      return isSignedIn()
+        && existsAfter(/databases/$(database)/documents/clubs/$(clubId))
+        && request.auth.uid in getAfter(/databases/$(database)/documents/clubs/$(clubId))
+          .data.get('adminIds', []);
+    }
+
     function isClubAdmin(clubId) {
       return isSignedIn() && (
         (isClubMember(clubId) && clubMemberRole(clubId) == 'admin')
@@ -230,8 +241,13 @@ service cloud.firestore {
         allow list: if isClubMember(clubId);
         // Création : coach/admin (fiche pré-créée + invitation) ou fondateur.
         // L'arrivée d'un invité passe par la callable `acceptInvitation`.
+        // Fondateur : `isInClubAdminIdsAfter` couvre la transaction atomique
+        // club + membre (sinon get() ne voit pas encore le club).
         allow create: if isClubCoachOrAdmin(clubId)
-          || (isOwner(memberId) && isInClubAdminIds(clubId));
+          || (isOwner(memberId) && isInClubAdminIds(clubId))
+          || (isOwner(memberId)
+            && request.resource.data.get('role', '') == 'admin'
+            && isInClubAdminIdsAfter(clubId));
         allow update: if isClubAdmin(clubId)
           || isCoachMemberUpdate(clubId)
           || isOwnProfileUpdate(clubId, memberId);

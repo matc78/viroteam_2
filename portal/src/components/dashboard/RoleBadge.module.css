@@ -50,3 +50,31 @@
   width: 0.7rem;
   height: 0.7rem;
 }
+
+.badgeMuted {
+  background: var(--color-gray-200) !important;
+  color: var(--color-gray-600) !important;
+  box-shadow: none !important;
+}
+
+.badgeMuted .badgeIcon {
+  background: color-mix(in srgb, var(--color-gray-500) 18%, transparent);
+}
+
+.badgeSm {
+  gap: 0.2rem;
+  padding: 0.05rem 0.32rem 0.05rem 0.18rem;
+  font-size: 0.58rem;
+  border-radius: 0.4rem;
+}
+
+.badgeSm .badgeIcon {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 0.22rem;
+}
+
+.badgeSm .badgeIcon svg {
+  width: 0.55rem;
+  height: 0.55rem;
+}

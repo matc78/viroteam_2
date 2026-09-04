@@ -5,21 +5,40 @@ import styles from "./RoleBadge.module.css";
 type RoleBadgeProps = {
   role: string | null;
   className?: string;
+  /** Version grisée (club non sélectionné). */
+  muted?: boolean;
+  /** Taille réduite (pastilles club header). */
+  size?: "md" | "sm";
+  /** Libellé custom (ex. « Famille » avec le ton joueur). */
+  label?: string;
 };
 
 /** Badge rôle club (admin / coach / joueur) — même style que la colonne Membres. */
-export function RoleBadge({ role, className }: RoleBadgeProps) {
+export function RoleBadge({
+  role,
+  className,
+  muted = false,
+  size = "md",
+  label: labelOverride,
+}: RoleBadgeProps) {
   const tone =
     role === MemberRoles.admin ||
     role === MemberRoles.coach ||
     role === MemberRoles.player
       ? role
       : MemberRoles.player;
-  const label = memberRoleLabel(tone);
+  const label = labelOverride?.trim() || memberRoleLabel(tone);
 
   return (
     <span
-      className={[styles.badge, className].filter(Boolean).join(" ")}
+      className={[
+        styles.badge,
+        muted ? styles.badgeMuted : "",
+        size === "sm" ? styles.badgeSm : "",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-tone={tone}
     >
       <RoleBadgeIcon role={tone} />

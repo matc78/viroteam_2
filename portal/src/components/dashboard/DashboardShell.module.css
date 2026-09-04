@@ -6,6 +6,11 @@
   max-width: none;
 }
 
+/** Jour J échéance cotisation — fond rouge léger sur toute la page. */
+.pageFeeDeadline {
+  background: var(--color-fee-due-soft);
+}
+
 /** Planning : un seul scroll interne (style Google Calendar). */
 .pageFill {
   height: 100dvh;
@@ -16,10 +21,10 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-gray-200) 90%, transparent);
+  border-bottom: none;
   background: color-mix(in srgb, var(--color-white) 92%, transparent);
   backdrop-filter: blur(16px);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-primary-900) 4%, transparent);
+  box-shadow: none;
 }
 
 .inner {
@@ -85,6 +90,19 @@
   background: transparent;
   border: none;
   padding: 0;
+}
+
+.navStrip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1.25rem, 2.5vw, 2rem);
+  flex-wrap: wrap;
+  margin-inline: clamp(1.25rem, 5vw, 3.5rem);
+  padding: 0.55rem 0 0.7rem;
+  background: transparent;
+  border-top: 1px solid var(--color-gray-200);
+  border-bottom: 1px solid var(--color-gray-200);
 }
 
 .navLink {
@@ -329,32 +347,24 @@
 
 @media (max-width: 1024px) {
   .inner {
-    grid-template-columns: 1fr auto;
-    row-gap: var(--space-sm);
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
+    gap: var(--space-sm);
+    padding-inline: clamp(0.75rem, 2.5vw, 1.5rem);
   }
 
-  .brandBlock {
-    grid-column: 1;
+  .wordmark {
+    display: none;
   }
 
-  .actions {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .nav {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-self: stretch;
+  .navStrip {
     justify-content: center;
+    gap: clamp(0.85rem, 2vw, 1.5rem);
   }
 }
 
 @media (max-width: 640px) {
-  .wordmark {
-    display: none;
+  .inner {
+    gap: 0.45rem;
+    padding-inline: 0.65rem;
   }
 
   .clubDivider {
@@ -363,6 +373,11 @@
 
   .userMeta {
     display: none;
+  }
+
+  .navStrip {
+    gap: 0.35rem;
+    padding-inline: 0.75rem;
   }
 
   .navLink {

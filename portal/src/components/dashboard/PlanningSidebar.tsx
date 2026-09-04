@@ -38,8 +38,18 @@ type PlanningSidebarProps = {
   onCreateClick: () => void;
   /** Affiche le bouton Créer (masqué pour joueur). */
   canCreate?: boolean;
+  /** Joueur : n’affiche que le filtre Équipes. */
+  teamsOnlyFilters?: boolean;
+  /** Masque entièrement la zone de filtres (mini calendrier seul). */
+  hideFilters?: boolean;
+  /** Classe CSS additionnelle sur l'aside. */
+  className?: string;
   onRefresh?: () => void;
   refreshing?: boolean;
+  /** Pastille de nouvelles données sur le bouton Actualiser. */
+  hasNewData?: boolean;
+  /** Couleur d'accentuation quand hasNewData est true. */
+  accentColor?: string;
 };
 
 const WEEKDAY_LABELS = ["L", "M", "M", "J", "V", "S", "D"];
@@ -71,8 +81,13 @@ export function PlanningSidebar({
   onDaySelect,
   onCreateClick,
   canCreate = true,
+  teamsOnlyFilters = false,
+  hideFilters = false,
+  className,
   onRefresh,
   refreshing = false,
+  hasNewData = false,
+  accentColor,
 }: PlanningSidebarProps) {
   const [openSections, setOpenSections] = useState({
     teams: true,
@@ -138,7 +153,7 @@ export function PlanningSidebar({
   const hasFilterSearch = filterSearch.trim().length > 0;
 
   return (
-    <aside className={styles.sidebar} aria-label="Navigation et filtres planning">
+    <aside className={`${styles.sidebar}${className ? ` ${className}` : ""}`} aria-label="Navigation et filtres planning">
       {canCreate ? (
         <button type="button" className={styles.createButton} onClick={onCreateClick}>
           <span className={styles.createPlus} aria-hidden="true">
@@ -150,12 +165,16 @@ export function PlanningSidebar({
       {onRefresh ? (
         <button
           type="button"
-          className={styles.refreshButton}
+          className={`${styles.refreshButton}${hasNewData ? ` ${styles.refreshHighlight}` : ""}`}
           onClick={onRefresh}
           disabled={refreshing}
           aria-busy={refreshing}
+          style={hasNewData && accentColor ? { "--refresh-accent": accentColor } as CSSProperties : undefined}
         >
           {refreshing ? "Actualisation…" : "Actualiser"}
+          {hasNewData && !refreshing ? (
+            <span className={styles.refreshBadge} aria-label="Nouvelles données">!</span>
+          ) : null}
         </button>
       ) : null}
 
@@ -210,6 +229,7 @@ export function PlanningSidebar({
         </div>
       </section>
 
+      {!hideFilters ? (
       <FadeScrollArea
         className={styles.filtersWrap}
         viewportClassName={styles.filters}
@@ -217,8 +237,16 @@ export function PlanningSidebar({
           <FilterSearch
             value={filterSearch}
             onChange={setFilterSearch}
-            placeholder="Équipes, catégories, joueurs…"
-            ariaLabel="Rechercher équipes, catégories et joueurs"
+            placeholder={
+              teamsOnlyFilters
+                ? "Rechercher une équipe…"
+                : "Équipes, catégories, joueurs…"
+            }
+            ariaLabel={
+              teamsOnlyFilters
+                ? "Rechercher une équipe"
+                : "Rechercher équipes, catégories et joueurs"
+            }
           />
 
           <FilterSection
@@ -248,7 +276,7 @@ export function PlanningSidebar({
             )}
           </FilterSection>
 
-          {!hasFilterSearch ? (
+          {!teamsOnlyFilters && !hasFilterSearch ? (
             <FilterSection
               title="Coach"
               open={openSections.coaches}
@@ -275,60 +303,65 @@ export function PlanningSidebar({
             </FilterSection>
           ) : null}
 
-          <FilterSection
-            title="Catégorie"
-            open={openSections.categories}
-            onToggle={() => toggleSection("categories")}
-          >
-            {categories.length === 0 ? (
-              <p className={styles.emptyHint}>Aucune catégorie</p>
-            ) : filteredCategories.length === 0 ? (
-              <p className={styles.emptyHint}>Aucun résultat</p>
-            ) : (
-              filteredCategories.map((category) => (
-                <FilterOption
-                  key={category}
-                  label={category}
-                  color={resolveFilterColor("category", category, categoryColors)}
-                  checked={filters.categories.includes(category)}
-                  onToggle={() =>
-                    onFiltersChange({
-                      ...filters,
-                      categories: toggleId(filters.categories, category),
-                    })
-                  }
-                />
-              ))
-            )}
-          </FilterSection>
+          {!teamsOnlyFilters ? (
+            <FilterSection
+              title="Catégorie"
+              open={openSections.categories}
+              onToggle={() => toggleSection("categories")}
+            >
+              {categories.length === 0 ? (
+                <p className={styles.emptyHint}>Aucune catégorie</p>
+              ) : filteredCategories.length === 0 ? (
+                <p className={styles.emptyHint}>Aucun résultat</p>
+              ) : (
+                filteredCategories.map((category) => (
+                  <FilterOption
+                    key={category}
+                    label={category}
+                    color={resolveFilterColor("category", category, categoryColors)}
+                    checked={filters.categories.includes(category)}
+                    onToggle={() =>
+                      onFiltersChange({
+                        ...filters,
+                        categories: toggleId(filters.categories, category),
+                      })
+                    }
+                  />
+                ))
+              )}
+            </FilterSection>
+          ) : null}
 
-          <FilterSection
-            title="Joueur"
-            open={openSections.players}
-            onToggle={() => toggleSection("players")}
-          >
-            {players.length === 0 ? (
-              <p className={styles.emptyHint}>Aucun joueur</p>
-            ) : filteredPlayers.length === 0 ? (
-              <p className={styles.emptyHint}>Aucun résultat</p>
-            ) : (
-              filteredPlayers.map((player) => (
-                <FilterOption
-                  key={player.id}
-                  label={player.name}
-                  color={resolveFilterColor("player", player.id, playerColors)}
-                  checked={filters.playerIds.includes(player.id)}
-                  onToggle={() =>
-                    onFiltersChange({
-                      ...filters,
-                      playerIds: toggleId(filters.playerIds, player.id),
-                    })
-                  }
-                />
-              ))
-            )}
-          </FilterSection>
+          {!teamsOnlyFilters ? (
+            <FilterSection
+              title="Joueur"
+              open={openSections.players}
+              onToggle={() => toggleSection("players")}
+            >
+              {players.length === 0 ? (
+                <p className={styles.emptyHint}>Aucun joueur</p>
+              ) : filteredPlayers.length === 0 ? (
+                <p className={styles.emptyHint}>Aucun résultat</p>
+              ) : (
+                filteredPlayers.map((player) => (
+                  <FilterOption
+                    key={player.id}
+                    label={player.name}
+                    color={resolveFilterColor("player", player.id, playerColors)}
+                    checked={filters.playerIds.includes(player.id)}
+                    onToggle={() =>
+                      onFiltersChange({
+                        ...filters,
+                        playerIds: toggleId(filters.playerIds, player.id),
+                      })
+                    }
+                  />
+                ))
+              )}
+            </FilterSection>
+          ) : null}
       </FadeScrollArea>
+      ) : null}
     </aside>
   );
 }

@@ -44,3 +44,29 @@
   --panel-border: var(--color-gray-300);
   --panel-shadow: color-mix(in srgb, var(--color-primary-900) 4%, transparent);
 }
+
+.panel[data-tone="brand"] {
+  --panel-border: color-mix(
+    in srgb,
+    var(--club-brand, var(--color-primary-600)) 42%,
+    var(--color-gray-200)
+  );
+  --panel-shadow: color-mix(
+    in srgb,
+    var(--club-brand, var(--color-primary-600)) 10%,
+    transparent
+  );
+}
+
+.panel[data-tone="brand-alt"] {
+  --panel-border: color-mix(
+    in srgb,
+    var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 42%,
+    var(--color-gray-200)
+  );
+  --panel-shadow: color-mix(
+    in srgb,
+    var(--club-brand-alt, var(--club-brand, var(--color-primary-600))) 10%,
+    transparent
+  );
+}

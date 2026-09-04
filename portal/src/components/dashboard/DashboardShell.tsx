@@ -1,23 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { BureauRouteGuard } from "@/components/auth/BureauRouteGuard";
 import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
+import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePanels";
-import { PlanningSelect } from "@/components/dashboard/PlanningSelect";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
-import { bureauCapabilities } from "@/lib/auth/bureauPermissions";
+import {
+  bureauCapabilities,
+  isBureauRouteAllowed,
+} from "@/lib/auth/bureauPermissions";
+import { usePlayerFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
-import { clubLabelWithSportEmoji } from "@/lib/sports/sportEmoji";
+import { clubsWithRole, membershipRoleForClub } from "@/lib/firebase/types";
 import styles from "./DashboardShell.module.css";
 
 const NAV_ITEMS = [
   { href: "/home", label: "Accueil", toneClass: "toneOrange" },
   { href: "/members", label: "Membres", toneClass: "toneGreen" },
+  { href: "/team", label: "Équipe", toneClass: "toneGreen" },
   { href: "/planning", label: "Planning", toneClass: "toneBlue" },
   { href: "/fees", label: "Cotisations", toneClass: "toneYellow" },
   { href: "/announcements", label: "Annonces", toneClass: "toneOrange" },
@@ -47,6 +52,7 @@ function userInitials(displayName: string): string {
 /** Coquille espace club : header bureau + nav modules. */
 export function DashboardShell() {
   const pathname = usePathname();
+  const router = useRouter();
   const {
     activeClub,
     bureauClubs,
@@ -55,6 +61,12 @@ export function DashboardShell() {
     setActiveClubId,
   } = useAuth();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const feeDeadlineUrgent = usePlayerFeeDeadlineUrgency();
+
+  const clubsWithRoles = useMemo(
+    () => clubsWithRole(bureauClubs, profile),
+    [bureauClubs, profile],
+  );
 
   const caps = useMemo(
     () =>
@@ -71,14 +83,30 @@ export function DashboardShell() {
     setPendingHref(null);
   }, [pathname]);
 
-  const resolvedClubName = activeClub?.name?.trim() || "Club";
+  function handleClubChange(clubId: string) {
+    const club = bureauClubs.find((item) => item.id === clubId);
+    const nextRole = membershipRoleForClub(profile, clubId);
+    const nextCaps = bureauCapabilities(nextRole, club?.coachPermissions);
+    setActiveClubId(clubId);
+    if (!isBureauRouteAllowed(pathname, nextCaps)) {
+      router.replace("/home");
+    }
+  }
+
   const resolvedUserName = profile?.displayName ?? "Membre";
   const wide = isWidePath(pathname);
   const fillViewport =
     pathname === "/planning" || pathname.startsWith("/planning/");
 
   return (
-    <div className={fillViewport ? `${styles.page} ${styles.pageFill}` : styles.page}>
+    <div
+      className={[
+        fillViewport ? `${styles.page} ${styles.pageFill}` : styles.page,
+        feeDeadlineUrgent ? styles.pageFeeDeadline : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <BureauRouteGuard />
       <header className={styles.header}>
         <div className={styles.inner}>
@@ -94,55 +122,14 @@ export function DashboardShell() {
               <BrandMark className={styles.mark} priority />
               <span className={styles.wordmark}>{site.name}</span>
             </Link>
-            <span className={styles.clubDivider} aria-hidden="true" />
-            {bureauClubs.length > 1 ? (
-              <label className={styles.clubSelectLabel}>
-                <span className={styles.srOnly}>Club actif</span>
-                <PlanningSelect
-                  id="dashboard-active-club"
-                  value={activeClub?.id ?? ""}
-                  aria-label="Sélectionner le club"
-                  options={bureauClubs.map((club) => ({
-                    value: club.id,
-                    label: clubLabelWithSportEmoji({
-                      name: club.name,
-                      sport: club.sport,
-                    }),
-                  }))}
-                  onChange={setActiveClubId}
-                />
-              </label>
-            ) : (
-              <span className={styles.clubName}>
-                {clubLabelWithSportEmoji({
-                  name: resolvedClubName,
-                  sport: activeClub?.sport,
-                })}
-              </span>
-            )}
           </div>
 
-          <nav className={styles.nav} aria-label="Modules espace club">
-            {visibleNavItems.map((item) => {
-              const isActive = isNavItemActive(pathname, item.href);
-              const isPending = pendingHref === item.href && !isActive;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  scroll={false}
-                  prefetch
-                  className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
-                  aria-current={isActive ? "page" : undefined}
-                  onClick={() => {
-                    if (!isActive) setPendingHref(item.href);
-                  }}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <ClubMembershipPicker
+            clubs={clubsWithRoles}
+            activeClubId={activeClub?.id ?? null}
+            compact
+            onClubChange={handleClubChange}
+          />
 
           <div className={styles.actions}>
             <SpaceSwitcher />
@@ -173,7 +160,30 @@ export function DashboardShell() {
             </Link>
           </div>
         </div>
+
+        <nav className={styles.navStrip} aria-label="Modules espace club">
+          {visibleNavItems.map((item) => {
+            const isActive = isNavItemActive(pathname, item.href);
+            const isPending = pendingHref === item.href && !isActive;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                scroll={false}
+                prefetch
+                className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
+                aria-current={isActive ? "page" : undefined}
+                onClick={() => {
+                  if (!isActive) setPendingHref(item.href);
+                }}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
       </header>
+
       <main
         className={[
           styles.main,

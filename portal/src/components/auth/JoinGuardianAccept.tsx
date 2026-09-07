@@ -69,7 +69,7 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
     status,
   ]);
 
-  const joinPath = `/join?code=${encodeURIComponent(invitation.code)}`;
+  const joinPath = `/join?code=${invitation.code}`;
   const loginHref = `/login?next=${encodeURIComponent(joinPath)}`;
   const signupHref = `/signup?next=${encodeURIComponent(joinPath)}`;
 

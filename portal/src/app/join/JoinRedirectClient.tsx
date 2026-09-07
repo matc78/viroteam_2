@@ -3,16 +3,17 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
-import { JoinAppRedirect } from "@/components/auth/JoinAppRedirect";
 import { JoinGuardianAccept } from "@/components/auth/JoinGuardianAccept";
+import { JoinMemberAccept } from "@/components/auth/JoinMemberAccept";
 import {
   findInvitationByCode,
+  isGuardianInvitation,
+  isMemberInvitation,
   type InvitationLookupResult,
 } from "@/lib/firebase/invitationService";
-import { InvitationTypes } from "@/lib/firebase/constants";
 import styles from "@/components/auth/JoinOnboardingForm.module.css";
 
-/** Tente d’ouvrir l’app (membre) ou d’accepter un lien parent sur le portail. */
+/** Accepte une invitation parent ou membre (joueur / coach) sur le portail. */
 export function JoinRedirectClient() {
   const searchParams = useSearchParams();
   const invitationCode = (searchParams.get("code") ?? "").trim().toUpperCase();
@@ -23,18 +24,28 @@ export function JoinRedirectClient() {
 
   useEffect(() => {
     if (!invitationCode) {
+      setInvitation(null);
       setLookupDone(true);
       return;
     }
 
+    let cancelled = false;
+    setLookupDone(false);
+
     void findInvitationByCode(invitationCode)
       .then((found) => {
-        setInvitation(found);
+        if (!cancelled) setInvitation(found);
       })
       .catch(() => {
-        setInvitation(null);
+        if (!cancelled) setInvitation(null);
       })
-      .finally(() => setLookupDone(true));
+      .finally(() => {
+        if (!cancelled) setLookupDone(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [invitationCode]);
 
   if (!invitationCode) {
@@ -65,26 +76,37 @@ export function JoinRedirectClient() {
     );
   }
 
-  if (invitation?.type === InvitationTypes.guardian) {
+  if (!invitation) {
+    return (
+      <AuthShell
+        accent="cyan"
+        eyebrow="Rejoindre un club"
+        title="Code introuvable"
+        lead="Ce code est invalide ou a expiré. Demande un nouveau code à ton club."
+      >
+        <p className={styles.hint}>
+          Tu peux te connecter sur le portail si tu as déjà un compte.
+        </p>
+      </AuthShell>
+    );
+  }
+
+  if (isGuardianInvitation(invitation)) {
     return <JoinGuardianAccept invitation={invitation} />;
+  }
+
+  if (isMemberInvitation(invitation)) {
+    return <JoinMemberAccept invitation={invitation} />;
   }
 
   return (
     <AuthShell
       accent="cyan"
       eyebrow="Rejoindre un club"
-      title="Ouvre l’app ViroTeam"
-      lead={
-        invitation?.clubName
-          ? `On t’envoie vers ${invitation.clubName} dans l’app.`
-          : "On t’envoie vers l’app ViroTeam avec ton code d’invitation."
-      }
+      title="Invitation non supportée"
+      lead="Ce type d’invitation ne peut pas être traité sur le portail."
     >
-      <JoinAppRedirect
-        code={invitationCode}
-        clubName={invitation?.clubName ?? null}
-        showPortalLoginLink
-      />
+      <p className={styles.hint}>Demande un nouveau lien à ton club.</p>
     </AuthShell>
   );
 }

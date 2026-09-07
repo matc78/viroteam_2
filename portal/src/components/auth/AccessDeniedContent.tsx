@@ -4,10 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
-import {
-  JoinOnboardingForm,
-  JoinOnboardingSuccess,
-} from "@/components/auth/JoinOnboardingForm";
+import { JoinOnboardingForm } from "@/components/auth/JoinOnboardingForm";
 import { StoreBadges } from "@/components/StoreBadges";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { GuardianStatuses } from "@/lib/firebase/constants";
@@ -35,7 +32,7 @@ function readStoredAccessDeniedFirstName(): string {
   }
 }
 
-/** Écran réservé aux admins — onboarding join si pas de club. */
+/** Écran accès limité — onboarding join (acceptation web) si pas de club. */
 export function AccessDeniedContent() {
   const { logout, status, profile } = useAuth();
   const searchParams = useSearchParams();
@@ -44,10 +41,6 @@ export function AccessDeniedContent() {
   const forceAppMessage = reason === "unknown" || reason === "role";
   const [storedFirstName] = useState(readStoredAccessDeniedFirstName);
   const [clubNames, setClubNames] = useState<string[]>([]);
-  const [joinCompleted, setJoinCompleted] = useState<{
-    clubName: string;
-    code: string;
-  } | null>(null);
 
   const hasClubs = (profile?.clubMemberships.length ?? 0) > 0;
   const isParent = (profile?.parentLinks ?? []).some(
@@ -108,15 +101,7 @@ export function AccessDeniedContent() {
     <AuthShell accent="orange" eyebrow="Accès limité" title={title} lead={lead}>
       <div className={styles.body}>
         {needsJoinOnboarding ? (
-          joinCompleted ? (
-            <JoinOnboardingSuccess
-              firstName={firstName}
-              clubName={joinCompleted.clubName}
-              code={joinCompleted.code}
-            />
-          ) : (
-            <JoinOnboardingForm onCompleted={setJoinCompleted} />
-          )
+          <JoinOnboardingForm />
         ) : (
           <>
             <p className={styles.appHint}>Télécharge l’app pour continuer :</p>

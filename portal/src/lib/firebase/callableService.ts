@@ -164,6 +164,17 @@ export async function linkGuardian(params?: {
   return callFunction("linkGuardian", params ?? {});
 }
 
+/**
+ * Accepte une invitation membre (joueur / coach / admin) pour le compte connecté.
+ * Réservée à l’e-mail invité — utiliser `linkGuardian` pour une invitation parent.
+ */
+export async function acceptInvitation(params: {
+  clubId: string;
+  invitationId: string;
+}): Promise<{ ok: true; memberId: string }> {
+  return callFunction("acceptInvitation", params);
+}
+
 /** Révoque le lien parent (admin ou titulaire). */
 export async function revokeGuardian(params: {
   clubId: string;

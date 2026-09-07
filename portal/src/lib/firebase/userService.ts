@@ -90,7 +90,7 @@ export async function updateUserAvatarUrl(params: {
   }
 }
 
-/** Met à jour le profil utilisateur avant de rejoindre un club sur l’app. */
+/** Met à jour le profil utilisateur avant d’accepter une invitation club. */
 export async function updateUserProfileForJoin(params: {
   uid: string;
   email: string;

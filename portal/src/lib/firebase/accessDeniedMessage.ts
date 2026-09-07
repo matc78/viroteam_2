@@ -13,7 +13,7 @@ export function buildAccessDeniedLead(params: {
   firstName: string;
   clubNames: string[];
   fromSignup?: boolean;
-  /** Compte inconnu ou joueur/coach : message app, session fermée. */
+  /** Compte sans accès bureau/famille : message d’orientation. */
   forceAppMessage?: boolean;
 }): string {
   const firstName = params.firstName.trim() || "champion";
@@ -23,21 +23,21 @@ export function buildAccessDeniedLead(params: {
   const clubWord = multipleClubs ? "clubs" : "club";
 
   if (params.forceAppMessage) {
-    return `Désolé ${firstName}, cette partie est réservée aux admins de club. Pour jouer, coacher ou suivre ton équipe, ouvre l’application mobile.`;
+    return `Désolé ${firstName}, cet espace n’est pas accessible avec ce compte. Rejoins un club via un code d’invitation, crée un club, ou ouvre l’app si tu as déjà un accès mobile.`;
   }
 
   if (params.fromSignup) {
     if (clubsLabel) {
-      return `Bienvenue ${firstName} ! Pour créer ou rejoindre un club, c’est sur l’app mobile. Le portail web, c’est le banc des admins de ${possessive} ${clubWord}.`;
+      return `Bienvenue ${firstName} ! Pour rejoindre ${possessive} ${clubWord} avec un code, utilise le formulaire ou le lien d’invitation.`;
     }
-    return `Bienvenue ${firstName} ! Pour créer ou rejoindre un club, c’est sur l’app mobile. Le portail web, c’est le banc des admins.`;
+    return `Bienvenue ${firstName} ! Entre ton code d’invitation pour rejoindre ton club, ou crée un club si tu es fondateur.`;
   }
 
   if (clubsLabel) {
-    return `Désolé ${firstName} de ${clubsLabel}, cette partie est réservée aux admins de ${possessive} ${clubWord}. Pour jouer, coacher ou suivre ton équipe, ouvre l’application mobile.`;
+    return `Désolé ${firstName} de ${clubsLabel}, impossible d’ouvrir cet espace pour le moment. Réessaie ou contacte ton club.`;
   }
 
-  return `Désolé ${firstName}, cette partie est réservée aux admins de club. Pour jouer, coacher ou suivre ton équipe, ouvre l’application mobile.`;
+  return `Désolé ${firstName}, cet espace n’est pas accessible. Rejoins un club avec un code d’invitation ou crée un club.`;
 }
 
 /** Titre de l’écran accès refusé. */
@@ -58,5 +58,5 @@ export function buildAccessDeniedTitle(params?: {
 /** Sous-titre pour l’onboarding rejoindre un club (sans adhésion). */
 export function buildJoinOnboardingLead(firstName: string): string {
   const name = firstName.trim() || "champion";
-  return `Allez ${name}, complète ton profil et entre le code d’invitation de ton club. On te redirige ensuite vers l’app pour valider ton entrée dans l’équipe.`;
+  return `Allez ${name}, complète ton profil et entre le code d’invitation de ton club pour rejoindre l’équipe sur le portail.`;
 }

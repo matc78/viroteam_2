@@ -1,10 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { JoinAppRedirect } from "@/components/auth/JoinAppRedirect";
+import { useRouter } from "next/navigation";
+import { isInvitationAlreadyProcessed } from "@/lib/auth/invitationAcceptErrors";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { acceptInvitation } from "@/lib/firebase/callableService";
 import { findInvitationByCode } from "@/lib/firebase/invitationService";
 import type { InvitationLookupResult } from "@/lib/firebase/invitationService";
+import { InvitationTypes } from "@/lib/firebase/constants";
 import { splitDisplayName } from "@/lib/firebase/types";
 import { updateUserProfileForJoin } from "@/lib/firebase/userService";
 import formStyles from "./AuthForm.module.css";
@@ -17,12 +20,9 @@ type FieldErrors = {
   form?: string;
 };
 
-type JoinOnboardingFormProps = {
-  onCompleted: (params: { clubName: string; code: string }) => void;
-};
-
-/** Formulaire profil + code club (aligné inscription join de l’app). */
-export function JoinOnboardingForm({ onCompleted }: JoinOnboardingFormProps) {
+/** Formulaire profil + code club : accepte l’invitation membre sur le portail. */
+export function JoinOnboardingForm() {
+  const router = useRouter();
   const { user, profile, refreshProfile } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -113,14 +113,40 @@ export function JoinOnboardingForm({ onCompleted }: JoinOnboardingFormProps) {
         return;
       }
 
+      if (invitation.type === InvitationTypes.guardian) {
+        setErrors({
+          form:
+            "Cette invitation est destinée à un parent. Ouvre le lien d’invitation reçu par e-mail.",
+        });
+        return;
+      }
+
       await updateUserProfileForJoin({
         uid: user.uid,
         email: user.email,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
       });
+
+      try {
+        await acceptInvitation({
+          clubId: invitation.clubId,
+          invitationId: invitation.invitationId,
+        });
+      } catch (acceptError) {
+        const message =
+          acceptError instanceof Error
+            ? acceptError.message
+            : "Impossible d’accepter l’invitation.";
+        if (!isInvitationAlreadyProcessed(message)) {
+          throw acceptError instanceof Error
+            ? acceptError
+            : new Error(message);
+        }
+      }
+
       await refreshProfile();
-      onCompleted({ clubName: invitation.clubName, code: normalizedCode });
+      router.replace("/home");
     } catch (error) {
       setErrors({
         form:
@@ -224,37 +250,8 @@ export function JoinOnboardingForm({ onCompleted }: JoinOnboardingFormProps) {
         type="submit"
         disabled={submitting}
       >
-        {submitting ? "Enregistrement…" : "Continuer vers l’app"}
+        {submitting ? "Validation…" : "Rejoindre le club"}
       </button>
     </form>
-  );
-}
-
-type JoinOnboardingSuccessProps = {
-  firstName: string;
-  clubName: string;
-  code: string;
-};
-
-/** Écran de succès avec ouverture de l’app et code club. */
-export function JoinOnboardingSuccess({
-  firstName,
-  clubName,
-  code,
-}: JoinOnboardingSuccessProps) {
-  const displayFirstName = firstName.trim() || "champion";
-
-  return (
-    <JoinAppRedirect
-      code={code}
-      clubName={clubName}
-      successMessage={
-        <>
-          C’est bon {displayFirstName} ! Ton profil est prêt pour rejoindre{" "}
-          <strong>{clubName}</strong>. Ouvre l’app ViroTeam pour valider ton
-          invitation.
-        </>
-      }
-    />
   );
 }

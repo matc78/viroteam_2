@@ -4,14 +4,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
+import { isInvitationAlreadyProcessed } from "@/lib/auth/invitationAcceptErrors";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { linkGuardian } from "@/lib/firebase/callableService";
+import { InvitationTypes } from "@/lib/firebase/constants";
 import type { InvitationLookupResult } from "@/lib/firebase/invitationService";
 import deniedStyles from "./AccessDenied.module.css";
 import styles from "./JoinOnboardingForm.module.css";
 
 type JoinGuardianAcceptProps = {
-  invitation: InvitationLookupResult;
+  invitation: InvitationLookupResult & {
+    type: typeof InvitationTypes.guardian;
+  };
 };
 
 /**
@@ -24,10 +28,13 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (status === "loading") return;
     if (status !== "signedIn") return;
 
     let cancelled = false;
     setBusy(true);
+    setError(null);
+
     void linkGuardian({
       clubId: invitation.clubId,
       invitationId: invitation.invitationId,
@@ -43,7 +50,7 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
           err instanceof Error
             ? err.message
             : "Impossible d’activer le suivi parent.";
-        if (/déjà|traitée|active/i.test(message)) {
+        if (isInvitationAlreadyProcessed(message)) {
           router.replace("/family");
           return;
         }
@@ -54,10 +61,30 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
     return () => {
       cancelled = true;
     };
-  }, [invitation.clubId, invitation.invitationId, refreshProfile, router, status]);
+  }, [
+    invitation.clubId,
+    invitation.invitationId,
+    refreshProfile,
+    router,
+    status,
+  ]);
 
-  const loginHref = `/login?next=${encodeURIComponent(`/join?code=${invitation.code}`)}`;
-  const signupHref = `/signup?next=${encodeURIComponent(`/join?code=${invitation.code}`)}`;
+  const joinPath = `/join?code=${encodeURIComponent(invitation.code)}`;
+  const loginHref = `/login?next=${encodeURIComponent(joinPath)}`;
+  const signupHref = `/signup?next=${encodeURIComponent(joinPath)}`;
+
+  if (status === "loading") {
+    return (
+      <AuthShell
+        accent="cyan"
+        eyebrow="Espace famille"
+        title="Activation du suivi"
+        lead="Vérification de ta session…"
+      >
+        <p className={styles.hint}>Un instant.</p>
+      </AuthShell>
+    );
+  }
 
   if (status === "signedOut") {
     return (
@@ -87,7 +114,7 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
       lead={
         busy
           ? `On rattache ton compte à ${invitation.clubName}…`
-          : error ?? "Suivi parent."
+          : (error ?? "Suivi parent.")
       }
     >
       {error ? (

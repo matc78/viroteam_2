@@ -111,3 +111,107 @@ export function usePlanningChangeListener(
 
   return { hasNewEvents, resetFlag };
 }
+
+/**
+ * Écoute multi-clubs (planning perso) : une query par équipe et par club.
+ * Même logique de baseline que `usePlanningChangeListener`.
+ */
+export function useMultiClubPlanningChangeListener(
+  targets: Array<{ clubId: string; teamIds: string[] }>,
+): { hasNewEvents: boolean; resetFlag: () => void } {
+  const [hasNewEvents, setHasNewEvents] = useState(false);
+  const baselineIdsRef = useRef<Set<string> | null>(null);
+  const lastMergedRef = useRef<Set<string>>(new Set());
+  const targetsKey = targets
+    .map(
+      (target) =>
+        `${target.clubId}:${[...target.teamIds].sort().join(",")}`,
+    )
+    .sort()
+    .join("|");
+
+  const resetFlag = useCallback(() => {
+    baselineIdsRef.current = new Set(lastMergedRef.current);
+    setHasNewEvents(false);
+  }, []);
+
+  useEffect(() => {
+    const flat = targets.flatMap((target) =>
+      target.teamIds
+        .filter(Boolean)
+        .map((teamId) => ({ clubId: target.clubId, teamId })),
+    );
+    if (flat.length === 0) return;
+
+    const db = getAppFirestore();
+    const idsByKey = new Map<string, Set<string>>();
+    const unsubscribes: Unsubscribe[] = [];
+
+    function recompute() {
+      const merged = new Set<string>();
+      for (const [key, ids] of idsByKey) {
+        for (const id of ids) merged.add(`${key}:${id}`);
+      }
+      lastMergedRef.current = merged;
+
+      if (baselineIdsRef.current === null) {
+        baselineIdsRef.current = new Set(merged);
+        return;
+      }
+
+      const baseline = baselineIdsRef.current;
+      let changed = false;
+      for (const id of merged) {
+        if (!baseline.has(id)) {
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) {
+        for (const id of baseline) {
+          if (!merged.has(id)) {
+            changed = true;
+            break;
+          }
+        }
+      }
+      if (changed) setHasNewEvents(true);
+    }
+
+    for (const { clubId, teamId } of flat) {
+      const key = `${clubId}::${teamId}`;
+      const eventsCol = collection(db, `clubs/${clubId}/events`);
+      const teamQuery = query(
+        eventsCol,
+        where("teamIds", "array-contains", teamId),
+      );
+      const unsubscribe = onSnapshot(
+        teamQuery,
+        (snapshot) => {
+          idsByKey.set(
+            key,
+            new Set(snapshot.docs.map((docSnap) => docSnap.id)),
+          );
+          recompute();
+        },
+        (error) => {
+          console.error("[planning] listener multi-club en erreur", {
+            clubId,
+            teamId,
+            code: error.code,
+            message: error.message,
+          });
+        },
+      );
+      unsubscribes.push(unsubscribe);
+    }
+
+    return () => {
+      for (const unsubscribe of unsubscribes) unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- targets via targetsKey
+  }, [targetsKey]);
+
+  return { hasNewEvents, resetFlag };
+}
+

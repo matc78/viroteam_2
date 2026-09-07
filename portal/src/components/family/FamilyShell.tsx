@@ -8,6 +8,7 @@ import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
 import { FamilyRouteGuard } from "@/components/auth/FamilyRouteGuard";
 import { PageLoadOverlay } from "@/components/common/PageLoadOverlay";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
+import { PersonalPlanningTile } from "@/components/dashboard/PersonalPlanningTile";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import {
   FamilyAudienceProvider,
@@ -79,7 +80,9 @@ function FamilyShellChrome() {
   }
 
   const resolvedName = profile?.displayName ?? "Famille";
-  const isPlanning = pathname.startsWith("/family/planning");
+  const isPlanning =
+    pathname.startsWith("/family/planning") ||
+    pathname.startsWith("/family/my-planning");
   const fillViewport = isPlanning;
 
   return (
@@ -109,13 +112,16 @@ function FamilyShellChrome() {
             </Link>
           </div>
 
-          <ClubMembershipPicker
-            clubs={clubsWithRoles}
-            activeClubId={activeClub?.id ?? null}
-            compact
-            formatRoleLabel={() => childHeaderLabel}
-            onClubChange={handleClubChange}
-          />
+          <div className={styles.headerCenter}>
+            <ClubMembershipPicker
+              clubs={clubsWithRoles}
+              activeClubId={activeClub?.id ?? null}
+              compact
+              formatRoleLabel={() => childHeaderLabel}
+              onClubChange={handleClubChange}
+            />
+            <PersonalPlanningTile href="/family/my-planning" />
+          </div>
 
           <div className={styles.actions}>
             <SpaceSwitcher />

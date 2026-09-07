@@ -46,6 +46,15 @@
   justify-self: start;
 }
 
+/** Colonne centrale : pastilles clubs + tuile Mon planning. */
+.headerCenter {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  justify-self: center;
+}
+
 .brand {
   display: inline-flex;
   align-items: center;

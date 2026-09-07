@@ -72,7 +72,7 @@ const NAV_COACH_BASE = [
 const NAV_PLAYER = ["/home", "/team", "/planning"] as const;
 
 /** Routes accessibles hors nav principale (deep links joueur). */
-const PLAYER_DEEP_LINK_ROUTES = ["/fees", "/settings"] as const;
+const PLAYER_DEEP_LINK_ROUTES = ["/fees", "/settings", "/my-planning"] as const;
 
 /** Construit les capacités Bureau selon le rôle + droits coach du club. */
 export function bureauCapabilities(
@@ -297,6 +297,9 @@ export function isBureauRouteAllowed(
   caps: BureauCapabilities,
 ): boolean {
   if (pathname === "/home" || pathname.startsWith("/home/")) return true;
+  if (pathname === "/my-planning" || pathname.startsWith("/my-planning/")) {
+    return true;
+  }
   if (caps.isPlayer) {
     for (const href of PLAYER_DEEP_LINK_ROUTES) {
       if (pathname === href || pathname.startsWith(`${href}/`)) return true;
@@ -315,8 +318,12 @@ export const FAMILY_NAV_HREFS = [
   "/family/planning",
 ] as const;
 
-/** Routes famille hors nav (cotisations, paramètres via accueil / avatar). */
-const FAMILY_DEEP_LINK_ROUTES = ["/family/fees", "/family/settings"] as const;
+/** Routes famille hors nav (cotisations, paramètres, planning perso). */
+const FAMILY_DEEP_LINK_ROUTES = [
+  "/family/fees",
+  "/family/settings",
+  "/family/my-planning",
+] as const;
 
 /** True si la route famille est autorisée. */
 export function isFamilyRouteAllowed(pathname: string): boolean {

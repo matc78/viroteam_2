@@ -1,0 +1,118 @@
+.tile {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 12rem;
+  padding: 0.28rem 0.55rem 0.28rem 0.35rem;
+  border: 1.5px solid var(--color-gray-300);
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  font: inherit;
+  text-decoration: none;
+  flex-shrink: 0;
+  transform: scale(0.97);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.tile:hover {
+  background: var(--color-gray-200);
+  border-color: var(--color-gray-400);
+  color: var(--color-gray-900);
+  transform: scale(0.99);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
+}
+
+.tileActive {
+  transform: scale(1.04);
+  background: var(--color-primary-600);
+  border-color: color-mix(in srgb, var(--color-primary-600) 70%, black);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary-600) 32%, transparent);
+  color: #fff;
+  z-index: 1;
+}
+
+.tileActive:hover {
+  background: var(--color-primary-600);
+  border-color: color-mix(in srgb, var(--color-primary-600) 70%, black);
+  color: #fff;
+  transform: scale(1.04);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--color-gray-200);
+  color: inherit;
+}
+
+.tileActive .icon {
+  background: color-mix(in srgb, #fff 22%, transparent);
+}
+
+.iconSvg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 8.5rem;
+  padding-right: 0.15rem;
+}
+
+@media (max-width: 1024px) {
+  .tile {
+    padding: 0.22rem 0.45rem 0.22rem 0.28rem;
+    gap: 0.35rem;
+  }
+
+  .label {
+    font-size: 0.74rem;
+  }
+
+  .icon {
+    width: 1.55rem;
+    height: 1.55rem;
+  }
+
+  .iconSvg {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .tileActive {
+    transform: scale(1);
+  }
+
+  .tileActive:hover {
+    transform: scale(1);
+  }
+
+  .label {
+    max-width: 5.5rem;
+  }
+}

@@ -7,9 +7,16 @@ import { FamilyFeesClient } from "@/components/family/FamilyFeesClient";
 import { FamilyHomeClient } from "@/components/family/FamilyHomeClient";
 import { FamilyPlanningClient } from "@/components/family/FamilyPlanningClient";
 import { FamilySettingsClient } from "@/components/family/FamilySettingsClient";
+import { PersonalPlanningClient } from "@/components/dashboard/PersonalPlanningClient";
 import styles from "@/components/dashboard/DashboardModulePanels.module.css";
 
-type ModuleId = "home" | "team" | "planning" | "fees" | "settings";
+type ModuleId =
+  | "home"
+  | "team"
+  | "planning"
+  | "my-planning"
+  | "fees"
+  | "settings";
 
 type ModuleDef = {
   id: ModuleId;
@@ -35,6 +42,13 @@ const MODULES: ModuleDef[] = [
       pathname === "/family/planning" ||
       pathname.startsWith("/family/planning/"),
     render: () => <FamilyPlanningClient />,
+  },
+  {
+    id: "my-planning",
+    match: (pathname) =>
+      pathname === "/family/my-planning" ||
+      pathname.startsWith("/family/my-planning/"),
+    render: () => <PersonalPlanningClient eyebrow="Espace famille" />,
   },
   {
     id: "fees",

@@ -9,6 +9,7 @@ import { FeesPageClient } from "@/app/(dashboard)/fees/FeesPageClient";
 import { HomePageClient } from "@/app/(dashboard)/home/HomePageClient";
 import { MembersPageClient } from "@/app/(dashboard)/members/MembersPageClient";
 import { PlanningPageClient } from "@/app/(dashboard)/planning/PlanningPageClient";
+import { PersonalPlanningClient } from "@/components/dashboard/PersonalPlanningClient";
 import { SettingsPageClient } from "@/app/(dashboard)/settings/SettingsPageClient";
 import styles from "./DashboardModulePanels.module.css";
 
@@ -17,6 +18,7 @@ type ModuleId =
   | "members"
   | "team"
   | "planning"
+  | "my-planning"
   | "fees"
   | "announcements"
   | "equipment"
@@ -50,6 +52,12 @@ const MODULES: ModuleDef[] = [
     match: (pathname) =>
       pathname === "/planning" || pathname.startsWith("/planning/"),
     render: () => <PlanningPageClient />,
+  },
+  {
+    id: "my-planning",
+    match: (pathname) =>
+      pathname === "/my-planning" || pathname.startsWith("/my-planning/"),
+    render: () => <PersonalPlanningClient eyebrow="Espace club" />,
   },
   {
     id: "fees",

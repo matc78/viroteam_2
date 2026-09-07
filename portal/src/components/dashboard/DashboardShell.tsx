@@ -9,6 +9,7 @@ import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
 import { PageLoadOverlay } from "@/components/common/PageLoadOverlay";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePanels";
+import { PersonalPlanningTile } from "@/components/dashboard/PersonalPlanningTile";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import {
   bureauCapabilities,
@@ -31,7 +32,12 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Paramètres", toneClass: "toneBlue" },
 ] as const;
 
-const WIDE_PATH_PREFIXES = ["/members", "/planning", "/equipment"] as const;
+const WIDE_PATH_PREFIXES = [
+  "/members",
+  "/planning",
+  "/my-planning",
+  "/equipment",
+] as const;
 
 function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -97,7 +103,10 @@ export function DashboardShell() {
   const resolvedUserName = profile?.displayName ?? "Membre";
   const wide = isWidePath(pathname);
   const fillViewport =
-    pathname === "/planning" || pathname.startsWith("/planning/");
+    pathname === "/planning" ||
+    pathname.startsWith("/planning/") ||
+    pathname === "/my-planning" ||
+    pathname.startsWith("/my-planning/");
 
   return (
     <div
@@ -126,12 +135,15 @@ export function DashboardShell() {
             </Link>
           </div>
 
-          <ClubMembershipPicker
-            clubs={clubsWithRoles}
-            activeClubId={activeClub?.id ?? null}
-            compact
-            onClubChange={handleClubChange}
-          />
+          <div className={styles.headerCenter}>
+            <ClubMembershipPicker
+              clubs={clubsWithRoles}
+              activeClubId={activeClub?.id ?? null}
+              compact
+              onClubChange={handleClubChange}
+            />
+            <PersonalPlanningTile href="/my-planning" />
+          </div>
 
           <div className={styles.actions}>
             <SpaceSwitcher />

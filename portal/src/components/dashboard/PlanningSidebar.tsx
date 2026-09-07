@@ -40,6 +40,8 @@ type PlanningSidebarProps = {
   canCreate?: boolean;
   /** Joueur : n’affiche que le filtre Équipes. */
   teamsOnlyFilters?: boolean;
+  /** Titre de la section équipes (ex. « Clubs » pour le planning perso). */
+  teamsSectionTitle?: string;
   /** Masque entièrement la zone de filtres (mini calendrier seul). */
   hideFilters?: boolean;
   /** Classe CSS additionnelle sur l'aside. */
@@ -82,6 +84,7 @@ export function PlanningSidebar({
   onCreateClick,
   canCreate = true,
   teamsOnlyFilters = false,
+  teamsSectionTitle = "Équipes",
   hideFilters = false,
   className,
   onRefresh,
@@ -250,12 +253,16 @@ export function PlanningSidebar({
           />
 
           <FilterSection
-            title="Équipes"
+            title={teamsSectionTitle}
             open={openSections.teams}
             onToggle={() => toggleSection("teams")}
           >
             {teams.length === 0 ? (
-              <p className={styles.emptyHint}>Aucune équipe</p>
+              <p className={styles.emptyHint}>
+                {teamsSectionTitle === "Clubs"
+                  ? "Aucun club"
+                  : "Aucune équipe"}
+              </p>
             ) : filteredTeams.length === 0 ? (
               <p className={styles.emptyHint}>Aucun résultat</p>
             ) : (

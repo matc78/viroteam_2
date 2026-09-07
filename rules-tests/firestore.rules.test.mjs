@@ -23,6 +23,7 @@ import {
   collectionGroup,
   query,
   where,
+  writeBatch,
 } from "firebase/firestore";
 
 const PROJECT_ID = "viroteam-rules-test";
@@ -206,6 +207,42 @@ test("le fondateur crée son club puis sa fiche admin (parcours club-setup)", as
       status: "active",
     }),
   );
+});
+
+test("le fondateur crée club + fiche admin dans le même batch (transaction app)", async () => {
+  const db = as(STRANGER);
+  const batch = writeBatch(db);
+  batch.set(doc(db, "clubs/newClubBatch"), {
+    name: "Nouveau batch",
+    sport: "Judo",
+    adminIds: [STRANGER.uid],
+    memberCount: 1,
+  });
+  batch.set(doc(db, `clubs/newClubBatch/members/${STRANGER.uid}`), {
+    memberId: STRANGER.uid,
+    accountUid: STRANGER.uid,
+    role: "admin",
+    status: "active",
+  });
+  await assertSucceeds(batch.commit());
+});
+
+test("un batch club+fiche joueur (pas admin) est refusé même si adminIds", async () => {
+  const db = as(STRANGER);
+  const batch = writeBatch(db);
+  batch.set(doc(db, "clubs/newClubBatchPlayer"), {
+    name: "Piège rôle",
+    sport: "Judo",
+    adminIds: [STRANGER.uid],
+    memberCount: 1,
+  });
+  batch.set(doc(db, `clubs/newClubBatchPlayer/members/${STRANGER.uid}`), {
+    memberId: STRANGER.uid,
+    accountUid: STRANGER.uid,
+    role: "player",
+    status: "active",
+  });
+  await assertFails(batch.commit());
 });
 
 test("créer un club en se mettant admin avec d'autres uids est refusé", async () => {

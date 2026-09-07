@@ -132,7 +132,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Future<void> _submitCompleteProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    final formState = _formKey.currentState;
+    if (formState == null || !formState.validate()) return;
     if (!_acceptedTerms) {
       setState(() {
         _error =
@@ -177,14 +178,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
       await _navigateAfterSignUp();
     } catch (e) {
-      setState(() => _error = AuthErrorMessage.from(e));
+      if (mounted) setState(() => _error = AuthErrorMessage.from(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    final formState = _formKey.currentState;
+    if (formState == null || !formState.validate()) return;
     if (!_acceptedTerms) {
       setState(() {
         _error =
@@ -203,7 +205,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         email: _emailController.text,
         password: _passwordController.text,
       );
-      final uid = cred.user!.uid;
+      final firebaseUser = cred.user;
+      if (firebaseUser == null) {
+        if (mounted) {
+          setState(() => _error = 'Création du compte impossible. Réessayez.');
+        }
+        return;
+      }
+      final uid = firebaseUser.uid;
       final email = _emailController.text.trim();
       final first = _firstNameController.text.trim();
       final last = _lastNameController.text.trim();
@@ -221,7 +230,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
       await _navigateAfterSignUp();
     } catch (e) {
-      setState(() => _error = AuthErrorMessage.from(e));
+      if (mounted) setState(() => _error = AuthErrorMessage.from(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -290,17 +299,21 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       await _navigateAfterSignUp();
     } on EmailUsedWithPasswordException catch (error) {
       final email = error.email?.trim();
-      if (email != null && email.isNotEmpty) {
+      if (email != null && email.isNotEmpty && mounted) {
         _emailController.text = email;
       }
-      setState(() {
-        _error =
-            'Un compte existe déjà avec cet e-mail. Connecte-toi avec ton mot de passe.';
-      });
+      if (mounted) {
+        setState(() {
+          _error =
+              'Un compte existe déjà avec cet e-mail. Connecte-toi avec ton mot de passe.';
+        });
+      }
     } on AuthCanceledException {
       // Annulation volontaire.
     } catch (e) {
-      setState(() => _error = 'Inscription Google impossible. Réessayez.');
+      if (mounted) {
+        setState(() => _error = 'Inscription Google impossible. Réessayez.');
+      }
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }

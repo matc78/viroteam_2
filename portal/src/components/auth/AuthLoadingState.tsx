@@ -1,16 +1,12 @@
-import styles from "./AuthLoadingState.module.css";
+import { PageLoadOverlay } from "@/components/common/PageLoadOverlay";
 
 type AuthLoadingStateProps = {
   message?: string;
 };
 
-/** État de chargement centré pour pages auth et guards. */
+/** État de chargement plein écran pour pages auth et guards. */
 export function AuthLoadingState({
   message = "Chargement…",
 }: AuthLoadingStateProps) {
-  return (
-    <div className={styles.root} role="status">
-      {message}
-    </div>
-  );
+  return <PageLoadOverlay message={message} />;
 }

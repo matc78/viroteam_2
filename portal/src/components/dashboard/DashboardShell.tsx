@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { BureauRouteGuard } from "@/components/auth/BureauRouteGuard";
 import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
+import { PageLoadOverlay } from "@/components/common/PageLoadOverlay";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePanels";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
@@ -108,6 +109,7 @@ export function DashboardShell() {
         .join(" ")}
     >
       <BureauRouteGuard />
+      {pendingHref ? <PageLoadOverlay /> : null}
       <header className={styles.header}>
         <div className={styles.inner}>
           <div className={styles.brandBlock}>

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
 import { FamilyRouteGuard } from "@/components/auth/FamilyRouteGuard";
+import { PageLoadOverlay } from "@/components/common/PageLoadOverlay";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import {
@@ -91,6 +92,7 @@ function FamilyShellChrome() {
         .join(" ")}
     >
       <FamilyRouteGuard />
+      {pendingHref ? <PageLoadOverlay /> : null}
       <header className={styles.header}>
         <div className={styles.inner}>
           <div className={styles.brandBlock}>

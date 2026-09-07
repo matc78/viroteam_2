@@ -1,0 +1,20 @@
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 72%);
+  backdrop-filter: blur(2px);
+  pointer-events: all;
+}
+
+.logo {
+  animation: pageLoadSpin 1s linear infinite;
+}
+
+@keyframes pageLoadSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

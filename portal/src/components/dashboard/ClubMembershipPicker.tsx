@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { ClubWithRole } from "@/lib/firebase/types";
 import { MemberRoles } from "@/lib/firebase/constants";
@@ -20,6 +21,8 @@ type ClubMembershipPickerProps = {
   formatRoleLabel?: (role: string | null) => string;
   /** Compact : header (sans bandeau full-width). */
   compact?: boolean;
+  /** Affiche la pastille « + » vers /club-setup. */
+  showCreateClub?: boolean;
   onClubChange: (clubId: string) => void;
 };
 
@@ -34,19 +37,26 @@ function isBureauRole(role: string | null): boolean {
 /**
  * Liste horizontale des clubs rattachés : logo/emoji à gauche, nom + rôle à droite.
  * Club actif zoomé + couleur de marque ; badge rôle coloré si sélectionné.
+ * Pastille « + » optionnelle vers le wizard de création de club.
  */
 export function ClubMembershipPicker({
   clubs,
   activeClubId,
   formatRoleLabel,
   compact = false,
+  showCreateClub = false,
   onClubChange,
 }: ClubMembershipPickerProps) {
-  if (clubs.length === 0) return null;
+  if (clubs.length === 0 && !showCreateClub) return null;
 
   return (
     <div
-      className={compact ? styles.inline : styles.strip}
+      className={[
+        compact ? styles.inline : styles.strip,
+        showCreateClub ? styles.withCreate : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-label="Clubs rattachés"
     >
       <div className={styles.scroll} role="tablist" aria-label="Choisir un club">
@@ -109,6 +119,17 @@ export function ClubMembershipPicker({
           );
         })}
       </div>
+      {showCreateClub ? (
+        <Link
+          href="/club-setup"
+          className={styles.createCard}
+          aria-label="Créer un club"
+        >
+          <span className={styles.createPlus} aria-hidden>
+            +
+          </span>
+        </Link>
+      ) : null}
     </div>
   );
 }

@@ -140,6 +140,7 @@ export function DashboardShell() {
               clubs={clubsWithRoles}
               activeClubId={activeClub?.id ?? null}
               compact
+              showCreateClub
               onClubChange={handleClubChange}
             />
             <PersonalPlanningTile href="/my-planning" />

@@ -117,6 +117,7 @@ function FamilyShellChrome() {
               clubs={clubsWithRoles}
               activeClubId={activeClub?.id ?? null}
               compact
+              showCreateClub
               formatRoleLabel={() => childHeaderLabel}
               onClubChange={handleClubChange}
             />

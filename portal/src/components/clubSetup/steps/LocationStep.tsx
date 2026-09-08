@@ -9,6 +9,12 @@ import {
   searchFrenchStreets,
   type FrenchAddressSuggestion,
 } from "@/lib/clubSetup/frenchAddressService";
+import {
+  addressLineError,
+  cityError,
+  formatAddressLine,
+  formatCity,
+} from "@/lib/format/personDataFormat";
 import { PracticeLocationChip } from "@/components/clubSetup/PracticeLocationChip";
 import { SetupCard } from "@/components/clubSetup/SetupCard";
 import fieldStyles from "@/components/clubSetup/SetupFields.module.css";
@@ -221,14 +227,17 @@ export function LocationStep({
     const customCategory = locationCategoryCustom.trim();
     if (!practiceCity || !practiceAddress || !locationCategory) return;
     if (isOtherCategory && !customCategory) return;
+    if (cityError(practiceCity) || addressLineError(practiceAddress)) return;
+    const formattedCity = formatCity(practiceCity);
+    const formattedAddress = formatAddressLine(practiceAddress);
     onAddLocation({
       name: ClubSetupFormat.practiceLocationName({
         category: locationCategory,
-        city: practiceCity,
+        city: formattedCity,
         categoryCustom: isOtherCategory ? customCategory : undefined,
       }),
-      city: practiceCity,
-      address: practiceAddress,
+      city: formattedCity,
+      address: formattedAddress,
       category: locationCategory,
       ...(isOtherCategory ? { categoryCustom: customCategory } : {}),
     });
@@ -241,6 +250,8 @@ export function LocationStep({
     Boolean(locationCategory) &&
     locationCity.trim().length > 0 &&
     locationAddress.trim().length > 0 &&
+    !cityError(locationCity) &&
+    !addressLineError(locationAddress) &&
     (!isOtherCategory || locationCategoryCustom.trim().length > 0);
 
   const canLinkHeadquarters = city.trim().length > 0 || address.trim().length > 0;

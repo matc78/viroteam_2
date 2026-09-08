@@ -25,6 +25,11 @@ import {
   hasSavedProgress,
   type PracticeLocation,
 } from "@/lib/clubSetup/clubSetupDraft";
+import {
+  addressLineError,
+  cityError,
+  postalCodeError,
+} from "@/lib/format/personDataFormat";
 import { useClubSetupDraft } from "@/lib/clubSetup/useClubSetupDraft";
 import { isClubSetupPreviewEnabled } from "@/lib/clubSetup/clubSetupPreview";
 import { clubSetupStepIntro } from "@/lib/clubSetup/clubSetupStepIntro";
@@ -107,8 +112,21 @@ export function ClubSetupWizard() {
 
   const canProceedLocation = useCallback(() => {
     const locations = resolvePracticeLocations();
-    return draft.city.trim().length > 0 && locations.length > 0;
-  }, [draft.city, resolvePracticeLocations]);
+    if (cityError(draft.city, { required: true })) return false;
+    if (postalCodeError(draft.postalCode)) return false;
+    if (addressLineError(draft.address)) return false;
+    if (locations.length === 0) return false;
+    for (const location of locations) {
+      if (location.city && cityError(location.city)) return false;
+      if (location.address && addressLineError(location.address)) return false;
+    }
+    return true;
+  }, [
+    draft.address,
+    draft.city,
+    draft.postalCode,
+    resolvePracticeLocations,
+  ]);
 
   const upsertClubHeadquartersLocation = useCallback(
     (showErrorIfEmpty: boolean) => {
@@ -207,7 +225,12 @@ export function ClubSetupWizard() {
         return true;
       case ClubSetupSteps.location:
         if (!canProceedLocation()) {
-          setErrorMessage("Ville et au moins un lieu de pratique requis.");
+          setErrorMessage(
+            cityError(draft.city, { required: true }) ??
+              postalCodeError(draft.postalCode) ??
+              addressLineError(draft.address) ??
+              "Ville et au moins un lieu de pratique requis.",
+          );
           return false;
         }
         upsertClubHeadquartersLocation(false);
@@ -271,7 +294,12 @@ export function ClubSetupWizard() {
         practiceLocations: resolvePracticeLocations(),
       })
     ) {
-      setErrorMessage("Ville et au moins un lieu de pratique requis.");
+      setErrorMessage(
+        cityError(draft.city, { required: true }) ??
+          postalCodeError(draft.postalCode) ??
+          addressLineError(draft.address) ??
+          "Ville et au moins un lieu de pratique requis.",
+      );
       return;
     }
     if (!userId || !profile) {

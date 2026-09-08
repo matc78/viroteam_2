@@ -5,6 +5,7 @@ import 'package:viro_team_v2/features/club_setup/club_setup_defaults.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/models/club.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 
 /// Tailles d'effectif proposées à l'onboarding (10→100 puis +25).
 abstract final class ClubMemberCountRanges {
@@ -128,7 +129,12 @@ class ClubSetupDraft {
 
   bool get canProceedObjectives => objectives.isNotEmpty;
 
-  bool get canProceedHeadquarters => city.trim().isNotEmpty;
+  bool get canProceedHeadquarters {
+    if (cityError(city, required: true) != null) return false;
+    if (postalCodeError(postalCode) != null) return false;
+    if (addressLineError(address) != null) return false;
+    return true;
+  }
 
   bool get canProceedPracticeLocations => practiceLocations.isNotEmpty;
 

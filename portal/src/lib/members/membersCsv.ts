@@ -1,6 +1,14 @@
 import type { MemberRow } from "./membersView";
 import { validateEmail } from "@/lib/auth/validateEmail";
 import { MemberRoles } from "@/lib/firebase/constants";
+import {
+  firstNameError,
+  formatFirstName,
+  formatLastName,
+  formatLicense,
+  lastNameError,
+  licenseError,
+} from "@/lib/format/personDataFormat";
 import { teamCategoriesForSport } from "@/lib/teams/teamCategories";
 
 /** Rôles acceptés à l’import CSV. */
@@ -455,15 +463,19 @@ export function buildMembersImportPlan(params: {
       return String(cells[index] ?? "").trim();
     };
 
-    const firstName = cell("firstName");
-    const lastName = cell("lastName");
+    const firstNameRaw = cell("firstName");
+    const lastNameRaw = cell("lastName");
     const roleRaw = cell("role");
     const role = normalizeImportRole(roleRaw);
     // E-mail normalisé (trim + lowercase) : c’est l’adresse qui pourra accepter.
     const email = cell("email").toLowerCase();
-    const license = cell("license");
+    const licenseRaw = cell("license");
     const teamNameRaw = cell("team");
     const categoryRaw = cell("category");
+
+    let firstName = firstNameRaw;
+    let lastName = lastNameRaw;
+    let license = licenseRaw;
 
     let error: string | null = null;
     let teamName = teamNameRaw;
@@ -473,29 +485,49 @@ export function buildMembersImportPlan(params: {
     // E-mail obligatoire sauf pour un membre déjà inscrit (compte lié) : son
     // e-mail CSV est ignoré à l’import.
     const personKeyForEmail =
-      firstName && lastName
-        ? `${normalizeCompareKey(firstName)}|${normalizeCompareKey(lastName)}`
+      firstNameRaw && lastNameRaw
+        ? `${normalizeCompareKey(firstNameRaw)}|${normalizeCompareKey(lastNameRaw)}`
         : "";
     const existingForEmail = personKeyForEmail
       ? existingById.get(existingByKey.get(personKeyForEmail) ?? "")
       : undefined;
     const emailRequired = !existingForEmail?.accountUid?.trim();
 
-    if (!firstName || !lastName) {
+    if (!firstNameRaw || !lastNameRaw) {
       error = "Prénom et nom obligatoires.";
-    } else if (emailRequired && !email) {
+    } else {
+      const firstErr = firstNameError(firstNameRaw);
+      const lastErr = lastNameError(lastNameRaw);
+      if (firstErr || lastErr) {
+        error = firstErr ?? lastErr;
+      } else {
+        firstName = formatFirstName(firstNameRaw);
+        lastName = formatLastName(lastNameRaw);
+      }
+    }
+
+    if (!error && licenseRaw) {
+      const licenseErr = licenseError(licenseRaw);
+      if (licenseErr) {
+        error = licenseErr;
+      } else {
+        license = formatLicense(licenseRaw);
+      }
+    }
+
+    if (!error && emailRequired && !email) {
       missingEmailLineNumbers.push(lineNumber);
       error =
         "E-mail obligatoire : seule l’adresse invitée pourra accepter l’invitation. Corrigez le fichier puis réessayez.";
-    } else if (email && validateEmail(email)) {
+    } else if (!error && email && validateEmail(email)) {
       error = `E-mail invalide (« ${email} »). Utilisez le format prenom.nom@exemple.fr, puis réessayez.`;
-    } else if (!role) {
+    } else if (!error && !role) {
       error = `Rôle invalide (« ${roleRaw || "vide"} »). Utilisez player, coach ou admin (ou joueur, entraîneur, administrateur). Corrigez le fichier puis réessayez.`;
-    } else if (role === MemberRoles.admin && teamNameRaw) {
+    } else if (!error && role === MemberRoles.admin && teamNameRaw) {
       teamIgnoredForAdmin = true;
       teamName = "";
       category = "";
-    } else if (teamNameRaw) {
+    } else if (!error && teamNameRaw) {
       if (!categoryRaw) {
         error = `Équipe « ${teamNameRaw} » : la colonne category est obligatoire. Valeurs acceptées pour ce club : ${categoriesListLabel}. Corrigez le fichier puis réessayez.`;
       } else {
@@ -515,7 +547,7 @@ export function buildMembersImportPlan(params: {
           }
         }
       }
-    } else if (categoryRaw) {
+    } else if (!error && categoryRaw) {
       error = `Catégorie « ${categoryRaw} » sans nom d’équipe (colonne team). Ajoutez une équipe ou retirez la catégorie, puis réessayez.`;
     }
 

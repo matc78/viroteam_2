@@ -15,6 +15,7 @@ import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
@@ -74,8 +75,8 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
   }
 
   bool get _isFormValid =>
-      _firstNameController.text.trim().isNotEmpty &&
-      _lastNameController.text.trim().isNotEmpty &&
+      firstNameError(_firstNameController.text) == null &&
+      lastNameError(_lastNameController.text) == null &&
       requiredEmailError(_emailController.text) == null;
 
   ClubInvitation get _invitation => _created!.invitation;
@@ -177,7 +178,12 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           controller: _firstNameController,
           textCapitalization: TextCapitalization.words,
           enabled: !_busy,
-          decoration: const InputDecoration(labelText: 'Prénom *'),
+          decoration: InputDecoration(
+            labelText: 'Prénom *',
+            errorText: _firstNameController.text.trim().isEmpty
+                ? null
+                : firstNameError(_firstNameController.text),
+          ),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ViroSpacing.md),
@@ -185,7 +191,12 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           controller: _lastNameController,
           textCapitalization: TextCapitalization.words,
           enabled: !_busy,
-          decoration: const InputDecoration(labelText: 'Nom *'),
+          decoration: InputDecoration(
+            labelText: 'Nom *',
+            errorText: _lastNameController.text.trim().isEmpty
+                ? null
+                : lastNameError(_lastNameController.text),
+          ),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ViroSpacing.md),

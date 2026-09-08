@@ -10,6 +10,7 @@ import {
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { authErrorMessage } from "./authErrors";
 import { validatePassword } from "@/lib/auth/passwordPolicy";
+import { validateEmail } from "@/lib/auth/validateEmail";
 import { getAppFirestore } from "./app";
 import { deleteMyAccount } from "./callableService";
 import { Collections, Fields } from "./constants";
@@ -72,8 +73,9 @@ export async function changeUserEmail(params: {
   newEmail: string;
   currentPassword?: string;
 }): Promise<void> {
-  const nextEmail = params.newEmail.trim();
-  if (!nextEmail) throw new Error("Nouvel e-mail requis.");
+  const nextEmail = params.newEmail.trim().toLowerCase();
+  const emailError = validateEmail(nextEmail);
+  if (emailError) throw new Error(emailError);
   await reauthenticateUser({
     user: params.user,
     password: params.currentPassword,
@@ -85,7 +87,7 @@ export async function changeUserEmail(params: {
   }
   await updateDoc(doc(getAppFirestore(), Collections.users, params.user.uid), {
     [Fields.email]: nextEmail,
-    [Fields.emailNorm]: nextEmail.toLowerCase(),
+    [Fields.emailNorm]: nextEmail,
     [Fields.updatedAt]: serverTimestamp(),
   });
 }

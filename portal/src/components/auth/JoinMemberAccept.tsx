@@ -14,6 +14,10 @@ import type {
 } from "@/lib/firebase/invitationService";
 import { splitDisplayName } from "@/lib/firebase/types";
 import { updateUserProfileForJoin } from "@/lib/firebase/userService";
+import {
+  firstNameError,
+  lastNameError,
+} from "@/lib/format/personDataFormat";
 import deniedStyles from "./AccessDenied.module.css";
 import styles from "./JoinOnboardingForm.module.css";
 
@@ -68,7 +72,7 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
             invitation.lastName?.trim() ||
             split.lastName;
 
-          if (firstName.length >= 2 && lastName.length >= 2) {
+          if (!firstNameError(firstName) && !lastNameError(lastName)) {
             await updateUserProfileForJoin({
               uid: currentUser.uid,
               email: currentUser.email,

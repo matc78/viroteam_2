@@ -11,6 +11,7 @@ import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/season_end.dart';
 
 class ClubService {
@@ -106,17 +107,31 @@ class ClubService {
       );
 
       tx.set(clubRef, {
-        FirestoreFields.name: draft.name.trim().toUpperCase(),
+        FirestoreFields.name: draft.name.trim(),
         FirestoreFields.sport: draft.sport,
-        FirestoreFields.city: draft.city.trim(),
-        FirestoreFields.postalCode: draft.postalCode.trim(),
-        FirestoreFields.address: draft.address.trim(),
+        FirestoreFields.city: formatCity(draft.city, required: true),
+        FirestoreFields.postalCode: formatPostalCode(draft.postalCode),
+        FirestoreFields.address: formatAddressLine(draft.address),
         if (draft.description.trim().isNotEmpty)
           FirestoreFields.description: draft.description.trim(),
         if (logoUrl != null) FirestoreFields.logoUrl: logoUrl,
         FirestoreFields.brandColorHex: draft.brandColorHex,
         FirestoreFields.practiceLocations: draft.practiceLocations
-            .map((location) => location.toFirestoreMap())
+            .map((location) {
+              final cityValue = location.city;
+              final addressValue = location.address;
+              return PracticeLocation(
+                name: location.name,
+                city: cityValue == null || cityValue.trim().isEmpty
+                    ? null
+                    : formatCity(cityValue),
+                address: addressValue == null || addressValue.trim().isEmpty
+                    ? null
+                    : formatAddressLine(addressValue),
+                category: location.category,
+                categoryCustom: location.categoryCustom,
+              ).toFirestoreMap();
+            })
             .toList(),
         FirestoreFields.adminIds: [founderUid],
         FirestoreFields.memberCount: 1,

@@ -16,6 +16,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
@@ -133,21 +134,20 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     );
   }
 
-  String? _validateEmail(String rawEmail) => requiredEmailError(rawEmail);
-
   Future<void> _saveProfile() async {
     if (!widget.canEdit || _busy) return;
 
-    final firstName = _firstNameController.text.trim();
-    final lastName = _lastNameController.text.trim();
-    final email = _emailController.text.trim();
+    final firstName = _firstNameController.text;
+    final lastName = _lastNameController.text;
+    final email = _emailController.text;
 
-    if (firstName.isEmpty || lastName.isEmpty) {
-      setState(() => _error = 'Le prénom et le nom sont obligatoires.');
+    final nameError = firstNameError(firstName) ?? lastNameError(lastName);
+    if (nameError != null) {
+      setState(() => _error = nameError);
       return;
     }
 
-    final emailError = _validateEmail(email);
+    final emailError = requiredEmailError(email);
     if (emailError != null) {
       setState(() => _error = emailError);
       return;
@@ -162,25 +162,31 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     });
 
     try {
+      final formattedFirst = formatFirstName(firstName);
+      final formattedLast = formatLastName(lastName);
+      final normalizedEmail = normalizeEmail(email);
       await ref.read(memberServiceProvider).updatePendingMemberProfile(
             clubId: widget.club.id,
             memberId: _member.memberId,
-            firstName: firstName,
-            lastName: lastName,
-            email: normalizeEmail(email),
+            firstName: formattedFirst,
+            lastName: formattedLast,
+            email: normalizedEmail,
           );
       if (!mounted) return;
       setState(() {
+        _firstNameController.text = formattedFirst;
+        _lastNameController.text = formattedLast;
+        _emailController.text = normalizedEmail;
         _currentMember = ClubMember(
           memberId: _member.memberId,
           role: _member.role,
           status: _member.status,
           accountUid: _member.accountUid,
-          firstName: firstName,
-          lastName: lastName,
-          displayName: '$firstName $lastName',
+          firstName: formattedFirst,
+          lastName: formattedLast,
+          displayName: '$formattedFirst $formattedLast',
           avatarUrl: _member.avatarUrl,
-          email: normalizeEmail(email),
+          email: normalizedEmail,
           teamIds: _member.teamIds,
           joinedAt: _member.joinedAt,
           activeInvitationId: _member.activeInvitationId,
@@ -195,7 +201,9 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = error is ArgumentError
+            ? error.message.toString()
+            : error.toString();
         _busy = false;
       });
     }
@@ -323,7 +331,12 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               controller: _firstNameController,
               textCapitalization: TextCapitalization.words,
               enabled: widget.canEdit && !_busy,
-              decoration: const InputDecoration(labelText: 'Prénom *'),
+              decoration: InputDecoration(
+                labelText: 'Prénom *',
+                errorText: _firstNameController.text.trim().isEmpty
+                    ? null
+                    : firstNameError(_firstNameController.text),
+              ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: ViroSpacing.md),
@@ -331,7 +344,12 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               controller: _lastNameController,
               textCapitalization: TextCapitalization.words,
               enabled: widget.canEdit && !_busy,
-              decoration: const InputDecoration(labelText: 'Nom *'),
+              decoration: InputDecoration(
+                labelText: 'Nom *',
+                errorText: _lastNameController.text.trim().isEmpty
+                    ? null
+                    : lastNameError(_lastNameController.text),
+              ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: ViroSpacing.md),

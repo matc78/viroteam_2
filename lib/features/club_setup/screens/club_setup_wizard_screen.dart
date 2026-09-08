@@ -22,6 +22,7 @@ import 'package:viro_team_v2/features/club_setup/widgets/setup_progress_header.d
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_portal_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -153,7 +154,11 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     }
     if (_step == ClubSetupSteps.headquarters) {
       if (!draft.canProceedHeadquarters) {
-        _showError('Ville du club requise.');
+        final headquartersError = cityError(draft.city, required: true) ??
+            postalCodeError(draft.postalCode) ??
+            addressLineError(draft.address) ??
+            'Ville du club requise.';
+        _showError(headquartersError);
         return;
       }
       if (draft.useClubAddressAsFirstLocation) {

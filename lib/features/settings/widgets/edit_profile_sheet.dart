@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
@@ -64,10 +65,17 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
   }
 
   Future<void> _save() async {
-    final firstName = _firstNameController.text.trim();
-    final lastName = _lastNameController.text.trim();
-    if (firstName.isEmpty && lastName.isEmpty) {
+    final firstName = _firstNameController.text;
+    final lastName = _lastNameController.text;
+    if (firstName.trim().isEmpty && lastName.trim().isEmpty) {
       setState(() => _error = 'Indique au moins un prénom ou un nom.');
+      return;
+    }
+    final firstError =
+        firstName.trim().isEmpty ? null : firstNameError(firstName);
+    final lastError = lastName.trim().isEmpty ? null : lastNameError(lastName);
+    if (firstError != null || lastError != null) {
+      setState(() => _error = firstError ?? lastError);
       return;
     }
 
@@ -87,9 +95,13 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
         ViroSnackBar.show(context, 'Profil mis à jour');
         Navigator.of(context).pop(true);
       }
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
-        setState(() => _error = 'Enregistrement impossible.');
+        setState(() {
+          _error = error is ArgumentError
+              ? error.message.toString()
+              : 'Enregistrement impossible.';
+        });
       }
     } finally {
       if (mounted) setState(() => _saving = false);

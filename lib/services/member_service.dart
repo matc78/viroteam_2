@@ -9,6 +9,7 @@ import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 
 class AddMemberResult {
   const AddMemberResult({
@@ -198,11 +199,8 @@ class MemberService {
     required Club club,
     required String email,
   }) async {
-    final trimmedFirst = firstName.trim();
-    final trimmedLast = lastName.trim();
-    if (trimmedFirst.isEmpty || trimmedLast.isEmpty) {
-      throw ArgumentError('Le prénom et le nom sont obligatoires.');
-    }
+    final trimmedFirst = formatFirstName(firstName);
+    final trimmedLast = formatLastName(lastName);
     if (role != MemberRoles.player && role != MemberRoles.coach) {
       throw ArgumentError('Seuls joueur et coach peuvent être ajoutés ici.');
     }
@@ -309,11 +307,8 @@ class MemberService {
     required String lastName,
     required String email,
   }) async {
-    final trimmedFirst = firstName.trim();
-    final trimmedLast = lastName.trim();
-    if (trimmedFirst.isEmpty || trimmedLast.isEmpty) {
-      throw ArgumentError('Le prénom et le nom sont obligatoires.');
-    }
+    final trimmedFirst = formatFirstName(firstName);
+    final trimmedLast = formatLastName(lastName);
     final normalizedEmail = requireNormalizedEmail(email);
 
     final memberRef = _members(clubId).doc(memberId);

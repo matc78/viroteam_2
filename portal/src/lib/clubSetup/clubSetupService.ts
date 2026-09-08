@@ -10,6 +10,11 @@ import {
   dataUrlToBytes,
   type ClubSetupDraft,
 } from "@/lib/clubSetup/clubSetupDraft";
+import {
+  formatAddressLine,
+  formatCity,
+  formatPostalCode,
+} from "@/lib/format/personDataFormat";
 import { defaultSeasonEndDate } from "@/lib/planning/seasonEnd";
 import { getAppFirestore } from "@/lib/firebase/app";
 import { Collections, Fields, MemberRoles } from "@/lib/firebase/constants";
@@ -82,11 +87,11 @@ export async function createClubFromDraft(params: {
     });
 
     transaction.set(clubRef, {
-      [Fields.name]: params.draft.name.trim().toLocaleUpperCase("fr-FR"),
+      [Fields.name]: params.draft.name.trim(),
       [Fields.sport]: params.draft.sport,
-      [Fields.city]: params.draft.city.trim(),
-      [Fields.postalCode]: params.draft.postalCode.trim(),
-      [Fields.address]: params.draft.address.trim(),
+      [Fields.city]: formatCity(params.draft.city, { required: true }),
+      [Fields.postalCode]: formatPostalCode(params.draft.postalCode),
+      [Fields.address]: formatAddressLine(params.draft.address),
       ...(params.draft.description.trim()
         ? { [Fields.description]: params.draft.description.trim() }
         : {}),
@@ -95,8 +100,12 @@ export async function createClubFromDraft(params: {
       [Fields.practiceLocations]: params.draft.practiceLocations.map(
         (location) => ({
           name: location.name,
-          ...(location.city ? { city: location.city } : {}),
-          ...(location.address ? { address: location.address } : {}),
+          ...(location.city
+            ? { city: formatCity(location.city) }
+            : {}),
+          ...(location.address
+            ? { address: formatAddressLine(location.address) }
+            : {}),
           ...(location.category ? { category: location.category } : {}),
           ...(location.categoryCustom
             ? { categoryCustom: location.categoryCustom }
@@ -149,7 +158,7 @@ export async function createClubFromDraft(params: {
       userId: params.founderUid,
       clubId: clubRef.id,
       objectiveKeys: params.draft.objectives,
-      clubName: params.draft.name.trim().toLocaleUpperCase("fr-FR"),
+      clubName: params.draft.name.trim(),
       clubSport: params.draft.sport,
       memberCountRange: params.draft.memberCountRange,
     });

@@ -12,7 +12,9 @@ import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
 import 'package:viro_team_v2/utils/auth_error_message.dart';
+import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/password_policy.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
@@ -162,16 +164,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       }
 
       final email = authUser.email?.trim() ?? _emailController.text.trim();
-      final first = _firstNameController.text.trim();
-      final last = _lastNameController.text.trim();
+      final first = formatFirstName(_firstNameController.text);
+      final last = formatLastName(_lastNameController.text);
+      final normalizedEmail = normalizeEmail(email);
 
       final profile = ViroUser(
         uid: authUser.uid,
-        email: email,
-        emailNorm: email.toLowerCase(),
+        email: normalizedEmail,
+        emailNorm: normalizedEmail,
         firstName: first,
         lastName: last,
-        displayName: '$first $last'.trim(),
+        displayName: '$first $last',
         profileCompleted: false,
       );
       await userService.createUserProfile(profile);
@@ -213,17 +216,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         return;
       }
       final uid = firebaseUser.uid;
-      final email = _emailController.text.trim();
-      final first = _firstNameController.text.trim();
-      final last = _lastNameController.text.trim();
+      final email = normalizeEmail(_emailController.text);
+      final first = formatFirstName(_firstNameController.text);
+      final last = formatLastName(_lastNameController.text);
 
       final profile = ViroUser(
         uid: uid,
         email: email,
-        emailNorm: email.toLowerCase(),
+        emailNorm: email,
         firstName: first,
         lastName: last,
-        displayName: '$first $last'.trim(),
+        displayName: '$first $last',
         profileCompleted: false,
       );
       await ref.read(userServiceProvider).createUserProfile(profile);
@@ -275,25 +278,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       final existingProfile = await userService.getUser(firebaseUser.uid);
 
       if (existingProfile == null) {
-        final email = firebaseUser.email?.trim() ?? '';
-        final names = splitGoogleDisplayName(firebaseUser.displayName);
-        final first = names.firstName.isNotEmpty
-            ? names.firstName
-            : _firstNameController.text.trim();
-        final last = names.lastName.isNotEmpty
-            ? names.lastName
-            : _lastNameController.text.trim();
-
-        final profile = ViroUser(
-          uid: firebaseUser.uid,
-          email: email,
-          emailNorm: email.toLowerCase(),
-          firstName: first,
-          lastName: last,
-          displayName: firebaseUser.displayName?.trim() ?? '$first $last'.trim(),
-          profileCompleted: false,
+        await userService.ensureUserProfileFromAuth(
+          firebaseUser,
+          firstName: _firstNameController.text.trim().isNotEmpty
+              ? _firstNameController.text
+              : null,
+          lastName: _lastNameController.text.trim().isNotEmpty
+              ? _lastNameController.text
+              : null,
         );
-        await userService.createUserProfile(profile);
       }
 
       await _navigateAfterSignUp();
@@ -396,8 +389,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     labelText: 'Prénom',
                     hintText: 'Tristan',
                   ),
-                  validator: (v) =>
-                      v != null && v.trim().length >= 2 ? null : 'Requis',
+                  validator: (v) => firstNameError(v ?? ''),
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 TextFormField(
@@ -406,8 +398,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     labelText: 'Nom',
                     hintText: 'Heraud',
                   ),
-                  validator: (v) =>
-                      v != null && v.trim().length >= 2 ? null : 'Requis',
+                  validator: (v) => lastNameError(v ?? ''),
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 TextFormField(
@@ -415,8 +406,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   keyboardType: TextInputType.emailAddress,
                   readOnly: isCompleteProfile,
                   decoration: const InputDecoration(labelText: 'Email'),
-                  validator: (v) =>
-                      v != null && v.contains('@') ? null : 'Email invalide',
+                  validator: (v) => requiredEmailError(v ?? ''),
                 ),
                 if (!isCompleteProfile) ...[
                   const SizedBox(height: ViroSpacing.md),

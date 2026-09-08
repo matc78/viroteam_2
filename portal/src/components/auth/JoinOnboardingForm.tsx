@@ -10,6 +10,10 @@ import type { InvitationLookupResult } from "@/lib/firebase/invitationService";
 import { InvitationTypes } from "@/lib/firebase/constants";
 import { splitDisplayName } from "@/lib/firebase/types";
 import { updateUserProfileForJoin } from "@/lib/firebase/userService";
+import {
+  firstNameError,
+  lastNameError,
+} from "@/lib/format/personDataFormat";
 import formStyles from "./AuthForm.module.css";
 import styles from "./JoinOnboardingForm.module.css";
 
@@ -75,12 +79,10 @@ export function JoinOnboardingForm() {
 
   function validate(): FieldErrors {
     const next: FieldErrors = {};
-    if (!firstName.trim() || firstName.trim().length < 2) {
-      next.firstName = "Prénom requis (2 caractères minimum).";
-    }
-    if (!lastName.trim() || lastName.trim().length < 2) {
-      next.lastName = "Nom requis (2 caractères minimum).";
-    }
+    const firstError = firstNameError(firstName);
+    if (firstError) next.firstName = firstError;
+    const lastError = lastNameError(lastName);
+    if (lastError) next.lastName = lastError;
     if (!code.trim()) {
       next.code = "Le code d’invitation est requis.";
     }

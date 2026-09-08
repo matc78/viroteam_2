@@ -8,6 +8,12 @@ import {
 import { getAppFirestore } from "./app";
 import { Collections, Fields } from "./constants";
 import { parseUserProfile, splitDisplayName, ViroUserProfile } from "./types";
+import {
+  formatFirstName,
+  formatLastName,
+  softFormatFirstName,
+  softFormatLastName,
+} from "@/lib/format/personDataFormat";
 
 /** Charge le profil users/{uid}. */
 export async function getUserProfile(uid: string): Promise<ViroUserProfile | null> {
@@ -25,15 +31,17 @@ export async function createUserProfile(params: {
   displayName: string;
 }): Promise<void> {
   const emailNorm = params.email.trim().toLowerCase();
-  const { firstName, lastName } = splitDisplayName(params.displayName);
+  const split = splitDisplayName(params.displayName);
+  const firstName = softFormatFirstName(split.firstName);
+  const lastName = softFormatLastName(split.lastName);
   const displayName =
-    params.displayName.trim() ||
     [firstName, lastName].filter(Boolean).join(" ") ||
+    params.displayName.trim() ||
     emailNorm;
 
   await setDoc(doc(getAppFirestore(), Collections.users, params.uid), {
     [Fields.uid]: params.uid,
-    [Fields.email]: params.email.trim(),
+    [Fields.email]: emailNorm,
     [Fields.emailNorm]: emailNorm,
     [Fields.firstName]: firstName,
     [Fields.lastName]: lastName,
@@ -97,8 +105,8 @@ export async function updateUserProfileForJoin(params: {
   firstName: string;
   lastName: string;
 }): Promise<void> {
-  const firstName = params.firstName.trim();
-  const lastName = params.lastName.trim();
+  const firstName = formatFirstName(params.firstName);
+  const lastName = formatLastName(params.lastName);
   const displayName = [firstName, lastName].filter(Boolean).join(" ");
   const emailNorm = params.email.trim().toLowerCase();
 
@@ -106,7 +114,7 @@ export async function updateUserProfileForJoin(params: {
     doc(getAppFirestore(), Collections.users, params.uid),
     {
       [Fields.uid]: params.uid,
-      [Fields.email]: params.email.trim(),
+      [Fields.email]: emailNorm,
       [Fields.emailNorm]: emailNorm,
       [Fields.firstName]: firstName,
       [Fields.lastName]: lastName,

@@ -7,6 +7,11 @@ import {
   ClubSports,
 } from "./constants";
 import { ClubSetupFormat } from "./clubSetupFormat";
+import {
+  addressLineError,
+  cityError,
+  postalCodeError,
+} from "@/lib/format/personDataFormat";
 
 /** Lieu de pratique du club. */
 export type PracticeLocation = {
@@ -70,7 +75,15 @@ export function canProceedObjectives(draft: ClubSetupDraft): boolean {
 }
 
 export function canProceedInfo(draft: ClubSetupDraft): boolean {
-  return draft.city.trim().length > 0 && draft.practiceLocations.length > 0;
+  if (cityError(draft.city, { required: true })) return false;
+  if (postalCodeError(draft.postalCode)) return false;
+  if (addressLineError(draft.address)) return false;
+  if (draft.practiceLocations.length === 0) return false;
+  for (const location of draft.practiceLocations) {
+    if (location.city && cityError(location.city)) return false;
+    if (location.address && addressLineError(location.address)) return false;
+  }
+  return true;
 }
 
 export function hasSavedProgress(draft: ClubSetupDraft): boolean {

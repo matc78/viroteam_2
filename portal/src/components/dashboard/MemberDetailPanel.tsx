@@ -2,6 +2,11 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { validateEmail } from "@/lib/auth/validateEmail";
+import {
+  firstNameError,
+  lastNameError,
+  licenseError,
+} from "@/lib/format/personDataFormat";
 import { MemberRoles } from "@/lib/firebase/constants";
 import {
   getMemberGuardian,
@@ -176,8 +181,10 @@ export function MemberDetailPanel({
 
   async function handleNameSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!firstName.trim() || !lastName.trim()) {
-      setProfileError("Le prénom et le nom sont obligatoires.");
+    const firstError = firstNameError(firstName);
+    const lastError = lastNameError(lastName);
+    if (firstError || lastError) {
+      setProfileError(firstError ?? lastError ?? "Identité invalide.");
       return;
     }
     if (
@@ -220,6 +227,12 @@ export function MemberDetailPanel({
 
   async function handleLicenseSubmit(event: FormEvent) {
     event.preventDefault();
+    const error = licenseError(license);
+    if (error) {
+      setProfileError(error);
+      return;
+    }
+    setProfileError(null);
     await onSaveLicense(license);
   }
 

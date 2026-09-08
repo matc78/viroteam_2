@@ -5,6 +5,10 @@ import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { validateEmail } from "@/lib/auth/validateEmail";
 import { MemberRoles } from "@/lib/firebase/constants";
 import type { AddMemberResult } from "@/lib/firebase/memberService";
+import {
+  firstNameError,
+  lastNameError,
+} from "@/lib/format/personDataFormat";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import { PlanningSelect } from "./PlanningSelect";
@@ -44,6 +48,7 @@ export function AddMemberDialog({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [role, setRole] = useState<
     typeof MemberRoles.player | typeof MemberRoles.coach
   >(MemberRoles.player);
@@ -55,12 +60,19 @@ export function AddMemberDialog({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    const firstError = firstNameError(firstName);
+    const lastError = lastNameError(lastName);
+    if (firstError || lastError) {
+      setNameError(firstError ?? lastError);
+      return;
+    }
     const normalizedEmail = email.trim().toLowerCase();
     const validationError = validateEmail(normalizedEmail);
     if (validationError) {
       setEmailError(validationError);
       return;
     }
+    setNameError(null);
     setEmailError(null);
     await onSubmit({ firstName, lastName, email: normalizedEmail, role });
   }
@@ -146,7 +158,10 @@ export function AddMemberDialog({
               <input
                 className={styles.input}
                 value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
+                onChange={(event) => {
+                  setFirstName(event.target.value);
+                  if (nameError) setNameError(null);
+                }}
                 required
                 disabled={busy}
                 autoComplete="off"
@@ -157,12 +172,20 @@ export function AddMemberDialog({
               <input
                 className={styles.input}
                 value={lastName}
-                onChange={(event) => setLastName(event.target.value)}
+                onChange={(event) => {
+                  setLastName(event.target.value);
+                  if (nameError) setNameError(null);
+                }}
                 required
                 disabled={busy}
                 autoComplete="off"
               />
             </label>
+            {nameError ? (
+              <p className={dialogStyles.error} role="alert">
+                {nameError}
+              </p>
+            ) : null}
             <label className={dialogStyles.field}>
               <span className={dialogStyles.label}>E-mail</span>
               <input

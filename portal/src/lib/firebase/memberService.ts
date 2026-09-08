@@ -13,6 +13,11 @@ import {
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
 import { validateEmail } from "@/lib/auth/validateEmail";
+import {
+  formatFirstName,
+  formatLastName,
+  formatLicense,
+} from "@/lib/format/personDataFormat";
 import { site, webJoinRedirectPath } from "@/lib/site";
 import {
   removeMember as removeMemberCallable,
@@ -447,11 +452,8 @@ export async function addMemberWithInvitation(params: {
   /** E-mail de l’invité (obligatoire, seul ce compte pourra accepter). */
   email: string;
 }): Promise<AddMemberResult> {
-  const trimmedFirst = params.firstName.trim();
-  const trimmedLast = params.lastName.trim();
-  if (!trimmedFirst || !trimmedLast) {
-    throw new Error("Le prénom et le nom sont obligatoires.");
-  }
+  const trimmedFirst = formatFirstName(params.firstName);
+  const trimmedLast = formatLastName(params.lastName);
   const trimmedEmail = normalizeRequiredInviteEmail(params.email);
   if (
     params.role !== MemberRoles.player &&
@@ -779,7 +781,7 @@ export async function updateMemberLicense(params: {
   await updateDoc(memberDocument, {
     [Fields.playerInfo]: {
       ...existingInfo,
-      [Fields.license]: params.license.trim(),
+      [Fields.license]: formatLicense(params.license),
     },
     [Fields.updatedAt]: serverTimestamp(),
   });
@@ -797,11 +799,8 @@ export async function updatePendingMemberProfile(params: {
   lastName: string;
   email: string;
 }): Promise<void> {
-  const trimmedFirst = params.firstName.trim();
-  const trimmedLast = params.lastName.trim();
-  if (!trimmedFirst || !trimmedLast) {
-    throw new Error("Le prénom et le nom sont obligatoires.");
-  }
+  const trimmedFirst = formatFirstName(params.firstName);
+  const trimmedLast = formatLastName(params.lastName);
   const trimmedEmail = normalizeRequiredInviteEmail(params.email);
 
   const db = getAppFirestore();

@@ -4,7 +4,9 @@ import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
+import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 
 class UserService {
   UserService({FirebaseFirestore? firestore})
@@ -29,7 +31,31 @@ class UserService {
   }
 
   Future<void> createUserProfile(ViroUser user) async {
-    await _userRef(user.uid).set(user.toCreateMap());
+    final normalizedEmail = normalizeEmail(user.email);
+    final formattedFirst = _formatOptionalFirstName(user.firstName);
+    final formattedLast = _formatOptionalLastName(user.lastName);
+    final displayName = [
+      formattedFirst,
+      formattedLast,
+    ].where((part) => part.isNotEmpty).join(' ');
+    final formatted = ViroUser(
+      uid: user.uid,
+      email: normalizedEmail,
+      emailNorm: normalizedEmail,
+      firstName: formattedFirst,
+      lastName: formattedLast,
+      displayName: displayName.isNotEmpty ? displayName : user.displayName.trim(),
+      phone: user.phone,
+      avatarUrl: user.avatarUrl,
+      clubMemberships: user.clubMemberships,
+      parentLinks: user.parentLinks,
+      parentClubIds: user.parentClubIds,
+      profileCompleted: user.profileCompleted,
+      disabled: user.disabled,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    );
+    await _userRef(user.uid).set(formatted.toCreateMap());
   }
 
   /// Crée un profil Firestore minimal si l'utilisateur Auth n'en a pas encore.
@@ -43,22 +69,23 @@ class UserService {
     final existingProfile = await getUser(firebaseUser.uid);
     if (existingProfile != null) return existingProfile;
 
-    final email = firebaseUser.email?.trim() ?? '';
+    final email = normalizeEmail(firebaseUser.email ?? '');
     final parsedName = _splitDisplayName(firebaseUser.displayName);
-    final resolvedFirst = firstName?.trim().isNotEmpty == true
-        ? firstName!.trim()
-        : parsedName.$1;
-    final resolvedLast = lastName?.trim().isNotEmpty == true
-        ? lastName!.trim()
-        : parsedName.$2;
-    final displayName = firebaseUser.displayName?.trim().isNotEmpty == true
-        ? firebaseUser.displayName!.trim()
-        : [resolvedFirst, resolvedLast].where((part) => part.isNotEmpty).join(' ');
+    final resolvedFirst = _softFormatFirstName(
+      firstName?.trim().isNotEmpty == true ? firstName! : parsedName.$1,
+    );
+    final resolvedLast = _softFormatLastName(
+      lastName?.trim().isNotEmpty == true ? lastName! : parsedName.$2,
+    );
+    final displayName = [
+      resolvedFirst,
+      resolvedLast,
+    ].where((part) => part.isNotEmpty).join(' ');
 
     final profile = ViroUser(
       uid: firebaseUser.uid,
       email: email,
-      emailNorm: email.toLowerCase(),
+      emailNorm: email,
       firstName: resolvedFirst,
       lastName: resolvedLast,
       displayName: displayName,
@@ -85,14 +112,18 @@ class UserService {
     required String lastName,
     String? phone,
   }) async {
-    final trimmedFirst = firstName.trim();
-    final trimmedLast = lastName.trim();
-    final displayName =
-        [trimmedFirst, trimmedLast].where((part) => part.isNotEmpty).join(' ');
+    final formattedFirst = _formatOptionalFirstName(firstName);
+    final formattedLast = _formatOptionalLastName(lastName);
+    if (formattedFirst.isEmpty && formattedLast.isEmpty) {
+      throw ArgumentError('Indique au moins un prénom ou un nom.');
+    }
+    final displayName = [formattedFirst, formattedLast]
+        .where((part) => part.isNotEmpty)
+        .join(' ');
 
     final update = <String, dynamic>{
-      FirestoreFields.firstName: trimmedFirst,
-      FirestoreFields.lastName: trimmedLast,
+      FirestoreFields.firstName: formattedFirst,
+      FirestoreFields.lastName: formattedLast,
       FirestoreFields.displayName: displayName,
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     };
@@ -187,5 +218,35 @@ class UserService {
         SetOptions(merge: true),
       );
     });
+  }
+
+  /// Formate un prénom ; vide si entrée vide ; rejette les caractères interdits.
+  String _formatOptionalFirstName(String raw) {
+    if (raw.trim().isEmpty) return '';
+    return formatFirstName(raw);
+  }
+
+  /// Formate un nom ; vide si entrée vide ; rejette les caractères interdits.
+  String _formatOptionalLastName(String raw) {
+    if (raw.trim().isEmpty) return '';
+    return formatLastName(raw);
+  }
+
+  /// Formate un prénom OAuth ; ignore les valeurs invalides (profil incomplet).
+  String _softFormatFirstName(String raw) {
+    try {
+      return _formatOptionalFirstName(raw);
+    } on ArgumentError {
+      return '';
+    }
+  }
+
+  /// Formate un nom OAuth ; ignore les valeurs invalides (profil incomplet).
+  String _softFormatLastName(String raw) {
+    try {
+      return _formatOptionalLastName(raw);
+    } on ArgumentError {
+      return '';
+    }
   }
 }

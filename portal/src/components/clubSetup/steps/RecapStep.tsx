@@ -17,8 +17,7 @@ type RecapStepProps = {
 /** Étape récapitulatif — résumé avant création du club. */
 export function RecapStep({ draft }: RecapStepProps) {
   const sportAccent = ClubSetupUi.sportAccent(draft.sport);
-  const clubName =
-    draft.name.trim().toLocaleUpperCase("fr-FR") || "NOM DU CLUB";
+  const clubName = draft.name.trim() || "Nom du club";
   const headquartersCityLine = [draft.postalCode.trim(), draft.city.trim()]
     .filter(Boolean)
     .join(" ");

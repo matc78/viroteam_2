@@ -8,6 +8,7 @@ import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
 import 'package:viro_team_v2/models/club.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
 /// Étape lieux de pratique — catégorie + ville + chips retirables.
@@ -86,18 +87,31 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
       widget.onValidationError?.call('Indiquez la ville du lieu.');
       return;
     }
+    final cityValidationError = cityError(city);
+    if (cityValidationError != null) {
+      widget.onValidationError?.call(cityValidationError);
+      return;
+    }
+    final addressValidationError = addressLineError(_addressController.text);
+    if (addressValidationError != null) {
+      widget.onValidationError?.call(addressValidationError);
+      return;
+    }
+
+    final formattedCity = formatCity(city);
+    final formattedAddress = _addressController.text.trim().isEmpty
+        ? null
+        : formatAddressLine(_addressController.text);
 
     final location = PracticeLocation(
       name: ClubSetupFormat.practiceLocationName(
         category: _category,
-        city: city,
+        city: formattedCity,
         categoryCustom:
             _category == PracticeLocationCategories.other ? custom : null,
       ),
-      city: city,
-      address: _addressController.text.trim().isEmpty
-          ? null
-          : _addressController.text.trim(),
+      city: formattedCity,
+      address: formattedAddress,
       category: _category,
       categoryCustom:
           _category == PracticeLocationCategories.other ? custom : null,

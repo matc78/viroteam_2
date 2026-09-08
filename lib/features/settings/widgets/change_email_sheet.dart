@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/auth_error_message.dart';
+import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
@@ -70,16 +71,13 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
   }
 
   Future<void> _save() async {
-    final newEmail = _emailController.text.trim();
-    if (newEmail.isEmpty) {
-      setState(() => _error = 'E-mail requis.');
+    final emailError = requiredEmailError(_emailController.text);
+    if (emailError != null) {
+      setState(() => _error = emailError);
       return;
     }
-    if (!newEmail.contains('@')) {
-      setState(() => _error = 'E-mail invalide.');
-      return;
-    }
-    if (newEmail == widget.user.email.trim()) {
+    final newEmail = normalizeEmail(_emailController.text);
+    if (newEmail == normalizeEmail(widget.user.email)) {
       Navigator.of(context).pop(false);
       return;
     }

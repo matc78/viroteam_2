@@ -7,6 +7,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
+import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/password_policy.dart';
 
@@ -69,19 +70,20 @@ class AccountService {
       throw StateError('Aucun utilisateur connecté.');
     }
 
-    final trimmedEmail = newEmail.trim();
-    if (trimmedEmail.isEmpty) {
-      throw StateError('Nouvel e-mail requis.');
+    final normalizedEmail = normalizeEmail(newEmail);
+    final emailFormatError = requiredEmailError(normalizedEmail);
+    if (emailFormatError != null) {
+      throw StateError(emailFormatError);
     }
 
     await reauthenticate(user: user, password: currentPassword);
-    await user.verifyBeforeUpdateEmail(trimmedEmail);
+    await user.verifyBeforeUpdateEmail(normalizedEmail);
 
     // Sync Firestore tout de suite pour l’affichage in-app (Auth après validation du lien).
     await _db.collection(ProjectConfig.usersCollection).doc(user.uid).set(
       {
-        FirestoreFields.email: trimmedEmail,
-        FirestoreFields.emailNorm: trimmedEmail.toLowerCase(),
+        FirestoreFields.email: normalizedEmail,
+        FirestoreFields.emailNorm: normalizedEmail,
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),

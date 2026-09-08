@@ -17,6 +17,7 @@ type ClubSetupShellProps = {
   title: string;
   lead: string;
   currentStep: number;
+  maxReachedStep: number;
   stepKey: string;
   previewBanner?: boolean;
   resumeBanner?: boolean;
@@ -26,6 +27,8 @@ type ClubSetupShellProps = {
   canProceed: boolean;
   submitting: boolean;
   onNext: () => void;
+  /** Clic sur l’icône Création = même action que « Créer le club ». */
+  onCreateClick?: () => void;
   /** Corps court (ex. prérequis) : pas d’étirement vertical avant le footer. */
   compactBody?: boolean;
   /** Étapes denses (identité, objectifs…) : panneau élargi et intro compacte. */
@@ -39,6 +42,7 @@ export function ClubSetupShell({
   title,
   lead,
   currentStep,
+  maxReachedStep,
   stepKey,
   previewBanner,
   resumeBanner,
@@ -48,6 +52,7 @@ export function ClubSetupShell({
   canProceed,
   submitting,
   onNext,
+  onCreateClick,
   compactBody = false,
   wideLayout = false,
   children,
@@ -69,7 +74,10 @@ export function ClubSetupShell({
       >
         <SetupSportProgress
           currentStep={currentStep}
+          maxReachedStep={maxReachedStep}
           onStepSelect={onStepSelect}
+          onCreateClick={onCreateClick}
+          createDisabled={!canProceed || submitting}
           wide={wideLayout}
         />
         <div

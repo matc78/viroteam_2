@@ -6,6 +6,8 @@ type ClubSetupSportIconProps = {
   alt: string;
   isReached: boolean;
   isCurrent?: boolean;
+  /** Alterne rendu grisé / allumé (icône Création sur Vérification). */
+  isBlinking?: boolean;
 };
 
 const maskLayerStyle = (src: string): CSSProperties => ({
@@ -19,7 +21,23 @@ export function ClubSetupSportIcon({
   alt,
   isReached,
   isCurrent = false,
+  isBlinking = false,
 }: ClubSetupSportIconProps) {
+  if (isBlinking) {
+    return (
+      <span
+        className={`${styles.neonIcon} ${styles.neonIconBlinking}`}
+        role="img"
+        aria-label={alt}
+      >
+        <span className={styles.neonOff} style={maskLayerStyle(src)} aria-hidden />
+        <span className={styles.neonBloom} style={maskLayerStyle(src)} aria-hidden />
+        <span className={styles.neonTube} style={maskLayerStyle(src)} aria-hidden />
+        <span className={styles.neonCore} style={maskLayerStyle(src)} aria-hidden />
+      </span>
+    );
+  }
+
   if (!isReached) {
     return (
       <span className={styles.neonIcon} role="img" aria-label={alt}>

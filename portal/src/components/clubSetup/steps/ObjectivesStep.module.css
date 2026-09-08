@@ -41,31 +41,91 @@
   color: var(--color-primary-800);
 }
 
+.memberCountCarousel {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.memberCountViewport {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+}
+
+.memberCountViewportFadeLeft {
+  mask-image: linear-gradient(to right, transparent, #000 0.9rem);
+}
+
+.memberCountViewportFadeRight {
+  mask-image: linear-gradient(to left, transparent, #000 0.9rem);
+}
+
+.memberCountViewportFadeLeft.memberCountViewportFadeRight {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 0.9rem,
+    #000 calc(100% - 0.9rem),
+    transparent
+  );
+}
+
+.memberCountViewport::-webkit-scrollbar {
+  display: none;
+}
+
 .memberCountRow {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   gap: 0.35rem;
+  width: max-content;
+  padding: 0.15rem 0.25rem;
 }
 
 .rangeChip {
-  border-radius: 999px;
-  border: 1.5px solid var(--color-gray-200);
-  background: white;
+  flex: 0 0 auto;
+  min-width: 2.75rem;
   padding: 0.35rem 0.7rem;
   font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-gray-600);
+  border-radius: 999px;
+}
+
+.carouselArrow {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-gray-200);
+  background: var(--color-surface-card, white);
+  color: var(--step-accent, var(--color-primary-600));
   cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
 }
 
-.rangeChip:hover {
-  border-color: var(--color-gray-300);
-  background: var(--color-gray-50);
+.carouselArrow:hover {
+  border-color: var(--step-accent, var(--color-primary-600));
+  background: color-mix(
+    in srgb,
+    var(--step-accent, var(--color-primary-600)) 10%,
+    white
+  );
 }
 
-.rangeChipSelected {
-  border-width: 1.5px;
-  font-weight: 700;
+.carouselArrowRight {
+  box-shadow: 0 1px 4px
+    color-mix(in srgb, var(--color-primary-800) 8%, transparent);
+}
+
+.chevronFlip {
+  transform: scaleX(-1);
 }

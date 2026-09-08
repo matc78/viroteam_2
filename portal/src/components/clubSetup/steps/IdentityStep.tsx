@@ -90,8 +90,11 @@ export function IdentityStep({
                   } as React.CSSProperties
                 }
                 value={draft.name}
-                placeholder="Ex. Viroflay Volley club"
+                placeholder="Ex. VIROFLAY VOLLEY CLUB"
                 onChange={(event) => onNameChange(event.target.value)}
+                onBlur={(event) =>
+                  onNameChange(event.target.value.trim().toLocaleUpperCase("fr-FR"))
+                }
               />
             </label>
           </div>
@@ -105,23 +108,18 @@ export function IdentityStep({
             <div className={styles.sportGrid}>
               {ClubSports.all.map((sport) => {
                 const selected = draft.sport === sport;
-                const accent = ClubSetupUi.sportAccent(sport);
                 return (
                   <button
                     key={sport}
                     type="button"
                     className={`${styles.sportButton} ${selected ? styles.sportButtonSelected : ""}`}
-                    style={
-                      selected
-                        ? ({
-                            ["--sport-accent" as string]: accent,
-                          } as React.CSSProperties)
-                        : undefined
-                    }
                     onClick={() => onSportChange(sport)}
                     aria-pressed={selected}
                   >
-                    {sportEmoji(sport)} {sport}
+                    <span className={styles.sportSymbol} aria-hidden>
+                      {sportEmoji(sport)}
+                    </span>
+                    <span className={styles.sportLabel}>{sport}</span>
                   </button>
                 );
               })}

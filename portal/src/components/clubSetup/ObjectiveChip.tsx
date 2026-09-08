@@ -1,6 +1,6 @@
 import { ClubObjectives } from "@/lib/clubSetup/constants";
 import { clubObjectiveSymbol } from "@/lib/clubSetup/clubObjectivesUi";
-import { ClubSetupUi } from "@/lib/clubSetup/clubSetupUi";
+import selectable from "./SetupSelectable.module.css";
 import styles from "./ObjectiveChip.module.css";
 
 type ObjectiveChipProps = {
@@ -15,28 +15,19 @@ export function ObjectiveChip({
   selected,
   onToggle,
 }: ObjectiveChipProps) {
-  const accent = ClubSetupUi.objectiveAccent(objectiveKey);
-
   return (
     <button
       type="button"
-      className={`${styles.chip} ${selected ? styles.chipSelected : ""}`}
-      style={{
-        borderColor: selected ? accent : undefined,
-        background: selected
-          ? `color-mix(in srgb, ${accent} 12%, white)`
-          : undefined,
-        color: selected ? accent : undefined,
-      }}
+      className={`${selectable.tile} ${styles.chip} ${selected ? selectable.tileSelected : ""}`}
       onClick={onToggle}
       aria-pressed={selected}
     >
-      <span className={styles.symbol} aria-hidden>
+      <span className={selectable.symbol} aria-hidden>
         {clubObjectiveSymbol(objectiveKey)}
       </span>
-      <span>{ClubObjectives.label(objectiveKey)}</span>
+      <span className={selectable.label}>{ClubObjectives.label(objectiveKey)}</span>
       {selected ? (
-        <span className={styles.check} style={{ color: accent }} aria-hidden>
+        <span className={selectable.check} aria-hidden>
           ✓
         </span>
       ) : null}

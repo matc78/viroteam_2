@@ -1,4 +1,3 @@
-import { ClubSetupUi } from "@/lib/clubSetup/clubSetupUi";
 import styles from "./PrerequisitesStep.module.css";
 
 const ITEMS = [
@@ -14,7 +13,6 @@ export function PrerequisitesStep() {
   return (
     <div className={styles.list}>
       {ITEMS.map((item, index) => {
-        const accent = ClubSetupUi.prerequisiteAccents[index];
         const mirrored = index % 2 === 1;
         return (
           <div
@@ -23,17 +21,9 @@ export function PrerequisitesStep() {
           >
             <article
               className={`${styles.bubble} ${mirrored ? styles.bubbleMirrored : ""}`}
-              style={{ ["--bubble-accent" as string]: accent }}
             >
               <div className={styles.bubbleContent}>
-                <span
-                  className={styles.iconWrap}
-                  style={{
-                    background: `color-mix(in srgb, ${accent} 14%, white)`,
-                    border: `1px solid color-mix(in srgb, ${accent} 22%, transparent)`,
-                  }}
-                  aria-hidden
-                >
+                <span className={styles.iconWrap} aria-hidden>
                   {item.icon}
                 </span>
                 <div className={styles.textBlock}>

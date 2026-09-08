@@ -63,6 +63,57 @@
   opacity: 1;
 }
 
+.neonIconBlinking .neonOff {
+  animation: neonBlinkOff 1.6s ease-in-out infinite;
+}
+
+.neonIconBlinking .neonBloom,
+.neonIconBlinking .neonTube,
+.neonIconBlinking .neonCore {
+  animation: neonBlinkOn 1.6s ease-in-out infinite;
+}
+
+@keyframes neonBlinkOn {
+  0%,
+  42% {
+    opacity: 1;
+  }
+  58%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes neonBlinkOff {
+  0%,
+  42% {
+    opacity: 0;
+  }
+  58%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neonIconBlinking .neonOff,
+  .neonIconBlinking .neonBloom,
+  .neonIconBlinking .neonTube,
+  .neonIconBlinking .neonCore {
+    animation: none;
+  }
+
+  .neonIconBlinking .neonOff {
+    opacity: 0.45;
+  }
+
+  .neonIconBlinking .neonBloom,
+  .neonIconBlinking .neonTube,
+  .neonIconBlinking .neonCore {
+    opacity: 0.7;
+  }
+}
+
 @media (max-width: 540px) {
   .neonIcon {
     width: 2rem;

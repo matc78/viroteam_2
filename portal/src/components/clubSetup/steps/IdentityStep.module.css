@@ -103,9 +103,13 @@
 }
 
 .sportButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--color-gray-200);
-  background: transparent;
+  background: var(--color-surface-card, white);
   min-height: 2.75rem;
   padding: 0.55rem 0.4rem;
   font-size: 0.8125rem;
@@ -113,7 +117,8 @@
   color: var(--color-gray-600);
   cursor: pointer;
   line-height: 1.2;
-  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .sportButton:hover {
@@ -122,11 +127,32 @@
 }
 
 .sportButtonSelected {
-  border-color: var(--sport-accent, var(--color-primary-600));
-  background: transparent;
-  color: var(--sport-accent, var(--color-primary-800));
+  border-color: var(--step-accent, var(--color-primary-600));
+  background: color-mix(
+    in srgb,
+    var(--step-accent, var(--color-primary-600)) 12%,
+    white
+  );
+  color: var(--step-accent, var(--color-primary-800));
   box-shadow: 0 0 0 1px
-    color-mix(in srgb, var(--sport-accent, var(--color-primary-600)) 35%, transparent);
+    color-mix(
+      in srgb,
+      var(--step-accent, var(--color-primary-600)) 35%,
+      transparent
+    );
+  font-weight: 700;
+}
+
+.sportSymbol {
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.sportLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hiddenInput {

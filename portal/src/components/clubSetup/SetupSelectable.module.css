@@ -1,0 +1,59 @@
+/** Tuile / chip sélectionnable — accent = --step-accent du panneau wizard. */
+
+.tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+  border: 1.5px solid var(--color-gray-200);
+  background: var(--color-surface-card, white);
+  color: var(--color-gray-600);
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.tile:hover {
+  border-color: var(--color-gray-300);
+  background: color-mix(in srgb, var(--color-gray-50) 70%, transparent);
+}
+
+.tileSelected {
+  border-color: var(--step-accent, var(--color-primary-600));
+  background: color-mix(
+    in srgb,
+    var(--step-accent, var(--color-primary-600)) 12%,
+    white
+  );
+  color: var(--step-accent, var(--color-primary-800));
+  box-shadow: 0 0 0 1px
+    color-mix(
+      in srgb,
+      var(--step-accent, var(--color-primary-600)) 35%,
+      transparent
+    );
+  font-weight: 700;
+}
+
+.symbol {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.check {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--step-accent, var(--color-primary-600));
+}

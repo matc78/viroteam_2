@@ -2,24 +2,31 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import {
+  defaultBureauLandingPath,
+  defaultFamilyLandingPath,
+} from "@/lib/firebase/personalPlanningService";
 import styles from "@/components/dashboard/DashboardShell.module.css";
 
 /** Switcher Bureau / Famille — visible seulement si les deux espaces existent. */
 export function SpaceSwitcher() {
-  const { isBureauUser, isParent, activeSpace } = useAuth();
+  const { isBureauUser, isParent, activeSpace, profile } = useAuth();
   if (!isBureauUser || !isParent) return null;
+
+  const bureauHref = defaultBureauLandingPath(profile);
+  const familyHref = defaultFamilyLandingPath(profile);
 
   return (
     <nav className={styles.spaceSwitch} aria-label="Espace">
       <Link
-        href="/home"
+        href={bureauHref}
         className={`${styles.spaceLink}${activeSpace === "bureau" ? ` ${styles.spaceLinkActive}` : ""}`}
         aria-current={activeSpace === "bureau" ? "page" : undefined}
       >
         Bureau
       </Link>
       <Link
-        href="/family"
+        href={familyHref}
         className={`${styles.spaceLink}${activeSpace === "family" ? ` ${styles.spaceLinkActive}` : ""}`}
         aria-current={activeSpace === "family" ? "page" : undefined}
       >

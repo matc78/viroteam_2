@@ -2,6 +2,7 @@
 
 import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { defaultBureauLandingPath } from "@/lib/firebase/personalPlanningService";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useRef } from "react";
 
@@ -11,7 +12,7 @@ type FamilyGuardProps = {
 
 /**
  * Protège l’espace famille : login + au moins un parentLink active.
- * Sans droit parent : déconnexion + écran app (sauf admin → bureau).
+ * Sans droit parent : déconnexion + écran app (sauf bureau → landing bureau).
  */
 export function FamilyGuard({ children }: FamilyGuardProps) {
   const { status, isParent, isBureauUser, logout, setActiveSpace, profile } =
@@ -32,7 +33,7 @@ export function FamilyGuard({ children }: FamilyGuardProps) {
       return;
     }
     if (isBureauUser) {
-      router.replace("/home");
+      router.replace(defaultBureauLandingPath(profile));
       return;
     }
 
@@ -57,7 +58,7 @@ export function FamilyGuard({ children }: FamilyGuardProps) {
     router,
     pathname,
     setActiveSpace,
-    profile?.firstName,
+    profile,
   ]);
 
   if (status === "loading") {

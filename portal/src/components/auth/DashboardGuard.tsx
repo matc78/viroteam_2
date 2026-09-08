@@ -2,6 +2,7 @@
 
 import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { defaultFamilyLandingPath } from "@/lib/firebase/personalPlanningService";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useRef } from "react";
 
@@ -11,7 +12,7 @@ type DashboardGuardProps = {
 
 /**
  * Protège les routes dashboard : login + rôle bureau (admin, coach ou joueur).
- * Parent seul → /family ; sans accès → déconnexion + /access-denied.
+ * Parent seul → landing famille ; sans accès → déconnexion + /access-denied.
  */
 export function DashboardGuard({ children }: DashboardGuardProps) {
   const { status, isBureauUser, isParent, logout, setActiveSpace, profile } =
@@ -34,7 +35,7 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
 
     // Parent sans rôle bureau : hors bureau (FamilyGuard gère /family).
     if (isParent) {
-      router.replace("/family");
+      router.replace(defaultFamilyLandingPath(profile));
       return;
     }
 
@@ -59,7 +60,7 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
     router,
     pathname,
     setActiveSpace,
-    profile?.firstName,
+    profile,
   ]);
 
   if (status === "loading") {

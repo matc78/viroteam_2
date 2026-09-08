@@ -4,6 +4,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { isFounderSignupIntent } from "@/lib/auth/signupIntent";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import {
+  defaultBureauLandingPath,
+  defaultFamilyLandingPath,
+} from "@/lib/firebase/personalPlanningService";
 
 type PostAuthRedirectOptions = {
   /** Query `from=signup` sur access-denied pour les comptes sans club. */
@@ -16,12 +20,13 @@ function isSafeRedirect(path: string | null): path is string {
 
 /**
  * Redirige après connexion : bureau, famille, ou access-denied / onboarding.
+ * Multi-profils → Mon planning ; un seul club → accueil de ce club.
  * Coach et joueur ont accès au Bureau (pages filtrées ensuite).
  */
 export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status, isBureauUser, isParent, activeSpace } = useAuth();
+  const { status, isBureauUser, isParent, activeSpace, profile } = useAuth();
   const denyingRef = useRef(false);
 
   useEffect(() => {
@@ -36,10 +41,15 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
       const isFamilyPath = nextPath === "/family" || nextPath.startsWith("/family/");
       const isBureauPath =
         nextPath === "/home" ||
+        nextPath === "/my-planning" ||
+        nextPath.startsWith("/my-planning/") ||
         nextPath.startsWith("/members") ||
         nextPath.startsWith("/planning") ||
         nextPath.startsWith("/fees") ||
-        nextPath.startsWith("/announcements");
+        nextPath.startsWith("/announcements") ||
+        nextPath.startsWith("/team") ||
+        nextPath.startsWith("/equipment") ||
+        nextPath.startsWith("/settings");
       const isJoinPath = nextPath.startsWith("/join");
       const isClubSetupPath = nextPath.startsWith("/club-setup");
 
@@ -62,15 +72,19 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
     }
 
     if (isBureauUser && isParent) {
-      router.replace(activeSpace === "family" ? "/family" : "/home");
+      router.replace(
+        activeSpace === "family"
+          ? defaultFamilyLandingPath(profile)
+          : defaultBureauLandingPath(profile),
+      );
       return;
     }
     if (isBureauUser) {
-      router.replace("/home");
+      router.replace(defaultBureauLandingPath(profile));
       return;
     }
     if (isParent) {
-      router.replace("/family");
+      router.replace(defaultFamilyLandingPath(profile));
       return;
     }
 
@@ -93,6 +107,7 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
     isBureauUser,
     isParent,
     activeSpace,
+    profile,
     router,
     searchParams,
     options?.accessDeniedFromSignup,

@@ -411,6 +411,28 @@ export function shouldShowPersonalPlanningTile(
 }
 
 /**
+ * Page d’arrivée espace bureau après auth :
+ * Mon planning si plusieurs profils, sinon accueil du club.
+ */
+export function defaultBureauLandingPath(
+  profile: ViroUserProfile | null,
+): string {
+  return shouldShowPersonalPlanningTile(profile) ? "/my-planning" : "/home";
+}
+
+/**
+ * Page d’arrivée espace famille après auth :
+ * Mon planning si plusieurs profils, sinon accueil famille.
+ */
+export function defaultFamilyLandingPath(
+  profile: ViroUserProfile | null,
+): string {
+  return shouldShowPersonalPlanningTile(profile)
+    ? "/family/my-planning"
+    : "/family";
+}
+
+/**
  * Options « club » pour colorer le calendrier (un calendrier = un club).
  * Utilisé comme faux TeamOption dans expandEventsToLabelBlocks.
  */

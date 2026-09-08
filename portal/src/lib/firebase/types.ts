@@ -5,6 +5,7 @@ import {
   GuardianRelations,
   GuardianStatuses,
   MemberRoles,
+  PortalUiRoles,
 } from "./constants";
 
 /** Résumé d’adhésion club sur users/{uid}.clubMemberships. */
@@ -160,6 +161,17 @@ export function familyClubIds(profile: ViroUserProfile | null): string[] {
 /** Club enrichi du rôle membership sur ce club. */
 export type ClubWithRole = ClubRecord & { role: string | null };
 
+/** Espace portail (bureau vs famille / parent). */
+export type PortalSpace = "bureau" | "family";
+
+/** @deprecated Alias — préférer `PortalSpace`. */
+export type ClubMembershipSpace = PortalSpace;
+
+/** Pastille sélecteur : un couple (club, espace) — Parent = lien parent, pas membership. */
+export type ClubMembershipTile = ClubWithRole & {
+  space: PortalSpace;
+};
+
 /**
  * Associe à chaque club le rôle de l’utilisateur (admin / coach / player).
  * `roleForClub` permet de surcharger le libellé (ex. espace famille).
@@ -176,6 +188,27 @@ export function clubsWithRole(
     ...club,
     role: roleForClub(profile, club.id),
   }));
+}
+
+/**
+ * Pastilles unifiées : clubs bureau (rôle membership) puis clubs parent.
+ * Un même club peut apparaître deux fois si double contexte.
+ */
+export function buildClubMembershipTiles(
+  bureauClubs: ClubRecord[],
+  familyClubs: ClubRecord[],
+  profile: ViroUserProfile | null,
+): ClubMembershipTile[] {
+  const bureauTiles: ClubMembershipTile[] = clubsWithRole(
+    bureauClubs,
+    profile,
+  ).map((club) => ({ ...club, space: "bureau" }));
+  const familyTiles: ClubMembershipTile[] = familyClubs.map((club) => ({
+    ...club,
+    role: PortalUiRoles.parent,
+    space: "family",
+  }));
+  return [...bureauTiles, ...familyTiles];
 }
 
 /** Sépare prénom / nom depuis un displayName libre. */

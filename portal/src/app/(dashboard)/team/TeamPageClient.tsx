@@ -10,7 +10,7 @@ import {
   membersVisibleToViewer,
   teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { MemberRoles } from "@/lib/firebase/constants";
 import { getLinkedMemberId } from "@/lib/firebase/memberService";
@@ -23,10 +23,11 @@ export function TeamPageClient() {
   const { activeClub, activeClubRole, user } = useAuth();
   const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
 
-  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub,
     (club) => loadMembersPageData(club, { role: activeClubRole }),
     [activeClubRole],
+    "/team",
   );
 
   useEffect(() => {

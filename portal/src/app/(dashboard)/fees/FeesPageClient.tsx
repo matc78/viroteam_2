@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
+import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { FeesConfigForm } from "@/components/dashboard/FeesConfigForm";
@@ -10,7 +12,6 @@ import {
   FeesConfig,
   seasonRecordToFeesConfig,
 } from "@/lib/dashboard/feesConfig";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import { HELLOASSO_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
@@ -109,10 +110,11 @@ function playerFeeEmptyMessage(data: PlayerFeeData): string {
 /** Vue cotisation self pour le rôle joueur. */
 function PlayerFeesSelfView() {
   const { activeClub, user } = useAuth();
-  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub && user ? activeClub : null,
     (club) => loadPlayerSelfFee(club, user!.uid),
     [user?.uid],
+    "/fees",
   );
 
   if (loading && !data) {
@@ -198,38 +200,36 @@ function PlayerFeesSelfView() {
   );
 }
 
-/** Contenu page Cotisations branché sur Firestore (admin, coach lecture, joueur). */
-export function FeesPageClient() {
+/** Accès refusé cotisations (ni admin ni coach lecture). */
+function FeesNoAccessView() {
+  useReportPageReady(true, "/fees");
+  return (
+    <div>
+      <DashboardPageIntro
+        eyebrow="Espace club"
+        heading="Cotisations"
+        lead="Accès réservé aux administrateurs."
+      />
+    </div>
+  );
+}
+
+/** Vue admin / coach lecture : config + suivi. */
+function FeesStaffView() {
   const { activeClub, activeClubRole, user, refreshProfile } = useAuth();
-  const isPlayer = activeClubRole === MemberRoles.player;
   const isAdmin = activeClubRole === MemberRoles.admin;
   const isCoachRead =
     activeClubRole === MemberRoles.coach &&
     Boolean(activeClub?.coachPermissions.canViewFees);
 
   const { data: config, loading, refreshing, error, reload } =
-    useAsyncClubResource(
-      isAdmin || isCoachRead ? activeClub : null,
+    useAsyncClubPageResource(
+      activeClub,
       loadFeesConfigForClub,
       [isAdmin, isCoachRead],
+      "/fees",
     );
   const [tab, setTab] = useState<FeesTab>("config");
-
-  if (isPlayer || (activeClubRole === MemberRoles.coach && !isCoachRead)) {
-    return <PlayerFeesSelfView />;
-  }
-
-  if (!isAdmin && !isCoachRead) {
-    return (
-      <div>
-        <DashboardPageIntro
-          eyebrow="Espace club"
-          heading="Cotisations"
-          lead="Accès réservé aux administrateurs."
-        />
-      </div>
-    );
-  }
 
   if (loading && !config) {
     return <DashboardSkeleton variant="fees" />;
@@ -323,4 +323,26 @@ export function FeesPageClient() {
       ) : null}
     </div>
   );
+}
+
+/**
+ * Contenu page Cotisations : routeur par rôle (un seul `markPageReady` actif).
+ */
+export function FeesPageClient() {
+  const { activeClub, activeClubRole } = useAuth();
+  const isPlayer = activeClubRole === MemberRoles.player;
+  const isAdmin = activeClubRole === MemberRoles.admin;
+  const isCoachRead =
+    activeClubRole === MemberRoles.coach &&
+    Boolean(activeClub?.coachPermissions.canViewFees);
+
+  if (isPlayer || (activeClubRole === MemberRoles.coach && !isCoachRead)) {
+    return <PlayerFeesSelfView />;
+  }
+
+  if (!isAdmin && !isCoachRead) {
+    return <FeesNoAccessView />;
+  }
+
+  return <FeesStaffView />;
 }

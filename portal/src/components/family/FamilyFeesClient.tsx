@@ -1,5 +1,6 @@
 "use client";
 
+import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { FamilyAudienceSwitcher } from "@/components/family/FamilyAudienceSwitcher";
@@ -9,7 +10,10 @@ import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import { useToast } from "@/components/ToastProvider";
 import { HELLOASSO_PAYMENTS_LIVE } from "@/lib/featureFlags";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import {
+  isClubResourceReady,
+  useAsyncClubResource,
+} from "@/lib/dashboard/useAsyncClubResource";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { createHelloAssoCheckout } from "@/lib/firebase/callableService";
 import {
@@ -47,7 +51,8 @@ export function FamilyFeesClient() {
   const { showToast } = useToast();
   const [checkoutBusy, setCheckoutBusy] = useState(false);
 
-  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload, loadedClubId } =
+    useAsyncClubResource(
     activeClub,
     async (club) => {
       if (!selectedMemberId) {
@@ -68,6 +73,12 @@ export function FamilyFeesClient() {
       return { season, fee, due, remaining };
     },
     [selectedMemberId],
+  );
+
+  useReportPageReady(
+    !audienceLoading &&
+      isClubResourceReady(activeClub, { loading, loadedClubId }),
+    "/family/fees",
   );
 
   async function handleCheckout() {

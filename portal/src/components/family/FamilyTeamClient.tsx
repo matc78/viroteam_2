@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { TeamsPanel } from "@/components/dashboard/TeamsPanel";
@@ -8,7 +9,10 @@ import { FamilyAudienceSwitcher } from "@/components/family/FamilyAudienceSwitch
 import { useFamilyAudience } from "@/components/family/FamilyAudienceProvider";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import {
+  isClubResourceReady,
+  useAsyncClubResource,
+} from "@/lib/dashboard/useAsyncClubResource";
 import { loadTeamsByIds } from "@/lib/firebase/eventService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
@@ -36,7 +40,8 @@ export function FamilyTeamClient() {
     loading: audienceLoading,
   } = useFamilyAudience();
 
-  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload, loadedClubId } =
+    useAsyncClubResource(
     activeClub && selectedMemberId ? activeClub : null,
     async (club): Promise<FamilyTeamData> => {
       if (!selectedMemberId) {
@@ -89,6 +94,15 @@ export function FamilyTeamClient() {
       profile?.parentTeamIds,
       profile?.uid,
     ],
+  );
+
+  useReportPageReady(
+    !audienceLoading &&
+      isClubResourceReady(
+        activeClub && selectedMemberId ? activeClub : null,
+        { loading, loadedClubId },
+      ),
+    "/family/team",
   );
 
   const headingName = useMemo(() => {

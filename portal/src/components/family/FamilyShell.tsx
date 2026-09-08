@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { BrandMark } from "@/components/BrandMark";
-import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
 import { FamilyRouteGuard } from "@/components/auth/FamilyRouteGuard";
-import { PageLoadOverlay } from "@/components/common/PageLoadOverlay";
+import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { PersonalPlanningTile } from "@/components/dashboard/PersonalPlanningTile";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
@@ -18,9 +17,12 @@ import { FamilyModulePanels } from "@/components/family/FamilyModulePanels";
 import { isFamilyRouteAllowed } from "@/lib/auth/bureauPermissions";
 import { useFamilyFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { MemberRoles } from "@/lib/firebase/constants";
+import { PortalUiRoles } from "@/lib/firebase/constants";
 import { site } from "@/lib/site";
-import { clubsWithRole } from "@/lib/firebase/types";
+import {
+  buildClubMembershipTiles,
+  type PortalSpace,
+} from "@/lib/firebase/types";
 import styles from "@/components/dashboard/DashboardShell.module.css";
 
 const NAV_ITEMS = [
@@ -54,20 +56,21 @@ function FamilyShellChrome() {
   const router = useRouter();
   const {
     activeClub,
+    activeSpace,
+    bureauClubs,
     familyClubs,
     profile,
-    setActiveClubId,
+    selectClubContext,
   } = useAuth();
+  const { pendingHref, beginPageLoad } = usePageLoad();
   const { selectedTarget } = useFamilyAudience();
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const feeDeadlineUrgent = useFamilyFeeDeadlineUrgency(
     selectedTarget?.memberId ?? null,
   );
 
   const clubsWithRoles = useMemo(
-    () =>
-      clubsWithRole(familyClubs, profile, () => "family"),
-    [familyClubs, profile],
+    () => buildClubMembershipTiles(bureauClubs, familyClubs, profile),
+    [bureauClubs, familyClubs, profile],
   );
 
   const childHeaderLabel =
@@ -75,13 +78,21 @@ function FamilyShellChrome() {
       ? selectedTarget.displayName
       : selectedTarget?.label ?? "Famille";
 
-  useEffect(() => {
-    setPendingHref(null);
-  }, [pathname]);
+  function handleClubChange(clubId: string, space: PortalSpace) {
+    if (space !== activeSpace) {
+      const target = space === "family" ? "/family" : "/home";
+      beginPageLoad(target, { clubId, space });
+      selectClubContext(clubId, space);
+      router.replace(target);
+      return;
+    }
 
-  function handleClubChange(clubId: string) {
-    setActiveClubId(clubId);
-    if (isFamilyMyPlanningPath(pathname) || !isFamilyRouteAllowed(pathname)) {
+    const stayOnPage =
+      !isFamilyMyPlanningPath(pathname) && isFamilyRouteAllowed(pathname);
+    const target = stayOnPage ? pathname : "/family";
+    beginPageLoad(target, { clubId, space });
+    selectClubContext(clubId, space);
+    if (!stayOnPage) {
       router.replace("/family");
     }
   }
@@ -102,7 +113,6 @@ function FamilyShellChrome() {
         .join(" ")}
     >
       <FamilyRouteGuard />
-      {pendingHref ? <PageLoadOverlay /> : null}
       <header className={styles.header}>
         <div className={styles.inner}>
           <div className={styles.brandBlock}>
@@ -111,7 +121,7 @@ function FamilyShellChrome() {
               className={styles.brand}
               aria-label={`${site.name} — espace famille`}
               onClick={() => {
-                if (pathname !== "/family") setPendingHref("/family");
+                if (pathname !== "/family") beginPageLoad("/family");
               }}
             >
               <BrandMark className={styles.mark} priority />
@@ -123,23 +133,25 @@ function FamilyShellChrome() {
             <ClubMembershipPicker
               clubs={clubsWithRoles}
               activeClubId={onMyPlanning ? null : (activeClub?.id ?? null)}
+              activeSpace={activeSpace}
               compact
               showCreateClub
-              formatRoleLabel={() => childHeaderLabel}
+              formatSecondaryLabel={(club) =>
+                club.space === "family" ? childHeaderLabel : null
+              }
               onClubChange={handleClubChange}
             />
           </div>
 
           <div className={styles.actions}>
             <PersonalPlanningTile href="/family/my-planning" />
-            <SpaceSwitcher />
             <Link
               href="/family/settings"
               className={styles.userBlockLink}
               aria-label="Ouvrir les paramètres"
               onClick={() => {
                 if (pathname !== "/family/settings") {
-                  setPendingHref("/family/settings");
+                  beginPageLoad("/family/settings");
                 }
               }}
             >
@@ -158,8 +170,7 @@ function FamilyShellChrome() {
               <div className={styles.userMeta}>
                 <span className={styles.userName}>{resolvedName}</span>
                 <RoleBadge
-                  role={MemberRoles.player}
-                  label="Famille"
+                  role={PortalUiRoles.parent}
                   className={styles.roleChip}
                 />
               </div>
@@ -181,7 +192,7 @@ function FamilyShellChrome() {
                   className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => {
-                    if (!isActive) setPendingHref(item.href);
+                    if (!isActive) beginPageLoad(item.href);
                   }}
                 >
                   {item.label}

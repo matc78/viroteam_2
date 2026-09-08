@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { AccountSettingsSection } from "@/components/settings/AccountSettingsSection";
 import { SettingsAccordion } from "@/components/settings/SettingsAccordion";
@@ -44,6 +45,8 @@ export function SettingsPageClient() {
   const { activeClub, profile, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  useReportPageReady(true, "/settings");
 
   const isAdmin = useMemo(() => {
     if (!activeClub || !profile) return false;

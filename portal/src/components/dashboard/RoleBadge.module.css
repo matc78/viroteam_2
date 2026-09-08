@@ -34,6 +34,16 @@
     color-mix(in srgb, var(--color-role-player) 40%, transparent);
 }
 
+.badge[data-tone="parent"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-role-parent) 72%, white) 0%,
+    var(--color-role-parent) 100%
+  );
+  box-shadow: 0 3px 10px
+    color-mix(in srgb, var(--color-role-parent) 40%, transparent);
+}
+
 .badgeIcon {
   display: inline-flex;
   align-items: center;

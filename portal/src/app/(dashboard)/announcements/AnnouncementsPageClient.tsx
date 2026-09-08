@@ -9,7 +9,7 @@ import {
   bureauCapabilities,
   coachedTeamsForViewer,
 } from "@/lib/auth/bureauPermissions";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import {
   announcementTargetLabel,
   clearAnnouncementEndsAt,
@@ -82,10 +82,11 @@ export function AnnouncementsPageClient() {
       bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
     [activeClubRole, activeClub?.coachPermissions],
   );
-  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub,
     loadAnnouncementsPageData,
     [],
+    "/announcements",
   );
   const [tab, setTab] = useState<AnnouncementsTab>("active");
   const [createOpen, setCreateOpen] = useState(false);

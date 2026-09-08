@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { BureauRouteGuard } from "@/components/auth/BureauRouteGuard";
-import { SpaceSwitcher } from "@/components/auth/SpaceSwitcher";
-import { PageLoadOverlay } from "@/components/common/PageLoadOverlay";
+import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePanels";
 import { PersonalPlanningTile } from "@/components/dashboard/PersonalPlanningTile";
@@ -18,7 +17,11 @@ import {
 import { usePlayerFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { site } from "@/lib/site";
-import { clubsWithRole, membershipRoleForClub } from "@/lib/firebase/types";
+import {
+  buildClubMembershipTiles,
+  membershipRoleForClub,
+  type PortalSpace,
+} from "@/lib/firebase/types";
 import styles from "./DashboardShell.module.css";
 
 const NAV_ITEMS = [
@@ -68,17 +71,19 @@ export function DashboardShell() {
   const router = useRouter();
   const {
     activeClub,
+    activeSpace,
     bureauClubs,
+    familyClubs,
     activeClubRole,
     profile,
-    setActiveClubId,
+    selectClubContext,
   } = useAuth();
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const { pendingHref, beginPageLoad } = usePageLoad();
   const feeDeadlineUrgent = usePlayerFeeDeadlineUrgency();
 
   const clubsWithRoles = useMemo(
-    () => clubsWithRole(bureauClubs, profile),
-    [bureauClubs, profile],
+    () => buildClubMembershipTiles(bureauClubs, familyClubs, profile),
+    [bureauClubs, familyClubs, profile],
   );
 
   const caps = useMemo(
@@ -92,16 +97,25 @@ export function DashboardShell() {
     [allowedHrefs],
   );
 
-  useEffect(() => {
-    setPendingHref(null);
-  }, [pathname]);
+  function handleClubChange(clubId: string, space: PortalSpace) {
+    if (space !== activeSpace) {
+      const target = space === "family" ? "/family" : "/home";
+      beginPageLoad(target, { clubId, space });
+      selectClubContext(clubId, space);
+      router.replace(target);
+      return;
+    }
 
-  function handleClubChange(clubId: string) {
     const club = bureauClubs.find((item) => item.id === clubId);
     const nextRole = membershipRoleForClub(profile, clubId);
     const nextCaps = bureauCapabilities(nextRole, club?.coachPermissions);
-    setActiveClubId(clubId);
-    if (isMyPlanningPath(pathname) || !isBureauRouteAllowed(pathname, nextCaps)) {
+    const stayOnPage =
+      !isMyPlanningPath(pathname) &&
+      isBureauRouteAllowed(pathname, nextCaps);
+    const target = stayOnPage ? pathname : "/home";
+    beginPageLoad(target, { clubId, space });
+    selectClubContext(clubId, space);
+    if (!stayOnPage) {
       router.replace("/home");
     }
   }
@@ -124,7 +138,6 @@ export function DashboardShell() {
         .join(" ")}
     >
       <BureauRouteGuard />
-      {pendingHref ? <PageLoadOverlay /> : null}
       <header className={styles.header}>
         <div className={styles.inner}>
           <div className={styles.brandBlock}>
@@ -133,7 +146,7 @@ export function DashboardShell() {
               className={styles.brand}
               aria-label={`${site.name} — espace club`}
               onClick={() => {
-                if (pathname !== "/home") setPendingHref("/home");
+                if (pathname !== "/home") beginPageLoad("/home");
               }}
             >
               <BrandMark className={styles.mark} priority />
@@ -145,6 +158,7 @@ export function DashboardShell() {
             <ClubMembershipPicker
               clubs={clubsWithRoles}
               activeClubId={onMyPlanning ? null : (activeClub?.id ?? null)}
+              activeSpace={activeSpace}
               compact
               showCreateClub
               onClubChange={handleClubChange}
@@ -153,13 +167,12 @@ export function DashboardShell() {
 
           <div className={styles.actions}>
             <PersonalPlanningTile href="/my-planning" />
-            <SpaceSwitcher />
             <Link
               href="/settings"
               className={styles.userBlockLink}
               aria-label="Ouvrir les paramètres"
               onClick={() => {
-                if (pathname !== "/settings") setPendingHref("/settings");
+                if (pathname !== "/settings") beginPageLoad("/settings");
               }}
             >
               {profile?.avatarUrl ? (
@@ -198,7 +211,7 @@ export function DashboardShell() {
                   className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => {
-                    if (!isActive) setPendingHref(item.href);
+                    if (!isActive) beginPageLoad(item.href);
                   }}
                 >
                   {item.label}

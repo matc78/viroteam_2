@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, type CSSProperties } from "react";
+import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { FamilyAudienceSwitcher } from "@/components/family/FamilyAudienceSwitcher";
@@ -16,7 +17,10 @@ import {
   splitBrandColorHex,
 } from "@/lib/clubSetup/clubBrandColors";
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import {
+  isClubResourceReady,
+  useAsyncClubResource,
+} from "@/lib/dashboard/useAsyncClubResource";
 import {
   loadAnnouncementsForGuardian,
   loadAnnouncementsForMember,
@@ -99,7 +103,8 @@ export function FamilyHomeClient() {
   const { selectedMemberId, selectedTarget, loading: audienceLoading } =
     useFamilyAudience();
 
-  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload, loadedClubId } =
+    useAsyncClubResource(
     activeClub,
     async (club) => {
       if (!selectedMemberId) {
@@ -220,6 +225,12 @@ export function FamilyHomeClient() {
       profile?.lastName,
       profile?.displayName,
     ],
+  );
+
+  useReportPageReady(
+    !audienceLoading &&
+      isClubResourceReady(activeClub, { loading, loadedClubId }),
+    "/family",
   );
 
   const brandStyle = useMemo(() => {

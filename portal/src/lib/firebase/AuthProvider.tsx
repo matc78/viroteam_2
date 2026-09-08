@@ -39,15 +39,16 @@ import {
   familyClubIds,
   membershipRoleForClub,
   ViroUserProfile,
+  type PortalSpace,
 } from "@/lib/firebase/types";
 import {
   createUserProfile,
   getUserProfile,
 } from "@/lib/firebase/userService";
 
-type AuthStatus = "loading" | "signedOut" | "signedIn";
+export type { PortalSpace };
 
-export type PortalSpace = "bureau" | "family";
+type AuthStatus = "loading" | "signedOut" | "signedIn";
 
 /** État exposé par le contexte Auth du portail. */
 type AuthContextValue = {
@@ -85,6 +86,8 @@ type AuthContextValue = {
   setActiveClubId: (clubId: string) => void;
   /** Bascule bureau / famille. */
   setActiveSpace: (space: PortalSpace) => void;
+  /** Sélection atomique club + espace (pastilles header). */
+  selectClubContext: (clubId: string, space: PortalSpace) => void;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: (options?: { createProfileIfMissing?: boolean }) => Promise<void>;
   signUp: (params: {
@@ -282,6 +285,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [bureauClubs, familyClubs],
   );
 
+  const selectClubContext = useCallback(
+    (clubId: string, space: PortalSpace) => {
+      const pool = space === "family" ? familyClubs : bureauClubs;
+      if (!pool.some((club) => club.id === clubId)) return;
+      setActiveSpaceState(space);
+      writeStoredSpace(space);
+      setActiveClubIdState(clubId);
+      writeStoredClubId(clubId);
+    },
+    [bureauClubs, familyClubs],
+  );
+
   const signIn = useCallback(async (email: string, password: string) => {
     try {
       if (isDevAuthBypassEnabled()) {
@@ -400,6 +415,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       activeSpace,
       setActiveClubId,
       setActiveSpace,
+      selectClubContext,
       signIn,
       signInWithGoogle,
       signUp,
@@ -418,6 +434,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       activeSpace,
       setActiveClubId,
       setActiveSpace,
+      selectClubContext,
       signIn,
       signInWithGoogle,
       signUp,

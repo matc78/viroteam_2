@@ -9,7 +9,7 @@ import {
 } from "@/components/dashboard/EquipmentFormDialog";
 import { useToast } from "@/components/ToastProvider";
 import { bureauCapabilities } from "@/lib/auth/bureauPermissions";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import {
@@ -61,10 +61,11 @@ export function EquipmentPageClient() {
     [activeClubRole, activeClub?.coachPermissions],
   );
   const { showToast } = useToast();
-  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub,
     loadEquipmentPageData,
     [],
+    "/equipment",
   );
 
   const [filters, setFilters] = useState<EquipmentFilters>(DEFAULT_FILTERS);

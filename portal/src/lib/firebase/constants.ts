@@ -169,6 +169,14 @@ export const MemberRoles = {
   player: "player",
 } as const;
 
+/**
+ * Contexte UI portail hors membership (`parentLinks`).
+ * Pas un rôle `members/{id}.role` — badge / tuile uniquement.
+ */
+export const PortalUiRoles = {
+  parent: "parent",
+} as const;
+
 /** Statuts cotisation member_fees. */
 export const MemberFeeStatuses = {
   aPayer: "a_payer",

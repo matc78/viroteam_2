@@ -20,7 +20,7 @@ import {
   teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import { usePlanningChangeListener } from "@/lib/dashboard/usePlanningChangeListener";
 import type { ClubEventView } from "@/lib/firebase/eventService";
 import {
@@ -89,7 +89,7 @@ function PlanningPageContent() {
     };
   }, [cursor]);
 
-  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub,
     (club) =>
       loadPlanningPageData(club.id, {
@@ -97,6 +97,7 @@ function PlanningPageContent() {
         end: range.end,
       }),
     [range.start.getTime(), range.end.getTime()],
+    "/planning",
   );
 
   /** Nettoie les query params deep-link après application (keep-alive). */

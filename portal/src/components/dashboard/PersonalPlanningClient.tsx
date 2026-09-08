@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import {
@@ -48,7 +50,12 @@ export function PersonalPlanningClient({
   eyebrow = "Personnel",
   isPanelActive = true,
 }: PersonalPlanningClientProps) {
+  const pathname = usePathname();
   const { user, profile, bureauClubs, familyClubs } = useAuth();
+
+  const planningRoute = pathname.startsWith("/family")
+    ? "/family/my-planning"
+    : "/my-planning";
 
   const [view, setView] = useState<CalendarView>("week");
   const [cursor, setCursor] = useState(() => dateOnly(new Date()));
@@ -307,6 +314,11 @@ export function PersonalPlanningClient({
     }
     return [...ids];
   }, [user?.uid, data]);
+
+  useReportPageReady(
+    isPanelActive && !(loading && !data),
+    isPanelActive ? planningRoute : null,
+  );
 
   if (loading && !data) {
     return <DashboardSkeleton variant="planning" />;

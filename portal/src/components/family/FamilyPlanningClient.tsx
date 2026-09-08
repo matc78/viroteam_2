@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import {
@@ -16,7 +17,10 @@ import { useFamilyAudience } from "@/components/family/FamilyAudienceProvider";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import planningStyles from "@/app/(dashboard)/planning/page.module.css";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import {
+  isClubResourceReady,
+  useAsyncClubResource,
+} from "@/lib/dashboard/useAsyncClubResource";
 import { usePlanningChangeListener } from "@/lib/dashboard/usePlanningChangeListener";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
@@ -70,7 +74,8 @@ export function FamilyPlanningClient() {
     };
   }, [cursor]);
 
-  const { data, loading, refreshing, error, reload } = useAsyncClubResource(
+  const { data, loading, refreshing, error, reload, loadedClubId } =
+    useAsyncClubResource(
     activeClub && selectedMemberId ? activeClub : null,
     async (club) => {
       if (!selectedMemberId) {
@@ -139,6 +144,15 @@ export function FamilyPlanningClient() {
       range.start.getTime(),
       range.end.getTime(),
     ],
+  );
+
+  useReportPageReady(
+    !audienceLoading &&
+      isClubResourceReady(
+        activeClub && selectedMemberId ? activeClub : null,
+        { loading, loadedClubId },
+      ),
+    "/family/planning",
   );
 
   /** Équipes à écouter : celles déjà chargées, sinon parentTeamIds. */

@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import type { ClubWithRole } from "@/lib/firebase/types";
-import { MemberRoles } from "@/lib/firebase/constants";
+import type {
+  ClubMembershipTile,
+  PortalSpace,
+} from "@/lib/firebase/types";
+import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
 import {
   readableTextOnBrand,
   splitBrandColorHex,
@@ -15,22 +18,28 @@ import styles from "./ClubMembershipPicker.module.css";
 
 /** Props du sélecteur de clubs visible (pastilles horizontales). */
 type ClubMembershipPickerProps = {
-  clubs: ClubWithRole[];
+  clubs: ClubMembershipTile[];
   activeClubId: string | null;
-  /** Sous-titre pastille (ex. espace famille → nom de l’enfant). */
-  formatRoleLabel?: (role: string | null) => string;
+  /** Espace courant — nécessaire si un club a deux pastilles (bureau + parent). */
+  activeSpace: PortalSpace;
   /** Compact : header (sans bandeau full-width). */
   compact?: boolean;
   /** Affiche la pastille « + » vers /club-setup. */
   showCreateClub?: boolean;
-  onClubChange: (clubId: string) => void;
+  /**
+   * Sous-titre custom (ex. nom de l’enfant en espace famille).
+   * Si fourni, remplace le badge rôle pour cette pastille.
+   */
+  formatSecondaryLabel?: (club: ClubMembershipTile) => string | null;
+  onClubChange: (clubId: string, space: PortalSpace) => void;
 };
 
-function isBureauRole(role: string | null): boolean {
+function hasRoleBadge(role: string | null): boolean {
   return (
     role === MemberRoles.admin ||
     role === MemberRoles.coach ||
-    role === MemberRoles.player
+    role === MemberRoles.player ||
+    role === PortalUiRoles.parent
   );
 }
 
@@ -42,9 +51,10 @@ function isBureauRole(role: string | null): boolean {
 export function ClubMembershipPicker({
   clubs,
   activeClubId,
-  formatRoleLabel,
+  activeSpace,
   compact = false,
   showCreateClub = false,
+  formatSecondaryLabel,
   onClubChange,
 }: ClubMembershipPickerProps) {
   if (clubs.length === 0 && !showCreateClub) return null;
@@ -61,18 +71,18 @@ export function ClubMembershipPicker({
     >
       <div className={styles.scroll} role="tablist" aria-label="Choisir un club">
         {clubs.map((club) => {
-          const isActive = club.id === activeClubId;
+          const isActive =
+            club.id === activeClubId && club.space === activeSpace;
           const brand = splitBrandColorHex(
             club.brandColorHex ?? ClubSetupDefaults.brandColorHex,
           ).primary;
           const textColor = readableTextOnBrand(brand);
-          const customLabel = formatRoleLabel?.(club.role) ?? null;
-          const showBureauBadge = !formatRoleLabel && isBureauRole(club.role);
           const clubName = club.name.trim() || "Club";
+          const secondaryLabel = formatSecondaryLabel?.(club) ?? null;
 
           return (
             <button
-              key={club.id}
+              key={`${club.space}-${club.id}`}
               type="button"
               role="tab"
               aria-selected={isActive}
@@ -84,7 +94,7 @@ export function ClubMembershipPicker({
                 } as CSSProperties
               }
               onClick={() => {
-                if (!isActive) onClubChange(club.id);
+                if (!isActive) onClubChange(club.id, club.space);
               }}
             >
               {club.logoUrl ? (
@@ -101,18 +111,18 @@ export function ClubMembershipPicker({
               )}
               <span className={styles.clubMeta}>
                 <span className={styles.clubName}>{clubName}</span>
-                {showBureauBadge ? (
+                {secondaryLabel ? (
+                  <span
+                    className={`${styles.roleBadge}${isActive ? ` ${styles.roleBadgeActive}` : ""}`}
+                  >
+                    {secondaryLabel}
+                  </span>
+                ) : hasRoleBadge(club.role) ? (
                   <RoleBadge
                     role={club.role}
                     muted={!isActive}
                     size="sm"
                   />
-                ) : customLabel ? (
-                  <span
-                    className={`${styles.roleBadge}${isActive ? ` ${styles.roleBadgeActive}` : ""}`}
-                  >
-                    {customLabel}
-                  </span>
                 ) : null}
               </span>
             </button>

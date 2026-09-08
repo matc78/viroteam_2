@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { requestPersonalPlanningReload } from "@/lib/dashboard/personalPlanningReload";
 import { shouldShowPersonalPlanningTile } from "@/lib/firebase/personalPlanningService";
@@ -57,6 +58,7 @@ function CalendarIcon() {
 export function PersonalPlanningTile({ href }: PersonalPlanningTileProps) {
   const pathname = usePathname();
   const { profile } = useAuth();
+  const { beginPageLoad } = usePageLoad();
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
 
   if (!shouldShowPersonalPlanningTile(profile)) {
@@ -72,9 +74,12 @@ export function PersonalPlanningTile({ href }: PersonalPlanningTileProps) {
       aria-label={isActive ? "Mon planning (recliquer pour actualiser)" : "Mon planning"}
       aria-current={isActive ? "page" : undefined}
       onClick={(event) => {
-        if (!isActive) return;
-        event.preventDefault();
-        requestPersonalPlanningReload("tile-reclick");
+        if (isActive) {
+          event.preventDefault();
+          requestPersonalPlanningReload("tile-reclick");
+          return;
+        }
+        beginPageLoad(href);
       }}
     >
       <span className={styles.icon} aria-hidden>

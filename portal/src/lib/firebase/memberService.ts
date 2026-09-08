@@ -25,6 +25,7 @@ import {
   InvitationStatus,
   InvitationTypes,
   MemberRoles,
+  PortalUiRoles,
 } from "./constants";
 import { addMemberToTeam } from "./teamService";
 import { toDate } from "./types";
@@ -93,6 +94,7 @@ export function memberRoleLabel(role: string): string {
   if (role === MemberRoles.admin) return "Admin";
   if (role === MemberRoles.coach) return "Coach";
   if (role === MemberRoles.player) return "Joueur";
+  if (role === PortalUiRoles.parent) return "Parent";
   return role;
 }
 

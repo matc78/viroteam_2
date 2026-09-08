@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, type CSSProperties } from "react";
+import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { AttentionList } from "@/components/dashboard/AttentionList";
 import { CollectionsChart } from "@/components/dashboard/CollectionsChart";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
@@ -27,7 +28,10 @@ import {
 } from "@/lib/firebase/homeService";
 import { isDeadlineToday } from "@/lib/firebase/feeService";
 import { feeStatusLabel } from "@/lib/members/membersView";
-import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
+import {
+  isClubResourceReady,
+  useAsyncClubResource,
+} from "@/lib/dashboard/useAsyncClubResource";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
@@ -615,6 +619,8 @@ export function HomePageClient() {
     if (role === MemberRoles.player) return playerResource;
     return adminResource;
   }, [role, adminResource, coachResource, playerResource]);
+
+  useReportPageReady(isClubResourceReady(activeClub, active), "/home");
 
   if (active.loading && !active.data) {
     return <DashboardSkeleton variant="home" />;

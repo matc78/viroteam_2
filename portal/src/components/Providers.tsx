@@ -3,6 +3,7 @@
 import { AuthProvider } from "@/lib/firebase/AuthProvider";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 import { CookieConsent } from "@/components/CookieConsent";
+import { PageLoadProvider } from "@/components/common/PageLoadProvider";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import { ReactNode, Suspense } from "react";
@@ -11,16 +12,18 @@ import { ReactNode, Suspense } from "react";
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
-      <AnalyticsProvider>
-        <Suspense fallback={null}>
-          <PostHogProvider>
-            <ToastProvider>
-              {children}
-              <CookieConsent />
-            </ToastProvider>
-          </PostHogProvider>
-        </Suspense>
-      </AnalyticsProvider>
+      <PageLoadProvider>
+        <AnalyticsProvider>
+          <Suspense fallback={null}>
+            <PostHogProvider>
+              <ToastProvider>
+                {children}
+                <CookieConsent />
+              </ToastProvider>
+            </PostHogProvider>
+          </Suspense>
+        </AnalyticsProvider>
+      </PageLoadProvider>
     </AuthProvider>
   );
 }

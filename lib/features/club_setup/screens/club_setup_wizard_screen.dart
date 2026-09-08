@@ -10,13 +10,15 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/features/club_setup/providers/club_setup_provider.dart';
+import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/headquarters_step.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/identity_step.dart';
-import 'package:viro_team_v2/features/club_setup/widgets/location_step.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/member_count_step.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/objectives_step.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/practice_locations_step.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/prerequisites_step.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/recap_step.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_progress_header.dart';
-import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -24,7 +26,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_portal_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
-/// Écran wizard de création de club (5 étapes).
+/// Écran wizard de création de club (7 étapes, format téléphone).
 class ClubSetupWizardScreen extends ConsumerStatefulWidget {
   const ClubSetupWizardScreen({super.key});
 
@@ -40,16 +42,11 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
   bool _submitting = false;
   bool _isInitialized = false;
   bool _hadPersistedDraft = false;
-  bool _useClubAddressAsFirstLocation = false;
-  PracticeLocation? _locationFromClubAddress;
 
   final _nameController = TextEditingController();
   final _cityController = TextEditingController();
   final _postalController = TextEditingController();
   final _addressController = TextEditingController();
-  final _locationNameController = TextEditingController();
-  final _locationAddressController = TextEditingController();
-  final _descriptionController = TextEditingController();
 
   @override
   void initState() {
@@ -66,9 +63,6 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     _cityController.dispose();
     _postalController.dispose();
     _addressController.dispose();
-    _locationNameController.dispose();
-    _locationAddressController.dispose();
-    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -89,7 +83,6 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
 
       final draft = ref.read(clubSetupProvider);
       _hydrateControllers(draft);
-      _restoreHeadquartersLocationOption(draft);
       _step = draft.currentStep;
     }
 
@@ -111,25 +104,6 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     _cityController.text = draft.city;
     _postalController.text = draft.postalCode;
     _addressController.text = draft.address;
-    _descriptionController.text = draft.description;
-  }
-
-  /// Recolle l'option « adresse du club » au lieu persisté, s'il correspond au siège.
-  void _restoreHeadquartersLocationOption(ClubSetupDraft draft) {
-    final headquartersIndex = ClubSetupFormat.headquartersLocationIndex(
-      address: draft.address,
-      postalCode: draft.postalCode,
-      city: draft.city,
-      sport: draft.sport,
-      locations: draft.practiceLocations,
-    );
-    if (headquartersIndex < 0) {
-      _useClubAddressAsFirstLocation = false;
-      _locationFromClubAddress = null;
-      return;
-    }
-    _useClubAddressAsFirstLocation = true;
-    _locationFromClubAddress = draft.practiceLocations[headquartersIndex];
   }
 
   void _dismissKeyboard() {
@@ -139,7 +113,6 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
   void _syncDraftFromControllers() {
     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
       draft.name = _nameController.text.trim();
-      draft.description = _descriptionController.text.trim();
       draft.city = _cityController.text.trim();
       draft.postalCode = _postalController.text.trim();
       draft.address = _addressController.text.trim();
@@ -164,7 +137,8 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
 
   void _next() {
     _dismissKeyboard();
-    if (_step == ClubSetupSteps.identity || _step == ClubSetupSteps.location) {
+    if (_step == ClubSetupSteps.identity ||
+        _step == ClubSetupSteps.headquarters) {
       _syncDraftFromControllers();
     }
 
@@ -177,8 +151,20 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
       _showError('Sélectionnez au moins un objectif.');
       return;
     }
-    if (_step == ClubSetupSteps.location && !draft.canProceedInfo) {
-      _showError('Ville et au moins un lieu de pratique requis.');
+    if (_step == ClubSetupSteps.headquarters) {
+      if (!draft.canProceedHeadquarters) {
+        _showError('Ville du club requise.');
+        return;
+      }
+      if (draft.useClubAddressAsFirstLocation) {
+        final upserted =
+            _upsertClubHeadquartersLocation(showErrorIfEmpty: true);
+        if (!upserted) return;
+      }
+    }
+    if (_step == ClubSetupSteps.practiceLocations &&
+        !draft.canProceedPracticeLocations) {
+      _showError('Ajoutez au moins un lieu de pratique.');
       return;
     }
 
@@ -253,20 +239,9 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
       return false;
     }
 
-    final previousLocation = _locationFromClubAddress;
-    if (previousLocation != null &&
-        ClubSetupFormat.isSameLocation(previousLocation, clubAddressLocation)) {
-      return true;
-    }
-
     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
-      final locations = List<PracticeLocation>.of(draft.practiceLocations);
-      if (previousLocation != null) {
-        locations.removeWhere(
-          (location) =>
-              ClubSetupFormat.isSameLocation(location, previousLocation),
-        );
-      }
+      final locations = List<PracticeLocation>.of(draft.practiceLocations)
+        ..removeWhere((location) => location.linkedToHeadquarters);
       final alreadyPresent = locations.any(
         (location) =>
             ClubSetupFormat.isSameLocation(location, clubAddressLocation),
@@ -274,70 +249,54 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
       draft.practiceLocations = alreadyPresent
           ? locations
           : [clubAddressLocation, ...locations];
+      draft.useClubAddressAsFirstLocation = true;
       return draft;
     });
-    _locationFromClubAddress = clubAddressLocation;
     return true;
   }
 
   /// Retire le lieu créé depuis l'adresse du siège.
   void _removeClubHeadquartersAsLocation() {
-    final clubAddressLocation = _locationFromClubAddress;
-    if (clubAddressLocation == null) return;
-
     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
       draft.practiceLocations = draft.practiceLocations
-          .where(
-            (location) =>
-                !ClubSetupFormat.isSameLocation(location, clubAddressLocation),
-          )
+          .where((location) => !location.linkedToHeadquarters)
           .toList();
+      draft.useClubAddressAsFirstLocation = false;
       return draft;
     });
-    _locationFromClubAddress = null;
   }
 
   /// Recalcule le lieu siège après un changement de ville, d'adresse ou de sport.
   void _syncClubHeadquartersLocation() {
-    if (!_useClubAddressAsFirstLocation) return;
+    final draft = ref.read(clubSetupProvider);
+    if (!draft.useClubAddressAsFirstLocation) return;
     final updated = _upsertClubHeadquartersLocation(showErrorIfEmpty: false);
     if (!updated && mounted) {
-      _removeClubHeadquartersAsLocation();
-      setState(() => _useClubAddressAsFirstLocation = false);
+      // Ville/adresse encore incomplets : retire le lieu HQ sans
+      // désactiver la préférence utilisateur (évite de décocher en cours de saisie).
+      ref.read(clubSetupProvider.notifier).updateDraft((draft) {
+        draft.practiceLocations = draft.practiceLocations
+            .where((location) => !location.linkedToHeadquarters)
+            .toList();
+        return draft;
+      });
     }
   }
 
   void _onUseClubAddressChanged(bool useClubAddress) {
     if (useClubAddress) {
       final added = _upsertClubHeadquartersLocation(showErrorIfEmpty: true);
-      setState(() => _useClubAddressAsFirstLocation = added);
+      if (!added) return;
       return;
     }
     _removeClubHeadquartersAsLocation();
-    setState(() => _useClubAddressAsFirstLocation = false);
   }
 
-  void _addLocation() {
-    final locationName = _locationNameController.text.trim();
-    if (locationName.isEmpty) {
-      _showError('Indiquez un nom pour le lieu de pratique.');
-      return;
-    }
-
+  void _addLocation(PracticeLocation location) {
     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
-      draft.practiceLocations = [
-        ...draft.practiceLocations,
-        PracticeLocation(
-          name: locationName,
-          address: _locationAddressController.text.trim().isEmpty
-              ? null
-              : _locationAddressController.text.trim(),
-        ),
-      ];
+      draft.practiceLocations = [...draft.practiceLocations, location];
       return draft;
     });
-    _locationNameController.clear();
-    _locationAddressController.clear();
   }
 
   Future<void> _submit() async {
@@ -368,16 +327,12 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
 
     setState(() => _submitting = true);
     try {
-      await ref
-          .read(clubServiceProvider)
-          .createClubFromDraft(
+      await ref.read(clubServiceProvider).createClubFromDraft(
             founderUid: user.uid,
             founder: user,
             draft: draft,
           );
-      ref
-          .read(clubSetupAnalyticsProvider)
-          .trackCompleted(
+      ref.read(clubSetupAnalyticsProvider).trackCompleted(
             sport: draft.sport,
             objectives: draft.objectives,
             memberCountRange: draft.memberCountRange,
@@ -403,8 +358,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
 
     final draft = ref.watch(clubSetupProvider);
     final stepLabel = ClubSetupSteps.labels[_step];
-    final showResumeBanner =
-        _hadPersistedDraft &&
+    final showResumeBanner = _hadPersistedDraft &&
         draft.hasSavedProgress &&
         _step == ClubSetupSteps.prerequisites;
 
@@ -434,7 +388,6 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
                 IdentityStep(
                   draft: draft,
                   nameController: _nameController,
-                  descriptionController: _descriptionController,
                   onPickLogo: _pickLogo,
                   onNameChanged: (name) {
                     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
@@ -449,41 +402,29 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
                     });
                     _syncClubHeadquartersLocation();
                   },
-                  onBrandColorChanged: (hex) {
-                    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
-                      draft.brandColorHex = hex;
-                      return draft;
-                    });
-                  },
-                  onDescriptionChanged: () {
-                    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
-                      draft.description = _descriptionController.text.trim();
-                      return draft;
-                    });
-                  },
                 ),
                 ObjectivesStep(
                   selected: draft.objectives,
-                  memberCountRange: draft.memberCountRange,
                   onToggle: (key) {
                     ref.read(clubSetupProvider.notifier).toggleObjective(key);
                   },
-                  onMemberCountChanged: (range) {
+                ),
+                MemberCountStep(
+                  memberCountRange: draft.memberCountRange,
+                  onChanged: (range) {
                     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
                       draft.memberCountRange = range;
                       return draft;
                     });
                   },
                 ),
-                LocationStep(
+                HeadquartersStep(
                   cityController: _cityController,
                   postalController: _postalController,
                   addressController: _addressController,
-                  locationNameController: _locationNameController,
-                  locationAddressController: _locationAddressController,
-                  locations: draft.practiceLocations,
                   addressService: ref.read(frenchAddressServiceProvider),
-                  useClubAddressAsFirstLocation: _useClubAddressAsFirstLocation,
+                  useClubAddressAsFirstLocation:
+                      draft.useClubAddressAsFirstLocation,
                   onUseClubAddressChanged: _onUseClubAddressChanged,
                   onFieldChanged: () {
                     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
@@ -494,27 +435,24 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
                     });
                     _syncClubHeadquartersLocation();
                   },
-                  onAddLocation: _addLocation,
-                  onRemoveLocation: (index) {
-                    final locations = ref
-                        .read(clubSetupProvider)
-                        .practiceLocations;
+                ),
+                PracticeLocationsStep(
+                  sport: draft.sport,
+                  fallbackCity: draft.city,
+                  locations: draft.practiceLocations,
+                  onAdd: _addLocation,
+                  onValidationError: _showError,
+                  onRemove: (index) {
+                    final locations =
+                        ref.read(clubSetupProvider).practiceLocations;
                     if (index < 0 || index >= locations.length) return;
-                    final removedLocation = locations[index];
-                    final clubAddressLocation = _locationFromClubAddress;
-                    if (clubAddressLocation != null &&
-                        ClubSetupFormat.isSameLocation(
-                          removedLocation,
-                          clubAddressLocation,
-                        )) {
-                      setState(() {
-                        _useClubAddressAsFirstLocation = false;
-                        _locationFromClubAddress = null;
-                      });
-                    }
+                    final removed = locations[index];
                     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
-                      draft.practiceLocations = List.of(draft.practiceLocations)
-                        ..removeAt(index);
+                      draft.practiceLocations =
+                          List.of(draft.practiceLocations)..removeAt(index);
+                      if (removed.linkedToHeadquarters) {
+                        draft.useClubAddressAsFirstLocation = false;
+                      }
                       return draft;
                     });
                   },

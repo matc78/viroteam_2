@@ -3,23 +3,79 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 
 class PracticeLocation {
-  const PracticeLocation({required this.name, this.address});
+  const PracticeLocation({
+    required this.name,
+    this.address,
+    this.city,
+    this.category,
+    this.categoryCustom,
+    this.linkedToHeadquarters = false,
+  });
 
   final String name;
   final String? address;
+  final String? city;
+  final String? category;
+  final String? categoryCustom;
+
+  /// Flag brouillon wizard uniquement — jamais écrit sur le doc club.
+  final bool linkedToHeadquarters;
 
   factory PracticeLocation.fromMap(Map<String, dynamic> map) {
     return PracticeLocation(
       name: map[FirestoreFields.name] as String? ?? '',
       address: map[FirestoreFields.address] as String?,
+      city: map[FirestoreFields.city] as String?,
+      category: map[FirestoreFields.category] as String?,
+      categoryCustom: map[FirestoreFields.categoryCustom] as String?,
+      linkedToHeadquarters: map['linkedToHeadquarters'] as bool? ?? false,
     );
   }
 
+  /// Sérialisation brouillon local (inclut le flag siège).
   Map<String, dynamic> toMap() => {
         FirestoreFields.name: name,
         if (address != null && address!.isNotEmpty)
           FirestoreFields.address: address,
+        if (city != null && city!.isNotEmpty) FirestoreFields.city: city,
+        if (category != null && category!.isNotEmpty)
+          FirestoreFields.category: category,
+        if (categoryCustom != null && categoryCustom!.isNotEmpty)
+          FirestoreFields.categoryCustom: categoryCustom,
+        if (linkedToHeadquarters) 'linkedToHeadquarters': true,
       };
+
+  /// Sérialisation Firestore club (sans flag siège).
+  Map<String, dynamic> toFirestoreMap() => {
+        FirestoreFields.name: name,
+        if (address != null && address!.isNotEmpty)
+          FirestoreFields.address: address,
+        if (city != null && city!.isNotEmpty) FirestoreFields.city: city,
+        if (category != null && category!.isNotEmpty)
+          FirestoreFields.category: category,
+        if (categoryCustom != null && categoryCustom!.isNotEmpty)
+          FirestoreFields.categoryCustom: categoryCustom,
+      };
+
+  /// Copie avec champs optionnels remplacés.
+  PracticeLocation copyWith({
+    String? name,
+    String? address,
+    String? city,
+    String? category,
+    String? categoryCustom,
+    bool? linkedToHeadquarters,
+  }) {
+    return PracticeLocation(
+      name: name ?? this.name,
+      address: address ?? this.address,
+      city: city ?? this.city,
+      category: category ?? this.category,
+      categoryCustom: categoryCustom ?? this.categoryCustom,
+      linkedToHeadquarters:
+          linkedToHeadquarters ?? this.linkedToHeadquarters,
+    );
+  }
 }
 
 class Club {

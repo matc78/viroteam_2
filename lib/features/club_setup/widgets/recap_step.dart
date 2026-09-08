@@ -112,10 +112,7 @@ class RecapStep extends StatelessWidget {
                       child: _RecapLocationBody(
                         headquartersLine: headquartersLine,
                         locations: draft.practiceLocations,
-                        address: draft.address,
-                        postalCode: draft.postalCode,
-                        city: draft.city,
-                        sport: draft.sport,
+                        fallbackCity: draft.city,
                       ),
                     ),
                     _RecapPanel(
@@ -202,88 +199,34 @@ class _RecapLocationBody extends StatelessWidget {
   const _RecapLocationBody({
     required this.headquartersLine,
     required this.locations,
-    required this.address,
-    required this.postalCode,
-    required this.city,
-    required this.sport,
+    required this.fallbackCity,
   });
 
   final String headquartersLine;
   final List<PracticeLocation> locations;
-  final String address;
-  final String postalCode;
-  final String city;
-  final String sport;
+  final String fallbackCity;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context).textTheme;
-    final headquartersIndex = ClubSetupFormat.headquartersLocationIndex(
-      address: address,
-      postalCode: postalCode,
-      city: city,
-      sport: sport,
+    final summary = ClubSetupFormat.practiceLocationsSummary(
       locations: locations,
+      fallbackCity: fallbackCity,
     );
-    final headquartersMerged = headquartersIndex >= 0;
-    final headquartersLocation =
-        headquartersMerged ? locations[headquartersIndex] : null;
-    final extraLocations = [
-      for (var index = 0; index < locations.length; index++)
-        if (index != headquartersIndex) locations[index],
-    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (headquartersMerged)
-          _RecapLabeledValue(
-            label: 'Siège et lieu 1',
-            value: _mergedHeadquartersLine(headquartersLocation!),
-          )
-        else ...[
-          _RecapLabeledValue(
-            label: 'Siège',
-            value: headquartersLine.isEmpty ? 'Non renseigné' : headquartersLine,
-          ),
-          if (locations.isEmpty) ...[
-            const SizedBox(height: ViroSpacing.xs),
-            Text(
-              'Aucun lieu',
-              style: theme.bodySmall?.copyWith(color: ViroColors.gray400),
-            ),
-          ],
-        ],
-        ...extraLocations.asMap().entries.map((entry) {
-          final lieuNumber = headquartersMerged ? entry.key + 2 : entry.key + 1;
-          return Padding(
-            padding: const EdgeInsets.only(top: ViroSpacing.xs),
-            child: _RecapLabeledValue(
-              label: 'Lieu $lieuNumber',
-              value: _locationLine(entry.value),
-            ),
-          );
-        }),
+        _RecapLabeledValue(
+          label: 'Siège',
+          value: headquartersLine.isEmpty ? 'Non renseigné' : headquartersLine,
+        ),
+        const SizedBox(height: ViroSpacing.xs),
+        _RecapLabeledValue(
+          label: 'Lieux',
+          value: summary.isEmpty ? 'Aucun lieu' : summary,
+        ),
       ],
     );
-  }
-
-  String _mergedHeadquartersLine(PracticeLocation location) {
-    final locationLine = _locationLine(location);
-    if (locationLine.isNotEmpty) return locationLine;
-    return headquartersLine.isEmpty ? 'Non renseigné' : headquartersLine;
-  }
-
-  String _locationLine(PracticeLocation location) {
-    final locationAddress = location.address?.trim();
-    if (locationAddress != null && locationAddress.isNotEmpty) {
-      if (location.name.isNotEmpty &&
-          locationAddress.toLowerCase().contains(location.name.toLowerCase())) {
-        return locationAddress;
-      }
-      return '${location.name}\n$locationAddress';
-    }
-    return location.name;
   }
 }
 

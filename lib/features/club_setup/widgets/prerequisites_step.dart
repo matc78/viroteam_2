@@ -15,7 +15,7 @@ class PrerequisitesStep extends StatelessWidget {
   static final _items = [
     (ViroIcons.groups, 'Nom et sport du club', 'Comme vos membres vous connaissent'),
     (ViroIcons.place, 'Ville et lieu de pratique', 'Stade, salle, gymnase…'),
-    (ViroIcons.image, 'Logo et description', 'Ajoutables ou modifiables plus tard'),
+    (ViroIcons.image, 'Logo du club', 'Ajoutable ou modifiable plus tard'),
     (ViroIcons.calendar, 'Vos priorités', 'Planning, cotisations, annonces…'),
     (ViroIcons.roleAdmin, 'Rôle administrateur', 'Invitez vos membres par code'),
   ];

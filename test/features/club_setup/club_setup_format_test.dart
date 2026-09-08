@@ -40,8 +40,10 @@ void main() {
         city: 'Viroflay',
       );
 
-      expect(location.name, 'Court — Viroflay');
+      expect(location.name, 'Court de tennis — Viroflay');
       expect(location.address, '3 allée des Courts, 78220 Viroflay');
+      expect(location.category, 'tennis_court');
+      expect(location.linkedToHeadquarters, isTrue);
     });
   });
 

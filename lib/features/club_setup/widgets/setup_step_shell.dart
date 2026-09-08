@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
-/// Conteneur centré pour une étape du wizard création club.
+/// Conteneur centré pour une étape du wizard création club (sans scroll).
 class SetupStepShell extends StatelessWidget {
   const SetupStepShell({
     super.key,
@@ -10,7 +10,6 @@ class SetupStepShell extends StatelessWidget {
     this.subtitle,
     required this.child,
     this.footer,
-    this.scrollable = false,
     this.centerBody = false,
   });
 
@@ -19,10 +18,7 @@ class SetupStepShell extends StatelessWidget {
   final Widget child;
   final Widget? footer;
 
-  /// `true` uniquement si le contenu peut dépasser (ex. liste longue).
-  final bool scrollable;
-
-  /// Centre le [child] verticalement dans l'espace restant (scroll si trop haut).
+  /// Centre le [child] verticalement dans l'espace restant.
   final bool centerBody;
 
   @override
@@ -55,7 +51,8 @@ class SetupStepShell extends StatelessWidget {
     ];
 
     final stepBody = centerBody
-        ? _CenteredStepBody(
+        ? Align(
+            alignment: Alignment.center,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -67,22 +64,6 @@ class SetupStepShell extends StatelessWidget {
           )
         : child;
 
-    final content = Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (!centerBody) ...header,
-        if (scrollable)
-          Flexible(child: stepBody)
-        else
-          Expanded(child: stepBody),
-        if (footer != null) ...[
-          const SizedBox(height: ViroSpacing.sm),
-          footer!,
-        ],
-      ],
-    );
-
     return Padding(
       padding: EdgeInsets.fromLTRB(
         ViroSpacing.lg,
@@ -93,37 +74,20 @@ class SetupStepShell extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
-          child: scrollable
-              ? SingleChildScrollView(
-                  child: content,
-                )
-              : content,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!centerBody) ...header,
+              Expanded(child: stepBody),
+              if (footer != null) ...[
+                const SizedBox(height: ViroSpacing.sm),
+                footer!,
+              ],
+            ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-/// Centre [child] dans l'espace disponible ; scroll si le contenu dépasse.
-class _CenteredStepBody extends StatelessWidget {
-  const _CenteredStepBody({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Align(
-              alignment: Alignment.center,
-              child: child,
-            ),
-          ),
-        );
-      },
     );
   }
 }

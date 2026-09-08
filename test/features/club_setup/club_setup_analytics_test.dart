@@ -40,7 +40,18 @@ void main() {
         ClubSetupSteps.analyticsKey(ClubSetupSteps.objectives),
         'objectives',
       );
-      expect(ClubSetupSteps.analyticsKey(ClubSetupSteps.location), 'location');
+      expect(
+        ClubSetupSteps.analyticsKey(ClubSetupSteps.memberCount),
+        'member_count',
+      );
+      expect(
+        ClubSetupSteps.analyticsKey(ClubSetupSteps.headquarters),
+        'headquarters',
+      );
+      expect(
+        ClubSetupSteps.analyticsKey(ClubSetupSteps.practiceLocations),
+        'practice_locations',
+      );
       expect(ClubSetupSteps.analyticsKey(ClubSetupSteps.recap), 'recap');
     });
 
@@ -49,6 +60,21 @@ void main() {
       expect(ClubSetupSteps.analyticsKey(99), 'recap');
       expect(ClubSetupSteps.clampIndex(-1), 0);
       expect(ClubSetupSteps.clampIndex(99), ClubSetupSteps.total - 1);
+    });
+
+    test('migre les indices du wizard v2 vers v3', () {
+      expect(
+        ClubSetupSteps.normalizePersistedStep(3, wizardVersion: 2),
+        ClubSetupSteps.headquarters,
+      );
+      expect(
+        ClubSetupSteps.normalizePersistedStep(4, wizardVersion: 2),
+        ClubSetupSteps.recap,
+      );
+      expect(
+        ClubSetupSteps.normalizePersistedStep(2, wizardVersion: 2),
+        ClubSetupSteps.objectives,
+      );
     });
   });
 
@@ -71,7 +97,7 @@ void main() {
     });
 
     test('trackStepViewed expose step et step_index', () async {
-      analytics.trackStepViewed(ClubSetupSteps.location);
+      analytics.trackStepViewed(ClubSetupSteps.headquarters);
       await flushCaptures();
 
       expect(
@@ -80,11 +106,11 @@ void main() {
       );
       expect(
         client.captures.single.properties,
-        containsPair('step', 'location'),
+        containsPair('step', 'headquarters'),
       );
       expect(
         client.captures.single.properties,
-        containsPair('step_index', ClubSetupSteps.location),
+        containsPair('step_index', ClubSetupSteps.headquarters),
       );
     });
 
@@ -92,7 +118,7 @@ void main() {
       analytics.trackCompleted(
         sport: 'Football',
         objectives: {'fees', 'planning', 'parents'},
-        memberCountRange: '30_100',
+        memberCountRange: '50',
       );
       await flushCaptures();
 
@@ -104,7 +130,7 @@ void main() {
       expect(properties['sport'], 'Football');
       expect(properties['objectives'], ['fees', 'parents', 'planning']);
       expect(properties['objective_count'], 3);
-      expect(properties['member_count_range'], '30_100');
+      expect(properties['member_count_range'], '50');
       expect(properties.containsKey('club_name'), isFalse);
     });
 

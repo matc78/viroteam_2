@@ -20,6 +20,7 @@ class SetupProgressHeader extends StatelessWidget implements PreferredSizeWidget
     ViroColors.sportYellow,
     ViroColors.primary400,
     ViroColors.adminBadgeEnd,
+    ViroColors.sportCyan,
   ];
 
   @override

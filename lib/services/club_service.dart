@@ -106,7 +106,7 @@ class ClubService {
       );
 
       tx.set(clubRef, {
-        FirestoreFields.name: draft.name.trim(),
+        FirestoreFields.name: draft.name.trim().toUpperCase(),
         FirestoreFields.sport: draft.sport,
         FirestoreFields.city: draft.city.trim(),
         FirestoreFields.postalCode: draft.postalCode.trim(),
@@ -115,8 +115,9 @@ class ClubService {
           FirestoreFields.description: draft.description.trim(),
         if (logoUrl != null) FirestoreFields.logoUrl: logoUrl,
         FirestoreFields.brandColorHex: draft.brandColorHex,
-        FirestoreFields.practiceLocations:
-            draft.practiceLocations.map((l) => l.toMap()).toList(),
+        FirestoreFields.practiceLocations: draft.practiceLocations
+            .map((location) => location.toFirestoreMap())
+            .toList(),
         FirestoreFields.adminIds: [founderUid],
         FirestoreFields.memberCount: 1,
         FirestoreFields.seasonEndDate: Timestamp.fromDate(defaultSeasonEndDate()),

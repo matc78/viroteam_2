@@ -1,3 +1,4 @@
+import 'package:viro_team_v2/features/club_setup/practice_location_categories.dart';
 import 'package:viro_team_v2/models/club.dart';
 
 /// Formatage adresse / lieu pour le wizard création club.
@@ -43,18 +44,11 @@ abstract final class ClubSetupFormat {
     return cityName.isNotEmpty ? cityName : postal;
   }
 
-  /// Type de lieu de pratique habituel pour un sport.
+  /// Type de lieu de pratique habituel pour un sport (libellé legacy).
   static String venueTypeForSport(String sport) {
-    return switch (sport) {
-      'Football' || 'Rugby' || 'Athlétisme' => 'Stade',
-      'Basketball' || 'Volleyball' || 'Handball' => 'Gymnase',
-      'Tennis' => 'Court',
-      'Natation' => 'Piscine',
-      'Judo' => 'Dojo',
-      'Escrime' => 'Salle d\'armes',
-      'Aviron' => 'Base nautique',
-      _ => 'Gymnase',
-    };
+    return PracticeLocationCategories.label(
+      PracticeLocationCategories.defaultForSport(sport),
+    );
   }
 
   /// Nom du lieu quand le siège est réutilisé comme lieu de pratique.
@@ -67,7 +61,19 @@ abstract final class ClubSetupFormat {
     return cityName.isNotEmpty ? '$venue — $cityName' : venue;
   }
 
-  /// Lieu de pratique dérivé du siège (nom + adresse).
+  /// Libellé d'un lieu manuel (catégorie + ville).
+  static String practiceLocationName({
+    required String category,
+    required String city,
+    String? categoryCustom,
+  }) {
+    final categoryLabel =
+        PracticeLocationCategories.label(category, categoryCustom);
+    final cityName = city.trim();
+    return cityName.isNotEmpty ? '$categoryLabel — $cityName' : categoryLabel;
+  }
+
+  /// Lieu de pratique dérivé du siège (nom + adresse + catégorie).
   static PracticeLocation headquartersPracticeLocation({
     required String sport,
     required String address,
@@ -79,9 +85,13 @@ abstract final class ClubSetupFormat {
       postalCode: postalCode,
       city: city,
     );
+    final cityName = city.trim();
     return PracticeLocation(
       name: headquartersPracticeName(sport: sport, city: city),
+      city: cityName.isEmpty ? null : cityName,
       address: practiceAddress.isEmpty ? null : practiceAddress,
+      category: PracticeLocationCategories.defaultForSport(sport),
+      linkedToHeadquarters: true,
     );
   }
 
@@ -91,7 +101,17 @@ abstract final class ClubSetupFormat {
     PracticeLocation second,
   ) {
     return _normalized(first.name) == _normalized(second.name) &&
-        _normalized(first.address ?? '') == _normalized(second.address ?? '');
+        _normalized(first.city ?? '') == _normalized(second.city ?? '') &&
+        _normalized(first.address ?? '') == _normalized(second.address ?? '') &&
+        _normalized(first.category ?? '') ==
+            _normalized(second.category ?? '') &&
+        _normalized(first.categoryCustom ?? '') ==
+            _normalized(second.categoryCustom ?? '');
+  }
+
+  /// Index du lieu lié au siège via le flag, ou `-1`.
+  static int linkedHeadquartersIndex(List<PracticeLocation> locations) {
+    return locations.indexWhere((location) => location.linkedToHeadquarters);
   }
 
   /// Indique si [location] est le lieu généré depuis le siège actuel.
@@ -102,15 +122,20 @@ abstract final class ClubSetupFormat {
     required String sport,
     required PracticeLocation location,
   }) {
-    return isSameLocation(
-      location,
-      headquartersPracticeLocation(
-        sport: sport,
-        address: address,
-        postalCode: postalCode,
-        city: city,
-      ),
+    if (location.linkedToHeadquarters) return true;
+    final expected = headquartersPracticeLocation(
+      sport: sport,
+      address: address,
+      postalCode: postalCode,
+      city: city,
     );
+    if (_normalized(location.name) != _normalized(expected.name)) {
+      return false;
+    }
+    final locationAddress = location.address?.trim() ?? '';
+    final expectedAddress = expected.address?.trim() ?? '';
+    if (locationAddress.isEmpty || expectedAddress.isEmpty) return false;
+    return _normalized(locationAddress) == _normalized(expectedAddress);
   }
 
   /// Index du lieu siège dans [locations], ou `-1` s'il est absent.
@@ -132,5 +157,99 @@ abstract final class ClubSetupFormat {
     );
   }
 
+  /// Migre les lieux legacy : pose `linkedToHeadquarters` sur le siège détecté.
+  static List<PracticeLocation> migrateLinkedHeadquarters({
+    required String address,
+    required String postalCode,
+    required String city,
+    required String sport,
+    required List<PracticeLocation> locations,
+  }) {
+    if (linkedHeadquartersIndex(locations) >= 0) return locations;
+    final legacyIndex = headquartersLocationIndex(
+      address: address,
+      postalCode: postalCode,
+      city: city,
+      sport: sport,
+      locations: locations,
+    );
+    if (legacyIndex < 0) return locations;
+    return [
+      for (var index = 0; index < locations.length; index++)
+        if (index == legacyIndex)
+          locations[index].copyWith(linkedToHeadquarters: true)
+        else
+          locations[index],
+    ];
+  }
+
+  /// Résumé court des lieux ajoutés.
+  static String practiceLocationsSummary({
+    required List<PracticeLocation> locations,
+    String? fallbackCity,
+  }) {
+    if (locations.isEmpty) return '';
+
+    final counts = <String, int>{};
+    for (final location in locations) {
+      final label = PracticeLocationCategories.label(
+        location.category ?? PracticeLocationCategories.other,
+        location.categoryCustom,
+      );
+      final key = label.trim().isEmpty
+          ? PracticeLocationCategories.labels[PracticeLocationCategories.other]!
+          : label;
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+
+    final categoryParts = counts.entries.map((entry) {
+      final count = entry.value;
+      final label = entry.key;
+      if (count > 1) return '$count ${_pluralizeCategoryLabel(label)}';
+      return '$count ${label.toLowerCase()}';
+    }).toList();
+
+    final cities = {
+      for (final location in locations)
+        if ((location.city?.trim() ?? '').isNotEmpty) location.city!.trim(),
+    }.toList();
+
+    final cityName = cities.length == 1
+        ? cities.first
+        : cities.isEmpty
+            ? (fallbackCity?.trim() ?? '')
+            : '';
+
+    final head = categoryParts.join(' · ');
+    if (cityName.isNotEmpty) return '$head à $cityName';
+    if (cities.length > 1) return '$head · ${cities.join(', ')}';
+    return head;
+  }
+
   static String _normalized(String value) => value.trim().toLowerCase();
+
+  static String _pluralizeCategoryLabel(String label) {
+    final normalized = label.trim().toLowerCase();
+    switch (normalized) {
+      case 'city-stade':
+        return 'city-stades';
+      case 'parcours santé':
+        return 'parcours santé';
+      case "piste d'athlétisme":
+        return "pistes d'athlétisme";
+      case "salle d'armes":
+        return "salles d'armes";
+      case 'base nautique':
+        return 'bases nautiques';
+      case 'court de tennis':
+        return 'courts de tennis';
+      case 'autre':
+        return 'autres';
+      default:
+        if (normalized.endsWith('s') || normalized.endsWith('x')) {
+          return normalized;
+        }
+        return '${normalized}s';
+    }
+  }
 }

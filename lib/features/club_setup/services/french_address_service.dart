@@ -110,7 +110,7 @@ class FrenchAddressService {
             trimmed,
             postcode: postalCode.trim(),
             city: cityName,
-            labelBuilder: (_, _, street) => street,
+            labelBuilder: (city, postcode, street) => street,
           );
 
     return _uniqueByLabel(
@@ -135,7 +135,7 @@ class FrenchAddressService {
             index: 'poi',
             postcode: postcode,
             city: city,
-            labelBuilder: (_, _, street) => street,
+            labelBuilder: (city, postcode, street) => street,
           ),
         ),
       );
@@ -149,7 +149,7 @@ class FrenchAddressService {
       index: 'poi',
       postcode: postcode,
       city: city,
-      labelBuilder: (_, _, street) => street,
+      labelBuilder: (city, postcode, street) => street,
     );
   }
 

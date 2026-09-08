@@ -46,6 +46,23 @@ export {
 
 export { onTeamWritten, onTeamWrittenDev } from "./parentTeams";
 
+export {
+  registerFcmToken,
+  registerFcmTokenDev,
+  unregisterFcmToken,
+  unregisterFcmTokenDev,
+  sendEventPush,
+  sendEventPushDev,
+  onEventWrittenForPush,
+  onEventWrittenForPushDev,
+  onAnnouncementCreatedForPush,
+  onAnnouncementCreatedForPushDev,
+  scheduleEventReminders,
+  scheduleEventRemindersDev,
+  scheduleFeeReminders,
+  scheduleFeeRemindersDev,
+} from "./notifications";
+
 const helloAssoClientId = defineSecret("HELLOASSO_CLIENT_ID");
 const helloAssoClientSecret = defineSecret("HELLOASSO_CLIENT_SECRET");
 /** Jeton partagé exigé sur le webhook ; vide/non défini ⇒ webhook désactivé (503). */

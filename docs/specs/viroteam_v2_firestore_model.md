@@ -32,14 +32,26 @@
 | `displayName` | string | |
 | `phone` | string | |
 | `avatarUrl` | string | URL Firebase Storage |
-| `fcmToken` | string | Token push notifications |
+| ~~`fcmToken`~~ | — | Remplacé par sous-collection `fcmTokens` (multi-appareils) |
 | `clubMemberships` | array | `[{ clubId, role }]` — clubs où l’utilisateur est **membre** (`player` \| `coach` \| `admin`) |
 | `parentLinks` | array | Index session parent : `[{ clubId, memberId, relation, status }]` — **pas** un rôle club. Source de vérité : `members/{memberId}/guardians/{parentUid}`. Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md). |
-| `notificationPreferences` | map | Préférences par type de notif |
+| `notificationPreferences` | map | `{ events, announcements, fees }` — booléens, défaut `true` (opt-in) |
 | `flags` | map | `{ profileCompleted, disabled }` |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |
 | `lastConnectionAt` | timestamp | |
+
+#### `users/{uid}/fcmTokens/{tokenHash}`
+> Tokens push FCM (app iOS/Android + web). Écrits uniquement via Cloud Functions (`registerFcmToken`).
+
+| Champ | Type | Description |
+|---|---|---|
+| `token` | string | Token FCM brut |
+| `platform` | string | `ios` \| `android` \| `web` |
+| `updatedAt` | timestamp | |
+
+#### `fcmTokenIndex/{tokenHash}`
+> Index serveur (Admin SDK) : ownership unique d’un token → `uid`. Empêche la livraison croisée entre comptes sur un même appareil.
 
 **⚠️ Champs supprimés (legacy) :**
 - `roles` (map legacy multi-rôles)
@@ -164,6 +176,11 @@ V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiv
 | `attendance` | map | `uid → { status, lateMinutes, markedBy, markedAt }` |
 | `creatorId` | string | |
 | `createdAt` | timestamp | |
+| `canceled` | bool | Annulation soft |
+| `dateId` | string | `YYYYMMDD` (calendaire) |
+| `reminderSentJ7` | bool? | Rappel J-7 déjà envoyé (Functions) |
+| `reminderSentJ2` | bool? | Rappel J-2 déjà envoyé (Functions) |
+| `lastManualPushAt` | timestamp? | Rate-limit envoi manuel (1/h) |
 
 > **`attendance`** est le seul map de présence — `sessionAttendance` et la collection `training_attendances` sont supprimés.
 

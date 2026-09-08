@@ -1,0 +1,31 @@
+/** Types partagés pour les push notifications V1. */
+
+export type NotificationPreferenceKey = "events" | "announcements" | "fees";
+
+export type FcmPlatform = "ios" | "android" | "web";
+
+export type PushPayload = {
+  title: string;
+  body: string;
+  /** Clé de préférence à respecter (absent = toujours envoyer). */
+  preferenceKey: NotificationPreferenceKey;
+  data: Record<string, string>;
+};
+
+export type NotificationPreferences = {
+  events: boolean;
+  announcements: boolean;
+  fees: boolean;
+};
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  events: true,
+  announcements: true,
+  fees: true,
+};
+
+export const MANUAL_PUSH_COOLDOWN_MS = 60 * 60 * 1000;
+
+export const ANNOUNCEMENT_BODY_MAX_CHARS = 120;
+
+export const PARIS_TZ = "Europe/Paris";

@@ -23,6 +23,13 @@ Logique sensible hors client (HelloAsso, invitations). Spec paiement :
 | `setMemberRole` / `setMemberRoleDev` | Callable — admin du club change un rôle (garde « dernier admin », sync `adminIds` + `clubMemberships`) |
 | `removeMember` / `removeMemberDev` | Callable — admin du club retire un membre (garde « dernier admin », rosters, invitation → `revoked`, `member_accounts`) |
 | `onTeamWritten` / `onTeamWrittenDev` | Trigger Firestore `clubs/{clubId}/teams/{teamId}` — recalcule `users/{uid}.parentTeamIds` des parents des joueurs ajoutés/retirés |
+| `registerFcmToken` / `…Dev` | Callable — enregistre un token FCM (`users/{uid}/fcmTokens`) |
+| `unregisterFcmToken` / `…Dev` | Callable — supprime un token FCM |
+| `sendEventPush` / `…Dev` | Callable — notif manuelle event (coach/admin, 1/h) |
+| `onEventWrittenForPush` / `…Dev` | Trigger events — création (rappels immédiats), annulé / reporté / modifié |
+| `onAnnouncementCreatedForPush` / `…Dev` | Trigger annonces — push à la publication |
+| `scheduleEventReminders` / `…Dev` | Cron Lun–Ven 18:30 Europe/Paris — rappels J-7 / J-2 |
+| `scheduleFeeReminders` / `…Dev` | Cron lundi 19:00 Europe/Paris — rappels cotisation |
 
 **Environnements** : sans suffixe → Firestore `v2-prod` ; suffixe `Dev` → `v2-dev`.
 L’app Flutter (`cloudCallableName`) et le portail (`NEXT_PUBLIC_FIRESTORE_DATABASE_ID`) choisissent le bon nom.

@@ -45,6 +45,7 @@ import {
   createUserProfile,
   getUserProfile,
 } from "@/lib/firebase/userService";
+import { startWebPush, stopWebPush } from "@/lib/firebase/pushNotificationService";
 
 export type { PortalSpace };
 
@@ -205,6 +206,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setProfile(userProfile);
+
+    void startWebPush().catch((error) => {
+      console.info("Web push non démarré", error);
+    });
 
     const adminIds = adminClubIds(userProfile);
     const bureauIds = bureauClubIds(userProfile);
@@ -377,6 +382,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     writeStoredClubId(null);
+    await stopWebPush().catch(() => undefined);
     await signOut(getFirebaseAuth());
   }, []);
 

@@ -7,6 +7,10 @@ import {
   MemberRoles,
   PortalUiRoles,
 } from "./constants";
+import {
+  parseNotificationPreferences,
+  type NotificationPreferences,
+} from "./notificationPreferences";
 
 /** Résumé d’adhésion club sur users/{uid}.clubMemberships. */
 export type ClubMembership = {
@@ -36,6 +40,7 @@ export type ViroUserProfile = {
   parentClubIds: string[];
   /** Équipes des enfants (index maintenu serveur). */
   parentTeamIds: string[];
+  notificationPreferences: NotificationPreferences;
   profileCompleted: boolean;
   disabled: boolean;
 };
@@ -94,6 +99,9 @@ export function parseUserProfile(
     parentTeamIds: rawParentTeamIds
       .map((item) => String(item ?? "").trim())
       .filter(Boolean),
+    notificationPreferences: parseNotificationPreferences(
+      data?.[Fields.notificationPreferences],
+    ),
     profileCompleted: Boolean(flags[Fields.profileCompleted]),
     disabled: Boolean(flags[Fields.disabled]),
   };

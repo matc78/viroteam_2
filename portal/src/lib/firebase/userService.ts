@@ -8,6 +8,7 @@ import {
 import { getAppFirestore } from "./app";
 import { Collections, Fields } from "./constants";
 import { parseUserProfile, splitDisplayName, ViroUserProfile } from "./types";
+import type { NotificationPreferences } from "./notificationPreferences";
 import {
   formatFirstName,
   formatLastName,
@@ -127,4 +128,15 @@ export async function updateUserProfileForJoin(params: {
     },
     { merge: true },
   );
+}
+
+/** Persiste les préférences de notifications push. */
+export async function updateNotificationPreferences(params: {
+  uid: string;
+  preferences: NotificationPreferences;
+}): Promise<void> {
+  await updateDoc(doc(getAppFirestore(), Collections.users, params.uid), {
+    [Fields.notificationPreferences]: params.preferences,
+    [Fields.updatedAt]: serverTimestamp(),
+  });
 }

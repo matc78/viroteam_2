@@ -22,6 +22,8 @@ import { colorForFilter } from "@/lib/planning/calendarColors";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
+import { useToast } from "@/components/ToastProvider";
+import { sendEventPush } from "@/lib/firebase/callableService";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningEventDetailPanel.module.css";
 
@@ -44,6 +46,8 @@ type PlanningEventDetailPanelProps = {
   /** Si fourni, affiche les boutons RSVP pour ce membre. */
   linkedMemberId?: string | null;
   onRsvpUpdated?: () => void;
+  /** Affiche le bouton d'envoi de notification (coach / admin). */
+  canSendPush?: boolean;
 };
 
 function rsvpRowLabel(status: RsvpRowStatus): string {
@@ -113,7 +117,10 @@ export function PlanningEventDetailPanel({
   clubId,
   linkedMemberId,
   onRsvpUpdated,
+  canSendPush = false,
 }: PlanningEventDetailPanelProps) {
+  const { showToast } = useToast();
+  const [sendingPush, setSendingPush] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const [resolvedAnchor, setResolvedAnchor] = useState<PopoverAnchorRect | null>(
     anchor,
@@ -217,6 +224,27 @@ export function PlanningEventDetailPanel({
 
   function handleRsvpPersisted() {
     onRsvpUpdated?.();
+  }
+
+  async function handleSendPush() {
+    if (!clubId || sendingPush) return;
+    setSendingPush(true);
+    try {
+      const result = await sendEventPush({
+        clubId,
+        eventId: event.id,
+      });
+      showToast(
+        `Notification envoyée (${result.recipientCount} destinataire${result.recipientCount > 1 ? "s" : ""})`,
+        "success",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Envoi impossible";
+      showToast(message, "error");
+    } finally {
+      setSendingPush(false);
+    }
   }
 
   return (
@@ -341,6 +369,19 @@ export function PlanningEventDetailPanel({
               </ul>
             ) : null}
           </section>
+
+          {canSendPush && clubId ? (
+            <div className={styles.pushActions}>
+              <button
+                type="button"
+                className={styles.pushButton}
+                disabled={sendingPush}
+                onClick={() => void handleSendPush()}
+              >
+                {sendingPush ? "Envoi…" : "Envoyer une notification"}
+              </button>
+            </div>
+          ) : null}
         </FadeScrollArea>
 
         {showRsvpFooter && clubId && linkedMemberId ? (

@@ -245,3 +245,26 @@ export async function createHelloAssoCheckout(params: {
 }): Promise<{ redirectUrl?: string; checkoutUrl?: string }> {
   return callFunction("createHelloAssoCheckout", params);
 }
+
+/** Enregistre un token FCM (app ou web). */
+export async function registerFcmToken(params: {
+  token: string;
+  platform: "ios" | "android" | "web";
+}): Promise<{ ok: boolean }> {
+  return callFunction("registerFcmToken", params);
+}
+
+/** Supprime un token FCM. */
+export async function unregisterFcmToken(params: {
+  token: string;
+}): Promise<{ ok: boolean }> {
+  return callFunction("unregisterFcmToken", params);
+}
+
+/** Envoi manuel d'une notif event (coach / admin). */
+export async function sendEventPush(params: {
+  clubId: string;
+  eventId: string;
+}): Promise<{ ok: boolean; recipientCount: number; tokenCount: number }> {
+  return callFunction("sendEventPush", params);
+}

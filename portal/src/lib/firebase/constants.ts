@@ -26,6 +26,7 @@ export const Fields = {
   displayName: "displayName",
   phone: "phone",
   avatarUrl: "avatarUrl",
+  notificationPreferences: "notificationPreferences",
   logoUrl: "logoUrl",
   coachPermissions: "coachPermissions",
   canCreateEvents: "canCreateEvents",

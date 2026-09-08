@@ -513,9 +513,12 @@ function PlanningPageContent() {
             setSelectedEventAnchor(null);
             setSelectedEventColor(null);
           }}
-          clubId={activeClub && linkedMemberId ? activeClub.id : undefined}
+          clubId={activeClub?.id}
           linkedMemberId={linkedMemberId}
           onRsvpUpdated={handleRefresh}
+          canSendPush={Boolean(
+            activeClub && (caps.isAdmin || caps.isCoach),
+          )}
         />
       ) : null}
 

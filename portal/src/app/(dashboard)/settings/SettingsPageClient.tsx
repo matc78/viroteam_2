@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { AccountSettingsSection } from "@/components/settings/AccountSettingsSection";
+import { NotificationPreferencesSection } from "@/components/settings/NotificationPreferencesSection";
 import { SettingsAccordion } from "@/components/settings/SettingsAccordion";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -375,6 +376,7 @@ export function SettingsPageClient() {
       ) : null}
 
       <AccountSettingsSection />
+      <NotificationPreferencesSection />
     </div>
   );
 }

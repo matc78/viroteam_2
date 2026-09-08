@@ -10,6 +10,7 @@ import {
   type ClubSetupDraft,
   type PracticeLocation,
 } from "./clubSetupDraft";
+import { ClubSetupFormat } from "./clubSetupFormat";
 
 const PERSIST_DEBOUNCE_MS = 300;
 
@@ -29,6 +30,7 @@ type UseClubSetupDraftResult = {
   setPostalCode: (postalCode: string) => void;
   setAddress: (address: string) => void;
   setPracticeLocations: (locations: PracticeLocation[]) => void;
+  setUseClubAddressAsFirstLocation: (value: boolean) => void;
   addPracticeLocation: (location: PracticeLocation) => void;
   removePracticeLocation: (index: number) => void;
   replaceDraft: (draft: ClubSetupDraft) => void;
@@ -97,7 +99,12 @@ export function useClubSetupDraft(userId: string | null): UseClubSetupDraftResul
   );
 
   const setCurrentStep = useCallback(
-    (step: number) => updateDraft((current) => ({ ...current, currentStep: step })),
+    (step: number) =>
+      updateDraft((current) => ({
+        ...current,
+        currentStep: step,
+        maxReachedStep: Math.max(current.maxReachedStep, step),
+      })),
     [updateDraft],
   );
 
@@ -161,7 +168,27 @@ export function useClubSetupDraft(userId: string | null): UseClubSetupDraftResul
 
   const setPracticeLocations = useCallback(
     (practiceLocations: PracticeLocation[]) =>
-      updateDraft((current) => ({ ...current, practiceLocations })),
+      updateDraft((current) => {
+        if (
+          ClubSetupFormat.areSameLocations(
+            current.practiceLocations,
+            practiceLocations,
+          )
+        ) {
+          return current;
+        }
+        return { ...current, practiceLocations };
+      }),
+    [updateDraft],
+  );
+
+  const setUseClubAddressAsFirstLocation = useCallback(
+    (useClubAddressAsFirstLocation: boolean) =>
+      updateDraft((current) =>
+        current.useClubAddressAsFirstLocation === useClubAddressAsFirstLocation
+          ? current
+          : { ...current, useClubAddressAsFirstLocation },
+      ),
     [updateDraft],
   );
 
@@ -211,6 +238,7 @@ export function useClubSetupDraft(userId: string | null): UseClubSetupDraftResul
     setPostalCode,
     setAddress,
     setPracticeLocations,
+    setUseClubAddressAsFirstLocation,
     addPracticeLocation,
     removePracticeLocation,
     replaceDraft,

@@ -26,7 +26,7 @@ export const ClubSetupStepAccents = [
   },
   {
     step: ClubSetupSteps.recap,
-    color: "var(--color-sport-orange)",
+    color: "#f5c518",
     label: "Récap",
   },
 ] as const;
@@ -66,7 +66,7 @@ export const ClubSetupProgressIcons = [
     src: `${PROGRESS_ICON_BASE}/bump.png`,
     title: "Vérification",
     stepIndex: ClubSetupSteps.recap,
-    accent: "var(--color-sport-yellow)",
+    accent: "#f5c518",
   },
   {
     id: "celebrate",
@@ -83,17 +83,17 @@ export function clubSetupStepAccent(step: number): string {
   return ClubSetupStepAccents[index]?.color ?? "var(--color-sport-orange)";
 }
 
-/** L’icône est atteinte (étape en cours ou passée). */
+/** L’icône est atteinte (étape déjà visitée, même après un retour arrière). */
 export function isClubSetupProgressIconReached(
-  currentStep: number,
+  maxReachedStep: number,
   iconIndex: number,
 ): boolean {
   const icon = ClubSetupProgressIcons[iconIndex];
   if (!icon) return false;
   if (iconIndex >= ClubSetupProgressIcons.length - 2) {
-    return currentStep >= ClubSetupSteps.recap;
+    return maxReachedStep >= ClubSetupSteps.recap;
   }
-  return currentStep >= icon.stepIndex;
+  return maxReachedStep >= icon.stepIndex;
 }
 
 /** L’icône correspond à l’étape affichée. */
@@ -112,9 +112,9 @@ export function isClubSetupProgressIconCurrent(
   return currentStep === icon.stepIndex;
 }
 
-/** L’icône est validée (étape terminée). */
+/** L’icône est validée (étape déjà dépassée au moins une fois). */
 export function isClubSetupProgressIconCompleted(
-  currentStep: number,
+  maxReachedStep: number,
   iconIndex: number,
 ): boolean {
   const icon = ClubSetupProgressIcons[iconIndex];
@@ -122,15 +122,28 @@ export function isClubSetupProgressIconCompleted(
   if (iconIndex >= ClubSetupProgressIcons.length - 2) {
     return false;
   }
-  return currentStep > icon.stepIndex;
+  return maxReachedStep > icon.stepIndex;
 }
 
-/** L’icône permet de revenir à une étape déjà visitée. */
+/** L’icône Création clignote pendant l’étape Vérification. */
+export function isClubSetupProgressIconCreationBlink(
+  currentStep: number,
+  iconIndex: number,
+): boolean {
+  return (
+    currentStep === ClubSetupSteps.recap &&
+    iconIndex === ClubSetupProgressIcons.length - 1
+  );
+}
+
+/** L’icône permet d’aller à une étape déjà visitée (avant ou après l’étape courante). */
 export function isClubSetupProgressIconNavigable(
   currentStep: number,
+  maxReachedStep: number,
   iconIndex: number,
 ): boolean {
   const icon = ClubSetupProgressIcons[iconIndex];
   if (!icon) return false;
-  return icon.stepIndex < currentStep;
+  if (iconIndex === ClubSetupProgressIcons.length - 1) return false;
+  return icon.stepIndex !== currentStep && icon.stepIndex <= maxReachedStep;
 }

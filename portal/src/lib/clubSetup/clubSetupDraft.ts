@@ -1,15 +1,25 @@
 import {
   CLUB_SETUP_DRAFT_KEY_PREFIX,
   CLUB_SETUP_LOGO_KEY_PREFIX,
+  ClubMemberCountRanges,
   ClubSetupDefaults,
   ClubSetupSteps,
   ClubSports,
 } from "./constants";
+import { ClubSetupFormat } from "./clubSetupFormat";
 
 /** Lieu de pratique du club. */
 export type PracticeLocation = {
   name: string;
+  /** Ville du lieu de pratique. */
+  city?: string;
   address?: string;
+  /** Catégorie du lieu (city-stade, forêt, lac…). */
+  category?: string;
+  /** Libellé libre si catégorie = Autre. */
+  categoryCustom?: string;
+  /** Lieu dérivé du siège (mis à jour tant que la case est cochée). */
+  linkedToHeadquarters?: boolean;
 };
 
 /** Brouillon local du wizard création club. */
@@ -24,8 +34,12 @@ export type ClubSetupDraft = {
   practiceLocations: PracticeLocation[];
   description: string;
   currentStep: number;
+  /** Étape la plus avancée déjà atteinte (icônes restent allumées au retour). */
+  maxReachedStep: number;
   memberCountRange: string | null;
   brandColorHex: string;
+  /** Case « siège = lieu de pratique » (persistée pour reprise de brouillon). */
+  useClubAddressAsFirstLocation: boolean;
 };
 
 export function createEmptyClubSetupDraft(): ClubSetupDraft {
@@ -40,8 +54,10 @@ export function createEmptyClubSetupDraft(): ClubSetupDraft {
     practiceLocations: [],
     description: "",
     currentStep: ClubSetupSteps.prerequisites,
+    maxReachedStep: ClubSetupSteps.prerequisites,
     memberCountRange: null,
     brandColorHex: ClubSetupDefaults.brandColorHex,
+    useClubAddressAsFirstLocation: true,
   };
 }
 
@@ -68,7 +84,8 @@ export function hasSavedProgress(draft: ClubSetupDraft): boolean {
     draft.memberCountRange !== null ||
     draft.logoDataUrl !== null ||
     draft.currentStep > 0 ||
-    draft.brandColorHex !== ClubSetupDefaults.brandColorHex
+    draft.brandColorHex !== ClubSetupDefaults.brandColorHex ||
+    !draft.useClubAddressAsFirstLocation
   );
 }
 
@@ -83,8 +100,10 @@ type SerializedDraft = {
   practiceLocations: PracticeLocation[];
   description: string;
   currentStep: number;
+  maxReachedStep?: number;
   memberCountRange: string | null;
   brandColorHex: string;
+  useClubAddressAsFirstLocation?: boolean;
   wizardVersion: number;
 };
 
@@ -99,12 +118,20 @@ export function serializeClubSetupDraft(draft: ClubSetupDraft): SerializedDraft 
     address: draft.address,
     practiceLocations: draft.practiceLocations.map((location) => ({
       name: location.name,
+      ...(location.city ? { city: location.city } : {}),
       address: location.address,
+      ...(location.category ? { category: location.category } : {}),
+      ...(location.categoryCustom
+        ? { categoryCustom: location.categoryCustom }
+        : {}),
+      ...(location.linkedToHeadquarters ? { linkedToHeadquarters: true } : {}),
     })),
     description: draft.description,
     currentStep: draft.currentStep,
+    maxReachedStep: draft.maxReachedStep,
     memberCountRange: draft.memberCountRange,
     brandColorHex: draft.brandColorHex,
+    useClubAddressAsFirstLocation: draft.useClubAddressAsFirstLocation,
     wizardVersion: ClubSetupSteps.wizardVersion,
   };
 }
@@ -113,25 +140,62 @@ export function deserializeClubSetupDraft(
   json: SerializedDraft,
   logoDataUrl: string | null,
 ): ClubSetupDraft {
+  const wizardVersion = json.wizardVersion ?? 1;
+  const currentStep = ClubSetupSteps.normalizePersistedStep(
+    json.currentStep ?? 0,
+    wizardVersion,
+  );
+  const maxReachedStep = Math.max(
+    currentStep,
+    json.maxReachedStep == null
+      ? currentStep
+      : ClubSetupSteps.normalizePersistedStep(json.maxReachedStep, wizardVersion),
+  );
+
+  const sport = json.sport ?? ClubSports.all[0];
+  const city = json.city ?? "";
+  const postalCode = json.postalCode ?? "";
+  const address = json.address ?? "";
+
+  const practiceLocations = ClubSetupFormat.migrateLinkedHeadquarters({
+    sport,
+    city,
+    postalCode,
+    address,
+    locations: (json.practiceLocations ?? []).map((location) => ({
+      name: location.name ?? "",
+      ...(location.city ? { city: location.city } : {}),
+      address: location.address,
+      ...(location.category ? { category: location.category } : {}),
+      ...(location.categoryCustom
+        ? { categoryCustom: location.categoryCustom }
+        : {}),
+      ...(location.linkedToHeadquarters ? { linkedToHeadquarters: true } : {}),
+    })),
+  });
+
+  const useClubAddressAsFirstLocation =
+    typeof json.useClubAddressAsFirstLocation === "boolean"
+      ? json.useClubAddressAsFirstLocation
+      : ClubSetupFormat.linkedHeadquartersIndex(practiceLocations) >= 0;
+
   return {
     name: json.name ?? "",
-    sport: json.sport ?? ClubSports.all[0],
+    sport,
     logoDataUrl: json.hasLogo ? logoDataUrl : null,
     objectives: new Set(json.objectives ?? []),
-    city: json.city ?? "",
-    postalCode: json.postalCode ?? "",
-    address: json.address ?? "",
-    practiceLocations: (json.practiceLocations ?? []).map((location) => ({
-      name: location.name ?? "",
-      address: location.address,
-    })),
+    city,
+    postalCode,
+    address,
+    practiceLocations,
     description: json.description ?? "",
-    currentStep: ClubSetupSteps.normalizePersistedStep(
-      json.currentStep ?? 0,
-      json.wizardVersion ?? 1,
+    currentStep,
+    maxReachedStep,
+    memberCountRange: ClubMemberCountRanges.migratePersisted(
+      json.memberCountRange,
     ),
-    memberCountRange: json.memberCountRange ?? null,
     brandColorHex: json.brandColorHex ?? ClubSetupDefaults.brandColorHex,
+    useClubAddressAsFirstLocation,
   };
 }
 
@@ -159,7 +223,13 @@ export function loadDraftFromStorage(userId: string): ClubSetupDraft | null {
     const json = JSON.parse(raw) as SerializedDraft;
     const logoDataUrl = window.localStorage.getItem(logoStorageKey(userId));
     return deserializeClubSetupDraft(json, logoDataUrl);
-  } catch {
+  } catch (error) {
+    void import("@sentry/nextjs").then((Sentry) => {
+      Sentry.captureException(error, {
+        level: "warning",
+        tags: { feature: "club_setup", area: "draft_parse" },
+      });
+    });
     return null;
   }
 }

@@ -6,7 +6,7 @@ export function clubObjectiveSymbol(key: string): string {
     case ClubObjectives.planning:
       return "📅";
     case ClubObjectives.attendance:
-      return "✓";
+      return "☑";
     case ClubObjectives.fees:
       return "€";
     case ClubObjectives.equipment:

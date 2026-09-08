@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { requestPersonalPlanningReload } from "@/lib/dashboard/personalPlanningReload";
 import { shouldShowPersonalPlanningTile } from "@/lib/firebase/personalPlanningService";
 import styles from "./PersonalPlanningTile.module.css";
 
-/** Props de la pastille « Mon planning » du header. */
+/** Props du bouton « Mon planning » du header. */
 type PersonalPlanningTileProps = {
   /** Route cible (`/my-planning` ou `/family/my-planning`). */
   href: string;
 };
 
-/** Icône calendrier (alignée sur la pastille club). */
+/** Icône calendrier du bouton « Mon planning ». */
 function CalendarIcon() {
   return (
     <svg
@@ -48,9 +49,9 @@ function CalendarIcon() {
 }
 
 /**
- * Pastille header à côté du sélecteur de club : ouvre le planning
- * personnel multi-clubs (moi + équipes coachées + enfants liés).
- * Masquée s’il n’y a qu’un seul profil à suivre
+ * Bouton d’action du header (zone droite, avant le profil) : ouvre le
+ * planning personnel multi-clubs (moi + équipes coachées + enfants liés).
+ * Masqué s’il n’y a qu’un seul profil à suivre
  * (1 club sans enfant, ou parent d’un seul enfant).
  */
 export function PersonalPlanningTile({ href }: PersonalPlanningTileProps) {
@@ -68,8 +69,13 @@ export function PersonalPlanningTile({ href }: PersonalPlanningTileProps) {
       scroll={false}
       prefetch
       className={`${styles.tile}${isActive ? ` ${styles.tileActive}` : ""}`}
-      aria-label="Mon planning"
+      aria-label={isActive ? "Mon planning (recliquer pour actualiser)" : "Mon planning"}
       aria-current={isActive ? "page" : undefined}
+      onClick={(event) => {
+        if (!isActive) return;
+        event.preventDefault();
+        requestPersonalPlanningReload("tile-reclick");
+      }}
     >
       <span className={styles.icon} aria-hidden>
         <CalendarIcon />

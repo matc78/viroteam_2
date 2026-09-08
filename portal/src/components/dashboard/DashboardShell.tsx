@@ -49,6 +49,12 @@ function isWidePath(pathname: string): boolean {
   );
 }
 
+function isMyPlanningPath(pathname: string): boolean {
+  return (
+    pathname === "/my-planning" || pathname.startsWith("/my-planning/")
+  );
+}
+
 function userInitials(displayName: string): string {
   const nameParts = displayName.trim().split(/\s+/).filter(Boolean);
   if (nameParts.length === 0) return "A";
@@ -95,18 +101,18 @@ export function DashboardShell() {
     const nextRole = membershipRoleForClub(profile, clubId);
     const nextCaps = bureauCapabilities(nextRole, club?.coachPermissions);
     setActiveClubId(clubId);
-    if (!isBureauRouteAllowed(pathname, nextCaps)) {
+    if (isMyPlanningPath(pathname) || !isBureauRouteAllowed(pathname, nextCaps)) {
       router.replace("/home");
     }
   }
 
   const resolvedUserName = profile?.displayName ?? "Membre";
   const wide = isWidePath(pathname);
+  const onMyPlanning = isMyPlanningPath(pathname);
   const fillViewport =
     pathname === "/planning" ||
     pathname.startsWith("/planning/") ||
-    pathname === "/my-planning" ||
-    pathname.startsWith("/my-planning/");
+    onMyPlanning;
 
   return (
     <div
@@ -138,15 +144,15 @@ export function DashboardShell() {
           <div className={styles.headerCenter}>
             <ClubMembershipPicker
               clubs={clubsWithRoles}
-              activeClubId={activeClub?.id ?? null}
+              activeClubId={onMyPlanning ? null : (activeClub?.id ?? null)}
               compact
               showCreateClub
               onClubChange={handleClubChange}
             />
-            <PersonalPlanningTile href="/my-planning" />
           </div>
 
           <div className={styles.actions}>
+            <PersonalPlanningTile href="/my-planning" />
             <SpaceSwitcher />
             <Link
               href="/settings"
@@ -170,33 +176,37 @@ export function DashboardShell() {
               )}
               <div className={styles.userMeta}>
                 <span className={styles.userName}>{resolvedUserName}</span>
-                <RoleBadge role={activeClubRole} className={styles.roleChip} />
+                {!onMyPlanning ? (
+                  <RoleBadge role={activeClubRole} className={styles.roleChip} />
+                ) : null}
               </div>
             </Link>
           </div>
         </div>
 
-        <nav className={styles.navStrip} aria-label="Modules espace club">
-          {visibleNavItems.map((item) => {
-            const isActive = isNavItemActive(pathname, item.href);
-            const isPending = pendingHref === item.href && !isActive;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                scroll={false}
-                prefetch
-                className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
-                aria-current={isActive ? "page" : undefined}
-                onClick={() => {
-                  if (!isActive) setPendingHref(item.href);
-                }}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        {!onMyPlanning ? (
+          <nav className={styles.navStrip} aria-label="Modules espace club">
+            {visibleNavItems.map((item) => {
+              const isActive = isNavItemActive(pathname, item.href);
+              const isPending = pendingHref === item.href && !isActive;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  scroll={false}
+                  prefetch
+                  className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => {
+                    if (!isActive) setPendingHref(item.href);
+                  }}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        ) : null}
       </header>
 
       <main

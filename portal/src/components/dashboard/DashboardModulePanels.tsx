@@ -57,7 +57,8 @@ const MODULES: ModuleDef[] = [
     id: "my-planning",
     match: (pathname) =>
       pathname === "/my-planning" || pathname.startsWith("/my-planning/"),
-    render: () => <PersonalPlanningClient eyebrow="Espace club" />,
+    // Rendu dédié ci-dessous (isPanelActive pour keep-alive).
+    render: () => null,
   },
   {
     id: "fees",
@@ -120,7 +121,14 @@ export function DashboardModulePanels() {
             hidden={!isActive}
             aria-hidden={!isActive}
           >
-            {module.render()}
+            {module.id === "my-planning" ? (
+              <PersonalPlanningClient
+                eyebrow="Espace club"
+                isPanelActive={isActive}
+              />
+            ) : (
+              module.render()
+            )}
           </div>
         );
       })}

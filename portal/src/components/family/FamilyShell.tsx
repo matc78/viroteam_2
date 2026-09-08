@@ -34,6 +34,13 @@ function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function isFamilyMyPlanningPath(pathname: string): boolean {
+  return (
+    pathname === "/family/my-planning" ||
+    pathname.startsWith("/family/my-planning/")
+  );
+}
+
 function userInitials(displayName: string): string {
   const nameParts = displayName.trim().split(/\s+/).filter(Boolean);
   if (nameParts.length === 0) return "F";
@@ -74,15 +81,15 @@ function FamilyShellChrome() {
 
   function handleClubChange(clubId: string) {
     setActiveClubId(clubId);
-    if (!isFamilyRouteAllowed(pathname)) {
+    if (isFamilyMyPlanningPath(pathname) || !isFamilyRouteAllowed(pathname)) {
       router.replace("/family");
     }
   }
 
   const resolvedName = profile?.displayName ?? "Famille";
+  const onMyPlanning = isFamilyMyPlanningPath(pathname);
   const isPlanning =
-    pathname.startsWith("/family/planning") ||
-    pathname.startsWith("/family/my-planning");
+    pathname.startsWith("/family/planning") || onMyPlanning;
   const fillViewport = isPlanning;
 
   return (
@@ -115,16 +122,16 @@ function FamilyShellChrome() {
           <div className={styles.headerCenter}>
             <ClubMembershipPicker
               clubs={clubsWithRoles}
-              activeClubId={activeClub?.id ?? null}
+              activeClubId={onMyPlanning ? null : (activeClub?.id ?? null)}
               compact
               showCreateClub
               formatRoleLabel={() => childHeaderLabel}
               onClubChange={handleClubChange}
             />
-            <PersonalPlanningTile href="/family/my-planning" />
           </div>
 
           <div className={styles.actions}>
+            <PersonalPlanningTile href="/family/my-planning" />
             <SpaceSwitcher />
             <Link
               href="/family/settings"
@@ -160,27 +167,29 @@ function FamilyShellChrome() {
           </div>
         </div>
 
-        <nav className={styles.navStrip} aria-label="Espace famille">
-          {NAV_ITEMS.map((item) => {
-            const isActive = isNavItemActive(pathname, item.href);
-            const isPending = pendingHref === item.href && !isActive;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                scroll={false}
-                prefetch
-                className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
-                aria-current={isActive ? "page" : undefined}
-                onClick={() => {
-                  if (!isActive) setPendingHref(item.href);
-                }}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        {!onMyPlanning ? (
+          <nav className={styles.navStrip} aria-label="Espace famille">
+            {NAV_ITEMS.map((item) => {
+              const isActive = isNavItemActive(pathname, item.href);
+              const isPending = pendingHref === item.href && !isActive;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  scroll={false}
+                  prefetch
+                  className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => {
+                    if (!isActive) setPendingHref(item.href);
+                  }}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        ) : null}
       </header>
 
       <main

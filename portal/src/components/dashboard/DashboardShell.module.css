@@ -46,7 +46,7 @@
   justify-self: start;
 }
 
-/** Colonne centrale : pastilles clubs + tuile Mon planning. */
+/** Colonne centrale : pastilles clubs. */
 .headerCenter {
   display: flex;
   align-items: center;

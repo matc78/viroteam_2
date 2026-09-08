@@ -16,10 +16,12 @@ import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import planningStyles from "@/app/(dashboard)/planning/page.module.css";
 import { useMultiClubPlanningChangeListener } from "@/lib/dashboard/usePlanningChangeListener";
+import { subscribePersonalPlanningReload } from "@/lib/dashboard/personalPlanningReload";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { dateOnly } from "@/lib/firebase/eventService";
 import {
   clubsAsTeamOptions,
+  clubBrandColorById,
   eventsColoredByClub,
   loadPersonalPlanningAcrossClubs,
   resolvePersonalRsvpMemberId,
@@ -34,6 +36,8 @@ import familyStyles from "@/components/family/FamilyPlanningClient.module.css";
 type PersonalPlanningClientProps = {
   /** Libellé eyebrow intro. */
   eyebrow?: string;
+  /** True quand le panneau keep-alive est visible (déclenche un reload au retour). */
+  isPanelActive?: boolean;
 };
 
 /**
@@ -42,6 +46,7 @@ type PersonalPlanningClientProps = {
  */
 export function PersonalPlanningClient({
   eyebrow = "Personnel",
+  isPanelActive = true,
 }: PersonalPlanningClientProps) {
   const { user, profile, bureauClubs, familyClubs } = useAuth();
 
@@ -68,7 +73,53 @@ export function PersonalPlanningClient({
   const [reloadToken, setReloadToken] = useState(0);
   const dataRef = useRef<PersonalPlanningData | null>(null);
   const knownClubIdsRef = useRef<Set<string>>(new Set());
+  const wasPanelActiveRef = useRef(isPanelActive);
+  const [reloadStatusMessage, setReloadStatusMessage] = useState("");
   dataRef.current = data;
+
+  const listenTargets = useMemo(() => {
+    if (!data) return [];
+    return data.clubs.map((club) => ({
+      clubId: club.id,
+      teamIds: (data.teamsByClub[club.id] ?? []).map((team) => team.id),
+    }));
+  }, [data]);
+
+  const { hasNewEvents, resetFlag } = useMultiClubPlanningChangeListener(
+    listenTargets,
+    isPanelActive,
+  );
+
+  const bumpReload = useCallback((announce: boolean) => {
+    resetFlag();
+    setReloadToken((token) => token + 1);
+    if (announce) {
+      setReloadStatusMessage("Planning actualisé");
+    }
+  }, [resetFlag]);
+
+  useEffect(() => {
+    const becameActive = isPanelActive && !wasPanelActiveRef.current;
+    wasPanelActiveRef.current = isPanelActive;
+    if (becameActive) {
+      bumpReload(false);
+    }
+  }, [isPanelActive, bumpReload]);
+
+  useEffect(() => {
+    return subscribePersonalPlanningReload(() => {
+      if (!wasPanelActiveRef.current) return;
+      bumpReload(true);
+    });
+  }, [bumpReload]);
+
+  useEffect(() => {
+    if (!reloadStatusMessage) return;
+    const timeoutId = window.setTimeout(() => {
+      setReloadStatusMessage("");
+    }, 1500);
+    return () => window.clearTimeout(timeoutId);
+  }, [reloadStatusMessage]);
 
   const range = useMemo(() => {
     const month = cursor.getMonth();
@@ -150,24 +201,17 @@ export function PersonalPlanningClient({
     reloadToken,
   ]);
 
-  const listenTargets = useMemo(() => {
-    if (!data) return [];
-    return data.clubs.map((club) => ({
-      clubId: club.id,
-      teamIds: (data.teamsByClub[club.id] ?? []).map((team) => team.id),
-    }));
-  }, [data]);
-
-  const { hasNewEvents, resetFlag } =
-    useMultiClubPlanningChangeListener(listenTargets);
-
   const reload = useCallback(() => {
-    resetFlag();
-    setReloadToken((token) => token + 1);
-  }, [resetFlag]);
+    bumpReload(false);
+  }, [bumpReload]);
 
   const clubOptions = useMemo(
     () => (data ? clubsAsTeamOptions(data.clubs) : []),
+    [data],
+  );
+
+  const clubColorById = useMemo(
+    () => (data ? clubBrandColorById(data.clubs) : new Map<string, string>()),
     [data],
   );
 
@@ -214,8 +258,9 @@ export function PersonalPlanningClient({
         categories: [],
         playerIds: [],
       },
+      clubColorById,
     );
-  }, [data, clubOptions, filteredEvents, filters.teamIds]);
+  }, [data, clubOptions, clubColorById, filteredEvents, filters.teamIds]);
 
   /** Resync le popover après reload RSVP. */
   useEffect(() => {
@@ -274,6 +319,9 @@ export function PersonalPlanningClient({
 
   return (
     <div className={planningStyles.pageRoot}>
+      <span className="sr-only" aria-live="polite">
+        {reloadStatusMessage}
+      </span>
       <DashboardPageIntro
         eyebrow={eyebrow}
         heading="Mon planning"
@@ -316,6 +364,10 @@ export function PersonalPlanningClient({
             canCreate={false}
             teamsOnlyFilters
             teamsSectionTitle="Clubs"
+            emptyTeamsLabel="Aucun club"
+            teamsSearchPlaceholder="Rechercher un club…"
+            teamsSearchAriaLabel="Rechercher un club"
+            teamColorById={clubColorById}
             className={familyStyles.sidebarCentered}
           />
 

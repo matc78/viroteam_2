@@ -48,7 +48,8 @@ const MODULES: ModuleDef[] = [
     match: (pathname) =>
       pathname === "/family/my-planning" ||
       pathname.startsWith("/family/my-planning/"),
-    render: () => <PersonalPlanningClient eyebrow="Espace famille" />,
+    // Rendu dédié ci-dessous (isPanelActive pour keep-alive).
+    render: () => null,
   },
   {
     id: "fees",
@@ -100,7 +101,14 @@ export function FamilyModulePanels() {
             hidden={!isActive}
             aria-hidden={!isActive}
           >
-            {module.render()}
+            {module.id === "my-planning" ? (
+              <PersonalPlanningClient
+                eyebrow="Espace famille"
+                isPanelActive={isActive}
+              />
+            ) : (
+              module.render()
+            )}
           </div>
         );
       })}

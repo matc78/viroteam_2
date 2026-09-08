@@ -31,6 +31,10 @@ import {
   overlappingClusterIds,
   packOverlappingEvents,
 } from "@/lib/planning/eventOverlapLayout";
+import {
+  resolveViewerEventFill,
+  viewerEventFillAttr,
+} from "@/lib/planning/viewerEventFill";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import styles from "./PlanningCalendar.module.css";
 
@@ -63,6 +67,11 @@ type PlanningCalendarProps = {
   onCreateEvent: (draft: CreateEventDraft) => void;
   /** Brouillon ouvert : conserve le fantôme de sélection. */
   pendingCreate?: CreateEventDraft | null;
+  /**
+   * Ids du viewer (memberId, uid, aliases) pour filled/outline RSVP.
+   * Absent ou vide → style filled legacy sur tous les blocs.
+   */
+  viewerMatchIds?: string[];
 };
 
 const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -159,6 +168,7 @@ export function PlanningCalendar({
   onSelectDay,
   onCreateEvent,
   pendingCreate = null,
+  viewerMatchIds = [],
 }: PlanningCalendarProps) {
   const today = dateOnly(new Date());
   const periodLabel = formatCalendarPeriodLabel(cursor, view);
@@ -240,6 +250,7 @@ export function PlanningCalendar({
                 cursor={cursor}
                 today={today}
                 eventBlocks={eventBlocks}
+                viewerMatchIds={viewerMatchIds}
                 pendingDayKey={
                   pendingCreate ? formatDateId(pendingCreate.day) : null
                 }
@@ -260,6 +271,7 @@ export function PlanningCalendar({
                 days={buildWeekDays(cursor)}
                 today={today}
                 eventBlocks={eventBlocks}
+                viewerMatchIds={viewerMatchIds}
                 pendingCreate={pendingCreate}
                 scrollToNowNonce={scrollToNowNonce}
                 onSelectDay={(day) => {
@@ -277,6 +289,7 @@ export function PlanningCalendar({
                 days={[dateOnly(cursor)]}
                 today={today}
                 eventBlocks={eventBlocks}
+                viewerMatchIds={viewerMatchIds}
                 pendingCreate={pendingCreate}
                 scrollToNowNonce={scrollToNowNonce}
                 onSelectDay={onSelectDay}
@@ -323,6 +336,7 @@ type MonthViewProps = {
   cursor: Date;
   today: Date;
   eventBlocks: CalendarEventBlock[];
+  viewerMatchIds: string[];
   pendingDayKey: string | null;
   onSelectDay: (day: Date, anchor: CreateEventDraft["anchor"]) => void;
   onSelectEvent: (
@@ -336,6 +350,7 @@ function MonthView({
   cursor,
   today,
   eventBlocks,
+  viewerMatchIds,
   pendingDayKey,
   onSelectDay,
   onSelectEvent,
@@ -405,6 +420,13 @@ function MonthView({
               <div className={styles.monthEvents}>
                 {visibleBlocks.map((block) => {
                   const displayTitle = formatEventBlockTitle(block.event);
+                  const rsvpFill = viewerEventFillAttr(
+                    resolveViewerEventFill({
+                      teamMemberIds: block.event.teamMemberIds,
+                      rsvpByMemberId: block.event.rsvpByMemberId,
+                      viewerMatchIds,
+                    }),
+                  );
                   return (
                   <button
                     key={block.blockId}
@@ -412,6 +434,7 @@ function MonthView({
                     className={styles.monthChip}
                     data-event-id={block.event.id}
                     data-colored="true"
+                    data-rsvp-fill={rsvpFill}
                     style={blockColorStyle(block)}
                     title={`${formatEventTime(block.event.startsAt)} · ${displayTitle}`}
                     onClick={(mouseEvent) => {
@@ -446,6 +469,7 @@ type TimeGridViewProps = {
   days: Date[];
   today: Date;
   eventBlocks: CalendarEventBlock[];
+  viewerMatchIds: string[];
   pendingCreate?: CreateEventDraft | null;
   /** Incrémente pour recentrer sur l'heure actuelle (ex. bouton Aujourd'hui). */
   scrollToNowNonce?: number;
@@ -472,6 +496,7 @@ function TimeGridView({
   days,
   today,
   eventBlocks,
+  viewerMatchIds,
   pendingCreate = null,
   scrollToNowNonce = 0,
   onSelectDay,
@@ -776,6 +801,7 @@ function TimeGridView({
 
                   <DayColumnEvents
                     eventBlocks={dayBlocks}
+                    viewerMatchIds={viewerMatchIds}
                     singleDay={singleDay}
                     onSelectEvent={onSelectEvent}
                   />
@@ -791,6 +817,7 @@ function TimeGridView({
 
 type DayColumnEventsProps = {
   eventBlocks: CalendarEventBlock[];
+  viewerMatchIds: string[];
   singleDay: boolean;
   onSelectEvent: (
     event: ClubEventView,
@@ -817,6 +844,7 @@ function formatEventBlockTitle(event: ClubEventView): string {
 /** Blocs horaires d'une journée, packés en cascade chevauchée (style Google). */
 function DayColumnEvents({
   eventBlocks,
+  viewerMatchIds,
   singleDay,
   onSelectEvent,
 }: DayColumnEventsProps) {
@@ -955,6 +983,13 @@ function DayColumnEvents({
         const showTimeRange = durationMinutes >= 45;
         const showMeta = singleDay && durationMinutes >= 75;
         const useFlushStack = isStacked;
+        const rsvpFill = viewerEventFillAttr(
+          resolveViewerEventFill({
+            teamMemberIds: event.teamMemberIds,
+            rsvpByMemberId: event.rsvpByMemberId,
+            viewerMatchIds,
+          }),
+        );
 
         return (
           <button
@@ -964,6 +999,7 @@ function DayColumnEvents({
             data-planning-event-block="true"
             data-event-id={event.id}
             data-colored="true"
+            data-rsvp-fill={rsvpFill}
             data-compact={isCompact ? "true" : "false"}
             data-stacked={isStacked ? "true" : "false"}
             data-frontmost={isFrontmost ? "true" : "false"}

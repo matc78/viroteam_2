@@ -80,6 +80,7 @@ export function FamilyPlanningClient() {
             ReturnType<typeof loadPlanningEventsForGuardian>
           >["teams"],
           guestDirectory: {},
+          viewerMatchIds: [] as string[],
         };
       }
 
@@ -124,7 +125,12 @@ export function FamilyPlanningClient() {
       const rosterMembers = await loadMembersByRosterIds(club.id, rosterIds);
       const guestDirectory = buildGuestDirectoryFromMembers(rosterMembers);
 
-      return { events, teams, guestDirectory };
+      return {
+        events,
+        teams,
+        guestDirectory,
+        viewerMatchIds: [...childMatchIds],
+      };
     },
     [
       selectedMemberId,
@@ -262,6 +268,7 @@ export function FamilyPlanningClient() {
               }}
               onCreateEvent={() => undefined}
               pendingCreate={null}
+              viewerMatchIds={data?.viewerMatchIds ?? []}
             />
           </div>
         </div>

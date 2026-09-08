@@ -249,6 +249,20 @@
   color: color-mix(in srgb, var(--event-color) 52%, black);
 }
 
+.monthChip[data-colored="true"][data-rsvp-fill="filled"] {
+  background: color-mix(in srgb, var(--event-color) 86%, white);
+  border-left-color: var(--event-color);
+  color: white;
+}
+
+.monthChip[data-colored="true"][data-rsvp-fill="outline"] {
+  background: white;
+  border: 1px solid var(--event-color);
+  border-left-width: 3px;
+  border-left-color: var(--event-color);
+  color: var(--event-color);
+}
+
 .monthChip[data-tone="blue"] {
   background: var(--tone-blue-soft);
   color: var(--tone-blue-text);
@@ -537,6 +551,21 @@
     0 2px 8px color-mix(in srgb, var(--color-primary-900) 8%, transparent);
 }
 
+/* Convoqué non présent (absent / sans réponse) : outline Google Calendar. */
+.eventBlock[data-colored="true"][data-rsvp-fill="outline"] {
+  background: white;
+  color: var(--event-color);
+  box-shadow:
+    inset 0 0 0 1.5px var(--event-color),
+    0 2px 8px color-mix(in srgb, var(--color-primary-900) 8%, transparent);
+}
+
+.eventBlock[data-colored="true"][data-rsvp-fill="outline"]:hover {
+  box-shadow:
+    inset 0 0 0 1.5px var(--event-color),
+    0 6px 16px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
+}
+
 /* Cascade Google : couches sous-jacentes en bandeau, front lisible. */
 .eventBlock[data-stacked="true"]:not([data-frontmost="true"]) {
   padding-inline: 0.2rem;
@@ -545,9 +574,23 @@
     0 1px 4px color-mix(in srgb, var(--color-primary-900) 10%, transparent);
 }
 
+.eventBlock[data-colored="true"][data-rsvp-fill="outline"][data-stacked="true"]:not(
+    [data-frontmost="true"]
+  ) {
+  box-shadow:
+    inset 0 0 0 1.5px var(--event-color),
+    0 1px 4px color-mix(in srgb, var(--color-primary-900) 10%, transparent);
+}
+
 .eventBlock[data-stacked="true"][data-frontmost="true"] {
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, white 70%, transparent),
+    0 2px 10px color-mix(in srgb, var(--color-primary-900) 14%, transparent);
+}
+
+.eventBlock[data-colored="true"][data-rsvp-fill="outline"][data-stacked="true"][data-frontmost="true"] {
+  box-shadow:
+    inset 0 0 0 1.5px var(--event-color),
     0 2px 10px color-mix(in srgb, var(--color-primary-900) 14%, transparent);
 }
 

@@ -494,6 +494,7 @@ function PlanningPageContent() {
                   : () => undefined
               }
               pendingCreate={caps.canCreateEvent ? createEventDraft : null}
+              viewerMatchIds={[...viewerIds]}
             />
           </div>
         </div>

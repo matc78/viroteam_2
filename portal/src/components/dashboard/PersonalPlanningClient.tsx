@@ -247,6 +247,22 @@ export function PersonalPlanningClient({
       })
     : null;
 
+  /** Ids viewer + enfants pour filled/outline RSVP sur les blocs agenda. */
+  const calendarViewerMatchIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (user?.uid) ids.add(user.uid);
+    if (!data) return [...ids];
+    for (const memberId of Object.values(data.viewerMemberIdByClub)) {
+      if (memberId) ids.add(memberId);
+    }
+    for (const childIds of Object.values(data.childMemberIdsByClub)) {
+      for (const childId of childIds) {
+        if (childId) ids.add(childId);
+      }
+    }
+    return [...ids];
+  }, [user?.uid, data]);
+
   if (loading && !data) {
     return <DashboardSkeleton variant="planning" />;
   }
@@ -328,6 +344,7 @@ export function PersonalPlanningClient({
               }}
               onCreateEvent={() => undefined}
               pendingCreate={null}
+              viewerMatchIds={calendarViewerMatchIds}
             />
           </div>
         </div>

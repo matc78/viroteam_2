@@ -31,9 +31,14 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ClubPlanningScreen extends ConsumerStatefulWidget {
-  const ClubPlanningScreen({super.key, required this.clubId});
+  const ClubPlanningScreen({
+    super.key,
+    required this.clubId,
+    this.initialDate,
+  });
 
   final String clubId;
+  final DateTime? initialDate;
 
   @override
   ConsumerState<ClubPlanningScreen> createState() => _ClubPlanningScreenState();
@@ -49,7 +54,10 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _selectedDay = DateTime(now.year, now.month, now.day);
+    final initial = widget.initialDate;
+    _selectedDay = initial != null
+        ? DateTime(initial.year, initial.month, initial.day)
+        : DateTime(now.year, now.month, now.day);
     _initDays();
   }
 

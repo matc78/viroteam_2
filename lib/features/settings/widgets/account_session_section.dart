@@ -55,6 +55,9 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
 
     setState(() => _signingOut = true);
     try {
+      await ref
+          .read(pushNotificationServiceProvider)
+          .unregisterCurrentToken();
       await ref.read(authServiceProvider).signOut();
       if (mounted) context.go(AppRoutes.entry);
     } catch (_) {

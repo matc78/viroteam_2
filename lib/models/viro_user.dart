@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
+import 'package:viro_team_v2/models/notification_preferences.dart';
 import 'package:viro_team_v2/models/parent_link.dart';
 
 class ViroUser {
@@ -16,6 +17,7 @@ class ViroUser {
     this.clubMemberships = const [],
     this.parentLinks = const [],
     this.parentClubIds = const [],
+    this.notificationPreferences = NotificationPreferences.defaults,
     this.profileCompleted = false,
     this.disabled = false,
     this.createdAt,
@@ -33,6 +35,7 @@ class ViroUser {
   final List<ClubMembershipSummary> clubMemberships;
   final List<ParentLink> parentLinks;
   final List<String> parentClubIds;
+  final NotificationPreferences notificationPreferences;
   final bool profileCompleted;
   final bool disabled;
   final DateTime? createdAt;
@@ -99,6 +102,9 @@ class ViroUser {
           .map((item) => item.toString())
           .where((id) => id.isNotEmpty)
           .toList(),
+      notificationPreferences: NotificationPreferences.fromMap(
+        data[FirestoreFields.notificationPreferences] as Map<String, dynamic>?,
+      ),
       profileCompleted:
           flags[FirestoreFields.profileCompleted] as bool? ?? false,
       disabled: flags[FirestoreFields.disabled] as bool? ?? false,

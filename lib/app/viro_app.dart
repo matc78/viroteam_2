@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_theme.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class ViroApp extends ConsumerStatefulWidget {
@@ -19,10 +21,11 @@ class _ViroAppState extends ConsumerState<ViroApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      bindAppDeepLinks(
-        ref: ref,
-        router: ref.read(goRouterProvider),
-      );
+      final router = ref.read(goRouterProvider);
+      bindAppDeepLinks(ref: ref, router: router);
+      final push = ref.read(pushNotificationServiceProvider);
+      push.bindRouter(router);
+      push.start();
     });
   }
 
@@ -30,6 +33,14 @@ class _ViroAppState extends ConsumerState<ViroApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(goRouterProvider);
     final feeDeadlineUrgent = ref.watch(feeDeadlineUrgentBackgroundProvider);
+
+    ref.listen(authStateProvider, (previous, next) {
+      final user = next.value;
+      final previousUid = previous?.value?.uid;
+      if (user != null && user.uid != previousUid) {
+        ref.read(pushNotificationServiceProvider).syncTokenAfterAuth();
+      }
+    });
 
     return MaterialApp.router(
       title: 'ViroTeam',

@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/settings/widgets/account_session_section.d
 import 'package:viro_team_v2/features/settings/widgets/change_email_sheet.dart';
 import 'package:viro_team_v2/features/settings/widgets/change_password_sheet.dart';
 import 'package:viro_team_v2/features/settings/widgets/edit_profile_sheet.dart';
+import 'package:viro_team_v2/features/settings/widgets/notification_preferences_section.dart';
 import 'package:viro_team_v2/features/settings/widgets/user_settings_avatar.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/services/account_service.dart';
@@ -193,6 +194,8 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: ViroSpacing.xl),
+                NotificationPreferencesSection(user: user),
                 const SizedBox(height: ViroSpacing.xl),
                 Text(
                   'Mes clubs',

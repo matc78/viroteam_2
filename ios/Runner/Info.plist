@@ -98,6 +98,10 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>com.posthog.posthog.API_KEY</key>
 	<string>phc_wMm5hy9zFdbcsgUXoibRunuxb2crXmL6iLnLSMLHBvBv</string>
 	<key>com.posthog.posthog.POSTHOG_HOST</key>

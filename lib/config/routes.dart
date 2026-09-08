@@ -565,7 +565,23 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           final clubId = state.pathParameters['clubId']!;
 
-          return ClubPlanningScreen(clubId: clubId);
+          final dateParam = state.uri.queryParameters['date'];
+
+          DateTime? initialDate;
+
+          if (dateParam != null && dateParam.isNotEmpty) {
+
+            initialDate = DateTime.tryParse(dateParam);
+
+          }
+
+          return ClubPlanningScreen(
+
+            clubId: clubId,
+
+            initialDate: initialDate,
+
+          );
 
         },
 

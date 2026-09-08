@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
+import 'package:viro_team_v2/models/notification_preferences.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
@@ -135,6 +136,20 @@ class UserService {
     }
 
     await _userRef(uid).set(update, SetOptions(merge: true));
+  }
+
+  /// Persiste les préférences de notifications push.
+  Future<void> updateNotificationPreferences({
+    required String uid,
+    required NotificationPreferences preferences,
+  }) async {
+    await _userRef(uid).set(
+      {
+        FirestoreFields.notificationPreferences: preferences.toMap(),
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   /// Met à jour l’avatar utilisateur et sync la fiche membre du club actif.

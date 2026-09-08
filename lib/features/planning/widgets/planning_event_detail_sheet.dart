@@ -90,12 +90,40 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
 
 class _PlanningEventDetailSheetState
     extends ConsumerState<PlanningEventDetailSheet> {
+  bool _sendingPush = false;
+
   IconData get _typeIcon => switch (widget.event.type) {
         EventTypes.training => ViroIcons.whistle,
         EventTypes.match => ViroIcons.ball,
         EventTypes.tournament => ViroIcons.trophy,
         _ => ViroIcons.calendar,
       };
+
+  /// Envoie une notification push ponctuelle à l'audience de l'événement.
+  Future<void> _sendEventPush() async {
+    if (_sendingPush) return;
+    setState(() => _sendingPush = true);
+    try {
+      final result =
+          await ref.read(pushNotificationServiceProvider).sendEventPush(
+                clubId: widget.clubId,
+                eventId: widget.event.id,
+              );
+      if (!mounted) return;
+      ViroSnackBar.show(
+        context,
+        'Notification envoyée (${result.recipientCount} destinataire${result.recipientCount > 1 ? 's' : ''})',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      final message = error.toString().contains('resource-exhausted')
+          ? 'Une notification a déjà été envoyée il y a moins d’une heure'
+          : 'Envoi impossible, réessayez';
+      ViroSnackBar.show(context, message);
+    } finally {
+      if (mounted) setState(() => _sendingPush = false);
+    }
+  }
 
   List<({String id, ClubMember member})> _sortedEntries(
     Map<String, ClubMember> byUid,
@@ -420,6 +448,25 @@ class _PlanningEventDetailSheetState
                     _buildMembersList(theme),
                     if (widget.canManageEvents) ...[
                       const SizedBox(height: ViroSpacing.lg),
+                      OutlinedButton.icon(
+                        onPressed: _sendingPush ? null : _sendEventPush,
+                        icon: _sendingPush
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : ViroIcon(ViroIcons.bell, size: 18),
+                        label: Text(
+                          _sendingPush
+                              ? 'Envoi…'
+                              : 'Envoyer une notification',
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                      ),
+                      const SizedBox(height: ViroSpacing.sm),
                       OutlinedButton(
                         onPressed: _cancelEvent,
                         style: OutlinedButton.styleFrom(

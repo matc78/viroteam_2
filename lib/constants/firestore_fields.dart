@@ -104,6 +104,9 @@ abstract final class FirestoreFields {
   static const String attendance = 'attendance';
   static const String creatorId = 'creatorId';
   static const String canceled = 'canceled';
+  static const String reminderSentJ7 = 'reminderSentJ7';
+  static const String reminderSentJ2 = 'reminderSentJ2';
+  static const String lastManualPushAt = 'lastManualPushAt';
 
   // teams/{teamId} (+ practiceLocations.category)
   static const String category = 'category';

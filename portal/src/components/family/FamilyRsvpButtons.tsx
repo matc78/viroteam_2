@@ -72,17 +72,19 @@ export function FamilyRsvpButtons({
 
   const [error, setError] = useState<string | null>(null);
   const [localValue, setLocalValue] = useState(current);
-  const requestIdRef = useRef(0);
+  const [busy, setBusy] = useState(false);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     setLocalValue(current);
   }, [current]);
 
   async function handleSelect(value: RsvpValue) {
-    if (localValue === value) return;
+    if (localValue === value || inFlightRef.current) return;
 
     const previous = localValue;
-    const requestId = ++requestIdRef.current;
+    inFlightRef.current = true;
+    setBusy(true);
     setLocalValue(value);
     setError(null);
     onOptimisticChange?.(value);
@@ -94,10 +96,8 @@ export function FamilyRsvpButtons({
         memberId,
         value,
       });
-      if (requestId !== requestIdRef.current) return;
       onUpdated?.(value);
     } catch (err: unknown) {
-      if (requestId !== requestIdRef.current) return;
       setLocalValue(previous);
       setError(
         err instanceof Error
@@ -105,6 +105,9 @@ export function FamilyRsvpButtons({
           : "Impossible d’enregistrer la réponse.",
       );
       onOptimisticChange?.(isRsvpValue(previous) ? previous : null);
+    } finally {
+      inFlightRef.current = false;
+      setBusy(false);
     }
   }
 
@@ -121,7 +124,7 @@ export function FamilyRsvpButtons({
       {variant === "footer" ? (
         <span className={styles.prompt}>Tu viens ?</span>
       ) : null}
-      <div className={styles.row} role="group" aria-label="Réponse à la convocation">
+      <div className={styles.row} role="group" aria-label="Réponse à la convocation" aria-busy={busy}>
         {OPTIONS.map((option) => {
           const selected = localValue === option.value;
           return (
@@ -130,6 +133,7 @@ export function FamilyRsvpButtons({
               type="button"
               className={`${styles.button}${selected ? ` ${styles.buttonActive}` : ""}`}
               data-value={option.value}
+              disabled={busy}
               onClick={() => void handleSelect(option.value)}
             >
               {option.label}

@@ -91,3 +91,24 @@ export function resolveFilterColor(
 ): string {
   return paletteById?.get(id) ?? colorForFilter(kind, id);
 }
+
+/**
+ * Palette équipes/clubs : défauts d’ordre, puis overrides connus
+ * uniquement pour les ids de `teamIds` (sidebar et blocs alignés).
+ */
+export function mergeTeamFilterColors(
+  teamIds: readonly string[],
+  overrides?: ReadonlyMap<string, string>,
+): Map<string, string> {
+  const defaults = colorsForFilterIds(teamIds);
+  if (!overrides) return defaults;
+  const merged = new Map<string, string>();
+  for (const id of teamIds) {
+    if (!id) continue;
+    merged.set(
+      id,
+      overrides.get(id) ?? defaults.get(id) ?? colorForFilter("team", id),
+    );
+  }
+  return merged;
+}

@@ -16,6 +16,8 @@ import {
   activeParentLinks,
   type ViroUserProfile,
 } from "@/lib/firebase/types";
+import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
+import { splitBrandColorHex } from "@/lib/clubSetup/clubBrandColors";
 import { buildGuestDirectoryFromMembers } from "@/lib/planning/eventGuestRows";
 import {
   memberMatchIds,
@@ -37,6 +39,8 @@ export type PersonalClubEventView = ClubEventView & {
 export type PersonalPlanningClubOption = {
   id: string;
   name: string;
+  /** Couleur de marque stockée (`brandColorHex`, éventuellement primary+secondary). */
+  brandColorHex: string | null;
 };
 
 /** Résultat du planning personnel multi-clubs. */
@@ -320,7 +324,11 @@ export async function loadPersonalPlanningAcrossClubs(params: {
     const slice = result.value;
     if (!slice) continue;
 
-    clubs.push({ id: club.id, name: club.name.trim() || "Club" });
+    clubs.push({
+      id: club.id,
+      name: club.name.trim() || "Club",
+      brandColorHex: club.brandColorHex,
+    });
     viewerMemberIdByClub[club.id] = slice.viewerMemberId;
     childMemberIdsByClub[club.id] = slice.childMemberIds;
     teamsByClub[club.id] = slice.teams;
@@ -416,6 +424,24 @@ export function clubsAsTeamOptions(
     playerIds: [],
     coachIds: [],
   }));
+}
+
+/**
+ * Map clubId → couleur de marque primaire (alignée sur les pastilles header).
+ */
+export function clubBrandColorById(
+  clubs: PersonalPlanningClubOption[],
+): Map<string, string> {
+  const colors = new Map<string, string>();
+  for (const club of clubs) {
+    colors.set(
+      club.id,
+      splitBrandColorHex(
+        club.brandColorHex ?? ClubSetupDefaults.brandColorHex,
+      ).primary,
+    );
+  }
+  return colors;
 }
 
 /** Events colorés par club (teamIds remplacés par clubId pour les blocs). */

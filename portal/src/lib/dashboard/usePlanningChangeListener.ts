@@ -27,10 +27,13 @@ type PlanningChangeListenerResult = {
  *
  * On n'compare à la baseline qu'une fois que **toutes** les équipes ont
  * reporté — sinon le 2ᵉ snapshot allume à tort « Actualiser ».
+ *
+ * @param enabled Si false, aucune souscription (ex. panneau keep-alive masqué).
  */
 export function usePlanningChangeListener(
   clubId: string | null,
   teamIds: string[],
+  enabled = true,
 ): PlanningChangeListenerResult {
   const [hasNewEvents, setHasNewEvents] = useState(false);
   /** IDs au dernier acquittement (après load / Actualiser). */
@@ -45,7 +48,10 @@ export function usePlanningChangeListener(
   }, []);
 
   useEffect(() => {
-    if (!clubId || teamIds.length === 0) return;
+    if (!enabled || !clubId || teamIds.length === 0) return;
+
+    // Nouvelle souscription → le prochain snapshot complet est la baseline.
+    baselineIdsRef.current = null;
 
     const db = getAppFirestore();
     const eventsCol = collection(db, `clubs/${clubId}/events`);
@@ -119,7 +125,7 @@ export function usePlanningChangeListener(
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- teamIds via teamIdsKey
-  }, [clubId, teamIdsKey]);
+  }, [clubId, teamIdsKey, enabled]);
 
   return { hasNewEvents, resetFlag };
 }
@@ -127,9 +133,12 @@ export function usePlanningChangeListener(
 /**
  * Écoute multi-clubs (planning perso) : une query par équipe et par club.
  * Même logique de baseline que `usePlanningChangeListener`.
+ *
+ * @param enabled Si false, aucune souscription (ex. panneau keep-alive masqué).
  */
 export function useMultiClubPlanningChangeListener(
   targets: Array<{ clubId: string; teamIds: string[] }>,
+  enabled = true,
 ): PlanningChangeListenerResult {
   const [hasNewEvents, setHasNewEvents] = useState(false);
   const baselineIdsRef = useRef<Set<string> | null>(null);
@@ -148,12 +157,17 @@ export function useMultiClubPlanningChangeListener(
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const flat = targets.flatMap((target) =>
       target.teamIds
         .filter(Boolean)
         .map((teamId) => ({ clubId: target.clubId, teamId })),
     );
     if (flat.length === 0) return;
+
+    // Nouvelle souscription → le prochain snapshot complet est la baseline.
+    baselineIdsRef.current = null;
 
     const db = getAppFirestore();
     const idsByKey = new Map<string, Set<string>>();
@@ -225,7 +239,7 @@ export function useMultiClubPlanningChangeListener(
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- targets via targetsKey
-  }, [targetsKey]);
+  }, [targetsKey, enabled]);
 
   return { hasNewEvents, resetFlag };
 }

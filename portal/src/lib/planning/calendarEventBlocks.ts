@@ -4,6 +4,7 @@ import type {
   TeamOption,
 } from "@/lib/firebase/eventService";
 import {
+  mergeTeamFilterColors,
   colorsForFilterIds,
   resolveFilterColor,
   type FilterColorKind,
@@ -144,6 +145,7 @@ function matchingLabelsForEvent(
  * Transforme les événements en blocs agenda style Google Calendar :
  * chaque label coché qui matche produit une case colorée distincte.
  * Sans label coché : aucun bloc (calendriers tous masqués).
+ * @param teamColorById Couleurs d’équipe/club imposées (ex. marque club en Mon planning).
  */
 export function expandEventsToLabelBlocks(
   events: ClubEventView[],
@@ -151,6 +153,7 @@ export function expandEventsToLabelBlocks(
   coaches: PlanningPersonOption[],
   players: PlanningPersonOption[],
   filters: PlanningLabelFilters,
+  teamColorById?: ReadonlyMap<string, string>,
 ): CalendarEventBlock[] {
   if (!hasActiveLabelFilters(filters)) {
     return [];
@@ -159,7 +162,10 @@ export function expandEventsToLabelBlocks(
   const teamById = new Map(teams.map((team) => [team.id, team]));
   const coachMatchToFilterId = collectMatchIds(coaches, filters.coachIds);
   const playerMatchToFilterId = collectMatchIds(players, filters.playerIds);
-  const teamColors = colorsForFilterIds(teams.map((team) => team.id));
+  const teamColors = mergeTeamFilterColors(
+    teams.map((team) => team.id),
+    teamColorById,
+  );
   const coachColors = colorsForFilterIds(coaches.map((coach) => coach.id));
   const playerColors = colorsForFilterIds(players.map((player) => player.id));
   const categoryColors = colorsForFilterIds(

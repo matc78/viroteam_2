@@ -28,7 +28,8 @@
     <application
         android:label="ViroTeam"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:localeConfig="@xml/locale_config">
         <meta-data
             android:name="google_analytics_adid_collection_enabled"
             android:value="false"

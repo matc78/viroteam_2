@@ -826,19 +826,49 @@ type DayColumnEventsProps = {
   ) => void;
 };
 
-/** Libellé affiché dans un bloc agenda (ex. « Entraînement - M18 »). */
-function formatEventBlockTitle(event: ClubEventView): string {
+/** Lignes d'un bloc agenda : type, puis équipe / catégorie. */
+type EventBlockLabels = {
+  typeLabel: string;
+  detailLabel: string | null;
+};
+
+/**
+ * Extrait le suffixe d'un titre « Type - détail » (ex. « Entraînement - Senior 1 »).
+ */
+function detailFromEventTitle(title: string, typeLabel: string): string | null {
+  const trimmed = title.trim();
+  if (!trimmed || trimmed === typeLabel) return null;
+  const prefix = `${typeLabel} - `;
+  if (trimmed.startsWith(prefix)) {
+    const rest = trimmed.slice(prefix.length).trim();
+    return rest || null;
+  }
+  return trimmed;
+}
+
+/** Type + détail (équipe / catégorie) pour un bloc agenda. */
+function eventBlockLabels(event: ClubEventView): EventBlockLabels {
   if (event.type === "other") {
-    return event.title.trim() || eventTypeLabel(event.type);
+    const title = event.title.trim();
+    const teamLabel =
+      event.teamLabels.find((label) => label && label !== "Club") ?? null;
+    return {
+      typeLabel: title || eventTypeLabel(event.type),
+      detailLabel: teamLabel,
+    };
   }
   const typeLabel = eventTypeLabel(event.type);
   const teamLabel =
     event.teamLabels.find((label) => label && label !== "Club") ??
-    (event.title.trim() && event.title.trim() !== typeLabel
-      ? event.title.trim()
-      : null);
-  if (teamLabel) return `${typeLabel} - ${teamLabel}`;
-  return event.title.trim() || typeLabel;
+    detailFromEventTitle(event.title, typeLabel);
+  return { typeLabel, detailLabel: teamLabel };
+}
+
+/** Libellé compact (mois / tooltip), ex. « Entraînement - M18 ». */
+function formatEventBlockTitle(event: ClubEventView): string {
+  const { typeLabel, detailLabel } = eventBlockLabels(event);
+  if (detailLabel) return `${typeLabel} - ${detailLabel}`;
+  return typeLabel;
 }
 
 /** Blocs horaires d'une journée, packés en cascade chevauchée (style Google). */
@@ -940,6 +970,8 @@ function DayColumnEvents({
         let isFrontmost = layout.column === layout.columnCount - 1;
         let zIndex = 2 + layout.column;
         let peekSide: "left" | "right" | null = null;
+        // Réserve visuelle sous les bandeaux droits (le hit-test garde la largeur pleine).
+        let textInsetRightPercent = 0;
 
         if (isInHoverCluster && hoverLayout) {
           const { leftPeekIds, rightPeekIds } = hoverLayout;
@@ -948,6 +980,12 @@ function DayColumnEvents({
             leftPercent = leftPeekIds.length * peekPercent;
             // S'étend sous les bandeaux droits pour éviter un trou de hit-test.
             widthPercent = 100 - leftPercent;
+            const rightPeekCoverPercent = rightPeekIds.length * peekPercent;
+            // padding-% est relatif à la largeur du bloc : convertir depuis la colonne.
+            textInsetRightPercent =
+              widthPercent > 0
+                ? (rightPeekCoverPercent / widthPercent) * 100
+                : 0;
             isFrontmost = true;
             zIndex = 40;
           } else {
@@ -976,7 +1014,7 @@ function DayColumnEvents({
           }
         }
 
-        const displayTitle = formatEventBlockTitle(event);
+        const { typeLabel, detailLabel } = eventBlockLabels(event);
         const startLabel = formatEventTime(event.startsAt);
         const endLabel = formatEventTime(event.endsAt);
         const isCompact = durationMinutes < 45;
@@ -1015,6 +1053,12 @@ function DayColumnEvents({
                 ? `${widthPercent}%`
                 : `calc(${widthPercent}% - 0.24rem)`,
               zIndex,
+              ...(textInsetRightPercent > 0
+                ? {
+                    // Laisse un peu d'air avant le bandeau voisin.
+                    paddingRight: `calc(${textInsetRightPercent}% + 0.35rem)`,
+                  }
+                : null),
             }}
             onClick={(mouseEvent) =>
               onSelectEvent(
@@ -1055,11 +1099,15 @@ function DayColumnEvents({
           >
             {isCompact ? (
               <span className={styles.eventBlockTitle}>
-                {displayTitle}, {startLabel}
+                {typeLabel}
+                {detailLabel ? ` · ${detailLabel}` : ""}, {startLabel}
               </span>
             ) : (
               <>
-                <span className={styles.eventBlockTitle}>{displayTitle}</span>
+                <span className={styles.eventBlockTitle}>{typeLabel}</span>
+                {detailLabel ? (
+                  <span className={styles.eventBlockDetail}>{detailLabel}</span>
+                ) : null}
                 {showTimeRange ? (
                   <span className={styles.eventBlockTime}>
                     {startLabel} – {endLabel}

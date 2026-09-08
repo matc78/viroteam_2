@@ -637,7 +637,22 @@
   width: 100%;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 2;
+}
+
+.eventBlockDetail {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  opacity: 0.95;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  width: 100%;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .eventBlock[data-compact="true"] .eventBlockTitle {
@@ -653,7 +668,8 @@
   width: 100%;
 }
 
-.timeGrid[data-single="true"] .eventBlock:not([data-compact="true"]) .eventBlockTitle {
+.timeGrid[data-single="true"] .eventBlock:not([data-compact="true"]) .eventBlockTitle,
+.timeGrid[data-single="true"] .eventBlock:not([data-compact="true"]) .eventBlockDetail {
   white-space: normal;
   display: -webkit-box;
   -webkit-line-clamp: 2;

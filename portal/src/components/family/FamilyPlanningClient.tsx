@@ -288,7 +288,7 @@ export function FamilyPlanningClient() {
           }}
           clubId={activeClub.id}
           linkedMemberId={selectedMemberId}
-          onRsvpUpdated={reload}
+          onRsvpUpdated={handleRefresh}
         />
       ) : null}
     </div>

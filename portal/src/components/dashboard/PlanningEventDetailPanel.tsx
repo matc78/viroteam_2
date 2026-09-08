@@ -210,10 +210,12 @@ export function PlanningEventDetailPanel({
       ? `${displayEvent.rsvpTotal} convoqué${displayEvent.rsvpTotal > 1 ? "s" : ""} · ${displayEvent.rsvpYes} oui · ${displayEvent.rsvpNo} non · ${displayEvent.rsvpPending} en attente`
       : "Aucune convocation enregistrée";
 
-  function handleRsvpUpdated(value: RsvpValue) {
-    if (linkedMemberId) {
-      setLocalRsvp({ memberId: linkedMemberId, value });
-    }
+  function handleRsvpOptimistic(value: RsvpValue | null) {
+    if (!linkedMemberId) return;
+    setLocalRsvp(value ? { memberId: linkedMemberId, value } : null);
+  }
+
+  function handleRsvpPersisted() {
     onRsvpUpdated?.();
   }
 
@@ -348,7 +350,8 @@ export function PlanningEventDetailPanel({
               event={displayEvent}
               memberId={linkedMemberId}
               audienceIds={linkedAliasIds}
-              onUpdated={handleRsvpUpdated}
+              onOptimisticChange={handleRsvpOptimistic}
+              onUpdated={handleRsvpPersisted}
               variant="footer"
             />
           </footer>

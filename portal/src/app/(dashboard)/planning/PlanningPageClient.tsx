@@ -514,7 +514,7 @@ function PlanningPageContent() {
           }}
           clubId={activeClub && linkedMemberId ? activeClub.id : undefined}
           linkedMemberId={linkedMemberId}
-          onRsvpUpdated={reload}
+          onRsvpUpdated={handleRefresh}
         />
       ) : null}
 

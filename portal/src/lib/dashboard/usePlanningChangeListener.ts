@@ -10,6 +10,11 @@ import {
 } from "firebase/firestore";
 import { getAppFirestore } from "@/lib/firebase/app";
 
+type PlanningChangeListenerResult = {
+  hasNewEvents: boolean;
+  resetFlag: () => void;
+};
+
 /**
  * Écoute en temps réel les events d'un club pour les équipes données.
  *
@@ -19,11 +24,14 @@ import { getAppFirestore } from "@/lib/firebase/app";
  * La baseline n'est JAMAIS remise à null au refresh : on la calque sur
  * le dernier snapshot connu, sinon un event qui arrive pile au moment
  * du clic Actualiser est avalé (baseline réétablie au lieu de pastille).
+ *
+ * On n'compare à la baseline qu'une fois que **toutes** les équipes ont
+ * reporté — sinon le 2ᵉ snapshot allume à tort « Actualiser ».
  */
 export function usePlanningChangeListener(
   clubId: string | null,
   teamIds: string[],
-): { hasNewEvents: boolean; resetFlag: () => void } {
+): PlanningChangeListenerResult {
   const [hasNewEvents, setHasNewEvents] = useState(false);
   /** IDs au dernier acquittement (après load / Actualiser). */
   const baselineIdsRef = useRef<Set<string> | null>(null);
@@ -42,6 +50,7 @@ export function usePlanningChangeListener(
     const db = getAppFirestore();
     const eventsCol = collection(db, `clubs/${clubId}/events`);
     const idsByTeam = new Map<string, Set<string>>();
+    const expectedTeamCount = teamIds.length;
     const unsubscribes: Unsubscribe[] = [];
 
     function recompute() {
@@ -50,6 +59,9 @@ export function usePlanningChangeListener(
         for (const id of ids) merged.add(id);
       }
       lastMergedRef.current = merged;
+
+      // Snapshots partiels (équipes pas encore toutes arrivées) → pas de diff.
+      if (idsByTeam.size < expectedTeamCount) return;
 
       if (baselineIdsRef.current === null) {
         baselineIdsRef.current = new Set(merged);
@@ -118,7 +130,7 @@ export function usePlanningChangeListener(
  */
 export function useMultiClubPlanningChangeListener(
   targets: Array<{ clubId: string; teamIds: string[] }>,
-): { hasNewEvents: boolean; resetFlag: () => void } {
+): PlanningChangeListenerResult {
   const [hasNewEvents, setHasNewEvents] = useState(false);
   const baselineIdsRef = useRef<Set<string> | null>(null);
   const lastMergedRef = useRef<Set<string>>(new Set());
@@ -145,6 +157,7 @@ export function useMultiClubPlanningChangeListener(
 
     const db = getAppFirestore();
     const idsByKey = new Map<string, Set<string>>();
+    const expectedQueryCount = flat.length;
     const unsubscribes: Unsubscribe[] = [];
 
     function recompute() {
@@ -153,6 +166,8 @@ export function useMultiClubPlanningChangeListener(
         for (const id of ids) merged.add(`${key}:${id}`);
       }
       lastMergedRef.current = merged;
+
+      if (idsByKey.size < expectedQueryCount) return;
 
       if (baselineIdsRef.current === null) {
         baselineIdsRef.current = new Set(merged);
@@ -214,4 +229,3 @@ export function useMultiClubPlanningChangeListener(
 
   return { hasNewEvents, resetFlag };
 }
-

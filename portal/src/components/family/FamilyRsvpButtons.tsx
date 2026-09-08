@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { setEventRsvp } from "@/lib/firebase/callableService";
 import type { ClubEventView } from "@/lib/firebase/eventService";
 import styles from "./FamilyRsvpButtons.module.css";
+
+type RsvpValue = "yes" | "maybe" | "no";
 
 type FamilyRsvpButtonsProps = {
   clubId: string;
@@ -14,16 +16,23 @@ type FamilyRsvpButtonsProps = {
    * la convocation quand `teamMemberIds` / `rsvp` mélangent les clés.
    */
   audienceIds?: string[];
-  onUpdated?: (value: "yes" | "maybe" | "no") => void;
+  /** Mise à jour locale immédiate (sans reload parent). */
+  onOptimisticChange?: (value: RsvpValue | null) => void;
+  /** Appelé une fois après persistance réussie (resync parent). */
+  onUpdated?: (value: RsvpValue) => void;
   /** `footer` : barre style popover « Tu viens ? ». */
   variant?: "default" | "footer";
 };
 
-const OPTIONS: Array<{ value: "yes" | "maybe" | "no"; label: string }> = [
+const OPTIONS: Array<{ value: RsvpValue; label: string }> = [
   { value: "yes", label: "Oui" },
   { value: "maybe", label: "Peut-être" },
   { value: "no", label: "Non" },
 ];
+
+function isRsvpValue(value: string): value is RsvpValue {
+  return value === "yes" || value === "maybe" || value === "no";
+}
 
 /** Normalise la liste d’IDs audience (memberId + aliases). */
 function resolveAudienceAliases(
@@ -44,6 +53,7 @@ export function FamilyRsvpButtons({
   event,
   memberId,
   audienceIds,
+  onOptimisticChange,
   onUpdated,
   variant = "default",
 }: FamilyRsvpButtonsProps) {
@@ -60,18 +70,23 @@ export function FamilyRsvpButtons({
     return "";
   }, [aliases, event.rsvpByMemberId]);
 
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [localValue, setLocalValue] = useState(current);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     setLocalValue(current);
   }, [current]);
 
-  async function handleSelect(value: "yes" | "maybe" | "no") {
-    if (busy) return;
-    setBusy(true);
+  async function handleSelect(value: RsvpValue) {
+    if (localValue === value) return;
+
+    const previous = localValue;
+    const requestId = ++requestIdRef.current;
+    setLocalValue(value);
     setError(null);
+    onOptimisticChange?.(value);
+
     try {
       await setEventRsvp({
         clubId,
@@ -79,14 +94,17 @@ export function FamilyRsvpButtons({
         memberId,
         value,
       });
-      setLocalValue(value);
+      if (requestId !== requestIdRef.current) return;
       onUpdated?.(value);
     } catch (err: unknown) {
+      if (requestId !== requestIdRef.current) return;
+      setLocalValue(previous);
       setError(
-        err instanceof Error ? err.message : "Impossible d’enregistrer la réponse.",
+        err instanceof Error
+          ? err.message
+          : "Impossible d’enregistrer la réponse.",
       );
-    } finally {
-      setBusy(false);
+      onOptimisticChange?.(isRsvpValue(previous) ? previous : null);
     }
   }
 
@@ -112,7 +130,6 @@ export function FamilyRsvpButtons({
               type="button"
               className={`${styles.button}${selected ? ` ${styles.buttonActive}` : ""}`}
               data-value={option.value}
-              disabled={busy}
               onClick={() => void handleSelect(option.value)}
             >
               {option.label}

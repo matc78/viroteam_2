@@ -50,11 +50,6 @@
   font-weight: 600;
 }
 
-.button:disabled {
-  opacity: 0.65;
-  cursor: wait;
-}
-
 .button[data-value="yes"].buttonActive {
   border-color: var(--color-sport-green);
   background: color-mix(in srgb, var(--color-sport-green) 16%, white);

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { IdentityStep } from "@/components/clubSetup/steps/IdentityStep";
 import { LocationStep } from "@/components/clubSetup/steps/LocationStep";
 import { ObjectivesStep } from "@/components/clubSetup/steps/ObjectivesStep";
@@ -40,15 +41,24 @@ export function ClubSetupWizard() {
     isClubSetupPreviewEnabled() && status !== "signedIn";
 
   const draftApi = useClubSetupDraft(userId);
-  const { draft, isReady, hadPersistedDraft } = draftApi;
+  const {
+    draft,
+    isReady,
+    hadPersistedDraft,
+    setPracticeLocations,
+    setUseClubAddressAsFirstLocation,
+  } = draftApi;
 
-  const [currentStep, setCurrentStep] = useState<number>(ClubSetupSteps.prerequisites);
+  const [currentStep, setCurrentStep] = useState<number>(
+    ClubSetupSteps.prerequisites,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [useClubAddressAsFirstLocation, setUseClubAddressAsFirstLocation] =
-    useState(false);
-  const headquartersLocationRef = useRef<PracticeLocation | null>(null);
   const trackedStartRef = useRef(false);
+
+  useEffect(() => {
+    trackedStartRef.current = false;
+  }, [userId]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -65,29 +75,6 @@ export function ClubSetupWizard() {
     ClubSetupAnalytics.trackStepViewed(draft.currentStep);
   }, [draft.currentStep, hadPersistedDraft, isReady]);
 
-  useEffect(() => {
-    if (!isReady || !hadPersistedDraft) return;
-    const headquartersIndex = ClubSetupFormat.headquartersLocationIndex({
-      address: draft.address,
-      postalCode: draft.postalCode,
-      city: draft.city,
-      sport: draft.sport,
-      locations: draft.practiceLocations,
-    });
-    if (headquartersIndex >= 0) {
-      setUseClubAddressAsFirstLocation(true);
-      headquartersLocationRef.current = draft.practiceLocations[headquartersIndex];
-    }
-  }, [draft, hadPersistedDraft, isReady]);
-
-  const persistStep = useCallback(
-    (step: number) => {
-      draftApi.setCurrentStep(step);
-      draftApi.persistImmediately();
-    },
-    [draftApi],
-  );
-
   const buildHeadquartersLocation = useCallback(() => {
     if (!draft.city.trim() && !draft.address.trim()) return null;
     return ClubSetupFormat.headquartersPracticeLocation({
@@ -98,27 +85,25 @@ export function ClubSetupWizard() {
     });
   }, [draft.address, draft.city, draft.postalCode, draft.sport]);
 
+  const withoutHeadquartersLocations = useCallback(
+    (locations: PracticeLocation[]) =>
+      locations.filter((location) => !location.linkedToHeadquarters),
+    [],
+  );
+
   const resolvePracticeLocations = useCallback(() => {
-    let locations = [...draft.practiceLocations];
-    if (!useClubAddressAsFirstLocation) return locations;
+    const locations = withoutHeadquartersLocations(draft.practiceLocations);
+    if (!draft.useClubAddressAsFirstLocation) return locations;
 
     const clubAddressLocation = buildHeadquartersLocation();
     if (!clubAddressLocation) return locations;
-
-    const previousLocation = headquartersLocationRef.current;
-    if (previousLocation) {
-      locations = locations.filter(
-        (location) => !ClubSetupFormat.isSameLocation(location, previousLocation),
-      );
-    }
-    const alreadyPresent = locations.some((location) =>
-      ClubSetupFormat.isSameLocation(location, clubAddressLocation),
-    );
-    if (!alreadyPresent) {
-      locations = [clubAddressLocation, ...locations];
-    }
-    return locations;
-  }, [buildHeadquartersLocation, draft.practiceLocations, useClubAddressAsFirstLocation]);
+    return [clubAddressLocation, ...locations];
+  }, [
+    buildHeadquartersLocation,
+    draft.practiceLocations,
+    draft.useClubAddressAsFirstLocation,
+    withoutHeadquartersLocations,
+  ]);
 
   const canProceedLocation = useCallback(() => {
     const locations = resolvePracticeLocations();
@@ -135,55 +120,64 @@ export function ClubSetupWizard() {
         return false;
       }
 
-      const previousLocation = headquartersLocationRef.current;
+      const otherLocations = withoutHeadquartersLocations(
+        draft.practiceLocations,
+      );
+      const nextLocations = [clubAddressLocation, ...otherLocations];
       if (
-        previousLocation &&
-        ClubSetupFormat.isSameLocation(previousLocation, clubAddressLocation)
+        ClubSetupFormat.areSameLocations(
+          draft.practiceLocations,
+          nextLocations,
+        )
       ) {
         return true;
       }
 
-      let locations = [...draft.practiceLocations];
-      if (previousLocation) {
-        locations = locations.filter(
-          (location) => !ClubSetupFormat.isSameLocation(location, previousLocation),
-        );
-      }
-      const alreadyPresent = locations.some((location) =>
-        ClubSetupFormat.isSameLocation(location, clubAddressLocation),
-      );
-      if (!alreadyPresent) {
-        locations = [clubAddressLocation, ...locations];
-      }
-      draftApi.setPracticeLocations(locations);
-      headquartersLocationRef.current = clubAddressLocation;
+      setPracticeLocations(nextLocations);
       return true;
     },
-    [buildHeadquartersLocation, draft.practiceLocations, draftApi],
+    [
+      buildHeadquartersLocation,
+      draft.practiceLocations,
+      setPracticeLocations,
+      withoutHeadquartersLocations,
+    ],
   );
 
   const removeClubHeadquartersAsLocation = useCallback(() => {
-    const clubAddressLocation = headquartersLocationRef.current;
-    if (!clubAddressLocation) return;
-    draftApi.setPracticeLocations(
-      draft.practiceLocations.filter(
-        (location) => !ClubSetupFormat.isSameLocation(location, clubAddressLocation),
-      ),
+    const nextLocations = withoutHeadquartersLocations(
+      draft.practiceLocations,
     );
-    headquartersLocationRef.current = null;
-  }, [draft.practiceLocations, draftApi]);
+    if (
+      ClubSetupFormat.areSameLocations(
+        draft.practiceLocations,
+        nextLocations,
+      )
+    ) {
+      return;
+    }
+    setPracticeLocations(nextLocations);
+  }, [
+    draft.practiceLocations,
+    setPracticeLocations,
+    withoutHeadquartersLocations,
+  ]);
 
-  const syncClubHeadquartersLocation = useCallback(() => {
-    if (!useClubAddressAsFirstLocation) return;
+  useEffect(() => {
+    if (!isReady || !draft.useClubAddressAsFirstLocation) return;
     const updated = upsertClubHeadquartersLocation(false);
     if (!updated) {
       removeClubHeadquartersAsLocation();
-      setUseClubAddressAsFirstLocation(false);
     }
   }, [
+    draft.address,
+    draft.city,
+    draft.postalCode,
+    draft.sport,
+    draft.useClubAddressAsFirstLocation,
+    isReady,
     removeClubHeadquartersAsLocation,
     upsertClubHeadquartersLocation,
-    useClubAddressAsFirstLocation,
   ]);
 
   function handleUseClubAddressChanged(useClubAddress: boolean) {
@@ -225,12 +219,15 @@ export function ClubSetupWizard() {
 
   function goToStep(step: number) {
     setCurrentStep(step);
-    persistStep(step);
+    draftApi.setCurrentStep(step);
+    draftApi.persistImmediately();
     ClubSetupAnalytics.trackStepViewed(step);
   }
 
   function handleStepSelect(step: number) {
-    if (step >= currentStep) return;
+    if (step === currentStep) return;
+    if (step > draft.maxReachedStep) return;
+    if (step > currentStep && !validateCurrentStep()) return;
     setErrorMessage(null);
     goToStep(step);
   }
@@ -256,7 +253,9 @@ export function ClubSetupWizard() {
       return;
     }
 
-    syncClubHeadquartersLocation();
+    if (draft.useClubAddressAsFirstLocation) {
+      upsertClubHeadquartersLocation(false);
+    }
 
     if (!canProceedIdentity(draft)) {
       setErrorMessage("Nom du club et sport requis.");
@@ -266,7 +265,12 @@ export function ClubSetupWizard() {
       setErrorMessage("Sélectionnez au moins un objectif.");
       return;
     }
-    if (!canProceedInfo({ ...draft, practiceLocations: resolvePracticeLocations() })) {
+    if (
+      !canProceedInfo({
+        ...draft,
+        practiceLocations: resolvePracticeLocations(),
+      })
+    ) {
       setErrorMessage("Ville et au moins un lieu de pratique requis.");
       return;
     }
@@ -301,6 +305,14 @@ export function ClubSetupWizard() {
       showToast("Club créé avec succès.", "success");
       router.replace("/home");
     } catch (error) {
+      Sentry.captureException(error, {
+        tags: { feature: "club_setup", area: "create_club" },
+        extra: {
+          step: currentStep,
+          sport: draft.sport,
+          founderUid: userId,
+        },
+      });
       setErrorMessage(`Erreur lors de la création : ${error}`);
     } finally {
       setSubmitting(false);
@@ -343,10 +355,7 @@ export function ClubSetupWizard() {
           <IdentityStep
             draft={draft}
             onNameChange={draftApi.setName}
-            onSportChange={(sport) => {
-              draftApi.setSport(sport);
-              syncClubHeadquartersLocation();
-            }}
+            onSportChange={draftApi.setSport}
             onLogoChange={draftApi.setLogoDataUrl}
           />
         );
@@ -365,30 +374,17 @@ export function ClubSetupWizard() {
             city={draft.city}
             postalCode={draft.postalCode}
             address={draft.address}
+            sport={draft.sport}
             locations={draft.practiceLocations}
-            useClubAddressAsFirstLocation={useClubAddressAsFirstLocation}
-            onCityChange={(city) => {
-              draftApi.setCity(city);
-              syncClubHeadquartersLocation();
-            }}
-            onPostalCodeChange={(postalCode) => {
-              draftApi.setPostalCode(postalCode);
-              syncClubHeadquartersLocation();
-            }}
-            onAddressChange={(address) => {
-              draftApi.setAddress(address);
-              syncClubHeadquartersLocation();
-            }}
+            useClubAddressAsFirstLocation={draft.useClubAddressAsFirstLocation}
+            onCityChange={draftApi.setCity}
+            onPostalCodeChange={draftApi.setPostalCode}
+            onAddressChange={draftApi.setAddress}
             onUseClubAddressChanged={handleUseClubAddressChanged}
             onAddLocation={draftApi.addPracticeLocation}
             onRemoveLocation={(index) => {
               const removed = draft.practiceLocations[index];
-              if (
-                headquartersLocationRef.current &&
-                removed &&
-                ClubSetupFormat.isSameLocation(removed, headquartersLocationRef.current)
-              ) {
-                headquartersLocationRef.current = null;
+              if (removed?.linkedToHeadquarters) {
                 setUseClubAddressAsFirstLocation(false);
               }
               draftApi.removePracticeLocation(index);
@@ -406,7 +402,8 @@ export function ClubSetupWizard() {
   const wideLayout =
     currentStep === ClubSetupSteps.identity ||
     currentStep === ClubSetupSteps.objectives ||
-    currentStep === ClubSetupSteps.location;
+    currentStep === ClubSetupSteps.location ||
+    currentStep === ClubSetupSteps.recap;
 
   return (
     <ClubSetupShell
@@ -414,6 +411,7 @@ export function ClubSetupWizard() {
       title={stepIntro.title}
       lead={stepIntro.lead}
       currentStep={currentStep}
+      maxReachedStep={draft.maxReachedStep}
       stepKey={String(currentStep)}
       previewBanner={previewMode}
       resumeBanner={showResumeBanner}
@@ -423,6 +421,11 @@ export function ClubSetupWizard() {
       canProceed={canProceed}
       submitting={submitting}
       onNext={() => void handleNext()}
+      onCreateClick={
+        currentStep === ClubSetupSteps.recap
+          ? () => void handleNext()
+          : undefined
+      }
       compactBody={currentStep === ClubSetupSteps.prerequisites}
       wideLayout={wideLayout}
     >

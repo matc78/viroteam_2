@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import {
   collection,
   doc,
@@ -49,8 +50,13 @@ export async function createClubFromDraft(params: {
             : "image/jpeg",
         });
       }
-    } catch {
+    } catch (error) {
       // Logo optionnel — ne bloque pas la création.
+      Sentry.captureException(error, {
+        level: "warning",
+        tags: { feature: "club_setup", area: "logo_upload" },
+        extra: { clubId: clubRef.id },
+      });
     }
   }
 
@@ -76,7 +82,7 @@ export async function createClubFromDraft(params: {
     });
 
     transaction.set(clubRef, {
-      [Fields.name]: params.draft.name.trim(),
+      [Fields.name]: params.draft.name.trim().toLocaleUpperCase("fr-FR"),
       [Fields.sport]: params.draft.sport,
       [Fields.city]: params.draft.city.trim(),
       [Fields.postalCode]: params.draft.postalCode.trim(),
@@ -89,7 +95,12 @@ export async function createClubFromDraft(params: {
       [Fields.practiceLocations]: params.draft.practiceLocations.map(
         (location) => ({
           name: location.name,
+          ...(location.city ? { city: location.city } : {}),
           ...(location.address ? { address: location.address } : {}),
+          ...(location.category ? { category: location.category } : {}),
+          ...(location.categoryCustom
+            ? { categoryCustom: location.categoryCustom }
+            : {}),
         }),
       ),
       [Fields.adminIds]: [params.founderUid],
@@ -138,12 +149,17 @@ export async function createClubFromDraft(params: {
       userId: params.founderUid,
       clubId: clubRef.id,
       objectiveKeys: params.draft.objectives,
-      clubName: params.draft.name.trim(),
+      clubName: params.draft.name.trim().toLocaleUpperCase("fr-FR"),
       clubSport: params.draft.sport,
       memberCountRange: params.draft.memberCountRange,
     });
-  } catch {
+  } catch (error) {
     // retour_user optionnel si règles non déployées.
+    Sentry.captureException(error, {
+      level: "warning",
+      tags: { feature: "club_setup", area: "retour_user" },
+      extra: { clubId: clubRef.id, userId: params.founderUid },
+    });
   }
 
   return clubRef.id;

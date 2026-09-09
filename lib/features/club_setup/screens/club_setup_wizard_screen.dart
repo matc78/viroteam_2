@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/features/club_setup/providers/club_setup_provider.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
+import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/headquarters_step.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/identity_step.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/member_count_step.dart';
@@ -24,6 +25,7 @@ import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_portal_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -150,6 +152,10 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     }
     if (_step == ClubSetupSteps.objectives && !draft.canProceedObjectives) {
       _showError('Sélectionnez au moins un objectif.');
+      return;
+    }
+    if (_step == ClubSetupSteps.memberCount && !draft.canProceedMemberCount) {
+      _showError('Indiquez le nombre de membres approximatif.');
       return;
     }
     if (_step == ClubSetupSteps.headquarters) {
@@ -317,6 +323,10 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
       _showError('Sélectionnez au moins un objectif.');
       return;
     }
+    if (!draft.canProceedMemberCount) {
+      _showError('Indiquez le nombre de membres approximatif.');
+      return;
+    }
     if (!draft.canProceedInfo) {
       _showError('Ville et au moins un lieu de pratique requis.');
       return;
@@ -367,7 +377,9 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
         draft.hasSavedProgress &&
         _step == ClubSetupSteps.prerequisites;
 
-    return ViroScaffold(
+    return ClubAccentTheme(
+      accentColor: ClubSetupUi.stepAccent(_step),
+      child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
           icon: ViroIcon(ViroIcons.chevronLeft),
@@ -423,14 +435,12 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
                     });
                   },
                 ),
+
                 HeadquartersStep(
                   cityController: _cityController,
                   postalController: _postalController,
                   addressController: _addressController,
                   addressService: ref.read(frenchAddressServiceProvider),
-                  useClubAddressAsFirstLocation:
-                      draft.useClubAddressAsFirstLocation,
-                  onUseClubAddressChanged: _onUseClubAddressChanged,
                   onFieldChanged: () {
                     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
                       draft.city = _cityController.text;
@@ -444,6 +454,10 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
                 PracticeLocationsStep(
                   sport: draft.sport,
                   fallbackCity: draft.city,
+                  hasClubStreetAddress: draft.address.trim().isNotEmpty,
+                  useClubAddressAsFirstLocation:
+                      draft.useClubAddressAsFirstLocation,
+                  onUseClubAddressChanged: _onUseClubAddressChanged,
                   locations: draft.practiceLocations,
                   onAdd: _addLocation,
                   onValidationError: _showError,
@@ -483,6 +497,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
           ),
         ],
       ),
+    ),
     );
   }
 }

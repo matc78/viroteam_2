@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
@@ -23,7 +24,10 @@ class RecapStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final sportAccent = ClubSetupUi.sportAccent(draft.sport);
+    final stepAccent = ClubSetupUi.stepAccent(ClubSetupSteps.recap);
+    final sportAccent = draft.sport.trim().isEmpty
+        ? stepAccent
+        : ClubSetupUi.sportAccent(draft.sport);
     final headquartersLine = ClubSetupFormat.headquartersLine(
       address: draft.address,
       postalCode: draft.postalCode,
@@ -93,7 +97,7 @@ class RecapStep extends StatelessWidget {
                     _RecapPanel(
                       title: 'Détails',
                       icon: ViroIcons.trophy,
-                      accent: ViroColors.sportYellow,
+                      accent: stepAccent,
                       child: _RecapDetailsBody(
                         memberCountRange: draft.memberCountRange,
                       ),
@@ -108,7 +112,7 @@ class RecapStep extends StatelessWidget {
                     _RecapPanel(
                       title: 'Localisation',
                       icon: ViroIcons.place,
-                      accent: ViroColors.sportCyan,
+                      accent: stepAccent,
                       child: _RecapLocationBody(
                         headquartersLine: headquartersLine,
                         locations: draft.practiceLocations,
@@ -118,7 +122,7 @@ class RecapStep extends StatelessWidget {
                     _RecapPanel(
                       title: 'Priorités',
                       icon: ViroIcons.calendar,
-                      accent: ViroColors.sportOrange,
+                      accent: stepAccent,
                       child: _RecapObjectiveChips(
                         objectives: draft.objectives,
                       ),

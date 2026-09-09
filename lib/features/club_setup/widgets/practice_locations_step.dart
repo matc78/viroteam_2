@@ -3,20 +3,25 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/practice_location_categories.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
+import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
-/// Étape lieux de pratique — catégorie + ville + chips retirables.
+/// Étape lieux d'entraînement/match — formulaire, option siège, puis récap.
 class PracticeLocationsStep extends StatefulWidget {
   const PracticeLocationsStep({
     super.key,
     required this.sport,
     required this.fallbackCity,
+    required this.hasClubStreetAddress,
+    required this.useClubAddressAsFirstLocation,
+    required this.onUseClubAddressChanged,
     required this.locations,
     required this.onAdd,
     required this.onRemove,
@@ -25,6 +30,9 @@ class PracticeLocationsStep extends StatefulWidget {
 
   final String sport;
   final String fallbackCity;
+  final bool hasClubStreetAddress;
+  final bool useClubAddressAsFirstLocation;
+  final void Function(bool value) onUseClubAddressChanged;
   final List<PracticeLocation> locations;
   final void Function(PracticeLocation location) onAdd;
   final void Function(int index) onRemove;
@@ -74,34 +82,31 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
     super.dispose();
   }
 
+  /// Indique si le formulaire manuel est prêt à être soumis.
+  bool get _canSubmit {
+    final city = _cityController.text.trim().isEmpty
+        ? widget.fallbackCity.trim()
+        : _cityController.text.trim();
+    final address = _addressController.text.trim();
+    if (city.isEmpty || address.isEmpty) return false;
+    if (cityError(city) != null) return false;
+    if (addressLineError(address) != null) return false;
+    if (_category == PracticeLocationCategories.other &&
+        _customCategoryController.text.trim().isEmpty) {
+      return false;
+    }
+    return true;
+  }
+
   void _submit() {
+    if (!_canSubmit) return;
+
     final city = _cityController.text.trim().isEmpty
         ? widget.fallbackCity.trim()
         : _cityController.text.trim();
     final custom = _customCategoryController.text.trim();
-    if (_category == PracticeLocationCategories.other && custom.isEmpty) {
-      widget.onValidationError?.call('Précisez le type de lieu.');
-      return;
-    }
-    if (city.isEmpty) {
-      widget.onValidationError?.call('Indiquez la ville du lieu.');
-      return;
-    }
-    final cityValidationError = cityError(city);
-    if (cityValidationError != null) {
-      widget.onValidationError?.call(cityValidationError);
-      return;
-    }
-    final addressValidationError = addressLineError(_addressController.text);
-    if (addressValidationError != null) {
-      widget.onValidationError?.call(addressValidationError);
-      return;
-    }
-
     final formattedCity = formatCity(city);
-    final formattedAddress = _addressController.text.trim().isEmpty
-        ? null
-        : formatAddressLine(_addressController.text);
+    final formattedAddress = formatAddressLine(_addressController.text);
 
     final location = PracticeLocation(
       name: ClubSetupFormat.practiceLocationName(
@@ -121,155 +126,271 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
     if (_category == PracticeLocationCategories.other) {
       _customCategoryController.clear();
     }
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    const accent = ViroColors.sportOrange;
+    final accent = ClubSetupUi.stepAccent(ClubSetupSteps.practiceLocations);
     final categories = PracticeLocationCategories.forSport(widget.sport);
-    final manualLocations = [
-      for (var index = 0; index < widget.locations.length; index++)
-        if (!widget.locations[index].linkedToHeadquarters)
-          (index: index, location: widget.locations[index]),
-    ];
-    final hasHeadquarters = widget.locations.any((l) => l.linkedToHeadquarters);
+    final hasManualLocations =
+        widget.locations.any((location) => !location.linkedToHeadquarters);
+    final hasHeadquarters =
+        widget.locations.any((location) => location.linkedToHeadquarters);
+    final canSubmit = _canSubmit;
 
     return SetupStepShell(
-      centerBody: true,
+      centerBody: false,
       subtitle: hasHeadquarters
           ? 'Ajoutez d\'autres lieux si besoin (optionnel si le siège suffit).'
-          : 'Ajoutez au moins un lieu de pratique.',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (widget.locations.isNotEmpty) ...[
-            SizedBox(
-              height: 36,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: widget.locations.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: ViroSpacing.xs),
-                itemBuilder: (context, index) {
-                  final location = widget.locations[index];
-                  final chipAccent = ClubSetupUi.sportAccents[
-                      index % ClubSetupUi.sportAccents.length];
-                  return _LocationChip(
-                    label: location.name,
-                    accent: chipAccent,
-                    linked: location.linkedToHeadquarters,
-                    onRemove: location.linkedToHeadquarters
-                        ? null
-                        : () => widget.onRemove(index),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: ViroSpacing.sm),
-          ],
-          Text(
-            'Type de lieu',
-            style: theme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: ViroColors.primary800,
-            ),
-          ),
-          const SizedBox(height: ViroSpacing.xs),
-          SizedBox(
-            height: 34,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: categories.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: ViroSpacing.xs),
-              itemBuilder: (context, index) {
-                final category = categories[index];
-                final selected = _category == category;
-                return ViroPressable(
-                  onTap: () => setState(() => _category = category),
-                  borderRadius: BorderRadius.circular(16),
-                  child: AnimatedContainer(
+          : 'Ajoutez au moins un lieu d\'entraînement/match.',
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+          ViroCard(
+            elevated: false,
+            margin: EdgeInsets.zero,
+            padding: const EdgeInsets.all(ViroSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Nouveau lieu',
+                  style: theme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: ViroColors.primary800,
+                  ),
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                Text(
+                  'Type de lieu',
+                  style: theme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: ViroColors.gray600,
+                  ),
+                ),
+                const SizedBox(height: ViroSpacing.xs),
+                SizedBox(
+                  height: 34,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: categories.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(width: ViroSpacing.xs),
+                    itemBuilder: (context, index) {
+                      final category = categories[index];
+                      final selected = _category == category;
+                      return ViroPressable(
+                        onTap: () => setState(() => _category = category),
+                        borderRadius: BorderRadius.circular(16),
+                        child: AnimatedContainer(
+                          duration: ViroMotion.fast,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: ViroSpacing.sm,
+                            vertical: ViroSpacing.xs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? accent.withValues(alpha: 0.14)
+                                : ViroColors.surfaceCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: selected ? accent : ViroColors.primary100,
+                              width: selected ? 2 : 1,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            PracticeLocationCategories.label(category),
+                            style: theme.labelSmall?.copyWith(
+                              color: selected ? accent : ViroColors.gray600,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (_category == PracticeLocationCategories.other) ...[
+                  const SizedBox(height: ViroSpacing.xs),
+                  TextFormField(
+                    controller: _customCategoryController,
+                    decoration: const InputDecoration(
+                      labelText: 'Précisez le type',
+                      isDense: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ],
+                const SizedBox(height: ViroSpacing.sm),
+                TextFormField(
+                  controller: _cityController,
+                  decoration: const InputDecoration(
+                    labelText: 'Ville',
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: ViroSpacing.xs),
+                TextFormField(
+                  controller: _addressController,
+                  decoration: const InputDecoration(
+                    labelText: 'Adresse',
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AnimatedOpacity(
                     duration: ViroMotion.fast,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: ViroSpacing.sm,
-                      vertical: ViroSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? accent.withValues(alpha: 0.14)
-                          : ViroColors.surfaceCard,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: selected ? accent : ViroColors.primary100,
-                        width: selected ? 2 : 1,
+                    opacity: canSubmit ? 1 : 0.45,
+                    child: ElevatedButton.icon(
+                      onPressed: canSubmit ? _submit : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: accent,
+                        foregroundColor: ViroColors.white,
+                        disabledBackgroundColor:
+                            accent.withValues(alpha: 0.35),
+                        disabledForegroundColor: ViroColors.white,
+                        minimumSize: const Size(0, ViroSpacing.xl),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ViroSpacing.sm,
+                          vertical: ViroSpacing.xs,
+                        ),
                       ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      PracticeLocationCategories.label(category),
-                      style: theme.labelSmall?.copyWith(
-                        color: selected ? accent : ViroColors.gray600,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500,
+                      icon: ViroIcon(
+                        ViroIcons.add,
+                        size: 14,
+                        color: ViroColors.white,
+                      ),
+                      label: Text(
+                        hasManualLocations || hasHeadquarters
+                            ? 'Ajouter un autre lieu'
+                            : 'Ajouter ce lieu',
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+              ],
             ),
           ),
-          if (_category == PracticeLocationCategories.other) ...[
-            const SizedBox(height: ViroSpacing.xs),
-            TextFormField(
-              controller: _customCategoryController,
-              decoration: const InputDecoration(
-                labelText: 'Précisez le type',
-                isDense: true,
+          const SizedBox(height: ViroSpacing.sm),
+          _UseClubAddressOption(
+            selected: widget.useClubAddressAsFirstLocation,
+            hasStreetAddress: widget.hasClubStreetAddress,
+            onChanged: widget.onUseClubAddressChanged,
+          ),
+          if (widget.locations.isNotEmpty) ...[
+            const SizedBox(height: ViroSpacing.md),
+            Text(
+              'Lieux ajoutés',
+              style: theme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: ViroColors.primary800,
               ),
-              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: ViroSpacing.xs),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var index = 0; index < widget.locations.length; index++) ...[
+                  if (index > 0) const SizedBox(height: ViroSpacing.xs),
+                  _LocationChip(
+                    location: widget.locations[index],
+                    accent: accent,
+                    onRemove: widget.locations[index].linkedToHeadquarters
+                        ? () => widget.onUseClubAddressChanged(false)
+                        : () => widget.onRemove(index),
+                  ),
+                ],
+              ],
             ),
           ],
-          const SizedBox(height: ViroSpacing.sm),
-          TextFormField(
-            controller: _cityController,
-            decoration: const InputDecoration(
-              labelText: 'Ville du lieu',
-              isDense: true,
-            ),
-          ),
-          const SizedBox(height: ViroSpacing.xs),
-          TextFormField(
-            controller: _addressController,
-            decoration: const InputDecoration(
-              labelText: 'Adresse (optionnel)',
-              isDense: true,
-            ),
-          ),
-          const SizedBox(height: ViroSpacing.sm),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ElevatedButton.icon(
-              onPressed: _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accent,
-                foregroundColor: ViroColors.white,
-                minimumSize: const Size(0, ViroSpacing.xl),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: ViroSpacing.sm,
-                  vertical: ViroSpacing.xs,
+        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UseClubAddressOption extends StatelessWidget {
+  const _UseClubAddressOption({
+    required this.selected,
+    required this.hasStreetAddress,
+    required this.onChanged,
+  });
+
+  final bool selected;
+  final bool hasStreetAddress;
+  final void Function(bool value) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final accent = ClubSetupUi.stepAccent(ClubSetupSteps.practiceLocations);
+
+    return ViroCard(
+      onTap: () => onChanged(!selected),
+      elevated: false,
+      margin: EdgeInsets.zero,
+      padding: EdgeInsets.zero,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  ViroSpacing.sm,
+                  ViroSpacing.sm,
+                  ViroSpacing.xs,
+                  ViroSpacing.sm,
+                ),
+                child: Text(
+                  hasStreetAddress
+                      ? 'Utiliser l\'adresse du siège du club comme lieu d\'entraînement/match'
+                      : 'Utiliser la ville du siège du club comme lieu d\'entraînement/match',
+                  style: theme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: ViroColors.primary800,
+                    height: 1.25,
+                  ),
                 ),
               ),
-              icon: ViroIcon(ViroIcons.add, size: 14, color: ViroColors.white),
-              label: Text(
-                manualLocations.isEmpty && !hasHeadquarters
-                    ? 'Ajouter ce lieu'
-                    : 'Ajouter un autre lieu',
+            ),
+            SizedBox(
+              width: 40,
+              child: AnimatedContainer(
+                duration: ViroMotion.fast,
+                curve: ViroMotion.enter,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? accent : ViroColors.white,
+                  border: Border(
+                    left: BorderSide(
+                      color: selected ? accent : ViroColors.gray200,
+                    ),
+                  ),
+                ),
+                child: selected
+                    ? ViroIcon(
+                        ViroIcons.check,
+                        color: ViroColors.white,
+                        size: 18,
+                      )
+                    : null,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -277,57 +398,114 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
 
 class _LocationChip extends StatelessWidget {
   const _LocationChip({
-    required this.label,
+    required this.location,
     required this.accent,
-    required this.linked,
     this.onRemove,
   });
 
-  final String label;
+  final PracticeLocation location;
   final Color accent;
-  final bool linked;
   final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final categoryLabel = location.category == null
+        ? null
+        : PracticeLocationCategories.label(
+            location.category!,
+            location.categoryCustom,
+          );
+    final cityLabel = location.city?.trim() ?? '';
+    final addressLabel = ClubSetupFormat.streetAddressForDisplay(
+      address: location.address,
+      city: cityLabel,
+    );
+    final details = [cityLabel, addressLabel]
+        .where((part) => part.isNotEmpty)
+        .join(' · ');
+    final detailsLabel = details.isNotEmpty ? details : location.name;
+
     return Container(
-      padding: const EdgeInsets.only(left: ViroSpacing.sm, right: 4),
+      padding: EdgeInsets.zero,
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: 0.45)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (linked) ...[
-            ViroIcon(ViroIcons.place, size: 12, color: accent),
-            const SizedBox(width: 4),
-          ],
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 140),
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ),
-          if (onRemove != null)
-            ViroPressable(
-              onTap: onRemove,
-              borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: ViroIcon(ViroIcons.close, size: 14, color: accent),
+                padding: const EdgeInsets.fromLTRB(
+                  ViroSpacing.sm,
+                  ViroSpacing.sm,
+                  ViroSpacing.xs,
+                  ViroSpacing.sm,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: ViroIcon(ViroIcons.place, size: 12, color: accent),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (categoryLabel != null && categoryLabel.isNotEmpty)
+                            Text(
+                              categoryLabel,
+                              softWrap: true,
+                              style: theme.labelSmall?.copyWith(
+                                color: accent,
+                                fontWeight: FontWeight.w700,
+                                height: 1.25,
+                              ),
+                            ),
+                          Text(
+                            detailsLabel,
+                            softWrap: true,
+                            style: theme.labelSmall?.copyWith(
+                              color: ViroColors.primary800,
+                              fontWeight: FontWeight.w500,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            )
-          else
-            const SizedBox(width: 8),
-        ],
+            ),
+            if (onRemove != null)
+              ViroPressable(
+                onTap: onRemove,
+                floating: false,
+                minSize: 40,
+                borderRadius: BorderRadius.zero,
+                child: Container(
+                  width: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.18),
+                    border: Border(
+                      left: BorderSide(color: accent.withValues(alpha: 0.45)),
+                    ),
+                  ),
+                  child: ViroIcon(ViroIcons.close, size: 18, color: accent),
+                ),
+              )
+            else
+              const SizedBox(width: 8),
+          ],
+        ),
       ),
     );
   }

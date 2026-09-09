@@ -6,10 +6,11 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
+import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
+import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
-import 'package:viro_team_v2/widgets/common/viro_card.dart';
 
-/// Étape siège — ville / adresse + option « siège = lieu de pratique ».
+/// Étape siège — ville et adresse du club.
 class HeadquartersStep extends StatelessWidget {
   const HeadquartersStep({
     super.key,
@@ -17,8 +18,6 @@ class HeadquartersStep extends StatelessWidget {
     required this.postalController,
     required this.addressController,
     required this.addressService,
-    required this.useClubAddressAsFirstLocation,
-    required this.onUseClubAddressChanged,
     required this.onFieldChanged,
   });
 
@@ -26,37 +25,22 @@ class HeadquartersStep extends StatelessWidget {
   final TextEditingController postalController;
   final TextEditingController addressController;
   final FrenchAddressService addressService;
-  final bool useClubAddressAsFirstLocation;
-  final void Function(bool value) onUseClubAddressChanged;
   final VoidCallback onFieldChanged;
 
   @override
   Widget build(BuildContext context) {
-    final hasStreetAddress = addressController.text.trim().isNotEmpty;
-    const accent = ViroColors.sportCyan;
+    final accent = ClubSetupUi.stepAccent(ClubSetupSteps.headquarters);
 
     return SetupStepShell(
       centerBody: true,
       subtitle: 'Où se trouve le siège du club ?',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _HeadquartersAddressBlock(
-            cityController: cityController,
-            postalController: postalController,
-            addressController: addressController,
-            addressService: addressService,
-            accent: accent,
-            onFieldChanged: onFieldChanged,
-          ),
-          const SizedBox(height: ViroSpacing.sm),
-          _UseClubAddressOption(
-            selected: useClubAddressAsFirstLocation,
-            hasStreetAddress: hasStreetAddress,
-            onChanged: onUseClubAddressChanged,
-          ),
-        ],
+      child: _HeadquartersAddressBlock(
+        cityController: cityController,
+        postalController: postalController,
+        addressController: addressController,
+        addressService: addressService,
+        accent: accent,
+        onFieldChanged: onFieldChanged,
       ),
     );
   }
@@ -94,97 +78,6 @@ InputDecoration _tintedFieldDecoration(
       borderSide: BorderSide(color: accent, width: 2),
     ),
   );
-}
-
-class _UseClubAddressOption extends StatelessWidget {
-  const _UseClubAddressOption({
-    required this.selected,
-    required this.hasStreetAddress,
-    required this.onChanged,
-  });
-
-  final bool selected;
-  final bool hasStreetAddress;
-  final void Function(bool value) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context).textTheme;
-    const accent = ViroColors.sportGreen;
-
-    return ViroCard(
-      onTap: () => onChanged(!selected),
-      elevated: true,
-      margin: EdgeInsets.zero,
-      padding: EdgeInsets.zero,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  ViroSpacing.md,
-                  ViroSpacing.md,
-                  ViroSpacing.sm,
-                  ViroSpacing.md,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hasStreetAddress
-                          ? 'Utiliser l\'adresse du club comme lieu'
-                          : 'Utiliser la ville du club comme lieu',
-                      style: theme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: ViroColors.primary800,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: ViroSpacing.xs),
-                    Text(
-                      hasStreetAddress
-                          ? 'Ajoute le siège comme premier lieu.'
-                          : 'Ajoute la ville comme premier lieu.',
-                      style: theme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            AspectRatio(
-              aspectRatio: 1,
-              child: AnimatedContainer(
-                duration: ViroMotion.fast,
-                curve: ViroMotion.enter,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: selected ? accent : ViroColors.white,
-                  border: Border(
-                    left: BorderSide(
-                      color: selected ? accent : ViroColors.gray200,
-                    ),
-                  ),
-                ),
-                child: selected
-                    ? ViroIcon(
-                        ViroIcons.check,
-                        color: ViroColors.white,
-                        size: 28,
-                      )
-                    : null,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _HeadquartersAddressBlock extends StatefulWidget {

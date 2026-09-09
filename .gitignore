@@ -50,6 +50,7 @@ app.*.map.json
 # Local signing / secrets (see SETUP_LOCAL.md)
 **/key.properties
 **/*.keystore
+**/*.keystore.*
 **/*.jks
 **/GoogleService-Info.plist
 

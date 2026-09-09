@@ -129,6 +129,11 @@ class ClubSetupDraft {
 
   bool get canProceedObjectives => objectives.isNotEmpty;
 
+  bool get canProceedMemberCount =>
+      memberCountRange != null &&
+      memberCountRange!.isNotEmpty &&
+      ClubMemberCountRanges.all.contains(memberCountRange);
+
   bool get canProceedHeadquarters {
     if (cityError(city, required: true) != null) return false;
     if (postalCodeError(postalCode) != null) return false;

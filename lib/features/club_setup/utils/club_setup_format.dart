@@ -24,24 +24,33 @@ abstract final class ClubSetupFormat {
     return postal;
   }
 
-  /// Adresse d'un lieu de pratique créé depuis le siège.
-  static String headquartersPracticeAddress({
-    required String address,
-    required String postalCode,
+  /// Adresse d'un lieu de pratique créé depuis le siège (rue seule).
+  ///
+  /// Ville et code postal restent sur les champs dédiés du lieu.
+  static String headquartersPracticeAddress({required String address}) {
+    return address.trim();
+  }
+
+  /// Rue seule pour l'affichage (retire un suffixe legacy « , CP Ville »).
+  static String streetAddressForDisplay({
+    required String? address,
     required String city,
   }) {
-    final street = address.trim();
-    final postal = postalCode.trim();
-    final cityName = city.trim();
+    var street = address?.trim() ?? '';
+    if (street.isEmpty) return '';
 
-    if (street.isNotEmpty) {
-      return [
-        street,
-        [postal, cityName].where((part) => part.isNotEmpty).join(' '),
-      ].where((part) => part.isNotEmpty).join(', ');
+    final cityName = city.trim();
+    if (cityName.isNotEmpty) {
+      final legacySuffix = RegExp(
+        ',\\s*(?:\\d{5}\\s+)?${RegExp.escape(cityName)}\\s*\$',
+        caseSensitive: false,
+      );
+      street = street.replaceFirst(legacySuffix, '').trim();
     }
-    if (postal.isNotEmpty && cityName.isNotEmpty) return '$postal $cityName';
-    return cityName.isNotEmpty ? cityName : postal;
+
+    // Suffixe « , 75001 » seul (sans ville).
+    street = street.replaceFirst(RegExp(r',\s*\d{5}\s*$'), '').trim();
+    return street;
   }
 
   /// Type de lieu de pratique habituel pour un sport (libellé legacy).
@@ -80,11 +89,7 @@ abstract final class ClubSetupFormat {
     required String postalCode,
     required String city,
   }) {
-    final practiceAddress = headquartersPracticeAddress(
-      address: address,
-      postalCode: postalCode,
-      city: city,
-    );
+    final practiceAddress = headquartersPracticeAddress(address: address);
     final cityName = city.trim();
     return PracticeLocation(
       name: headquartersPracticeName(sport: sport, city: city),
@@ -96,13 +101,15 @@ abstract final class ClubSetupFormat {
   }
 
   /// Indique si deux lieux de pratique représentent le même emplacement.
+  ///
+  /// Compare les rues normalisées (suffixe legacy « , CP Ville » ignoré).
   static bool isSameLocation(
     PracticeLocation first,
     PracticeLocation second,
   ) {
     return _normalized(first.name) == _normalized(second.name) &&
         _normalized(first.city ?? '') == _normalized(second.city ?? '') &&
-        _normalized(first.address ?? '') == _normalized(second.address ?? '') &&
+        _normalizedStreet(first) == _normalizedStreet(second) &&
         _normalized(first.category ?? '') ==
             _normalized(second.category ?? '') &&
         _normalized(first.categoryCustom ?? '') ==
@@ -115,6 +122,8 @@ abstract final class ClubSetupFormat {
   }
 
   /// Indique si [location] est le lieu généré depuis le siège actuel.
+  ///
+  /// Accepte les brouillons legacy dont l’adresse inclut encore « , CP Ville ».
   static bool isHeadquartersLocation({
     required String address,
     required String postalCode,
@@ -132,10 +141,16 @@ abstract final class ClubSetupFormat {
     if (_normalized(location.name) != _normalized(expected.name)) {
       return false;
     }
-    final locationAddress = location.address?.trim() ?? '';
-    final expectedAddress = expected.address?.trim() ?? '';
-    if (locationAddress.isEmpty || expectedAddress.isEmpty) return false;
-    return _normalized(locationAddress) == _normalized(expectedAddress);
+    final locationStreet = streetAddressForDisplay(
+      address: location.address,
+      city: location.city ?? city,
+    );
+    final expectedStreet = streetAddressForDisplay(
+      address: expected.address,
+      city: city,
+    );
+    if (locationStreet.isEmpty || expectedStreet.isEmpty) return false;
+    return _normalized(locationStreet) == _normalized(expectedStreet);
   }
 
   /// Index du lieu siège dans [locations], ou `-1` s'il est absent.
@@ -227,6 +242,16 @@ abstract final class ClubSetupFormat {
   }
 
   static String _normalized(String value) => value.trim().toLowerCase();
+
+  /// Rue normalisée d’un lieu (retire le suffixe legacy « , CP Ville »).
+  static String _normalizedStreet(PracticeLocation location) {
+    return _normalized(
+      streetAddressForDisplay(
+        address: location.address,
+        city: location.city ?? '',
+      ),
+    );
+  }
 
   static String _pluralizeCategoryLabel(String label) {
     final normalized = label.trim().toLowerCase();

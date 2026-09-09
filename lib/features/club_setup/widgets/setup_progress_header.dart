@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
+import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 
 /// En-tête de progression discret : fine barre sous l'AppBar.
 class SetupProgressHeader extends StatelessWidget implements PreferredSizeWidget {
@@ -13,23 +14,13 @@ class SetupProgressHeader extends StatelessWidget implements PreferredSizeWidget
   final int currentStep;
   final int totalSteps;
 
-  static const _stepColors = [
-    ViroColors.sportGreen,
-    ViroColors.sportCyan,
-    ViroColors.sportOrange,
-    ViroColors.sportYellow,
-    ViroColors.primary400,
-    ViroColors.adminBadgeEnd,
-    ViroColors.sportCyan,
-  ];
-
   @override
   Size get preferredSize => const Size.fromHeight(3);
 
   @override
   Widget build(BuildContext context) {
     final progress = (currentStep + 1) / totalSteps;
-    final activeColor = _stepColors[currentStep % _stepColors.length];
+    final activeColor = ClubSetupUi.stepAccent(currentStep);
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: progress),

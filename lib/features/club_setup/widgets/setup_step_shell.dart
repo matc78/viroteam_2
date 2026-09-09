@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
-/// Conteneur centré pour une étape du wizard création club (sans scroll).
+/// Conteneur centré pour une étape du wizard création club.
+///
+/// Avec [centerBody], le contenu est centré s'il tient, sinon scrollable.
 class SetupStepShell extends StatelessWidget {
   const SetupStepShell({
     super.key,
@@ -51,16 +53,24 @@ class SetupStepShell extends StatelessWidget {
     ];
 
     final stepBody = centerBody
-        ? Align(
-            alignment: Alignment.center,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ...header,
-                child,
-              ],
-            ),
+        ? LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ...header,
+                        child,
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           )
         : child;
 

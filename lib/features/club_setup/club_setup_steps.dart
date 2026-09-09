@@ -18,7 +18,7 @@ abstract final class ClubSetupSteps {
     'Objectifs',
     'Effectif',
     'Siège',
-    'Lieux',
+    'Lieux d\'entraînement/match',
     'Récap',
   ];
 

@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
@@ -31,7 +32,10 @@ class IdentityStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sportAccent = ClubSetupUi.sportAccent(draft.sport);
+    final stepAccent = ClubSetupUi.stepAccent(ClubSetupSteps.identity);
+    final sportAccent = draft.sport.trim().isEmpty
+        ? stepAccent
+        : ClubSetupUi.sportAccent(draft.sport);
 
     return SetupStepShell(
       centerBody: true,

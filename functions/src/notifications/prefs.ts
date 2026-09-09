@@ -12,13 +12,19 @@ export function parseNotificationPreferences(
     return { ...DEFAULT_NOTIFICATION_PREFERENCES };
   }
   const map = raw as Record<string, unknown>;
+  const legacyEventsPreference = readBool(
+    map.events,
+    DEFAULT_NOTIFICATION_PREFERENCES.events,
+  );
   return {
-    events: readBool(map.events, DEFAULT_NOTIFICATION_PREFERENCES.events),
+    events: legacyEventsPreference,
     announcements: readBool(
       map.announcements,
       DEFAULT_NOTIFICATION_PREFERENCES.announcements,
     ),
     fees: readBool(map.fees, DEFAULT_NOTIFICATION_PREFERENCES.fees),
+    // Compat legacy: si `rsvp` n'existe pas encore, reprendre la préférence `events`.
+    rsvp: readBool(map.rsvp, legacyEventsPreference),
   };
 }
 

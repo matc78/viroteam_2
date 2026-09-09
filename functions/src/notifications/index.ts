@@ -19,4 +19,6 @@ export {
   scheduleEventRemindersDev,
   scheduleFeeReminders,
   scheduleFeeRemindersDev,
+  scheduleRsvpNotifyFlush,
+  scheduleRsvpNotifyFlushDev,
 } from "./schedulers";

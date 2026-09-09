@@ -80,6 +80,37 @@ export function eventModifiedCopy(title: string): { title: string; body: string 
   };
 }
 
+/** Libellé FR d’un statut RSVP Firestore. */
+export function rsvpStatusLabel(status: string): string {
+  switch (String(status ?? "").trim()) {
+    case "yes":
+      return "Oui";
+    case "maybe":
+      return "Peut-être";
+    case "no":
+      return "Non";
+    case "none":
+      return "Sans réponse";
+    default:
+      return "Sans réponse";
+  }
+}
+
+/** Push après stabilisation d’un RSVP (debounce). */
+export function eventRsvpChangedCopy(params: {
+  memberName: string;
+  status: string;
+  eventTitle: string;
+}): { title: string; body: string } {
+  const name = params.memberName.trim() || "Un membre";
+  const eventTitle = params.eventTitle.trim() || "Événement";
+  const label = rsvpStatusLabel(params.status);
+  return {
+    title: "Réponse RSVP",
+    body: truncatePushBody(`${name} : ${label} — ${eventTitle}`),
+  };
+}
+
 /** Push publication d'annonce. */
 export function announcementPublishedCopy(message: string): {
   title: string;
@@ -118,7 +149,7 @@ export function feeReminderCopy(params: {
 export function preferenceOffWarning(key: "events" | "announcements" | "fees"): string {
   switch (key) {
     case "events":
-      return "Vous ne recevrez plus les rappels d’événements (J-7, J-2) ni les notifications envoyées par les coaches.";
+      return "Vous ne recevrez plus les rappels d’événements (J-7, J-2), les changements de RSVP ni les notifications envoyées par les coaches.";
     case "announcements":
       return "Vous ne recevrez plus de notification à la publication des annonces du club.";
     case "fees":

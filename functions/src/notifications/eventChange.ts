@@ -38,6 +38,34 @@ export function isEventContentModified(
   );
 }
 
+/** Entrée RSVP dont le statut a changé entre before et after. */
+export type RsvpStatusChange = {
+  memberId: string;
+  status: string;
+};
+
+/**
+ * Liste les clés `rsvp` dont la valeur a changé (création / update).
+ *
+ * Les suppressions de clé (nettoyage audience / roster) sont ignorées : ce ne
+ * sont pas des réponses utilisateur et ne doivent pas déclencher de push.
+ */
+export function listRsvpStatusChanges(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown>,
+): RsvpStatusChange[] {
+  const beforeMap = stringMap(before?.rsvp);
+  const afterMap = stringMap(after.rsvp);
+  const changes: RsvpStatusChange[] = [];
+  for (const memberId of Object.keys(afterMap)) {
+    const previous = beforeMap[memberId] ?? "none";
+    const next = afterMap[memberId];
+    if (previous === next) continue;
+    changes.push({ memberId, status: next });
+  }
+  return changes;
+}
+
 /** True si seuls les champs techniques push ont changé. */
 export function isOnlyPushBookkeepingChange(
   before: Record<string, unknown>,
@@ -47,6 +75,9 @@ export function isOnlyPushBookkeepingChange(
     "reminderSentJ7",
     "reminderSentJ2",
     "lastManualPushAt",
+    "rsvpNotifyPending",
+    "rsvpNotifyDueAt",
+    "rsvpLastActorUid",
   ]);
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const key of keys) {
@@ -56,6 +87,18 @@ export function isOnlyPushBookkeepingChange(
     }
   }
   return true;
+}
+
+function stringMap(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const memberId = key.trim();
+    if (!memberId) continue;
+    const status = String(raw ?? "").trim();
+    out[memberId] = status.length > 0 ? status : "none";
+  }
+  return out;
 }
 
 function stringifyField(value: unknown): string {

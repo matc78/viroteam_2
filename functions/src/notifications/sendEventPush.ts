@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { db, defineDualCallable } from "../db";
+import { db, defineDualCallable, isProdDatabase } from "../db";
 import { requireString, requireUid, stringArray } from "../common";
 import { eventManualPushCopy } from "./copy";
 import { dateIdToIsoDate, parisDateLabel, planningDeepLink } from "./deepLinks";
@@ -11,7 +11,7 @@ import { MANUAL_PUSH_COOLDOWN_MS } from "./types";
 
 /**
  * Envoi manuel d'une notif event (coach d'une équipe concernée ou admin).
- * Rate-limit 1/heure via `lastManualPushAt` (claim atomique en transaction).
+ * Rate-limit 1/heure en prod uniquement (`v2-dev` libre pour le debug).
  */
 export const {
   prod: sendEventPush,
@@ -53,18 +53,20 @@ export const {
       throw new HttpsError("failed-precondition", "Événement annulé");
     }
 
-    const lastMs = timestampMillis(data.lastManualPushAt);
-    if (
-      !canSendManualPush({
-        lastManualPushAtMs: lastMs,
-        nowMs: Date.now(),
-        cooldownMs: MANUAL_PUSH_COOLDOWN_MS,
-      })
-    ) {
-      throw new HttpsError(
-        "resource-exhausted",
-        "Une notification a déjà été envoyée il y a moins d’une heure",
-      );
+    if (isProdDatabase()) {
+      const lastMs = timestampMillis(data.lastManualPushAt);
+      if (
+        !canSendManualPush({
+          lastManualPushAtMs: lastMs,
+          nowMs: Date.now(),
+          cooldownMs: MANUAL_PUSH_COOLDOWN_MS,
+        })
+      ) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "Une notification a déjà été envoyée il y a moins d’une heure",
+        );
+      }
     }
 
     // Claim du slot avant l'envoi pour éviter les doubles concurrentes.

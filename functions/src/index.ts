@@ -61,6 +61,8 @@ export {
   scheduleEventRemindersDev,
   scheduleFeeReminders,
   scheduleFeeRemindersDev,
+  scheduleRsvpNotifyFlush,
+  scheduleRsvpNotifyFlushDev,
 } from "./notifications";
 
 const helloAssoClientId = defineSecret("HELLOASSO_CLIENT_ID");

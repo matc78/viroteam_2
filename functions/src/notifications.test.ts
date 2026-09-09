@@ -8,8 +8,10 @@ import {
   eventPostponedCopy,
   eventReminderJ2Copy,
   eventReminderJ7Copy,
+  eventRsvpChangedCopy,
   feeReminderCopy,
   preferenceOffWarning,
+  rsvpStatusLabel,
   truncatePushBody,
 } from "./notifications/copy";
 import {
@@ -26,13 +28,14 @@ import {
   isEventContentModified,
   isEventPostponedChange,
   isOnlyPushBookkeepingChange,
+  listRsvpStatusChanges,
 } from "./notifications/eventChange";
 import {
   canSendManualPush,
   filterUidsByPreference,
   parseNotificationPreferences,
 } from "./notifications/prefs";
-import { MANUAL_PUSH_COOLDOWN_MS } from "./notifications/types";
+import { MANUAL_PUSH_COOLDOWN_MS, RSVP_NOTIFY_DEBOUNCE_MS } from "./notifications/types";
 
 test("truncatePushBody tronque avec ellipse", () => {
   assert.equal(truncatePushBody("court"), "court");
@@ -57,6 +60,24 @@ test("copies event / fee / annonce", () => {
     startTime: "19:00",
   }).body, /nouvelle date/);
   assert.equal(eventModifiedCopy("X").title, "Événement modifié");
+  assert.equal(rsvpStatusLabel("yes"), "Oui");
+  assert.equal(rsvpStatusLabel("maybe"), "Peut-être");
+  assert.equal(
+    eventRsvpChangedCopy({
+      memberName: "Marie",
+      status: "yes",
+      eventTitle: "Entraînement",
+    }).title,
+    "Réponse RSVP",
+  );
+  assert.match(
+    eventRsvpChangedCopy({
+      memberName: "Marie",
+      status: "yes",
+      eventTitle: "Entraînement",
+    }).body,
+    /Marie : Oui — Entraînement/,
+  );
   assert.equal(announcementPublishedCopy("Hello world").title, "Nouvelle annonce");
   assert.equal(feeReminderCopy({
     seasonLabel: "2025",
@@ -71,7 +92,7 @@ test("copies event / fee / annonce", () => {
 });
 
 test("preferenceOffWarning couvre les 3 clés", () => {
-  assert.match(preferenceOffWarning("events"), /rappels/);
+  assert.match(preferenceOffWarning("events"), /RSVP/);
   assert.match(preferenceOffWarning("announcements"), /annonces/);
   assert.match(preferenceOffWarning("fees"), /cotisation/);
 });
@@ -140,6 +161,37 @@ test("isEventPostponedChange / content modified / bookkeeping", () => {
     ),
     false,
   );
+  assert.equal(
+    isOnlyPushBookkeepingChange(
+      { title: "A", rsvpNotifyDueAt: null },
+      {
+        title: "A",
+        rsvpNotifyDueAt: { toMillis: () => 1 },
+        rsvpNotifyPending: { u1: { status: "yes", version: 1 } },
+      },
+    ),
+    true,
+  );
+});
+
+test("listRsvpStatusChanges détecte les deltas (ignore les suppressions)", () => {
+  assert.deepEqual(
+    listRsvpStatusChanges(
+      { rsvp: { a: "yes", b: "no" } },
+      { rsvp: { a: "maybe", b: "no" } },
+    ),
+    [{ memberId: "a", status: "maybe" }],
+  );
+  assert.deepEqual(
+    listRsvpStatusChanges({ rsvp: {} }, { rsvp: { a: "yes" } }),
+    [{ memberId: "a", status: "yes" }],
+  );
+  // Suppression de clé = nettoyage audience, pas une réponse utilisateur.
+  assert.deepEqual(
+    listRsvpStatusChanges({ rsvp: { a: "yes" } }, { rsvp: {} }),
+    [],
+  );
+  assert.equal(RSVP_NOTIFY_DEBOUNCE_MS, 60 * 1000);
 });
 
 test("prefs : défaut opt-in + filtre + rate limit", () => {

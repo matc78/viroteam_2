@@ -19,6 +19,7 @@ import {
   resolveEventRecipientUids,
   resolveFeeRecipientUids,
 } from "./recipients";
+import { flushDueRsvpNotifications } from "./rsvpNotify";
 import { buildPushData, sendPushToUids } from "./send";
 
 const REGION = "europe-west1";
@@ -182,10 +183,27 @@ function defineFeeReminderSchedule(databaseId: FirestoreDatabaseId) {
   );
 }
 
+/**
+ * Toutes les minutes : push RSVP dont le choix est stable depuis 1 min.
+ */
+function defineRsvpNotifyFlushSchedule(databaseId: FirestoreDatabaseId) {
+  return onSchedule(
+    {
+      schedule: "every 1 minutes",
+      timeZone: PARIS,
+      region: REGION,
+    },
+    async () => runWithDatabase(databaseId, () => flushDueRsvpNotifications()),
+  );
+}
+
 export const scheduleEventReminders = defineEventReminderSchedule("v2-prod");
 export const scheduleEventRemindersDev = defineEventReminderSchedule("v2-dev");
 export const scheduleFeeReminders = defineFeeReminderSchedule("v2-prod");
 export const scheduleFeeRemindersDev = defineFeeReminderSchedule("v2-dev");
+export const scheduleRsvpNotifyFlush = defineRsvpNotifyFlushSchedule("v2-prod");
+export const scheduleRsvpNotifyFlushDev =
+  defineRsvpNotifyFlushSchedule("v2-dev");
 
 /** Exposé pour tests manuels éventuels. */
-export { runEventReminders, runFeeReminders };
+export { runEventReminders, runFeeReminders, flushDueRsvpNotifications };

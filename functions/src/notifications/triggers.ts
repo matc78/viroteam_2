@@ -2,9 +2,10 @@ import * as admin from "firebase-admin";
 import type { DocumentData, Firestore } from "firebase-admin/firestore";
 import {
   onDocumentCreated,
-  onDocumentWritten,
+  onDocumentWrittenWithAuthContext,
   type Change,
   type DocumentSnapshot,
+  type FirestoreAuthEvent,
   type FirestoreEvent,
 } from "firebase-functions/v2/firestore";
 import { stringArray } from "../common";
@@ -31,16 +32,18 @@ import {
   isEventContentModified,
   isEventPostponedChange,
   isOnlyPushBookkeepingChange,
+  listRsvpStatusChanges,
 } from "./eventChange";
 import {
   resolveAnnouncementRecipientUids,
   resolveEventRecipientUids,
 } from "./recipients";
+import { scheduleRsvpNotifyDebounce } from "./rsvpNotify";
 import { buildPushData, sendPushToUids } from "./send";
 
 const REGION = "europe-west1";
 
-type EventWrittenEvent = FirestoreEvent<
+type EventWrittenEvent = FirestoreAuthEvent<
   Change<DocumentSnapshot> | undefined,
   { clubId: string; eventId: string }
 >;
@@ -93,6 +96,27 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
   // Ignore les writes purement techniques (flags push) pour éviter les boucles.
   if (before && isOnlyPushBookkeepingChange(before, after)) {
     return;
+  }
+
+  const rsvpChanges = listRsvpStatusChanges(before, after);
+  if (rsvpChanges.length > 0) {
+    const authExclude =
+      event.authType === "unknown" ||
+      event.authType === "unauthenticated" ||
+      event.authType === "service_account" ||
+      event.authType === "system"
+        ? undefined
+        : typeof event.authId === "string" && event.authId.trim().length > 0
+          ? event.authId.trim()
+          : undefined;
+    const actorExclude = String(after.rsvpLastActorUid ?? "").trim() || undefined;
+    await scheduleRsvpNotifyDebounce({
+      firestore,
+      clubId,
+      eventId,
+      changes: rsvpChanges,
+      excludeUid: authExclude ?? actorExclude,
+    });
   }
 
   if (isEventPostponedChange(before, after)) {
@@ -268,7 +292,7 @@ async function handleAnnouncementCreated(
 }
 
 function defineEventWrittenTrigger(databaseId: FirestoreDatabaseId) {
-  return onDocumentWritten(
+  return onDocumentWrittenWithAuthContext(
     {
       document: "clubs/{clubId}/events/{eventId}",
       database: databaseId,

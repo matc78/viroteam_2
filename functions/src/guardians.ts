@@ -930,6 +930,7 @@ export const {
 
   await eventRef.update({
     [`rsvp.${memberId}`]: value,
+    rsvpLastActorUid: uid,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 

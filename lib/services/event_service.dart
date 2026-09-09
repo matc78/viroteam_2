@@ -790,7 +790,7 @@ class EventService {
     return yesCount / answered * 100;
   }
 
-  /// Ajoute un convoqué aux événements à venir d'une équipe (ex. coach aussi joueur).
+  /// Ajoute un convoqué aux événements à venir d'une équipe (joueur ou coach).
   Future<void> addAudienceToUpcomingTeamEvents({
     required String clubId,
     required String teamId,
@@ -830,7 +830,9 @@ class EventService {
     if (pending > 0) await batch.commit();
   }
 
-  /// Retire un convoqué des événements à venir (ex. coach retiré du roster joueurs).
+  /// Retire un convoqué des événements à venir (ex. joueur retiré du roster).
+  ///
+  /// Supprime aussi la clé RSVP correspondante pour éviter un statut orphelin.
   Future<void> removeAudienceFromUpcomingTeamEvents({
     required String clubId,
     required String teamId,
@@ -856,11 +858,19 @@ class EventService {
                   ?.whereType<String>()
                   .toList() ??
               [];
-      if (!members.contains(audienceId)) continue;
+      final rsvp = data[FirestoreFields.rsvp];
+      final hasRsvp = rsvp is Map && rsvp.containsKey(audienceId);
+      if (!members.contains(audienceId) && !hasRsvp) continue;
 
-      batch.update(doc.reference, {
-        FirestoreFields.teamMemberIds: FieldValue.arrayRemove([audienceId]),
-      });
+      final patch = <String, dynamic>{};
+      if (members.contains(audienceId)) {
+        patch[FirestoreFields.teamMemberIds] =
+            FieldValue.arrayRemove([audienceId]);
+      }
+      if (hasRsvp) {
+        patch['${FirestoreFields.rsvp}.$audienceId'] = FieldValue.delete();
+      }
+      batch.update(doc.reference, patch);
       pending++;
       if (pending >= 400) {
         await batch.commit();

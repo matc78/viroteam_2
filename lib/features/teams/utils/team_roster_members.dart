@@ -18,12 +18,14 @@ Set<String> eventAudienceKeys(ClubMember member) {
 }
 
 /// `teamMemberIds` à la création d'un événement (clés RSVP canoniques).
+///
+/// Inclut joueurs et coachs : chacun peut répondre à sa présence.
 List<String> audienceIdsForTeam(
   ClubTeam team,
   Map<String, ClubMember> membersByUid,
 ) {
   final ids = <String>{};
-  for (final rosterUid in team.playerIds) {
+  for (final rosterUid in {...team.playerIds, ...team.coachIds}) {
     final member = clubMemberForTeamUid(membersByUid, rosterUid);
     ids.add(member != null ? rosterAudienceId(member) : rosterUid);
   }

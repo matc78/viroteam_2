@@ -47,6 +47,11 @@ export function playerIdsOf(teamData: Record<string, unknown> | undefined): stri
   return uniq(stringArray(teamData?.playerIds));
 }
 
+/** Identifiants coachs d'un doc `teams/{teamId}`. */
+export function coachIdsOf(teamData: Record<string, unknown> | undefined): string[] {
+  return uniq(stringArray(teamData?.coachIds));
+}
+
 /** Vrai si les deux listes contiennent les mêmes ids (ordre indifférent). */
 export function sameIdSet(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;

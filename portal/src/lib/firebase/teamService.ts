@@ -189,9 +189,8 @@ export async function addMemberToTeam(params: {
         [field]: nextIds,
         [Fields.updatedAt]: serverTimestamp(),
       });
-      if (params.role === MemberRoles.player) {
-        audienceIdToSync = rosterId;
-      }
+      // Joueurs et coachs sont convoqués aux events à venir (aligné Flutter).
+      audienceIdToSync = rosterId;
     }
 
     if (needsTeamIds) {
@@ -229,6 +228,7 @@ export async function removeMemberFromTeam(params: {
     [params.memberId, params.accountUid?.trim()].filter(Boolean) as string[],
   );
   let shouldSyncAudience = false;
+  const audienceIdsToClear = new Set<string>();
 
   await runTransaction(db, async (tx) => {
     const teamSnap = await tx.get(teamDocument);
@@ -238,6 +238,12 @@ export async function removeMemberFromTeam(params: {
     }
     if (!memberSnap.exists()) {
       throw new Error("Membre introuvable.");
+    }
+
+    const memberData = memberSnap.data() as Record<string, unknown>;
+    for (const id of memberMatchIds(params.memberId, memberData)) {
+      idsToRemove.add(id);
+      audienceIdsToClear.add(id);
     }
 
     const teamData = teamSnap.data() as Record<string, unknown>;
@@ -250,9 +256,6 @@ export async function removeMemberFromTeam(params: {
       [field]: nextIds,
       [Fields.updatedAt]: serverTimestamp(),
     });
-    if (rosterChanged && params.role === MemberRoles.player) {
-      shouldSyncAudience = true;
-    }
 
     const playerIds = parseStringIds(
       field === Fields.playerIds ? nextIds : teamData[Fields.playerIds],
@@ -264,8 +267,12 @@ export async function removeMemberFromTeam(params: {
       playerIds.some((id) => idsToRemove.has(id)) ||
       coachIds.some((id) => idsToRemove.has(id));
 
+    // Ne retire la convocation que si plus ni joueur ni coach.
+    if (rosterChanged && !stillOnTeam) {
+      shouldSyncAudience = true;
+    }
+
     if (!stillOnTeam) {
-      const memberData = memberSnap.data() as Record<string, unknown>;
       const teamIds = parseTeamIds(memberData[Fields.teamIds]).filter(
         (id) => id !== params.teamId,
       );
@@ -277,7 +284,9 @@ export async function removeMemberFromTeam(params: {
   });
 
   if (shouldSyncAudience) {
-    for (const audienceId of idsToRemove) {
+    for (const audienceId of audienceIdsToClear.size > 0
+      ? audienceIdsToClear
+      : idsToRemove) {
       await removeAudienceFromUpcomingTeamEvents({
         clubId: params.clubId,
         teamId: params.teamId,

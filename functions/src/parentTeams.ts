@@ -9,6 +9,7 @@ import {
 import { db, runWithDatabase, type FirestoreDatabaseId } from "./db";
 import { stringArray, uniq } from "./common";
 import {
+  coachIdsOf,
   computeParentTeamIds,
   diffIds,
   isActiveChild,
@@ -178,21 +179,52 @@ type TeamWrittenEvent = FirestoreEvent<
 >;
 
 /**
- * Sur chaque écriture d'équipe : pour les joueurs ajoutés/retirés du roster,
- * recalcule `parentTeamIds` de leurs guardians actifs.
+ * Sur chaque écriture d'équipe : synchronise les convocations des events à
+ * venir (joueurs **et** coachs), puis recalcule `parentTeamIds` des guardians
+ * pour les changements de `playerIds` uniquement.
  */
 async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
   const before = event.data?.before?.exists ? event.data.before.data() : undefined;
   const after = event.data?.after?.exists ? event.data.after.data() : undefined;
-  const { added, removed } = diffIds(playerIdsOf(before), playerIdsOf(after));
-  const changed = uniq([...added, ...removed]);
-  if (changed.length === 0) return;
+  const playerDiff = diffIds(playerIdsOf(before), playerIdsOf(after));
+  const coachDiff = diffIds(coachIdsOf(before), coachIdsOf(after));
 
   const clubId = event.params.clubId;
+  const teamId = event.params.teamId;
   const firestore = db();
+
+  const audienceAdded = uniq([...playerDiff.added, ...coachDiff.added]);
+  const audienceRemovedRaw = uniq([
+    ...playerDiff.removed,
+    ...coachDiff.removed,
+  ]);
+  // Conservé si encore joueur ou coach (variantes memberId / accountUid).
+  const audienceRemoved = await filterRemovedStillOnTeamRoster({
+    firestore,
+    clubId,
+    remainingRosterIds: uniq([
+      ...playerIdsOf(after),
+      ...coachIdsOf(after),
+    ]),
+    removed: audienceRemovedRaw,
+  });
+
+  if (audienceAdded.length > 0 || audienceRemoved.length > 0) {
+    await syncUpcomingEventAudienceForRosterChange({
+      firestore,
+      clubId,
+      teamId,
+      added: audienceAdded,
+      removed: audienceRemoved,
+    });
+  }
+
+  const changedPlayers = uniq([...playerDiff.added, ...playerDiff.removed]);
+  if (changedPlayers.length === 0) return;
+
   const parentUids = new Set<string>();
 
-  for (const rosterId of changed) {
+  for (const rosterId of changedPlayers) {
     try {
       const memberId = await resolveMemberId(firestore, clubId, rosterId);
       if (!memberId) continue;
@@ -211,6 +243,172 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
   for (const parentUid of parentUids) {
     await recomputeParentTeamIdsSafe(firestore, parentUid);
   }
+}
+
+/**
+ * Retire de [removed] les ids encore présents sur le roster (joueur ou coach),
+ * y compris via une variante d'identifiant (memberId / accountUid).
+ */
+async function filterRemovedStillOnTeamRoster(params: {
+  firestore: Firestore;
+  clubId: string;
+  remainingRosterIds: string[];
+  removed: string[];
+}): Promise<string[]> {
+  const remaining = new Set(params.remainingRosterIds);
+  if (remaining.size === 0) return params.removed;
+
+  const trulyRemoved: string[] = [];
+  for (const rosterId of params.removed) {
+    const keys = await audienceKeysForRosterId(
+      params.firestore,
+      params.clubId,
+      rosterId,
+    );
+    if (keys.some((key) => remaining.has(key))) continue;
+    trulyRemoved.push(rosterId);
+  }
+  return trulyRemoved;
+}
+
+/**
+ * Clés audience / RSVP possibles pour un id roster (memberId, accountUid…).
+ */
+async function audienceKeysForRosterId(
+  firestore: Firestore,
+  clubId: string,
+  rosterId: string,
+): Promise<string[]> {
+  const memberId = await resolveMemberId(firestore, clubId, rosterId);
+  if (!memberId) return [rosterId];
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("members")
+    .doc(memberId)
+    .get();
+  if (!snap.exists) return uniq([rosterId, memberId]);
+  return rosterIdsOf(memberId, snap.data() ?? {});
+}
+
+/** Début du jour UTC (fenêtre « à venir » côté trigger). */
+function startOfTodayUtc(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/**
+ * Ajoute / retire les convocations des events à venir d'une équipe quand le
+ * roster (joueurs / coachs) change. Idempotent. Nettoie aussi les RSVP orphelins.
+ */
+async function syncUpcomingEventAudienceForRosterChange(params: {
+  firestore: Firestore;
+  clubId: string;
+  teamId: string;
+  added: string[];
+  removed: string[];
+}): Promise<void> {
+  const { firestore, clubId, teamId, added, removed } = params;
+  if (added.length === 0 && removed.length === 0) return;
+
+  const keysToAdd = new Set<string>();
+  for (const rosterId of added) {
+    for (const key of await audienceKeysForRosterId(firestore, clubId, rosterId)) {
+      keysToAdd.add(key);
+    }
+  }
+  const keysToRemove = new Set<string>();
+  for (const rosterId of removed) {
+    for (const key of await audienceKeysForRosterId(firestore, clubId, rosterId)) {
+      keysToRemove.add(key);
+    }
+  }
+  // Un id encore présent via une autre variante (add) ne doit pas être retiré.
+  for (const key of keysToAdd) keysToRemove.delete(key);
+
+  if (keysToAdd.size === 0 && keysToRemove.size === 0) return;
+
+  const eventsSnap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("events")
+    .where("teamIds", "array-contains", teamId)
+    .where("date", ">=", admin.firestore.Timestamp.fromDate(startOfTodayUtc()))
+    .get();
+
+  if (eventsSnap.empty) return;
+
+  let batch = firestore.batch();
+  let pending = 0;
+
+  for (const eventDoc of eventsSnap.docs) {
+    const data = eventDoc.data();
+    if (data.canceled === true) continue;
+
+    const members = new Set(stringArray(data.teamMemberIds));
+    const rsvp =
+      data.rsvp && typeof data.rsvp === "object"
+        ? (data.rsvp as Record<string, unknown>)
+        : {};
+
+    const patch: Record<string, unknown> = {};
+    const toUnion = [...keysToAdd].filter((key) => !members.has(key));
+    const toRemove = [...keysToRemove].filter((key) => members.has(key));
+
+    if (toUnion.length > 0) {
+      patch.teamMemberIds = admin.firestore.FieldValue.arrayUnion(...toUnion);
+    }
+    if (toRemove.length > 0) {
+      // arrayUnion + arrayRemove sur le même champ : Firestore les applique
+      // séparément ; on ne combine que si un seul opérateur est nécessaire.
+      if (toUnion.length > 0) {
+        // Deux updates pour éviter un conflit d'opérateurs sur teamMemberIds.
+        batch.update(eventDoc.ref, {
+          teamMemberIds: admin.firestore.FieldValue.arrayUnion(...toUnion),
+        });
+        pending += 1;
+        if (pending >= 400) {
+          await batch.commit();
+          batch = firestore.batch();
+          pending = 0;
+        }
+        const rsvpPatch: Record<string, unknown> = {
+          teamMemberIds: admin.firestore.FieldValue.arrayRemove(...toRemove),
+        };
+        for (const key of keysToRemove) {
+          if (key in rsvp) {
+            rsvpPatch[`rsvp.${key}`] = admin.firestore.FieldValue.delete();
+          }
+        }
+        batch.update(eventDoc.ref, rsvpPatch);
+        pending += 1;
+        if (pending >= 400) {
+          await batch.commit();
+          batch = firestore.batch();
+          pending = 0;
+        }
+        continue;
+      }
+      patch.teamMemberIds = admin.firestore.FieldValue.arrayRemove(...toRemove);
+    }
+
+    for (const key of keysToRemove) {
+      if (key in rsvp) {
+        patch[`rsvp.${key}`] = admin.firestore.FieldValue.delete();
+      }
+    }
+
+    if (Object.keys(patch).length === 0) continue;
+    batch.update(eventDoc.ref, patch);
+    pending += 1;
+    if (pending >= 400) {
+      await batch.commit();
+      batch = firestore.batch();
+      pending = 0;
+    }
+  }
+
+  if (pending > 0) await batch.commit();
 }
 
 /**

@@ -3,6 +3,7 @@ import {
   arrayRemove,
   arrayUnion,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -476,6 +477,7 @@ export async function addAudienceToUpcomingTeamEvents(params: {
 /**
  * Retire un convoqué des événements à venir d'une équipe
  * (aligné EventService Flutter `removeAudienceFromUpcomingTeamEvents`).
+ * Supprime aussi la clé RSVP pour éviter un statut orphelin.
  */
 export async function removeAudienceFromUpcomingTeamEvents(params: {
   clubId: string;
@@ -496,11 +498,22 @@ export async function removeAudienceFromUpcomingTeamEvents(params: {
     const members = Array.isArray(data[Fields.teamMemberIds])
       ? (data[Fields.teamMemberIds] as unknown[]).map(String)
       : [];
-    if (!members.includes(audienceId)) continue;
+    const rsvp =
+      data[Fields.rsvp] && typeof data[Fields.rsvp] === "object"
+        ? (data[Fields.rsvp] as Record<string, unknown>)
+        : null;
+    const hasRsvp = Boolean(rsvp && audienceId in rsvp);
+    if (!members.includes(audienceId) && !hasRsvp) continue;
 
-    batch.update(doc(eventsCollection(params.clubId), docSnap.id), {
-      [Fields.teamMemberIds]: arrayRemove(audienceId),
-    });
+    const patch: Record<string, unknown> = {};
+    if (members.includes(audienceId)) {
+      patch[Fields.teamMemberIds] = arrayRemove(audienceId);
+    }
+    if (hasRsvp) {
+      patch[`${Fields.rsvp}.${audienceId}`] = deleteField();
+    }
+
+    batch.update(doc(eventsCollection(params.clubId), docSnap.id), patch);
     pending += 1;
     if (pending >= 400) {
       await batch.commit();

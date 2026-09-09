@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  coachIdsOf,
   computeParentTeamIds,
   diffIds,
   isActiveChild,
@@ -50,6 +51,15 @@ test("playerIdsOf lit playerIds en tolérant les valeurs non-string", () => {
   assert.deepEqual(playerIdsOf({ playerIds: ["p1", 3, "p1", null, "p2"] }), ["p1", "p2"]);
   assert.deepEqual(playerIdsOf(undefined), []);
   assert.deepEqual(playerIdsOf({ coachIds: ["c1"] }), []);
+});
+
+test("coachIdsOf lit coachIds en tolérant les valeurs non-string", () => {
+  assert.deepEqual(coachIdsOf({ coachIds: ["c1", 2, "c1", null, "c2"] }), [
+    "c1",
+    "c2",
+  ]);
+  assert.deepEqual(coachIdsOf(undefined), []);
+  assert.deepEqual(coachIdsOf({ playerIds: ["p1"] }), []);
 });
 
 test("sameIdSet compare sans tenir compte de l'ordre", () => {

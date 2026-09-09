@@ -1,16 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
+import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
+import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
 
 class TeamService {
-  TeamService({FirebaseFirestore? firestore})
-      : _db = firestore ?? appFirestore;
+  TeamService({
+    FirebaseFirestore? firestore,
+    EventService? eventService,
+  })  : _db = firestore ?? appFirestore,
+        _eventService = eventService ?? EventService(firestore: firestore);
 
   final FirebaseFirestore _db;
+  final EventService _eventService;
 
   CollectionReference<Map<String, dynamic>> _teams(String clubId) => _db
       .collection(ProjectConfig.clubsCollection)
@@ -179,6 +186,7 @@ class TeamService {
     return ref.id;
   }
 
+  /// Ajoute un joueur au roster et le convoque aux événements à venir.
   Future<void> addPlayerToTeam({
     required String clubId,
     required String teamId,
@@ -189,6 +197,12 @@ class TeamService {
       teamId: teamId,
       rosterUid: uid,
       rosterField: FirestoreFields.playerIds,
+      add: true,
+    );
+    await _syncUpcomingAudienceForPlayer(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
       add: true,
     );
   }
@@ -205,6 +219,12 @@ class TeamService {
       rosterField: FirestoreFields.coachIds,
       add: true,
     );
+    await _syncUpcomingAudienceForPlayer(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
+      add: true,
+    );
   }
 
   Future<void> addPendingPlayerToTeam({
@@ -217,6 +237,9 @@ class TeamService {
     });
   }
 
+  /// Retire un joueur du roster et des convocations / RSVP à venir.
+  ///
+  /// Conserve l'audience si le membre reste coach de l'équipe.
   Future<void> removePlayerFromTeam({
     required String clubId,
     required String teamId,
@@ -227,6 +250,19 @@ class TeamService {
       teamId: teamId,
       rosterUid: uid,
       rosterField: FirestoreFields.playerIds,
+      add: false,
+    );
+    if (await _isStillOnTeamRoster(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
+    )) {
+      return;
+    }
+    await _syncUpcomingAudienceForPlayer(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
       add: false,
     );
   }
@@ -241,6 +277,19 @@ class TeamService {
       teamId: teamId,
       rosterUid: uid,
       rosterField: FirestoreFields.coachIds,
+      add: false,
+    );
+    if (await _isStillOnTeamRoster(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
+    )) {
+      return;
+    }
+    await _syncUpcomingAudienceForPlayer(
+      clubId: clubId,
+      teamId: teamId,
+      rosterUid: uid,
       add: false,
     );
   }
@@ -508,5 +557,71 @@ class TeamService {
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       });
     });
+  }
+
+  /// True si [rosterUid] est encore joueur ou coach de l'équipe.
+  Future<bool> _isStillOnTeamRoster({
+    required String clubId,
+    required String teamId,
+    required String rosterUid,
+  }) async {
+    final teamSnap = await _teams(clubId).doc(teamId).get();
+    if (!teamSnap.exists) return false;
+    final team = ClubTeam.fromFirestore(clubId: clubId, doc: teamSnap);
+    final matchIds = await _audienceIdsForRosterUid(
+      clubId: clubId,
+      rosterUid: rosterUid,
+    );
+    return team.playerIds.any(matchIds.contains) ||
+        team.coachIds.any(matchIds.contains);
+  }
+
+  /// Synchronise `teamMemberIds` / RSVP des events à venir après un changement
+  /// de roster joueur ou coach (toutes les clés audience possibles du membre).
+  Future<void> _syncUpcomingAudienceForPlayer({
+    required String clubId,
+    required String teamId,
+    required String rosterUid,
+    required bool add,
+  }) async {
+    final audienceIds = await _audienceIdsForRosterUid(
+      clubId: clubId,
+      rosterUid: rosterUid,
+    );
+    for (final audienceId in audienceIds) {
+      if (add) {
+        await _eventService.addAudienceToUpcomingTeamEvents(
+          clubId: clubId,
+          teamId: teamId,
+          audienceId: audienceId,
+        );
+      } else {
+        await _eventService.removeAudienceFromUpcomingTeamEvents(
+          clubId: clubId,
+          teamId: teamId,
+          audienceId: audienceId,
+        );
+      }
+    }
+  }
+
+  /// Clés RSVP / convocation pour un uid roster (memberId, accountUid, etc.).
+  Future<Set<String>> _audienceIdsForRosterUid({
+    required String clubId,
+    required String rosterUid,
+  }) async {
+    final ids = <String>{rosterUid};
+    final memberRef = await _memberRefForRosterUid(
+      clubId: clubId,
+      rosterUid: rosterUid,
+    );
+    if (memberRef == null) return ids;
+
+    final snap = await memberRef.get();
+    if (!snap.exists) return ids;
+
+    final member = ClubMember.fromFirestore(snap);
+    ids.addAll(eventAudienceKeys(member));
+    return ids;
   }
 }

@@ -115,12 +115,26 @@ class MemberService {
       .collection(ProjectConfig.invitationsSubcollection);
 
   /// Liste des membres : admin → coach → joueur, puis prénom A→Z.
-  Stream<List<ClubMember>> watchClubMembers(String clubId) {
+  ///
+  /// [enrichPendingInvites] : charge le code d’invitation (écran membres /
+  /// coach). À laisser `false` pour planning / joueur (rules invitations).
+  Stream<List<ClubMember>> watchClubMembers(
+    String clubId, {
+    bool enrichPendingInvites = false,
+  }) {
     return _members(clubId).snapshots().asyncMap((snap) async {
       final members = <ClubMember>[];
       for (final doc in snap.docs) {
         var member = ClubMember.fromFirestore(doc);
-        member = await _enrichMember(clubId, member);
+        try {
+          member = await _enrichMember(
+            clubId,
+            member,
+            enrichPendingInvites: enrichPendingInvites,
+          );
+        } catch (_) {
+          // Fiche brute si l’enrichissement échoue (avatar / invite).
+        }
         members.add(member);
       }
       members.sort((a, b) {
@@ -145,40 +159,53 @@ class MemberService {
     return member.fullName.toLowerCase();
   }
 
-  Future<ClubMember> _enrichMember(String clubId, ClubMember member) async {
+  /// Complète avatar / compte lié, et optionnellement le code d’invitation.
+  Future<ClubMember> _enrichMember(
+    String clubId,
+    ClubMember member, {
+    bool enrichPendingInvites = false,
+  }) async {
     var enriched = member;
 
     final linkedUid = member.accountUid;
-    if (linkedUid != null) {
-      final userDoc = await _db
-          .collection(ProjectConfig.usersCollection)
-          .doc(linkedUid)
-          .get();
-      if (userDoc.exists) {
-        final data = userDoc.data() ?? {};
-        enriched = enriched.copyWith(
-          hasLinkedAccount: true,
-          displayName: enriched.displayName ??
-              data[FirestoreFields.displayName] as String?,
-          avatarUrl:
-              enriched.avatarUrl ?? data[FirestoreFields.avatarUrl] as String?,
-          email: enriched.email ?? data[FirestoreFields.email] as String?,
-        );
+    if (linkedUid != null && linkedUid.isNotEmpty) {
+      enriched = enriched.copyWith(hasLinkedAccount: true);
+      try {
+        final userDoc = await _db
+            .collection(ProjectConfig.usersCollection)
+            .doc(linkedUid)
+            .get();
+        if (userDoc.exists) {
+          final data = userDoc.data() ?? {};
+          enriched = enriched.copyWith(
+            displayName: enriched.displayName ??
+                data[FirestoreFields.displayName] as String?,
+            avatarUrl:
+                enriched.avatarUrl ?? data[FirestoreFields.avatarUrl] as String?,
+            email: enriched.email ?? data[FirestoreFields.email] as String?,
+          );
+        }
+      } on FirebaseException {
+        // Profil users illisible : garder au moins hasLinkedAccount.
       }
     }
 
-    if (member.activeInvitationId != null) {
-      final inviteDoc = await _invitations(clubId)
-          .doc(member.activeInvitationId)
-          .get();
-      if (inviteDoc.exists) {
-        final invite = ClubInvitation.fromDocument(inviteDoc);
-        if (invite.isPending) {
-          enriched = enriched.copyWith(
-            pendingInviteCode: invite.code,
-            pendingInviteExpiresAt: invite.expiresAt,
-          );
+    if (enrichPendingInvites && member.activeInvitationId != null) {
+      try {
+        final inviteDoc = await _invitations(clubId)
+            .doc(member.activeInvitationId)
+            .get();
+        if (inviteDoc.exists) {
+          final invite = ClubInvitation.fromDocument(inviteDoc);
+          if (invite.isPending) {
+            enriched = enriched.copyWith(
+              pendingInviteCode: invite.code,
+              pendingInviteExpiresAt: invite.expiresAt,
+            );
+          }
         }
+      } on FirebaseException catch (error) {
+        if (error.code != 'permission-denied') rethrow;
       }
     }
 

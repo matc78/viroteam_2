@@ -15,15 +15,11 @@ import {
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   updateClubCoachPermissions,
-  updateClubLogoUrl,
   updateClubSeasonEndDate,
 } from "@/lib/firebase/clubService";
+import { uploadClubLogo } from "@/lib/firebase/callableService";
 import { MemberRoles } from "@/lib/firebase/constants";
 import { parseDateInput } from "@/lib/firebase/feeService";
-import {
-  clubLogoStoragePath,
-  uploadImageAtPath,
-} from "@/lib/firebase/storage";
 import {
   defaultSeasonEndDate,
   isSeasonEndAfterMax,
@@ -39,6 +35,16 @@ function toDateInputValue(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+/** Encode un ArrayBuffer en base64 (payload callable logo). */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
 }
 
 /** Contenu page Paramètres bureau — club + compte. */
@@ -152,12 +158,12 @@ export function SettingsPageClient() {
       const contentType = file.type.startsWith("image/")
         ? file.type
         : "image/jpeg";
-      const logoUrl = await uploadImageAtPath({
-        path: clubLogoStoragePath(activeClub.id),
-        bytes,
+      const imageBase64 = arrayBufferToBase64(bytes);
+      await uploadClubLogo({
+        clubId: activeClub.id,
+        imageBase64,
         contentType,
       });
-      await updateClubLogoUrl({ clubId: activeClub.id, logoUrl });
       await refreshProfile();
       showToast("Logo du club mis à jour.", "success");
     } catch (uploadError) {

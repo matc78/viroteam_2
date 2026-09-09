@@ -17,13 +17,20 @@ import {
 } from "@/lib/format/personDataFormat";
 import { defaultSeasonEndDate } from "@/lib/planning/seasonEnd";
 import { getAppFirestore } from "@/lib/firebase/app";
+import { uploadClubLogo } from "@/lib/firebase/callableService";
 import { Collections, Fields, MemberRoles } from "@/lib/firebase/constants";
-import {
-  clubLogoStoragePath,
-  uploadImageAtPath,
-} from "@/lib/firebase/storage";
 import type { ViroUserProfile } from "@/lib/firebase/types";
 import { saveClubSetupObjectives } from "./retourUserService";
+
+/** Encode un ArrayBuffer en base64 (payload callable logo). */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
 
 /** Crée un club Firestore à partir du brouillon wizard. */
 export async function createClubFromDraft(params: {
@@ -41,29 +48,6 @@ export async function createClubFromDraft(params: {
     params.founderUid,
   );
   const userRef = doc(firestore, Collections.users, params.founderUid);
-
-  let logoUrl: string | null = null;
-  if (params.draft.logoDataUrl) {
-    try {
-      const parsed = dataUrlToBytes(params.draft.logoDataUrl);
-      if (parsed) {
-        logoUrl = await uploadImageAtPath({
-          path: clubLogoStoragePath(clubRef.id),
-          bytes: parsed.bytes,
-          contentType: parsed.contentType.startsWith("image/")
-            ? parsed.contentType
-            : "image/jpeg",
-        });
-      }
-    } catch (error) {
-      // Logo optionnel — ne bloque pas la création.
-      Sentry.captureException(error, {
-        level: "warning",
-        tags: { feature: "club_setup", area: "logo_upload" },
-        extra: { clubId: clubRef.id },
-      });
-    }
-  }
 
   const displayName =
     params.founder.displayName.trim() ||
@@ -95,7 +79,6 @@ export async function createClubFromDraft(params: {
       ...(params.draft.description.trim()
         ? { [Fields.description]: params.draft.description.trim() }
         : {}),
-      ...(logoUrl ? { [Fields.logoUrl]: logoUrl } : {}),
       [Fields.brandColorHex]: params.draft.brandColorHex,
       [Fields.practiceLocations]: params.draft.practiceLocations.map(
         (location) => ({
@@ -152,6 +135,28 @@ export async function createClubFromDraft(params: {
       { merge: true },
     );
   });
+
+  if (params.draft.logoDataUrl) {
+    try {
+      const parsed = dataUrlToBytes(params.draft.logoDataUrl);
+      if (parsed) {
+        await uploadClubLogo({
+          clubId: clubRef.id,
+          imageBase64: arrayBufferToBase64(parsed.bytes),
+          contentType: parsed.contentType.startsWith("image/")
+            ? parsed.contentType
+            : "image/jpeg",
+        });
+      }
+    } catch (error) {
+      // Logo optionnel — ne bloque pas la création.
+      Sentry.captureException(error, {
+        level: "warning",
+        tags: { feature: "club_setup", area: "logo_upload" },
+        extra: { clubId: clubRef.id },
+      });
+    }
+  }
 
   try {
     await saveClubSetupObjectives({

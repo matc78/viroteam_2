@@ -44,6 +44,8 @@ export {
   removeMemberDev,
 } from "./memberAdmin";
 
+export { uploadClubLogo, uploadClubLogoDev } from "./uploadClubLogo";
+
 export { onTeamWritten, onTeamWrittenDev } from "./parentTeams";
 
 export {

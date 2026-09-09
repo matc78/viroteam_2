@@ -1,7 +1,9 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:typed_data';
 
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
@@ -10,6 +12,7 @@ import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
+import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/season_end.dart';
@@ -17,14 +20,15 @@ import 'package:viro_team_v2/utils/season_end.dart';
 class ClubService {
   ClubService({
     FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
+    FirebaseFunctions? functions,
     RetourUserService? retourUserService,
   })  : _db = firestore ?? appFirestore,
-        _storage = storage ?? FirebaseStorage.instance,
+        _functions = functions ??
+            FirebaseFunctions.instanceFor(region: 'europe-west1'),
         _retourUser = retourUserService ?? RetourUserService(firestore: firestore);
 
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
+  final FirebaseFunctions _functions;
   final RetourUserService _retourUser;
 
   CollectionReference<Map<String, dynamic>> get _clubs =>
@@ -71,21 +75,6 @@ class ClubService {
     final userRef =
         _db.collection(ProjectConfig.usersCollection).doc(founderUid);
 
-    String? logoUrl;
-    if (draft.logoBytes != null) {
-      try {
-        final storageRef =
-            _storage.ref().child('clubs/${clubRef.id}/logo.jpg');
-        await storageRef.putData(
-          draft.logoBytes!,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-        logoUrl = await storageRef.getDownloadURL();
-      } catch (_) {
-        // Logo optionnel — ne bloque pas la création du club.
-      }
-    }
-
     final displayName = founder.displayName.isNotEmpty
         ? founder.displayName
         : '${founder.firstName} ${founder.lastName}'.trim();
@@ -114,7 +103,6 @@ class ClubService {
         FirestoreFields.address: formatAddressLine(draft.address),
         if (draft.description.trim().isNotEmpty)
           FirestoreFields.description: draft.description.trim(),
-        if (logoUrl != null) FirestoreFields.logoUrl: logoUrl,
         FirestoreFields.brandColorHex: draft.brandColorHex,
         FirestoreFields.practiceLocations: draft.practiceLocations
             .map((location) {
@@ -173,6 +161,17 @@ class ClubService {
       );
     });
 
+    if (draft.logoBytes != null) {
+      try {
+        await updateClubLogo(
+          clubId: clubRef.id,
+          logoBytes: draft.logoBytes!,
+        );
+      } catch (_) {
+        // Logo optionnel — ne bloque pas la création du club.
+      }
+    }
+
     try {
       await _retourUser.saveClubSetupObjectives(
         userId: founderUid,
@@ -200,22 +199,24 @@ class ClubService {
     });
   }
 
-  /// Met à jour le logo du club (upload Storage + URL Firestore).
+  /// Met à jour le logo du club via callable Admin (`uploadClubLogo`).
   Future<String> updateClubLogo({
     required String clubId,
     required Uint8List logoBytes,
+    String contentType = 'image/jpeg',
   }) async {
-    final storageRef = _storage.ref().child('clubs/$clubId/logo.jpg');
-    await storageRef.putData(
-      logoBytes,
-      SettableMetadata(contentType: 'image/jpeg'),
-    );
-    final logoUrl = await storageRef.getDownloadURL();
-    await _clubs.doc(clubId).update({
-      FirestoreFields.logoUrl: logoUrl,
-      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    final callable =
+        _functions.httpsCallable(cloudCallableName('uploadClubLogo'));
+    final result = await callable.call(<String, dynamic>{
+      'clubId': clubId,
+      'imageBase64': base64Encode(logoBytes),
+      'contentType': contentType,
     });
-    return logoUrl;
+    final data = result.data;
+    if (data is Map && data['logoUrl'] is String) {
+      return data['logoUrl'] as String;
+    }
+    throw StateError('Réponse uploadClubLogo invalide');
   }
 
   /// Met à jour la config paiement en ligne HelloAsso du club.

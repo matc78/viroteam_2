@@ -40,13 +40,28 @@ export function runWithDatabase<T>(
  * ou [defineDualRequest] (sinon throw).
  */
 export function db(): FirebaseFirestore.Firestore {
+  return getFirestore(admin.app(), currentDatabaseId());
+}
+
+/**
+ * Base Firestore du contexte courant (`v2-prod` ou `v2-dev`).
+ *
+ * Doit être appelé depuis un handler [defineDualCallable] / [defineDualRequest]
+ * ou [runWithDatabase] (sinon throw).
+ */
+export function currentDatabaseId(): FirestoreDatabaseId {
   const databaseId = databaseContext.getStore();
   if (!databaseId) {
     throw new Error(
-      "db() hors contexte : utiliser defineDualCallable / runWithDatabase",
+      "currentDatabaseId() hors contexte : utiliser defineDualCallable / runWithDatabase",
     );
   }
-  return getFirestore(admin.app(), databaseId);
+  return databaseId;
+}
+
+/** `true` si le handler tourne sur la base prod. */
+export function isProdDatabase(): boolean {
+  return currentDatabaseId() === "v2-prod";
 }
 
 type DualHttpsFns<T> = {

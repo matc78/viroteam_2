@@ -16,12 +16,12 @@ import 'package:viro_team_v2/features/club_setup/club_setup_defaults.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
-import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 
 /// Écran admin : logo et couleur de marque du club.
 class ClubAppearanceScreen extends ConsumerStatefulWidget {
@@ -114,98 +114,161 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
           final colorChanged = !clubBrandColorsMatch(currentHex, rawStoredHex);
           final logoChanged = _logoPreviewBytes != null;
           final hasChanges = colorChanged || logoChanged;
+          final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
+          const fadeHeight = ViroSpacing.lg;
+          // Hauteur de la barre fixe (fondu + padding + bouton + safe area).
+          final saveBarHeight = fadeHeight +
+              ViroSpacing.sm +
+              ViroSpacing.buttonHeightLarge +
+              ViroSpacing.md +
+              bottomSafeInset;
 
-          return ListView(
-            padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
+          return Stack(
             children: [
-              Text(
-                'Logo',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: brandColors.primary,
-                    ),
-              ),
-              const SizedBox(height: ViroSpacing.sm),
-              Center(
-                child: ViroPressable(
-                  onTap: _pickLogo,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Column(
-                    children: [
-                      ClubContextAvatar(
-                        club: club,
-                        accentColor: brandColors.primary,
-                        logoPreviewBytes: _logoPreviewBytes,
-                        size: 88,
-                        borderRadius: 20,
-                      ),
-                      const SizedBox(height: ViroSpacing.xs),
-                      Text(
-                        _logoPreviewBytes != null
-                            ? 'Modifier le logo'
-                            : 'Changer le logo',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: brandColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ],
-                  ),
+              ListView(
+                padding: EdgeInsets.fromLTRB(
+                  ViroSpacing.screenHorizontal,
+                  ViroSpacing.screenHorizontal,
+                  ViroSpacing.screenHorizontal,
+                  saveBarHeight + ViroSpacing.md,
                 ),
-              ),
-              const SizedBox(height: ViroSpacing.lg),
-              ClubAppearancePreview(
-                club: club,
-                brandColors: brandColors,
-                logoPreviewBytes: _logoPreviewBytes,
-              ),
-              const SizedBox(height: ViroSpacing.lg),
-              Text(
-                'Couleur du club',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: brandColors.primary,
-                    ),
-              ),
-              const SizedBox(height: ViroSpacing.xs),
-              Text(
-                'Utilisée sur la page club, le planning et les cartes.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: ViroColors.gray600,
-                    ),
-              ),
-              const SizedBox(height: ViroSpacing.md),
-              Center(
-                child: ClubBrandColorPicker(
-                  selectedPrimaryHex: currentPrimaryHex,
-                  selectedSecondaryHex: currentSecondaryHex,
-                  onPrimarySelected: (hex) {
-                    setState(() {
-                      _selectedPrimaryHex = hex;
-                      if (clubBrandColorsMatch(_selectedSecondaryHex, hex)) {
-                        _selectedSecondaryHex = null;
-                      }
-                    });
-                  },
-                  onSecondaryToggled: (hex) {
-                    setState(() => _selectedSecondaryHex = hex);
-                  },
-                ),
-              ),
-              const SizedBox(height: ViroSpacing.xl),
-              ViroPrimaryButton(
-                label: 'Enregistrer',
-                isLoading: _saving,
-                onPressed: !hasChanges || _saving
-                    ? null
-                    : () => _save(
-                          club: club,
-                          brandColorHex: currentHex,
-                          colorChanged: colorChanged,
-                          logoChanged: logoChanged,
+                children: [
+                  Text(
+                    'Logo',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: brandColors.primary,
                         ),
+                  ),
+                  const SizedBox(height: ViroSpacing.sm),
+                  Center(
+                    child: ViroPressable(
+                      onTap: _pickLogo,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Column(
+                        children: [
+                          ClubContextAvatar(
+                            club: club,
+                            accentColor: brandColors.primary,
+                            logoPreviewBytes: _logoPreviewBytes,
+                            size: 88,
+                            borderRadius: 20,
+                          ),
+                          const SizedBox(height: ViroSpacing.xs),
+                          Text(
+                            _logoPreviewBytes != null
+                                ? 'Modifier le logo'
+                                : 'Changer le logo',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
+                                ?.copyWith(
+                                  color: brandColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: ViroSpacing.lg),
+                  ClubAppearancePreview(
+                    club: club,
+                    brandColors: brandColors,
+                    logoPreviewBytes: _logoPreviewBytes,
+                  ),
+                  const SizedBox(height: ViroSpacing.lg),
+                  Text(
+                    'Couleur du club',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: brandColors.primary,
+                        ),
+                  ),
+                  const SizedBox(height: ViroSpacing.xs),
+                  Text(
+                    'Utilisée sur la page club, le planning et les cartes.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: ViroColors.gray600,
+                        ),
+                  ),
+                  const SizedBox(height: ViroSpacing.md),
+                  Center(
+                    child: ClubBrandColorPicker(
+                      selectedPrimaryHex: currentPrimaryHex,
+                      selectedSecondaryHex: currentSecondaryHex,
+                      onPrimarySelected: (hex) {
+                        setState(() {
+                          _selectedPrimaryHex = hex;
+                          if (clubBrandColorsMatch(
+                            _selectedSecondaryHex,
+                            hex,
+                          )) {
+                            _selectedSecondaryHex = null;
+                          }
+                        });
+                      },
+                      onSecondaryToggled: (hex) {
+                        setState(() => _selectedSecondaryHex = hex);
+                      },
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: ViroSpacing.lg),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IgnorePointer(
+                      child: SizedBox(
+                        height: fadeHeight,
+                        width: double.infinity,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                ViroColors.white.withValues(alpha: 0),
+                                ViroColors.white,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    ColoredBox(
+                      color: ViroColors.white,
+                      child: SafeArea(
+                        top: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            ViroSpacing.screenHorizontal,
+                            ViroSpacing.sm,
+                            ViroSpacing.screenHorizontal,
+                            ViroSpacing.md,
+                          ),
+                          child: ViroPrimaryButton(
+                            label: 'Enregistrer',
+                            isLoading: _saving,
+                            onPressed: !hasChanges || _saving
+                                ? null
+                                : () => _save(
+                                      club: club,
+                                      brandColorHex: currentHex,
+                                      colorChanged: colorChanged,
+                                      logoChanged: logoChanged,
+                                    ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           );
         },
@@ -237,12 +300,20 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
       }
       invalidateClubVisualCaches(ref, widget.clubId);
       if (mounted) {
-        ViroSnackBar.show(context, 'Apparence enregistrée');
+        ViroStatusToast.show(
+          context,
+          message: 'Apparence enregistrée',
+          success: true,
+        );
         context.pop();
       }
     } catch (_) {
       if (mounted) {
-        ViroSnackBar.show(context, 'Enregistrement impossible, réessayez');
+        ViroStatusToast.show(
+          context,
+          message: 'Enregistrement impossible, réessayez',
+          success: false,
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);

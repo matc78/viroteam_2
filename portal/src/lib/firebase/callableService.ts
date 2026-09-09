@@ -268,3 +268,15 @@ export async function sendEventPush(params: {
 }): Promise<{ ok: boolean; recipientCount: number; tokenCount: number }> {
   return callFunction("sendEventPush", params);
 }
+
+/**
+ * Upload le logo club (callable Admin SDK).
+ * Contourne la limite Storage rules ↔ bases Firestore nommées.
+ */
+export async function uploadClubLogo(params: {
+  clubId: string;
+  imageBase64: string;
+  contentType?: string;
+}): Promise<{ logoUrl: string }> {
+  return callFunction("uploadClubLogo", params);
+}

@@ -574,6 +574,7 @@ class EventService {
     String? startTime,
     String? endTime,
     String? meetingTime,
+    String? meetingLocation,
     String? matchVenue,
     DateTime? recurrenceEndDate,
   }) async {
@@ -600,6 +601,8 @@ class EventService {
         if (startTime != null) FirestoreFields.startTime: startTime,
         if (endTime != null) FirestoreFields.endTime: endTime,
         if (meetingTime != null) FirestoreFields.meetingTime: meetingTime,
+        if (meetingLocation != null && meetingLocation.isNotEmpty)
+          FirestoreFields.meetingLocation: meetingLocation,
         if (matchVenue != null) FirestoreFields.matchVenue: matchVenue,
         if (seriesId != null) FirestoreFields.seriesId: seriesId,
         FirestoreFields.teamMemberIds: teamMemberIds,

@@ -50,6 +50,7 @@ class ClubEvent {
     this.startTime,
     this.endTime,
     this.meetingTime,
+    this.meetingLocation,
     this.matchVenue,
     this.teamIds = const [],
     this.allTeams = false,
@@ -69,6 +70,7 @@ class ClubEvent {
   final String? startTime;
   final String? endTime;
   final String? meetingTime;
+  final String? meetingLocation;
   final String? matchVenue;
   final List<String> teamIds;
   final bool allTeams;
@@ -238,6 +240,7 @@ class ClubEvent {
       startTime: data[FirestoreFields.startTime] as String?,
       endTime: data[FirestoreFields.endTime] as String?,
       meetingTime: data[FirestoreFields.meetingTime] as String?,
+      meetingLocation: data[FirestoreFields.meetingLocation] as String?,
       matchVenue: data[FirestoreFields.matchVenue] as String?,
       teamIds: (data[FirestoreFields.teamIds] as List<dynamic>?)
               ?.whereType<String>()

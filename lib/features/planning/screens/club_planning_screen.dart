@@ -172,7 +172,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         actions: [
           IconButton(
             icon: ViroIcon(ViroIcons.calendarPlus),
-            tooltip: 'Exporter vers mon agenda',
+            tooltip: 'Ajouter le calendrier dynamique à mon agenda',
             onPressed: () => context.push(
               AppRoutes.clubCalendarSyncPath(clubId),
             ),
@@ -313,8 +313,8 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                       final event = events[index];
                       final label =
                           PlanningEventDisplay.teamLabel(event, teamsById);
-                      final excludeCoaches =
-                          PlanningEventDisplay.coachUidsToExclude(
+                      final counts =
+                          PlanningEventDisplay.rsvpCountsIncludingCoaches(
                         event,
                         teamsById,
                         membersByUid: membersByUid,
@@ -322,7 +322,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                       return PlanningEventTile(
                         event: event,
                         teamLabel: label,
-                        excludeCoachUids: excludeCoaches,
+                        teamRsvpCounts: counts,
                         clubColor: clubColor,
                         clubColorSecondary: clubColorSecondary,
                         onTap: () => _showEventSheet(

@@ -12,6 +12,16 @@ final clubMembersProvider =
   return ref.read(memberServiceProvider).watchClubMembers(clubId);
 });
 
+/// Membres + codes d’invitation pending (écran membres / coach-admin).
+final clubMembersWithInvitesProvider =
+    StreamProvider.family<List<ClubMember>, String>((ref, clubId) {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
+  if (auth == null) return Stream.value([]);
+  return ref
+      .read(memberServiceProvider)
+      .watchClubMembers(clubId, enrichPendingInvites: true);
+});
+
 final clubParentsProvider =
     FutureProvider.family<List<ClubParentEntry>, String>((ref, clubId) {
   return ref.read(memberServiceProvider).fetchClubParents(clubId);

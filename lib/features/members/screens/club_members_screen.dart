@@ -205,7 +205,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   @override
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
-    final membersAsync = ref.watch(clubMembersProvider(clubId));
+    final membersAsync = ref.watch(clubMembersWithInvitesProvider(clubId));
     final clubAsync = ref.watch(clubForMembersProvider(clubId));
     final accent = ref.watch(clubManagementAccentProvider(clubId));
     final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
@@ -253,7 +253,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                 onRefresh: () async {
                   await Future.wait([
                     ref.refresh(clubForMembersProvider(clubId).future),
-                    ref.refresh(clubMembersProvider(clubId).future),
+                    ref.refresh(clubMembersWithInvitesProvider(clubId).future),
                     ref.refresh(clubMemberProvider(clubId).future),
                     if (_isAdmin)
                       ref.refresh(clubParentsProvider(clubId).future),

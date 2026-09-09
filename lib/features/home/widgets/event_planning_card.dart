@@ -6,9 +6,9 @@ import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart'
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/widgets/common/club_chip.dart';
-import 'package:viro_team_v2/widgets/common/rsvp_choice_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 
+/// Tuile planning : tap → détail ; RSVP via icônes check / croix / attente.
 class EventPlanningCard extends StatelessWidget {
   const EventPlanningCard({
     super.key,
@@ -19,12 +19,9 @@ class EventPlanningCard extends StatelessWidget {
     required this.coachView,
     this.teamRsvpCounts,
     this.rsvpStatus,
-    this.showRsvpButtons = false,
-    this.onCoachTap,
+    this.onTap,
     this.onLongPress,
-    this.onToggleRsvp,
-    this.onPresent,
-    this.onAbsent,
+    this.onRsvpSelected,
   });
 
   final ClubEvent event;
@@ -32,27 +29,26 @@ class EventPlanningCard extends StatelessWidget {
   final Color clubColor;
   final Color? clubColorSecondary;
 
-  /// Coach seul : compteurs agrégés uniquement (pas de RSVP perso).
+  /// Legacy : compteurs agrégés seuls (home membre utilise toujours le RSVP perso).
   final bool coachView;
 
   /// Compteurs équipe (présents / absents / en attente).
   final ({int yes, int no, int none})? teamRsvpCounts;
 
-  /// Joueur ou double casquette : RSVP personnel.
+  /// RSVP personnel (joueur convoqué ou coach de l'événement).
   final RsvpStatus? rsvpStatus;
-  final bool showRsvpButtons;
-  final VoidCallback? onCoachTap;
+  final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-  final VoidCallback? onToggleRsvp;
-  final VoidCallback? onPresent;
-  final VoidCallback? onAbsent;
+
+  /// Callback RSVP ; `null` masque le sélecteur d’icônes.
+  final ValueChanged<RsvpStatus>? onRsvpSelected;
 
   IconData get _typeIcon => switch (event.type) {
-    EventTypes.training => ViroIcons.whistle,
-    EventTypes.match => ViroIcons.ball,
-    EventTypes.tournament => ViroIcons.trophy,
-    _ => ViroIcons.calendar,
-  };
+        EventTypes.training => ViroIcons.whistle,
+        EventTypes.match => ViroIcons.ball,
+        EventTypes.tournament => ViroIcons.trophy,
+        _ => ViroIcons.calendar,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -67,10 +63,10 @@ class EventPlanningCard extends StatelessWidget {
       if (location != null && location.isNotEmpty) location,
     ];
 
-    final showPlayerRsvp = !coachView;
+    final showPlayerRsvp = !coachView && onRsvpSelected != null;
 
     return ViroCard(
-      onTap: coachView ? onCoachTap : (showRsvpButtons ? null : onToggleRsvp),
+      onTap: onTap,
       onLongPress: onLongPress,
       accentColor: clubColor,
       accentColorSecondary: clubColorSecondary,
@@ -131,38 +127,9 @@ class EventPlanningCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ],
-          if (showPlayerRsvp && !showRsvpButtons) ...[
+          if (showPlayerRsvp) ...[
             const SizedBox(height: ViroSpacing.xs),
-            _buildMemberRsvpFooter(context),
-          ],
-          if (showRsvpButtons) ...[
-            const SizedBox(height: ViroSpacing.xs),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: RsvpChoiceButton(
-                    label: 'Absent',
-                    color: ViroColors.error,
-                    outlined: true,
-                    borderColor: ViroColors.error,
-                    foregroundColor: ViroColors.gray600,
-                    height: ViroSpacing.buttonHeightSmall,
-                    onTap: onAbsent!,
-                  ),
-                ),
-                const SizedBox(width: ViroSpacing.sm),
-                Expanded(
-                  flex: 3,
-                  child: RsvpChoiceButton(
-                    label: 'Présent',
-                    color: clubColor,
-                    onTap: onPresent!,
-                  ),
-                ),
-              ],
-            ),
+            _buildMemberRsvpFooter(),
           ],
           if (coachView && teamRsvpCounts != null) ...[
             const SizedBox(height: ViroSpacing.xs),
@@ -173,93 +140,19 @@ class EventPlanningCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMemberRsvpFooter(BuildContext context) {
-    final badge = _StatusBadge(status: rsvpStatus ?? RsvpStatus.none);
-    final counts = teamRsvpCounts;
-    if (counts == null) {
-      return Align(alignment: Alignment.centerLeft, child: badge);
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        badge,
-        _TeamRsvpCountRow(counts: counts),
-      ],
+  Widget _buildMemberRsvpFooter() {
+    final counts = teamRsvpCounts ?? (yes: 0, no: 0, none: 0);
+    return Align(
+      alignment: Alignment.centerRight,
+      child: PlanningRsvpCountChoiceRow(
+        counts: counts,
+        status: rsvpStatus ?? RsvpStatus.none,
+        onSelected: onRsvpSelected!,
+      ),
     );
   }
 
   Widget _buildCoachRsvpFooter() {
     return Center(child: PlanningRsvpSummaryRow(counts: teamRsvpCounts!));
-  }
-}
-
-class _TeamRsvpCountRow extends StatelessWidget {
-  const _TeamRsvpCountRow({required this.counts});
-
-  final ({int yes, int no, int none}) counts;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        PlanningRsvpCountBadge(
-          icon: ViroIcons.check,
-          count: counts.yes,
-          color: ViroColors.success,
-        ),
-        const SizedBox(width: ViroSpacing.sm),
-        PlanningRsvpCountBadge(
-          icon: ViroIcons.close,
-          count: counts.no,
-          color: ViroColors.error,
-        ),
-        if (counts.none > 0) ...[
-          const SizedBox(width: ViroSpacing.sm),
-          PlanningRsvpCountBadge(
-            icon: ViroIcons.clock,
-            count: counts.none,
-            color: ViroColors.warning,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-
-  final RsvpStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, color) = switch (status) {
-      RsvpStatus.yes => ('Présent', ViroColors.success),
-      RsvpStatus.maybe => ('Peut-être', ViroColors.warning),
-      RsvpStatus.no => ('Absent', ViroColors.error),
-      RsvpStatus.none => ('Sans réponse', ViroColors.warning),
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: ViroSpacing.sm,
-        vertical: 3,
-      ),
-      decoration: BoxDecoration(
-        color: Color.lerp(ViroColors.white, color, 0.12)!,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-          height: 1.1,
-        ),
-      ),
-    );
   }
 }

@@ -114,7 +114,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
   List<String> _audienceForTeam(ClubTeam team) {
     final members = ref.read(clubMembersProvider(widget.clubId)).value;
     if (members == null || members.isEmpty) {
-      return List<String>.from(team.playerIds);
+      return {...team.playerIds, ...team.coachIds}.toList();
     }
     return audienceIdsForTeam(team, indexClubMembersByUid(members));
   }

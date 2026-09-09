@@ -122,18 +122,17 @@ class _MemberEventCard extends ConsumerWidget {
     final clubMembers = ref.watch(clubMembersProvider(event.clubId)).value;
     final membersByUid =
         clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
-    final exclude = PlanningEventDisplay.coachUidsToExclude(
+    final counts = PlanningEventDisplay.rsvpCountsIncludingCoaches(
       event,
       teams,
       membersByUid: membersByUid,
     );
-    final counts = event.rsvpCountsExcluding(exclude);
     final clubMember = ref.watch(clubMemberProvider(event.clubId)).value;
     final audienceId = uid != null ? (clubMember?.memberId ?? uid) : null;
     final audienceKeys =
         clubMember != null ? eventAudienceKeys(clubMember) : null;
-    final invited = uid != null &&
-        PlanningEventDisplay.isInvitedAsPlayerOnEvent(
+    final canRsvp = uid != null &&
+        PlanningEventDisplay.canRsvpOnEvent(
           event,
           uid,
           teams,
@@ -141,15 +140,6 @@ class _MemberEventCard extends ConsumerWidget {
           member: clubMember,
           membersByUid: membersByUid,
         );
-    final isCoach = uid != null &&
-        PlanningEventDisplay.isCoachForEvent(
-          event,
-          uid,
-          teams,
-          member: clubMember,
-          membersByUid: membersByUid,
-        );
-    final coachView = isCoach && !invited;
     final status = uid != null
         ? event.rsvpStatusForUser(
             uid,
@@ -160,37 +150,24 @@ class _MemberEventCard extends ConsumerWidget {
     final canManageEvents = clubMember != null &&
         MemberRoleHierarchy.isCoachOrAbove(clubMember.role);
 
+    void openDetail() => onShowDetail(
+          event: event,
+          teams: teams,
+          canManageEvents: canManageEvents,
+        );
+
     return EventPlanningCard(
       event: event,
       clubName: clubNames[event.clubId] ?? 'Club',
       clubColor: clubColors[event.clubId] ?? ViroColors.primary600,
       clubColorSecondary: clubSecondaryColors[event.clubId],
-      coachView: coachView,
+      coachView: false,
       teamRsvpCounts: counts,
-      onCoachTap: coachView
-          ? () => onShowDetail(
-                event: event,
-                teams: teams,
-                canManageEvents: canManageEvents,
-              )
-          : null,
-      onLongPress: () => onShowDetail(
-        event: event,
-        teams: teams,
-        canManageEvents: canManageEvents,
-      ),
-      rsvpStatus: coachView ? null : status,
-      showRsvpButtons: invited && !coachView && status == RsvpStatus.none,
-      onToggleRsvp: coachView
-          ? null
-          : () {
-              if (uid == null) return;
-              final next =
-                  status == RsvpStatus.yes ? RsvpStatus.no : RsvpStatus.yes;
-              onSetRsvp(event, next);
-            },
-      onPresent: coachView ? null : () => onSetRsvp(event, RsvpStatus.yes),
-      onAbsent: coachView ? null : () => onSetRsvp(event, RsvpStatus.no),
+      onTap: openDetail,
+      onLongPress: openDetail,
+      rsvpStatus: canRsvp ? status : null,
+      onRsvpSelected:
+          canRsvp ? (next) => onSetRsvp(event, next) : null,
     );
   }
 }

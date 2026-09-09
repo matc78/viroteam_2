@@ -6,6 +6,7 @@ import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart'
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
 /// Ligne joueur (même base que [MemberListTile]) + badge RSVP.
 class PlanningMemberRsvpRow extends StatelessWidget {
@@ -13,10 +14,14 @@ class PlanningMemberRsvpRow extends StatelessWidget {
     super.key,
     required this.member,
     required this.status,
+    this.isTeamCoach = false,
   });
 
   final ClubMember member;
   final RsvpStatus status;
+
+  /// `true` si le membre est sur le roster coach d'une équipe de l'événement.
+  final bool isTeamCoach;
 
   @override
   Widget build(BuildContext context) {
@@ -45,13 +50,26 @@ class PlanningMemberRsvpRow extends StatelessWidget {
                     color: ViroColors.primary800,
                   ),
                 ),
-                if (!member.hasLinkedAccount) ...[
+                if (isTeamCoach || !member.hasLinkedAccount) ...[
                   const SizedBox(height: 2),
-                  Text(
-                    'Pas encore inscrit',
-                    style: theme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
-                    ),
+                  Wrap(
+                    spacing: ViroSpacing.xs,
+                    runSpacing: 2,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (isTeamCoach)
+                        const ViroRoleBadge(
+                          role: ViroRole.coach,
+                          compact: true,
+                        ),
+                      if (!member.hasLinkedAccount)
+                        Text(
+                          'Pas encore inscrit',
+                          style: theme.bodySmall?.copyWith(
+                            color: ViroColors.gray600,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ],

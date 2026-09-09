@@ -86,56 +86,6 @@ abstract final class PlanningEventDisplay {
     return false;
   }
 
-  /// Joueur convoqué → RSVP ; coach seul → badges de présence.
-  static bool showCoachRsvpSummary(
-    ClubEvent event,
-    String authUid,
-    Map<String, ClubTeam> teamsById, {
-    String? clubAudienceId,
-    ClubMember? member,
-    Map<String, ClubMember>? membersByUid,
-  }) =>
-      !isInvitedAsPlayerOnEvent(
-        event,
-        authUid,
-        teamsById,
-        clubAudienceId: clubAudienceId,
-        member: member,
-        membersByUid: membersByUid,
-      ) &&
-      isCoachForEvent(
-        event,
-        authUid,
-        teamsById,
-        member: member,
-        membersByUid: membersByUid,
-      );
-
-  /// Coach d'équipe convoqué comme joueur sur cet événement.
-  static bool isDualRoleCoachPlayer(
-    ClubEvent event,
-    String authUid,
-    Map<String, ClubTeam> teamsById, {
-    String? clubAudienceId,
-    ClubMember? member,
-    Map<String, ClubMember>? membersByUid,
-  }) =>
-      isCoachForEvent(
-        event,
-        authUid,
-        teamsById,
-        member: member,
-        membersByUid: membersByUid,
-      ) &&
-      isInvitedAsPlayerOnEvent(
-        event,
-        authUid,
-        teamsById,
-        clubAudienceId: clubAudienceId,
-        member: member,
-        membersByUid: membersByUid,
-      );
-
   /// Coach / admin : convoqué joueur seulement s'il est dans [ClubTeam.playerIds].
   static bool isOnPlayerRosterForEvent(
     ClubEvent event,
@@ -151,6 +101,7 @@ abstract final class PlanningEventDisplay {
     return false;
   }
 
+  /// Convoqué joueur (roster `playerIds` / `teamMemberIds`), hors cas coach seul.
   static bool isInvitedAsPlayerOnEvent(
     ClubEvent event,
     String authUid,
@@ -182,6 +133,31 @@ abstract final class PlanningEventDisplay {
     if (resolved == null) return false;
     return isOnPlayerRosterForEvent(event, resolved, teamsById);
   }
+
+  /// Peut répondre RSVP : joueur convoqué ou coach d'une équipe de l'événement.
+  static bool canRsvpOnEvent(
+    ClubEvent event,
+    String authUid,
+    Map<String, ClubTeam> teamsById, {
+    String? clubAudienceId,
+    ClubMember? member,
+    Map<String, ClubMember>? membersByUid,
+  }) =>
+      isInvitedAsPlayerOnEvent(
+        event,
+        authUid,
+        teamsById,
+        clubAudienceId: clubAudienceId,
+        member: member,
+        membersByUid: membersByUid,
+      ) ||
+      isCoachForEvent(
+        event,
+        authUid,
+        teamsById,
+        member: member,
+        membersByUid: membersByUid,
+      );
 
   /// Événement visible pour un joueur / coach membre (hors mode gestion).
   static bool isVisibleToMember({
@@ -232,6 +208,65 @@ abstract final class PlanningEventDisplay {
       }
     }
     return exclude;
+  }
+
+  /// Compteurs RSVP joueurs + coachs des équipes de l'événement (dédupliqués).
+  static ({int yes, int no, int none}) rsvpCountsIncludingCoaches(
+    ClubEvent event,
+    Map<String, ClubTeam> teamsById, {
+    Map<String, ClubMember>? membersByUid,
+  }) {
+    final countedKeys = <String>{};
+    var yes = 0;
+    var no = 0;
+    var none = 0;
+
+    void addPerson(String primaryId, ClubMember? member) {
+      final keys = member != null ? eventAudienceKeys(member) : {primaryId};
+      if (keys.any(countedKeys.contains)) return;
+      countedKeys.addAll(keys);
+
+      final status = member != null
+          ? event.rsvpStatusForUser(
+              primaryId,
+              clubAudienceId: member.memberId,
+              memberAudienceKeys: keys,
+            )
+          : event.rsvpFor(primaryId);
+
+      switch (status) {
+        case RsvpStatus.yes:
+          yes++;
+        case RsvpStatus.no:
+          no++;
+        case RsvpStatus.maybe:
+        case RsvpStatus.none:
+          none++;
+      }
+    }
+
+    for (final teamId in event.teamIds) {
+      final team = teamsById[teamId];
+      if (team == null) continue;
+      for (final coachRosterId in team.coachIds) {
+        final member = membersByUid != null
+            ? clubMemberForTeamUid(membersByUid, coachRosterId)
+            : null;
+        addPerson(
+          member != null ? rosterAudienceId(member) : coachRosterId,
+          member,
+        );
+      }
+    }
+
+    for (final memberId in event.teamMemberIds) {
+      final member = membersByUid != null
+          ? clubMemberForTeamUid(membersByUid, memberId)
+          : null;
+      addPerson(memberId, member);
+    }
+
+    return (yes: yes, no: no, none: none);
   }
 
   static String scheduleLine(ClubEvent event) {

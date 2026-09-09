@@ -14,6 +14,7 @@ class PlanningEventTile extends StatelessWidget {
     required this.event,
     this.teamLabel,
     this.excludeCoachUids = const {},
+    this.teamRsvpCounts,
     this.clubColor,
     this.clubColorSecondary,
     this.onTap,
@@ -22,6 +23,9 @@ class PlanningEventTile extends StatelessWidget {
   final ClubEvent event;
   final String? teamLabel;
   final Set<String> excludeCoachUids;
+
+  /// Compteurs précalculés (joueurs + coachs) ; sinon dérivés de [excludeCoachUids].
+  final ({int yes, int no, int none})? teamRsvpCounts;
   final Color? clubColor;
   final Color? clubColorSecondary;
   final VoidCallback? onTap;
@@ -36,7 +40,8 @@ class PlanningEventTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final counts = event.rsvpCountsExcluding(excludeCoachUids);
+    final counts =
+        teamRsvpCounts ?? event.rsvpCountsExcluding(excludeCoachUids);
     final startStr = formatEventTime(event.startTime);
     final endStr = formatEventTime(event.endTime);
     final rdvStr = formatEventTime(event.meetingTime);

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -229,7 +231,212 @@ class _DecorShapes extends StatelessWidget {
               ),
             ),
           ),
+          // Confettis sparses (comme DecorShapes du portail)
+          for (final piece in _confettiPieces)
+            if (!piece.sparse || w >= 700)
+              Positioned(
+                top: h * piece.topFraction,
+                left: w * piece.leftFraction,
+                child: Opacity(
+                  opacity: 0.85,
+                  child: Transform.rotate(
+                    angle: piece.rotateRadians,
+                    child: _ConfettiShape(
+                      kind: piece.kind,
+                      size: piece.size,
+                      color: piece.color,
+                    ),
+                  ),
+                ),
+              ),
         ],
+      ),
+    );
+  }
+}
+
+enum _ConfettiKind { dot, dash, sq, diamond }
+
+enum _ConfettiSize { sm, md }
+
+enum _ConfettiColor { cyan, yellow, green, blue }
+
+/// Définition d'un confetti positionné en fractions de l'écran.
+class _ConfettiSpec {
+  const _ConfettiSpec({
+    required this.kind,
+    required this.topFraction,
+    required this.leftFraction,
+    required this.colorKey,
+    this.size = _ConfettiSize.sm,
+    this.rotateDegrees = 0,
+    this.sparse = false,
+  });
+
+  final _ConfettiKind kind;
+  final double topFraction;
+  final double leftFraction;
+  final _ConfettiColor colorKey;
+  final _ConfettiSize size;
+  final double rotateDegrees;
+  final bool sparse;
+
+  double get rotateRadians => rotateDegrees * math.pi / 180;
+
+  /// Couleur semi-transparente alignée sur le CSS du portail.
+  Color get color => switch (colorKey) {
+        _ConfettiColor.cyan => ViroColors.sportCyan.withValues(alpha: 0.55),
+        _ConfettiColor.yellow => ViroColors.sportYellow.withValues(alpha: 0.65),
+        _ConfettiColor.green => ViroColors.sportGreen.withValues(alpha: 0.45),
+        _ConfettiColor.blue => ViroColors.primary200.withValues(alpha: 0.60),
+      };
+}
+
+/// Positions alignées sur le portail (`DecorShapes.tsx`).
+const _confettiPieces = <_ConfettiSpec>[
+  _ConfettiSpec(
+    kind: _ConfettiKind.dot,
+    topFraction: 0.06,
+    leftFraction: 0.08,
+    colorKey: _ConfettiColor.cyan,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.sq,
+    topFraction: 0.05,
+    leftFraction: 0.71,
+    colorKey: _ConfettiColor.yellow,
+    rotateDegrees: 18,
+    sparse: true,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.diamond,
+    topFraction: 0.14,
+    leftFraction: 0.42,
+    colorKey: _ConfettiColor.blue,
+    rotateDegrees: 45,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.dot,
+    topFraction: 0.21,
+    leftFraction: 0.04,
+    colorKey: _ConfettiColor.yellow,
+    sparse: true,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.dash,
+    topFraction: 0.31,
+    leftFraction: 0.16,
+    colorKey: _ConfettiColor.blue,
+    rotateDegrees: 48,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.sq,
+    topFraction: 0.41,
+    leftFraction: 0.67,
+    colorKey: _ConfettiColor.cyan,
+    rotateDegrees: 8,
+    sparse: true,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.dot,
+    topFraction: 0.48,
+    leftFraction: 0.84,
+    colorKey: _ConfettiColor.blue,
+    size: _ConfettiSize.md,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.dash,
+    topFraction: 0.55,
+    leftFraction: 0.27,
+    colorKey: _ConfettiColor.yellow,
+    rotateDegrees: 15,
+    sparse: true,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.dot,
+    topFraction: 0.62,
+    leftFraction: 0.12,
+    colorKey: _ConfettiColor.cyan,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.diamond,
+    topFraction: 0.68,
+    leftFraction: 0.39,
+    colorKey: _ConfettiColor.blue,
+    rotateDegrees: 40,
+    sparse: true,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.sq,
+    topFraction: 0.74,
+    leftFraction: 0.21,
+    colorKey: _ConfettiColor.cyan,
+    rotateDegrees: 28,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.diamond,
+    topFraction: 0.84,
+    leftFraction: 0.81,
+    colorKey: _ConfettiColor.cyan,
+    rotateDegrees: 30,
+    sparse: true,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.dash,
+    topFraction: 0.90,
+    leftFraction: 0.30,
+    colorKey: _ConfettiColor.blue,
+    rotateDegrees: -25,
+  ),
+  _ConfettiSpec(
+    kind: _ConfettiKind.dot,
+    topFraction: 0.93,
+    leftFraction: 0.58,
+    colorKey: _ConfettiColor.green,
+    size: _ConfettiSize.md,
+    sparse: true,
+  ),
+];
+
+/// Petite forme de confetti (point, tiret, carré, losange).
+class _ConfettiShape extends StatelessWidget {
+  const _ConfettiShape({
+    required this.kind,
+    required this.size,
+    required this.color,
+  });
+
+  final _ConfettiKind kind;
+  final _ConfettiSize size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMd = size == _ConfettiSize.md;
+    final (width, height, radius) = switch (kind) {
+      _ConfettiKind.dot => (
+          isMd ? 8.8 : 6.4,
+          isMd ? 8.8 : 6.4,
+          999.0,
+        ),
+      _ConfettiKind.dash => (
+          isMd ? 16.8 : 13.6,
+          isMd ? 5.1 : 4.5,
+          999.0,
+        ),
+      _ConfettiKind.sq || _ConfettiKind.diamond => (
+          isMd ? 8.8 : 7.2,
+          isMd ? 8.8 : 7.2,
+          kind == _ConfettiKind.diamond ? 2.4 : 3.2,
+        ),
+    };
+
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }

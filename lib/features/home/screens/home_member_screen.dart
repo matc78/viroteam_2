@@ -249,6 +249,12 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                                 firstName: firstName,
                               ),
                             ),
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              height: ClubSelectorBar.barHeight +
+                                  MediaQuery.paddingOf(context).bottom,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -257,7 +263,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: ViroSpacing.md,
+                bottom: 0,
                 child: ClubSelectorBar(
                   clubs: clubs,
                   pendingByClub: pendingCounts,

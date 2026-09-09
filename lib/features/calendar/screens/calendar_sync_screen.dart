@@ -17,7 +17,7 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 
-/// Page d'aide : import manuel + ajout natif / export .ics du planning.
+/// Page d'aide : ajouter le planning club (calendrier dynamique) à l'agenda.
 class CalendarSyncScreen extends ConsumerStatefulWidget {
   const CalendarSyncScreen({
     super.key,
@@ -26,6 +26,8 @@ class CalendarSyncScreen extends ConsumerStatefulWidget {
   });
 
   final String clubId;
+
+  /// Conservé pour compat deep-link ; non utilisé pour l'UI actuelle.
   final String? eventId;
 
   @override
@@ -58,134 +60,115 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
     return ClubAccentTheme(
       accentColor: accent,
       child: ViroScaffold(
-      appBar: ViroAppBar(
-        leading: IconButton(
-          icon: ViroIcon(ViroIcons.chevronLeft),
-          onPressed: () => context.pop(),
+        appBar: ViroAppBar(
+          leading: IconButton(
+            icon: ViroIcon(ViroIcons.chevronLeft),
+            onPressed: () => context.pop(),
+          ),
+          title: const Text('Calendrier dynamique'),
         ),
-        title: const Text('Calendrier'),
-      ),
-      body: ViroRefreshIndicator(
-        onRefresh: () async {
-          await Future.wait([
-            ref.refresh(clubProvider(widget.clubId).future),
-            ref.refresh(memberEventsProvider.future),
-          ]);
-        },
-        child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(ViroSpacing.lg),
-        children: [
-          ViroCard(
-            accentColor: accent,
-            borderColor: ClubAccentStyle(accent).border,
-            child: Text(
-              'Ajoutez le planning ViroTeam à l’agenda de votre téléphone.',
-              style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
-            ),
-          ),
-          const SizedBox(height: ViroSpacing.lg),
-          Text(
-            'Ajout rapide',
-            style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: ViroSpacing.sm),
-          eventsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) => const ViroErrorState(),
-            data: (state) {
-              final events = <ClubEvent>[
-                ...state.pending,
-                ...state.upcoming,
-              ].where((e) => !e.canceled).toList();
-              ClubEvent? focus;
-              final eventId = widget.eventId;
-              if (eventId != null) {
-                for (final e in events) {
-                  if (e.id == eventId) focus = e;
-                }
-              }
-              focus ??= events.isNotEmpty ? events.first : null;
-              final clubName = clubAsync.value?.name ?? 'ViroTeam';
+        body: ViroRefreshIndicator(
+          onRefresh: () async {
+            await Future.wait([
+              ref.refresh(clubProvider(widget.clubId).future),
+              ref.refresh(memberEventsProvider.future),
+            ]);
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(ViroSpacing.lg),
+            children: [
+              ViroCard(
+                accentColor: accent,
+                borderColor: ClubAccentStyle(accent).border,
+                child: Text(
+                  'Ajoutez le planning ViroTeam à l’agenda de votre téléphone. '
+                  'Réexportez après une mise à jour pour synchroniser les changements.',
+                  style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
+                ),
+              ),
+              const SizedBox(height: ViroSpacing.lg),
+              Text(
+                'Ajouter à mon agenda',
+                style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: ViroSpacing.sm),
+              eventsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, __) => const ViroErrorState(),
+                data: (state) {
+                  final events = <ClubEvent>[
+                    ...state.pending,
+                    ...state.upcoming,
+                  ].where((e) => !e.canceled).toList();
+                  final clubName = clubAsync.value?.name ?? 'ViroTeam';
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (focus != null)
-                    ViroPrimaryButton(
-                      label: _busy
-                          ? 'Ouverture…'
-                          : 'Ajouter « ${focus.title} » à mon agenda',
-                      isLoading: _busy,
-                      onPressed: _busy
-                          ? null
-                          : () => _run(() async {
-                                final ok = await CalendarSyncService
-                                    .addEventToDeviceCalendar(focus!);
-                                if (context.mounted) {
-                                  ViroSnackBar.show(
-                                    context,
-                                    ok
-                                        ? 'Événement envoyé à l’agenda'
-                                        : 'Ajout annulé ou refusé',
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ViroPrimaryButton(
+                        label: _busy
+                            ? 'Préparation…'
+                            : 'Ajouter le calendrier dynamique à mon agenda',
+                        isLoading: _busy,
+                        onPressed: _busy || events.isEmpty
+                            ? null
+                            : () => _run(() async {
+                                  await CalendarSyncService.shareIcsFile(
+                                    events: events,
+                                    calendarName: clubName,
                                   );
-                                }
-                              }),
-                    )
-                  else
-                    Text(
-                      'Aucun événement à venir pour ce club.',
-                      style: theme.bodyMedium
-                          ?.copyWith(color: ViroColors.gray600),
-                    ),
-                  const SizedBox(height: ViroSpacing.sm),
-                  ViroPrimaryButton(
-                    label: 'Exporter le planning (.ics)',
-                    outlined: true,
-                    onPressed: _busy || events.isEmpty
-                        ? null
-                        : () => _run(() async {
-                              await CalendarSyncService.shareIcsFile(
-                                events: events,
-                                calendarName: clubName,
-                              );
-                            }),
-                  ),
+                                  if (context.mounted) {
+                                    ViroSnackBar.show(
+                                      context,
+                                      'Fichier calendrier prêt — ouvrez-le pour l’ajouter à votre agenda',
+                                    );
+                                  }
+                                }),
+                      ),
+                      if (events.isEmpty) ...[
+                        const SizedBox(height: ViroSpacing.sm),
+                        Text(
+                          'Aucun événement à venir pour ce club.',
+                          style: theme.bodyMedium
+                              ?.copyWith(color: ViroColors.gray600),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: ViroSpacing.xl),
+              Text(
+                'Import manuel',
+                style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: ViroSpacing.sm),
+              _ManualStepsCard(
+                title: 'iPhone / iPad',
+                accentColor: accent,
+                steps: const [
+                  'Appuyez sur « Ajouter le calendrier dynamique… » ci-dessus.',
+                  'Choisissez « Enregistrer dans Fichiers » ou partagez vers Mail.',
+                  'Ouvrez le fichier .ics → « Ajouter » / « Ajouter les événements ».',
+                  'Sélectionnez le calendrier (iCloud ou local) puis confirmez.',
                 ],
-              );
-            },
-          ),
-          const SizedBox(height: ViroSpacing.xl),
-          Text(
-            'Import manuel',
-            style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: ViroSpacing.sm),
-          _ManualStepsCard(
-            title: 'iPhone / iPad',
-            accentColor: accent,
-            steps: [
-              'Appuyez sur « Exporter le planning (.ics) » ci-dessus.',
-              'Choisissez « Enregistrer dans Fichiers » ou partagez vers Mail.',
-              'Ouvrez le fichier .ics → « Ajouter » / « Ajouter les événements ».',
-              'Sélectionnez le calendrier (iCloud ou local) puis confirmez.',
+              ),
+              const SizedBox(height: ViroSpacing.sm),
+              _ManualStepsCard(
+                title: 'Android',
+                accentColor: accent,
+                steps: const [
+                  'Exportez le fichier .ics via le bouton ci-dessus.',
+                  'Ouvrez le fichier avec Google Agenda (ou l’app Calendrier).',
+                  'Confirmez l’import des événements dans le calendrier souhaité.',
+                  'Astuce : depuis Gmail / Drive, ouvrez le .ics pour l’importer.',
+                ],
+              ),
+              const SizedBox(height: ViroSpacing.xl),
             ],
           ),
-          const SizedBox(height: ViroSpacing.sm),
-          _ManualStepsCard(
-            title: 'Android',
-            accentColor: accent,
-            steps: [
-              'Exportez le fichier .ics via le bouton ci-dessus.',
-              'Ouvrez le fichier avec Google Agenda (ou l’app Calendrier).',
-              'Confirmez l’import des événements dans le calendrier souhaité.',
-              'Astuce : depuis Gmail / Drive, ouvrez le .ics pour l’importer.',
-            ],
-          ),
-          const SizedBox(height: ViroSpacing.xl),
-        ],
-      ),
-      ),
+        ),
       ),
     );
   }

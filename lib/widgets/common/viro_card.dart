@@ -33,6 +33,8 @@ class ViroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(ViroSpacing.cardRadius);
+    // Material transparent sous le DecoratedBox : évite l'assertion Flutter
+    // « ListTile ink splashes may be invisible » pour les tuiles dans la carte.
     final content = Container(
       margin: margin ?? const EdgeInsets.only(bottom: ViroSpacing.md),
       decoration: BoxDecoration(
@@ -44,8 +46,10 @@ class ViroCard extends StatelessWidget {
         ),
         boxShadow: ViroMotion.cardShadow(elevated: elevated),
       ),
-      child: ClipRRect(
+      child: Material(
+        type: MaterialType.transparency,
         borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

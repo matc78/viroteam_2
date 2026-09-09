@@ -30,6 +30,8 @@ abstract final class ViroIcons {
   static IconData get edit => PhosphorIconsRegular.pencilSimple;
   static IconData get trash => PhosphorIconsRegular.trash;
   static IconData get check => PhosphorIconsBold.check;
+  static IconData get checkCircle => PhosphorIconsFill.checkCircle;
+  static IconData get xCircle => PhosphorIconsFill.xCircle;
   static IconData get search => PhosphorIconsRegular.magnifyingGlass;
   static IconData get copy => PhosphorIconsRegular.copy;
   static IconData get envelope => PhosphorIconsRegular.envelopeSimple;
@@ -95,6 +97,8 @@ abstract final class ViroIcons {
             ('edit', edit),
             ('trash', trash),
             ('check', check),
+            ('checkCircle', checkCircle),
+            ('xCircle', xCircle),
             ('search', search),
           ],
         ),

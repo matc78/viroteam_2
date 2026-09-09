@@ -11,23 +11,33 @@ class PlanningRsvpCountBadge extends StatelessWidget {
     required this.icon,
     required this.count,
     required this.color,
+    this.onTap,
+    this.selected = false,
+    this.semanticLabel,
   });
 
   final IconData icon;
   final int count;
   final Color color;
+  final VoidCallback? onTap;
+  final bool selected;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    final badge = Stack(
       clipBehavior: Clip.none,
       children: [
         Container(
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withValues(alpha: selected ? 0.22 : 0.12),
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected ? color : Colors.transparent,
+              width: 1.5,
+            ),
           ),
           alignment: Alignment.center,
           child: ViroIcon(icon, size: 18, color: color),
@@ -58,6 +68,19 @@ class PlanningRsvpCountBadge extends StatelessWidget {
           ),
       ],
     );
+
+    if (onTap == null) return badge;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: semanticLabel,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: badge,
+      ),
+    );
   }
 }
 
@@ -86,6 +109,55 @@ class PlanningRsvpStatusBadge extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: ViroIcon(icon, size: 18, color: color),
+    );
+  }
+}
+
+/// Compteurs équipe cliquables pour choisir son RSVP (pastilles conservées).
+class PlanningRsvpCountChoiceRow extends StatelessWidget {
+  const PlanningRsvpCountChoiceRow({
+    super.key,
+    required this.counts,
+    required this.status,
+    required this.onSelected,
+  });
+
+  final ({int yes, int no, int none}) counts;
+  final RsvpStatus status;
+  final ValueChanged<RsvpStatus> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PlanningRsvpCountBadge(
+          icon: ViroIcons.check,
+          count: counts.yes,
+          color: ViroColors.success,
+          selected: status == RsvpStatus.yes,
+          semanticLabel: 'Présent',
+          onTap: () => onSelected(RsvpStatus.yes),
+        ),
+        const SizedBox(width: ViroSpacing.sm),
+        PlanningRsvpCountBadge(
+          icon: ViroIcons.close,
+          count: counts.no,
+          color: ViroColors.error,
+          selected: status == RsvpStatus.no,
+          semanticLabel: 'Absent',
+          onTap: () => onSelected(RsvpStatus.no),
+        ),
+        const SizedBox(width: ViroSpacing.sm),
+        PlanningRsvpCountBadge(
+          icon: ViroIcons.clock,
+          count: counts.none,
+          color: ViroColors.warning,
+          selected: status == RsvpStatus.none || status == RsvpStatus.maybe,
+          semanticLabel: 'En attente',
+          onTap: () => onSelected(RsvpStatus.none),
+        ),
+      ],
     );
   }
 }

@@ -64,18 +64,12 @@ MemberEventsState categorizeMemberEvents(
 
     final audienceId = audienceByClub[event.clubId] ?? authUid;
     final audienceKeys = {authUid, audienceId};
-    final invitedAsPlayer = event.isInvitedAsPlayer(
-      authUid,
-      clubAudienceId: audienceId,
-      memberAudienceKeys: audienceKeys,
-    );
-    final needsRsvp = invitedAsPlayer &&
-        event.rsvpStatusForUser(
+    final needsRsvp = event.rsvpStatusForUser(
           authUid,
           clubAudienceId: audienceId,
           memberAudienceKeys: audienceKeys,
         ) ==
-            RsvpStatus.none;
+        RsvpStatus.none;
 
     if (needsRsvp) pending.add(event);
   }

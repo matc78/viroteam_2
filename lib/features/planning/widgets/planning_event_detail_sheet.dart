@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/features/calendar/services/calendar_sync_service.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_member_rsvp_row.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart';
+import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 
 enum _CancelScope { single, series }
 
@@ -104,88 +104,149 @@ class _PlanningEventDetailSheetState
     if (_sendingPush) return;
     setState(() => _sendingPush = true);
     try {
-      final result =
-          await ref.read(pushNotificationServiceProvider).sendEventPush(
-                clubId: widget.clubId,
-                eventId: widget.event.id,
-              );
+      await ref.read(pushNotificationServiceProvider).sendEventPush(
+            clubId: widget.clubId,
+            eventId: widget.event.id,
+          );
       if (!mounted) return;
-      ViroSnackBar.show(
+      ViroStatusToast.show(
         context,
-        'Notification envoyée (${result.recipientCount} destinataire${result.recipientCount > 1 ? 's' : ''})',
+        message: 'Notif envoyée',
+        success: true,
       );
     } catch (error) {
       if (!mounted) return;
       final message = error.toString().contains('resource-exhausted')
           ? 'Une notification a déjà été envoyée il y a moins d’une heure'
           : 'Envoi impossible, réessayez';
-      ViroSnackBar.show(context, message);
+      ViroStatusToast.show(
+        context,
+        message: message,
+        success: false,
+      );
     } finally {
       if (mounted) setState(() => _sendingPush = false);
     }
   }
 
-  List<({String id, ClubMember member})> _sortedEntries(
+  /// RSVP d'un membre en tenant compte de toutes ses clés audience.
+  RsvpStatus _rsvpForMember(String id, ClubMember member) =>
+      widget.event.rsvpStatusForUser(
+        id,
+        clubAudienceId: member.memberId,
+        memberAudienceKeys: eventAudienceKeys(member),
+      );
+
+  /// Coachs en tête, puis joueurs ; dans chaque groupe : présent → en attente →
+  /// absent, puis alphabétique.
+  List<({String id, ClubMember member, bool isCoach})> _sortedEntries(
     Map<String, ClubMember> byUid,
+    List<ClubTeam> eventTeams,
   ) {
-    int order(RsvpStatus s) => switch (s) {
+    int order(RsvpStatus status) => switch (status) {
           RsvpStatus.yes => 0,
-          RsvpStatus.maybe => 1,
+          RsvpStatus.none || RsvpStatus.maybe => 1,
           RsvpStatus.no => 2,
-          RsvpStatus.none => 3,
         };
 
-    final entries = <({String id, ClubMember member})>[];
-    for (final id in widget.event.playerMemberIds(widget.excludeCoachUids)) {
-      final member = clubMemberForTeamUid(byUid, id);
-      if (member != null) entries.add((id: id, member: member));
+    int compareEntries(
+      ({String id, ClubMember member, bool isCoach}) left,
+      ({String id, ClubMember member, bool isCoach}) right,
+    ) {
+      final statusOrder = order(_rsvpForMember(left.id, left.member))
+          .compareTo(order(_rsvpForMember(right.id, right.member)));
+      if (statusOrder != 0) return statusOrder;
+      return left.member.fullName
+          .toLowerCase()
+          .compareTo(right.member.fullName.toLowerCase());
     }
 
-    entries.sort((a, b) {
-      final oa = order(widget.event.rsvpFor(a.id));
-      final ob = order(widget.event.rsvpFor(b.id));
-      if (oa != ob) return oa.compareTo(ob);
-      return a.member.fullName
-          .toLowerCase()
-          .compareTo(b.member.fullName.toLowerCase());
-    });
-    return entries;
+    final seenKeys = <String>{};
+    final coachEntries = <({String id, ClubMember member, bool isCoach})>[];
+
+    for (final team in eventTeams) {
+      for (final coachRosterId in team.coachIds) {
+        final member = clubMemberForTeamUid(byUid, coachRosterId);
+        if (member == null) continue;
+        final keys = eventAudienceKeys(member);
+        if (keys.any(seenKeys.contains)) continue;
+        seenKeys.addAll(keys);
+        coachEntries.add((
+          id: rosterAudienceId(member),
+          member: member,
+          isCoach: true,
+        ));
+      }
+    }
+    coachEntries.sort(compareEntries);
+
+    final playerEntries = <({String id, ClubMember member, bool isCoach})>[];
+    for (final id in widget.event.playerMemberIds(widget.excludeCoachUids)) {
+      final member = clubMemberForTeamUid(byUid, id);
+      if (member == null) continue;
+      final keys = eventAudienceKeys(member);
+      if (keys.any(seenKeys.contains)) continue;
+      seenKeys.addAll(keys);
+      playerEntries.add((id: id, member: member, isCoach: false));
+    }
+    playerEntries.sort(compareEntries);
+
+    return [...coachEntries, ...playerEntries];
   }
 
   Widget _buildMembersList(TextTheme theme) {
+    final accent = Theme.of(context).colorScheme.primary;
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
+    final teams = ref.watch(clubTeamsProvider(widget.clubId)).value ?? [];
+    final eventTeams = _eventTeams(teams);
 
     return membersAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(ViroSpacing.xl),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, _) => const ViroErrorState(),
+      error: (_, __) => const ViroErrorState(),
       data: (members) {
         final byUid = indexClubMembersByUid(members);
-        final entries = _sortedEntries(byUid);
-
-        if (entries.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: ViroSpacing.lg),
-            child: Text(
-              'Aucun membre convoqué',
-              style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
-            ),
-          );
-        }
+        final entries = _sortedEntries(byUid, eventTeams);
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final entry in entries)
-              PlanningMemberRsvpRow(
-                member: entry.member,
-                status: widget.event.rsvpFor(entry.id),
+            Text(
+              'Réponses (${entries.length})',
+              style: theme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: accent,
               ),
+            ),
+            const SizedBox(height: ViroSpacing.sm),
+            if (entries.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: ViroSpacing.lg),
+                child: Text(
+                  'Aucun membre convoqué',
+                  style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+                ),
+              )
+            else
+              for (final entry in entries)
+                PlanningMemberRsvpRow(
+                  member: entry.member,
+                  status: _rsvpForMember(entry.id, entry.member),
+                  isTeamCoach: entry.isCoach,
+                ),
           ],
         );
       },
     );
+  }
+
+  /// Équipes ciblées par l'événement (aucune si pas d'équipe liée).
+  List<ClubTeam> _eventTeams(List<ClubTeam> teams) {
+    if (widget.event.teamIds.isEmpty) return const [];
+    final eventTeamIds = widget.event.teamIds.toSet();
+    return teams.where((team) => eventTeamIds.contains(team.id)).toList();
   }
 
   Future<void> _cancelEvent() async {
@@ -277,13 +338,22 @@ class _PlanningEventDetailSheetState
     final headline = PlanningEventDisplay.headline(event);
     final subtitle = PlanningEventDisplay.subtitle(event, widget.teamLabel);
     final location = PlanningEventDisplay.locationLine(event);
-    final schedule = PlanningEventDisplay.scheduleLine(event);
     final startStr = formatEventTime(event.startTime);
     final endStr = formatEventTime(event.endTime);
     final rdvStr = formatEventTime(event.meetingTime);
-    final counts = event.rsvpCountsExcluding(widget.excludeCoachUids);
-    final playerCount =
-        event.playerMemberIds(widget.excludeCoachUids).length;
+    final dateStr = formatEventDate(event.date);
+    final teamsById = <String, ClubTeam>{
+      for (final team in ref.watch(clubTeamsProvider(widget.clubId)).value ?? [])
+        team.id: team,
+    };
+    final members = ref.watch(clubMembersProvider(widget.clubId)).value;
+    final membersByUid =
+        members != null ? indexClubMembersByUid(members) : null;
+    final counts = PlanningEventDisplay.rsvpCountsIncludingCoaches(
+      event,
+      teamsById,
+      membersByUid: membersByUid,
+    );
 
     return Column(
       children: [
@@ -297,186 +367,158 @@ class _PlanningEventDetailSheetState
               ViroSpacing.md,
             ),
             children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (startStr.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              right: ViroSpacing.md,
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  startStr,
-                                  style: theme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: accent,
-                                    height: 1.1,
-                                  ),
-                                ),
-                                if (event.type == EventTypes.match &&
-                                    rdvStr.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 2),
-                                    child: Text(
-                                      'RDV $rdvStr',
-                                      style: theme.labelSmall?.copyWith(
-                                        color: ViroColors.gray600,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  )
-                                else if (endStr.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 2),
-                                    child: Text(
-                                      endStr,
-                                      style: theme.labelSmall?.copyWith(
-                                        color: ViroColors.gray400,
-                                      ),
-                                    ),
-                                  ),
-                              ],
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (startStr.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: ViroSpacing.sm),
+                      child: Column(
+                        children: [
+                          Text(
+                            startStr,
+                            style: theme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: accent,
+                              height: 1.1,
                             ),
                           ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                          if (event.type == EventTypes.match &&
+                              rdvStr.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                'RDV $rdvStr',
+                                style: theme.labelSmall?.copyWith(
+                                  color: ViroColors.gray600,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            )
+                          else if (endStr.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                endStr,
+                                style: theme.labelSmall?.copyWith(
+                                  color: ViroColors.gray400,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Row(
                                 children: [
                                   ViroIcon(
                                     _typeIcon,
-                                    size: 20,
+                                    size: 18,
                                     color: accent,
                                   ),
                                   const SizedBox(width: ViroSpacing.xs),
                                   Expanded(
                                     child: Text(
-                                      headline,
-                                      style: theme.titleMedium?.copyWith(
+                                      subtitle != null
+                                          ? '$headline · $subtitle'
+                                          : headline,
+                                      style: theme.titleSmall?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         color: accent,
+                                        height: 1.2,
                                       ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
                               ),
-                              if (subtitle != null) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  subtitle,
-                                  style: theme.bodyLarge?.copyWith(
-                                    color: ViroColors.gray600,
-                                    fontWeight: FontWeight.w500,
+                            ),
+                            const SizedBox(width: ViroSpacing.sm),
+                            PlanningRsvpSummaryRow(counts: counts),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text.rich(
+                          TextSpan(
+                            style: theme.bodySmall?.copyWith(
+                              color: ViroColors.gray600,
+                              height: 1.3,
+                            ),
+                            children: [
+                              TextSpan(text: dateStr),
+                              if (location != null) ...[
+                                const TextSpan(text: ' · '),
+                                WidgetSpan(
+                                  alignment: PlaceholderAlignment.middle,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 2),
+                                    child: ViroIcon(
+                                      ViroIcons.place,
+                                      size: 13,
+                                      color: ViroColors.gray400,
+                                    ),
                                   ),
                                 ),
+                                TextSpan(text: location),
                               ],
                             ],
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
-                    const SizedBox(height: ViroSpacing.sm),
-                    Text(
-                      schedule,
-                      style: theme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
-                      ),
-                    ),
-                    if (location != null) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          ViroIcon(
-                            ViroIcons.place,
-                            size: 16,
-                            color: ViroColors.gray400,
+                  ),
+                ],
+              ),
+              if (widget.canManageEvents) ...[
+                const SizedBox(height: ViroSpacing.sm),
+                FilledButton.icon(
+                  onPressed: _sendingPush ? null : _sendEventPush,
+                  icon: _sendingPush
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: ViroColors.white,
                           ),
-                          const SizedBox(width: ViroSpacing.xs),
-                          Expanded(
-                            child: Text(
-                              location,
-                              style: theme.bodyMedium?.copyWith(
-                                color: ViroColors.gray600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: ViroSpacing.lg),
-                    Center(child: PlanningRsvpSummaryRow(counts: counts)),
-                    const SizedBox(height: ViroSpacing.md),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final ok = await CalendarSyncService
-                            .addEventToDeviceCalendar(event);
-                        if (!context.mounted) return;
-                        ViroSnackBar.show(
-                          context,
-                          ok
-                              ? 'Événement envoyé à l’agenda'
-                              : 'Ajout annulé ou refusé',
-                        );
-                      },
-                      icon: ViroIcon(ViroIcons.calendarPlus, size: 18),
-                      label: const Text('Ajouter à mon agenda'),
+                        )
+                      : ViroIcon(ViroIcons.bell, size: 18),
+                  label: Text(
+                    _sendingPush ? 'Envoi…' : 'Envoyer une notification',
+                  ),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(
+                      ViroSpacing.buttonHeightMedium,
                     ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        context.push(
-                          AppRoutes.clubCalendarSyncPath(
-                            widget.clubId,
-                            eventId: event.id,
-                          ),
-                        );
-                      },
-                      child: const Text('Aide import calendrier'),
+                  ),
+                ),
+              ],
+              const SizedBox(height: ViroSpacing.md),
+              _buildMembersList(theme),
+              if (widget.canManageEvents) ...[
+                const SizedBox(height: ViroSpacing.md),
+                FilledButton(
+                  onPressed: _cancelEvent,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: ViroColors.error,
+                    foregroundColor: ViroColors.white,
+                    minimumSize: const Size.fromHeight(
+                      ViroSpacing.buttonHeightMedium,
                     ),
-                    const SizedBox(height: ViroSpacing.lg),
-                    Text(
-                      'Réponses ($playerCount)',
-                      style: theme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: accent,
-                      ),
-                    ),
-                    const SizedBox(height: ViroSpacing.sm),
-                    _buildMembersList(theme),
-                    if (widget.canManageEvents) ...[
-                      const SizedBox(height: ViroSpacing.lg),
-                      OutlinedButton.icon(
-                        onPressed: _sendingPush ? null : _sendEventPush,
-                        icon: _sendingPush
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : ViroIcon(ViroIcons.bell, size: 18),
-                        label: Text(
-                          _sendingPush
-                              ? 'Envoi…'
-                              : 'Envoyer une notification',
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                        ),
-                      ),
-                      const SizedBox(height: ViroSpacing.sm),
-                      OutlinedButton(
-                        onPressed: _cancelEvent,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: ViroColors.error,
-                          side: const BorderSide(color: ViroColors.error),
-                          minimumSize: const Size.fromHeight(48),
-                        ),
-                        child: const Text('Annuler l\'événement'),
-                      ),
-                    ],
+                  ),
+                  child: const Text('Annuler l\'événement'),
+                ),
+              ],
               SizedBox(height: MediaQuery.paddingOf(context).bottom),
             ],
           ),

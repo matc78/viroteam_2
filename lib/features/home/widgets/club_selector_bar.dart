@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +15,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
+/// Bandeau bas fixe des clubs (fond verre dépoli + logos).
 class ClubSelectorBar extends ConsumerWidget {
   const ClubSelectorBar({
     super.key,
@@ -25,9 +28,11 @@ class ClubSelectorBar extends ConsumerWidget {
   final Map<String, int> pendingByClub;
   final VoidCallback? onAddClub;
 
-  static const double _barHeight = 88;
+  /// Hauteur utile des logos (hors safe area bas).
+  static const double barHeight = 88;
   static const double _logoSize = 56;
   static const double _addButtonSize = 36;
+  static const double _glassBlurSigma = 18;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,38 +57,64 @@ class ClubSelectorBar extends ConsumerWidget {
       );
     }).toList();
 
-    return SizedBox(
-      height: _barHeight,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: ViroSpacing.screenHorizontal,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minWidth:
-                        constraints.maxWidth - ViroSpacing.screenHorizontal * 2,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: items,
-                  ),
-                ),
-              );
-            },
-          ),
-          if (onAddClub != null)
-            Positioned(
-              right: ViroSpacing.screenHorizontal,
-              top: 0,
-              child: _AddClubBarItem(onTap: onAddClub!),
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(
+          sigmaX: _glassBlurSigma,
+          sigmaY: _glassBlurSigma,
+        ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: ViroColors.scaffold.withValues(alpha: 0.72),
+            border: Border(
+              top: BorderSide(
+                color: ViroColors.primary100.withValues(alpha: 0.55),
+              ),
             ),
-        ],
+          ),
+          child: SizedBox(
+            height: barHeight + bottomInset,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ViroSpacing.screenHorizontal,
+                        ),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minWidth: constraints.maxWidth -
+                                ViroSpacing.screenHorizontal * 2,
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: items,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (onAddClub != null)
+                  Positioned(
+                    right: ViroSpacing.screenHorizontal,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: _AddClubBarItem(onTap: onAddClub!),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -111,7 +142,6 @@ class _AddClubBarItem extends StatelessWidget {
         child: Container(
           width: _size,
           height: _size,
-          margin: const EdgeInsets.only(top: 10),
           decoration: BoxDecoration(
             color: ViroColors.primary50,
             shape: BoxShape.circle,

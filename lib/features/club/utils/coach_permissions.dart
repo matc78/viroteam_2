@@ -8,6 +8,7 @@ class CoachPermissions {
     this.canInvitePlayers = true,
     this.canTakeAttendance = true,
     this.canViewFees = false,
+    this.canEditMemberLicenses = false,
   });
 
   final bool canCreateEvents;
@@ -15,6 +16,7 @@ class CoachPermissions {
   final bool canInvitePlayers;
   final bool canTakeAttendance;
   final bool canViewFees;
+  final bool canEditMemberLicenses;
 
   /// Defaults si le map est absent (clubs existants).
   static const CoachPermissions defaults = CoachPermissions();
@@ -27,8 +29,11 @@ class CoachPermissions {
       canManageTeamRoster:
           map[FirestoreFields.canManageTeamRoster] as bool? ?? true,
       canInvitePlayers: map[FirestoreFields.canInvitePlayers] as bool? ?? true,
-      canTakeAttendance: map[FirestoreFields.canTakeAttendance] as bool? ?? true,
+      canTakeAttendance:
+          map[FirestoreFields.canTakeAttendance] as bool? ?? true,
       canViewFees: map[FirestoreFields.canViewFees] as bool? ?? false,
+      canEditMemberLicenses:
+          map[FirestoreFields.canEditMemberLicenses] as bool? ?? false,
     );
   }
 
@@ -62,6 +67,15 @@ class CoachPermissions {
     return isCoach && canViewFees;
   }
 
+  /// True si le viewer peut modifier le numéro de licence d'un membre.
+  bool allowsEditMemberLicenses({
+    required bool isAdmin,
+    required bool isCoach,
+  }) {
+    if (isAdmin) return true;
+    return isCoach && canEditMemberLicenses;
+  }
+
   /// Payload Firestore pour `clubs/{clubId}.coachPermissions`.
   Map<String, bool> toMap() => {
         FirestoreFields.canCreateEvents: canCreateEvents,
@@ -69,6 +83,7 @@ class CoachPermissions {
         FirestoreFields.canInvitePlayers: canInvitePlayers,
         FirestoreFields.canTakeAttendance: canTakeAttendance,
         FirestoreFields.canViewFees: canViewFees,
+        FirestoreFields.canEditMemberLicenses: canEditMemberLicenses,
       };
 
   CoachPermissions copyWith({
@@ -77,14 +92,16 @@ class CoachPermissions {
     bool? canInvitePlayers,
     bool? canTakeAttendance,
     bool? canViewFees,
+    bool? canEditMemberLicenses,
   }) {
     return CoachPermissions(
       canCreateEvents: canCreateEvents ?? this.canCreateEvents,
-      canManageTeamRoster:
-          canManageTeamRoster ?? this.canManageTeamRoster,
+      canManageTeamRoster: canManageTeamRoster ?? this.canManageTeamRoster,
       canInvitePlayers: canInvitePlayers ?? this.canInvitePlayers,
       canTakeAttendance: canTakeAttendance ?? this.canTakeAttendance,
       canViewFees: canViewFees ?? this.canViewFees,
+      canEditMemberLicenses:
+          canEditMemberLicenses ?? this.canEditMemberLicenses,
     );
   }
 }

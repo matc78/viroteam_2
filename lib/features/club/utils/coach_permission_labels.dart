@@ -40,6 +40,11 @@ final coachPermissionLabels = <CoachPermissionLabel>[
     description: 'Accès lecture au suivi des cotisations du club.',
     apply: _applyCanViewFees,
   ),
+  CoachPermissionLabel(
+    label: 'Modifier les licences',
+    description: 'Éditer le numéro de licence des joueurs.',
+    apply: _applyCanEditMemberLicenses,
+  ),
 ];
 
 CoachPermissions _applyCanCreateEvents(CoachPermissions current, bool v) =>
@@ -56,3 +61,7 @@ CoachPermissions _applyCanTakeAttendance(CoachPermissions current, bool v) =>
 
 CoachPermissions _applyCanViewFees(CoachPermissions current, bool v) =>
     current.copyWith(canViewFees: v);
+
+CoachPermissions _applyCanEditMemberLicenses(
+        CoachPermissions current, bool v) =>
+    current.copyWith(canEditMemberLicenses: v);

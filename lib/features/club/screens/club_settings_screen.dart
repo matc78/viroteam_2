@@ -26,8 +26,7 @@ class ClubSettingsScreen extends ConsumerStatefulWidget {
   final String clubId;
 
   @override
-  ConsumerState<ClubSettingsScreen> createState() =>
-      _ClubSettingsScreenState();
+  ConsumerState<ClubSettingsScreen> createState() => _ClubSettingsScreenState();
 }
 
 class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
@@ -44,7 +43,8 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
         draft.canManageTeamRoster != current.canManageTeamRoster ||
         draft.canInvitePlayers != current.canInvitePlayers ||
         draft.canTakeAttendance != current.canTakeAttendance ||
-        draft.canViewFees != current.canViewFees;
+        draft.canViewFees != current.canViewFees ||
+        draft.canEditMemberLicenses != current.canEditMemberLicenses;
   }
 
   bool _seasonDirty(DateTime? configured) {
@@ -134,7 +134,8 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
       1 => permissions.canManageTeamRoster,
       2 => permissions.canInvitePlayers,
       3 => permissions.canTakeAttendance,
-      _ => permissions.canViewFees,
+      4 => permissions.canViewFees,
+      _ => permissions.canEditMemberLicenses,
     };
   }
 
@@ -285,10 +286,10 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                               ? 'Enregistrement…'
                               : 'Enregistrer la fin de saison',
                           isLoading: _seasonBusy,
-                          onPressed: _seasonBusy ||
-                                  !_seasonDirty(club.seasonEndDate)
-                              ? null
-                              : () => _saveSeason(club.seasonEndDate),
+                          onPressed:
+                              _seasonBusy || !_seasonDirty(club.seasonEndDate)
+                                  ? null
+                                  : () => _saveSeason(club.seasonEndDate),
                         ),
                       ),
                     ],
@@ -336,8 +337,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                           activeThumbColor: managementAccent,
                           onChanged: _coachBusy
                               ? null
-                              : (enabled) =>
-                                  _togglePermission(index, enabled),
+                              : (enabled) => _togglePermission(index, enabled),
                         ),
                       ],
                       Padding(
@@ -347,12 +347,12 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                               ? 'Enregistrement…'
                               : 'Enregistrer les droits coachs',
                           isLoading: _coachBusy,
-                          onPressed: _coachBusy ||
-                                  !_coachDirty(club.coachPermissions)
-                              ? null
-                              : () => _saveCoachPermissions(
-                                    club.coachPermissions,
-                                  ),
+                          onPressed:
+                              _coachBusy || !_coachDirty(club.coachPermissions)
+                                  ? null
+                                  : () => _saveCoachPermissions(
+                                        club.coachPermissions,
+                                      ),
                         ),
                       ),
                     ],

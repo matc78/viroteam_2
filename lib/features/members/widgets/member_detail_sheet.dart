@@ -18,6 +18,7 @@ import 'package:viro_team_v2/models/member_guardian.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
+import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
@@ -90,6 +91,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
   bool _busy = false;
 
   bool get _isAdmin => widget.viewerRole == MemberRoles.admin;
+  bool get _isCoach => widget.viewerRole == MemberRoles.coach;
 
   bool get _canSeeContact {
     if (_isAdmin) return true;
@@ -103,8 +105,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
         clubId: widget.club.id,
       );
 
-  Color get _accent =>
-      resolveClubBrandColors(
+  Color get _accent => resolveClubBrandColors(
         brandColorHex: widget.club.brandColorHex,
         clubId: widget.club.id,
       ).managementZoneColor;
@@ -123,13 +124,13 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
         clubId: widget.club.id,
         memberId: widget.member.memberId,
       );
-      final guardianFuture = _isAdmin &&
-              widget.member.role == MemberRoles.player
-          ? ref.read(guardianServiceProvider).getMemberGuardian(
-                clubId: widget.club.id,
-                memberId: widget.member.memberId,
-              )
-          : Future<MemberGuardianView?>.value(null);
+      final guardianFuture =
+          _isAdmin && widget.member.role == MemberRoles.player
+              ? ref.read(guardianServiceProvider).getMemberGuardian(
+                    clubId: widget.club.id,
+                    memberId: widget.member.memberId,
+                  )
+              : Future<MemberGuardianView?>.value(null);
 
       final results = await Future.wait<Object?>([
         licenseFuture,
@@ -155,6 +156,26 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       if (accountUid != null && fee.memberId == accountUid) return fee;
     }
     return null;
+  }
+
+  bool _canEditLicense(ClubMember? viewerMember) {
+    final targetRole = widget.member.role;
+    final isPlayerOrCoach =
+        targetRole == MemberRoles.player || targetRole == MemberRoles.coach;
+    if (!isPlayerOrCoach) return false;
+
+    if (_isAdmin) return true;
+
+    // Coach autorisé : uniquement les joueurs de ses équipes.
+    if (!_isCoach || viewerMember == null || targetRole != MemberRoles.player) {
+      return false;
+    }
+    final allowedByClub = widget.club.coachPermissions.allowsEditMemberLicenses(
+      isAdmin: false,
+      isCoach: true,
+    );
+    if (!allowedByClub) return false;
+    return viewerMember.teamIds.any(widget.member.teamIds.contains);
   }
 
   Future<void> _changeRole() async {
@@ -201,7 +222,8 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       if (!mounted) return;
       ViroSnackBar.show(
         context,
-        callableErrorMessage(error, fallback: 'Suppression du membre impossible.'),
+        callableErrorMessage(error,
+            fallback: 'Suppression du membre impossible.'),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -215,6 +237,79 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       member: widget.member,
     );
     await _loadExtras();
+  }
+
+  Future<void> _editLicense() async {
+    final controller = TextEditingController(text: _license ?? '');
+    String? localError;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Modifier la licence'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                hintText: 'Numéro de licence',
+                errorText: localError,
+              ),
+              onChanged: (value) {
+                final error = licenseError(value);
+                setDialogState(() => localError = error);
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final error = licenseError(controller.text);
+                  if (error != null) {
+                    setDialogState(() => localError = error);
+                    return;
+                  }
+                  Navigator.of(dialogContext).pop(true);
+                },
+                child: const Text('Enregistrer'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (saved != true) {
+      controller.dispose();
+      return;
+    }
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(memberServiceProvider).updateMemberLicense(
+            clubId: widget.club.id,
+            memberId: widget.member.memberId,
+            rawLicense: controller.text,
+          );
+      if (!mounted) return;
+      await _loadExtras();
+      ViroSnackBar.show(context, 'Licence mise à jour');
+    } catch (error) {
+      if (!mounted) return;
+      ViroSnackBar.show(
+        context,
+        callableErrorMessage(
+          error,
+          fallback: 'Modification de la licence impossible.',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+      controller.dispose();
+    }
   }
 
   String _roleLabel(String role) => switch (role) {
@@ -253,163 +348,173 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
         : '—';
     final showParentAction =
         _isAdmin && widget.member.role == MemberRoles.player;
-    final showAdminActions = _isAdmin;
+    final viewerMember = ref.watch(clubMemberProvider(widget.club.id)).value;
+    final canEditLicense = _canEditLicense(viewerMember);
     final showDangerAction =
         _isAdmin && widget.member.role != MemberRoles.admin;
-    final licenseValue = _loadingExtras
-        ? '…'
-        : (_license?.isNotEmpty == true ? _license! : '—');
+    final licenseValue =
+        _loadingExtras ? '…' : (_license?.isNotEmpty == true ? _license! : '—');
 
     return Material(
       color: ViroColors.surfaceCard,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       clipBehavior: Clip.antiAlias,
       child: ListView(
-              controller: widget.scrollController,
-              padding: const EdgeInsets.fromLTRB(
-                ViroSpacing.lg,
-                ViroSpacing.sm,
-                ViroSpacing.lg,
-                ViroSpacing.xl,
-              ),
+        controller: widget.scrollController,
+        padding: const EdgeInsets.fromLTRB(
+          ViroSpacing.lg,
+          ViroSpacing.sm,
+          ViroSpacing.lg,
+          ViroSpacing.xl,
+        ),
+        children: [
+          _ProfileHeader(
+            member: widget.member,
+            accent: accent,
+            accentStyle: accentStyle,
+            subtitle:
+                _canSeeContact && widget.member.email?.trim().isNotEmpty == true
+                    ? widget.member.email!.trim()
+                    : 'Compte lié',
+          ),
+          const SizedBox(height: ViroSpacing.lg),
+          _SectionLabel(label: 'Informations', accent: accent),
+          const SizedBox(height: ViroSpacing.sm),
+          ViroCard(
+            margin: EdgeInsets.zero,
+            padding: EdgeInsets.zero,
+            borderColor: accentStyle.border,
+            accentColor: accent,
+            child: Column(
               children: [
-                _ProfileHeader(
-                  member: widget.member,
+                _InfoRow(
+                  label: 'Inscription',
+                  value: 'Compte lié',
                   accent: accent,
-                  accentStyle: accentStyle,
-                  subtitle: _canSeeContact &&
-                          widget.member.email?.trim().isNotEmpty == true
-                      ? widget.member.email!.trim()
-                      : 'Compte lié',
                 ),
-                const SizedBox(height: ViroSpacing.lg),
-                _SectionLabel(label: 'Informations', accent: accent),
-                const SizedBox(height: ViroSpacing.sm),
-                ViroCard(
-                  margin: EdgeInsets.zero,
-                  padding: EdgeInsets.zero,
-                  borderColor: accentStyle.border,
-                  accentColor: accent,
-                  child: Column(
-                    children: [
-                      _InfoRow(
-                        label: 'Inscription',
-                        value: 'Compte lié',
-                        accent: accent,
-                      ),
-                      _InfoDivider(color: accentStyle.border),
-                      _InfoRow(
-                        label: 'E-mail',
-                        value: emailDisplay,
-                        accent: accent,
-                      ),
-                      _InfoDivider(color: accentStyle.border),
-                      _InfoRow(
-                        label: 'Équipes',
-                        value: teamLabels.isNotEmpty
-                            ? teamLabels.join(', ')
-                            : 'Aucune',
-                        accent: accent,
-                      ),
-                      _InfoDivider(color: accentStyle.border),
-                      _InfoRow(
-                        label: 'Cotisation',
-                        value: feeLabel,
-                        accent: accent,
-                      ),
-                    ],
-                  ),
+                _InfoDivider(color: accentStyle.border),
+                _InfoRow(
+                  label: 'E-mail',
+                  value: emailDisplay,
+                  accent: accent,
                 ),
-                if (showAdminActions) ...[
-                  const SizedBox(height: ViroSpacing.lg),
-                  _SectionLabel(label: 'Administration', accent: accent),
-                  const SizedBox(height: ViroSpacing.sm),
-                  ViroCard(
-                    margin: EdgeInsets.zero,
-                    padding: EdgeInsets.zero,
-                    borderColor: accentStyle.border,
-                    accentColor: accent,
-                    child: Column(
-                      children: [
-                        _InfoRow(
-                          label: 'Licence',
-                          value: licenseValue,
-                          accent: accent,
-                        ),
-                        if (showParentAction) ...[
-                          _InfoDivider(color: accentStyle.border),
-                          _ActionRow(
-                            label: 'Parent',
-                            subtitle: _parentSubtitle(),
-                            accent: accent,
-                            loading: _loadingExtras,
-                            onTap: _busy ? null : _openParentSheet,
-                          ),
-                        ],
-                        _InfoDivider(color: accentStyle.border),
-                        _ActionRow(
-                          label: 'Rôle',
-                          subtitle: _roleLabel(widget.member.role),
-                          accent: accent,
-                          onTap: _busy ? null : _changeRole,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                if (showDangerAction) ...[
-                  const SizedBox(height: ViroSpacing.lg),
-                  if (_confirmRemove) ...[
-                    Text(
-                      'Confirmer la suppression de ${widget.member.fullName} ?',
-                      textAlign: TextAlign.center,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: ViroColors.gray600,
-                      ),
-                    ),
-                    const SizedBox(height: ViroSpacing.md),
-                    FilledButton(
-                      onPressed: _busy ? null : _removeMember,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: ViroColors.error,
-                        foregroundColor: ViroColors.white,
-                        minimumSize: const Size.fromHeight(
-                          ViroSpacing.buttonHeightLarge,
-                        ),
-                      ),
-                      child: _busy
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: ViroColors.white,
-                              ),
-                            )
-                          : const Text('Confirmer la suppression'),
-                    ),
-                    const SizedBox(height: ViroSpacing.sm),
-                    OutlinedButton(
-                      onPressed: _busy
-                          ? null
-                          : () => setState(() => _confirmRemove = false),
-                      child: const Text('Annuler'),
-                    ),
-                  ] else
-                    Center(
-                      child: TextButton(
-                        onPressed: _busy
-                            ? null
-                            : () => setState(() => _confirmRemove = true),
-                        style: TextButton.styleFrom(
-                          foregroundColor: ViroColors.error,
-                        ),
-                        child: const Text('Supprimer le membre'),
-                      ),
+                _InfoDivider(color: accentStyle.border),
+                _InfoRow(
+                  label: 'Équipes',
+                  value:
+                      teamLabels.isNotEmpty ? teamLabels.join(', ') : 'Aucune',
+                  accent: accent,
+                ),
+                _InfoDivider(color: accentStyle.border),
+                _InfoRow(
+                  label: 'Cotisation',
+                  value: feeLabel,
+                  accent: accent,
+                ),
+                if (canEditLicense || _isAdmin) ...[
+                  _InfoDivider(color: accentStyle.border),
+                  if (canEditLicense)
+                    _ActionRow(
+                      label: 'Licence',
+                      subtitle: licenseValue == '—'
+                          ? 'Ajouter un numéro'
+                          : licenseValue,
+                      accent: accent,
+                      loading: _loadingExtras,
+                      onTap: _busy ? null : _editLicense,
+                    )
+                  else
+                    _InfoRow(
+                      label: 'Licence',
+                      value: licenseValue,
+                      accent: accent,
                     ),
                 ],
               ],
             ),
+          ),
+          if (_isAdmin) ...[
+            const SizedBox(height: ViroSpacing.lg),
+            _SectionLabel(label: 'Administration', accent: accent),
+            const SizedBox(height: ViroSpacing.sm),
+            ViroCard(
+              margin: EdgeInsets.zero,
+              padding: EdgeInsets.zero,
+              borderColor: accentStyle.border,
+              accentColor: accent,
+              child: Column(
+                children: [
+                  if (showParentAction)
+                    _ActionRow(
+                      label: 'Parent',
+                      subtitle: _parentSubtitle(),
+                      accent: accent,
+                      loading: _loadingExtras,
+                      onTap: _busy ? null : _openParentSheet,
+                    ),
+                  if (showParentAction) _InfoDivider(color: accentStyle.border),
+                  _ActionRow(
+                    label: 'Rôle',
+                    subtitle: _roleLabel(widget.member.role),
+                    accent: accent,
+                    onTap: _busy ? null : _changeRole,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (showDangerAction) ...[
+            const SizedBox(height: ViroSpacing.lg),
+            if (_confirmRemove) ...[
+              Text(
+                'Confirmer la suppression de ${widget.member.fullName} ?',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: ViroColors.gray600,
+                ),
+              ),
+              const SizedBox(height: ViroSpacing.md),
+              FilledButton(
+                onPressed: _busy ? null : _removeMember,
+                style: FilledButton.styleFrom(
+                  backgroundColor: ViroColors.error,
+                  foregroundColor: ViroColors.white,
+                  minimumSize: const Size.fromHeight(
+                    ViroSpacing.buttonHeightLarge,
+                  ),
+                ),
+                child: _busy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: ViroColors.white,
+                        ),
+                      )
+                    : const Text('Confirmer la suppression'),
+              ),
+              const SizedBox(height: ViroSpacing.sm),
+              OutlinedButton(
+                onPressed:
+                    _busy ? null : () => setState(() => _confirmRemove = false),
+                child: const Text('Annuler'),
+              ),
+            ] else
+              Center(
+                child: TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _confirmRemove = true),
+                  style: TextButton.styleFrom(
+                    foregroundColor: ViroColors.error,
+                  ),
+                  child: const Text('Supprimer le membre'),
+                ),
+              ),
+          ],
+        ],
+      ),
     );
   }
 }

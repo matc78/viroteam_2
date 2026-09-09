@@ -63,6 +63,9 @@ abstract final class FirestoreFields {
   static const String memberCount = 'memberCount';
   static const String seasonEndDate = 'seasonEndDate';
 
+  /// Dernier envoi groupé « inviter tous les non inscrits » (cooldown 1 h).
+  static const String lastBulkMemberInviteAt = 'lastBulkMemberInviteAt';
+
   // members/{memberId}
   static const String userId = 'userId';
   static const String memberId = 'memberId';
@@ -148,6 +151,7 @@ abstract final class FirestoreFields {
   static const String canInvitePlayers = 'canInvitePlayers';
   static const String canTakeAttendance = 'canTakeAttendance';
   static const String canViewFees = 'canViewFees';
+  static const String canEditMemberLicenses = 'canEditMemberLicenses';
 
   // fee_seasons / member_fees
   static const String seasonLabel = 'seasonLabel';

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:viro_team_v2/app/viro_app.dart';
 import 'package:viro_team_v2/firebase_options.dart';
+import 'package:viro_team_v2/utils/viro_debug_log.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,10 +22,17 @@ Future<void> main() async {
   // gonfler le crash rate Play / Android Vitals. Les vrais crashes isolés
   // restent fatals via [PlatformDispatcher.onError].
   FlutterError.onError = (details) {
+    ViroDebugLog.error(
+      details.exceptionAsString(),
+      details.stack,
+    );
     FlutterError.presentError(details);
     FirebaseCrashlytics.instance.recordFlutterError(details);
   };
   PlatformDispatcher.instance.onError = (error, stack) {
+    // En debug Crashlytics est off : sans ce dump, l'erreur disparaît
+    // (return true = « gérée », plus de fallback console Flutter).
+    ViroDebugLog.error(error, stack);
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };

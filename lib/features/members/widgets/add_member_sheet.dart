@@ -98,15 +98,16 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
     });
 
     try {
-      final result = await ref.read(memberServiceProvider).addMemberWithInvitation(
-            clubId: widget.club.id,
-            firstName: _firstNameController.text.trim(),
-            lastName: _lastNameController.text.trim(),
-            role: _role,
-            sentByUid: auth.uid,
-            club: widget.club,
-            email: normalizeEmail(_emailController.text),
-          );
+      final result =
+          await ref.read(memberServiceProvider).addMemberWithInvitation(
+                clubId: widget.club.id,
+                firstName: _firstNameController.text.trim(),
+                lastName: _lastNameController.text.trim(),
+                role: _role,
+                sentByUid: auth.uid,
+                club: widget.club,
+                email: normalizeEmail(_emailController.text),
+              );
       if (!mounted) return;
       setState(() {
         _created = result;
@@ -128,10 +129,11 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
 
   Future<bool> _sendEmailInvite() async {
     try {
-      final result = await ref.read(memberInviteServiceProvider).sendMemberInvites(
-            clubId: widget.club.id,
-            memberIds: [_member.memberId],
-          );
+      final result =
+          await ref.read(memberInviteServiceProvider).sendMemberInvites(
+        clubId: widget.club.id,
+        memberIds: [_member.memberId],
+      );
       if (result.sent > 0) return true;
       final first = result.results.isNotEmpty ? result.results.first : null;
       throw Exception(
@@ -213,25 +215,64 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: ViroSpacing.md),
-        SegmentedButton<String>(
-          style: ClubAccentTheme.segmentedButtonStyle(
-            theme.colorScheme.primary,
-            theme.colorScheme.onPrimary,
-          ),
-          segments: const [
-            ButtonSegment(
-              value: MemberRoles.player,
-              label: Text('Joueur'),
+        Row(
+          children: [
+            Expanded(
+              child: ChoiceChip(
+                label: const Text('Joueur'),
+                selected: _role == MemberRoles.player,
+                onSelected: _busy
+                    ? null
+                    : (selected) {
+                        if (selected) {
+                          setState(() => _role = MemberRoles.player);
+                        }
+                      },
+                showCheckmark: false,
+                selectedColor: ViroColors.playerBadgeStart,
+                backgroundColor: ViroColors.gray50,
+                side: BorderSide(
+                  color: _role == MemberRoles.player
+                      ? ViroColors.playerBadgeStart
+                      : ViroColors.gray200,
+                ),
+                labelStyle: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: _role == MemberRoles.player
+                      ? ViroColors.white
+                      : ViroColors.playerBadgeEnd,
+                ),
+              ),
             ),
-            ButtonSegment(
-              value: MemberRoles.coach,
-              label: Text('Coach'),
+            const SizedBox(width: ViroSpacing.sm),
+            Expanded(
+              child: ChoiceChip(
+                label: const Text('Coach'),
+                selected: _role == MemberRoles.coach,
+                onSelected: _busy
+                    ? null
+                    : (selected) {
+                        if (selected) {
+                          setState(() => _role = MemberRoles.coach);
+                        }
+                      },
+                showCheckmark: false,
+                selectedColor: ViroColors.coachBadgeStart,
+                backgroundColor: ViroColors.gray50,
+                side: BorderSide(
+                  color: _role == MemberRoles.coach
+                      ? ViroColors.coachBadgeStart
+                      : ViroColors.gray200,
+                ),
+                labelStyle: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: _role == MemberRoles.coach
+                      ? ViroColors.white
+                      : ViroColors.coachBadgeEnd,
+                ),
+              ),
             ),
           ],
-          selected: {_role},
-          onSelectionChanged: _busy
-              ? null
-              : (selection) => setState(() => _role = selection.first),
         ),
         if (_error != null) ...[
           const SizedBox(height: ViroSpacing.md),

@@ -72,8 +72,7 @@ class PracticeLocation {
       city: city ?? this.city,
       category: category ?? this.category,
       categoryCustom: categoryCustom ?? this.categoryCustom,
-      linkedToHeadquarters:
-          linkedToHeadquarters ?? this.linkedToHeadquarters,
+      linkedToHeadquarters: linkedToHeadquarters ?? this.linkedToHeadquarters,
     );
   }
 }
@@ -98,6 +97,7 @@ class Club {
     this.seasonEndDate,
     this.createdAt,
     this.coachPermissions = CoachPermissions.defaults,
+    this.lastBulkMemberInviteAt,
   });
 
   final String id;
@@ -114,13 +114,19 @@ class Club {
   final List<String> adminIds;
   final int memberCount;
   final String? helloAssoOrganizationSlug;
+
   /// Paiement en ligne HelloAsso proposé aux membres (défaut : désactivé).
   final bool onlinePaymentEnabled;
+
   /// Fin de saison sportive (récurrence planning).
   final DateTime? seasonEndDate;
   final DateTime? createdAt;
+
   /// Droits coach du club (édition portail).
   final CoachPermissions coachPermissions;
+
+  /// Dernier envoi groupé d’invitations aux non inscrits.
+  final DateTime? lastBulkMemberInviteAt;
 
   factory Club.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -159,6 +165,9 @@ class Club {
           (data[FirestoreFields.seasonEndDate] as Timestamp?)?.toDate(),
       createdAt: (data[FirestoreFields.createdAt] as Timestamp?)?.toDate(),
       coachPermissions: CoachPermissions.fromMap(permissionsRaw),
+      lastBulkMemberInviteAt:
+          (data[FirestoreFields.lastBulkMemberInviteAt] as Timestamp?)
+              ?.toDate(),
     );
   }
 }

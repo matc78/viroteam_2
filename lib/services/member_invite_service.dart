@@ -64,25 +64,29 @@ class SendMemberInviteItemResult {
 /// Envoi des e-mails d’invitation membre via Brevo (admin club).
 class MemberInviteService {
   MemberInviteService({FirebaseFunctions? functions})
-      : _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'europe-west1');
+      : _functions =
+            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1');
 
   final FirebaseFunctions _functions;
 
   /// Envoie les invitations par e-mail pour les membres donnés.
   ///
-  /// Retourne le résultat agrégé ; lève une [Exception] si aucun envoi réussi
-  /// et qu’une raison est disponible.
+  /// Retourne le résultat agrégé. Peut être rappelé plusieurs fois
+  /// (réutilise ou recrée les codes côté serveur).
   Future<SendMemberInvitesResult> sendMemberInvites({
     required String clubId,
     required List<String> memberIds,
   }) async {
     final callable =
         _functions.httpsCallable(cloudCallableName('sendMemberInvites'));
-    final response = await callable.call<Map<String, dynamic>>({
+    final response = await callable.call<dynamic>({
       'clubId': clubId,
       'memberIds': memberIds,
     });
-    return SendMemberInvitesResult.fromMap(response.data);
+    final raw = response.data;
+    if (raw is! Map) {
+      throw StateError('Réponse sendMemberInvites invalide.');
+    }
+    return SendMemberInvitesResult.fromMap(Map<String, dynamic>.from(raw));
   }
 }

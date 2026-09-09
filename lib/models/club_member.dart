@@ -85,6 +85,10 @@ class ClubMember {
       (pendingInviteExpiresAt == null ||
           DateTime.now().isBefore(pendingInviteExpiresAt!));
 
+  /// Éligible à un e-mail d’invitation : pas encore de compte + e-mail renseigné.
+  bool get canReceiveInviteEmail =>
+      !hasLinkedAccount && (email?.trim().isNotEmpty ?? false);
+
   /// Joueur invité sans compte (`pending_members`) affiché dans un roster.
   factory ClubMember.fromPendingRoster({
     required String pendingId,
@@ -119,9 +123,7 @@ class ClubMember {
     // Legacy : fondateurs / membres inscrits avant accountUid utilisaient userId.
     final legacyUserId = data[FirestoreFields.userId] as String?;
     final accountUid = data[FirestoreFields.accountUid] as String? ??
-        (legacyUserId != null && legacyUserId.isNotEmpty
-            ? legacyUserId
-            : null);
+        (legacyUserId != null && legacyUserId.isNotEmpty ? legacyUserId : null);
 
     return ClubMember(
       memberId: data[FirestoreFields.memberId] as String? ?? doc.id,
@@ -138,8 +140,7 @@ class ClubMember {
               .toList() ??
           [],
       joinedAt: (data[FirestoreFields.joinedAt] as Timestamp?)?.toDate(),
-      activeInvitationId:
-          data[FirestoreFields.activeInvitationId] as String?,
+      activeInvitationId: data[FirestoreFields.activeInvitationId] as String?,
       dismissedAnnouncementIds:
           (data[FirestoreFields.dismissedAnnouncementIds] as List<dynamic>?)
                   ?.whereType<String>()

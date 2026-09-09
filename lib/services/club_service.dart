@@ -23,9 +23,10 @@ class ClubService {
     FirebaseFunctions? functions,
     RetourUserService? retourUserService,
   })  : _db = firestore ?? appFirestore,
-        _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'europe-west1'),
-        _retourUser = retourUserService ?? RetourUserService(firestore: firestore);
+        _functions =
+            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1'),
+        _retourUser =
+            retourUserService ?? RetourUserService(firestore: firestore);
 
   final FirebaseFirestore _db;
   final FirebaseFunctions _functions;
@@ -55,9 +56,8 @@ class ClubService {
     final results = <Club>[];
     for (var i = 0; i < ids.length; i += 10) {
       final chunk = ids.skip(i).take(10).toList();
-      final snap = await _clubs
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get();
+      final snap =
+          await _clubs.where(FieldPath.documentId, whereIn: chunk).get();
       results.addAll(snap.docs.map(Club.fromFirestore));
     }
     return results;
@@ -69,9 +69,8 @@ class ClubService {
     required ClubSetupDraft draft,
   }) async {
     final clubRef = _clubs.doc();
-    final memberRef = clubRef
-        .collection(ProjectConfig.membersSubcollection)
-        .doc(founderUid);
+    final memberRef =
+        clubRef.collection(ProjectConfig.membersSubcollection).doc(founderUid);
     final userRef =
         _db.collection(ProjectConfig.usersCollection).doc(founderUid);
 
@@ -83,11 +82,11 @@ class ClubService {
       // Firestore : toutes les lectures avant les écritures.
       final userSnap = await tx.get(userRef);
       final data = userSnap.data() ?? {};
-      final memberships = (data[FirestoreFields.clubMemberships]
-                  as List<dynamic>?)
-              ?.whereType<Map<String, dynamic>>()
-              .toList() ??
-          [];
+      final memberships =
+          (data[FirestoreFields.clubMemberships] as List<dynamic>?)
+                  ?.whereType<Map<String, dynamic>>()
+                  .toList() ??
+              [];
       memberships.add(
         ClubMembershipSummary(
           clubId: clubRef.id,
@@ -104,26 +103,26 @@ class ClubService {
         if (draft.description.trim().isNotEmpty)
           FirestoreFields.description: draft.description.trim(),
         FirestoreFields.brandColorHex: draft.brandColorHex,
-        FirestoreFields.practiceLocations: draft.practiceLocations
-            .map((location) {
-              final cityValue = location.city;
-              final addressValue = location.address;
-              return PracticeLocation(
-                name: location.name,
-                city: cityValue == null || cityValue.trim().isEmpty
-                    ? null
-                    : formatCity(cityValue),
-                address: addressValue == null || addressValue.trim().isEmpty
-                    ? null
-                    : formatAddressLine(addressValue),
-                category: location.category,
-                categoryCustom: location.categoryCustom,
-              ).toFirestoreMap();
-            })
-            .toList(),
+        FirestoreFields.practiceLocations:
+            draft.practiceLocations.map((location) {
+          final cityValue = location.city;
+          final addressValue = location.address;
+          return PracticeLocation(
+            name: location.name,
+            city: cityValue == null || cityValue.trim().isEmpty
+                ? null
+                : formatCity(cityValue),
+            address: addressValue == null || addressValue.trim().isEmpty
+                ? null
+                : formatAddressLine(addressValue),
+            category: location.category,
+            categoryCustom: location.categoryCustom,
+          ).toFirestoreMap();
+        }).toList(),
         FirestoreFields.adminIds: [founderUid],
         FirestoreFields.memberCount: 1,
-        FirestoreFields.seasonEndDate: Timestamp.fromDate(defaultSeasonEndDate()),
+        FirestoreFields.seasonEndDate:
+            Timestamp.fromDate(defaultSeasonEndDate()),
         FirestoreFields.createdAt: FieldValue.serverTimestamp(),
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       });
@@ -253,23 +252,21 @@ class ClubService {
     required List<PracticeLocation> locations,
   }) async {
     await _clubs.doc(clubId).update({
-      FirestoreFields.practiceLocations: locations
-          .map((location) {
-            final cityValue = location.city;
-            final addressValue = location.address;
-            return PracticeLocation(
-              name: location.name,
-              city: cityValue == null || cityValue.trim().isEmpty
-                  ? null
-                  : formatCity(cityValue),
-              address: addressValue == null || addressValue.trim().isEmpty
-                  ? null
-                  : formatAddressLine(addressValue),
-              category: location.category,
-              categoryCustom: location.categoryCustom,
-            ).toFirestoreMap();
-          })
-          .toList(),
+      FirestoreFields.practiceLocations: locations.map((location) {
+        final cityValue = location.city;
+        final addressValue = location.address;
+        return PracticeLocation(
+          name: location.name,
+          city: cityValue == null || cityValue.trim().isEmpty
+              ? null
+              : formatCity(cityValue),
+          address: addressValue == null || addressValue.trim().isEmpty
+              ? null
+              : formatAddressLine(addressValue),
+          category: location.category,
+          categoryCustom: location.categoryCustom,
+        ).toFirestoreMap();
+      }).toList(),
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     });
   }
@@ -281,6 +278,14 @@ class ClubService {
   }) async {
     await _clubs.doc(clubId).update({
       FirestoreFields.coachPermissions: permissions.toMap(),
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Enregistre l’horodatage du dernier envoi groupé d’invitations membres.
+  Future<void> markBulkMemberInviteSent({required String clubId}) async {
+    await _clubs.doc(clubId).update({
+      FirestoreFields.lastBulkMemberInviteAt: FieldValue.serverTimestamp(),
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     });
   }

@@ -21,7 +21,19 @@ const playStoreUrl = defineString("PLAY_STORE_URL", {
 });
 
 const MAX_MEMBER_IDS = 100;
+const INVITE_TTL_DAYS = 7;
 const INVITATION_STATUS_PENDING = "pending";
+const INVITATION_STATUS_EXPIRED = "expired";
+const INVITATION_TYPE_MEMBER = "member";
+
+function generateInviteCode(length = 6): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < length; i += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
+}
 
 type InviteSendItemResult = {
   memberId: string;
@@ -90,6 +102,129 @@ function inviteStillValid(expiresAt: admin.firestore.Timestamp | Date | null): b
       ? expiresAt.toDate()
       : expiresAt;
   return date.getTime() > Date.now();
+}
+
+type EnsuredInvite = {
+  code: string;
+  inviteRef: admin.firestore.DocumentReference;
+};
+
+/**
+ * Réutilise une invitation pending encore valide, sinon en crée une nouvelle
+ * (et expire l’ancienne pending si présente).
+ */
+async function ensurePendingInvite(params: {
+  clubId: string;
+  memberId: string;
+  memberData: admin.firestore.DocumentData;
+  email: string;
+  clubName: string;
+  clubSport: string;
+  callerUid: string;
+}): Promise<EnsuredInvite> {
+  const {
+    clubId,
+    memberId,
+    memberData,
+    email,
+    clubName,
+    clubSport,
+    callerUid,
+  } = params;
+
+  const memberRef = db()
+    .collection("clubs")
+    .doc(clubId)
+    .collection("members")
+    .doc(memberId);
+  const invitationsCol = db()
+    .collection("clubs")
+    .doc(clubId)
+    .collection("invitations");
+
+  const inviteId = String(memberData.activeInvitationId ?? "").trim();
+  if (inviteId) {
+    const inviteSnap = await invitationsCol.doc(inviteId).get();
+    if (inviteSnap.exists) {
+      const inviteData = inviteSnap.data()!;
+      const status = String(inviteData.status ?? "");
+      const expiresAt =
+        inviteData.expiresAt instanceof admin.firestore.Timestamp
+          ? inviteData.expiresAt
+          : null;
+      const code = String(inviteData.code ?? "").trim().toUpperCase();
+      if (
+        status === INVITATION_STATUS_PENDING &&
+        inviteStillValid(expiresAt) &&
+        code
+      ) {
+        // Prolonge la validité à chaque renvoi (réutilisation du même code).
+        const refreshedExpiresAt = new Date();
+        refreshedExpiresAt.setDate(
+          refreshedExpiresAt.getDate() + INVITE_TTL_DAYS,
+        );
+        await inviteSnap.ref.update({
+          expiresAt: admin.firestore.Timestamp.fromDate(refreshedExpiresAt),
+          email,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { code, inviteRef: inviteSnap.ref };
+      }
+    }
+  }
+
+  const role = String(memberData.role ?? "player").trim() || "player";
+  const firstName = String(memberData.firstName ?? "").trim();
+  const lastName = String(memberData.lastName ?? "").trim();
+  const code = generateInviteCode();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + INVITE_TTL_DAYS);
+  const newInviteRef = invitationsCol.doc();
+
+  await db().runTransaction(async (tx) => {
+    const freshMemberSnap = await tx.get(memberRef);
+    if (!freshMemberSnap.exists) {
+      throw new Error("Membre introuvable");
+    }
+    const freshData = freshMemberSnap.data()!;
+    const previousInviteId = String(freshData.activeInvitationId ?? "").trim();
+    if (previousInviteId) {
+      const previousInviteRef = invitationsCol.doc(previousInviteId);
+      const previousInviteSnap = await tx.get(previousInviteRef);
+      if (
+        previousInviteSnap.exists &&
+        String(previousInviteSnap.data()?.status ?? "") ===
+          INVITATION_STATUS_PENDING
+      ) {
+        tx.update(previousInviteRef, {
+          status: INVITATION_STATUS_EXPIRED,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    tx.set(newInviteRef, {
+      code,
+      type: INVITATION_TYPE_MEMBER,
+      role,
+      status: INVITATION_STATUS_PENDING,
+      email,
+      memberId,
+      sentBy: callerUid,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      clubName,
+      clubSport,
+      firstName,
+      lastName,
+    });
+    tx.update(memberRef, {
+      activeInvitationId: newInviteRef.id,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+
+  return { code, inviteRef: newInviteRef };
 }
 
 function buildJoinUrl(code: string): string {
@@ -221,10 +356,15 @@ export const {
         }
 
         const memberData = memberSnap.data()!;
-        const accountUid = String(
-          memberData.accountUid ?? memberData.userId ?? "",
-        ).trim();
-        if (accountUid) {
+        const accountUid = String(memberData.accountUid ?? "").trim();
+        const legacyUserId = String(memberData.userId ?? "").trim();
+        let linkedUid = accountUid;
+        // Legacy `userId` : ne considérer comme lié que si le profil users existe.
+        if (!linkedUid && legacyUserId) {
+          const userSnap = await db().collection("users").doc(legacyUserId).get();
+          if (userSnap.exists) linkedUid = legacyUserId;
+        }
+        if (linkedUid) {
           skipped += 1;
           results.push({
             memberId,
@@ -238,8 +378,24 @@ export const {
           memberData.snapshot && typeof memberData.snapshot === "object"
             ? (memberData.snapshot as Record<string, unknown>)
             : {};
-        const email = normalizeEmail(snapshot.email);
-        if (!email) {
+        // E-mail : snapshot d’abord ; sinon champ membre ; sinon invitation active.
+        let resolvedEmail =
+          normalizeEmail(snapshot.email) ?? normalizeEmail(memberData.email);
+        if (!resolvedEmail) {
+          const inviteId = String(memberData.activeInvitationId ?? "").trim();
+          if (inviteId) {
+            const inviteSnap = await db()
+              .collection("clubs")
+              .doc(clubId)
+              .collection("invitations")
+              .doc(inviteId)
+              .get();
+            if (inviteSnap.exists) {
+              resolvedEmail = normalizeEmail(inviteSnap.data()?.email);
+            }
+          }
+        }
+        if (!resolvedEmail) {
           skipped += 1;
           results.push({
             memberId,
@@ -248,90 +404,34 @@ export const {
           });
           continue;
         }
+        const email = resolvedEmail;
 
-        const inviteId = String(memberData.activeInvitationId ?? "").trim();
-        if (!inviteId) {
-          skipped += 1;
-          results.push({
-            memberId,
-            status: "skipped",
-            reason: "Aucune invitation active",
-          });
-          continue;
-        }
+        const clubSport = String(club.sport ?? "").trim();
+        const ensured = await ensurePendingInvite({
+          clubId,
+          memberId,
+          memberData,
+          email,
+          clubName,
+          clubSport,
+          callerUid,
+        });
 
-        const inviteSnap = await db()
-          .collection("clubs")
-          .doc(clubId)
-          .collection("invitations")
-          .doc(inviteId)
-          .get();
-
-        if (!inviteSnap.exists) {
-          skipped += 1;
-          results.push({
-            memberId,
-            status: "skipped",
-            reason: "Invitation introuvable",
-          });
-          continue;
-        }
-
-        const inviteData = inviteSnap.data()!;
-        if (String(inviteData.status ?? "") !== INVITATION_STATUS_PENDING) {
-          skipped += 1;
-          results.push({
-            memberId,
-            status: "skipped",
-            reason: "Invitation déjà traitée",
-          });
-          continue;
-        }
-
-        const expiresAt =
-          inviteData.expiresAt instanceof admin.firestore.Timestamp
-            ? inviteData.expiresAt
-            : null;
-        if (!inviteStillValid(expiresAt)) {
-          skipped += 1;
-          results.push({
-            memberId,
-            status: "skipped",
-            reason: "Invitation expirée",
-          });
-          continue;
-        }
-
-        const code = String(inviteData.code ?? "").trim().toUpperCase();
-        if (!code) {
-          skipped += 1;
-          results.push({
-            memberId,
-            status: "skipped",
-            reason: "Code manquant",
-          });
-          continue;
-        }
-
-        const firstName = String(
-          memberData.firstName ?? inviteData.firstName ?? "",
-        ).trim();
-        const lastName = String(
-          memberData.lastName ?? inviteData.lastName ?? "",
-        ).trim();
+        const firstName = String(memberData.firstName ?? "").trim();
+        const lastName = String(memberData.lastName ?? "").trim();
         const displayName =
           [firstName, lastName].filter(Boolean).join(" ") || undefined;
-        const joinUrl = buildJoinUrl(code);
+        const joinUrl = buildJoinUrl(ensured.code);
         const textContent = buildInviteText({
           clubName,
           firstName,
-          code,
+          code: ensured.code,
           joinUrl,
         });
         const htmlContent = buildInviteHtml({
           clubName,
           firstName,
-          code,
+          code: ensured.code,
           joinUrl,
         });
 
@@ -346,7 +446,7 @@ export const {
           tags: ["member-invite", clubId],
         });
 
-        await inviteSnap.ref.update({
+        await ensured.inviteRef.update({
           lastEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
           lastEmailSentBy: callerUid,
           lastEmailTo: email,

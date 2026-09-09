@@ -26,9 +26,12 @@ class MemberListTile extends StatelessWidget {
     this.onInviteParent,
     this.onSendEmailInvite,
     this.onTap,
+    this.onLongPress,
     this.showClubAdminActions = true,
     this.accentColor,
     this.parentLinkStatus,
+    this.selectionMode = false,
+    this.selected = false,
   });
 
   final ClubMember member;
@@ -39,22 +42,25 @@ class MemberListTile extends StatelessWidget {
   final VoidCallback? onInviteParent;
   final Future<bool> Function()? onSendEmailInvite;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   /// `false` dans un roster d'équipe : pas de menu admin ni copie d'invitation.
   final bool showClubAdminActions;
   final Color? accentColor;
   final ParentLinkStatus? parentLinkStatus;
+  final bool selectionMode;
+  final bool selected;
 
   bool get _isAdmin => viewerRole == MemberRoles.admin;
+  bool get _canEmailInvite =>
+      showClubAdminActions &&
+      member.canReceiveInviteEmail &&
+      onSendEmailInvite != null;
+
   bool get _canCopyInvite =>
       showClubAdminActions &&
       member.hasPendingInvite &&
       !member.hasLinkedAccount;
-
-  bool get _canEmailInvite =>
-      _canCopyInvite &&
-      (member.email?.trim().isNotEmpty ?? false) &&
-      onSendEmailInvite != null;
 
   Future<void> _copyInvite(BuildContext context) async {
     if (member.pendingInviteCode == null) return;
@@ -87,6 +93,8 @@ class MemberListTile extends StatelessWidget {
         vertical: ViroSpacing.sm,
       ),
       onTap: onTap,
+      onLongPress: onLongPress,
+      borderColor: selected ? accent : null,
       child: Row(
         children: [
           MemberAvatar(member: member, accentColor: accent),
@@ -142,18 +150,18 @@ class MemberListTile extends StatelessWidget {
               ],
             ),
           ),
-          if (_canEmailInvite)
+          if (!selectionMode && _canEmailInvite)
             InviteEmailButton(
               variant: InviteEmailButtonVariant.ghost,
               onSend: onSendEmailInvite!,
             ),
-          if (_canCopyInvite && !_canEmailInvite)
+          if (!selectionMode && _canCopyInvite && !_canEmailInvite)
             IconButton(
               icon: ViroIcon(ViroIcons.copy, color: accent),
               tooltip: 'Copier le code d\'invitation',
               onPressed: () => _copyInvite(context),
             ),
-          if (!showClubAdminActions && onRemove != null)
+          if (!selectionMode && !showClubAdminActions && onRemove != null)
             IconButton(
               icon: Icon(
                 Icons.remove_circle_outline,
@@ -163,7 +171,8 @@ class MemberListTile extends StatelessWidget {
               onPressed: onRemove,
               tooltip: 'Retirer de l\'équipe',
             ),
-          if (showClubAdminActions &&
+          if (!selectionMode &&
+              showClubAdminActions &&
               _isAdmin &&
               member.role != MemberRoles.admin)
             PopupMenuButton<String>(
@@ -193,6 +202,14 @@ class MemberListTile extends StatelessWidget {
                   child: Text('Supprimer'),
                 ),
               ],
+            ),
+          if (selectionMode)
+            Padding(
+              padding: const EdgeInsets.only(left: ViroSpacing.xs),
+              child: ViroIcon(
+                selected ? ViroIcons.checkCircle : ViroIcons.selectAll,
+                color: selected ? accent : ViroColors.gray400,
+              ),
             ),
         ],
       ),

@@ -88,8 +88,8 @@ class MemberService {
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
   })  : _db = firestore ?? appFirestore,
-        _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'europe-west1');
+        _functions =
+            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1');
 
   final FirebaseFirestore _db;
   final FirebaseFunctions _functions;
@@ -123,20 +123,22 @@ class MemberService {
     bool enrichPendingInvites = false,
   }) {
     return _members(clubId).snapshots().asyncMap((snap) async {
-      final members = <ClubMember>[];
-      for (final doc in snap.docs) {
-        var member = ClubMember.fromFirestore(doc);
-        try {
-          member = await _enrichMember(
-            clubId,
-            member,
-            enrichPendingInvites: enrichPendingInvites,
-          );
-        } catch (_) {
-          // Fiche brute si l’enrichissement échoue (avatar / invite).
-        }
-        members.add(member);
-      }
+      final baseMembers = snap.docs.map(ClubMember.fromFirestore).toList();
+      final membersByAccountUid = await _loadMembersByAccountUid(baseMembers);
+      final pendingInvitationsById = enrichPendingInvites
+          ? await _loadPendingInvitationsById(clubId)
+          : const <String, ClubInvitation>{};
+
+      final members = baseMembers
+          .map(
+            (member) => _enrichMemberFromPrefetchedData(
+              member: member,
+              membersByAccountUid: membersByAccountUid,
+              pendingInvitationsById: pendingInvitationsById,
+              enrichPendingInvites: enrichPendingInvites,
+            ),
+          )
+          .toList();
       members.sort((a, b) {
         final roleCmp = MemberRoleHierarchy.level(b.role)
             .compareTo(MemberRoleHierarchy.level(a.role));
@@ -159,57 +161,101 @@ class MemberService {
     return member.fullName.toLowerCase();
   }
 
-  /// Complète avatar / compte lié, et optionnellement le code d’invitation.
-  Future<ClubMember> _enrichMember(
-    String clubId,
-    ClubMember member, {
-    bool enrichPendingInvites = false,
-  }) async {
+  ClubMember _enrichMemberFromPrefetchedData({
+    required ClubMember member,
+    required Map<String, Map<String, dynamic>> membersByAccountUid,
+    required Map<String, ClubInvitation> pendingInvitationsById,
+    required bool enrichPendingInvites,
+  }) {
     var enriched = member;
 
-    final linkedUid = member.accountUid;
-    if (linkedUid != null && linkedUid.isNotEmpty) {
-      enriched = enriched.copyWith(hasLinkedAccount: true);
-      try {
-        final userDoc = await _db
-            .collection(ProjectConfig.usersCollection)
-            .doc(linkedUid)
-            .get();
-        if (userDoc.exists) {
-          final data = userDoc.data() ?? {};
-          enriched = enriched.copyWith(
-            displayName: enriched.displayName ??
-                data[FirestoreFields.displayName] as String?,
-            avatarUrl:
-                enriched.avatarUrl ?? data[FirestoreFields.avatarUrl] as String?,
-            email: enriched.email ?? data[FirestoreFields.email] as String?,
-          );
-        }
-      } on FirebaseException {
-        // Profil users illisible : garder au moins hasLinkedAccount.
+    final accountUid = member.accountUid?.trim();
+    if (accountUid != null && accountUid.isNotEmpty) {
+      // Aligné portal / CF : lié seulement si le profil `users` existe
+      // (un `userId` legacy mappé en accountUid ne suffit pas).
+      final userData = membersByAccountUid[accountUid];
+      if (userData != null) {
+        enriched = enriched.copyWith(
+          hasLinkedAccount: true,
+          displayName: enriched.displayName ??
+              userData[FirestoreFields.displayName] as String?,
+          avatarUrl: enriched.avatarUrl ??
+              userData[FirestoreFields.avatarUrl] as String?,
+          email: enriched.email ?? userData[FirestoreFields.email] as String?,
+        );
       }
     }
 
-    if (enrichPendingInvites && member.activeInvitationId != null) {
-      try {
-        final inviteDoc = await _invitations(clubId)
-            .doc(member.activeInvitationId)
-            .get();
-        if (inviteDoc.exists) {
-          final invite = ClubInvitation.fromDocument(inviteDoc);
-          if (invite.isPending) {
-            enriched = enriched.copyWith(
-              pendingInviteCode: invite.code,
-              pendingInviteExpiresAt: invite.expiresAt,
-            );
-          }
-        }
-      } on FirebaseException catch (error) {
-        if (error.code != 'permission-denied') rethrow;
+    final activeInvitationId = member.activeInvitationId?.trim();
+    if (enrichPendingInvites &&
+        activeInvitationId != null &&
+        activeInvitationId.isNotEmpty) {
+      final invite = pendingInvitationsById[activeInvitationId];
+      if (invite != null && invite.isPending) {
+        enriched = enriched.copyWith(
+          pendingInviteCode: invite.code,
+          pendingInviteExpiresAt: invite.expiresAt,
+          email: enriched.email ?? invite.email,
+        );
       }
     }
 
     return enriched;
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _loadMembersByAccountUid(
+    List<ClubMember> members,
+  ) async {
+    final accountUids = members
+        .map((member) => member.accountUid?.trim() ?? '')
+        .where((uid) => uid.isNotEmpty)
+        .toSet()
+        .toList();
+    if (accountUids.isEmpty) return const {};
+
+    // `users` autorise `get` mais pas `list` : pas de whereIn sur __name__.
+    final snaps = await Future.wait(
+      accountUids.map(
+        (uid) async {
+          try {
+            return await _db
+                .collection(ProjectConfig.usersCollection)
+                .doc(uid)
+                .get();
+          } on FirebaseException catch (error) {
+            if (error.code == 'permission-denied') return null;
+            rethrow;
+          }
+        },
+      ),
+    );
+
+    final membersByUid = <String, Map<String, dynamic>>{};
+    for (final userSnap in snaps) {
+      if (userSnap == null || !userSnap.exists || userSnap.data() == null) {
+        continue;
+      }
+      membersByUid[userSnap.id] = userSnap.data()!;
+    }
+    return membersByUid;
+  }
+
+  Future<Map<String, ClubInvitation>> _loadPendingInvitationsById(
+    String clubId,
+  ) async {
+    try {
+      final pendingInvitesSnap = await _invitations(clubId)
+          .where(FirestoreFields.status, isEqualTo: InvitationStatus.pending)
+          .get();
+      final pendingById = <String, ClubInvitation>{};
+      for (final inviteDoc in pendingInvitesSnap.docs) {
+        pendingById[inviteDoc.id] = ClubInvitation.fromDocument(inviteDoc);
+      }
+      return pendingById;
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') return const {};
+      rethrow;
+    }
   }
 
   /// Crée une fiche membre pré-remplie et son invitation `pending`.
@@ -235,8 +281,7 @@ class MemberService {
 
     final memberRef = _members(clubId).doc();
     final inviteRef = _invitations(clubId).doc();
-    final clubRef =
-        _db.collection(ProjectConfig.clubsCollection).doc(clubId);
+    final clubRef = _db.collection(ProjectConfig.clubsCollection).doc(clubId);
     final code = generateInviteCode();
     final expiresAt = DateTime.now().add(const Duration(days: 7));
     final displayName = '$trimmedFirst $trimmedLast';
@@ -455,7 +500,8 @@ class MemberService {
         final type = inviteDoc.data()[FirestoreFields.type] as String? ?? '';
         if (type != InvitationTypes.guardian) continue;
         final memberId =
-            (inviteDoc.data()[FirestoreFields.memberId] as String?)?.trim() ?? '';
+            (inviteDoc.data()[FirestoreFields.memberId] as String?)?.trim() ??
+                '';
         if (memberId.isEmpty) continue;
         pendingGuardianByMember.putIfAbsent(memberId, () => inviteDoc);
       }
@@ -546,17 +592,15 @@ class MemberService {
     for (var index = 0; index < membersSnap.docs.length; index++) {
       final memberDoc = membersSnap.docs[index];
       final member = membersById[memberDoc.id]!;
-      final childName = member.fullName.trim().isNotEmpty
-          ? member.fullName.trim()
-          : 'Enfant';
+      final childName =
+          member.fullName.trim().isNotEmpty ? member.fullName.trim() : 'Enfant';
       final pendingInvite = pendingGuardianByMember[member.memberId];
       final inviteData = pendingInvite?.data();
       final occupying = occupyingByMemberIndex[index];
 
       if (occupying != null) {
-        final statusRaw =
-            occupying.data()[FirestoreFields.status] as String? ??
-                GuardianStatuses.pending;
+        final statusRaw = occupying.data()[FirestoreFields.status] as String? ??
+            GuardianStatuses.pending;
         final status = statusRaw == GuardianStatuses.active
             ? GuardianStatuses.active
             : GuardianStatuses.pending;
@@ -595,17 +639,17 @@ class MemberService {
           avatarUrl: avatarUrl,
         );
         byKey[key]!.children.add(
-          ClubParentChildRef(
-            memberId: member.memberId,
-            displayName: childName,
-            status: status,
-            parentUid: occupying.id,
-            invitationId: pendingInvite?.id,
-            invitationCode:
-                (inviteData?[FirestoreFields.code] as String?)?.trim(),
-            expiresAt: expiresAt,
-          ),
-        );
+              ClubParentChildRef(
+                memberId: member.memberId,
+                displayName: childName,
+                status: status,
+                parentUid: occupying.id,
+                invitationId: pendingInvite?.id,
+                invitationCode:
+                    (inviteData?[FirestoreFields.code] as String?)?.trim(),
+                expiresAt: expiresAt,
+              ),
+            );
         continue;
       }
 
@@ -619,15 +663,16 @@ class MemberService {
       final key = 'email:$email';
       ensure(key, email: email, displayName: email);
       byKey[key]!.children.add(
-        ClubParentChildRef(
-          memberId: member.memberId,
-          displayName: childName,
-          status: GuardianStatuses.pending,
-          invitationId: pendingInvite.id,
-          invitationCode: (inviteData[FirestoreFields.code] as String?)?.trim(),
-          expiresAt: expiresAt,
-        ),
-      );
+            ClubParentChildRef(
+              memberId: member.memberId,
+              displayName: childName,
+              status: GuardianStatuses.pending,
+              invitationId: pendingInvite.id,
+              invitationCode:
+                  (inviteData[FirestoreFields.code] as String?)?.trim(),
+              expiresAt: expiresAt,
+            ),
+          );
     }
 
     final entries = <ClubParentEntry>[];
@@ -640,8 +685,8 @@ class MemberService {
           hasActive ? GuardianStatuses.active : GuardianStatuses.pending;
       ClubMember? roster;
       if (acc.parentUid != null) {
-        roster = membersByAccount[acc.parentUid!] ??
-            membersById[acc.parentUid!];
+        roster =
+            membersByAccount[acc.parentUid!] ?? membersById[acc.parentUid!];
       }
       entries.add(
         ClubParentEntry(
@@ -666,6 +711,128 @@ class MemberService {
     return entries;
   }
 
+  /// Garantit une invitation `pending` valide pour un membre non inscrit.
+  ///
+  /// Réutilise le code existant s’il est encore valable, sinon en crée un
+  /// nouveau (et expire l’ancien pending). Synchronise aussi `snapshot.email`.
+  Future<void> ensureMemberInvitation({
+    required String clubId,
+    required Club club,
+    required ClubMember member,
+    required String sentByUid,
+    required String email,
+  }) async {
+    final normalizedEmail = requireNormalizedEmail(email);
+    final memberRef = _members(clubId).doc(member.memberId);
+    final newInviteRef = _invitations(clubId).doc();
+    final code = generateInviteCode();
+    final expiresAt = DateTime.now().add(const Duration(days: 7));
+
+    await _db.runTransaction((tx) async {
+      final memberSnap = await tx.get(memberRef);
+      if (!memberSnap.exists) {
+        throw StateError('Membre introuvable.');
+      }
+      final data = memberSnap.data()!;
+      final accountUid =
+          (data[FirestoreFields.accountUid] as String?)?.trim() ?? '';
+      if (accountUid.isNotEmpty) {
+        throw StateError('Ce membre a déjà un compte lié.');
+      }
+
+      final existingSnapshot = data[FirestoreFields.snapshot];
+      final nextSnapshot = <String, dynamic>{
+        if (existingSnapshot is Map<String, dynamic>) ...existingSnapshot,
+        FirestoreFields.email: normalizedEmail,
+      };
+
+      final previousInviteId =
+          (data[FirestoreFields.activeInvitationId] as String?)?.trim() ?? '';
+      if (previousInviteId.isNotEmpty) {
+        final previousInviteRef = _invitations(clubId).doc(previousInviteId);
+        final previousInviteSnap = await tx.get(previousInviteRef);
+        if (previousInviteSnap.exists) {
+          final previous = ClubInvitation.fromDocument(previousInviteSnap);
+          if (previous.isPending &&
+              previous.code.trim().isNotEmpty &&
+              !previous.isExpired) {
+            tx.update(previousInviteRef, {
+              FirestoreFields.email: normalizedEmail,
+              FirestoreFields.expiresAt: Timestamp.fromDate(expiresAt),
+              FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+            });
+            tx.update(memberRef, {
+              FirestoreFields.snapshot: nextSnapshot,
+              FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+            });
+            return;
+          }
+          if (previous.status == InvitationStatus.pending) {
+            tx.update(previousInviteRef, {
+              FirestoreFields.status: InvitationStatus.expired,
+              FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+            });
+          }
+        }
+      }
+
+      final role = data[FirestoreFields.role] as String? ?? MemberRoles.player;
+      final firstName = (data[FirestoreFields.firstName] as String?)?.trim() ??
+          member.firstName?.trim() ??
+          '';
+      final lastName = (data[FirestoreFields.lastName] as String?)?.trim() ??
+          member.lastName?.trim() ??
+          '';
+
+      tx.set(newInviteRef, {
+        FirestoreFields.code: code,
+        FirestoreFields.type: InvitationTypes.member,
+        FirestoreFields.role: role,
+        FirestoreFields.status: InvitationStatus.pending,
+        FirestoreFields.email: normalizedEmail,
+        FirestoreFields.memberId: member.memberId,
+        FirestoreFields.sentBy: sentByUid,
+        FirestoreFields.sentAt: FieldValue.serverTimestamp(),
+        FirestoreFields.expiresAt: Timestamp.fromDate(expiresAt),
+        FirestoreFields.clubName: club.name,
+        FirestoreFields.clubSport: club.sport,
+        FirestoreFields.firstName: firstName,
+        FirestoreFields.lastName: lastName,
+      });
+      tx.update(memberRef, {
+        FirestoreFields.activeInvitationId: newInviteRef.id,
+        FirestoreFields.snapshot: nextSnapshot,
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  /// Prépare les invitations de plusieurs membres non inscrits (parallèle).
+  Future<void> ensureMemberInvitations({
+    required String clubId,
+    required Club club,
+    required List<ClubMember> members,
+    required String sentByUid,
+  }) async {
+    const chunkSize = 10;
+    for (var i = 0; i < members.length; i += chunkSize) {
+      final end =
+          (i + chunkSize > members.length) ? members.length : i + chunkSize;
+      final chunk = members.sublist(i, end);
+      await Future.wait(
+        chunk.map(
+          (member) => ensureMemberInvitation(
+            clubId: clubId,
+            club: club,
+            member: member,
+            sentByUid: sentByUid,
+            email: member.email ?? '',
+          ),
+        ),
+      );
+    }
+  }
+
   /// Numéro de licence (`playerInfo.license`) d’une fiche membre.
   Future<String> getMemberLicense({
     required String clubId,
@@ -678,6 +845,39 @@ class MemberService {
         data[FirestoreFields.playerInfo] as Map<String, dynamic>?;
     if (playerInfo == null) return '';
     return (playerInfo[FirestoreFields.license] as String?)?.trim() ?? '';
+  }
+
+  /// Met à jour le numéro de licence (`playerInfo.license`) d'un membre.
+  ///
+  /// [rawLicense] est optionnelle : vide pour effacer la licence.
+  /// Crée `playerInfo` s’il est absent (ex. fiche coach).
+  Future<void> updateMemberLicense({
+    required String clubId,
+    required String memberId,
+    required String rawLicense,
+  }) async {
+    final formattedLicense = formatLicense(rawLicense);
+    final memberRef = _members(clubId).doc(memberId);
+    final memberSnap = await memberRef.get();
+    if (!memberSnap.exists) {
+      throw StateError('Membre introuvable.');
+    }
+
+    final data = memberSnap.data() ?? {};
+    final existingInfo =
+        data[FirestoreFields.playerInfo] is Map<String, dynamic>
+            ? Map<String, dynamic>.from(
+                data[FirestoreFields.playerInfo] as Map<String, dynamic>,
+              )
+            : <String, dynamic>{};
+
+    await memberRef.update({
+      FirestoreFields.playerInfo: {
+        ...existingInfo,
+        FirestoreFields.license: formattedLicense,
+      },
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
   }
 
   String inviteMessageFor({

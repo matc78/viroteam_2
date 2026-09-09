@@ -208,7 +208,8 @@ abstract final class ViroTheme {
         contentTextStyle: textTheme.bodyLarge,
       ),
       listTileTheme: ListTileThemeData(
-        tileColor: ViroColors.white,
+        // Pas de tileColor opaque : sinon Flutter assert si un DecoratedBox
+        // coloré s’intercale avant le Material (ink / fond masqués).
         minVerticalPadding: ViroSpacing.sm,
         contentPadding: const EdgeInsets.symmetric(horizontal: ViroSpacing.md),
         shape: RoundedRectangleBorder(

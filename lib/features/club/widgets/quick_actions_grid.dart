@@ -233,6 +233,7 @@ class ClubManagementActionsGrid extends StatelessWidget {
     this.onAppearance,
     this.onEquipment,
     this.onSettings,
+    this.onLocations,
   });
 
   final String role;
@@ -245,6 +246,7 @@ class ClubManagementActionsGrid extends StatelessWidget {
   final VoidCallback? onAppearance;
   final VoidCallback? onEquipment;
   final VoidCallback? onSettings;
+  final VoidCallback? onLocations;
 
   List<QuickAction> get _actions {
     return [
@@ -282,6 +284,12 @@ class ClubManagementActionsGrid extends StatelessWidget {
           label: 'Équipements',
           icon: ViroIcons.ball,
           onTap: onEquipment,
+        ),
+      if (role == MemberRoles.admin && onLocations != null)
+        QuickAction(
+          label: 'Lieux',
+          icon: ViroIcons.place,
+          onTap: onLocations,
         ),
       if (role == MemberRoles.admin && onSettings != null)
         QuickAction(

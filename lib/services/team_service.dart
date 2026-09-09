@@ -186,6 +186,30 @@ class TeamService {
     return ref.id;
   }
 
+  /// Met à jour les liens de discussion de l'équipe (groupe + parents).
+  ///
+  /// Les chaînes vides ou nulles suppriment le champ correspondant.
+  Future<void> updateTeamMessagingLinks({
+    required String clubId,
+    required String teamId,
+    String? messagingLink,
+    String? parentsMessagingLink,
+  }) async {
+    final teamLink = messagingLink?.trim();
+    final parentsLink = parentsMessagingLink?.trim();
+
+    await _teams(clubId).doc(teamId).update({
+      FirestoreFields.messagingLink: (teamLink == null || teamLink.isEmpty)
+          ? FieldValue.delete()
+          : teamLink,
+      FirestoreFields.parentsMessagingLink:
+          (parentsLink == null || parentsLink.isEmpty)
+              ? FieldValue.delete()
+              : parentsLink,
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Ajoute un joueur au roster et le convoque aux événements à venir.
   Future<void> addPlayerToTeam({
     required String clubId,

@@ -17,7 +17,10 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
+import 'package:viro_team_v2/widgets/common/open_address_sheet.dart';
+import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 
 enum _CancelScope { single, series }
@@ -338,9 +341,12 @@ class _PlanningEventDetailSheetState
     final headline = PlanningEventDisplay.headline(event);
     final subtitle = PlanningEventDisplay.subtitle(event, widget.teamLabel);
     final location = PlanningEventDisplay.locationLine(event);
+    final isAwayMatch = event.type == EventTypes.match &&
+        event.matchVenue == MatchVenues.away;
     final startStr = formatEventTime(event.startTime);
     final endStr = formatEventTime(event.endTime);
     final rdvStr = formatEventTime(event.meetingTime);
+    final meetingLocation = event.meetingLocation?.trim();
     final dateStr = formatEventDate(event.date);
     final teamsById = <String, ClubTeam>{
       for (final team in ref.watch(clubTeamsProvider(widget.clubId)).value ?? [])
@@ -367,118 +373,140 @@ class _PlanningEventDetailSheetState
               ViroSpacing.md,
             ),
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (startStr.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(right: ViroSpacing.sm),
-                      child: Column(
-                        children: [
-                          Text(
-                            startStr,
-                            style: theme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: accent,
-                              height: 1.1,
-                            ),
-                          ),
-                          if (event.type == EventTypes.match &&
-                              rdvStr.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                'RDV $rdvStr',
-                                style: theme.labelSmall?.copyWith(
-                                  color: ViroColors.gray600,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            )
-                          else if (endStr.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                endStr,
-                                style: theme.labelSmall?.copyWith(
-                                  color: ViroColors.gray400,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              if (isAwayMatch)
+                _AwayMatchHeader(
+                  typeIcon: _typeIcon,
+                  headline: headline,
+                  subtitle: subtitle,
+                  dateStr: dateStr,
+                  rdvStr: rdvStr,
+                  meetingLocation: meetingLocation,
+                  matchTimeStr: startStr,
+                  matchAddress: location,
+                  accent: accent,
+                  counts: counts,
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (startStr.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(right: ViroSpacing.sm),
+                        child: Column(
                           children: [
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  ViroIcon(
-                                    _typeIcon,
-                                    size: 18,
-                                    color: accent,
-                                  ),
-                                  const SizedBox(width: ViroSpacing.xs),
-                                  Expanded(
-                                    child: Text(
-                                      subtitle != null
-                                          ? '$headline · $subtitle'
-                                          : headline,
-                                      style: theme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: accent,
-                                        height: 1.2,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
+                            Text(
+                              startStr,
+                              style: theme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: accent,
+                                height: 1.1,
                               ),
                             ),
-                            const SizedBox(width: ViroSpacing.sm),
-                            PlanningRsvpSummaryRow(counts: counts),
+                            if (event.type == EventTypes.match &&
+                                rdvStr.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  'RDV $rdvStr',
+                                  style: theme.labelSmall?.copyWith(
+                                    color: ViroColors.gray600,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              )
+                            else if (endStr.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  endStr,
+                                  style: theme.labelSmall?.copyWith(
+                                    color: ViroColors.gray400,
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
-                        const SizedBox(height: 2),
-                        Text.rich(
-                          TextSpan(
+                      ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    ViroIcon(
+                                      _typeIcon,
+                                      size: 18,
+                                      color: accent,
+                                    ),
+                                    const SizedBox(width: ViroSpacing.xs),
+                                    Expanded(
+                                      child: Text(
+                                        subtitle != null
+                                            ? '$headline · $subtitle'
+                                            : headline,
+                                        style: theme.titleSmall?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: accent,
+                                          height: 1.2,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: ViroSpacing.sm),
+                              PlanningRsvpSummaryRow(counts: counts),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            dateStr,
                             style: theme.bodySmall?.copyWith(
                               color: ViroColors.gray600,
                               height: 1.3,
                             ),
-                            children: [
-                              TextSpan(text: dateStr),
-                              if (location != null) ...[
-                                const TextSpan(text: ' · '),
-                                WidgetSpan(
-                                  alignment: PlaceholderAlignment.middle,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(right: 2),
-                                    child: ViroIcon(
-                                      ViroIcons.place,
-                                      size: 13,
-                                      color: ViroColors.gray400,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (location != null) ...[
+                            const SizedBox(height: 2),
+                            Text.rich(
+                              TextSpan(
+                                style: theme.bodySmall?.copyWith(
+                                  color: ViroColors.gray600,
+                                  height: 1.3,
+                                ),
+                                children: [
+                                  WidgetSpan(
+                                    alignment: PlaceholderAlignment.middle,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(right: 2),
+                                      child: ViroIcon(
+                                        ViroIcons.place,
+                                        size: 13,
+                                        color: ViroColors.gray400,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                TextSpan(text: location),
-                              ],
-                            ],
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                                  TextSpan(text: location),
+                                ],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               if (widget.canManageEvents) ...[
                 const SizedBox(height: ViroSpacing.sm),
                 FilledButton.icon(
@@ -524,6 +552,273 @@ class _PlanningEventDetailSheetState
           ),
         ),
       ],
+    );
+  }
+}
+
+/// En-tête dédié match extérieur : titre, puis RDV et match séparés.
+class _AwayMatchHeader extends StatelessWidget {
+  const _AwayMatchHeader({
+    required this.typeIcon,
+    required this.headline,
+    required this.subtitle,
+    required this.dateStr,
+    required this.rdvStr,
+    required this.meetingLocation,
+    required this.matchTimeStr,
+    required this.matchAddress,
+    required this.accent,
+    required this.counts,
+  });
+
+  final IconData typeIcon;
+  final String headline;
+  final String? subtitle;
+  final String dateStr;
+  final String rdvStr;
+  final String? meetingLocation;
+  final String matchTimeStr;
+  final String? matchAddress;
+  final Color accent;
+  final ({int yes, int no, int none}) counts;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final trimmedMeeting = meetingLocation?.trim();
+    final trimmedAddress = matchAddress?.trim();
+    final hasMeetingPlace =
+        trimmedMeeting != null && trimmedMeeting.isNotEmpty;
+    final hasMatchAddress =
+        trimmedAddress != null && trimmedAddress.isNotEmpty;
+    final hasRdv = rdvStr.isNotEmpty || hasMeetingPlace;
+    final hasMatch = matchTimeStr.isNotEmpty || hasMatchAddress;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  ViroIcon(typeIcon, size: 18, color: accent),
+                  const SizedBox(width: ViroSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      subtitle != null ? '$headline · $subtitle' : headline,
+                      style: theme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: accent,
+                        height: 1.2,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: ViroSpacing.sm),
+            PlanningRsvpSummaryRow(counts: counts),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Extérieur · $dateStr',
+          style: theme.bodySmall?.copyWith(
+            color: ViroColors.gray600,
+            height: 1.3,
+          ),
+        ),
+        if (hasRdv || hasMatch) ...[
+          const SizedBox(height: ViroSpacing.sm),
+          ViroCard(
+            elevated: false,
+            accentColor: accent,
+            padding: const EdgeInsets.symmetric(
+              horizontal: ViroSpacing.sm + 4,
+              vertical: ViroSpacing.sm,
+            ),
+            margin: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (hasRdv)
+                  _AwayScheduleBlock(
+                    label: 'RDV',
+                    timeStr: rdvStr,
+                    place: trimmedMeeting,
+                    accent: accent,
+                    placeIcon: ViroIcons.users,
+                  ),
+                if (hasRdv && hasMatch) ...[
+                  const SizedBox(height: ViroSpacing.sm),
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: ViroColors.primary100.withValues(alpha: 0.55),
+                  ),
+                  const SizedBox(height: ViroSpacing.sm),
+                ],
+                if (hasMatch)
+                  _AwayScheduleBlock(
+                    label: 'Match',
+                    timeStr: matchTimeStr,
+                    place: trimmedAddress,
+                    accent: accent,
+                    placeIcon: ViroIcons.place,
+                    placeClickable: hasMatchAddress,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Bloc heure + lieu (RDV ou match) dans le détail extérieur.
+class _AwayScheduleBlock extends StatelessWidget {
+  const _AwayScheduleBlock({
+    required this.label,
+    required this.timeStr,
+    required this.place,
+    required this.accent,
+    required this.placeIcon,
+    this.placeClickable = false,
+  });
+
+  final String label;
+  final String timeStr;
+  final String? place;
+  final Color accent;
+  final IconData placeIcon;
+  final bool placeClickable;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final trimmedPlace = place?.trim();
+    final hasPlace = trimmedPlace != null && trimmedPlace.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: theme.labelSmall?.copyWith(
+                color: ViroColors.gray400,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (timeStr.isNotEmpty) ...[
+              const SizedBox(width: ViroSpacing.sm),
+              Text(
+                timeStr,
+                style: theme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ],
+        ),
+        if (hasPlace) ...[
+          const SizedBox(height: 2),
+          if (placeClickable)
+            _AwayAddressButton(address: trimmedPlace, accent: accent)
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: ViroIcon(
+                    placeIcon,
+                    size: 14,
+                    color: ViroColors.gray400,
+                  ),
+                ),
+                const SizedBox(width: ViroSpacing.xs),
+                Expanded(
+                  child: Text(
+                    trimmedPlace,
+                    style: theme.bodySmall?.copyWith(
+                      color: ViroColors.gray600,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Adresse match extérieur — ouverture Maps / Waze / Plans.
+class _AwayAddressButton extends StatelessWidget {
+  const _AwayAddressButton({
+    required this.address,
+    required this.accent,
+  });
+
+  final String address;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+
+    return ViroPressable(
+      floating: false,
+      minSize: 0,
+      borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
+      onTap: () => showOpenAddressSheet(context, address: address),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: ViroIcon(
+                ViroIcons.place,
+                size: 14,
+                color: accent,
+              ),
+            ),
+            const SizedBox(width: ViroSpacing.xs),
+            Expanded(
+              child: Text(
+                address,
+                style: theme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: accent,
+                  height: 1.3,
+                  decoration: TextDecoration.underline,
+                  decorationColor: accent.withValues(alpha: 0.4),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 1, left: ViroSpacing.xs),
+              child: ViroIcon(
+                ViroIcons.chevronRight,
+                size: 14,
+                color: accent,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

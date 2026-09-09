@@ -81,3 +81,9 @@ env:
     secret: SENTRY_AUTH_TOKEN
     availability:
       - BUILD
+
+  # Google Places Autocomplete (New) — wizard / lieux club
+  - variable: GOOGLE_MAPS_API_KEY
+    secret: GOOGLE_MAPS_API_KEY
+    availability:
+      - RUNTIME

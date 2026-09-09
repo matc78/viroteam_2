@@ -294,6 +294,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                         AppRoutes.clubEquipmentPath(clubId),
                                       )
                                   : null,
+                              onLocations: m.role == MemberRoles.admin
+                                  ? () => context.push(
+                                        AppRoutes.clubLocationsPath(clubId),
+                                      )
+                                  : null,
                               onSettings: m.role == MemberRoles.admin
                                   ? () => context.push(
                                         AppRoutes.clubSettingsPath(clubId),

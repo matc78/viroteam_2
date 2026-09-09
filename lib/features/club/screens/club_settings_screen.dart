@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -189,12 +190,52 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
               padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
               children: [
                 Text(
-                  'Configurer ${club.name} : saison et droits des coachs.',
+                  'Configurer ${club.name} : lieux, saison et droits des coachs.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ViroColors.gray600,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.lg),
+                Text(
+                  'Lieux du club',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: managementAccent,
+                      ),
+                ),
+                const SizedBox(height: ViroSpacing.xs),
+                Text(
+                  'Stades, gymnases et autres lieux utilisés au planning.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: ViroColors.gray600,
+                      ),
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                ViroCard(
+                  accentColor: managementAccent,
+                  margin: EdgeInsets.zero,
+                  child: ListTile(
+                    leading: ViroIcon(ViroIcons.place, color: managementAccent),
+                    title: const Text(
+                      'Gérer les lieux',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      club.practiceLocations.isEmpty
+                          ? 'Aucun lieu enregistré'
+                          : '${club.practiceLocations.length} lieu'
+                              '${club.practiceLocations.length > 1 ? 'x' : ''}',
+                    ),
+                    trailing: ViroIcon(
+                      ViroIcons.chevronRight,
+                      color: managementAccent,
+                    ),
+                    onTap: () => context.push(
+                      AppRoutes.clubLocationsPath(clubId),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: ViroSpacing.xl),
                 Text(
                   'Fin de saison',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(

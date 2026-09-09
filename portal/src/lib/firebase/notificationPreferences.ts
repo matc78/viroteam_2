@@ -1,14 +1,16 @@
-/** Préférences push (3 toggles V1). */
+/** Préférences push (events / annonces / cotisations / RSVP). */
 export type NotificationPreferences = {
   events: boolean;
   announcements: boolean;
   fees: boolean;
+  rsvp: boolean;
 };
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   events: true,
   announcements: true,
   fees: true,
+  rsvp: true,
 };
 
 /** Parse le map Firestore (défaut = opt-in). */
@@ -32,6 +34,10 @@ export function parseNotificationPreferences(
       typeof map.fees === "boolean"
         ? map.fees
         : DEFAULT_NOTIFICATION_PREFERENCES.fees,
+    rsvp:
+      typeof map.rsvp === "boolean"
+        ? map.rsvp
+        : DEFAULT_NOTIFICATION_PREFERENCES.rsvp,
   };
 }
 
@@ -46,5 +52,7 @@ export function preferenceOffWarning(
       return "Vous ne recevrez plus de notification à la publication des annonces du club.";
     case "fees":
       return "Vous ne recevrez plus les rappels hebdomadaires de cotisation.";
+    case "rsvp":
+      return "Vous ne recevrez plus de notification à chaque changement de RSVP.";
   }
 }

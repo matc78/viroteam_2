@@ -247,6 +247,33 @@ class ClubService {
     });
   }
 
+  /// Remplace la liste des lieux de pratique du club.
+  Future<void> updatePracticeLocations({
+    required String clubId,
+    required List<PracticeLocation> locations,
+  }) async {
+    await _clubs.doc(clubId).update({
+      FirestoreFields.practiceLocations: locations
+          .map((location) {
+            final cityValue = location.city;
+            final addressValue = location.address;
+            return PracticeLocation(
+              name: location.name,
+              city: cityValue == null || cityValue.trim().isEmpty
+                  ? null
+                  : formatCity(cityValue),
+              address: addressValue == null || addressValue.trim().isEmpty
+                  ? null
+                  : formatAddressLine(addressValue),
+              category: location.category,
+              categoryCustom: location.categoryCustom,
+            ).toFirestoreMap();
+          })
+          .toList(),
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Met à jour les droits coachs configurables du club.
   Future<void> updateCoachPermissions({
     required String clubId,

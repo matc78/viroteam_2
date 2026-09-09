@@ -22,6 +22,11 @@ const TOGGLE_ROWS: Array<{
     subtitle: "Rappels J-7 / J-2 et envois coaches",
   },
   {
+    key: "rsvp",
+    title: "Réponses RSVP",
+    subtitle: "Quand un membre répond Présent / Absent",
+  },
+  {
     key: "announcements",
     title: "Annonces",
     subtitle: "À la publication d’une annonce",
@@ -43,6 +48,7 @@ export function NotificationPreferencesSection() {
     events: true,
     announcements: true,
     fees: true,
+    rsvp: true,
   };
 
   async function setPreference(

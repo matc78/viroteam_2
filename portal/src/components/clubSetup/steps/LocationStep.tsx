@@ -355,9 +355,6 @@ export function LocationStep({
                     className={fieldStyles.suggestionItem}
                     onClick={() => applyStreetSuggestion(suggestion)}
                   >
-                    {suggestion.isSportsVenue ? (
-                      <span className={fieldStyles.suggestionMeta}>Lieu sportif</span>
-                    ) : null}
                     {suggestion.label}
                   </button>
                 ))}
@@ -489,7 +486,7 @@ export function LocationStep({
                 readOnly={!unlockedFields.practiceAddress}
                 onFocus={() => unlockField("practiceAddress")}
                 value={locationAddress}
-                placeholder="Ex. Stade des Bertisettes"
+                placeholder="Ex. 12 rue de la République"
                 onChange={(event) => {
                   setLocationAddress(event.target.value);
                   schedulePracticeStreetSearch(event.target.value);
@@ -504,11 +501,6 @@ export function LocationStep({
                       className={fieldStyles.suggestionItem}
                       onClick={() => applyPracticeStreetSuggestion(suggestion)}
                     >
-                      {suggestion.isSportsVenue ? (
-                        <span className={fieldStyles.suggestionMeta}>
-                          Lieu sportif
-                        </span>
-                      ) : null}
                       {suggestion.label}
                     </button>
                   ))}

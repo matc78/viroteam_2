@@ -17,6 +17,7 @@ abstract final class ViroIcons {
 
   // Lieux & planning
   static IconData get place => PhosphorIconsRegular.mapPin;
+  static IconData get navigation => PhosphorIconsRegular.navigationArrow;
   static IconData get calendar => PhosphorIconsRegular.calendar;
   static IconData get clock => PhosphorIconsRegular.clock;
 
@@ -25,6 +26,8 @@ abstract final class ViroIcons {
   static IconData get trophy => PhosphorIconsFill.trophy;
   static IconData get users => PhosphorIconsRegular.users;
   static IconData get whistle => PhosphorIconsRegular.megaphoneSimple;
+  static IconData get chat => PhosphorIconsRegular.chatCircle;
+  static IconData get whatsapp => PhosphorIconsRegular.whatsappLogo;
 
   // Actions
   static IconData get edit => PhosphorIconsRegular.pencilSimple;
@@ -78,6 +81,7 @@ abstract final class ViroIcons {
           title: 'Lieux & planning',
           icons: [
             ('place', place),
+            ('navigation', navigation),
             ('calendar', calendar),
             ('clock', clock),
           ],
@@ -89,6 +93,8 @@ abstract final class ViroIcons {
             ('trophy', trophy),
             ('users', users),
             ('whistle', whistle),
+            ('chat', chat),
+            ('whatsapp', whatsapp),
           ],
         ),
         ViroIconCatalogGroup(

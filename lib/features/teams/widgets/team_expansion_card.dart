@@ -4,10 +4,13 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_list_tile.dart';
+import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_messaging_links_section.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
@@ -64,6 +67,12 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
     final viewerRole =
         ref.watch(clubMemberProvider(team.clubId)).value?.role ??
             MemberRoles.player;
+    final authUid = ref.watch(authStateProvider).value?.uid;
+    final permissions = TeamManagePermissions(
+      viewerRole: viewerRole,
+      currentUid: authUid,
+      coachPermissions: club.coachPermissions,
+    );
     final membersByUid = membersAsync.value != null
         ? indexClubMembersByUid(membersAsync.value!)
         : <String, ClubMember>{};
@@ -140,6 +149,11 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                 ),
               )
             else ...[
+              TeamMessagingLinksSection(
+                team: team,
+                accent: widget.accent,
+                canEdit: permissions.canEditMessagingLinks(team),
+              ),
               ..._buildMemberSection(
                 context,
                 title: 'Staff / Coachs',

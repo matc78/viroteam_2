@@ -1,14 +1,16 @@
-/// Préférences push utilisateur (3 toggles V1).
+/// Préférences push utilisateur (events / annonces / cotisations / RSVP).
 class NotificationPreferences {
   const NotificationPreferences({
     this.events = true,
     this.announcements = true,
     this.fees = true,
+    this.rsvp = true,
   });
 
   final bool events;
   final bool announcements;
   final bool fees;
+  final bool rsvp;
 
   static const NotificationPreferences defaults = NotificationPreferences();
 
@@ -18,6 +20,7 @@ class NotificationPreferences {
       events: map['events'] as bool? ?? true,
       announcements: map['announcements'] as bool? ?? true,
       fees: map['fees'] as bool? ?? true,
+      rsvp: map['rsvp'] as bool? ?? true,
     );
   }
 
@@ -25,17 +28,20 @@ class NotificationPreferences {
         'events': events,
         'announcements': announcements,
         'fees': fees,
+        'rsvp': rsvp,
       };
 
   NotificationPreferences copyWith({
     bool? events,
     bool? announcements,
     bool? fees,
+    bool? rsvp,
   }) {
     return NotificationPreferences(
       events: events ?? this.events,
       announcements: announcements ?? this.announcements,
       fees: fees ?? this.fees,
+      rsvp: rsvp ?? this.rsvp,
     );
   }
 }
@@ -49,6 +55,8 @@ String notificationPreferenceOffWarning(String key) {
       return 'Vous ne recevrez plus de notification à la publication des annonces du club.';
     case 'fees':
       return 'Vous ne recevrez plus les rappels hebdomadaires de cotisation.';
+    case 'rsvp':
+      return 'Vous ne recevrez plus de notification à chaque changement de RSVP.';
     default:
       return 'Vous ne recevrez plus ce type de notification.';
   }

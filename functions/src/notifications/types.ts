@@ -1,6 +1,10 @@
 /** Types partagés pour les push notifications V1. */
 
-export type NotificationPreferenceKey = "events" | "announcements" | "fees";
+export type NotificationPreferenceKey =
+  | "events"
+  | "announcements"
+  | "fees"
+  | "rsvp";
 
 export type FcmPlatform = "ios" | "android" | "web";
 
@@ -16,12 +20,14 @@ export type NotificationPreferences = {
   events: boolean;
   announcements: boolean;
   fees: boolean;
+  rsvp: boolean;
 };
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   events: true,
   announcements: true,
   fees: true,
+  rsvp: true,
 };
 
 export const MANUAL_PUSH_COOLDOWN_MS = 60 * 60 * 1000;

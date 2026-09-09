@@ -43,4 +43,8 @@ class TeamManagePermissions {
   bool canRemovePlayer(ClubTeam team) => isAdmin;
 
   bool canRemovePendingPlayer(ClubTeam team) => isAdmin;
+
+  /// Admin ou coach de l'équipe : éditer les liens de discussion (WhatsApp…).
+  bool canEditMessagingLinks(ClubTeam team) =>
+      isAdmin || isCoachOfTeam(team);
 }

@@ -634,7 +634,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   accent: accent,
                   enabled: !_saving,
                   addressLabel: 'Adresse',
-                  addressHint: 'Stade adverse, rue…',
+                  addressHint: 'Rue, numéro ou lieu…',
                 ),
                 const SizedBox(height: ViroSpacing.md),
               ] else if (practiceLocations.isNotEmpty) ...[

@@ -91,10 +91,11 @@ test("copies event / fee / annonce", () => {
   }).title, "Cotisation en retard");
 });
 
-test("preferenceOffWarning couvre les 3 clés", () => {
-  assert.match(preferenceOffWarning("events"), /RSVP/);
+test("preferenceOffWarning couvre les 4 clés", () => {
+  assert.match(preferenceOffWarning("events"), /rappels d’événements/);
   assert.match(preferenceOffWarning("announcements"), /annonces/);
   assert.match(preferenceOffWarning("fees"), /cotisation/);
+  assert.match(preferenceOffWarning("rsvp"), /RSVP/);
 });
 
 test("deep links et dateId", () => {
@@ -199,18 +200,43 @@ test("prefs : défaut opt-in + filtre + rate limit", () => {
     events: true,
     announcements: true,
     fees: true,
+    rsvp: true,
   });
   assert.equal(parseNotificationPreferences({ events: false }).events, false);
+  assert.equal(parseNotificationPreferences({}).rsvp, true);
+  assert.equal(parseNotificationPreferences({ rsvp: false }).rsvp, false);
 
   const filtered = filterUidsByPreference({
     uidPrefs: new Map([
-      ["a", { events: true, announcements: true, fees: true }],
-      ["b", { events: false, announcements: true, fees: true }],
+      [
+        "a",
+        { events: true, announcements: true, fees: true, rsvp: true },
+      ],
+      [
+        "b",
+        { events: false, announcements: true, fees: true, rsvp: true },
+      ],
     ]),
     uids: ["a", "b", "c"],
     key: "events",
   });
   assert.deepEqual(filtered, ["a", "c"]);
+
+  const filteredRsvp = filterUidsByPreference({
+    uidPrefs: new Map([
+      [
+        "a",
+        { events: true, announcements: true, fees: true, rsvp: true },
+      ],
+      [
+        "b",
+        { events: true, announcements: true, fees: true, rsvp: false },
+      ],
+    ]),
+    uids: ["a", "b", "c"],
+    key: "rsvp",
+  });
+  assert.deepEqual(filteredRsvp, ["a", "c"]);
 
   assert.equal(
     canSendManualPush({

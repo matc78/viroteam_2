@@ -140,8 +140,11 @@ Remplir ensuite les valeurs dans `portal/.env.local` :
 | `FIREBASE_ADMIN_KEY_PATH` | Chemin vers le JSON de clé privée Admin SDK | oui si bypass activé |
 | `NEXT_PUBLIC_POSTHOG_KEY` | Clé projet PostHog (analytics) | non |
 | `NEXT_PUBLIC_SENTRY_DSN` | DSN Sentry (monitoring erreurs) | non |
+| `GOOGLE_MAPS_API_KEY` | Places Autocomplete (New) pour le champ adresse | oui pour suggestions d’adresse |
 
 Pour le bypass auth en dev, télécharger la clé privée du compte de service : Console Firebase → Paramètres → Comptes de service → **Générer une nouvelle clé privée**, puis placer le JSON dans `portal/` et renseigner `FIREBASE_ADMIN_KEY_PATH`.
+
+Pour les suggestions d’adresse : activer **Places API (New)** dans Google Cloud (projet `viroteam-75303`), créer une clé API, la mettre dans `portal/.env.local` (`GOOGLE_MAPS_API_KEY`), et en prod créer le secret App Hosting homonyme. Côté Flutter, optionnel : `--dart-define=GOOGLE_PLACES_API_KEY=...` (sinon l’app passe par le proxy portail).
 
 Le fichier `portal/.env.sentry-build-plugin` est créé automatiquement par `npx @sentry/wizard` si tu configures Sentry. Il contient le `SENTRY_AUTH_TOKEN` et ne doit **jamais** être commité.
 

@@ -1,95 +1,44 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:viro_team_v2/config/project_config.dart';
 
-/// Suggestion d'adresse française (API Géoplateforme / BAN + Nominatim OSM).
+/// Suggestion d'adresse française (BAN pour villes, Places pour adresses).
 class FrenchAddressSuggestion {
   const FrenchAddressSuggestion({
     required this.label,
     required this.city,
     required this.postalCode,
     required this.street,
-    this.isSportsVenue = false,
   });
 
   final String label;
   final String city;
   final String postalCode;
 
-  /// Rue, numéro, ou nom du lieu (gymnase, stade…).
+  /// Rue, numéro, ou nom du lieu.
   final String street;
-
-  /// `true` pour un gymnase, stade, piscine, etc.
-  final bool isSportsVenue;
 }
 
-/// Autocomplete adresses via Géoplateforme (BAN) + lieux sportifs via Nominatim.
+/// Autocomplete : communes via Géoplateforme (BAN), adresses via Google Places.
 class FrenchAddressService {
   FrenchAddressService({http.Client? client}) : _client = client ?? http.Client();
 
   static const _geopfHost = 'data.geopf.fr';
   static const _geopfSearchPath = '/geocodage/search';
-  static const _nominatimHost = 'nominatim.openstreetmap.org';
-  static const _nominatimUserAgent =
-      'ViroTeamClubSetup/1.0 (https://viroteam.app; club-setup app)';
+  static const _placesHost = 'places.googleapis.com';
+  static const _placesPath = '/v1/places:autocomplete';
   static const _maxSuggestions = 8;
-  static const _seedLimit = 20;
-  static const _nominatimMinInterval = Duration(milliseconds: 1100);
 
-  /// Une seule requête seed (évite 5×~1,1 s de throttle Nominatim à l’ouverture).
-  static const _venueSeedQuery = 'gymnase';
+  /// Clé Places (New) — `--dart-define=GOOGLE_PLACES_API_KEY=...`
+  ///
+  /// Si vide, l’app utilise le proxy portail `/api/club-setup/places`.
+  static const _placesApiKey = String.fromEnvironment('GOOGLE_PLACES_API_KEY');
 
-  static const _sportOsmTypes = {
-    'stadium',
-    'pitch',
-    'sports_centre',
-    'sports_hall',
-    'fitness_centre',
-    'swimming_pool',
-    'swimming_area',
-    'track',
-    'golf_course',
-    'horse_riding',
-    'ice_rink',
-    'climbing',
-    'dojo',
-    'marina',
-    'recreation_ground',
-  };
-
-  /// Tokens de catégories / toponymes sportifs (mot entier, pas sous-chaîne).
-  static const _sportTokens = [
-    'gymnase',
-    'stade',
-    'piscine',
-    'dojo',
-    'tennis',
-    'omnisport',
-    'hippodrome',
-    'patinoire',
-    'golf',
-    'equestre',
-    'équestre',
-    'escalade',
-    'sportif',
-    'sports',
-    'handball',
-    'football',
-    'rugby',
-    'volleyball',
-    'basketball',
-    'judo',
-    'escrime',
-    'aviron',
-    'natation',
-    'athlétisme',
-    'complexe sportif',
-  ];
+  static const _placesFieldMask =
+      'suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat';
 
   final http.Client _client;
-  final Map<String, List<FrenchAddressSuggestion>> _venueCache = {};
-  DateTime? _lastNominatimRequestAt;
-  Future<void> _nominatimChain = Future.value();
 
   /// Recherche des communes correspondant à [query] (min. 3 caractères).
   Future<List<FrenchAddressSuggestion>> searchCities(String query) {
@@ -104,245 +53,169 @@ class FrenchAddressService {
     );
   }
 
-  /// Recherche des rues / numéros et lieux sportifs dans [city].
-  ///
-  /// Sans saisie (ou moins de 3 caractères), propose les gymnases, stades,
-  /// piscines, etc. de la commune — le siège est souvent au lieu de pratique.
+  /// Recherche d’adresses via Google Places dans [city].
   Future<List<FrenchAddressSuggestion>> searchStreets(
     String query, {
     required String city,
     String postalCode = '',
   }) async {
     final cityName = city.trim();
-    if (cityName.isEmpty) return [];
-
     final trimmed = query.trim();
-    final venues = await _searchSportsVenues(
-      query: trimmed,
-      city: cityName,
-      postcode: postalCode.trim(),
-    );
-    final streets = trimmed.length < 3
-        ? const <FrenchAddressSuggestion>[]
-        : await _searchGeoPfAddresses(
-            trimmed,
-            postcode: postalCode.trim(),
-            city: cityName,
-            labelBuilder: (city, postcode, street) => street,
-          );
+    if (cityName.isEmpty || trimmed.length < 3) return [];
 
-    return _uniqueByLabel(
-      [...venues, ...streets],
-      maxCount: _maxSuggestions,
-    );
-  }
-
-  Future<List<FrenchAddressSuggestion>> _searchSportsVenues({
-    required String query,
-    required String city,
-    required String postcode,
-  }) async {
-    if (query.length < 3) {
-      final cacheKey = '${city.toLowerCase()}|$postcode';
-      final cached = _venueCache[cacheKey];
-      if (cached != null) return cached;
-
-      final venues = await _searchNominatim(
-        city: city,
-        seedQuery: _venueSeedQuery,
-        postcode: postcode,
-      );
-      _venueCache[cacheKey] = venues;
-      return venues;
-    }
-
-    return _searchNominatim(
-      city: city,
-      query: query,
-      postcode: postcode,
-    );
-  }
-
-  Future<List<FrenchAddressSuggestion>> _searchNominatim({
-    required String city,
-    String? query,
-    String? seedQuery,
-    String postcode = '',
-  }) async {
-    final cityName = city.trim();
-    if (cityName.isEmpty) return [];
-
-    try {
-      if (seedQuery != null) {
-        final results = await _throttledNominatimSearch(
-          query: seedQuery,
-          city: cityName,
-          limit: _seedLimit,
-        );
-        return _mapNominatimResults(
-          results,
-          cityName,
-          expectedPostcode: postcode,
-        );
-      }
-
-      final trimmed = query?.trim() ?? '';
-      if (trimmed.length < 2) return [];
-
-      final results = await _throttledNominatimSearch(
+    if (_placesApiKey.isNotEmpty) {
+      return _searchPlacesDirect(
         query: trimmed,
         city: cityName,
+        postalCode: postalCode.trim(),
+        apiKey: _placesApiKey,
       );
-      return _mapNominatimResults(
-        results,
-        cityName,
-        expectedPostcode: postcode,
+    }
+
+    return _searchPlacesViaPortal(
+      query: trimmed,
+      city: cityName,
+      postalCode: postalCode.trim(),
+    );
+  }
+
+  Future<List<FrenchAddressSuggestion>> _searchPlacesViaPortal({
+    required String query,
+    required String city,
+    required String postalCode,
+  }) async {
+    final params = <String, String>{
+      'q': query,
+      'city': city,
+    };
+    if (postalCode.isNotEmpty) params['postalCode'] = postalCode;
+
+    final uri = Uri.parse(
+      '${ProjectConfig.portalBaseUrl}/api/club-setup/places',
+    ).replace(queryParameters: params);
+
+    try {
+      final response = await _client.get(uri);
+      if (response.statusCode != 200) return [];
+
+      final body = jsonDecode(response.body);
+      if (body is! Map<String, dynamic>) return [];
+      final raw = body['suggestions'];
+      if (raw is! List) return [];
+
+      final suggestions = <FrenchAddressSuggestion>[];
+      for (final item in raw.whereType<Map>()) {
+        final map = Map<String, dynamic>.from(item);
+        final street = _firstString(map['street']);
+        final label = _firstString(map['label']);
+        if (street.isEmpty && label.isEmpty) continue;
+        suggestions.add(
+          FrenchAddressSuggestion(
+            label: label.isNotEmpty ? label : street,
+            city: _firstString(map['city']).isNotEmpty
+                ? _firstString(map['city'])
+                : city,
+            postalCode: _firstString(map['postalCode']).isNotEmpty
+                ? _firstString(map['postalCode'])
+                : postalCode,
+            street: street.isNotEmpty ? street : label,
+          ),
+        );
+      }
+      return _uniqueByLabel(suggestions, maxCount: _maxSuggestions);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<List<FrenchAddressSuggestion>> _searchPlacesDirect({
+    required String query,
+    required String city,
+    required String postalCode,
+    required String apiKey,
+  }) async {
+    final inputParts = [query, postalCode, city]
+        .where((part) => part.isNotEmpty)
+        .toList();
+    final uri = Uri.https(_placesHost, _placesPath);
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': _placesFieldMask,
+        },
+        body: jsonEncode({
+          'input': inputParts.join(' '),
+          'languageCode': 'fr',
+          'includedRegionCodes': ['fr'],
+          'includeQueryPredictions': false,
+        }),
+      );
+      if (response.statusCode != 200) return [];
+
+      final body = jsonDecode(response.body);
+      if (body is! Map<String, dynamic>) return [];
+      return _mapPlacesSuggestions(
+        body['suggestions'],
+        fallbackCity: city,
+        fallbackPostal: postalCode,
       );
     } catch (_) {
       return [];
     }
   }
 
-  /// Sérialise les appels Nominatim (~1 req/s), comme le proxy web.
-  Future<List<Map<String, dynamic>>> _throttledNominatimSearch({
-    required String query,
-    required String city,
-    int? limit,
+  List<FrenchAddressSuggestion> _mapPlacesSuggestions(
+    dynamic raw, {
+    required String fallbackCity,
+    required String fallbackPostal,
   }) {
-    late final Future<List<Map<String, dynamic>>> scheduled;
-    scheduled = _nominatimChain.then((_) => _runNominatimSearch(
-          query: query,
-          city: city,
-          limit: limit,
-        ));
-    _nominatimChain = scheduled.then(
-      (_) {},
-      onError: (_) {},
-    );
-    return scheduled;
-  }
-
-  Future<List<Map<String, dynamic>>> _runNominatimSearch({
-    required String query,
-    required String city,
-    int? limit,
-  }) async {
-    final lastAt = _lastNominatimRequestAt;
-    if (lastAt != null) {
-      final wait = _nominatimMinInterval - DateTime.now().difference(lastAt);
-      if (wait > Duration.zero) {
-        await Future<void>.delayed(wait);
-      }
-    }
-    _lastNominatimRequestAt = DateTime.now();
-
-    final q = '${query.trim()} ${city.trim()}'.trim();
-    final uri = Uri.https(_nominatimHost, '/search', {
-      'q': q,
-      'format': 'json',
-      'addressdetails': '1',
-      'limit': '${limit ?? _maxSuggestions}',
-      'countrycodes': 'fr',
-    });
-
-    final response = await _client.get(
-      uri,
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': _nominatimUserAgent,
-      },
-    );
-    if (response.statusCode != 200) return [];
-
-    final body = jsonDecode(response.body);
-    if (body is! List) return [];
-
-    return body.whereType<Map<String, dynamic>>().toList();
-  }
-
-  List<FrenchAddressSuggestion> _mapNominatimResults(
-    List<Map<String, dynamic>> results,
-    String fallbackCity, {
-    String expectedPostcode = '',
-  }) {
+    if (raw is! List) return [];
     final suggestions = <FrenchAddressSuggestion>[];
-    final targetCity = _normalizePlace(fallbackCity);
-    final targetPostcode = expectedPostcode.trim();
 
-    for (final result in results) {
-      if (!_isSportsOsmResult(result)) continue;
+    for (final item in raw.whereType<Map>()) {
+      final map = Map<String, dynamic>.from(item);
+      final prediction = map['placePrediction'];
+      if (prediction is! Map) continue;
+      final predictionMap = Map<String, dynamic>.from(prediction);
 
-      final name = (result['name'] as String?)?.trim() ?? '';
-      if (name.isEmpty) continue;
+      final textMap = predictionMap['text'];
+      final fullText = textMap is Map
+          ? _firstString(textMap['text'])
+          : '';
 
-      final address = result['address'] as Map<String, dynamic>? ?? {};
-      final nominatimCity = _cityFromNominatim(address);
-      if (nominatimCity.isNotEmpty &&
-          _normalizePlace(nominatimCity) != targetCity) {
-        continue;
+      final structured = predictionMap['structuredFormat'];
+      var mainText = '';
+      var secondaryText = '';
+      if (structured is Map) {
+        final structuredMap = Map<String, dynamic>.from(structured);
+        final main = structuredMap['mainText'];
+        final secondary = structuredMap['secondaryText'];
+        if (main is Map) mainText = _firstString(main['text']);
+        if (secondary is Map) secondaryText = _firstString(secondary['text']);
       }
 
-      final suggestionPostal = _firstString(address['postcode']);
-      if (targetPostcode.isNotEmpty &&
-          suggestionPostal.isNotEmpty &&
-          suggestionPostal != targetPostcode) {
-        continue;
-      }
+      final street = mainText.isNotEmpty ? mainText : fullText;
+      if (street.isEmpty) continue;
 
-      final suggestionCity =
-          nominatimCity.isNotEmpty ? nominatimCity : fallbackCity;
-      final road = _firstString(address['road']).trim();
-      final label = road.isNotEmpty ? '$name — $road' : name;
+      final label = fullText.isNotEmpty
+          ? fullText
+          : (secondaryText.isNotEmpty ? '$street — $secondaryText' : street);
 
       suggestions.add(
         FrenchAddressSuggestion(
           label: label,
-          city: suggestionCity,
-          postalCode: suggestionPostal,
-          street: name,
-          isSportsVenue: true,
+          city: fallbackCity,
+          postalCode: fallbackPostal,
+          street: street,
         ),
       );
     }
 
-    return _uniqueByLabel(suggestions);
-  }
-
-  String _cityFromNominatim(Map<String, dynamic> address) {
-    return _firstString(
-      address['city'] ??
-          address['town'] ??
-          address['village'] ??
-          address['municipality'],
-    );
-  }
-
-  /// Lieu sportif OSM : type connu, ou classe leisure/sport/amenity + token.
-  ///
-  /// Ne matche pas une rue / adresse civile uniquement sur le nom
-  /// (ex. « Rue du Stade »).
-  bool _isSportsOsmResult(Map<String, dynamic> result) {
-    final type = (result['type'] as String? ?? '').toLowerCase();
-    final osmClass = (result['class'] as String? ?? '').toLowerCase();
-    final name = (
-      (result['name'] as String?) ??
-          (result['display_name'] as String?) ??
-          ''
-    ).toLowerCase();
-
-    if (_sportOsmTypes.contains(type)) return true;
-    if (osmClass == 'leisure' || osmClass == 'sport' || osmClass == 'amenity') {
-      return _matchesSportTokens(name);
-    }
-    return false;
-  }
-
-  String _normalizePlace(String value) {
-    return value
-        .trim()
-        .toLowerCase()
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .replaceAll('-', ' ');
+    return _uniqueByLabel(suggestions, maxCount: _maxSuggestions);
   }
 
   Future<List<FrenchAddressSuggestion>> _searchGeoPfAddresses(
@@ -409,17 +282,6 @@ class FrenchAddressService {
     } catch (_) {
       return [];
     }
-  }
-
-  bool _matchesSportTokens(String haystack) {
-    final normalized = haystack.toLowerCase();
-    return _sportTokens.any((token) {
-      final pattern = RegExp(
-        '(^|[^a-zà-ÿ])${RegExp.escape(token)}([^a-zà-ÿ]|\$)',
-        unicode: true,
-      );
-      return pattern.hasMatch(normalized);
-    });
   }
 
   List<FrenchAddressSuggestion> _uniqueByLabel(

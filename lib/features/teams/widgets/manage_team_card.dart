@@ -9,6 +9,7 @@ import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/teams/widgets/add_team_member_sheet.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_messaging_links_section.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
@@ -140,6 +141,11 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     ),
                   )
                 else ...[
+                  TeamMessagingLinksSection(
+                    team: team,
+                    accent: widget.accent,
+                    canEdit: perms.canEditMessagingLinks(team),
+                  ),
                   _buildRosterSection(
                     title: 'Coachs',
                     titleColor: const Color(0xFFEA580C),

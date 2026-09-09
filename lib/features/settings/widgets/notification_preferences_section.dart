@@ -8,7 +8,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 
-/// Section paramètres : 3 toggles push (events / annonces / cotisations).
+/// Section paramètres : toggles push (events / annonces / cotisations / RSVP).
 class NotificationPreferencesSection extends ConsumerWidget {
   const NotificationPreferencesSection({super.key, required this.user});
 
@@ -46,6 +46,7 @@ class NotificationPreferencesSection extends ConsumerWidget {
       'events' => current.copyWith(events: enabled),
       'announcements' => current.copyWith(announcements: enabled),
       'fees' => current.copyWith(fees: enabled),
+      'rsvp' => current.copyWith(rsvp: enabled),
       _ => current,
     };
 
@@ -98,6 +99,19 @@ class NotificationPreferencesSection extends ConsumerWidget {
                   context: context,
                   ref: ref,
                   key: 'events',
+                  enabled: value,
+                ),
+              ),
+              const Divider(height: 1),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Réponses RSVP'),
+                subtitle: const Text('Quand un membre répond Présent / Absent'),
+                value: prefs.rsvp,
+                onChanged: (value) => _setPreference(
+                  context: context,
+                  ref: ref,
+                  key: 'rsvp',
                   enabled: value,
                 ),
               ),

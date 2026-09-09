@@ -228,13 +228,13 @@ async function flushEventRsvpNotifications(params: {
       payload: {
         title: copy.title,
         body: copy.body,
-        preferenceKey: "events",
+        preferenceKey: "rsvp",
         data: buildPushData({
           type: "event_rsvp_changed",
           clubId: params.clubId,
           deepLink,
           webPath,
-          preferenceKey: "events",
+          preferenceKey: "rsvp",
           extra: {
             eventId: params.eventId,
             dateId,

@@ -35,7 +35,7 @@
 | ~~`fcmToken`~~ | — | Remplacé par sous-collection `fcmTokens` (multi-appareils) |
 | `clubMemberships` | array | `[{ clubId, role }]` — clubs où l’utilisateur est **membre** (`player` \| `coach` \| `admin`) |
 | `parentLinks` | array | Index session parent : `[{ clubId, memberId, relation, status }]` — **pas** un rôle club. Source de vérité : `members/{memberId}/guardians/{parentUid}`. Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md). |
-| `notificationPreferences` | map | `{ events, announcements, fees }` — booléens, défaut `true` (opt-in) |
+| `notificationPreferences` | map | `{ events, announcements, fees, rsvp }` — booléens, défaut `true` (opt-in) |
 | `flags` | map | `{ profileCompleted, disabled }` |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |
@@ -154,7 +154,10 @@ V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiv
 | `coachIds` | array | UIDs des coachs |
 | `pendingPlayerIds` | array | Invités sans compte (`pending_members`) |
 | `avatarUrl` | string | |
+| `messagingLink` | string? | URL du groupe de discussion (ex. WhatsApp équipe) |
+| `parentsMessagingLink` | string? | URL du groupe parents (ex. WhatsApp) |
 | `createdAt` | timestamp | |
+| `updatedAt` | timestamp | |
 
 ---
 

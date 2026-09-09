@@ -146,13 +146,17 @@ export function feeReminderCopy(params: {
 }
 
 /** Texte de confirmation quand on désactive une préférence. */
-export function preferenceOffWarning(key: "events" | "announcements" | "fees"): string {
+export function preferenceOffWarning(
+  key: "events" | "announcements" | "fees" | "rsvp",
+): string {
   switch (key) {
     case "events":
-      return "Vous ne recevrez plus les rappels d’événements (J-7, J-2), les changements de RSVP ni les notifications envoyées par les coaches.";
+      return "Vous ne recevrez plus les rappels d’événements (J-7, J-2) ni les notifications envoyées par les coaches.";
     case "announcements":
       return "Vous ne recevrez plus de notification à la publication des annonces du club.";
     case "fees":
       return "Vous ne recevrez plus les rappels hebdomadaires de cotisation.";
+    case "rsvp":
+      return "Vous ne recevrez plus de notification à chaque changement de RSVP.";
   }
 }

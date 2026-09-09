@@ -7,7 +7,7 @@ import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
 
-/// Ville + code postal + adresse avec suggestions (BAN / Nominatim).
+/// Ville + code postal + adresse avec suggestions (BAN / Google Places).
 ///
 /// Réutilisé par le wizard siège et le formulaire match extérieur.
 class FrenchAddressFields extends StatefulWidget {
@@ -20,7 +20,7 @@ class FrenchAddressFields extends StatefulWidget {
     required this.accent,
     this.onFieldChanged,
     this.addressLabel = 'Adresse',
-    this.addressHint = 'Gymnase, stade ou rue…',
+    this.addressHint = 'Rue, numéro ou lieu…',
     this.enabled = true,
   });
 
@@ -302,41 +302,45 @@ class _AddressSuggestionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(ViroSpacing.cardRadius);
+    // Bordure / ombre sur le Container ; fond sur Material pour ink ListTile.
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(top: ViroSpacing.xs),
       decoration: BoxDecoration(
-        color: ViroColors.surfaceCard,
-        borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
+        borderRadius: radius,
         border: Border.all(color: accent.withValues(alpha: 0.45)),
         boxShadow: ViroMotion.cardShadow(elevated: false),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var index = 0; index < suggestions.length; index++) ...[
-            if (index > 0)
-              Divider(height: 1, color: accent.withValues(alpha: 0.12)),
-            ListTile(
-              dense: true,
-              visualDensity: VisualDensity.compact,
-              leading: ViroIcon(
-                suggestions[index].isSportsVenue
-                    ? ViroIcons.ball
-                    : ViroIcons.place,
-                size: 18,
-                color: accent,
+      child: Material(
+        color: ViroColors.surfaceCard,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var index = 0; index < suggestions.length; index++) ...[
+              if (index > 0)
+                Divider(height: 1, color: accent.withValues(alpha: 0.12)),
+              ListTile(
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                leading: ViroIcon(
+                  ViroIcons.place,
+                  size: 18,
+                  color: accent,
+                ),
+                title: Text(
+                  suggestions[index].label,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () => onSelected(suggestions[index]),
               ),
-              title: Text(
-                suggestions[index].label,
-                style: Theme.of(context).textTheme.bodySmall,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              onTap: () => onSelected(suggestions[index]),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

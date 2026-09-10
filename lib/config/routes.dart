@@ -164,17 +164,17 @@ final routerRefreshProvider = Provider<RouterRefreshNotifier>((ref) {
 
   final notifier = RouterRefreshNotifier();
 
-  ref.listen(authStateProvider, (_, _) => notifier.notify());
+  ref.listen(authStateProvider, (previous, next) => notifier.notify());
 
-  ref.listen(firestoreAuthReadyProvider, (_, _) => notifier.notify());
+  ref.listen(firestoreAuthReadyProvider, (previous, next) => notifier.notify());
 
-  ref.listen(viroUserProvider, (_, _) => notifier.notify());
+  ref.listen(viroUserProvider, (previous, next) => notifier.notify());
 
-  ref.listen(sessionProvider, (_, _) => notifier.notify());
+  ref.listen(sessionProvider, (previous, next) => notifier.notify());
 
-  ref.listen(pendingInvitationProvider, (_, _) => notifier.notify());
+  ref.listen(pendingInvitationProvider, (previous, next) => notifier.notify());
 
-  ref.listen(signUpIntentProvider, (_, _) => notifier.notify());
+  ref.listen(signUpIntentProvider, (previous, next) => notifier.notify());
 
   ref.onDispose(notifier.dispose);
 
@@ -350,7 +350,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.loading,
 
-        builder: (_, _) => const AuthLoadingScreen(),
+        builder: (context, state) => const AuthLoadingScreen(),
 
       ),
 
@@ -358,7 +358,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.entry,
 
-        builder: (_, _) => const OnboardingEntryScreen(),
+        builder: (context, state) => const OnboardingEntryScreen(),
 
       ),
 
@@ -366,7 +366,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.login,
 
-        builder: (_, _) => const LoginScreen(),
+        builder: (context, state) => const LoginScreen(),
 
       ),
 
@@ -402,7 +402,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.joinPreview,
 
-        builder: (_, _) => const InvitationPreviewScreen(),
+        builder: (context, state) => const InvitationPreviewScreen(),
 
       ),
 
@@ -410,7 +410,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.joinRequestRole,
 
-        builder: (_, _) => const RequestRoleScreen(),
+        builder: (context, state) => const RequestRoleScreen(),
 
       ),
 
@@ -418,7 +418,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.clubSetup,
 
-        builder: (_, _) => const ClubSetupWizardScreen(),
+        builder: (context, state) => const ClubSetupWizardScreen(),
 
       ),
 
@@ -426,7 +426,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.home,
 
-        builder: (_, _) => const HomeMemberScreen(),
+        builder: (context, state) => const HomeMemberScreen(),
 
       ),
 
@@ -434,7 +434,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.memberPlanning,
 
-        builder: (_, _) => const MemberPlanningScreen(),
+        builder: (context, state) => const MemberPlanningScreen(),
 
       ),
 
@@ -442,7 +442,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.userSettings,
 
-        builder: (_, _) => const UserSettingsScreen(),
+        builder: (context, state) => const UserSettingsScreen(),
 
       ),
 
@@ -450,7 +450,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.profile,
 
-        redirect: (_, _) => AppRoutes.userSettings,
+        redirect: (context, state) => AppRoutes.userSettings,
 
       ),
 
@@ -458,7 +458,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.clubs,
 
-        builder: (_, _) => const ClubSelectorScreen(),
+        builder: (context, state) => const ClubSelectorScreen(),
 
       ),
 
@@ -710,7 +710,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         path: AppRoutes.designPreview,
 
-        builder: (_, _) => const DesignSystemPreviewScreen(),
+        builder: (context, state) => const DesignSystemPreviewScreen(),
 
       ),
 

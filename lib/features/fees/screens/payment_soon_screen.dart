@@ -8,6 +8,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Placeholder affiché à la place du portail de paiement HelloAsso.
 class PaymentSoonScreen extends ConsumerWidget {
@@ -23,8 +24,8 @@ class PaymentSoonScreen extends ConsumerWidget {
     return ClubAccentTheme(
       accentColor: accent,
       child: ViroScaffold(
-      appBar: const ViroAppBar(
-        title: Text('Payer en ligne'),
+      appBar: ViroAppBar(
+        title: Text(AppCopy.fees.payOnlineTitle),
       ),
       body: Center(
         child: Padding(
@@ -42,7 +43,7 @@ class PaymentSoonScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 Text(
-                  'Bientôt disponible',
+                  AppCopy.fees.comingSoon,
                   textAlign: TextAlign.center,
                   style: theme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
@@ -51,9 +52,7 @@ class PaymentSoonScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: ViroSpacing.sm),
                 Text(
-                  'Le paiement en ligne via HelloAsso arrive bientôt. '
-                  'En attendant, utilisez les moyens de paiement indiqués '
-                  'par votre club.',
+                  AppCopy.fees.paymentSoonBody,
                   textAlign: TextAlign.center,
                   style: theme.bodyMedium?.copyWith(
                     color: ViroColors.gray600,

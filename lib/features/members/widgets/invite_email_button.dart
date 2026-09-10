@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 enum _InviteEmailFeedback { idle, loading, success, error }
 
@@ -72,14 +73,14 @@ class _InviteEmailButtonState extends State<InviteEmailButton> {
   }
 
   String get _idleLabel => widget.variant == InviteEmailButtonVariant.ghost
-      ? 'Envoyer'
-      : 'Envoyer l\'invitation';
+      ? AppCopy.common.send
+      : AppCopy.members.sendInvite;
 
   String get _label {
     return switch (_feedback) {
-      _InviteEmailFeedback.loading => 'Envoi…',
-      _InviteEmailFeedback.success => 'Envoyée',
-      _InviteEmailFeedback.error => 'Échec',
+      _InviteEmailFeedback.loading => AppCopy.members.sending,
+      _InviteEmailFeedback.success => AppCopy.members.inviteSentShort,
+      _InviteEmailFeedback.error => AppCopy.members.inviteFailedShort,
       _InviteEmailFeedback.idle => _idleLabel,
     };
   }

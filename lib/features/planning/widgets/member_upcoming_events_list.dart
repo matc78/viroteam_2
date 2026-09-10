@@ -12,6 +12,7 @@ import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Limite d'événements affichés en aperçu sur la home membre.
 const memberHomePlanningPreviewLimit = 5;
@@ -158,7 +159,7 @@ class _MemberEventCard extends ConsumerWidget {
 
     return EventPlanningCard(
       event: event,
-      clubName: clubNames[event.clubId] ?? 'Club',
+      clubName: clubNames[event.clubId] ?? AppCopy.planning.clubFallbackName,
       clubColor: clubColors[event.clubId] ?? ViroColors.primary600,
       clubColorSecondary: clubSecondaryColors[event.clubId],
       coachView: false,

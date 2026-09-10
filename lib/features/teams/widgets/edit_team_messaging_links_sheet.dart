@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
@@ -84,11 +85,11 @@ class _EditTeamMessagingLinksSheetState
         !uri.hasScheme ||
         (uri.scheme != 'http' && uri.scheme != 'https') ||
         uri.host.isEmpty) {
-      return 'Utilise un lien WhatsApp complet (https://chat.whatsapp.com/…).';
+      return AppCopy.teams.whatsappLinkInvalid;
     }
     final host = uri.host.toLowerCase();
     if (!_whatsappHosts.contains(host)) {
-      return 'Seuls les liens WhatsApp sont acceptés.';
+      return AppCopy.teams.whatsappLinkOnly;
     }
     return null;
   }
@@ -114,12 +115,12 @@ class _EditTeamMessagingLinksSheetState
             parentsMessagingLink: _parentsLinkController.text,
           );
       if (mounted) {
-        ViroSnackBar.show(context, 'Liens mis à jour');
+        ViroSnackBar.show(context, AppCopy.teams.linksUpdated);
         Navigator.of(context).pop(true);
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Enregistrement impossible.');
+        setState(() => _error = AppCopy.common.saveFailed);
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -143,7 +144,7 @@ class _EditTeamMessagingLinksSheetState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Liens WhatsApp',
+              AppCopy.teams.messagingLinksTitle,
               style: theme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: ViroColors.primary800,
@@ -151,7 +152,7 @@ class _EditTeamMessagingLinksSheetState
             ),
             const SizedBox(height: ViroSpacing.xs),
             Text(
-              'Colle les liens d’invitation des groupes WhatsApp.',
+              AppCopy.teams.messagingLinksHelper,
               style: theme.bodyMedium?.copyWith(
                 color: ViroColors.gray600,
                 height: 1.35,
@@ -162,9 +163,9 @@ class _EditTeamMessagingLinksSheetState
               controller: _teamLinkController,
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Groupe équipe',
-                hintText: 'https://chat.whatsapp.com/…',
+              decoration: InputDecoration(
+                labelText: AppCopy.teams.teamGroupLabel,
+                hintText: AppCopy.teams.whatsappLinkHint,
               ),
             ),
             const SizedBox(height: ViroSpacing.md),
@@ -173,9 +174,9 @@ class _EditTeamMessagingLinksSheetState
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _saving ? null : _save(),
-              decoration: const InputDecoration(
-                labelText: 'Groupe parents',
-                hintText: 'https://chat.whatsapp.com/…',
+              decoration: InputDecoration(
+                labelText: AppCopy.teams.parentsGroupLabel,
+                hintText: AppCopy.teams.whatsappLinkHint,
               ),
             ),
             if (_error != null) ...[
@@ -187,7 +188,7 @@ class _EditTeamMessagingLinksSheetState
             ],
             const SizedBox(height: ViroSpacing.lg),
             ViroPrimaryButton(
-              label: 'Enregistrer',
+              label: AppCopy.common.save,
               isLoading: _saving,
               onPressed: _saving ? null : _save,
             ),

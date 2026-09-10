@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Item d’inventaire club (`clubs/{clubId}/equipment/{itemId}`).
 class ClubEquipmentItem {
@@ -61,9 +62,9 @@ class ClubEquipmentItem {
 
 /// Libellé FR d’un état inventaire (aligné portail).
 String equipmentConditionLabel(String condition) {
-  if (condition == EquipmentConditions.use) return 'Usé';
-  if (condition == EquipmentConditions.hs) return 'HS';
-  return 'OK';
+  if (condition == EquipmentConditions.use) return AppCopy.equipment.conditionUsed;
+  if (condition == EquipmentConditions.hs) return AppCopy.equipment.conditionBroken;
+  return AppCopy.equipment.conditionOk;
 }
 
 /// Données formulaire création / édition inventaire.

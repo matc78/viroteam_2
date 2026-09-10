@@ -8,6 +8,7 @@ import 'package:viro_team_v2/features/club/widgets/bicolor_circle.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Aperçu statique (non cliquable) de l'identité visuelle club.
 class ClubAppearancePreview extends StatelessWidget {
@@ -41,7 +42,7 @@ class ClubAppearancePreview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Aperçu',
+              AppCopy.club.preview,
               style: theme.labelMedium?.copyWith(
                 color: ViroColors.gray600,
                 fontWeight: FontWeight.w600,
@@ -67,8 +68,8 @@ class ClubAppearancePreview extends StatelessWidget {
             ],
             const SizedBox(height: ViroSpacing.lg),
             _ZonePreview(
-              title: 'Accès rapides',
-              subtitle: 'Planning, équipes…',
+              title: AppCopy.club.quickAccessSection,
+              subtitle: AppCopy.club.previewQuickAccessSubtitle,
               accent: brandColors.memberZoneColor,
               accentStyle: memberStyle,
               icon: ViroIcons.calendar,
@@ -76,8 +77,8 @@ class ClubAppearancePreview extends StatelessWidget {
             if (brandColors.isBicolor) ...[
               const SizedBox(height: ViroSpacing.sm),
               _ZonePreview(
-                title: 'Gestion du club',
-                subtitle: 'Membres, équipes, apparence…',
+                title: AppCopy.club.clubManagementSection,
+                subtitle: AppCopy.club.previewManagementSubtitle,
                 accent: brandColors.managementZoneColor,
                 accentStyle: managementStyle,
                 icon: ViroIcons.settings,
@@ -85,7 +86,7 @@ class ClubAppearancePreview extends StatelessWidget {
             ] else ...[
               const SizedBox(height: ViroSpacing.sm),
               Text(
-                'Couleur unique sur toutes les sections.',
+                AppCopy.club.singleColorAllSections,
                 textAlign: TextAlign.center,
                 style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
               ),

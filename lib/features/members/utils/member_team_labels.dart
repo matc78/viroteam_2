@@ -1,3 +1,4 @@
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 
@@ -15,8 +16,8 @@ List<String> resolveMemberTeamLabels(
     if (!isPlayer && !isCoach && !inDoc) continue;
 
     final roles = <String>[];
-    if (isCoach) roles.add('coach');
-    if (isPlayer) roles.add('joueur');
+    if (isCoach) roles.add(AppCopy.members.teamRoleCoach);
+    if (isPlayer) roles.add(AppCopy.members.teamRolePlayer);
 
     if (roles.isEmpty) {
       labels.add(team.name);

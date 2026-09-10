@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Dialogue trésorier : valider un paiement hors-ligne.
 class OfflinePaymentDialog extends StatefulWidget {
@@ -46,7 +47,7 @@ class _OfflinePaymentDialogState extends State<OfflinePaymentDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Valider hors-ligne'),
+      title: Text(AppCopy.fees.validateOffline),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -55,13 +56,13 @@ class _OfflinePaymentDialogState extends State<OfflinePaymentDialog> {
             Text(widget.memberDisplayName),
             const SizedBox(height: ViroSpacing.sm),
             Text(
-              'Reste : ${formatFeeAmountCents(widget.remainingCents)}',
+              AppCopy.fees.remainingLabel(formatFeeAmountCents(widget.remainingCents)),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: ViroSpacing.md),
             DropdownButtonFormField<String>(
               initialValue: _method,
-              decoration: const InputDecoration(labelText: 'Moyen'),
+              decoration: InputDecoration(labelText: AppCopy.fees.methodLabel),
               items: [
                 for (final m in FeePaymentMethods.offline)
                   DropdownMenuItem(
@@ -78,7 +79,7 @@ class _OfflinePaymentDialogState extends State<OfflinePaymentDialog> {
               controller: _amountCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Montant (€)'),
+              decoration: InputDecoration(labelText: AppCopy.fees.amountEuros),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
               ],
@@ -89,7 +90,7 @@ class _OfflinePaymentDialogState extends State<OfflinePaymentDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
+          child: Text(AppCopy.common.cancel),
         ),
         TextButton(
           onPressed: _amountCents <= 0
@@ -98,7 +99,7 @@ class _OfflinePaymentDialogState extends State<OfflinePaymentDialog> {
                     context,
                     (method: _method, amountCents: _amountCents),
                   ),
-          child: const Text('Valider'),
+          child: Text(AppCopy.fees.validate),
         ),
       ],
     );

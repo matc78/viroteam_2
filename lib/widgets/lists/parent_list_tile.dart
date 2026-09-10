@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
@@ -75,7 +76,9 @@ class ParentListTile extends StatelessWidget {
                           ),
                         ),
                       Text(
-                        'Enfant(s) : ${parent.children.map((c) => c.displayName).join(', ')}',
+                        AppCopy.members.childrenList(
+                          parent.children.map((c) => c.displayName).join(', '),
+                        ),
                         style: theme.bodySmall?.copyWith(
                           color: ViroColors.gray600,
                         ),
@@ -106,19 +109,19 @@ class ParentListTile extends StatelessWidget {
                 if (isPending) ...[
                   TextButton(
                     onPressed: busy ? null : onCopyInvite,
-                    child: const Text('Copier'),
+                    child: Text(AppCopy.common.copy),
                   ),
                   TextButton(
                     onPressed: busy ? null : onChangeEmail,
-                    child: const Text('Mail'),
+                    child: Text(AppCopy.common.mail),
                   ),
                   TextButton(
                     onPressed: busy ? null : onExtend,
-                    child: const Text('Prolonger'),
+                    child: Text(AppCopy.common.extend),
                   ),
                   TextButton(
                     onPressed: busy ? null : onRegenerate,
-                    child: const Text('Renvoyer'),
+                    child: Text(AppCopy.common.resend),
                   ),
                 ],
                 ...parent.children.map(
@@ -126,8 +129,8 @@ class ParentListTile extends StatelessWidget {
                     onPressed: busy ? null : () => onRevokeChild(child),
                     child: Text(
                       parent.children.length > 1
-                          ? 'Révoquer (${child.displayName})'
-                          : 'Révoquer',
+                          ? AppCopy.members.revokeNamed(child.displayName)
+                          : AppCopy.common.revoke,
                     ),
                   ),
                 ),

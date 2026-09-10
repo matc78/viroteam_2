@@ -28,6 +28,7 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class AddEventScreen extends ConsumerStatefulWidget {
   const AddEventScreen({
@@ -322,24 +323,24 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
     final teams = ref.read(clubTeamsProvider(widget.clubId)).value ?? [];
     final club = ref.read(clubProvider(widget.clubId)).value;
     if (_type != EventTypes.other && _teamId == null) {
-      ViroSnackBar.show(context, 'Choisissez une équipe');
+      ViroSnackBar.show(context, AppCopy.planning.chooseTeamSnack);
       return;
     }
     if (_type == EventTypes.other && _titleController.text.trim().isEmpty) {
-      ViroSnackBar.show(context, 'Titre requis');
+      ViroSnackBar.show(context, AppCopy.planning.titleRequired);
       return;
     }
 
     if (_isMatch) {
       if (_matchVenue == null) {
-        ViroSnackBar.show(context, 'Indiquez domicile ou extérieur');
+        ViroSnackBar.show(context, AppCopy.planning.indicateHomeOrAway);
         return;
       }
       if (_matchVenue == MatchVenues.away &&
           _resolveAwayLocation() == null) {
         ViroSnackBar.show(
           context,
-          'Ville, code postal et adresse du match requis',
+          AppCopy.planning.matchAddressRequired,
         );
         return;
       }
@@ -347,18 +348,18 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
       final startMin = _start.hour * 60 + _start.minute;
       final endMin = _end.hour * 60 + _end.minute;
       if (endMin <= startMin) {
-        ViroSnackBar.show(context, 'L\'heure de fin doit être après le début');
+        ViroSnackBar.show(context, AppCopy.planning.endTimeAfterStart);
         return;
       }
     }
 
     if (_isRecurring) {
       if (_recurrenceEndDate == null) {
-        ViroSnackBar.show(context, 'Choisissez une date de fin');
+        ViroSnackBar.show(context, AppCopy.planning.chooseEndDate);
         return;
       }
       if (_recurrenceEndDate!.isBefore(_date)) {
-        ViroSnackBar.show(context, 'La fin doit être après la date de début');
+        ViroSnackBar.show(context, AppCopy.planning.endDateAfterStart);
         return;
       }
     }
@@ -375,7 +376,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
 
     final location = _resolveLocation(club);
     if (location == null || location.isEmpty) {
-      ViroSnackBar.show(context, 'Lieu requis');
+      ViroSnackBar.show(context, AppCopy.planning.locationRequired);
       return;
     }
 
@@ -404,12 +405,12 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
       if (mounted) {
         ViroSnackBar.show(
           context,
-          count > 1 ? '$count événements créés' : 'Événement créé',
+          AppCopy.planning.eventsCreated(count),
         );
         context.pop();
       }
     } catch (e) {
-      if (mounted) ViroSnackBar.show(context, 'Erreur : $e');
+      if (mounted) ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -451,8 +452,8 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.pop();
       });
-      return const ViroScaffold(
-        body: Center(child: Text('Réservé aux coachs et administrateurs')),
+      return ViroScaffold(
+        body: Center(child: Text(AppCopy.planning.reservedToCoachesAdmins)),
       );
     }
 
@@ -471,7 +472,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: _saving ? null : () => context.pop(),
         ),
-        title: const Text('Nouvel événement'),
+        title: Text(AppCopy.planning.newEventTitle),
       ),
       body: teamsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -534,19 +535,19 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 isExpanded: true,
                 style: dropdownStyle,
                 menuMaxHeight: 240,
-                decoration: _inputDecoration(label: 'Type'),
+                decoration: _inputDecoration(label: AppCopy.planning.fieldType),
                 items: [
                   DropdownMenuItem(
                     value: EventTypes.training,
-                    child: Text('Entraînement', style: dropdownStyle),
+                    child: Text(AppCopy.planning.typeTraining, style: dropdownStyle),
                   ),
                   DropdownMenuItem(
                     value: EventTypes.match,
-                    child: Text('Match', style: dropdownStyle),
+                    child: Text(AppCopy.planning.typeMatch, style: dropdownStyle),
                   ),
                   DropdownMenuItem(
                     value: EventTypes.other,
-                    child: Text('Autre', style: dropdownStyle),
+                    child: Text(AppCopy.planning.typeOther, style: dropdownStyle),
                   ),
                 ],
                 onChanged: _saving ? null : _onTypeChanged,
@@ -564,8 +565,8 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   isExpanded: true,
                   style: dropdownStyle,
                   menuMaxHeight: 240,
-                  decoration: _inputDecoration(label: 'Équipe'),
-                  hint: Text('Choisir une équipe', style: dropdownStyle),
+                  decoration: _inputDecoration(label: AppCopy.planning.fieldTeam),
+                  hint: Text(AppCopy.planning.chooseTeam, style: dropdownStyle),
                   selectedItemBuilder: (context) => sortedTeams
                       .map(
                         (t) => Align(
@@ -595,26 +596,26 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.md),
               ] else ...[
-                _FieldLabel('Titre', accentColor: accent),
+                _FieldLabel(AppCopy.planning.fieldTitle, accentColor: accent),
                 TextField(
                   controller: _titleController,
-                  decoration: _inputDecoration(hint: 'Réunion, stage…'),
+                  decoration: _inputDecoration(hint: AppCopy.planning.titleHint),
                   enabled: !_saving,
                 ),
                 const SizedBox(height: ViroSpacing.md),
               ],
               if (_isMatch) ...[
-                _FieldLabel('Domicile ou extérieur', accentColor: accent),
+                _FieldLabel(AppCopy.planning.homeOrAway, accentColor: accent),
                 SegmentedButton<String>(
                   style: ClubAccentTheme.segmentedButtonStyle(accent, onAccent),
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: MatchVenues.home,
-                      label: Text('Domicile'),
+                      label: Text(AppCopy.planning.home),
                     ),
                     ButtonSegment(
                       value: MatchVenues.away,
-                      label: Text('Extérieur'),
+                      label: Text(AppCopy.planning.away),
                     ),
                   ],
                   selected: {_matchVenue ?? MatchVenues.home},
@@ -625,7 +626,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 const SizedBox(height: ViroSpacing.md),
               ],
               if (_useAwayLocationField) ...[
-                _FieldLabel('Lieu du match', accentColor: accent),
+                _FieldLabel(AppCopy.planning.matchVenue, accentColor: accent),
                 FrenchAddressFields(
                   cityController: _awayCityController,
                   postalController: _awayPostalController,
@@ -633,8 +634,8 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   addressService: _addressService,
                   accent: accent,
                   enabled: !_saving,
-                  addressLabel: 'Adresse',
-                  addressHint: 'Rue, numéro ou lieu…',
+                  addressLabel: AppCopy.planning.address,
+                  addressHint: AppCopy.planning.addressHint,
                 ),
                 const SizedBox(height: ViroSpacing.md),
               ] else if (practiceLocations.isNotEmpty) ...[
@@ -646,7 +647,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   isExpanded: true,
                   style: dropdownStyle,
                   menuMaxHeight: 240,
-                  decoration: _inputDecoration(label: 'Lieu'),
+                  decoration: _inputDecoration(label: AppCopy.planning.fieldLocation),
                   selectedItemBuilder: (context) => [
                     for (final location in practiceLocations)
                       Text(
@@ -673,10 +674,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.md),
               ] else ...[
-                _FieldLabel('Lieu', accentColor: accent),
+                _FieldLabel(AppCopy.planning.fieldLocation, accentColor: accent),
                 TextField(
                   controller: _locationController,
-                  decoration: _inputDecoration(hint: 'Stade, gymnase…'),
+                  decoration: _inputDecoration(hint: AppCopy.planning.locationHint),
                   enabled: !_saving,
                 ),
                 const SizedBox(height: ViroSpacing.md),
@@ -688,7 +689,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _PickValueRow(
-                      label: _isMatch ? 'Jour du match' : 'Date',
+                      label: _isMatch ? AppCopy.planning.matchDay : AppCopy.planning.date,
                       value: formatEventDate(_date),
                       valueStyle: valueStyle,
                       accentColor: accent,
@@ -702,7 +703,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                       Row(
                         children: [
                           _PickValueRow(
-                            label: 'Heure du match',
+                            label: AppCopy.planning.matchTime,
                             value: _formatTime(_start),
                             valueStyle: valueStyle,
                             accentColor: accent,
@@ -716,7 +717,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                           ),
                           const SizedBox(width: ViroSpacing.lg),
                           _PickValueRow(
-                            label: 'Heure de RDV',
+                            label: AppCopy.planning.meetingTime,
                             value: _formatTime(_meetingTime),
                             valueStyle: valueStyle,
                             accentColor: accent,
@@ -734,7 +735,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                       Row(
                         children: [
                           _PickValueRow(
-                            label: 'Début',
+                            label: AppCopy.planning.start,
                             value: _formatTime(_start),
                             valueStyle: valueStyle,
                             accentColor: accent,
@@ -748,7 +749,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                           ),
                           const SizedBox(width: ViroSpacing.lg),
                           _PickValueRow(
-                            label: 'Fin',
+                            label: AppCopy.planning.end,
                             value: _formatTime(_end),
                             valueStyle: valueStyle,
                             accentColor: accent,
@@ -769,9 +770,9 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 const SizedBox(height: ViroSpacing.md),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text(
-                    'Récurrence hebdomadaire',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  title: Text(
+                    AppCopy.planning.weeklyRecurrence,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   value: _isRecurring,
                   onChanged: _saving
@@ -787,14 +788,14 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 if (_isRecurring) ...[
                   const SizedBox(height: ViroSpacing.sm),
                   _PickValueRow(
-                    label: 'Fin de saison',
+                    label: AppCopy.planning.seasonEnd,
                     value: _recurrenceEndDate != null
                         ? DateFormat('EEEE dd/MM/yyyy', 'fr_FR')
                             .format(_recurrenceEndDate!)
-                        : 'Choisir une date',
+                        : AppCopy.planning.chooseDate,
                     valueStyle: valueStyle,
                     accentColor: accent,
-                    subtitle: 'Par défaut : fin de saison du club',
+                    subtitle: AppCopy.planning.seasonEndDefaultSubtitle,
                     trailing: ViroIcon(ViroIcons.calendar, color: accent),
                     onTap: _saving
                         ? null
@@ -813,7 +814,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   isExpanded: true,
                   style: dropdownStyle,
                   menuMaxHeight: 240,
-                  decoration: _inputDecoration(label: 'Lieu du RDV'),
+                  decoration: _inputDecoration(label: AppCopy.planning.meetingLocation),
                   selectedItemBuilder: (context) => [
                     for (final location in practiceLocations)
                       Text(
@@ -880,8 +881,8 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                           ),
                           child: ViroPrimaryButton(
                             label: _isRecurring && _isTraining
-                                ? 'Créer la série'
-                                : 'Créer l\'événement',
+                                ? AppCopy.planning.createSeries
+                                : AppCopy.planning.createEvent,
                             isLoading: _saving,
                             onPressed: _saving || !_canCreate(club)
                                 ? null

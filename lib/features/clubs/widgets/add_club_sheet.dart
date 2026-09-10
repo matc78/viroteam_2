@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club_setup/providers/club_setup_provider.dart';
 
@@ -28,7 +29,7 @@ Future<void> showAddClubSheet(BuildContext context, WidgetRef ref) {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Ajouter un club',
+                AppCopy.club.addClubSheetTitle,
                 style: theme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: ViroColors.primary800,
@@ -36,14 +37,14 @@ Future<void> showAddClubSheet(BuildContext context, WidgetRef ref) {
               ),
               const SizedBox(height: ViroSpacing.sm),
               Text(
-                'Créez un nouveau club ou rejoignez-en un avec un code.',
+                AppCopy.club.addClubSheetBody,
                 style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
               ),
               const SizedBox(height: ViroSpacing.lg),
               _AddClubOptionTile(
                 icon: ViroIcons.groups,
-                title: 'Créer un club',
-                subtitle: 'Devenez administrateur d\'un nouveau club',
+                title: AppCopy.club.createClubOption,
+                subtitle: AppCopy.club.createClubOptionSubtitle,
                 onTap: () async {
                   Navigator.pop(ctx);
                   final authUser = ref.read(authStateProvider).value;
@@ -60,8 +61,8 @@ Future<void> showAddClubSheet(BuildContext context, WidgetRef ref) {
               const SizedBox(height: ViroSpacing.sm),
               _AddClubOptionTile(
                 icon: ViroIcons.key,
-                title: 'Rejoindre avec un code',
-                subtitle: 'Code fourni par votre entraîneur ou admin',
+                title: AppCopy.club.joinWithCodeOption,
+                subtitle: AppCopy.club.joinWithCodeSubtitle,
                 onTap: () {
                   Navigator.pop(ctx);
                   context.push(AppRoutes.join);

@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
@@ -41,11 +42,11 @@ class ManageTeamsScreen extends ConsumerWidget {
             category: result.category,
           );
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Équipe créée');
+        ViroSnackBar.show(context, AppCopy.teams.teamCreated);
       }
     } catch (e) {
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Erreur : $e');
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
       }
     }
   }
@@ -74,7 +75,7 @@ class ManageTeamsScreen extends ConsumerWidget {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Gérer les équipes'),
+        title: Text(AppCopy.teams.manageTitle),
       ),
       floatingActionButton: permissions.canCreateTeam()
           ? clubAsync.maybeWhen(
@@ -93,7 +94,7 @@ class ManageTeamsScreen extends ConsumerWidget {
         error: (error, stackTrace) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
-            return const Center(child: Text('Club introuvable'));
+            return Center(child: Text(AppCopy.common.clubNotFound));
           }
 
           final accent = ref.watch(clubManagementAccentProvider(clubId));
@@ -121,7 +122,7 @@ class ManageTeamsScreen extends ConsumerWidget {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  'Aucune équipe pour ce club.',
+                                  AppCopy.teams.emptyClub,
                                   textAlign: TextAlign.center,
                                   style: Theme.of(context)
                                       .textTheme
@@ -134,7 +135,7 @@ class ManageTeamsScreen extends ConsumerWidget {
                                     onPressed: () =>
                                         _createTeam(context, ref, club.sport),
                                     icon: ViroIcon(ViroIcons.add),
-                                    label: const Text('Créer une équipe'),
+                                    label: Text(AppCopy.teams.createTeamFab),
                                   ),
                                 ],
                               ],

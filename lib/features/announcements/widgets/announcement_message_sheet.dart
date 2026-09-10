@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 void showAnnouncementMessageSheet(
   BuildContext context, {
@@ -61,7 +62,7 @@ void showAnnouncementMessageSheet(
               child: ViroPressable(
                 onTap: () => Navigator.pop(ctx),
                 child: Text(
-                  'Fermer',
+                  AppCopy.common.close,
                   style: theme.labelLarge?.copyWith(
                     color: ViroColors.primary600,
                     fontWeight: FontWeight.w600,

@@ -1,3 +1,5 @@
+import 'package:viro_team_v2/copy/app_copy.dart';
+
 /// Préférences push utilisateur (events / annonces / cotisations / RSVP).
 class NotificationPreferences {
   const NotificationPreferences({
@@ -50,14 +52,14 @@ class NotificationPreferences {
 String notificationPreferenceOffWarning(String key) {
   switch (key) {
     case 'events':
-      return 'Vous ne recevrez plus les rappels d’événements (J-7, J-2) ni les notifications envoyées par les coaches.';
+      return AppCopy.settings.notifOffWarningEvents;
     case 'announcements':
-      return 'Vous ne recevrez plus de notification à la publication des annonces du club.';
+      return AppCopy.settings.notifOffWarningAnnouncements;
     case 'fees':
-      return 'Vous ne recevrez plus les rappels hebdomadaires de cotisation.';
+      return AppCopy.settings.notifOffWarningFees;
     case 'rsvp':
-      return 'Vous ne recevrez plus de notification à chaque changement de RSVP.';
+      return AppCopy.settings.notifOffWarningRsvp;
     default:
-      return 'Vous ne recevrez plus ce type de notification.';
+      return AppCopy.settings.notifOffWarningDefault;
   }
 }

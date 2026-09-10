@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_email_button.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -88,7 +89,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
 
     final auth = ref.read(authStateProvider).value;
     if (auth == null) {
-      setState(() => _error = 'Session expirée.');
+      setState(() => _error = AppCopy.members.sessionExpired);
       return;
     }
 
@@ -120,7 +121,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
             ? error.message.toString()
             : callableErrorMessage(
                 error,
-                fallback: 'Création du membre impossible.',
+                fallback: AppCopy.members.createMemberImpossible,
               );
         _busy = false;
       });
@@ -137,7 +138,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
       if (result.sent > 0) return true;
       final first = result.results.isNotEmpty ? result.results.first : null;
       throw Exception(
-        first?.reason ?? 'Impossible d\'envoyer l\'invitation.',
+        first?.reason ?? AppCopy.members.inviteSendFailed,
       );
     } catch (error) {
       if (mounted) {
@@ -145,7 +146,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           context,
           callableErrorMessage(
             error,
-            fallback: 'Envoi de l\'invitation impossible.',
+            fallback: AppCopy.members.inviteSendImpossibleSingular,
           ),
         );
       }
@@ -160,7 +161,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
     );
     await Clipboard.setData(ClipboardData(text: message));
     if (!mounted) return;
-    ViroSnackBar.show(context, 'Message copié dans le presse-papiers');
+    ViroSnackBar.show(context, AppCopy.members.messageCopied);
   }
 
   Widget _buildForm(ThemeData theme, Color titleColor) {
@@ -169,7 +170,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Ajouter un membre',
+          AppCopy.members.addMemberTitle,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
             color: titleColor,
@@ -181,7 +182,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           textCapitalization: TextCapitalization.words,
           enabled: !_busy,
           decoration: InputDecoration(
-            labelText: 'Prénom *',
+            labelText: AppCopy.members.firstNameRequired,
             errorText: _firstNameController.text.trim().isEmpty
                 ? null
                 : firstNameError(_firstNameController.text),
@@ -194,7 +195,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           textCapitalization: TextCapitalization.words,
           enabled: !_busy,
           decoration: InputDecoration(
-            labelText: 'Nom *',
+            labelText: AppCopy.members.lastNameRequired,
             errorText: _lastNameController.text.trim().isEmpty
                 ? null
                 : lastNameError(_lastNameController.text),
@@ -208,8 +209,8 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           autocorrect: false,
           enabled: !_busy,
           decoration: InputDecoration(
-            labelText: 'E-mail *',
-            hintText: 'seul ce compte pourra accepter l\'invitation',
+            labelText: AppCopy.members.emailRequired,
+            hintText: AppCopy.members.emailInviteHint,
             errorText: _emailFieldError,
           ),
           onChanged: (_) => setState(() {}),
@@ -219,7 +220,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           children: [
             Expanded(
               child: ChoiceChip(
-                label: const Text('Joueur'),
+                label: Text(AppCopy.common.rolePlayer),
                 selected: _role == MemberRoles.player,
                 onSelected: _busy
                     ? null
@@ -247,7 +248,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
             const SizedBox(width: ViroSpacing.sm),
             Expanded(
               child: ChoiceChip(
-                label: const Text('Coach'),
+                label: Text(AppCopy.common.roleCoachShort),
                 selected: _role == MemberRoles.coach,
                 onSelected: _busy
                     ? null
@@ -286,7 +287,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           children: [
             Expanded(
               child: ViroPrimaryButton(
-                label: 'Annuler',
+                label: AppCopy.common.cancel,
                 outlined: true,
                 onPressed: _busy ? null : () => Navigator.of(context).pop(),
               ),
@@ -294,7 +295,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
             const SizedBox(width: ViroSpacing.md),
             Expanded(
               child: ViroPrimaryButton(
-                label: _busy ? 'Création…' : 'Créer et inviter',
+                label: _busy ? AppCopy.members.creating : AppCopy.members.createAndInvite,
                 isLoading: _busy,
                 onPressed: _isFormValid && !_busy ? _createMember : null,
               ),
@@ -313,7 +314,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Invitation créée',
+          AppCopy.members.inviteCreated,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w700,
             color: titleColor,
@@ -321,7 +322,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
         ),
         const SizedBox(height: ViroSpacing.md),
         Text(
-          '${_member.displayName} a été ajouté·e. Partagez ce code :',
+          AppCopy.members.memberAddedShareCode(_member.displayName),
           style: theme.textTheme.bodyMedium?.copyWith(
             color: ViroColors.gray600,
           ),
@@ -344,12 +345,12 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           )
         else
           ViroPrimaryButton(
-            label: 'Copier le message',
+            label: AppCopy.members.copyMessage,
             onPressed: _copyInvite,
           ),
         const SizedBox(height: ViroSpacing.sm),
         ViroPrimaryButton(
-          label: 'Fermer',
+          label: AppCopy.common.close,
           outlined: true,
           onPressed: () => Navigator.of(context).pop(),
         ),

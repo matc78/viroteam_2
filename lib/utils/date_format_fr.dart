@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 final _dateFormat = DateFormat('EEE dd/MM', 'fr_FR');
 final _weekdayFormat = DateFormat('EEEE', 'fr_FR');
@@ -102,9 +103,4 @@ String formatRelativeDate(DateTime date) {
   return _relativeFormat.format(date);
 }
 
-String eventTypeLabel(String type) => switch (type) {
-      'training' => 'Entraînement',
-      'match' => 'Match',
-      'tournament' => 'Tournoi',
-      _ => 'Événement',
-    };
+String eventTypeLabel(String type) => AppCopy.planning.eventType(type);

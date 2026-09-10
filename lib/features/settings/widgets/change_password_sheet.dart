@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/auth_error_message.dart';
 import 'package:viro_team_v2/utils/password_policy.dart';
@@ -62,7 +63,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
       return;
     }
     if (newPassword != confirmPassword) {
-      setState(() => _error = 'Les mots de passe ne correspondent pas.');
+      setState(() => _error = AppCopy.settings.passwordsMismatch);
       return;
     }
 
@@ -77,7 +78,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
             newPassword: newPassword,
           );
       if (mounted) {
-        ViroSnackBar.show(context, 'Mot de passe mis à jour');
+        ViroSnackBar.show(context, AppCopy.settings.passwordUpdated);
         Navigator.of(context).pop(true);
       }
     } catch (e) {
@@ -109,7 +110,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    'Changer le mot de passe',
+                    AppCopy.settings.changePasswordTitle,
                     style: theme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: ViroColors.primary800,
@@ -126,8 +127,8 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
             TextField(
               controller: _currentController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Mot de passe actuel',
+              decoration: InputDecoration(
+                labelText: AppCopy.settings.currentPassword,
               ),
               enabled: !_saving,
             ),
@@ -135,8 +136,8 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
             TextField(
               controller: _newController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Nouveau mot de passe',
+              decoration: InputDecoration(
+                labelText: AppCopy.settings.newPassword,
                 helperText: PasswordPolicy.hint,
                 helperMaxLines: 2,
               ),
@@ -146,7 +147,9 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
             TextField(
               controller: _confirmController,
               obscureText: true,
-              decoration: const InputDecoration(labelText: 'Confirmer'),
+              decoration: InputDecoration(
+                labelText: AppCopy.settings.confirmPassword,
+              ),
               enabled: !_saving,
             ),
             if (_error != null) ...[
@@ -160,7 +163,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
             ],
             const SizedBox(height: ViroSpacing.lg),
             ViroPrimaryButton(
-              label: 'Enregistrer',
+              label: AppCopy.common.save,
               isLoading: _saving,
               onPressed: _saving ? null : _save,
             ),

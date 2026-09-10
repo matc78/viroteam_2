@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/notification_preferences.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -25,16 +26,16 @@ class NotificationPreferencesSection extends ConsumerWidget {
       final accepted = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Désactiver les notifications'),
+          title: Text(AppCopy.settings.disableNotificationsTitle),
           content: Text(notificationPreferenceOffWarning(key)),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Annuler'),
+              child: Text(AppCopy.common.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Désactiver'),
+              child: Text(AppCopy.settings.disableAction),
             ),
           ],
         ),
@@ -57,7 +58,7 @@ class NotificationPreferencesSection extends ConsumerWidget {
           );
     } catch (_) {
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Impossible d’enregistrer la préférence');
+        ViroSnackBar.show(context, AppCopy.settings.notifPrefSaveFailed);
       }
     }
   }
@@ -71,7 +72,7 @@ class NotificationPreferencesSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Notifications',
+          AppCopy.settings.notificationsSection,
           style: theme.titleSmall?.copyWith(
             color: ViroColors.primary800,
             fontWeight: FontWeight.w700,
@@ -79,7 +80,7 @@ class NotificationPreferencesSection extends ConsumerWidget {
         ),
         const SizedBox(height: ViroSpacing.xs),
         Text(
-          'Choisis quels rappels tu reçois sur cet appareil.',
+          AppCopy.settings.notificationsSubtitle,
           style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
         ),
         const SizedBox(height: ViroSpacing.sm),
@@ -92,8 +93,8 @@ class NotificationPreferencesSection extends ConsumerWidget {
             children: [
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Événements'),
-                subtitle: const Text('Rappels J-7 / J-2 et envois coaches'),
+                title: Text(AppCopy.settings.notifEvents),
+                subtitle: Text(AppCopy.settings.notifEventsSubtitle),
                 value: prefs.events,
                 onChanged: (value) => _setPreference(
                   context: context,
@@ -105,8 +106,8 @@ class NotificationPreferencesSection extends ConsumerWidget {
               const Divider(height: 1),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Réponses RSVP'),
-                subtitle: const Text('Quand un membre répond Présent / Absent'),
+                title: Text(AppCopy.settings.notifRsvp),
+                subtitle: Text(AppCopy.settings.notifRsvpSubtitle),
                 value: prefs.rsvp,
                 onChanged: (value) => _setPreference(
                   context: context,
@@ -118,8 +119,8 @@ class NotificationPreferencesSection extends ConsumerWidget {
               const Divider(height: 1),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Annonces'),
-                subtitle: const Text('À la publication d’une annonce'),
+                title: Text(AppCopy.settings.notifAnnouncements),
+                subtitle: Text(AppCopy.settings.notifAnnouncementsSubtitle),
                 value: prefs.announcements,
                 onChanged: (value) => _setPreference(
                   context: context,
@@ -131,8 +132,8 @@ class NotificationPreferencesSection extends ConsumerWidget {
               const Divider(height: 1),
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Cotisations'),
-                subtitle: const Text('Rappel chaque lundi soir'),
+                title: Text(AppCopy.settings.notifFees),
+                subtitle: Text(AppCopy.settings.notifFeesSubtitle),
                 value: prefs.fees,
                 onChanged: (value) => _setPreference(
                   context: context,

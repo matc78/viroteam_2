@@ -29,6 +29,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class ClubPlanningScreen extends ConsumerStatefulWidget {
   const ClubPlanningScreen({
@@ -168,11 +169,11 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Planning'),
+        title: Text(AppCopy.planning.screenTitle),
         actions: [
           IconButton(
             icon: ViroIcon(ViroIcons.calendarPlus),
-            tooltip: 'Ajouter le calendrier dynamique à mon agenda',
+            tooltip: AppCopy.planning.addToCalendarTooltip,
             onPressed: () => context.push(
               AppRoutes.clubCalendarSyncPath(clubId),
             ),
@@ -284,8 +285,8 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                           child: Center(
                             child: Text(
                               canManage
-                                  ? 'Aucun événement ce jour-là.\nAppuyez sur + pour en créer un.'
-                                  : 'Aucun événement ce jour-là.',
+                                  ? AppCopy.planning.emptyDayAdmin
+                                  : AppCopy.planning.emptyDay,
                               textAlign: TextAlign.center,
                               style: Theme.of(context)
                                   .textTheme

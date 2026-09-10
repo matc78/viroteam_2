@@ -12,6 +12,7 @@ import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Étape lieux d'entraînement/match — formulaire, option siège, puis récap.
 class PracticeLocationsStep extends StatefulWidget {
@@ -143,8 +144,8 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
     return SetupStepShell(
       centerBody: false,
       subtitle: hasHeadquarters
-          ? 'Ajoutez d\'autres lieux si besoin (optionnel si le siège suffit).'
-          : 'Ajoutez au moins un lieu d\'entraînement/match.',
+          ? AppCopy.clubSetup.practiceSubtitleOther
+          : AppCopy.clubSetup.practiceSubtitleFirst,
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -158,7 +159,7 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Nouveau lieu',
+                  AppCopy.clubSetup.newLocation,
                   style: theme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: ViroColors.primary800,
@@ -166,7 +167,7 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                 ),
                 const SizedBox(height: ViroSpacing.sm),
                 Text(
-                  'Type de lieu',
+                  AppCopy.clubSetup.locationTypeLabel,
                   style: theme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: ViroColors.gray600,
@@ -221,8 +222,8 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                   const SizedBox(height: ViroSpacing.xs),
                   TextFormField(
                     controller: _customCategoryController,
-                    decoration: const InputDecoration(
-                      labelText: 'Précisez le type',
+                    decoration: InputDecoration(
+                      labelText: AppCopy.clubSetup.specifyType,
                       isDense: true,
                     ),
                     onChanged: (_) => setState(() {}),
@@ -231,8 +232,8 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                 const SizedBox(height: ViroSpacing.sm),
                 TextFormField(
                   controller: _cityController,
-                  decoration: const InputDecoration(
-                    labelText: 'Ville',
+                  decoration: InputDecoration(
+                    labelText: AppCopy.clubSetup.cityLabel,
                     isDense: true,
                   ),
                   onChanged: (_) => setState(() {}),
@@ -240,8 +241,8 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                 const SizedBox(height: ViroSpacing.xs),
                 TextFormField(
                   controller: _addressController,
-                  decoration: const InputDecoration(
-                    labelText: 'Adresse',
+                  decoration: InputDecoration(
+                    labelText: AppCopy.clubSetup.addressLabel,
                     isDense: true,
                   ),
                   onChanged: (_) => setState(() {}),
@@ -273,8 +274,8 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                       ),
                       label: Text(
                         hasManualLocations || hasHeadquarters
-                            ? 'Ajouter un autre lieu'
-                            : 'Ajouter ce lieu',
+                            ? AppCopy.clubSetup.addAnotherLocation
+                            : AppCopy.clubSetup.addThisLocation,
                       ),
                     ),
                   ),
@@ -291,7 +292,7 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
           if (widget.locations.isNotEmpty) ...[
             const SizedBox(height: ViroSpacing.md),
             Text(
-              'Lieux ajoutés',
+              AppCopy.clubSetup.locationsAdded,
               style: theme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: ViroColors.primary800,
@@ -356,8 +357,8 @@ class _UseClubAddressOption extends StatelessWidget {
                 ),
                 child: Text(
                   hasStreetAddress
-                      ? 'Utiliser l\'adresse du siège du club comme lieu d\'entraînement/match'
-                      : 'Utiliser la ville du siège du club comme lieu d\'entraînement/match',
+                      ? AppCopy.clubSetup.useHeadquartersAddress
+                      : AppCopy.clubSetup.useHeadquartersCity,
                   style: theme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: ViroColors.primary800,

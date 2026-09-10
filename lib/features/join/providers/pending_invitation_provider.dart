@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -50,8 +51,8 @@ class PendingInvitationNotifier extends Notifier<PendingInvitationState> {
     try {
       final result = await _invitations.findByCode(code);
       if (result == null) {
-        state = const PendingInvitationState(
-          error: 'Code introuvable ou expiré.',
+        state = PendingInvitationState(
+          error: AppCopy.join.codeNotFoundOrExpired,
         );
         return false;
       }

@@ -6,6 +6,7 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class ClubStatsRow extends StatelessWidget {
   const ClubStatsRow({
@@ -36,9 +37,9 @@ class ClubStatsRow extends StatelessWidget {
         SizedBox(
           width: 150,
           child: ViroStatsCard(
-            label: 'Réponses (30 j)',
+            label: AppCopy.club.statResponses30d,
             value: '${attendanceRate!.round()} %',
-            subtitle: 'RSVP positifs',
+            subtitle: AppCopy.club.statRsvpPositive,
             accentColor: accentColor,
             onTap: onAttendanceTap,
           ),
@@ -52,7 +53,7 @@ class ClubStatsRow extends StatelessWidget {
         SizedBox(
           width: 180,
           child: ViroStatsCard(
-            label: 'Prochain event',
+            label: AppCopy.club.statNextEvent,
             value:
                 '${eventTypeLabel(nextEvent!.type)} · ${formatEventDate(nextEvent!.date)}',
             accentColor: accentColor,
@@ -143,7 +144,7 @@ class _MemberCountStatCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Membres',
+              AppCopy.club.statMembers,
               style: theme.bodySmall?.copyWith(
                 color: ViroColors.gray600,
                 fontWeight: FontWeight.w500,

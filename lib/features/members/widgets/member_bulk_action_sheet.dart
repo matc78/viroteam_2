@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/utils/member_invite_feedback.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -79,7 +80,7 @@ Future<bool?> showMemberBulkActionSheet(
                   context,
                   callableErrorMessage(
                     error,
-                    fallback: 'Envoi des invitations impossible.',
+                    fallback: AppCopy.members.inviteSendImpossible,
                   ),
                 );
               }
@@ -120,10 +121,12 @@ Future<bool?> showMemberBulkActionSheet(
                 ViroStatusToast.show(
                   context,
                   message: added > 0
-                      ? '$added joueur${added > 1 ? 's' : ''} ajouté${added > 1 ? 's' : ''} à ${team.name}'
-                          '${skipped > 0 ? ' ($skipped déjà dans l’équipe)' : ''}.'
-                      : 'Aucun joueur ajouté'
-                          '${skipped > 0 ? ' (déjà dans l’équipe)' : ''}.',
+                      ? AppCopy.members.playersAddedToTeam(
+                          added: added,
+                          teamName: team.name,
+                          skipped: skipped,
+                        )
+                      : AppCopy.members.noPlayerAddedDetail(skipped: skipped),
                   success: added > 0,
                   duration: const Duration(seconds: 3),
                 );
@@ -134,7 +137,7 @@ Future<bool?> showMemberBulkActionSheet(
                   context,
                   callableErrorMessage(
                     error,
-                    fallback: 'Ajout à l’équipe impossible.',
+                    fallback: AppCopy.members.addToTeamImpossible,
                   ),
                 );
               }
@@ -174,7 +177,6 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final pluralSelected = widget.selectedCount > 1 ? 's' : '';
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(ViroSpacing.md),
@@ -185,7 +187,7 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                '${widget.selectedCount} membre$pluralSelected sélectionné$pluralSelected',
+                AppCopy.members.selectedMembersCount(widget.selectedCount),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -203,9 +205,11 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: ViroIcon(ViroIcons.envelope),
-                    title: const Text('Envoyer les invitations'),
+                    title: Text(AppCopy.members.sendInvitesTitle),
                     subtitle: Text(
-                      '${widget.eligibleInviteCount} non inscrit${widget.eligibleInviteCount > 1 ? 's' : ''} avec e-mail.',
+                      AppCopy.members.eligibleUnregisteredWithEmail(
+                        widget.eligibleInviteCount,
+                      ),
                     ),
                     onTap: widget.onSendInvites == null
                         ? null
@@ -218,15 +222,15 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: ViroIcon(ViroIcons.groups),
-                    title: const Text('Ajouter à une équipe'),
+                    title: Text(AppCopy.members.addToTeamTitle),
                     subtitle: Text(
-                      '${widget.playerCount} joueur${widget.playerCount > 1 ? 's' : ''} sélectionné${widget.playerCount > 1 ? 's' : ''}.',
+                      AppCopy.members.playersSelected(widget.playerCount),
                     ),
                     onTap: () => setState(() => _pickingTeam = true),
                   ),
                 if (!widget.canSendInvites && !widget.canAddToTeam)
                   Text(
-                    'Aucune action disponible pour cette sélection.',
+                    AppCopy.members.noActionForSelection,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
               ],
@@ -247,7 +251,7 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
           ),
           Expanded(
             child: Text(
-              'Choisir une équipe',
+              AppCopy.members.chooseTeam,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),

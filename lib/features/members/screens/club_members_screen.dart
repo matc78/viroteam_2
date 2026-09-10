@@ -7,6 +7,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
@@ -60,7 +61,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   int _inviteProgressDone = 0;
   int _inviteProgressTotal = 0;
   String? _inviteProgressName;
-  String _inviteProgressPhase = 'Envoi des invitations…';
+  String _inviteProgressPhase = AppCopy.members.inviteSendingPhase;
   Timer? _bulkInviteCooldownTicker;
 
   /// Cooldown du bouton « Inviter les non inscrits » (tous).
@@ -231,7 +232,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       }
       final first = result.results.isNotEmpty ? result.results.first : null;
       throw Exception(
-        first?.reason ?? 'Impossible d\'envoyer l\'invitation.',
+        first?.reason ?? AppCopy.members.inviteSendFailed,
       );
     } catch (error) {
       if (mounted) {
@@ -239,7 +240,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
           context,
           callableErrorMessage(
             error,
-            fallback: 'Envoi de l\'invitation impossible.',
+            fallback: AppCopy.members.inviteSendImpossibleSingular,
           ),
         );
       }
@@ -266,7 +267,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       if (!mounted) return;
       ViroSnackBar.show(
         context,
-        callableErrorMessage(error, fallback: 'Changement de rôle impossible.'),
+        callableErrorMessage(error, fallback: AppCopy.members.roleChangeImpossible),
       );
     }
   }
@@ -277,19 +278,19 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       builder: (ctx) => Theme(
         data: Theme.of(context),
         child: AlertDialog(
-          title: const Text('Supprimer ce membre ?'),
+          title: Text(AppCopy.members.deleteMemberTitle),
           content: Text(
-            '${member.fullName} sera retiré(e) du club.',
+            AppCopy.members.deleteMemberBody(member.fullName),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler'),
+              child: Text(AppCopy.common.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: Text(
-                'Supprimer',
+                AppCopy.common.delete,
                 style: TextStyle(color: ViroColors.error),
               ),
             ),
@@ -310,7 +311,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       ViroSnackBar.show(
         context,
         callableErrorMessage(error,
-            fallback: 'Suppression du membre impossible.'),
+            fallback: AppCopy.members.removeMemberImpossible),
       );
     }
   }
@@ -391,7 +392,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   Future<void> _inviteAllPending(List<ClubMember> members) async {
     if (!_canInviteAll) return;
     if (_inviteAllBusy) {
-      ViroSnackBar.show(context, 'Envoi déjà en cours…');
+      ViroSnackBar.show(context, AppCopy.members.inviteAlreadyBusy);
       return;
     }
 
@@ -401,7 +402,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
     if (cooldown != null) {
       ViroSnackBar.show(
         context,
-        'Prochain envoi groupé dans ${_formatCooldown(cooldown)}.',
+        AppCopy.members.bulkInviteCooldown(_formatCooldown(cooldown)),
       );
       return;
     }
@@ -410,7 +411,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
     if (eligible.isEmpty) {
       ViroSnackBar.show(
         context,
-        'Aucun membre non inscrit avec e-mail à inviter.',
+        AppCopy.members.noUnregisteredWithEmail,
       );
       return;
     }
@@ -420,22 +421,18 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       builder: (ctx) => Theme(
         data: Theme.of(context),
         child: AlertDialog(
-          title: const Text('Inviter les non inscrits ?'),
+          title: Text(AppCopy.members.inviteAllConfirmTitle),
           content: Text(
-            'Un e-mail avec le code d’inscription sera envoyé à '
-            '${eligible.length} membre${eligible.length > 1 ? 's' : ''} '
-            'non inscrit${eligible.length > 1 ? 's' : ''}.\n\n'
-            'Limite : 1 envoi groupé par heure. '
-            'Les invitations individuelles ou sur sélection restent libres.',
+            AppCopy.members.inviteAllConfirmBody(eligible.length),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler'),
+              child: Text(AppCopy.common.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Envoyer'),
+              child: Text(AppCopy.common.send),
             ),
           ],
         ),
@@ -448,7 +445,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       _inviteProgressDone = 0;
       _inviteProgressTotal = eligible.length;
       _inviteProgressName = null;
-      _inviteProgressPhase = 'Préparation des codes…';
+      _inviteProgressPhase = AppCopy.members.preparingCodes;
     });
     try {
       final auth = ref.read(authStateProvider).value;
@@ -465,7 +462,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
           );
 
       if (!mounted) return;
-      setState(() => _inviteProgressPhase = 'Envoi des invitations…');
+      setState(() => _inviteProgressPhase = AppCopy.members.inviteSendingPhase);
 
       final inviteService = ref.read(memberInviteServiceProvider);
       final itemResults = <SendMemberInviteItemResult>[];
@@ -479,7 +476,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
         setState(() {
           _inviteProgressName = member.fullName.trim().isNotEmpty
               ? member.fullName.trim()
-              : 'Membre ${index + 1}';
+              : AppCopy.members.memberFallback(index + 1);
           _inviteProgressDone = index;
         });
 
@@ -500,7 +497,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
               status: 'failed',
               reason: callableErrorMessage(
                 error,
-                fallback: 'Échec d’envoi',
+                fallback: AppCopy.members.sendFailedShort,
               ),
             ),
           );
@@ -534,7 +531,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
         context,
         message: callableErrorMessage(
           error,
-          fallback: 'Envoi des invitations impossible.',
+          fallback: AppCopy.members.inviteSendImpossible,
         ),
         success: false,
         duration: const Duration(seconds: 4),
@@ -572,12 +569,12 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                   icon: ViroIcon(ViroIcons.chevronLeft),
                   onPressed: _inviteAllBusy ? null : () => context.pop(),
                 ),
-                title: const Text('Gérer les membres'),
+                title: Text(AppCopy.members.manageTitle),
                 actions: [
                   if (_selectionMode && !_inviteAllBusy)
                     TextButton(
                       onPressed: _cancelSelectionMode,
-                      child: const Text('Annuler'),
+                      child: Text(AppCopy.common.cancel),
                     ),
                   if (_selectionMode &&
                       !_inviteAllBusy &&
@@ -586,7 +583,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                       onPressed: membersAsync.value == null
                           ? null
                           : () => _openBulkActions(membersAsync.value!),
-                      child: const Text('Actions'),
+                      child: Text(AppCopy.members.actions),
                     ),
                 ],
               ),
@@ -602,7 +599,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                 error: (error, stackTrace) => const ViroErrorState(),
                 data: (club) {
                   if (club == null) {
-                    return const Center(child: Text('Club introuvable'));
+                    return Center(child: Text(AppCopy.members.clubNotFound));
                   }
 
                   return membersAsync.when(
@@ -651,7 +648,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                   child: Row(
                                     children: [
                                       _roleFilterChip(
-                                        label: 'Membres',
+                                        label: AppCopy.members.tabMembers,
                                         selected: _section == 'roster',
                                         accentColor: accent,
                                         onSelected: (_) =>
@@ -659,14 +656,14 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                       ),
                                       const SizedBox(width: ViroSpacing.xs),
                                       _roleFilterChip(
-                                        label: 'Équipes',
+                                        label: AppCopy.members.tabTeams,
                                         selected: false,
                                         accentColor: accent,
                                         onSelected: (_) => _openManageTeams(),
                                       ),
                                       const SizedBox(width: ViroSpacing.xs),
                                       _roleFilterChip(
-                                        label: 'Parents',
+                                        label: AppCopy.members.tabParents,
                                         selected: _section == 'parents',
                                         accentColor: accent,
                                         onSelected: (_) => setState(
@@ -697,7 +694,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                   child: TextField(
                                     controller: _searchController,
                                     decoration: InputDecoration(
-                                      hintText: 'Rechercher un membre…',
+                                      hintText: AppCopy.members.searchMemberHint,
                                       prefixIcon: ViroIcon(ViroIcons.search),
                                     ),
                                     onChanged: (v) =>
@@ -714,7 +711,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                   child: Row(
                                     children: [
                                       _roleFilterChip(
-                                        label: 'Tous',
+                                        label: AppCopy.common.filterAll,
                                         selected: _roleFilter == null,
                                         accentColor: accent,
                                         onSelected: (_) =>
@@ -722,7 +719,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                       ),
                                       const SizedBox(width: ViroSpacing.xs),
                                       _roleFilterChip(
-                                        label: 'Joueurs',
+                                        label: AppCopy.members.filterPlayers,
                                         selected:
                                             _roleFilter == MemberRoles.player,
                                         accentColor: accent,
@@ -733,7 +730,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                       ),
                                       const SizedBox(width: ViroSpacing.xs),
                                       _roleFilterChip(
-                                        label: 'Coachs',
+                                        label: AppCopy.members.tabCoaches,
                                         selected:
                                             _roleFilter == MemberRoles.coach,
                                         accentColor: accent,
@@ -744,7 +741,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                       if (_isAdmin) ...[
                                         const SizedBox(width: ViroSpacing.xs),
                                         _roleFilterChip(
-                                          label: 'Admins',
+                                          label: AppCopy.members.filterAdmins,
                                           selected:
                                               _roleFilter == MemberRoles.admin,
                                           accentColor: accent,
@@ -780,10 +777,10 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                         );
                                         final onCooldown = cooldown != null;
                                         final label = _inviteAllBusy
-                                            ? 'Envoi…'
+                                            ? AppCopy.members.sending
                                             : onCooldown
-                                                ? 'Réessayer dans ${_formatCooldown(cooldown)}'
-                                                : 'Inviter les non inscrits ($eligibleInviteCount)';
+                                                ? AppCopy.members.inviteAllRetryIn(_formatCooldown(cooldown))
+                                                : AppCopy.members.inviteAllLabel(eligibleInviteCount);
                                         return ViroPrimaryButton(
                                           label: label,
                                           isLoading: _inviteAllBusy,
@@ -803,8 +800,8 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                   child: Center(
                                     child: Text(
                                       _search.isNotEmpty
-                                          ? 'Aucun membre trouvé'
-                                          : 'Aucun membre pour le moment',
+                                          ? AppCopy.members.emptySearch
+                                          : AppCopy.members.empty,
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodyMedium

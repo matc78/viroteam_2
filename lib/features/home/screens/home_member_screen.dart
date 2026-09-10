@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
@@ -123,7 +124,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
     } catch (_) {
       ref.invalidate(memberEventsProvider);
       if (mounted) {
-        ViroSnackBar.show(context, 'RSVP impossible, réessayez');
+        ViroSnackBar.show(context, AppCopy.home.rsvpFailed);
       }
     }
   }
@@ -158,7 +159,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
       body: clubsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ViroErrorState(
-          message: 'Impossible de charger vos clubs',
+          message: AppCopy.home.loadClubsError,
           onRetry: () => ref.invalidate(userClubsProvider),
         ),
         data: (clubs) {
@@ -177,7 +178,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
               eventsAsync.when(
                   loading: () => const _HomeLoadingBody(),
                   error: (e, _) => ViroErrorState(
-                    message: 'Impossible de charger le planning',
+                    message: AppCopy.home.loadPlanningError,
                     onRetry: () => ref.invalidate(memberEventsProvider),
                   ),
                   data: (state) {
@@ -211,7 +212,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                             SliverToBoxAdapter(
                               child: _SectionTitle(
                                 icon: ViroIcons.calendar,
-                                title: 'Planning à venir',
+                                title: AppCopy.home.upcomingPlanningTitle,
                               ),
                             ),
                             MemberUpcomingEventsSliver(
@@ -235,7 +236,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                                     ViroSpacing.lg,
                                   ),
                                   child: ViroPrimaryButton(
-                                    label: 'Voir tout le planning',
+                                    label: AppCopy.home.seeAllPlanning,
                                     onPressed: () =>
                                         context.push(AppRoutes.memberPlanning),
                                   ),
@@ -340,13 +341,13 @@ class _EmptyClubsBody extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Rejoignez un club pour voir votre planning',
+            AppCopy.home.joinClubForPlanning,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: ViroSpacing.lg),
           ViroPrimaryButton(
-            label: 'Créer ou rejoindre un club',
+            label: AppCopy.home.createOrJoinClub,
             onPressed: onJoin,
           ),
         ],

@@ -14,6 +14,7 @@ import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/utils/sport_emoji.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Étape récapitulatif — deux colonnes distinctes, centrées verticalement.
 class RecapStep extends StatelessWidget {
@@ -36,7 +37,7 @@ class RecapStep extends StatelessWidget {
 
     return SetupStepShell(
       centerBody: true,
-      subtitle: 'Tout est prêt — revenez en arrière pour corriger si besoin.',
+      subtitle: AppCopy.clubSetup.recapSubtitle,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -58,7 +59,7 @@ class RecapStep extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        draft.name.isEmpty ? 'Nom du club' : draft.name,
+                        draft.name.isEmpty ? AppCopy.clubSetup.clubNameLabel : draft.name,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.titleMedium?.copyWith(
@@ -89,13 +90,13 @@ class RecapStep extends StatelessWidget {
                 child: _RecapColumn(
                   children: [
                     _RecapPanel(
-                      title: 'Identité',
+                      title: AppCopy.clubSetup.identityTitle,
                       icon: ViroIcons.groups,
                       accent: sportAccent,
                       child: _RecapIdentityBody(draft: draft),
                     ),
                     _RecapPanel(
-                      title: 'Détails',
+                      title: AppCopy.clubSetup.detailsTitle,
                       icon: ViroIcons.trophy,
                       accent: stepAccent,
                       child: _RecapDetailsBody(
@@ -110,7 +111,7 @@ class RecapStep extends StatelessWidget {
                 child: _RecapColumn(
                   children: [
                     _RecapPanel(
-                      title: 'Localisation',
+                      title: AppCopy.clubSetup.locationTitle,
                       icon: ViroIcons.place,
                       accent: stepAccent,
                       child: _RecapLocationBody(
@@ -120,7 +121,7 @@ class RecapStep extends StatelessWidget {
                       ),
                     ),
                     _RecapPanel(
-                      title: 'Priorités',
+                      title: AppCopy.clubSetup.prioritiesTitle,
                       icon: ViroIcons.calendar,
                       accent: stepAccent,
                       child: _RecapObjectiveChips(
@@ -171,18 +172,18 @@ class _RecapIdentityBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _RecapLabeledValue(
-          label: 'Nom',
-          value: draft.name.isEmpty ? 'Non renseigné' : draft.name,
+          label: AppCopy.clubSetup.recapName,
+          value: draft.name.isEmpty ? AppCopy.common.notProvided : draft.name,
         ),
         const SizedBox(height: ViroSpacing.xs),
         _RecapLabeledValue(
-          label: 'Sport',
+          label: AppCopy.clubSetup.recapSport,
           value: '${sportEmoji(draft.sport)} ${draft.sport}',
         ),
         const SizedBox(height: ViroSpacing.xs),
         _RecapLabeledValue(
-          label: 'Logo',
-          value: draft.logoBytes != null ? 'Ajouté' : 'Non ajouté',
+          label: AppCopy.clubSetup.recapLogo,
+          value: draft.logoBytes != null ? AppCopy.clubSetup.recapLogoAdded : AppCopy.clubSetup.recapLogoNotAdded,
           valueColor: draft.logoBytes != null
               ? ViroColors.sportGreen
               : ViroColors.gray600,
@@ -190,7 +191,7 @@ class _RecapIdentityBody extends StatelessWidget {
         if (description.isNotEmpty) ...[
           const SizedBox(height: ViroSpacing.xs),
           _RecapLabeledValue(
-            label: 'Description',
+            label: AppCopy.clubSetup.recapDescription,
             value: description,
           ),
         ],
@@ -221,13 +222,13 @@ class _RecapLocationBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _RecapLabeledValue(
-          label: 'Siège',
-          value: headquartersLine.isEmpty ? 'Non renseigné' : headquartersLine,
+          label: AppCopy.clubSetup.recapHeadquarters,
+          value: headquartersLine.isEmpty ? AppCopy.common.notProvided : headquartersLine,
         ),
         const SizedBox(height: ViroSpacing.xs),
         _RecapLabeledValue(
-          label: 'Lieux',
-          value: summary.isEmpty ? 'Aucun lieu' : summary,
+          label: AppCopy.clubSetup.recapLocations,
+          value: summary.isEmpty ? AppCopy.clubSetup.noLocation : summary,
         ),
       ],
     );
@@ -247,7 +248,7 @@ class _RecapObjectiveChips extends StatelessWidget {
 
     if (objectives.isEmpty) {
       return Text(
-        'Aucune priorité',
+        AppCopy.clubSetup.noPriority,
         style: theme.bodySmall?.copyWith(color: ViroColors.gray400),
       );
     }
@@ -309,10 +310,10 @@ class _RecapDetailsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _RecapLabeledValue(
-      label: 'Effectif',
+      label: AppCopy.clubSetup.recapHeadcount,
       value: memberCountRange != null
           ? ClubMemberCountRanges.recapLabel(memberCountRange!)
-          : 'Non renseigné',
+          : AppCopy.common.notProvided,
     );
   }
 }

@@ -10,6 +10,7 @@ import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Résultat du formulaire inventaire.
 typedef EquipmentFormResult = ClubEquipmentInput;
@@ -139,11 +140,11 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
     );
     final quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
 
-    if (name.isEmpty) return 'Indiquez un nom.';
+    if (name.isEmpty) return AppCopy.equipment.nameRequired;
     if (category.isEmpty) {
-      return _showOtherCategory ? 'Précisez le type.' : 'Choisissez un type.';
+      return _showOtherCategory ? AppCopy.equipment.typeRequiredCustom : AppCopy.equipment.typeRequired;
     }
-    if (quantity <= 0) return 'Quantité min. 1.';
+    if (quantity <= 0) return AppCopy.equipment.quantityMin;
     return null;
   }
 
@@ -212,8 +213,8 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
             controller: _nameController,
             textCapitalization: TextCapitalization.sentences,
             decoration: _denseDecoration.copyWith(
-              labelText: 'Nom',
-              hintText: 'Ballon match',
+              labelText: AppCopy.equipment.nameLabel,
+              hintText: AppCopy.equipment.nameHint,
             ),
             onChanged: (_) => setState(() => _error = null),
           ),
@@ -222,15 +223,15 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
             key: ValueKey('cat_$_categoryPreset'),
             initialValue: _categoryDropdownValue,
             decoration: _denseDecoration.copyWith(
-              labelText: 'Type',
+              labelText: AppCopy.equipment.typeLabel,
             ),
             isDense: true,
             items: [
               for (final label in _categoryLabels)
                 DropdownMenuItem(value: label, child: Text(label)),
-              const DropdownMenuItem(
+              DropdownMenuItem(
                 value: EquipmentCategoryPresets.other,
-                child: Text('Autre…'),
+                child: Text(AppCopy.equipment.otherEllipsis),
               ),
             ],
             onChanged: (value) {
@@ -250,8 +251,8 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
               controller: _customCategoryController,
               textCapitalization: TextCapitalization.sentences,
               decoration: _denseDecoration.copyWith(
-                labelText: 'Préciser',
-                hintText: 'Raquettes, plots…',
+                labelText: AppCopy.equipment.specifyLabel,
+                hintText: AppCopy.equipment.specifyHint,
               ),
               onChanged: (_) => setState(() => _error = null),
             ),
@@ -261,12 +262,12 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
             controller: _quantityController,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: _denseDecoration.copyWith(labelText: 'Quantité'),
+            decoration: _denseDecoration.copyWith(labelText: AppCopy.equipment.quantityLabel),
             onChanged: (_) => setState(() => _error = null),
           ),
           const SizedBox(height: ViroSpacing.sm),
           Text(
-            'État',
+            AppCopy.equipment.conditionSection,
             style: theme.textTheme.labelSmall?.copyWith(
               color: ViroColors.gray600,
               fontWeight: FontWeight.w600,
@@ -302,21 +303,21 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
             controller: _locationController,
             textCapitalization: TextCapitalization.sentences,
             decoration: _denseDecoration.copyWith(
-              labelText: 'Emplacement',
-              hintText: 'Local U14…',
+              labelText: AppCopy.equipment.locationLabel,
+              hintText: AppCopy.equipment.locationHint,
             ),
           ),
           const SizedBox(height: ViroSpacing.sm),
           DropdownButtonFormField<String?>(
             initialValue: _assignedTeamId,
             decoration: _denseDecoration.copyWith(
-              labelText: 'Équipe',
+              labelText: AppCopy.equipment.teamLabel,
             ),
             isDense: true,
             items: [
-              const DropdownMenuItem<String?>(
+              DropdownMenuItem<String?>(
                 value: null,
-                child: Text('Aucune'),
+                child: Text(AppCopy.equipment.none),
               ),
               ...widget.teams.map(
                 (team) => DropdownMenuItem<String?>(
@@ -333,8 +334,8 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
             maxLines: 1,
             textCapitalization: TextCapitalization.sentences,
             decoration: _denseDecoration.copyWith(
-              labelText: 'Notes',
-              hintText: 'Optionnel',
+              labelText: AppCopy.equipment.notesLabel,
+              hintText: AppCopy.equipment.notesHint,
             ),
           ),
         ],
@@ -355,7 +356,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
           children: [
             Expanded(
               child: Text(
-                isEdit ? 'Modifier l’équipement' : 'Nouvel équipement',
+                isEdit ? AppCopy.equipment.editTitle : AppCopy.equipment.createTitle,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: widget.managementAccent,
@@ -370,7 +371,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
                 minHeight: ViroSpacing.minTouchTarget,
               ),
               icon: ViroIcon(ViroIcons.close, color: ViroColors.gray600),
-              tooltip: 'Fermer',
+              tooltip: AppCopy.equipment.closeTooltip,
               onPressed: () => Navigator.pop(context),
             ),
           ],
@@ -391,7 +392,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
           children: [
             Expanded(
               child: ViroPrimaryButton(
-                label: 'Annuler',
+                label: AppCopy.common.cancel,
                 outlined: true,
                 onPressed: () => Navigator.pop(context),
               ),
@@ -399,7 +400,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
             const SizedBox(width: ViroSpacing.sm),
             Expanded(
               child: ViroPrimaryButton(
-                label: isEdit ? 'Enregistrer' : 'Créer',
+                label: isEdit ? AppCopy.common.save : AppCopy.common.create,
                 onPressed: _isFormValid ? _submit : null,
               ),
             ),

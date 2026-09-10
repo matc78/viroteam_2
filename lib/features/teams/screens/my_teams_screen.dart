@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_expansion_card.dart';
@@ -31,21 +32,21 @@ class MyTeamsScreen extends ConsumerWidget {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Mes équipes'),
+        title: Text(AppCopy.teams.myTeamsTitle),
       ),
       body: clubAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const ViroErrorState(),
+        error: (error, stackTrace) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
-            return const Center(child: Text('Club introuvable'));
+            return Center(child: Text(AppCopy.common.clubNotFound));
           }
 
           final accent = ref.watch(clubMemberAccentProvider(clubId));
 
           return teamsAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) => const ViroErrorState(),
+            error: (error, stackTrace) => const ViroErrorState(),
             data: (teams) {
               return ViroRefreshIndicator(
                 onRefresh: () async {
@@ -63,7 +64,7 @@ class MyTeamsScreen extends ConsumerWidget {
                             height: MediaQuery.sizeOf(context).height * 0.4,
                             child: Center(
                               child: Text(
-                                'Tu n\'es affecté à aucune équipe pour le moment.',
+                                AppCopy.teams.emptyMyTeams,
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context)
                                     .textTheme

@@ -22,6 +22,7 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Écran admin : logo et couleur de marque du club.
 class ClubAppearanceScreen extends ConsumerStatefulWidget {
@@ -85,14 +86,14 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Apparence du club'),
+        title: Text(AppCopy.club.appearanceTitle),
       ),
       body: clubAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
-            return const Center(child: Text('Club introuvable'));
+            return Center(child: Text(AppCopy.common.clubNotFound));
           }
 
           final rawStoredHex =
@@ -134,7 +135,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                 ),
                 children: [
                   Text(
-                    'Logo',
+                    AppCopy.club.logoSection,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: brandColors.primary,
@@ -157,8 +158,8 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                           const SizedBox(height: ViroSpacing.xs),
                           Text(
                             _logoPreviewBytes != null
-                                ? 'Modifier le logo'
-                                : 'Changer le logo',
+                                ? AppCopy.club.editLogo
+                                : AppCopy.club.changeLogo,
                             style: Theme.of(context)
                                 .textTheme
                                 .labelLarge
@@ -179,7 +180,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                   ),
                   const SizedBox(height: ViroSpacing.lg),
                   Text(
-                    'Couleur du club',
+                    AppCopy.club.clubColorSection,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: brandColors.primary,
@@ -187,7 +188,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                   ),
                   const SizedBox(height: ViroSpacing.xs),
                   Text(
-                    'Utilisée sur la page club, le planning et les cartes.',
+                    AppCopy.club.clubColorHelper,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: ViroColors.gray600,
                         ),
@@ -252,7 +253,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                             ViroSpacing.md,
                           ),
                           child: ViroPrimaryButton(
-                            label: 'Enregistrer',
+                            label: AppCopy.common.save,
                             isLoading: _saving,
                             onPressed: !hasChanges || _saving
                                 ? null
@@ -302,7 +303,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
       if (mounted) {
         ViroStatusToast.show(
           context,
-          message: 'Apparence enregistrée',
+          message: AppCopy.club.appearanceSaved,
           success: true,
         );
         context.pop();
@@ -311,7 +312,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
       if (mounted) {
         ViroStatusToast.show(
           context,
-          message: 'Enregistrement impossible, réessayez',
+          message: AppCopy.common.saveFailedRetry,
           success: false,
         );
       }

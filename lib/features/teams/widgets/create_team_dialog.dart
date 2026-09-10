@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/utils/team_categories.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 
@@ -52,15 +53,15 @@ class _CreateTeamDialogState extends State<_CreateTeamDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: const Text('Nouvelle équipe'),
+      title: Text(AppCopy.teams.newTeamTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: _nameController,
             decoration: InputDecoration(
-              labelText: 'Nom de l\'équipe',
-              hintText: 'ex : Équipe A',
+              labelText: AppCopy.teams.teamNameLabel,
+              hintText: AppCopy.teams.teamNameHint,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -71,7 +72,7 @@ class _CreateTeamDialogState extends State<_CreateTeamDialog> {
           DropdownButtonFormField<String>(
             initialValue: _category,
             decoration: InputDecoration(
-              labelText: 'Catégorie',
+              labelText: AppCopy.teams.categoryLabel,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -89,7 +90,7 @@ class _CreateTeamDialogState extends State<_CreateTeamDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(
-            'Annuler',
+            AppCopy.common.cancel,
             style: TextStyle(color: ViroColors.gray600),
           ),
         ),
@@ -99,7 +100,7 @@ class _CreateTeamDialogState extends State<_CreateTeamDialog> {
             if (name.isEmpty) return;
             Navigator.pop(context, (name: name, category: _category));
           },
-          child: const Text('Créer'),
+          child: Text(AppCopy.common.create),
         ),
       ],
     );

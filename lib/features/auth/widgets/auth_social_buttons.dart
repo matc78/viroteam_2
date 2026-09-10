@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Séparateur « ou » entre auth classique et fournisseur social.
 class AuthDivider extends StatelessWidget {
@@ -18,7 +19,7 @@ class AuthDivider extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.sm),
             child: Text(
-              'ou',
+              AppCopy.auth.orDivider,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -70,7 +71,7 @@ class GoogleSignInButton extends StatelessWidget {
                   const _GoogleLogo(size: 20),
                   const SizedBox(width: ViroSpacing.sm),
                   Text(
-                    'Continuer avec Google',
+                    AppCopy.auth.continueWithGoogle,
                     style: theme.labelLarge?.copyWith(
                       color: ViroColors.gray900,
                       fontWeight: FontWeight.w600,

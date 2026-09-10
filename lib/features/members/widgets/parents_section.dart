@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -69,18 +70,18 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Révoquer ce parent ?'),
+        title: Text(AppCopy.members.revokeParentTitle),
         content: Text(
-          'Le parent n’aura plus accès au suivi de ${child.displayName}.',
+          AppCopy.members.revokeParentBody(child.displayName),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(AppCopy.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Révoquer'),
+            child: Text(AppCopy.common.revoke),
           ),
         ],
       ),
@@ -96,7 +97,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
           );
       ref.invalidate(clubParentsProvider(widget.clubId));
       if (!mounted) return;
-      ViroSnackBar.show(context, 'Parent révoqué');
+      ViroSnackBar.show(context, AppCopy.members.parentRevoked);
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(context, _callableMessage(error));
@@ -117,7 +118,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
     );
     await Clipboard.setData(ClipboardData(text: message));
     if (!mounted) return;
-    ViroSnackBar.show(context, 'Message d’invitation copié');
+    ViroSnackBar.show(context, AppCopy.members.inviteMessageCopied);
   }
 
   Future<void> _extend(ClubParentEntry parent) async {
@@ -136,8 +137,8 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
       ViroSnackBar.show(
         context,
         date != null
-            ? 'Prolongée jusqu’au ${date.day}/${date.month}/${date.year}'
-            : 'Invitation prolongée',
+            ? AppCopy.members.inviteExtendedUntil('${date.day}/${date.month}/${date.year}')
+            : AppCopy.members.inviteExtended,
       );
     } catch (error) {
       if (!mounted) return;
@@ -160,7 +161,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
               );
       ref.invalidate(clubParentsProvider(widget.clubId));
       if (!mounted) return;
-      ViroSnackBar.show(context, 'Nouveau code : ${result.code}');
+      ViroSnackBar.show(context, AppCopy.members.newInviteCode(result.code));
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(context, _callableMessage(error));
@@ -176,20 +177,20 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
     final next = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Changer l’e-mail'),
+        title: Text(AppCopy.members.changeEmailTitle),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(labelText: 'E-mail du parent'),
+          decoration: InputDecoration(labelText: AppCopy.members.parentEmailLabel),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
+            child: Text(AppCopy.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Enregistrer'),
+            child: Text(AppCopy.common.save),
           ),
         ],
       ),
@@ -207,7 +208,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
           );
       ref.invalidate(clubParentsProvider(widget.clubId));
       if (!mounted) return;
-      ViroSnackBar.show(context, 'E-mail mis à jour');
+      ViroSnackBar.show(context, AppCopy.members.emailUpdated);
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(context, _callableMessage(error));
@@ -232,7 +233,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
         )
         .toList();
     if (candidates.isEmpty) {
-      ViroSnackBar.show(context, 'Tous les joueurs ont déjà un parent');
+      ViroSnackBar.show(context, AppCopy.members.allPlayersHaveParent);
       return;
     }
 
@@ -242,13 +243,13 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Inviter un parent'),
+          title: Text(AppCopy.members.inviteParentTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
                 initialValue: selected.memberId,
-                decoration: const InputDecoration(labelText: 'Enfant'),
+                decoration: InputDecoration(labelText: AppCopy.members.childLabel),
                 items: candidates
                     .map(
                       (m) => DropdownMenuItem(
@@ -270,18 +271,18 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration:
-                    const InputDecoration(labelText: 'E-mail du parent'),
+                    InputDecoration(labelText: AppCopy.members.parentEmailLabel),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler'),
+              child: Text(AppCopy.common.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Inviter'),
+              child: Text(AppCopy.common.invite),
             ),
           ],
         ),
@@ -292,7 +293,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
     if (submitted != true) return;
     if (!mounted) return;
     if (email.isEmpty || !email.contains('@')) {
-      ViroSnackBar.show(context, 'Saisis un e-mail valide');
+      ViroSnackBar.show(context, AppCopy.members.invalidEmail);
       return;
     }
 
@@ -313,7 +314,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
       await Clipboard.setData(ClipboardData(text: message));
       if (!mounted) return;
       ref.invalidate(clubParentsProvider(widget.clubId));
-      ViroSnackBar.show(context, 'Parent invité — message copié');
+      ViroSnackBar.show(context, AppCopy.members.parentInvitedMessageCopied);
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(context, _callableMessage(error));
@@ -348,16 +349,16 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
   }
 
   String _statusLabel(ClubParentEntry parent) {
-    if (parent.isActive) return 'Connecté';
+    if (parent.isActive) return AppCopy.members.statusConnected;
     final pending = parent.primaryPendingChild;
     if (pending?.expiresAt != null) {
       final date = pending!.expiresAt!;
       final label =
           '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-      if (!pending.inviteValid) return 'Expirée le $label';
-      return 'En attente · valable jusqu’au $label';
+      if (!pending.inviteValid) return AppCopy.members.inviteExpiredOn(label);
+      return AppCopy.members.pendingValidUntil(label);
     }
-    return 'En attente';
+    return AppCopy.members.statusPending;
   }
 
   @override
@@ -370,9 +371,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
         padding: EdgeInsets.all(ViroSpacing.xl),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (error, stackTrace) => const Padding(
-        padding: EdgeInsets.all(ViroSpacing.lg),
-        child: Text('Impossible de charger les parents'),
+      error: (error, stackTrace) => Padding(
+        padding: const EdgeInsets.all(ViroSpacing.lg),
+        child: Text(AppCopy.members.loadParentsError),
       ),
       data: (parents) {
         final filtered = _filter(parents);
@@ -389,7 +390,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Rechercher un parent…',
+                  hintText: AppCopy.members.searchParentHint,
                   prefixIcon: ViroIcon(ViroIcons.search),
                 ),
                 onChanged: (value) =>
@@ -404,13 +405,13 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
               child: Row(
                 children: [
                   _chip(
-                    label: 'Tous',
+                    label: AppCopy.common.filterAll,
                     selected: _statusFilter == null,
                     onSelected: (_) => setState(() => _statusFilter = null),
                   ),
                   const SizedBox(width: ViroSpacing.xs),
                   _chip(
-                    label: 'En attente',
+                    label: AppCopy.members.filterPending,
                     selected: _statusFilter == GuardianStatuses.pending,
                     onSelected: (_) => setState(
                       () => _statusFilter = GuardianStatuses.pending,
@@ -418,7 +419,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                   ),
                   const SizedBox(width: ViroSpacing.xs),
                   _chip(
-                    label: 'Connectés',
+                    label: AppCopy.members.filterConnected,
                     selected: _statusFilter == GuardianStatuses.active,
                     onSelected: (_) => setState(
                       () => _statusFilter = GuardianStatuses.active,
@@ -434,7 +435,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                         color: widget.accentColor ?? ViroColors.primary600,
                       ),
                     ),
-                    child: const Text('Inviter'),
+                    child: Text(AppCopy.common.invite),
                   ),
                 ],
               ),
@@ -443,7 +444,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
               Padding(
                 padding: const EdgeInsets.all(ViroSpacing.xl),
                 child: Text(
-                  'Aucun parent pour le moment',
+                  AppCopy.members.parentsEmpty,
                   textAlign: TextAlign.center,
                   style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
                 ),

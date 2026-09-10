@@ -3,6 +3,7 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Fiche enfant affichée en liste (parent seul dans le club) — 1er lien actif.
 final familyPrimaryChildProvider =
@@ -58,7 +59,7 @@ final clubFamilyTargetsProvider =
     targets.add(
       FamilyAudienceTarget(
         memberId: selfMember.memberId,
-        label: 'Moi',
+        label: AppCopy.club.familyAudienceMe,
         kind: FamilyAudienceKind.self,
       ),
     );

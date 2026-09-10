@@ -13,6 +13,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 enum TeamRosterSlot { player, coach }
 
@@ -114,8 +115,8 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
     final pendingAsync = ref.watch(pendingTeamMembersProvider(widget.clubId));
     final title = widget.slot == TeamRosterSlot.coach
-        ? 'Ajouter un coach'
-        : 'Ajouter un joueur';
+        ? AppCopy.teams.addCoachTitle
+        : AppCopy.teams.addPlayerTitle;
 
     return Column(
       children: [
@@ -139,7 +140,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
           child: TextField(
             controller: _searchController,
             decoration: InputDecoration(
-              hintText: 'Rechercher un membre…',
+              hintText: AppCopy.common.searchMemberHint,
               prefixIcon: ViroIcon(ViroIcons.search),
             ),
             onChanged: (value) => setState(() => _search = value),
@@ -166,8 +167,8 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                   context,
                   coaches,
                   emptyLabel: _search.trim().isEmpty
-                      ? 'Aucun coach disponible à ajouter.'
-                      : 'Aucun résultat pour « ${_search.trim()} ».',
+                      ? AppCopy.teams.noCoachToAdd
+                      : AppCopy.teams.searchNoResult(_search.trim()),
                 );
               }
 
@@ -218,8 +219,8 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                         padding: const EdgeInsets.all(ViroSpacing.xl),
                         child: Text(
                           !hasAnyEligible
-                              ? 'Aucun joueur disponible à ajouter.'
-                              : 'Aucun résultat pour « ${_search.trim()} ».',
+                              ? AppCopy.teams.noPlayerToAdd
+                              : AppCopy.teams.searchNoResult(_search.trim()),
                           textAlign: TextAlign.center,
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -237,7 +238,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                     ),
                     children: [
                       if (players.isNotEmpty) ...[
-                        _sectionLabel(context, 'Joueurs du club'),
+                        _sectionLabel(context, AppCopy.teams.clubPlayersSection),
                         ...players.map(
                           (m) => _MemberPickTile(
                             member: m,
@@ -248,7 +249,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                       if (staffAsPlayers.isNotEmpty) ...[
                         if (players.isNotEmpty)
                           const SizedBox(height: ViroSpacing.md),
-                        _sectionLabel(context, 'Coachs et admins'),
+                        _sectionLabel(context, AppCopy.teams.coachesAndAdmins),
                         ...staffAsPlayers.map(
                           (m) => _MemberPickTile(
                             member: m,
@@ -258,7 +259,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                       ],
                       if (pendingAvailable.isNotEmpty) ...[
                         const SizedBox(height: ViroSpacing.md),
-                        _sectionLabel(context, 'En attente de compte'),
+                        _sectionLabel(context, AppCopy.common.pendingAccount),
                         ...pendingAvailable.map(
                           (p) {
                             final accent = Theme.of(context).colorScheme.primary;
@@ -394,7 +395,7 @@ class _MemberPickTile extends StatelessWidget {
     return ListTile(
       leading: MemberAvatar(member: member, size: 40),
       title: Text(
-        member.fullName.isEmpty ? 'Membre' : member.fullName,
+        member.fullName.isEmpty ? AppCopy.common.memberFallback : member.fullName,
         style: const TextStyle(fontWeight: FontWeight.w500),
       ),
       trailing: ViroIcon(ViroIcons.add, color: accent),

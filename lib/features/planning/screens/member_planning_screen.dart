@@ -20,6 +20,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Planning global membre — tous les clubs, fenêtre 14 jours.
 class MemberPlanningScreen extends ConsumerWidget {
@@ -63,7 +64,7 @@ class MemberPlanningScreen extends ConsumerWidget {
     } catch (_) {
       ref.invalidate(memberEventsProvider);
       if (context.mounted) {
-        ViroSnackBar.show(context, 'RSVP impossible, réessayez');
+        ViroSnackBar.show(context, AppCopy.planning.rsvpFailed);
       }
     }
   }
@@ -104,12 +105,12 @@ class MemberPlanningScreen extends ConsumerWidget {
 
     return ViroScaffold(
       appBar: ViroAppBar(
-        title: const Text('Planning'),
+        title: Text(AppCopy.planning.screenTitle),
       ),
       body: clubsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, __) => ViroErrorState(
-          message: 'Impossible de charger vos clubs',
+          message: AppCopy.planning.loadClubsError,
           onRetry: () => ref.invalidate(userClubsProvider),
         ),
         data: (clubs) {
@@ -122,7 +123,7 @@ class MemberPlanningScreen extends ConsumerWidget {
               child: SectionShimmer(itemCount: 5),
             ),
             error: (_, __) => ViroErrorState(
-              message: 'Impossible de charger le planning',
+              message: AppCopy.planning.loadPlanningError,
               onRetry: () => ref.invalidate(memberEventsProvider),
             ),
             data: (state) {
@@ -145,7 +146,7 @@ class MemberPlanningScreen extends ConsumerWidget {
                           child: Padding(
                             padding: const EdgeInsets.all(ViroSpacing.lg),
                             child: Text(
-                              'Aucun événement prévu dans les 14 prochains jours.',
+                              AppCopy.planning.emptyMember14d,
                               textAlign: TextAlign.center,
                               style: Theme.of(context)
                                   .textTheme
@@ -180,7 +181,7 @@ class MemberPlanningScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: ViroSpacing.sm),
                         Text(
-                          '14 prochains jours',
+                          AppCopy.planning.next14DaysTitle,
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     color: ViroColors.primary800,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 /// État vide réutilisable (listes, sections).
@@ -54,16 +55,17 @@ class ViroEmptyState extends StatelessWidget {
 class ViroErrorState extends StatelessWidget {
   const ViroErrorState({
     super.key,
-    this.message = 'Une erreur est survenue',
+    this.message,
     this.onRetry,
   });
 
-  final String message;
+  final String? message;
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final displayMessage = message ?? AppCopy.common.errorOccurred;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(ViroSpacing.xl),
@@ -73,14 +75,14 @@ class ViroErrorState extends StatelessWidget {
             ViroIcon(ViroIcons.close, size: 36, color: ViroColors.error),
             const SizedBox(height: ViroSpacing.md),
             Text(
-              message,
+              displayMessage,
               textAlign: TextAlign.center,
               style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
             ),
             if (onRetry != null) ...[
               const SizedBox(height: ViroSpacing.lg),
               ViroPrimaryButton(
-                label: 'Réessayer',
+                label: AppCopy.common.retry,
                 outlined: true,
                 onPressed: onRetry,
               ),

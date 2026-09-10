@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_defaults.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
@@ -41,22 +42,22 @@ abstract final class ClubMemberCountRanges {
   static String label(String key) {
     if (_isNumeric(key)) return key;
     return switch (key) {
-      under30 => '< 30',
-      range30to100 => '30 – 100',
-      range100to300 => '100 – 300',
-      over300 => '300+',
+      under30 => AppCopy.clubSetup.rangeUnder30,
+      range30to100 => AppCopy.clubSetup.range30to100,
+      range100to300 => AppCopy.clubSetup.range100to300,
+      over300 => AppCopy.clubSetup.rangeOver300,
       _ => key,
     };
   }
 
   /// Libellé explicite pour le récapitulatif de création.
   static String recapLabel(String key) {
-    if (_isNumeric(key)) return '$key membres';
+    if (_isNumeric(key)) return AppCopy.clubSetup.membersCount(key);
     return switch (key) {
-      under30 => 'Moins de 30 membres',
-      range30to100 => '30 à 100 membres',
-      range100to300 => '100 à 300 membres',
-      over300 => 'Plus de 300 membres',
+      under30 => AppCopy.clubSetup.recapUnder30,
+      range30to100 => AppCopy.clubSetup.recap30to100,
+      range100to300 => AppCopy.clubSetup.recap100to300,
+      over300 => AppCopy.clubSetup.recapOver300,
       _ => label(key),
     };
   }

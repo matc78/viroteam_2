@@ -1,3 +1,5 @@
+import 'package:viro_team_v2/copy/app_copy.dart';
+
 /// Indices et libellés des étapes du wizard création club.
 abstract final class ClubSetupSteps {
   static const int wizardVersion = 3;
@@ -12,15 +14,7 @@ abstract final class ClubSetupSteps {
 
   static const int total = 7;
 
-  static const List<String> labels = [
-    'Prérequis',
-    'Identité',
-    'Objectifs',
-    'Effectif',
-    'Siège',
-    'Lieux d\'entraînement/match',
-    'Récap',
-  ];
+  static List<String> get labels => AppCopy.clubSetup.stepLabels;
 
   static const List<String> analyticsKeys = [
     'prerequisites',

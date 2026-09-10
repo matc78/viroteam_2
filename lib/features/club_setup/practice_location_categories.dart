@@ -1,3 +1,5 @@
+import 'package:viro_team_v2/copy/app_copy.dart';
+
 /// Catégories de lieux de pratique (wizard + persistance, aligné portail).
 abstract final class PracticeLocationCategories {
   static const String cityStade = 'city_stade';
@@ -30,21 +32,21 @@ abstract final class PracticeLocationCategories {
     other,
   ];
 
-  static const Map<String, String> labels = {
-    cityStade: 'City-stade',
-    stadium: 'Stade',
-    gymnasium: 'Gymnase',
-    athleticsTrack: "Piste d'athlétisme",
-    healthTrail: 'Parcours santé',
-    forest: 'Forêt',
-    lake: 'Lac',
-    pool: 'Piscine',
-    dojo: 'Dojo',
-    tennisCourt: 'Court de tennis',
-    fencingHall: "Salle d'armes",
-    nauticalBase: 'Base nautique',
-    other: 'Autre',
-  };
+  static Map<String, String> get labels => {
+        cityStade: AppCopy.clubSetup.locCityStade,
+        stadium: AppCopy.clubSetup.locStadium,
+        gymnasium: AppCopy.clubSetup.locGymnasium,
+        athleticsTrack: AppCopy.clubSetup.locAthleticsTrack,
+        healthTrail: AppCopy.clubSetup.locHealthTrail,
+        forest: AppCopy.clubSetup.locForest,
+        lake: AppCopy.clubSetup.locLake,
+        pool: AppCopy.clubSetup.locPool,
+        dojo: AppCopy.clubSetup.locDojo,
+        tennisCourt: AppCopy.clubSetup.locTennisCourt,
+        fencingHall: AppCopy.clubSetup.locFencingHall,
+        nauticalBase: AppCopy.clubSetup.locNauticalBase,
+        other: AppCopy.clubSetup.locOther,
+      };
 
   /// Catégories proposées selon le sport du club (+ Autre toujours).
   static List<String> forSport(String sport) {

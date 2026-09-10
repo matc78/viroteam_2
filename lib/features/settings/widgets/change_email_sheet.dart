@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/auth_error_message.dart';
@@ -97,7 +98,7 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
       if (mounted) {
         ViroSnackBar.show(
           context,
-          'E-mail de vérification envoyé. Profil mis à jour.',
+          AppCopy.settings.emailVerificationSent,
         );
         Navigator.of(context).pop(true);
       }
@@ -130,7 +131,7 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    'Changer l’e-mail',
+                    AppCopy.settings.changeEmailTitle,
                     style: theme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: ViroColors.primary800,
@@ -148,7 +149,9 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               autocorrect: false,
-              decoration: const InputDecoration(labelText: 'Nouvel e-mail'),
+              decoration: InputDecoration(
+                labelText: AppCopy.settings.newEmail,
+              ),
               enabled: !_saving,
             ),
             if (widget.passwordAccount) ...[
@@ -156,8 +159,8 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
               TextField(
                 controller: _passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Mot de passe actuel',
+                decoration: InputDecoration(
+                  labelText: AppCopy.settings.currentPassword,
                 ),
                 enabled: !_saving,
               ),
@@ -165,7 +168,7 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: ViroSpacing.sm),
                 child: Text(
-                  'Une fenêtre Google s’ouvrira pour confirmer le changement.',
+                  AppCopy.settings.googleConfirmEmailChange,
                   style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                 ),
               ),
@@ -180,7 +183,7 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
             ],
             const SizedBox(height: ViroSpacing.lg),
             ViroPrimaryButton(
-              label: 'Enregistrer',
+              label: AppCopy.common.save,
               isLoading: _saving,
               onPressed: _saving ? null : _save,
             ),

@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/fees/models/fee_tier.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Éditeur de paliers tarifaires (libellé + montant).
 class FeeTierEditor extends StatelessWidget {
@@ -75,7 +76,7 @@ class FeeTierEditor extends StatelessWidget {
             onPressed: _addTier,
             icon: ViroIcon(ViroIcons.add, size: 18, color: accent),
             label: Text(
-              'Ajouter un palier',
+              AppCopy.fees.addTier,
               style: TextStyle(
                 color: accent,
                 fontWeight: FontWeight.w600,
@@ -191,7 +192,7 @@ class _TierCardState extends State<_TierCard> {
                       vertical: ViroSpacing.xs,
                     ),
                     child: Text(
-                      'Palier ${widget.index + 1}',
+                      AppCopy.fees.tierIndex(widget.index + 1),
                       style: theme.labelSmall?.copyWith(
                         color: widget.accentColor,
                         fontWeight: FontWeight.w700,
@@ -210,7 +211,7 @@ class _TierCardState extends State<_TierCard> {
                       ),
                       visualDensity: VisualDensity.compact,
                     ),
-                    child: const Text('Supprimer'),
+                    child: Text(AppCopy.fees.delete),
                   ),
               ],
             ),
@@ -219,8 +220,8 @@ class _TierCardState extends State<_TierCard> {
               controller: _labelCtrl,
               textCapitalization: TextCapitalization.sentences,
               decoration: _fieldDecoration.copyWith(
-                labelText: 'Libellé',
-                hintText: 'U14, Senior, Licencié…',
+                labelText: AppCopy.fees.tierLabel,
+                hintText: AppCopy.fees.tierLabelHint,
               ),
               onChanged: (_) => _emit(),
             ),
@@ -228,9 +229,9 @@ class _TierCardState extends State<_TierCard> {
             TextField(
               controller: _amountCtrl,
               decoration: _fieldDecoration.copyWith(
-                labelText: 'Montant',
+                labelText: AppCopy.fees.amount,
                 suffixText: '€',
-                hintText: '150,00',
+                hintText: AppCopy.fees.amountHint,
               ),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),

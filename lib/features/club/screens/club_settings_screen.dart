@@ -7,6 +7,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permission_labels.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
@@ -75,8 +76,9 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
     setState(() {
       _seasonEndDraft = picked;
       _seasonError = isSeasonEndAfterMax(picked)
-          ? 'La fin de saison ne peut pas dépasser le '
-              '${DateFormat('dd/MM/yyyy').format(maxSeasonEndDate())} (31 juillet).'
+          ? AppCopy.club.seasonEndAfterMax(
+              DateFormat('dd/MM/yyyy').format(maxSeasonEndDate()),
+            )
           : null;
     });
   }
@@ -85,7 +87,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
     final draft = _seasonEndDraft;
     if (draft == null || !_seasonDirty(configured)) return;
     if (isSeasonEndAfterMax(draft)) {
-      setState(() => _seasonError = 'Date invalide.');
+      setState(() => _seasonError = AppCopy.club.invalidDate);
       return;
     }
 
@@ -99,7 +101,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
             seasonEndDate: draft,
           );
       invalidateClubVisualCaches(ref, widget.clubId);
-      if (mounted) ViroSnackBar.show(context, 'Fin de saison enregistrée');
+      if (mounted) ViroSnackBar.show(context, AppCopy.club.seasonEndSaved);
     } catch (error) {
       if (mounted) {
         setState(() => _seasonError = error.toString());
@@ -120,7 +122,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
             permissions: draft,
           );
       invalidateClubVisualCaches(ref, widget.clubId);
-      if (mounted) ViroSnackBar.show(context, 'Droits coachs enregistrés');
+      if (mounted) ViroSnackBar.show(context, AppCopy.club.coachRightsSaved);
     } catch (error) {
       if (mounted) ViroSnackBar.show(context, error.toString());
     } finally {
@@ -171,14 +173,14 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
             icon: ViroIcon(ViroIcons.chevronLeft),
             onPressed: () => context.pop(),
           ),
-          title: const Text('Paramètres'),
+          title: Text(AppCopy.club.settingsTitle),
         ),
         body: clubAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => const ViroErrorState(),
           data: (club) {
             if (club == null) {
-              return const Center(child: Text('Club introuvable'));
+              return Center(child: Text(AppCopy.common.clubNotFound));
             }
 
             _syncFromClub(club.coachPermissions, club.seasonEndDate);
@@ -191,14 +193,14 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
               padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
               children: [
                 Text(
-                  'Configurer ${club.name} : lieux, saison et droits des coachs.',
+                  AppCopy.club.configureClubIntro(club.name),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ViroColors.gray600,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.lg),
                 Text(
-                  'Lieux du club',
+                  AppCopy.club.locationsSectionTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: managementAccent,
@@ -206,7 +208,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  'Stades, gymnases et autres lieux utilisés au planning.',
+                  AppCopy.club.locationsSectionHelper,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ViroColors.gray600,
                       ),
@@ -217,15 +219,16 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                   margin: EdgeInsets.zero,
                   child: ListTile(
                     leading: ViroIcon(ViroIcons.place, color: managementAccent),
-                    title: const Text(
-                      'Gérer les lieux',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    title: Text(
+                      AppCopy.club.manageLocations,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
                       club.practiceLocations.isEmpty
-                          ? 'Aucun lieu enregistré'
-                          : '${club.practiceLocations.length} lieu'
-                              '${club.practiceLocations.length > 1 ? 'x' : ''}',
+                          ? AppCopy.club.noLocations
+                          : AppCopy.club.locationsCount(
+                              club.practiceLocations.length,
+                            ),
                     ),
                     trailing: ViroIcon(
                       ViroIcons.chevronRight,
@@ -238,7 +241,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.xl),
                 Text(
-                  'Fin de saison',
+                  AppCopy.club.seasonEndSectionTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: managementAccent,
@@ -246,7 +249,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  'Date limite pour le planning et les récurrences.',
+                  AppCopy.club.seasonEndHelper,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ViroColors.gray600,
                       ),
@@ -258,7 +261,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ListTile(
-                        title: const Text('Date de fin'),
+                        title: Text(AppCopy.club.seasonEndDateLabel),
                         subtitle: Text(dateLabel),
                         trailing: ViroIcon(
                           ViroIcons.calendar,
@@ -283,8 +286,8 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                         padding: const EdgeInsets.all(ViroSpacing.md),
                         child: ViroPrimaryButton(
                           label: _seasonBusy
-                              ? 'Enregistrement…'
-                              : 'Enregistrer la fin de saison',
+                              ? AppCopy.common.saving
+                              : AppCopy.club.saveSeasonEnd,
                           isLoading: _seasonBusy,
                           onPressed:
                               _seasonBusy || !_seasonDirty(club.seasonEndDate)
@@ -297,7 +300,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.xl),
                 Text(
-                  'Droits coachs',
+                  AppCopy.club.coachRightsSectionTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: managementAccent,
@@ -305,7 +308,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  'Contrôle des actions visibles pour les coachs du club.',
+                  AppCopy.club.coachRightsHelper,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ViroColors.gray600,
                       ),
@@ -344,8 +347,8 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                         padding: const EdgeInsets.all(ViroSpacing.md),
                         child: ViroPrimaryButton(
                           label: _coachBusy
-                              ? 'Enregistrement…'
-                              : 'Enregistrer les droits coachs',
+                              ? AppCopy.common.saving
+                              : AppCopy.club.saveCoachRights,
                           isLoading: _coachBusy,
                           onPressed:
                               _coachBusy || !_coachDirty(club.coachPermissions)

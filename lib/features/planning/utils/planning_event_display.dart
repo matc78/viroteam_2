@@ -3,6 +3,7 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Libellés d'affichage planning (évite le doublon titre = nom d'équipe).
 abstract final class PlanningEventDisplay {
@@ -22,7 +23,7 @@ abstract final class PlanningEventDisplay {
     ClubEvent event,
     Map<String, ClubTeam> teamsById,
   ) {
-    if (event.allTeams) return 'Tout le club';
+    if (event.allTeams) return AppCopy.planning.allClub;
     if (event.teamIds.isEmpty) return null;
     final names = event.teamIds
         .map((id) => teamsById[id]?.name)
@@ -277,8 +278,8 @@ abstract final class PlanningEventDisplay {
 
     if (event.type == EventTypes.match) {
       final parts = <String>[date];
-      if (start.isNotEmpty) parts.add('Match $start');
-      if (rdv.isNotEmpty) parts.add('RDV $rdv');
+      if (start.isNotEmpty) parts.add(AppCopy.planning.matchAt(start));
+      if (rdv.isNotEmpty) parts.add(AppCopy.planning.rdvAt(rdv));
       return parts.join(' · ');
     }
 

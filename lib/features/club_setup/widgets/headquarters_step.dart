@@ -4,6 +4,7 @@ import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/french_address_fields.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Étape siège — ville et adresse du club.
 class HeadquartersStep extends StatelessWidget {
@@ -28,7 +29,7 @@ class HeadquartersStep extends StatelessWidget {
 
     return SetupStepShell(
       centerBody: true,
-      subtitle: 'Où se trouve le siège du club ?',
+      subtitle: AppCopy.clubSetup.headquartersSubtitle,
       child: FrenchAddressFields(
         cityController: cityController,
         postalController: postalController,
@@ -36,7 +37,7 @@ class HeadquartersStep extends StatelessWidget {
         addressService: addressService,
         accent: accent,
         onFieldChanged: onFieldChanged,
-        addressLabel: 'Adresse du club',
+        addressLabel: AppCopy.clubSetup.clubAddressLabel,
       ),
     );
   }

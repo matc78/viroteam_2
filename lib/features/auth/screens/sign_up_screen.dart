@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/auth/widgets/auth_social_buttons.dart';
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
@@ -138,8 +139,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     if (formState == null || !formState.validate()) return;
     if (!_acceptedTerms) {
       setState(() {
-        _error =
-            'Tu dois accepter les CGU et la politique de confidentialité.';
+        _error = AppCopy.auth.acceptTermsRequired;
       });
       return;
     }
@@ -192,8 +192,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     if (formState == null || !formState.validate()) return;
     if (!_acceptedTerms) {
       setState(() {
-        _error =
-            'Tu dois accepter les CGU et la politique de confidentialité.';
+        _error = AppCopy.auth.acceptTermsRequired;
       });
       return;
     }
@@ -211,7 +210,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       final firebaseUser = cred.user;
       if (firebaseUser == null) {
         if (mounted) {
-          setState(() => _error = 'Création du compte impossible. Réessayez.');
+          setState(() => _error = AppCopy.auth.accountCreateFailed);
         }
         return;
       }
@@ -256,8 +255,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Future<void> _signUpWithGoogle() async {
     if (!_acceptedTerms) {
       setState(() {
-        _error =
-            'Tu dois accepter les CGU et la politique de confidentialité.';
+        _error = AppCopy.auth.acceptTermsRequired;
       });
       return;
     }
@@ -271,7 +269,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       final cred = await auth.signInWithGoogle();
       final firebaseUser = cred.user;
       if (firebaseUser == null) {
-        throw StateError('Utilisateur Firebase absent après Google Sign-In');
+        throw StateError(AppCopy.auth.firebaseUserMissingAfterGoogle);
       }
 
       final userService = ref.read(userServiceProvider);
@@ -297,15 +295,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       }
       if (mounted) {
         setState(() {
-          _error =
-              'Un compte existe déjà avec cet e-mail. Connecte-toi avec ton mot de passe.';
+          _error = AppCopy.auth.authErrorAccountExistsDifferentCredential;
         });
       }
     } on AuthCanceledException {
       // Annulation volontaire.
     } catch (e) {
       if (mounted) {
-        setState(() => _error = 'Inscription Google impossible. Réessayez.');
+        setState(() => _error = AppCopy.auth.googleSignUpFailed);
       }
     } finally {
       if (mounted) setState(() => _googleLoading = false);
@@ -336,8 +333,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         ),
         title: Text(
           isCompleteProfile
-              ? 'Créer ton compte ViroTeam'
-              : (isJoin ? 'Créer un compte' : 'Compte fondateur'),
+              ? AppCopy.auth.completeProfileTitle
+              : (isJoin
+                  ? AppCopy.auth.signUpTitle
+                  : AppCopy.auth.founderAccountTitle),
         ),
       ),
       body: SafeArea(
@@ -373,9 +372,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       ),
                     ),
                     child: Text(
-                      'Tu es connecté(e) mais tu n’as pas encore de compte '
-                      'ViroTeam sur cet environnement. Complète ton profil pour '
-                      'continuer.',
+                      AppCopy.auth.completeProfileHint,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: ViroColors.gray600,
                           ),
@@ -385,18 +382,18 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 const SizedBox(height: ViroSpacing.xl),
                 TextFormField(
                   controller: _firstNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Prénom',
-                    hintText: 'Tristan',
+                  decoration: InputDecoration(
+                    labelText: AppCopy.auth.firstName,
+                    hintText: AppCopy.auth.firstNameHint,
                   ),
                   validator: (v) => firstNameError(v ?? ''),
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 TextFormField(
                   controller: _lastNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom',
-                    hintText: 'Heraud',
+                  decoration: InputDecoration(
+                    labelText: AppCopy.auth.lastName,
+                    hintText: AppCopy.auth.lastNameHint,
                   ),
                   validator: (v) => lastNameError(v ?? ''),
                 ),
@@ -405,7 +402,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   readOnly: isCompleteProfile,
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: InputDecoration(
+                    labelText: AppCopy.auth.emailFieldLabel,
+                  ),
                   validator: (v) => requiredEmailError(v ?? ''),
                 ),
                 if (!isCompleteProfile) ...[
@@ -413,8 +412,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Mot de passe',
+                    decoration: InputDecoration(
+                      labelText: AppCopy.auth.password,
                       helperText: PasswordPolicy.hint,
                       helperMaxLines: 2,
                     ),
@@ -440,7 +439,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'J’accepte les CGU et la politique de confidentialité.',
+                              AppCopy.auth.acceptTermsLabel,
                               style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: ViroColors.gray600),
                             ),
@@ -450,13 +449,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                                   onPressed: () => openPortalUrl(
                                     portalPageUrl('/legal/cgu'),
                                   ),
-                                  child: const Text('CGU'),
+                                  child: Text(AppCopy.auth.termsCgu),
                                 ),
                                 TextButton(
                                   onPressed: () => openPortalUrl(
                                     portalPageUrl('/legal/privacy'),
                                   ),
-                                  child: const Text('Confidentialité'),
+                                  child: Text(AppCopy.auth.termsPrivacy),
                                 ),
                               ],
                             ),
@@ -478,8 +477,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 const SizedBox(height: ViroSpacing.xl),
                 ViroPrimaryButton(
                   label: isCompleteProfile
-                      ? 'Créer mon compte ViroTeam'
-                      : 'Créer mon compte',
+                      ? AppCopy.auth.createMyAccountViroTeam
+                      : AppCopy.auth.createMyAccount,
                   isLoading: _loading,
                   onPressed: isBusy
                       ? null
@@ -496,7 +495,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   const SizedBox(height: ViroSpacing.md),
                   TextButton(
                     onPressed: isBusy ? null : _signOutAndLeave,
-                    child: const Text('Utiliser un autre compte'),
+                    child: Text(AppCopy.auth.useAnotherAccount),
                   ),
                 ],
               ],

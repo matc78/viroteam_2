@@ -30,6 +30,7 @@ import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class MyFeeScreen extends ConsumerStatefulWidget {
   const MyFeeScreen({super.key, required this.clubId});
@@ -76,8 +77,8 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
     }
 
     final title = selected?.isChild == true
-        ? 'Cotisation de ${selected!.label}'
-        : 'Ma cotisation';
+        ? AppCopy.fees.childFeeTitle(selected!.label)
+        : AppCopy.fees.myFeeTitle;
 
     final memberAccent = ref.watch(clubMemberAccentProvider(widget.clubId));
 
@@ -108,8 +109,8 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
           Expanded(
             child: feeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => const ViroErrorState(
-          message: 'Impossible de charger la cotisation',
+        error: (error, stackTrace) => ViroErrorState(
+          message: AppCopy.fees.loadFeeError,
         ),
         data: (data) {
           final season = data.season;
@@ -122,12 +123,12 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
               ),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                children: const [
+                children: [
                   SizedBox(
                     height: 280,
                     child: ViroEmptyState(
                       message:
-                          'Aucune saison de cotisation active.\nLe club te tiendra informé.',
+                          AppCopy.fees.noActiveSeasonPlayer,
                     ),
                   ),
                 ],
@@ -150,8 +151,8 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
                     height: 280,
                     child: ViroEmptyState(
                       message: selected?.isChild == true
-                          ? 'La cotisation de ${selected!.label} n\'a pas encore été paramétrée par le club.'
-                          : 'Ta cotisation n\'a pas encore été paramétrée par le club.',
+                          ? AppCopy.fees.childFeeNotConfigured(selected!.label)
+                          : AppCopy.fees.myFeeNotConfigured,
                     ),
                   ),
                 ],
@@ -239,7 +240,7 @@ class _FeeContent extends ConsumerWidget {
         if (display == MemberFeeDisplayStatus.enRetard) ...[
           _WarningCard(
             text:
-                'Cotisation en retard. Merci de régulariser selon les consignes ci-dessous.',
+                AppCopy.fees.overdueBanner,
           ),
           const SizedBox(height: ViroSpacing.md),
         ],
@@ -247,7 +248,7 @@ class _FeeContent extends ConsumerWidget {
         if (display == MemberFeeDisplayStatus.echeanceAujourdhui) ...[
           _WarningCard(
             text:
-                'Échéance aujourd\'hui — merci de régler votre cotisation avant la fin de la journée.',
+                AppCopy.fees.deadlineTodayBanner,
           ),
           const SizedBox(height: ViroSpacing.md),
         ],
@@ -259,7 +260,7 @@ class _FeeContent extends ConsumerWidget {
                 ViroIcon(ViroIcons.check, color: ViroColors.success, size: 40),
                 const SizedBox(height: ViroSpacing.sm),
                 Text(
-                  'Votre cotisation ${season.seasonLabel} est à jour',
+                  AppCopy.fees.feeUpToDate(season.seasonLabel),
                   textAlign: TextAlign.center,
                   style: theme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
@@ -269,7 +270,7 @@ class _FeeContent extends ConsumerWidget {
                 if (fee.paidAt != null) ...[
                   const SizedBox(height: ViroSpacing.sm),
                   Text(
-                    'Confirmé le ${DateFormat.yMMMMd('fr_FR').format(fee.paidAt!)}',
+                    AppCopy.fees.confirmedOn(DateFormat.yMMMMd('fr_FR').format(fee.paidAt!)),
                     style: theme.bodyMedium?.copyWith(
                       color: ViroColors.gray600,
                     ),
@@ -279,14 +280,14 @@ class _FeeContent extends ConsumerWidget {
                     fee.paidVia == FeePaidVia.helloasso) ...[
                   const SizedBox(height: ViroSpacing.xs),
                   Text(
-                    'Payé via HelloAsso',
+                    AppCopy.fees.paidViaHelloAsso,
                     style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                   ),
                 ],
                 if (fee.paidVia == FeePaidVia.offline) ...[
                   const SizedBox(height: ViroSpacing.xs),
                   Text(
-                    'Payé hors-ligne'
+                    '${AppCopy.fees.paidOffline}'
                     '${fee.offlineMethod != null ? ' (${FeePaymentMethods.label(fee.offlineMethod!)})' : ''}',
                     style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                   ),
@@ -309,7 +310,7 @@ class _FeeContent extends ConsumerWidget {
                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                     },
                     icon: ViroIcon(ViroIcons.share, color: accent),
-                    label: const Text('Télécharger l\'attestation PDF'),
+                    label: Text(AppCopy.fees.downloadAttestation),
                   ),
                 ],
               ],
@@ -318,7 +319,7 @@ class _FeeContent extends ConsumerWidget {
         ] else if (display == MemberFeeDisplayStatus.exonere) ...[
           ViroCard(
             child: Text(
-              'Vous êtes exonéré(e) de cotisation pour la saison ${season.seasonLabel}.',
+              AppCopy.fees.exemptForSeason(season.seasonLabel),
               textAlign: TextAlign.center,
               style: theme.bodyLarge,
             ),
@@ -348,11 +349,11 @@ class _FeeContent extends ConsumerWidget {
                     child: Text(
                       [
                         if (fee.amountPaidCents > 0)
-                          'Payé : ${formatFeeAmountCents(fee.amountPaidCents)}',
+                          AppCopy.fees.paidAmount(formatFeeAmountCents(fee.amountPaidCents)),
                         if (fee.pendingAidsCents > 0)
-                          'Aide en attente : ${formatFeeAmountCents(fee.pendingAidsCents)}',
+                          AppCopy.fees.pendingAidAmount(formatFeeAmountCents(fee.pendingAidsCents)),
                         if (remaining > 0)
-                          'Reste : ${formatFeeAmountCents(remaining)}',
+                          AppCopy.fees.remainingAmount(formatFeeAmountCents(remaining)),
                       ].join(' · '),
                       textAlign: TextAlign.center,
                       style: theme.bodyMedium?.copyWith(
@@ -365,7 +366,7 @@ class _FeeContent extends ConsumerWidget {
                   const SizedBox(height: ViroSpacing.sm),
                   Center(
                     child: Text(
-                      'Catégorie : ${tier.label}',
+                      AppCopy.fees.categoryLabel(tier.label),
                       style: theme.bodyLarge?.copyWith(
                         color: ViroColors.gray600,
                       ),
@@ -391,10 +392,10 @@ class _FeeContent extends ConsumerWidget {
                       ),
                       Text(
                         aid.isValidated
-                            ? 'Validée'
+                            ? AppCopy.fees.aidValidated
                             : aid.status == FeeAidStatuses.rejected
-                                ? 'Refusée'
-                                : 'Justificatif',
+                                ? AppCopy.fees.aidRejected
+                                : AppCopy.fees.aidProof,
                         style: theme.labelSmall?.copyWith(
                           color: aid.isValidated
                               ? ViroColors.success
@@ -420,7 +421,7 @@ class _FeeContent extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Date limite',
+                          AppCopy.fees.deadlineLabel,
                           style: theme.labelMedium?.copyWith(
                             color: ViroColors.gray600,
                           ),
@@ -439,7 +440,7 @@ class _FeeContent extends ConsumerWidget {
             )
           else
             Text(
-              'Pas de date limite',
+              AppCopy.fees.noDeadline,
               textAlign: TextAlign.center,
               style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
             ),
@@ -448,7 +449,7 @@ class _FeeContent extends ConsumerWidget {
         if (canPay && onlinePaymentEnabled) ...[
           const SizedBox(height: ViroSpacing.lg),
           ViroPrimaryButton(
-            label: 'Payer en ligne',
+            label: AppCopy.fees.payOnline,
             onPressed: () => context.push(AppRoutes.clubFeePayPath(clubId)),
           ),
         ],
@@ -458,7 +459,7 @@ class _FeeContent extends ConsumerWidget {
         if (canPay) ...[
           if (season.paymentInstructions.trim().isNotEmpty) ...[
             Text(
-              'Consignes de paiement',
+              AppCopy.fees.paymentGuidelines,
               style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: ViroSpacing.sm),
@@ -480,7 +481,7 @@ class _FeeContent extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'IBAN',
+                          AppCopy.fees.iban,
                           style: theme.labelMedium?.copyWith(
                             color: ViroColors.gray600,
                           ),
@@ -500,9 +501,9 @@ class _FeeContent extends ConsumerWidget {
                     icon: ViroIcon(ViroIcons.copy, color: accent),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: season.iban!));
-                      ViroSnackBar.show(context, 'IBAN copié');
+                      ViroSnackBar.show(context, AppCopy.fees.ibanCopied);
                     },
-                    tooltip: 'Copier',
+                    tooltip: AppCopy.common.copy,
                   ),
                 ],
               ),
@@ -512,7 +513,7 @@ class _FeeContent extends ConsumerWidget {
 
           if (season.paymentMethods.isNotEmpty) ...[
             Text(
-              'Moyens de paiement acceptés',
+              AppCopy.fees.acceptedPaymentMethods,
               style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: ViroSpacing.sm),
@@ -539,10 +540,8 @@ class _FeeContent extends ConsumerWidget {
               Expanded(
                 child: Text(
                   FeatureFlags.helloAssoPaymentsLive && onlinePaymentEnabled
-                      ? 'Le paiement en ligne via HelloAsso est disponible '
-                          'ci-dessus.'
-                      : 'Le paiement en ligne via HelloAsso arrive bientôt. '
-                          'En attendant, suivez les consignes du club.',
+                      ? AppCopy.fees.helloAssoAvailableAbove
+                      : AppCopy.fees.helloAssoComingSoonFollowClub,
                   style: theme.bodySmall?.copyWith(
                     color: ViroColors.gray600,
                     height: 1.4,

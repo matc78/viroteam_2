@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/widgets/auth_social_buttons.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
@@ -60,10 +61,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             password: _passwordController.text,
           );
       if (credential.user == null) {
-        _showError('Connexion impossible. Réessayez.');
+        _showError(AppCopy.auth.loginFailedRetry);
       }
     } catch (_) {
-      _showError('Connexion impossible. Vérifiez vos identifiants.');
+      _showError(AppCopy.auth.loginFailedCredentials);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -79,20 +80,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final credential = await ref.read(authServiceProvider).signInWithGoogle();
       if (credential.user == null) {
-        _showError('Connexion Google impossible. Réessayez.');
+        _showError(AppCopy.auth.googleLoginFailed);
       }
     } on EmailUsedWithPasswordException catch (error) {
       final email = error.email?.trim();
       if (email != null && email.isNotEmpty && mounted) {
         _emailController.text = email;
       }
-      _showError(
-        'Un compte existe déjà avec cet e-mail. Connecte-toi avec ton mot de passe.',
-      );
+      _showError(AppCopy.auth.authErrorAccountExistsDifferentCredential);
     } on AuthCanceledException {
       // Annulation volontaire.
     } catch (_) {
-      _showError('Connexion Google impossible. Réessayez.');
+      _showError(AppCopy.auth.googleLoginFailed);
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }
@@ -109,7 +108,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Connexion'),
+        title: Text(AppCopy.auth.loginTitle),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -135,22 +134,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: InputDecoration(
+                    labelText: AppCopy.auth.emailFieldLabel,
+                  ),
                   validator: (v) =>
-                      v != null && v.contains('@') ? null : 'Email invalide',
+                      v != null && v.contains('@')
+                          ? null
+                          : AppCopy.auth.invalidEmail,
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    labelText: 'Mot de passe',
+                    labelText: AppCopy.auth.password,
                     suffixIcon: IconButton(
                       icon: ViroIcon(
                         _obscurePassword ? ViroIcons.eye : ViroIcons.eyeSlash,
                         semanticLabel: _obscurePassword
-                            ? 'Afficher le mot de passe'
-                            : 'Masquer le mot de passe',
+                            ? AppCopy.auth.showPassword
+                            : AppCopy.auth.hidePassword,
                       ),
                       onPressed: () => setState(
                         () => _obscurePassword = !_obscurePassword,
@@ -159,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   validator: (v) => v != null && v.length >= 6
                       ? null
-                      : '6 caractères minimum',
+                      : AppCopy.auth.passwordMin6,
                 ),
                 if (errorMessage != null) ...[
                   const SizedBox(height: ViroSpacing.md),
@@ -170,7 +173,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
                 const SizedBox(height: ViroSpacing.xl),
                 ViroPrimaryButton(
-                  label: 'Se connecter',
+                  label: AppCopy.auth.signInAction,
                   isLoading: _loading,
                   onPressed: isBusy ? null : _submit,
                 ),

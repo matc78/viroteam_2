@@ -22,6 +22,7 @@ import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 enum _CancelScope { single, series }
 
@@ -114,14 +115,14 @@ class _PlanningEventDetailSheetState
       if (!mounted) return;
       ViroStatusToast.show(
         context,
-        message: 'Notif envoyée',
+        message: AppCopy.planning.notifSent,
         success: true,
       );
     } catch (error) {
       if (!mounted) return;
       final message = error.toString().contains('resource-exhausted')
-          ? 'Une notification a déjà été envoyée il y a moins d’une heure'
-          : 'Envoi impossible, réessayez';
+          ? AppCopy.planning.notifRateLimited
+          : AppCopy.planning.notifSendFailed;
       ViroStatusToast.show(
         context,
         message: message,
@@ -217,7 +218,7 @@ class _PlanningEventDetailSheetState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Réponses (${entries.length})',
+              AppCopy.planning.responsesCount(entries.length),
               style: theme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: accent,
@@ -228,7 +229,7 @@ class _PlanningEventDetailSheetState
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: ViroSpacing.lg),
                 child: Text(
-                  'Aucun membre convoqué',
+                  AppCopy.planning.noMembersCalled,
                   style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
                 ),
               )
@@ -268,7 +269,7 @@ class _PlanningEventDetailSheetState
       widget.onCanceled();
       ViroSnackBar.show(
         context,
-        count > 1 ? '$count événements annulés' : 'Événement annulé',
+        AppCopy.planning.eventsCancelled(count),
       );
       return;
     }
@@ -280,7 +281,7 @@ class _PlanningEventDetailSheetState
     if (!mounted) return;
     Navigator.pop(context);
     widget.onCanceled();
-    ViroSnackBar.show(context, 'Événement annulé');
+    ViroSnackBar.show(context, AppCopy.planning.eventCancelled);
   }
 
   Future<_CancelScope?> _askCancelScope() async {
@@ -288,18 +289,18 @@ class _PlanningEventDetailSheetState
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Annuler l\'événement ?'),
-          content: const Text(
-            'Les membres ne verront plus cet événement dans leur planning.',
+          title: Text(AppCopy.planning.cancelEventTitle),
+          content: Text(
+            AppCopy.planning.cancelEventBody,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Non'),
+              child: Text(AppCopy.common.no),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Annuler'),
+              child: Text(AppCopy.common.cancel),
             ),
           ],
         ),
@@ -310,23 +311,22 @@ class _PlanningEventDetailSheetState
     return showDialog<_CancelScope>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Annuler l\'événement'),
-        content: const Text(
-          'Cet entraînement fait partie d\'une série récurrente. '
-          'Que souhaitez-vous annuler ?',
+        title: Text(AppCopy.planning.cancelSeriesTitle),
+        content: Text(
+          AppCopy.planning.cancelSeriesBody,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Retour'),
+            child: Text(AppCopy.common.back),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, _CancelScope.single),
-            child: const Text('Cet événement seulement'),
+            child: Text(AppCopy.planning.thisEventOnly),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, _CancelScope.series),
-            child: const Text('Toute la série'),
+            child: Text(AppCopy.planning.wholeSeries),
           ),
         ],
       ),
@@ -408,7 +408,7 @@ class _PlanningEventDetailSheetState
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Text(
-                                  'RDV $rdvStr',
+                                  AppCopy.planning.rdvPrefix(rdvStr),
                                   style: theme.labelSmall?.copyWith(
                                     color: ViroColors.gray600,
                                     fontWeight: FontWeight.w600,
@@ -522,7 +522,7 @@ class _PlanningEventDetailSheetState
                         )
                       : ViroIcon(ViroIcons.bell, size: 18),
                   label: Text(
-                    _sendingPush ? 'Envoi…' : 'Envoyer une notification',
+                    _sendingPush ? AppCopy.planning.sending : AppCopy.planning.sendNotification,
                   ),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(
@@ -544,7 +544,7 @@ class _PlanningEventDetailSheetState
                       ViroSpacing.buttonHeightMedium,
                     ),
                   ),
-                  child: const Text('Annuler l\'événement'),
+                  child: Text(AppCopy.planning.cancelEventAction),
                 ),
               ],
               SizedBox(height: MediaQuery.paddingOf(context).bottom),
@@ -626,7 +626,7 @@ class _AwayMatchHeader extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'Extérieur · $dateStr',
+          AppCopy.planning.awayWithDate(dateStr),
           style: theme.bodySmall?.copyWith(
             color: ViroColors.gray600,
             height: 1.3,
@@ -647,7 +647,7 @@ class _AwayMatchHeader extends StatelessWidget {
               children: [
                 if (hasRdv)
                   _AwayScheduleBlock(
-                    label: 'RDV',
+                    label: AppCopy.planning.labelRdv,
                     timeStr: rdvStr,
                     place: trimmedMeeting,
                     accent: accent,
@@ -664,7 +664,7 @@ class _AwayMatchHeader extends StatelessWidget {
                 ],
                 if (hasMatch)
                   _AwayScheduleBlock(
-                    label: 'Match',
+                    label: AppCopy.planning.labelMatch,
                     timeStr: matchTimeStr,
                     place: trimmedAddress,
                     accent: accent,

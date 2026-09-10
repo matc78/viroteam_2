@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Type d'aide / réduction appliquée sur une cotisation.
 abstract final class FeeAidTypes {
@@ -18,14 +19,7 @@ abstract final class FeeAidTypes {
   ];
 
   /// Libellé FR pour l'UI.
-  static String label(String type) => switch (type) {
-        passSport => 'Pass\'Sport',
-        passPlus => 'Pass+',
-        ancv => 'Chèques ANCV',
-        promo => 'Code promo',
-        other => 'Autre aide',
-        _ => type,
-      };
+  static String label(String type) => AppCopy.fees.aidTypeLabel(type);
 }
 
 /// Statut de justificatif d'une aide.

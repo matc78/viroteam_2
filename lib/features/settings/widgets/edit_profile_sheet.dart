@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
@@ -68,7 +69,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     final firstName = _firstNameController.text;
     final lastName = _lastNameController.text;
     if (firstName.trim().isEmpty && lastName.trim().isEmpty) {
-      setState(() => _error = 'Indique au moins un prénom ou un nom.');
+      setState(() => _error = AppCopy.settings.nameRequired);
       return;
     }
     final firstError =
@@ -92,7 +93,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
             phone: _phoneController.text.trim(),
           );
       if (mounted) {
-        ViroSnackBar.show(context, 'Profil mis à jour');
+        ViroSnackBar.show(context, AppCopy.settings.profileUpdated);
         Navigator.of(context).pop(true);
       }
     } catch (error) {
@@ -100,7 +101,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
         setState(() {
           _error = error is ArgumentError
               ? error.message.toString()
-              : 'Enregistrement impossible.';
+              : AppCopy.settings.saveFailed;
         });
       }
     } finally {
@@ -128,7 +129,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
               children: [
                 Expanded(
                   child: Text(
-                    'Modifier le profil',
+                    AppCopy.settings.editProfileTitle,
                     style: theme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: ViroColors.primary800,
@@ -145,22 +146,26 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
             TextField(
               controller: _firstNameController,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Prénom'),
+              decoration: InputDecoration(
+                labelText: AppCopy.settings.firstName,
+              ),
               enabled: !_saving,
             ),
             const SizedBox(height: ViroSpacing.sm),
             TextField(
               controller: _lastNameController,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Nom'),
+              decoration: InputDecoration(
+                labelText: AppCopy.settings.lastName,
+              ),
               enabled: !_saving,
             ),
             const SizedBox(height: ViroSpacing.sm),
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Téléphone (optionnel)',
+              decoration: InputDecoration(
+                labelText: AppCopy.settings.phoneOptional,
               ),
               enabled: !_saving,
             ),
@@ -175,7 +180,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
             ],
             const SizedBox(height: ViroSpacing.lg),
             ViroPrimaryButton(
-              label: 'Enregistrer',
+              label: AppCopy.common.save,
               isLoading: _saving,
               onPressed: _saving ? null : _save,
             ),

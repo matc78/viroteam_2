@@ -7,6 +7,7 @@ import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart'
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class PlanningEventTile extends StatelessWidget {
   const PlanningEventTile({
@@ -79,7 +80,7 @@ class PlanningEventTile extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(
-                            'RDV $rdvStr',
+                            AppCopy.planning.rdvPrefix(rdvStr),
                             style: theme.labelSmall?.copyWith(
                               color: ViroColors.gray600,
                               fontWeight: FontWeight.w600,

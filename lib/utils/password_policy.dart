@@ -1,27 +1,28 @@
+import 'package:viro_team_v2/copy/app_copy.dart';
+
 /// Politique mot de passe ViroTeam (inscription + changement).
 abstract final class PasswordPolicy {
   static const int minLength = 8;
 
   /// Texte d’aide affiché sous les champs mot de passe.
-  static const String hint =
-      '8 caractères minimum, avec une majuscule, une minuscule et un chiffre.';
+  static String get hint => AppCopy.auth.passwordHint;
 
   /// Retourne `null` si valide, sinon un message d’erreur en français.
   static String? validate(String? password) {
     if (password == null || password.isEmpty) {
-      return 'Le mot de passe est requis.';
+      return AppCopy.auth.passwordRequired;
     }
     if (password.length < minLength) {
-      return 'Au moins $minLength caractères.';
+      return AppCopy.auth.passwordMinLength(minLength);
     }
     if (!_hasUppercase.hasMatch(password)) {
-      return 'Au moins une majuscule.';
+      return AppCopy.auth.passwordNeedUpper;
     }
     if (!_hasLowercase.hasMatch(password)) {
-      return 'Au moins une minuscule.';
+      return AppCopy.auth.passwordNeedLower;
     }
     if (!_hasDigit.hasMatch(password)) {
-      return 'Au moins un chiffre.';
+      return AppCopy.auth.passwordNeedDigit;
     }
     return null;
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
@@ -38,12 +39,12 @@ Future<bool> pickAndUploadUserAvatar(
           syncMemberClubId: activeClubId,
         );
     if (context.mounted) {
-      ViroSnackBar.show(context, 'Avatar mis à jour');
+      ViroSnackBar.show(context, AppCopy.settings.avatarUpdated);
     }
     return true;
   } catch (_) {
     if (context.mounted) {
-      ViroSnackBar.show(context, 'Upload avatar impossible');
+      ViroSnackBar.show(context, AppCopy.settings.avatarUploadFailed);
     }
     return false;
   }

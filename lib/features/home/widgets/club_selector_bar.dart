@@ -7,6 +7,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
@@ -136,7 +137,7 @@ class _AddClubBarItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Ajouter un club',
+      label: AppCopy.home.addClub,
       child: GestureDetector(
         onTap: onTap,
         child: Container(

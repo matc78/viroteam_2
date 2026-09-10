@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Messages d’erreur Auth Firebase en français (aligné portail).
 abstract final class AuthErrorMessage {
@@ -11,44 +12,44 @@ abstract final class AuthErrorMessage {
       return _forCode(error.code) ??
           (error.message?.trim().isNotEmpty == true
               ? error.message!.trim()
-              : 'Une erreur est survenue.');
+              : AppCopy.common.errorGeneric);
     }
-    return 'Une erreur est survenue.';
+    return AppCopy.common.errorGeneric;
   }
 
   static String? _forCode(String code) {
     switch (code) {
       case 'invalid-email':
       case 'auth/invalid-email':
-        return 'Adresse e-mail invalide.';
+        return AppCopy.auth.authErrorInvalidEmail;
       case 'user-disabled':
       case 'auth/user-disabled':
-        return 'Ce compte est désactivé.';
+        return AppCopy.auth.authErrorUserDisabled;
       case 'user-not-found':
       case 'auth/user-not-found':
       case 'wrong-password':
       case 'auth/wrong-password':
       case 'invalid-credential':
       case 'auth/invalid-credential':
-        return 'E-mail ou mot de passe incorrect.';
+        return AppCopy.auth.authErrorWrongCredentials;
       case 'email-already-in-use':
       case 'auth/email-already-in-use':
-        return 'Un compte existe déjà avec cet e-mail.';
+        return AppCopy.auth.authErrorEmailAlreadyInUse;
       case 'weak-password':
       case 'auth/weak-password':
-        return 'Mot de passe trop faible (8 caractères minimum).';
+        return AppCopy.auth.authErrorWeakPassword;
       case 'too-many-requests':
       case 'auth/too-many-requests':
-        return 'Trop de tentatives. Réessaie plus tard.';
+        return AppCopy.auth.authErrorTooManyRequests;
       case 'network-request-failed':
       case 'auth/network-request-failed':
-        return 'Problème réseau. Vérifie ta connexion.';
+        return AppCopy.auth.authErrorNetworkFailed;
       case 'account-exists-with-different-credential':
       case 'auth/account-exists-with-different-credential':
-        return 'Un compte existe déjà avec cet e-mail. Connecte-toi avec ton mot de passe.';
+        return AppCopy.auth.authErrorAccountExistsDifferentCredential;
       case 'requires-recent-login':
       case 'auth/requires-recent-login':
-        return 'Reconnecte-toi pour confirmer cette action.';
+        return AppCopy.auth.authErrorRequiresRecentLogin;
       default:
         return null;
     }

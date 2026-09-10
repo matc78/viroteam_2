@@ -3,6 +3,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Rôles affichables en UI.
 ///
@@ -134,10 +135,10 @@ class ViroRoleSatelliteBadge extends StatelessWidget {
 
 abstract final class RoleBadgeVisual {
   static String labelFor(ViroRole role) => switch (role) {
-        ViroRole.player => 'Joueur',
-        ViroRole.coach => 'Entraîneur',
-        ViroRole.parent => 'Parent',
-        ViroRole.admin => 'Admin',
+        ViroRole.player => AppCopy.common.rolePlayer,
+        ViroRole.coach => AppCopy.common.roleCoach,
+        ViroRole.parent => AppCopy.common.roleParent,
+        ViroRole.admin => AppCopy.common.roleAdmin,
       };
 
   static RoleBadgeStyle forRole(ViroRole role) => switch (role) {

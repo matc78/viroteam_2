@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/settings/widgets/account_session_section.dart';
@@ -72,17 +73,17 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
             }
           },
         ),
-        title: const Text('Paramètres'),
+        title: Text(AppCopy.settings.screenTitle),
       ),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => ViroErrorState(
-          message: 'Impossible de charger le profil',
+        error: (error, _) => ViroErrorState(
+          message: AppCopy.settings.loadProfileError,
           onRetry: () => ref.invalidate(viroUserProvider),
         ),
         data: (user) {
           if (user == null) {
-            return const ViroEmptyState(message: 'Profil introuvable');
+            return ViroEmptyState(message: AppCopy.settings.profileNotFound);
           }
 
           final displayName = user.displayName.isNotEmpty
@@ -114,7 +115,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                             Text(
                               displayName.isNotEmpty
                                   ? displayName
-                                  : 'Mon compte',
+                                  : AppCopy.settings.myAccount,
                               style: theme.titleMedium?.copyWith(
                                 color: ViroColors.primary800,
                                 fontWeight: FontWeight.w700,
@@ -145,7 +146,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.xl),
                 Text(
-                  'Mon compte',
+                  AppCopy.settings.myAccount,
                   style: theme.titleSmall?.copyWith(
                     color: ViroColors.primary800,
                     fontWeight: FontWeight.w700,
@@ -153,7 +154,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  'Avatar, identité et sécurité de ton compte ViroTeam.',
+                  AppCopy.settings.myAccountSubtitle,
                   style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
@@ -165,12 +166,12 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                   child: Column(
                     children: [
                       SettingsListTile(
-                        title: 'Modifier le profil',
+                        title: AppCopy.settings.editProfile,
                         icon: ViroIcons.edit,
                         onTap: () => showEditProfileSheet(context, user: user),
                       ),
                       SettingsListTile(
-                        title: 'E-mail',
+                        title: AppCopy.settings.email,
                         subtitle: user.email,
                         icon: ViroIcons.envelope,
                         onTap: () => showChangeEmailSheet(
@@ -181,12 +182,12 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                       ),
                       if (passwordAccount)
                         SettingsListTile(
-                          title: 'Mot de passe',
+                          title: AppCopy.settings.password,
                           icon: ViroIcons.key,
                           onTap: () => showChangePasswordSheet(context),
                         ),
                       SettingsListTile(
-                        title: 'Type de connexion',
+                        title: AppCopy.settings.connectionType,
                         subtitle: providerLabels.join(' · '),
                         showDivider: false,
                         trailing: const SizedBox.shrink(),
@@ -198,7 +199,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 NotificationPreferencesSection(user: user),
                 const SizedBox(height: ViroSpacing.xl),
                 Text(
-                  'Mes clubs',
+                  AppCopy.settings.myClubs,
                   style: theme.titleSmall?.copyWith(
                     color: ViroColors.primary800,
                     fontWeight: FontWeight.w700,
@@ -210,13 +211,13 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                     padding: EdgeInsets.all(ViroSpacing.md),
                     child: Center(child: CircularProgressIndicator()),
                   ),
-                  error: (_, _) => const ViroEmptyState(
-                    message: 'Impossible de charger les clubs',
+                  error: (error, _) => ViroEmptyState(
+                    message: AppCopy.settings.loadClubsError,
                   ),
                   data: (clubs) {
                     if (clubs.isEmpty) {
-                      return const ViroEmptyState(
-                        message: 'Aucun club pour le moment',
+                      return ViroEmptyState(
+                        message: AppCopy.settings.noClubsYet,
                       );
                     }
                     return Column(
@@ -235,7 +236,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.xl),
                 Text(
-                  'Légal',
+                  AppCopy.settings.legalSection,
                   style: theme.titleSmall?.copyWith(
                     color: ViroColors.primary800,
                     fontWeight: FontWeight.w700,
@@ -250,17 +251,17 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                   child: Column(
                     children: [
                       SettingsListTile(
-                        title: 'Conditions générales',
+                        title: AppCopy.settings.termsOfService,
                         onTap: () =>
                             openPortalUrl(portalPageUrl('/legal/cgu')),
                       ),
                       SettingsListTile(
-                        title: 'Confidentialité',
+                        title: AppCopy.settings.privacy,
                         onTap: () =>
                             openPortalUrl(portalPageUrl('/legal/privacy')),
                       ),
                       SettingsListTile(
-                        title: 'Mentions légales',
+                        title: AppCopy.settings.legalMentions,
                         showDivider: false,
                         onTap: () =>
                             openPortalUrl(portalPageUrl('/legal/mentions')),

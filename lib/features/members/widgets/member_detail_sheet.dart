@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
@@ -194,13 +195,13 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
             newRole: newRole,
           );
       if (!mounted) return;
-      ViroSnackBar.show(context, 'Rôle mis à jour');
+      ViroSnackBar.show(context, AppCopy.members.roleUpdated);
       Navigator.of(context).pop();
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(
         context,
-        callableErrorMessage(error, fallback: 'Changement de rôle impossible.'),
+        callableErrorMessage(error, fallback: AppCopy.members.roleChangeImpossible),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -217,13 +218,13 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       if (!mounted) return;
       widget.onMemberRemoved?.call();
       Navigator.of(context).pop();
-      ViroSnackBar.show(context, 'Membre supprimé');
+      ViroSnackBar.show(context, AppCopy.members.memberRemoved);
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(
         context,
         callableErrorMessage(error,
-            fallback: 'Suppression du membre impossible.'),
+            fallback: AppCopy.members.removeMemberImpossible),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -247,13 +248,13 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            title: const Text('Modifier la licence'),
+            title: Text(AppCopy.members.editLicense),
             content: TextField(
               controller: controller,
               autofocus: true,
               textCapitalization: TextCapitalization.characters,
               decoration: InputDecoration(
-                hintText: 'Numéro de licence',
+                hintText: AppCopy.members.licenseNumberHint,
                 errorText: localError,
               ),
               onChanged: (value) {
@@ -264,7 +265,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Annuler'),
+                child: Text(AppCopy.common.cancel),
               ),
               FilledButton(
                 onPressed: () {
@@ -275,7 +276,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                   }
                   Navigator.of(dialogContext).pop(true);
                 },
-                child: const Text('Enregistrer'),
+                child: Text(AppCopy.common.save),
               ),
             ],
           ),
@@ -296,14 +297,14 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
           );
       if (!mounted) return;
       await _loadExtras();
-      ViroSnackBar.show(context, 'Licence mise à jour');
+      ViroSnackBar.show(context, AppCopy.members.licenseUpdated);
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(
         context,
         callableErrorMessage(
           error,
-          fallback: 'Modification de la licence impossible.',
+          fallback: AppCopy.members.licenseUpdateImpossible,
         ),
       );
     } finally {
@@ -313,20 +314,20 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
   }
 
   String _roleLabel(String role) => switch (role) {
-        MemberRoles.admin => 'Administrateur',
-        MemberRoles.coach => 'Coach',
-        _ => 'Joueur',
+        MemberRoles.admin => AppCopy.common.roleAdminFull,
+        MemberRoles.coach => AppCopy.common.roleCoachShort,
+        _ => AppCopy.common.rolePlayer,
       };
 
   String? _parentSubtitle() {
     if (_loadingExtras) return null;
     final guardian = _guardian;
     if (guardian?.hasOccupant != true) {
-      return 'Aucun parent lié';
+      return AppCopy.members.noParentLinked;
     }
-    final name = guardian!.displayName ?? guardian.email ?? 'Parent invité';
-    if (guardian.inviteExpired) return '$name · invitation expirée';
-    if (guardian.isPending) return '$name · en attente';
+    final name = guardian!.displayName ?? guardian.email ?? AppCopy.members.parentInvited;
+    if (guardian.inviteExpired) return AppCopy.members.parentWithInviteExpired(name);
+    if (guardian.isPending) return AppCopy.members.parentWithPending(name);
     return name;
   }
 
@@ -375,10 +376,10 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
             subtitle:
                 _canSeeContact && widget.member.email?.trim().isNotEmpty == true
                     ? widget.member.email!.trim()
-                    : 'Compte lié',
+                    : AppCopy.members.accountLinked,
           ),
           const SizedBox(height: ViroSpacing.lg),
-          _SectionLabel(label: 'Informations', accent: accent),
+          _SectionLabel(label: AppCopy.members.sectionInfo, accent: accent),
           const SizedBox(height: ViroSpacing.sm),
           ViroCard(
             margin: EdgeInsets.zero,
@@ -388,26 +389,26 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
             child: Column(
               children: [
                 _InfoRow(
-                  label: 'Inscription',
-                  value: 'Compte lié',
+                  label: AppCopy.members.labelRegistration,
+                  value: AppCopy.members.accountLinked,
                   accent: accent,
                 ),
                 _InfoDivider(color: accentStyle.border),
                 _InfoRow(
-                  label: 'E-mail',
+                  label: AppCopy.members.labelEmail,
                   value: emailDisplay,
                   accent: accent,
                 ),
                 _InfoDivider(color: accentStyle.border),
                 _InfoRow(
-                  label: 'Équipes',
+                  label: AppCopy.members.labelTeams,
                   value:
-                      teamLabels.isNotEmpty ? teamLabels.join(', ') : 'Aucune',
+                      teamLabels.isNotEmpty ? teamLabels.join(', ') : AppCopy.common.none,
                   accent: accent,
                 ),
                 _InfoDivider(color: accentStyle.border),
                 _InfoRow(
-                  label: 'Cotisation',
+                  label: AppCopy.members.labelFee,
                   value: feeLabel,
                   accent: accent,
                 ),
@@ -415,9 +416,9 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                   _InfoDivider(color: accentStyle.border),
                   if (canEditLicense)
                     _ActionRow(
-                      label: 'Licence',
+                      label: AppCopy.members.labelLicense,
                       subtitle: licenseValue == '—'
-                          ? 'Ajouter un numéro'
+                          ? AppCopy.members.addPhone
                           : licenseValue,
                       accent: accent,
                       loading: _loadingExtras,
@@ -425,7 +426,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                     )
                   else
                     _InfoRow(
-                      label: 'Licence',
+                      label: AppCopy.members.labelLicense,
                       value: licenseValue,
                       accent: accent,
                     ),
@@ -435,7 +436,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
           ),
           if (_isAdmin) ...[
             const SizedBox(height: ViroSpacing.lg),
-            _SectionLabel(label: 'Administration', accent: accent),
+            _SectionLabel(label: AppCopy.members.sectionAdmin, accent: accent),
             const SizedBox(height: ViroSpacing.sm),
             ViroCard(
               margin: EdgeInsets.zero,
@@ -446,7 +447,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                 children: [
                   if (showParentAction)
                     _ActionRow(
-                      label: 'Parent',
+                      label: AppCopy.members.labelParent,
                       subtitle: _parentSubtitle(),
                       accent: accent,
                       loading: _loadingExtras,
@@ -454,7 +455,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                     ),
                   if (showParentAction) _InfoDivider(color: accentStyle.border),
                   _ActionRow(
-                    label: 'Rôle',
+                    label: AppCopy.members.labelRole,
                     subtitle: _roleLabel(widget.member.role),
                     accent: accent,
                     onTap: _busy ? null : _changeRole,
@@ -467,7 +468,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
             const SizedBox(height: ViroSpacing.lg),
             if (_confirmRemove) ...[
               Text(
-                'Confirmer la suppression de ${widget.member.fullName} ?',
+                AppCopy.members.deleteMemberNamed(widget.member.fullName),
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(
                   color: ViroColors.gray600,
@@ -492,13 +493,13 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                           color: ViroColors.white,
                         ),
                       )
-                    : const Text('Confirmer la suppression'),
+                    : Text(AppCopy.members.deleteMemberConfirm),
               ),
               const SizedBox(height: ViroSpacing.sm),
               OutlinedButton(
                 onPressed:
                     _busy ? null : () => setState(() => _confirmRemove = false),
-                child: const Text('Annuler'),
+                child: Text(AppCopy.common.cancel),
               ),
             ] else
               Center(
@@ -509,7 +510,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                   style: TextButton.styleFrom(
                     foregroundColor: ViroColors.error,
                   ),
-                  child: const Text('Supprimer le membre'),
+                  child: Text(AppCopy.members.deleteMemberButton),
                 ),
               ),
           ],
@@ -562,7 +563,7 @@ class _ProfileHeader extends StatelessWidget {
           MemberAvatar(member: member, accentColor: accent, size: 64),
           const SizedBox(height: ViroSpacing.sm),
           Text(
-            member.fullName.isNotEmpty ? member.fullName : 'Sans nom',
+            member.fullName.isNotEmpty ? member.fullName : AppCopy.members.unnamed,
             textAlign: TextAlign.center,
             style: textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,

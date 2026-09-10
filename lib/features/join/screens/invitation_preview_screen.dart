@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/invitations/providers/pending_invitations_provider.dart';
@@ -28,8 +29,8 @@ class _InvitationPreviewScreenState
   String? _error;
 
   String _roleLabel(String role) => switch (role) {
-        MemberRoles.coach => 'Entraîneur',
-        MemberRoles.player => 'Joueur',
+        MemberRoles.coach => AppCopy.common.roleCoach,
+        MemberRoles.player => AppCopy.common.rolePlayer,
         _ => role,
       };
 
@@ -99,11 +100,11 @@ class _InvitationPreviewScreenState
 
     if (!pending.hasInvitation) {
       return ViroScaffold(
-        appBar: const ViroAppBar(title: Text('Invitation')),
+        appBar: ViroAppBar(title: Text(AppCopy.join.invitationTitle)),
         body: Center(
           child: TextButton(
             onPressed: () => context.go(AppRoutes.join),
-            child: const Text('Saisir un code'),
+            child: Text(AppCopy.join.enterACode),
           ),
         ),
       );
@@ -117,10 +118,12 @@ class _InvitationPreviewScreenState
     ].where((part) => part.isNotEmpty).join(' ');
     final childFirst = (invite.firstName?.trim().isNotEmpty ?? false)
         ? invite.firstName!.trim()
-        : (childName.isNotEmpty ? childName.split(' ').first : 'ton enfant');
+        : (childName.isNotEmpty
+            ? childName.split(' ').first
+            : AppCopy.join.defaultChildName);
 
     return ViroScaffold(
-      appBar: const ViroAppBar(title: Text('Invitation')),
+      appBar: ViroAppBar(title: Text(AppCopy.join.invitationTitle)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(ViroSpacing.lg),
@@ -129,8 +132,8 @@ class _InvitationPreviewScreenState
             children: [
               Text(
                 invite.isGuardian
-                    ? 'Invitation pour suivre un enfant'
-                    : 'Vous êtes invité à rejoindre',
+                    ? AppCopy.join.guardianInviteHeadline
+                    : AppCopy.join.invitedToJoin,
                 style: theme.bodyLarge,
                 textAlign: TextAlign.center,
               ),
@@ -150,8 +153,7 @@ class _InvitationPreviewScreenState
               const SizedBox(height: ViroSpacing.lg),
               if (invite.isGuardian) ...[
                 Text(
-                  'Tu pourras voir le planning de $childFirst, '
-                  'répondre aux convocations et payer la cotisation.',
+                  AppCopy.join.guardianInviteBody(childFirst),
                   style: theme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
@@ -159,19 +161,19 @@ class _InvitationPreviewScreenState
                 Center(child: ViroRoleBadge(role: _badge(invite.role))),
                 const SizedBox(height: ViroSpacing.sm),
                 Text(
-                  'Rôle proposé : ${_roleLabel(invite.role)}',
+                  AppCopy.join.proposedRole(_roleLabel(invite.role)),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: ViroSpacing.sm),
                 Text(
-                  'En tant que membre du club, vous aurez aussi accès aux fonctions joueur.',
+                  AppCopy.join.memberAlsoPlayerAccess,
                   style: theme.bodySmall,
                   textAlign: TextAlign.center,
                 ),
                 if (invite.emailHint?.trim().isNotEmpty ?? false) ...[
                   const SizedBox(height: ViroSpacing.sm),
                   Text(
-                    'Invitation réservée au compte ${invite.emailHint!.trim()}',
+                    AppCopy.join.reservedForAccount(invite.emailHint!.trim()),
                     style: theme.bodySmall,
                     textAlign: TextAlign.center,
                   ),
@@ -183,13 +185,13 @@ class _InvitationPreviewScreenState
               ],
               const Spacer(),
               ViroPrimaryButton(
-                label: 'Accepter l\'invitation',
+                label: AppCopy.join.acceptInvitation,
                 isLoading: _loading,
                 onPressed: _accept,
               ),
               const SizedBox(height: ViroSpacing.sm),
               ViroPrimaryButton(
-                label: 'Refuser',
+                label: AppCopy.join.declineInvitation,
                 outlined: true,
                 onPressed: _decline,
               ),

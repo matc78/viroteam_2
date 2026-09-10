@@ -1,4 +1,6 @@
 /// Libellés Firestore pour le ciblage des annonces (compatibles v1).
+///
+/// Libellés alignés sur [AppCopy.announcements] (`targetAllMembers`, etc.).
 abstract final class AnnouncementTargetTypes {
   static const String tousLesMembres = 'Tous les membres';
   static const String equipes = 'Équipes';

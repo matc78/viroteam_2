@@ -16,6 +16,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class TeamExpansionCard extends ConsumerStatefulWidget {
   const TeamExpansionCard({
@@ -156,14 +157,14 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
               ),
               ..._buildMemberSection(
                 context,
-                title: 'Staff / Coachs',
+                title: AppCopy.teams.staffCoachesSection,
                 uids: team.coachIds,
                 membersByUid: membersByUid,
                 viewerRole: viewerRole,
               ),
               ..._buildMemberSection(
                 context,
-                title: 'Coéquipiers',
+                title: AppCopy.teams.teammatesSection,
                 uids: team.playerIds,
                 membersByUid: membersByUid,
                 viewerRole: viewerRole,
@@ -181,7 +182,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                     ),
                   )
                 else if (_pending != null && _pending!.isNotEmpty) ...[
-                  _sectionHeader(context, 'En attente', ViroColors.gray600),
+                  _sectionHeader(context, AppCopy.teams.pendingSection, ViroColors.gray600),
                   ..._pending!.map(
                     (p) => MemberListTile(
                       member: pendingAsClubMember(p),

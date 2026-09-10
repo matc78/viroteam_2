@@ -1,3 +1,5 @@
+import 'package:viro_team_v2/copy/app_copy.dart';
+
 /// Noms de champs Firestore v2 — source : [ProjectConfig.firestoreModelDoc].
 abstract final class FirestoreFields {
   // users/{uid}
@@ -305,15 +307,7 @@ abstract final class FeePaymentMethods {
     return methods.where((method) => method != carteBancaire).toList();
   }
 
-  static String label(String key) => switch (key) {
-        virement => 'Virement',
-        cheque => 'Chèque',
-        especes => 'Espèces',
-        ancv => 'Chèques ANCV',
-        chequesVacances => 'Chèques-vacances',
-        carteBancaire => 'Carte bancaire (HelloAsso)',
-        _ => key,
-      };
+  static String label(String key) => AppCopy.fees.paymentMethod(key);
 }
 
 /// Statuts demande d'adhésion.

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:viro_team_v2/config/project_config.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
@@ -20,11 +21,12 @@ String buildInviteMessage({
 }) {
   final joinUrl = inviteJoinUrl(invitation.code).toString();
   const storeLine = '\nApp Android : ${ProjectConfig.playStoreUrl}';
-  return '''Rejoins ${club.name} sur ViroTeam !
-Ton code : ${invitation.code}
-Valable 7 jours.
-Lien : $joinUrl$storeLine
-Ou ouvre l'app → « J'ai un code d'invitation » et saisis ce code.''';
+  return AppCopy.join.clubInviteMessage(
+    clubName: club.name,
+    code: invitation.code,
+    joinUrl: joinUrl,
+    storeLine: storeLine,
+  );
 }
 
 /// Message FR pour une invitation parent (pas un rôle club).
@@ -34,9 +36,12 @@ String buildGuardianInviteMessage({
   required String childFirstName,
 }) {
   final name =
-      childFirstName.trim().isEmpty ? 'ton enfant' : childFirstName.trim();
-  return '''Tu pourras voir le planning de $name, répondre aux convocations et payer la cotisation.
-Club : ${club.name}
-Code : $code
-Ouvre l'app → « J'ai un code d'invitation » et saisis ce code.''';
+      childFirstName.trim().isEmpty
+          ? AppCopy.join.defaultChildName
+          : childFirstName.trim();
+  return AppCopy.join.guardianInviteShareMessage(
+    childFirstName: name,
+    clubName: club.name,
+    code: code,
+  );
 }

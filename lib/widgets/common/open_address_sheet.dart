@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/utils/open_maps.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
@@ -45,10 +46,8 @@ class _OpenAddressSheet extends StatelessWidget {
     final launched = await openAddressInMaps(app, address);
     if (!launched) {
       messenger?.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Impossible d\'ouvrir l\'application de navigation',
-          ),
+        SnackBar(
+          content: Text(AppCopy.club.cannotOpenMaps),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -72,7 +71,7 @@ class _OpenAddressSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Ouvrir l\'adresse',
+              AppCopy.club.openAddressTitle,
               style: theme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: ViroColors.primary800,

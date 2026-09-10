@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/fee_tier.dart';
@@ -31,21 +32,22 @@ extension MemberFeeStatusX on MemberFeeStatus {
   }
 
   String get label => switch (this) {
-        MemberFeeStatus.aPayer => 'À payer',
-        MemberFeeStatus.partiel => 'Partiel',
-        MemberFeeStatus.paye => 'Payé',
-        MemberFeeStatus.exonere => 'Exonéré',
+        MemberFeeStatus.aPayer => AppCopy.fees.statusAPayer,
+        MemberFeeStatus.partiel => AppCopy.fees.statusPartiel,
+        MemberFeeStatus.paye => AppCopy.fees.statusPaye,
+        MemberFeeStatus.exonere => AppCopy.fees.statusExonere,
       };
 }
 
 extension MemberFeeDisplayStatusX on MemberFeeDisplayStatus {
   String get label => switch (this) {
-        MemberFeeDisplayStatus.aPayer => 'À payer',
-        MemberFeeDisplayStatus.echeanceAujourdhui => 'Échéance aujourd\'hui',
-        MemberFeeDisplayStatus.enRetard => 'En retard',
-        MemberFeeDisplayStatus.partiel => 'Partiel',
-        MemberFeeDisplayStatus.paye => 'Payé',
-        MemberFeeDisplayStatus.exonere => 'Exonéré',
+        MemberFeeDisplayStatus.aPayer => AppCopy.fees.statusAPayer,
+        MemberFeeDisplayStatus.echeanceAujourdhui =>
+          AppCopy.fees.statusDeadlineToday,
+        MemberFeeDisplayStatus.enRetard => AppCopy.fees.statusOverdue,
+        MemberFeeDisplayStatus.partiel => AppCopy.fees.statusPartiel,
+        MemberFeeDisplayStatus.paye => AppCopy.fees.statusPaye,
+        MemberFeeDisplayStatus.exonere => AppCopy.fees.statusExonere,
       };
 }
 

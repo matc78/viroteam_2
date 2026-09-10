@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
@@ -26,7 +27,7 @@ class HomeQuietContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final greeting = _greeting(firstName);
+    final greeting = AppCopy.home.greeting(firstName);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -47,7 +48,7 @@ class HomeQuietContent extends StatelessWidget {
           ),
           const SizedBox(height: ViroSpacing.xs),
           Text(
-            'Votre planning est à jour — rien à venir pour le moment.',
+            AppCopy.home.quietSubtitle,
             style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
           ),
           const SizedBox(height: ViroSpacing.lg),
@@ -55,7 +56,9 @@ class HomeQuietContent extends StatelessWidget {
           if (clubs.isNotEmpty) ...[
             const SizedBox(height: ViroSpacing.lg),
             Text(
-              clubs.length == 1 ? 'Votre club' : 'Vos clubs',
+              clubs.length == 1
+                  ? AppCopy.home.yourClub
+                  : AppCopy.home.yourClubs,
               style: theme.titleSmall?.copyWith(
                 color: ViroColors.primary800,
                 fontWeight: FontWeight.w600,
@@ -74,16 +77,6 @@ class HomeQuietContent extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _greeting(String? name) {
-    final hour = DateTime.now().hour;
-    final salutation = hour < 18 ? 'Bonjour' : 'Bonsoir';
-    final trimmed = name?.trim();
-    if (trimmed != null && trimmed.isNotEmpty) {
-      return '$salutation, $trimmed';
-    }
-    return salutation;
   }
 }
 
@@ -120,7 +113,7 @@ class _EmptyPlanningCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Rien de prévu pour l\'instant',
+                  AppCopy.home.emptyPlanningTitle,
                   style: theme.titleSmall?.copyWith(
                     color: ViroColors.primary800,
                     fontWeight: FontWeight.w600,
@@ -128,8 +121,7 @@ class _EmptyPlanningCard extends StatelessWidget {
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  'Les entraînements et matchs programmés dans vos clubs '
-                  's\'afficheront ici automatiquement.',
+                  AppCopy.home.emptyPlanningBody,
                   style: theme.bodySmall?.copyWith(
                     color: ViroColors.gray600,
                     height: 1.4,

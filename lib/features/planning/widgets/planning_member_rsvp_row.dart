@@ -7,6 +7,7 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Ligne joueur (même base que [MemberListTile]) + badge RSVP.
 class PlanningMemberRsvpRow extends StatelessWidget {
@@ -42,7 +43,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  member.fullName.isNotEmpty ? member.fullName : 'Sans nom',
+                  member.fullName.isNotEmpty ? member.fullName : AppCopy.planning.unnamedMember,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.titleSmall?.copyWith(
@@ -64,7 +65,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
                         ),
                       if (!member.hasLinkedAccount)
                         Text(
-                          'Pas encore inscrit',
+                          AppCopy.planning.notRegisteredYet,
                           style: theme.bodySmall?.copyWith(
                             color: ViroColors.gray600,
                           ),

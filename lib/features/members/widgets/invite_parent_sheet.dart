@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -101,7 +102,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
   Future<void> _invite() async {
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _error = 'Saisis un e-mail valide');
+      setState(() => _error = AppCopy.members.invalidEmail);
       return;
     }
     setState(() {
@@ -121,7 +122,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
       );
       await Clipboard.setData(ClipboardData(text: message));
       if (!mounted) return;
-      ViroSnackBar.show(context, 'Invitation envoyée — message copié');
+      ViroSnackBar.show(context, AppCopy.members.inviteSentMessageCopied);
       ref.invalidate(clubParentsProvider(widget.club.id));
       await _load();
     } catch (error) {
@@ -144,7 +145,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
             parentUid: _guardian?.parentUid,
           );
       if (!mounted) return;
-      ViroSnackBar.show(context, 'Parent révoqué');
+      ViroSnackBar.show(context, AppCopy.members.parentRevoked);
       ref.invalidate(clubParentsProvider(widget.club.id));
       await _load();
     } catch (error) {
@@ -172,7 +173,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Parent de $_childFirstName',
+            AppCopy.members.parentOf(_childFirstName),
             style: theme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: Theme.of(context).appBarTheme.foregroundColor,
@@ -180,8 +181,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
           ),
           const SizedBox(height: ViroSpacing.sm),
           Text(
-            'Un parent par enfant. Il pourra voir le planning, '
-            'répondre aux convocations et payer la cotisation.',
+            AppCopy.members.parentSheetHint,
             style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
           ),
           const SizedBox(height: ViroSpacing.lg),
@@ -193,11 +193,11 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
           else if (occupying) ...[
             Text(
               [
-                _guardian!.displayName ?? _guardian!.email ?? 'Parent invité',
+                _guardian!.displayName ?? _guardian!.email ?? AppCopy.members.parentInvited,
                 if (_guardian!.inviteExpired)
-                  'invitation expirée'
+                  AppCopy.members.inviteExpiredLower
                 else if (_guardian!.isPending)
-                  'en attente',
+                  AppCopy.members.pendingLower,
               ].join(' · '),
               style: theme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
@@ -205,13 +205,13 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
                 _guardian!.invitationCode!.isNotEmpty) ...[
               const SizedBox(height: ViroSpacing.xs),
               Text(
-                'Code : ${_guardian!.invitationCode}',
+                AppCopy.members.inviteCodeLabel(_guardian!.invitationCode!),
                 style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
               ),
             ],
             const SizedBox(height: ViroSpacing.lg),
             ViroPrimaryButton(
-              label: 'Révoquer',
+              label: AppCopy.common.revoke,
               outlined: true,
               isLoading: _busy,
               onPressed: _busy ? null : _revoke,
@@ -221,14 +221,14 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               autocorrect: false,
-              decoration: const InputDecoration(
-                labelText: 'E-mail du parent',
+              decoration: InputDecoration(
+                labelText: AppCopy.members.parentEmailLabel,
               ),
               enabled: !_busy,
             ),
             const SizedBox(height: ViroSpacing.lg),
             ViroPrimaryButton(
-              label: 'Inviter un parent',
+              label: AppCopy.members.inviteParent,
               isLoading: _busy,
               onPressed: _busy ? null : _invite,
             ),

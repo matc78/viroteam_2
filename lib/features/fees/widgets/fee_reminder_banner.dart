@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/club_chip.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class FeeReminderBanner extends ConsumerWidget {
   const FeeReminderBanner({super.key});
@@ -172,7 +173,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                       children: [
                         Flexible(
                           child: Text(
-                            'Cotisation ${item.season.seasonLabel}',
+                            AppCopy.fees.feeSeasonTitle(item.season.seasonLabel),
                             style: theme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: accent,
@@ -197,17 +198,17 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                         const SizedBox(width: ViroSpacing.xs),
                         if (isOverdue)
                           _StatusBadge(
-                            label: 'En retard',
+                            label: AppCopy.fees.statusOverdue,
                             color: ViroColors.error,
                           )
                         else if (isDeadlineToday)
                           _StatusBadge(
-                            label: 'Échéance aujourd\'hui',
+                            label: AppCopy.fees.statusDeadlineToday,
                             color: ViroColors.error,
                           )
                         else
                           Text(
-                            'à régler',
+                            AppCopy.fees.toSettle,
                             style: theme.bodyMedium?.copyWith(
                               color: ViroColors.gray400,
                             ),
@@ -217,7 +218,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                     if (!isUrgent && deadlineText != null) ...[
                       const SizedBox(height: 2),
                       Text(
-                        'avant le $deadlineText',
+                        AppCopy.fees.beforeDeadline(deadlineText),
                         style: theme.bodySmall?.copyWith(
                           color: ViroColors.gray400,
                         ),

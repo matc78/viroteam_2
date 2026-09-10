@@ -15,6 +15,7 @@ import 'package:viro_team_v2/utils/team_categories.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 Future<void> showCreateAnnouncementSheet(
   BuildContext context,
@@ -110,26 +111,26 @@ class _CreateAnnouncementSheetState
   Future<void> _publish() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) {
-      ViroSnackBar.show(context, 'Veuillez saisir un message.');
+      ViroSnackBar.show(context, AppCopy.announcements.messageRequired);
       return;
     }
 
     if (!_endsAt.isAfter(DateTime.now())) {
-      ViroSnackBar.show(context, 'La date limite doit être dans le futur.');
+      ViroSnackBar.show(context, AppCopy.announcements.deadlineMustBeFuture);
       return;
     }
 
     final targetType = _resolveTargetType(_targetOptions);
     if (targetType != AnnouncementTargetTypes.tousLesMembres &&
         _selectedIds.isEmpty) {
-      ViroSnackBar.show(context, 'Veuillez sélectionner au moins une cible.');
+      ViroSnackBar.show(context, AppCopy.announcements.targetRequired);
       return;
     }
 
     final auth = ref.read(authStateProvider).value;
     final user = ref.read(viroUserProvider).value;
     if (auth == null || user == null) {
-      ViroSnackBar.show(context, 'Session expirée, reconnectez-vous.');
+      ViroSnackBar.show(context, AppCopy.common.sessionExpired);
       return;
     }
 
@@ -149,10 +150,10 @@ class _CreateAnnouncementSheetState
 
       if (!mounted) return;
       Navigator.pop(context);
-      ViroSnackBar.show(context, 'Annonce publiée.');
+      ViroSnackBar.show(context, AppCopy.announcements.announcePublished);
     } catch (e) {
       if (mounted) {
-        ViroSnackBar.show(context, 'Erreur : $e');
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -177,7 +178,7 @@ class _CreateAnnouncementSheetState
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Nouvelle annonce',
+              AppCopy.announcements.newAnnouncementTitle,
               style: theme.titleLarge?.copyWith(
                 color: Theme.of(context).appBarTheme.foregroundColor,
                 fontWeight: FontWeight.w700,
@@ -187,15 +188,15 @@ class _CreateAnnouncementSheetState
             TextField(
               controller: _messageController,
               maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'Message',
-                hintText: 'Votre message important…',
+              decoration: InputDecoration(
+                labelText: AppCopy.announcements.messageLabel,
+                hintText: AppCopy.announcements.messageHint,
                 alignLabelWithHint: true,
               ),
             ),
             const SizedBox(height: ViroSpacing.lg),
             Text(
-              'Date limite',
+              AppCopy.announcements.deadlineLabel,
               style: theme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: ViroSpacing.sm),
@@ -206,7 +207,7 @@ class _CreateAnnouncementSheetState
             ),
             const SizedBox(height: ViroSpacing.lg),
             Text(
-              'Destinataires',
+              AppCopy.announcements.recipientsLabel,
               style: theme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: ViroSpacing.sm),
@@ -238,7 +239,7 @@ class _CreateAnnouncementSheetState
             ),
             const SizedBox(height: ViroSpacing.lg),
             ViroPrimaryButton(
-              label: 'Publier',
+              label: AppCopy.announcements.publish,
               isLoading: _isSending,
               onPressed: _isSending ? null : _publish,
             ),
@@ -316,7 +317,7 @@ class _TargetPicker extends StatelessWidget {
 
     if (targetType == AnnouncementTargetTypes.tousLesMembres) {
       return Text(
-        "L'annonce sera diffusée à tous les membres du club.",
+        AppCopy.announcements.broadcastAllMembersHint,
         style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
       );
     }
@@ -324,7 +325,7 @@ class _TargetPicker extends StatelessWidget {
     if (targetType == AnnouncementTargetTypes.equipes) {
       if (teams.isEmpty) {
         return Text(
-          'Aucune équipe dans ce club.',
+          AppCopy.announcements.noTeamsInClub,
           style: theme.bodyMedium?.copyWith(color: ViroColors.gray400),
         );
       }
@@ -365,7 +366,7 @@ class _TargetPicker extends StatelessWidget {
 
       if (categories.isEmpty) {
         return Text(
-          'Aucune catégorie disponible.',
+          AppCopy.announcements.noCategories,
           style: theme.bodyMedium?.copyWith(color: ViroColors.gray400),
         );
       }

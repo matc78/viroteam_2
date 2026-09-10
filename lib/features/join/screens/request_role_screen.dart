@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -37,7 +38,7 @@ class _RequestRoleScreenState extends ConsumerState<RequestRoleScreen> {
 
     final currentRole = pending.invitation!.role;
     if (currentRole == _roleRequested) {
-      ViroSnackBar.show(context, 'Choisissez un rôle différent.');
+      ViroSnackBar.show(context, AppCopy.join.chooseDifferentRole);
       return;
     }
 
@@ -51,7 +52,7 @@ class _RequestRoleScreenState extends ConsumerState<RequestRoleScreen> {
             message: _messageController.text.trim(),
           );
       if (mounted) {
-        ViroSnackBar.show(context, 'Demande envoyée aux administrateurs.');
+        ViroSnackBar.show(context, AppCopy.join.requestSent);
         context.go(AppRoutes.joinPreview);
       }
     } catch (e) {
@@ -73,7 +74,7 @@ class _RequestRoleScreenState extends ConsumerState<RequestRoleScreen> {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Demander un rôle'),
+        title: Text(AppCopy.join.requestRoleTitle),
       ),
       body: SafeArea(
         child: Padding(
@@ -81,21 +82,21 @@ class _RequestRoleScreenState extends ConsumerState<RequestRoleScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Votre code vous attribue un rôle initial. Vous pouvez demander un autre rôle aux administrateurs.',
-              ),
+              Text(AppCopy.join.requestRoleSubtitle),
               const SizedBox(height: ViroSpacing.lg),
               DropdownButtonFormField<String>(
                 initialValue: _roleRequested,
-                decoration: const InputDecoration(labelText: 'Rôle souhaité'),
-                items: const [
+                decoration: InputDecoration(
+                  labelText: AppCopy.join.desiredRole,
+                ),
+                items: [
                   DropdownMenuItem(
                     value: MemberRoles.player,
-                    child: Text('Joueur'),
+                    child: Text(AppCopy.common.rolePlayer),
                   ),
                   DropdownMenuItem(
                     value: MemberRoles.coach,
-                    child: Text('Entraîneur'),
+                    child: Text(AppCopy.common.roleCoach),
                   ),
                 ],
                 onChanged: pending.hasInvitation
@@ -108,13 +109,13 @@ class _RequestRoleScreenState extends ConsumerState<RequestRoleScreen> {
               TextField(
                 controller: _messageController,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Message (optionnel)',
+                decoration: InputDecoration(
+                  labelText: AppCopy.join.optionalMessage,
                 ),
               ),
               const Spacer(),
               ViroPrimaryButton(
-                label: 'Envoyer la demande',
+                label: AppCopy.join.sendRequest,
                 isLoading: _loading,
                 onPressed: pending.hasInvitation ? _submit : null,
               ),

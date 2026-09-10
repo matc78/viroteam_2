@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -38,7 +39,7 @@ class MyParentSection extends ConsumerWidget {
         child: ViroCard(
           padding: const EdgeInsets.all(ViroSpacing.md),
           child: Text(
-            'Impossible de charger le parent pour le moment.',
+            AppCopy.members.loadParentError,
             style: theme.bodySmall?.copyWith(color: ViroColors.error),
           ),
         ),
@@ -53,7 +54,7 @@ class MyParentSection extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Mon parent',
+                  AppCopy.members.myParentTitle,
                   style: theme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: accent,
@@ -65,21 +66,20 @@ class MyParentSection extends ConsumerWidget {
                       ? [
                           guardian.displayName ??
                               guardian.email ??
-                              'Parent invité',
+                              AppCopy.members.parentInvited,
                           if (guardian.inviteExpired)
-                            'invitation expirée'
+                            AppCopy.members.inviteExpiredLower
                           else if (guardian.isPending)
-                            'en attente',
+                            AppCopy.members.pendingLower,
                         ].join(' · ')
-                      : 'Aucun parent lié. Invite un parent pour qu’il suive '
-                          'ton planning et ta cotisation.',
+                      : AppCopy.members.noParentInviteHint,
                   style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 ViroPrimaryButton(
                   label: guardian.hasOccupant
-                      ? 'Gérer mon parent'
-                      : 'Inviter un parent',
+                      ? AppCopy.members.manageMyParent
+                      : AppCopy.members.inviteParent,
                   outlined: true,
                   onPressed: () async {
                     await showInviteParentSheet(

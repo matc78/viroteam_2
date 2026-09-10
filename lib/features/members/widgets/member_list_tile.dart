@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_email_button.dart';
 import 'package:viro_team_v2/features/members/utils/parent_status_for_member.dart';
@@ -77,7 +78,7 @@ class MemberListTile extends StatelessWidget {
     final message = buildInviteMessage(club: club, invitation: invitation);
     await Clipboard.setData(ClipboardData(text: message));
     if (context.mounted) {
-      ViroSnackBar.show(context, 'Message copié dans le presse-papiers');
+      ViroSnackBar.show(context, AppCopy.members.messageCopied);
     }
   }
 
@@ -104,7 +105,9 @@ class MemberListTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  member.fullName.isNotEmpty ? member.fullName : 'Sans nom',
+                  member.fullName.isNotEmpty
+                      ? member.fullName
+                      : AppCopy.members.unnamed,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.titleSmall?.copyWith(
@@ -124,7 +127,7 @@ class MemberListTile extends StatelessWidget {
                     ),
                     if (!member.hasLinkedAccount)
                       Text(
-                        'Pas encore inscrit',
+                        AppCopy.members.notRegisteredYet,
                         style: theme.bodySmall?.copyWith(
                           color: ViroColors.gray600,
                         ),
@@ -138,8 +141,8 @@ class MemberListTile extends StatelessWidget {
                       ),
                       Text(
                         parentLinkStatus == ParentLinkStatus.active
-                            ? 'Connecté'
-                            : 'En attente',
+                            ? AppCopy.members.statusConnected
+                            : AppCopy.members.statusPending,
                         style: theme.bodySmall?.copyWith(
                           color: ViroColors.gray600,
                         ),
@@ -158,7 +161,7 @@ class MemberListTile extends StatelessWidget {
           if (!selectionMode && _canCopyInvite && !_canEmailInvite)
             IconButton(
               icon: ViroIcon(ViroIcons.copy, color: accent),
-              tooltip: 'Copier le code d\'invitation',
+              tooltip: AppCopy.members.copyInviteCodeTooltip,
               onPressed: () => _copyInvite(context),
             ),
           if (!selectionMode && !showClubAdminActions && onRemove != null)
@@ -169,7 +172,7 @@ class MemberListTile extends StatelessWidget {
                 size: 22,
               ),
               onPressed: onRemove,
-              tooltip: 'Retirer de l\'équipe',
+              tooltip: AppCopy.members.removeFromTeam,
             ),
           if (!selectionMode &&
               showClubAdminActions &&
@@ -188,18 +191,18 @@ class MemberListTile extends StatelessWidget {
                 }
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'role',
-                  child: Text('Changer le rôle'),
+                  child: Text(AppCopy.members.changeRole),
                 ),
                 if (onInviteParent != null)
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'parent',
-                    child: Text('Inviter un parent'),
+                    child: Text(AppCopy.members.inviteParent),
                   ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'remove',
-                  child: Text('Supprimer'),
+                  child: Text(AppCopy.common.delete),
                 ),
               ],
             ),

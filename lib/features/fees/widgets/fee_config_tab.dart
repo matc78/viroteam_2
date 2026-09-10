@@ -20,6 +20,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Formulaire admin : configuration saison cotisations (aligné portail `/fees`).
 class FeeConfigTab extends ConsumerStatefulWidget {
@@ -50,10 +51,10 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
     FeePaymentMethods.cheque,
     FeePaymentMethods.especes,
   ];
-  List<FeeTier> _tiers = const [
+  List<FeeTier> _tiers = [
     FeeTier(
       tierId: 'tier_default',
-      label: 'Standard',
+      label: AppCopy.fees.tierStandard,
       amountCents: 0,
     ),
   ];
@@ -103,7 +104,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
           : [
               FeeTier(
                 tierId: 'tier_${DateTime.now().microsecondsSinceEpoch}',
-                label: 'Standard',
+                label: AppCopy.fees.tierStandard,
                 amountCents: 0,
               ),
             ];
@@ -120,7 +121,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
       _tiers = [
         FeeTier(
           tierId: 'tier_${DateTime.now().microsecondsSinceEpoch}',
-          label: 'Standard',
+          label: AppCopy.fees.tierStandard,
           amountCents: 0,
         ),
       ];
@@ -198,7 +199,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
 
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
-      ViroSnackBar.show(context, 'Session expirée.');
+      ViroSnackBar.show(context, AppCopy.fees.sessionExpired);
       return;
     }
 
@@ -258,13 +259,13 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
 
       invalidateClubVisualCaches(ref, widget.clubId);
       if (mounted) {
-        ViroSnackBar.show(context, 'Configuration enregistrée');
+        ViroSnackBar.show(context, AppCopy.fees.configSaved);
         if (wasNewSeason) {
           widget.onSaved?.call();
         }
       }
     } catch (error) {
-      if (mounted) ViroSnackBar.show(context, 'Erreur : $error');
+      if (mounted) ViroSnackBar.show(context, AppCopy.common.errorWithDetails(error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -317,7 +318,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
           error: (error, stackTrace) => const ViroErrorState(),
           data: (club) {
             if (club == null) {
-              return const Center(child: Text('Club introuvable'));
+              return Center(child: Text(AppCopy.fees.clubNotFound));
             }
 
             _syncFromData(season: season, club: club);
@@ -333,16 +334,16 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: ViroSpacing.md),
                     child: Text(
-                      'Aucune saison active — enregistrez pour en créer une.',
+                      AppCopy.fees.noActiveSeasonConfig,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: ViroColors.gray600,
                           ),
                     ),
                   ),
-                _sectionTitle('Saison'),
+                _sectionTitle(AppCopy.fees.sectionSeason),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  'Libellé et échéance de paiement des cotisations.',
+                  AppCopy.fees.seasonSectionHint,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ViroColors.gray600,
                       ),
@@ -356,8 +357,8 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                       DropdownButtonFormField<String>(
                         key: ValueKey(_seasonLabel),
                         initialValue: _seasonLabel,
-                        decoration: const InputDecoration(
-                          labelText: 'Libellé saison',
+                        decoration: InputDecoration(
+                          labelText: AppCopy.fees.seasonLabel,
                         ),
                         items: seasonOptions
                             .map(
@@ -376,11 +377,11 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                       ),
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Date limite de paiement'),
+                        title: Text(AppCopy.fees.paymentDeadline),
                         subtitle: Text(
                           _paymentDeadline != null
                               ? dateFormat.format(_paymentDeadline!)
-                              : 'Optionnelle',
+                              : AppCopy.fees.optional,
                         ),
                         trailing: ViroIcon(
                           ViroIcons.calendar,
@@ -392,10 +393,10 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                   ),
                 ),
                 const SizedBox(height: ViroSpacing.lg),
-                _sectionTitle('Paiement'),
+                _sectionTitle(AppCopy.fees.sectionPayment),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  'Instructions, IBAN et modes acceptés.',
+                  AppCopy.fees.paymentSectionHint,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ViroColors.gray600,
                       ),
@@ -408,9 +409,9 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                     children: [
                       TextField(
                         controller: _instructionsCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Instructions de paiement',
-                          hintText: 'Ordre du chèque, coordonnées…',
+                        decoration: InputDecoration(
+                          labelText: AppCopy.fees.paymentInstructions,
+                          hintText: AppCopy.fees.paymentInstructionsHint,
                         ),
                         maxLines: 3,
                         enabled: !_saving,
@@ -418,15 +419,15 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                       const SizedBox(height: ViroSpacing.sm),
                       TextField(
                         controller: _ibanCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'IBAN (virement)',
-                          hintText: 'FR76…',
+                        decoration: InputDecoration(
+                          labelText: AppCopy.fees.ibanLabel,
+                          hintText: AppCopy.fees.ibanHint,
                         ),
                         enabled: !_saving,
                       ),
                       const SizedBox(height: ViroSpacing.md),
                       Text(
-                        'Modes de paiement',
+                        AppCopy.fees.paymentModes,
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                       const SizedBox(height: ViroSpacing.sm),
@@ -443,7 +444,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                 ),
                 if (FeatureFlags.helloAssoPaymentsLive) ...[
                   const SizedBox(height: ViroSpacing.lg),
-                  _sectionTitle('HelloAsso'),
+                  _sectionTitle(AppCopy.fees.sectionHelloAsso),
                   const SizedBox(height: ViroSpacing.sm),
                   ViroCard(
                     accentColor: accent,
@@ -452,8 +453,8 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                       children: [
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Paiement en ligne'),
-                          subtitle: const Text('Carte bancaire via HelloAsso'),
+                          title: Text(AppCopy.fees.onlinePayment),
+                          subtitle: Text(AppCopy.fees.onlinePaymentSubtitle),
                           value: _onlinePaymentEnabled,
                           activeThumbColor: accent,
                           onChanged:
@@ -462,8 +463,8 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                         if (_onlinePaymentEnabled)
                           TextField(
                             controller: _helloAssoSlugCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Slug organisation HelloAsso',
+                            decoration: InputDecoration(
+                              labelText: AppCopy.fees.helloAssoSlug,
                             ),
                             enabled: !_saving,
                           ),
@@ -472,10 +473,10 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                   ),
                 ],
                 const SizedBox(height: ViroSpacing.lg),
-                _sectionTitle('Paliers tarifaires'),
+                _sectionTitle(AppCopy.fees.sectionTiers),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  'Un libellé et un montant par palier de cotisation.',
+                  AppCopy.fees.tiersSectionHint,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ViroColors.gray600,
                       ),
@@ -488,7 +489,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                 ),
                 const SizedBox(height: ViroSpacing.lg),
                 ViroPrimaryButton(
-                  label: _saving ? 'Enregistrement…' : 'Enregistrer',
+                  label: _saving ? AppCopy.fees.saving : AppCopy.fees.save,
                   isLoading: _saving,
                   onPressed: !_canSave || _saving
                       ? null

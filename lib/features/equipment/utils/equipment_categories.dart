@@ -1,5 +1,11 @@
+import 'package:viro_team_v2/copy/app_copy.dart';
+
 /// Libellés communs à tous les sports.
-const _commonTail = ['Entraînement', 'Salle', 'Textile'];
+List<String> get _commonTail => [
+      AppCopy.equipment.catTraining,
+      AppCopy.equipment.catHall,
+      AppCopy.equipment.catTextile,
+    ];
 
 /// Types de matériel proposés dans le formulaire inventaire.
 abstract final class EquipmentCategoryPresets {
@@ -37,78 +43,78 @@ List<String> equipmentCategoriesForSport(String sportName) {
   switch (sport) {
     case 'football':
       specific = [
-        'Ballons',
-        'Buts',
-        'Chasubles',
-        'Protections',
+        AppCopy.equipment.catBalls,
+        AppCopy.equipment.catGoals,
+        AppCopy.equipment.catBibs,
+        AppCopy.equipment.catProtections,
       ];
     case 'handball':
       specific = [
-        'Ballons',
-        'Buts',
-        'Chasubles',
-        'Protections',
+        AppCopy.equipment.catBalls,
+        AppCopy.equipment.catGoals,
+        AppCopy.equipment.catBibs,
+        AppCopy.equipment.catProtections,
       ];
     case 'basketball':
       specific = [
-        'Ballons',
-        'Paniers',
-        'Chasubles',
-        'Protections',
+        AppCopy.equipment.catBalls,
+        AppCopy.equipment.catBaskets,
+        AppCopy.equipment.catBibs,
+        AppCopy.equipment.catProtections,
       ];
     case 'volleyball':
       specific = [
-        'Ballons',
-        'Filets',
-        'Chasubles',
-        'Protections',
+        AppCopy.equipment.catBalls,
+        AppCopy.equipment.catNets,
+        AppCopy.equipment.catBibs,
+        AppCopy.equipment.catProtections,
       ];
     case 'rugby':
       specific = [
-        'Ballons',
-        'Poteaux',
-        'Protections',
+        AppCopy.equipment.catBalls,
+        AppCopy.equipment.catPosts,
+        AppCopy.equipment.catProtections,
       ];
     case 'tennis':
       specific = [
-        'Raquettes',
-        'Balles',
-        'Filets',
+        AppCopy.equipment.catRackets,
+        AppCopy.equipment.catTennisBalls,
+        AppCopy.equipment.catNets,
       ];
     case 'natation':
       specific = [
-        'Piscine',
-        'Palmes',
-        'Lunettes',
+        AppCopy.equipment.catPool,
+        AppCopy.equipment.catFins,
+        AppCopy.equipment.catGoggles,
       ];
     case 'judo':
       specific = [
-        'Tatamis',
-        'Ceintures',
-        'Protections',
+        AppCopy.equipment.catMats,
+        AppCopy.equipment.catBelts,
+        AppCopy.equipment.catProtections,
       ];
     case 'escrime':
       specific = [
-        'Armes',
-        'Masques',
-        'Gants',
+        AppCopy.equipment.catWeapons,
+        AppCopy.equipment.catMasks,
+        AppCopy.equipment.catGloves,
       ];
     case 'aviron':
       specific = [
-        'Embarcations',
-        'Rames',
+        AppCopy.equipment.catBoats,
+        AppCopy.equipment.catOars,
       ];
     case 'athletisme':
       specific = [
-        'Harnais',
-        'Saut',
-        'Lancer',
-        'Protections',
+        AppCopy.equipment.catHarness,
+        AppCopy.equipment.catJump,
+        AppCopy.equipment.catThrow,
+        AppCopy.equipment.catProtections,
       ];
     default:
       specific = [
-        'Ballons',
-        'Protections',
+        AppCopy.equipment.catBalls,
+        AppCopy.equipment.catProtections,
       ];
   }
   return [...specific, ..._commonTail];

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_equipment.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
@@ -81,7 +82,7 @@ class EquipmentListTile extends StatelessWidget {
             if (onDelete != null)
               IconButton(
                 icon: ViroIcon(ViroIcons.trash, color: ViroColors.error),
-                tooltip: 'Supprimer',
+                tooltip: AppCopy.common.delete,
                 onPressed: onDelete,
               ),
           ],

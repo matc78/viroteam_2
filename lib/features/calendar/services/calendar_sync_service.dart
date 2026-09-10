@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
@@ -42,7 +43,7 @@ abstract final class CalendarSyncService {
       ShareParams(
         files: [XFile(file.path, mimeType: 'text/calendar')],
         subject: calendarName,
-        text: 'Planning ViroTeam — importez ce fichier dans votre calendrier.',
+        text: AppCopy.calendar.shareIcsText,
       ),
     );
   }

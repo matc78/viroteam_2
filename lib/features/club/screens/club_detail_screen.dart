@@ -38,6 +38,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class ClubDetailScreen extends ConsumerStatefulWidget {
   const ClubDetailScreen({super.key, required this.clubId});
@@ -91,7 +92,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _hiddenPendingIds.remove(event.id));
-        ViroSnackBar.show(context, 'RSVP impossible, réessayez');
+        ViroSnackBar.show(context, AppCopy.club.rsvpFailed);
       }
     }
   }
@@ -134,7 +135,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         error: (_, __) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
-            return const Center(child: Text('Club introuvable'));
+            return Center(child: Text(AppCopy.common.clubNotFound));
           }
 
           final brandColors = resolveClubBrandColors(
@@ -233,7 +234,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _SectionTitle(
-                            title: 'Accès rapides',
+                            title: AppCopy.club.quickAccessSection,
                             accentColor: memberAccent,
                           ),
                           MemberQuickActionsGrid(
@@ -267,7 +268,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                           ),
                           if (MemberRoleHierarchy.isCoachOrAbove(m.role)) ...[
                             _SectionTitle(
-                              title: 'Gestion du club',
+                              title: AppCopy.club.clubManagementSection,
                               accentColor: managementAccent,
                             ),
                             ClubManagementActionsGrid(
@@ -358,16 +359,16 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             return [
               SliverToBoxAdapter(
                 child: _SectionTitle(
-                  title: 'Prochain événement',
+                  title: AppCopy.club.nextEventSection,
                   accentColor: memberAccent,
                 ),
               ),
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: ViroSpacing.screenHorizontal,
                   ),
-                  child: Text('Aucun événement à venir pour cette fiche.'),
+                  child: Text(AppCopy.club.noUpcomingEvents),
                 ),
               ),
             ];
@@ -375,7 +376,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           return [
             SliverToBoxAdapter(
               child: _SectionTitle(
-                title: 'Prochain événement',
+                title: AppCopy.club.nextEventSection,
                 accentColor: memberAccent,
               ),
             ),
@@ -441,7 +442,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _SectionTitle(
-              title: 'Accès rapides',
+              title: AppCopy.club.quickAccessSection,
               accentColor: memberAccent,
             ),
             FamilyQuickActionsGrid(
@@ -486,7 +487,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         return [
           if (pending.isNotEmpty) ...[
             SliverToBoxAdapter(
-              child: _SectionTitle(title: 'À répondre', accentColor: accent),
+              child: _SectionTitle(title: AppCopy.club.toRespondSection, accentColor: accent),
             ),
             SliverPadding(
               padding: const EdgeInsets.symmetric(
@@ -571,13 +572,13 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: _SectionTitle(title: 'Annonces', accentColor: accent),
+                    child: _SectionTitle(title: AppCopy.club.announcementsSection, accentColor: accent),
                   ),
                   TextButton(
                     onPressed: () => context.push(
                       AppRoutes.clubAnnouncementsPath(clubId),
                     ),
-                    child: const Text('Voir tout'),
+                    child: Text(AppCopy.common.seeAll),
                   ),
                 ],
               ),
@@ -628,7 +629,7 @@ class _ClubHeader extends StatelessWidget {
     if (first.isNotEmpty) return first;
     final full = child.fullName.trim();
     if (full.isNotEmpty) return full;
-    return 'Enfant';
+    return AppCopy.common.childFallback;
   }
 
   @override
@@ -772,14 +773,14 @@ class _FamilyFeeBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Cotisation de $label',
+                      AppCopy.club.familyFeeBanner(label),
                       style: theme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: ViroColors.warning,
                       ),
                     ),
                     Text(
-                      'Reste dû : $amountLabel',
+                      AppCopy.club.remainingDue(amountLabel),
                       style: theme.bodyMedium?.copyWith(
                         color: ViroColors.gray600,
                       ),

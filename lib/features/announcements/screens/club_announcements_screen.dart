@@ -21,6 +21,7 @@ import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class ClubAnnouncementsScreen extends ConsumerWidget {
   const ClubAnnouncementsScreen({super.key, required this.clubId});
@@ -51,7 +52,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Annonces'),
+        title: Text(AppCopy.announcements.screenTitle),
         onTitleTap: () => Navigator.pop(context),
       ),
       floatingActionButton: canManage
@@ -59,7 +60,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
               onPressed: () =>
                   showCreateAnnouncementSheet(context, ref, clubId: clubId),
               icon: ViroIcon(ViroIcons.add, color: ViroColors.white),
-              label: const Text('Nouvelle annonce'),
+              label: Text(AppCopy.announcements.newAnnouncementFab),
             )
           : null,
       body: announcementsAsync.when(
@@ -91,7 +92,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: ViroSpacing.md),
                             Text(
-                              'Aucune annonce pour le moment',
+                              AppCopy.announcements.empty,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyLarge
@@ -152,20 +153,20 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
       builder: (ctx) => Theme(
         data: Theme.of(context),
         child: AlertDialog(
-        title: const Text('Modifier l\'annonce'),
+        title: Text(AppCopy.announcements.editAnnouncementTitle),
         content: TextField(
           controller: controller,
           maxLines: 5,
-          decoration: const InputDecoration(labelText: 'Message'),
+          decoration: InputDecoration(labelText: AppCopy.announcements.messageLabel),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(AppCopy.common.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Enregistrer'),
+            child: Text(AppCopy.common.save),
           ),
         ],
         ),
@@ -181,11 +182,11 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
             message: controller.text,
           );
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Annonce mise à jour.');
+        ViroSnackBar.show(context, AppCopy.announcements.announceUpdated);
       }
     } catch (e) {
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Erreur : $e');
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
       }
     } finally {
       controller.dispose();
@@ -202,18 +203,18 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
       builder: (ctx) => Theme(
         data: Theme.of(context),
         child: AlertDialog(
-        title: const Text('Clôturer l\'annonce ?'),
-        content: const Text(
-          'Elle ne sera plus visible pour les destinataires, mais restera dans l\'historique.',
+        title: Text(AppCopy.announcements.closeConfirmTitle),
+        content: Text(
+          AppCopy.announcements.closeConfirmBody,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(AppCopy.common.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clôturer'),
+            child: Text(AppCopy.announcements.closeAction),
           ),
         ],
         ),
@@ -224,7 +225,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
 
     final auth = ref.read(authStateProvider).value;
     if (auth == null) {
-      ViroSnackBar.show(context, 'Session expirée, reconnectez-vous.');
+      ViroSnackBar.show(context, AppCopy.common.sessionExpired);
       return;
     }
 
@@ -235,11 +236,11 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
             closedBy: auth.uid,
           );
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Annonce clôturée.');
+        ViroSnackBar.show(context, AppCopy.announcements.announceClosed);
       }
     } catch (e) {
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Erreur : $e');
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
       }
     }
   }
@@ -254,19 +255,19 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
       builder: (ctx) => Theme(
         data: Theme.of(context),
         child: AlertDialog(
-        title: const Text('Supprimer l\'annonce ?'),
-        content: const Text(
-          'Cette annonce sera définitivement supprimée pour tous les membres.',
+        title: Text(AppCopy.announcements.deleteConfirmTitle),
+        content: Text(
+          AppCopy.announcements.deleteConfirmBody,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(AppCopy.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
-              'Supprimer',
+              AppCopy.common.delete,
               style: TextStyle(color: ViroColors.error),
             ),
           ),
@@ -283,11 +284,11 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
             announcementId: announcement.id,
           );
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Annonce supprimée.');
+        ViroSnackBar.show(context, AppCopy.announcements.announceDeleted);
       }
     } catch (e) {
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Erreur : $e');
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
       }
     }
   }
@@ -356,18 +357,18 @@ class _AnnouncementHistoryCard extends StatelessWidget {
                     }
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'edit',
-                      child: Text('Modifier'),
+                      child: Text(AppCopy.common.edit),
                     ),
                     if (onClose != null)
-                      const PopupMenuItem(
+                      PopupMenuItem(
                         value: 'close',
-                        child: Text('Clôturer'),
+                        child: Text(AppCopy.announcements.closeAction),
                       ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'delete',
-                      child: Text('Supprimer'),
+                      child: Text(AppCopy.common.delete),
                     ),
                   ],
                 ),
@@ -394,14 +395,14 @@ class _AnnouncementHistoryCard extends StatelessWidget {
           if (announcement.endsAt != null) ...[
             const SizedBox(height: ViroSpacing.xs),
             Text(
-              'Jusqu’au ${DateFormat('d MMM yyyy HH:mm', 'fr_FR').format(announcement.endsAt!)}'
-              '${announcement.closedAt != null ? ' · Clôturée' : ''}',
+              '${AppCopy.announcements.untilDate(DateFormat('d MMM yyyy HH:mm', 'fr_FR').format(announcement.endsAt!))}'
+              '${announcement.closedAt != null ? AppCopy.announcements.closedSuffix : ''}',
               style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
             ),
           ] else if (announcement.closedAt != null) ...[
             const SizedBox(height: ViroSpacing.xs),
             Text(
-              'Clôturée',
+              AppCopy.announcements.closedBadge,
               style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
             ),
           ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -71,7 +72,9 @@ class EventRsvpCard extends StatelessWidget {
               Expanded(
                 flex: onMaybe == null ? 2 : 1,
                 child: RsvpChoiceButton(
-                  label: onMaybe == null ? 'Absent' : 'Non',
+                  label: onMaybe == null
+                      ? AppCopy.home.rsvpAbsent
+                      : AppCopy.home.rsvpNo,
                   color: ViroColors.error,
                   outlined: true,
                   borderColor: ViroColors.error,
@@ -85,7 +88,7 @@ class EventRsvpCard extends StatelessWidget {
                 Expanded(
                   flex: 2,
                   child: RsvpChoiceButton(
-                    label: 'Peut-être',
+                    label: AppCopy.home.rsvpMaybe,
                     color: ViroColors.warning,
                     onTap: onMaybe!,
                   ),
@@ -95,7 +98,9 @@ class EventRsvpCard extends StatelessWidget {
               Expanded(
                 flex: onMaybe == null ? 3 : 2,
                 child: RsvpChoiceButton(
-                  label: onMaybe == null ? 'Présent' : 'Oui',
+                  label: onMaybe == null
+                      ? AppCopy.home.rsvpPresent
+                      : AppCopy.home.rsvpYes,
                   color: clubColor,
                   onTap: onPresent,
                 ),

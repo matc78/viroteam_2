@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 
 /// Avatar membre : photo / initiales / icône ; tap pour zoomer si photo.
@@ -68,7 +69,7 @@ class MemberAvatar extends StatelessWidget {
       onTap: () => _showZoom(context, photoUrl),
       child: Semantics(
         button: true,
-        label: 'Agrandir la photo de ${member.fullName}',
+        label: AppCopy.members.enlargePhoto(member.fullName),
         child: avatar,
       ),
     );

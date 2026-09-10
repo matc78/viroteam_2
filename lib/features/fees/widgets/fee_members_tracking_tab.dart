@@ -18,6 +18,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Membres du club sans fiche `member_fees` pour la saison en cours.
 int pendingFeeInitCount({
@@ -185,7 +186,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     );
     if (count <= 0) {
       if (context.mounted) {
-        ViroSnackBar.show(context, 'Tous les membres ont déjà une fiche.');
+        ViroSnackBar.show(context, AppCopy.fees.allMembersHaveFee);
       }
       return;
     }
@@ -193,19 +194,18 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Ajouter au suivi ?'),
+        title: Text(AppCopy.fees.addToTrackingTitle),
         content: Text(
-          'Créer $count fiche${count > 1 ? 's' : ''} de cotisation '
-          'pour les membres pas encore listés.',
+          AppCopy.fees.createFeeSheetsBody(count),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(AppCopy.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Créer'),
+            child: Text(AppCopy.fees.create),
           ),
         ],
       ),
@@ -223,10 +223,10 @@ class FeeMembersTrackingTab extends ConsumerWidget {
             tiers: season.tiers,
           );
       if (context.mounted) {
-        ViroSnackBar.show(context, '$created fiche${created > 1 ? 's' : ''} créée${created > 1 ? 's' : ''}');
+        ViroSnackBar.show(context, AppCopy.fees.sheetsCreated(created));
       }
     } catch (e) {
-      if (context.mounted) ViroSnackBar.show(context, 'Erreur : $e');
+      if (context.mounted) ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
     }
   }
 
@@ -242,7 +242,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
         );
     await Clipboard.setData(ClipboardData(text: csv));
     if (context.mounted) {
-      ViroSnackBar.show(context, 'CSV copié dans le presse-papiers');
+      ViroSnackBar.show(context, AppCopy.fees.csvCopied);
     }
   }
 
@@ -268,8 +268,8 @@ class FeeMembersTrackingTab extends ConsumerWidget {
               ),
               ListTile(
                 leading: ViroIcon(ViroIcons.payments, color: accentColor ?? ViroColors.primary600),
-                title: const Text('Valider hors-ligne'),
-                subtitle: const Text('Chèque, espèces, ANCV, virement…'),
+                title: Text(AppCopy.fees.validateOffline),
+                subtitle: Text(AppCopy.fees.validateOfflineSubtitle),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await Future<void>.delayed(Duration.zero);
@@ -294,18 +294,18 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                           currentFee: fee,
                         );
                     if (context.mounted) {
-                      ViroSnackBar.show(context, 'Paiement hors-ligne enregistré');
+                      ViroSnackBar.show(context, AppCopy.fees.offlinePaymentSaved);
                     }
                   } catch (e) {
                     if (context.mounted) {
-                      ViroSnackBar.show(context, 'Erreur : $e');
+                      ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
                     }
                   }
                 },
               ),
               ListTile(
                 leading: ViroIcon(ViroIcons.check, color: ViroColors.success),
-                title: const Text('Marquer payé'),
+                title: Text(AppCopy.fees.markPaid),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await ref.read(feeServiceProvider).setMemberFeeStatus(
@@ -318,7 +318,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
               ),
               ListTile(
                 leading: ViroIcon(ViroIcons.clock, color: ViroColors.warning),
-                title: const Text('Marquer à payer'),
+                title: Text(AppCopy.fees.markUnpaid),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await ref.read(feeServiceProvider).setMemberFeeStatus(
@@ -331,7 +331,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
               ),
               ListTile(
                 leading: ViroIcon(ViroIcons.block, color: ViroColors.gray600),
-                title: const Text('Marquer exonéré'),
+                title: Text(AppCopy.fees.markExempt),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await ref.read(feeServiceProvider).setMemberFeeStatus(
@@ -347,7 +347,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                 for (final aid in fee.aids.where((a) => a.isPendingProof)) ...[
                   ListTile(
                     leading: ViroIcon(ViroIcons.note, color: accentColor ?? ViroColors.primary600),
-                    title: Text('Valider ${aid.label}'),
+                    title: Text(AppCopy.fees.validateAid(aid.label)),
                     subtitle: Text(
                       '${aid.amountCents / 100} € — justificatif',
                     ),
@@ -363,13 +363,13 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             currentFee: fee,
                           );
                       if (context.mounted) {
-                        ViroSnackBar.show(context, 'Aide validée');
+                        ViroSnackBar.show(context, AppCopy.fees.aidValidatedSnack);
                       }
                     },
                   ),
                   ListTile(
                     leading: ViroIcon(ViroIcons.close, color: ViroColors.error),
-                    title: Text('Refuser ${aid.label}'),
+                    title: Text(AppCopy.fees.refuseAid(aid.label)),
                     onTap: () async {
                       Navigator.pop(ctx);
                       await ref.read(feeServiceProvider).setFeeAidStatus(
@@ -382,7 +382,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             currentFee: fee,
                           );
                       if (context.mounted) {
-                        ViroSnackBar.show(context, 'Aide refusée');
+                        ViroSnackBar.show(context, AppCopy.fees.aidRefusedSnack);
                       }
                     },
                   ),
@@ -392,7 +392,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                 const Divider(),
                 for (final tier in season.tiers)
                   ListTile(
-                    title: Text('catégorie : ${tier.label}'),
+                    title: Text(AppCopy.fees.categoryColon(tier.label)),
                     onTap: () async {
                       Navigator.pop(ctx);
                       await ref.read(feeServiceProvider).setMemberFeeTier(
@@ -406,7 +406,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
               ],
               ListTile(
                 leading: ViroIcon(ViroIcons.note, color: accentColor ?? ViroColors.primary600),
-                title: const Text('Note admin'),
+                title: Text(AppCopy.fees.adminNote),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await Future<void>.delayed(Duration.zero);
@@ -425,7 +425,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                         note: saved,
                       );
                   if (context.mounted) {
-                    ViroSnackBar.show(context, 'Note enregistrée');
+                    ViroSnackBar.show(context, AppCopy.fees.noteSaved);
                   }
                 },
               ),
@@ -449,21 +449,21 @@ class FeeMembersTrackingTab extends ConsumerWidget {
 
     return seasonAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, _) => const ViroErrorState(),
+      error: (error, stackTrace) => const ViroErrorState(),
       data: (season) {
         if (season == null) {
           return ViroEmptyState(
             message:
-                'Aucune saison active. Configurez la saison pour suivre les cotisations.',
+                AppCopy.fees.noActiveSeasonAdmin,
             icon: ViroIcons.payments,
-            actionLabel: onOpenConfig != null ? 'Configurer la saison' : null,
+            actionLabel: onOpenConfig != null ? AppCopy.fees.configureSeason : null,
             onAction: onOpenConfig,
           );
         }
 
         return feesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => const ViroErrorState(),
+          error: (error, stackTrace) => const ViroErrorState(),
           data: (allFees) {
             final lists = _splitFees(allFees, season);
             final existingIds = allFees.map((f) => f.memberId).toSet();
@@ -484,10 +484,15 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        '${stats.paid} / ${stats.total} ont payé '
-                        '(${stats.total > 0 ? (stats.paidPercent * 100).round() : 0} %) · '
-                        '${stats.exempt} exonéré${stats.exempt > 1 ? 's' : ''} · '
-                        '${stats.awaiting} en attente',
+                        AppCopy.fees.trackingStats(
+                          paid: stats.paid,
+                          total: stats.total,
+                          paidPercent: stats.total > 0
+                              ? (stats.paidPercent * 100).round()
+                              : 0,
+                          exempt: stats.exempt,
+                          awaiting: stats.awaiting,
+                        ),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: ViroColors.gray600,
                             ),
@@ -499,7 +504,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             child: TextField(
                               controller: searchCtrl,
                               decoration: InputDecoration(
-                                hintText: 'Rechercher…',
+                                hintText: AppCopy.fees.searchHint,
                                 prefixIcon: ViroIcon(
                                   ViroIcons.search,
                                   color: ViroColors.gray600,
@@ -510,12 +515,12 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                           ),
                           IconButton(
                             icon: ViroIcon(ViroIcons.selectAll),
-                            tooltip: 'Sélection multiple',
+                            tooltip: AppCopy.fees.multiSelectTooltip,
                             onPressed: onToggleSelection,
                           ),
                           IconButton(
                             icon: ViroIcon(ViroIcons.copy),
-                            tooltip: 'Exporter CSV',
+                            tooltip: AppCopy.fees.exportCsvTooltip,
                             onPressed: () => _exportCsv(context, ref),
                           ),
                         ],
@@ -525,11 +530,11 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                           alignment: Alignment.centerLeft,
                           child: DropdownButton<String?>(
                             value: tierFilter,
-                            hint: const Text('Filtrer par catégorie'),
+                            hint: Text(AppCopy.fees.filterByCategory),
                             items: [
-                              const DropdownMenuItem(
+                              DropdownMenuItem(
                                 value: null,
-                                child: Text('Toutes les catégories'),
+                                child: Text(AppCopy.fees.allCategories),
                               ),
                               for (final t in season.tiers)
                                 DropdownMenuItem(
@@ -546,8 +551,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                           child: OutlinedButton(
                             onPressed: () => _initialize(context, ref),
                             child: Text(
-                              'Ajouter $pendingCount membre'
-                              '${pendingCount > 1 ? 's' : ''}',
+                              AppCopy.fees.addPendingMembers(pendingCount),
                             ),
                           ),
                         ),
@@ -567,11 +571,11 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                     child: !hasAnyList
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
+                            children: [
                               SizedBox(
                                 height: 240,
                                 child: Center(
-                                  child: Text('Aucun membre à afficher'),
+                                  child: Text(AppCopy.fees.noMembersToShow),
                                 ),
                               ),
                             ],
@@ -582,7 +586,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                               if (lists.unpaid.isNotEmpty) ...[
                                 _sectionTitle(
                                   context,
-                                  'En attente (${lists.unpaid.length})',
+                                  AppCopy.fees.unpaidSection(lists.unpaid.length),
                                 ),
                                 for (final fee in lists.unpaid)
                                   _feeTile(context, ref, fee, season),
@@ -590,7 +594,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                               if (lists.paid.isNotEmpty) ...[
                                 _sectionTitle(
                                   context,
-                                  'Payés (${lists.paid.length})',
+                                  AppCopy.fees.paidSection(lists.paid.length),
                                 ),
                                 for (final fee in lists.paid)
                                   _feeTile(context, ref, fee, season),
@@ -598,7 +602,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                               if (lists.exempt.isNotEmpty) ...[
                                 _sectionTitle(
                                   context,
-                                  'Exonérés (${lists.exempt.length})',
+                                  AppCopy.fees.exemptSection(lists.exempt.length),
                                 ),
                                 for (final fee in lists.exempt)
                                   _feeTile(context, ref, fee, season),
@@ -645,21 +649,21 @@ class MemberFeeNoteDialogState extends State<MemberFeeNoteDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Note admin'),
+      title: Text(AppCopy.fees.adminNote),
       content: TextField(
         controller: _controller,
         maxLines: 3,
         autofocus: true,
-        decoration: const InputDecoration(hintText: 'Note privée'),
+        decoration: InputDecoration(hintText: AppCopy.fees.privateNoteHint),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Annuler'),
+          child: Text(AppCopy.common.cancel),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, _controller.text),
-          child: const Text('Enregistrer'),
+          child: Text(AppCopy.fees.save),
         ),
       ],
     );

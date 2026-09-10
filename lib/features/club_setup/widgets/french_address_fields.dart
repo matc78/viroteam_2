@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Ville + code postal + adresse avec suggestions (BAN / Google Places).
 ///
@@ -19,8 +20,8 @@ class FrenchAddressFields extends StatefulWidget {
     required this.addressService,
     required this.accent,
     this.onFieldChanged,
-    this.addressLabel = 'Adresse',
-    this.addressHint = 'Rue, numéro ou lieu…',
+    this.addressLabel,
+    this.addressHint,
     this.enabled = true,
   });
 
@@ -30,8 +31,8 @@ class FrenchAddressFields extends StatefulWidget {
   final FrenchAddressService addressService;
   final Color accent;
   final VoidCallback? onFieldChanged;
-  final String addressLabel;
-  final String addressHint;
+  final String? addressLabel;
+  final String? addressHint;
   final bool enabled;
 
   @override
@@ -147,8 +148,8 @@ class _FrenchAddressFieldsState extends State<FrenchAddressFields> {
               flex: 3,
               child: _AddressQueryField(
                 controller: widget.cityController,
-                label: 'Ville',
-                hint: 'Ex. Viroflay',
+                label: AppCopy.clubSetup.cityLabel,
+                hint: AppCopy.clubSetup.cityHint,
                 accent: widget.accent,
                 prefixIcon: ViroIcons.place,
                 loading: _cityLoading,
@@ -164,8 +165,8 @@ class _FrenchAddressFieldsState extends State<FrenchAddressFields> {
                 enabled: widget.enabled,
                 decoration: _tintedFieldDecoration(
                   context,
-                  label: 'Code postal',
-                  hint: '78220',
+                  label: AppCopy.clubSetup.postalCodeLabel,
+                  hint: AppCopy.clubSetup.postalCodeHint,
                   accent: widget.accent,
                 ),
                 keyboardType: TextInputType.number,
@@ -183,8 +184,8 @@ class _FrenchAddressFieldsState extends State<FrenchAddressFields> {
         const SizedBox(height: ViroSpacing.sm),
         _AddressQueryField(
           controller: widget.addressController,
-          label: widget.addressLabel,
-          hint: widget.addressHint,
+          label: widget.addressLabel ?? AppCopy.clubSetup.addressLabel,
+          hint: widget.addressHint ?? AppCopy.clubSetup.addressHint,
           accent: widget.accent,
           prefixIcon: ViroIcons.place,
           loading: _streetLoading,

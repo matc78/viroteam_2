@@ -11,6 +11,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class HomeAnnouncementBanner extends ConsumerStatefulWidget {
   const HomeAnnouncementBanner({super.key});
@@ -37,7 +38,7 @@ class _HomeAnnouncementBannerState extends ConsumerState<HomeAnnouncementBanner>
       if (member == null) {
         if (mounted) {
           setState(() => _locallyDismissed.remove(_dismissKey(item)));
-          ViroSnackBar.show(context, 'Impossible de masquer l\'annonce.');
+          ViroSnackBar.show(context, AppCopy.announcements.hideFailed);
         }
         return;
       }
@@ -50,7 +51,7 @@ class _HomeAnnouncementBannerState extends ConsumerState<HomeAnnouncementBanner>
     } catch (e) {
       if (mounted) {
         setState(() => _locallyDismissed.remove(_dismissKey(item)));
-        ViroSnackBar.show(context, 'Erreur : $e');
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
       }
     }
   }
@@ -61,7 +62,7 @@ class _HomeAnnouncementBannerState extends ConsumerState<HomeAnnouncementBanner>
 
     return itemsAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (error, stackTrace) => const SizedBox.shrink(),
       data: (items) {
         final visible = items
             .where((item) => !_locallyDismissed.contains(_dismissKey(item)))
@@ -198,7 +199,7 @@ class _AnnouncementBannerCard extends StatelessWidget {
                 color: ViroColors.gray400,
               ),
               onPressed: onDismiss,
-              tooltip: 'Masquer',
+              tooltip: AppCopy.common.hide,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),

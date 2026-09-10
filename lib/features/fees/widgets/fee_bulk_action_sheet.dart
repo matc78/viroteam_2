@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/fees/models/fee_tier.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class FeeBulkActionSheet extends StatelessWidget {
   const FeeBulkActionSheet({
@@ -66,7 +67,7 @@ class FeeBulkActionSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              '$selectedCount membre${selectedCount > 1 ? 's' : ''} sélectionné${selectedCount > 1 ? 's' : ''}',
+              AppCopy.fees.selectedMembers(selectedCount),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -74,23 +75,23 @@ class FeeBulkActionSheet extends StatelessWidget {
             const SizedBox(height: ViroSpacing.md),
             ListTile(
               leading: const Icon(Icons.check_circle_outline),
-              title: const Text('Marquer payé'),
+              title: Text(AppCopy.fees.markPaid),
               onTap: onMarkPaid,
             ),
             ListTile(
               leading: const Icon(Icons.remove_circle_outline),
-              title: const Text('Marquer exonéré'),
+              title: Text(AppCopy.fees.markExempt),
               onTap: onMarkExempt,
             ),
             ListTile(
               leading: const Icon(Icons.schedule),
-              title: const Text('Marquer à payer'),
+              title: Text(AppCopy.fees.markUnpaid),
               onTap: onMarkUnpaid,
             ),
             if (tiers.isNotEmpty) ...[
               const Divider(),
               Text(
-                'Assigner une catégorie',
+                AppCopy.fees.assignCategory,
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               for (final tier in tiers)

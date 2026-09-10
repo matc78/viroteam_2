@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
@@ -108,27 +109,27 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Payer ma cotisation',
+              AppCopy.fees.checkoutTitle,
               style: theme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: ViroSpacing.xs),
             Text(
-              'Total dû : ${formatFeeAmountCents(_due)}',
+              AppCopy.fees.totalDue(formatFeeAmountCents(_due)),
               style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
             ),
             const SizedBox(height: ViroSpacing.md),
 
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('J\'ai une aide / réduction'),
-              subtitle: const Text('Pass\'Sport, Pass+, ANCV, code promo…'),
+              title: Text(AppCopy.fees.hasAidToggle),
+              subtitle: Text(AppCopy.fees.hasAidSubtitle),
               value: _useAid,
               onChanged: (v) => setState(() => _useAid = v),
             ),
             if (_useAid) ...[
               DropdownButtonFormField<String>(
                 initialValue: _aidType,
-                decoration: const InputDecoration(labelText: 'Type d\'aide'),
+                decoration: InputDecoration(labelText: AppCopy.fees.aidType),
                 items: [
                   for (final t in FeeAidTypes.all)
                     DropdownMenuItem(value: t, child: Text(FeeAidTypes.label(t))),
@@ -142,9 +143,9 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
                 controller: _aidAmountCtrl,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Montant de l\'aide (€)',
-                  hintText: '50',
+                decoration: InputDecoration(
+                  labelText: AppCopy.fees.aidAmountEuros,
+                  hintText: AppCopy.fees.aidAmountHint,
                 ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
@@ -154,28 +155,27 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
               const SizedBox(height: ViroSpacing.sm),
               TextField(
                 controller: _promoCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Code promo (optionnel)',
+                decoration: InputDecoration(
+                  labelText: AppCopy.fees.promoCodeOptional,
                 ),
               ),
               const SizedBox(height: ViroSpacing.sm),
               Text(
-                'L\'aide passera en « attente de justificatif » ; '
-                'seul le reste est encaissé par carte.',
+                AppCopy.fees.aidPendingHint,
                 style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
               ),
             ],
 
             const SizedBox(height: ViroSpacing.md),
             Text(
-              'Paiement carte (HelloAsso)',
+              AppCopy.fees.cardPaymentHelloAsso,
               style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: ViroSpacing.sm),
             SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 1, label: Text('1 fois')),
-                ButtonSegment(value: 3, label: Text('3 fois')),
+              segments: [
+                ButtonSegment(value: 1, label: Text(AppCopy.fees.once)),
+                ButtonSegment(value: 3, label: Text(AppCopy.fees.threeTimes)),
               ],
               selected: {_installmentCount},
               onSelectionChanged: (s) {
@@ -196,12 +196,14 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
                   children: [
                     if (_aidCents > 0)
                       Text(
-                        'Aide : − ${formatFeeAmountCents(_aidCents)}',
+                        AppCopy.fees.aidDiscount(formatFeeAmountCents(_aidCents)),
                         style: theme.bodyMedium,
                       ),
                     Text(
-                      'À payer par CB : ${formatFeeAmountCents(_cardCents)}'
-                      '${_installmentCount == 3 ? ' (en 3 fois)' : ''}',
+                      AppCopy.fees.cardAmountDue(
+                        formatFeeAmountCents(_cardCents),
+                        inThreeTimes: _installmentCount == 3,
+                      ),
                       style: theme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -213,10 +215,10 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
             const SizedBox(height: ViroSpacing.md),
             ViroPrimaryButton(
               label: _submitting
-                  ? 'Ouverture…'
+                  ? AppCopy.fees.opening
                   : _cardCents > 0
-                      ? 'Payer ${formatFeeAmountCents(_cardCents)}'
-                      : 'Enregistrer l\'aide',
+                      ? AppCopy.fees.payAmount(formatFeeAmountCents(_cardCents))
+                      : AppCopy.fees.saveAid,
               onPressed: _submitting ? null : _submit,
             ),
             const SizedBox(height: ViroSpacing.sm),
@@ -226,8 +228,7 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
                 const SizedBox(width: ViroSpacing.xs),
                 Expanded(
                   child: Text(
-                    'La cotisation n\'est confirmée qu\'après le webhook HelloAsso, '
-                    'pas au retour dans l\'app.',
+                    AppCopy.fees.webhookConfirmHint,
                     style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                   ),
                 ),

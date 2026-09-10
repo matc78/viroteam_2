@@ -28,6 +28,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_portal_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Écran wizard de création de club (7 étapes, format téléphone).
 class ClubSetupWizardScreen extends ConsumerStatefulWidget {
@@ -97,7 +98,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
       analytics.trackStarted(resumed: _hadPersistedDraft, initialStep: _step);
       analytics.trackStepViewed(_step);
       if (_hadPersistedDraft && _step > ClubSetupSteps.prerequisites) {
-        ViroSnackBar.show(context, 'Reprise de votre création en cours');
+        ViroSnackBar.show(context, AppCopy.clubSetup.resumeDraft);
       }
     }
   }
@@ -134,8 +135,8 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
   }
 
   String _continueLabel() {
-    if (_step == ClubSetupSteps.prerequisites) return 'C\'est parti';
-    return 'Continuer';
+    if (_step == ClubSetupSteps.prerequisites) return AppCopy.clubSetup.letsGo;
+    return AppCopy.common.continueAction;
   }
 
   void _next() {
@@ -147,15 +148,15 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
 
     final draft = ref.read(clubSetupProvider);
     if (_step == ClubSetupSteps.identity && !draft.canProceedIdentity) {
-      _showError('Nom du club (2 caractères min.) et sport requis.');
+      _showError(AppCopy.clubSetup.validationNameSport);
       return;
     }
     if (_step == ClubSetupSteps.objectives && !draft.canProceedObjectives) {
-      _showError('Sélectionnez au moins un objectif.');
+      _showError(AppCopy.clubSetup.validationObjectives);
       return;
     }
     if (_step == ClubSetupSteps.memberCount && !draft.canProceedMemberCount) {
-      _showError('Indiquez le nombre de membres approximatif.');
+      _showError(AppCopy.clubSetup.validationMemberCount);
       return;
     }
     if (_step == ClubSetupSteps.headquarters) {
@@ -163,7 +164,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
         final headquartersError = cityError(draft.city, required: true) ??
             postalCodeError(draft.postalCode) ??
             addressLineError(draft.address) ??
-            'Ville du club requise.';
+            AppCopy.clubSetup.validationCityRequired;
         _showError(headquartersError);
         return;
       }
@@ -175,7 +176,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     }
     if (_step == ClubSetupSteps.practiceLocations &&
         !draft.canProceedPracticeLocations) {
-      _showError('Ajoutez au moins un lieu de pratique.');
+      _showError(AppCopy.clubSetup.validationPracticeLocation);
       return;
     }
 
@@ -245,7 +246,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     final clubAddressLocation = _buildHeadquartersLocation();
     if (clubAddressLocation == null) {
       if (showErrorIfEmpty) {
-        _showError('Renseignez d\'abord la ville du club.');
+        _showError(AppCopy.clubSetup.validationCityFirst);
       }
       return false;
     }
@@ -316,26 +317,26 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     final draft = ref.read(clubSetupProvider);
 
     if (!draft.canProceedIdentity) {
-      _showError('Nom du club et sport requis.');
+      _showError(AppCopy.clubSetup.validationNameSportShort);
       return;
     }
     if (!draft.canProceedObjectives) {
-      _showError('Sélectionnez au moins un objectif.');
+      _showError(AppCopy.clubSetup.validationObjectives);
       return;
     }
     if (!draft.canProceedMemberCount) {
-      _showError('Indiquez le nombre de membres approximatif.');
+      _showError(AppCopy.clubSetup.validationMemberCount);
       return;
     }
     if (!draft.canProceedInfo) {
-      _showError('Ville et au moins un lieu de pratique requis.');
+      _showError(AppCopy.clubSetup.validationCityAndLocation);
       return;
     }
 
     final user = await _resolveCurrentUser();
     if (user == null) {
       _showError(
-        'Profil introuvable. Reconnectez-vous ou vérifiez votre connexion.',
+        AppCopy.clubSetup.validationProfileMissing,
       );
       return;
     }
@@ -357,7 +358,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
       ref.invalidate(viroUserFutureProvider);
       if (mounted) context.go(AppRoutes.home);
     } catch (error) {
-      _showError('Erreur lors de la création : $error');
+      _showError(AppCopy.clubSetup.createError(error));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -490,7 +491,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
             child: _step < ClubSetupSteps.total - 1
                 ? ViroPortalButton(label: _continueLabel(), onPressed: _next)
                 : ViroPortalButton(
-                    label: 'Créer le club',
+                    label: AppCopy.clubSetup.createClub,
                     isLoading: _submitting,
                     onPressed: _submit,
                   ),

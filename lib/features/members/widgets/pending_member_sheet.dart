@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_email_button.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
@@ -197,7 +198,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
         );
         _busy = false;
       });
-      ViroSnackBar.show(context, 'Identité mise à jour');
+      ViroSnackBar.show(context, AppCopy.members.identityUpdated);
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -224,7 +225,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
       if (result.sent > 0) return true;
       final first = result.results.isNotEmpty ? result.results.first : null;
       throw Exception(
-        first?.reason ?? 'Impossible d\'envoyer l\'invitation.',
+        first?.reason ?? AppCopy.members.inviteSendFailed,
       );
     } catch (error) {
       if (mounted) {
@@ -232,7 +233,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
           context,
           callableErrorMessage(
             error,
-            fallback: 'Envoi de l\'invitation impossible.',
+            fallback: AppCopy.members.inviteSendImpossibleSingular,
           ),
         );
       }
@@ -248,7 +249,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     );
     await Clipboard.setData(ClipboardData(text: message));
     if (!mounted) return;
-    ViroSnackBar.show(context, 'Message copié dans le presse-papiers');
+    ViroSnackBar.show(context, AppCopy.members.messageCopied);
   }
 
   Future<void> _loadGuardian() async {
@@ -281,14 +282,14 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
   }
 
   String? _parentSubtitle() {
-    if (_loadingGuardian) return 'Chargement…';
+    if (_loadingGuardian) return AppCopy.common.loading;
     final guardian = _guardian;
     if (guardian?.hasOccupant != true) {
-      return 'Aucun parent lié';
+      return AppCopy.members.noParentLinked;
     }
-    final name = guardian!.displayName ?? guardian.email ?? 'Parent invité';
-    if (guardian.inviteExpired) return '$name · invitation expirée';
-    if (guardian.isPending) return '$name · en attente';
+    final name = guardian!.displayName ?? guardian.email ?? AppCopy.members.parentInvited;
+    if (guardian.inviteExpired) return AppCopy.members.parentWithInviteExpired(name);
+    if (guardian.isPending) return AppCopy.members.parentWithPending(name);
     return name;
   }
 
@@ -313,7 +314,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Membre en attente',
+              AppCopy.members.pendingMemberTitle,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: titleColor,
@@ -321,7 +322,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
             ),
             const SizedBox(height: ViroSpacing.xs),
             Text(
-              'Pas encore inscrit — modifiez l’identité ou partagez le code.',
+              AppCopy.members.pendingIdentityHint,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: ViroColors.gray600,
               ),
@@ -332,7 +333,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               textCapitalization: TextCapitalization.words,
               enabled: widget.canEdit && !_busy,
               decoration: InputDecoration(
-                labelText: 'Prénom *',
+                labelText: AppCopy.members.firstNameRequired,
                 errorText: _firstNameController.text.trim().isEmpty
                     ? null
                     : firstNameError(_firstNameController.text),
@@ -345,7 +346,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               textCapitalization: TextCapitalization.words,
               enabled: widget.canEdit && !_busy,
               decoration: InputDecoration(
-                labelText: 'Nom *',
+                labelText: AppCopy.members.lastNameRequired,
                 errorText: _lastNameController.text.trim().isEmpty
                     ? null
                     : lastNameError(_lastNameController.text),
@@ -358,16 +359,16 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               keyboardType: TextInputType.emailAddress,
               autocorrect: false,
               enabled: widget.canEdit && !_busy,
-              decoration: const InputDecoration(
-                labelText: 'E-mail *',
-                hintText: 'seul ce compte pourra accepter l’invitation',
+              decoration: InputDecoration(
+                labelText: AppCopy.members.emailRequired,
+                hintText: AppCopy.members.emailInviteHintCurly,
               ),
               onChanged: (_) => setState(() {}),
             ),
             if (_isAdmin && widget.member.role == MemberRoles.player) ...[
               const SizedBox(height: ViroSpacing.lg),
               Text(
-                'Parent',
+                AppCopy.members.labelParent,
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: titleColor,
@@ -393,7 +394,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Accès parent',
+                                AppCopy.members.parentAccess,
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: ViroColors.gray600,
                                 ),
@@ -431,7 +432,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
             if (_member.pendingInviteCode != null) ...[
               const SizedBox(height: ViroSpacing.lg),
               Text(
-                'Code d’invitation',
+                AppCopy.members.inviteCodeSection,
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: titleColor,
@@ -451,7 +452,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
             if (_hasUnsavedChanges && widget.canEdit) ...[
               const SizedBox(height: ViroSpacing.sm),
               Text(
-                'Enregistrez pour activer l’envoi par e-mail.',
+                AppCopy.members.saveToEnableEmailSend,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: ViroColors.gray600,
                 ),
@@ -460,7 +461,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
             const SizedBox(height: ViroSpacing.lg),
             if (widget.canEdit) ...[
               ViroPrimaryButton(
-                label: _busy ? 'Enregistrement…' : 'Enregistrer',
+                label: _busy ? AppCopy.members.saving : AppCopy.members.save,
                 isLoading: _busy,
                 onPressed: _busy || !_hasUnsavedChanges ? null : _saveProfile,
               ),
@@ -474,14 +475,14 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
                 )
               else
                 ViroPrimaryButton(
-                  label: 'Copier le message',
+                  label: AppCopy.members.copyMessage,
                   outlined: true,
                   onPressed: _busy ? null : _copyInvite,
                 ),
             ],
             const SizedBox(height: ViroSpacing.sm),
             ViroPrimaryButton(
-              label: 'Fermer',
+              label: AppCopy.common.close,
               outlined: true,
               onPressed: _busy ? null : () => Navigator.of(context).pop(),
             ),

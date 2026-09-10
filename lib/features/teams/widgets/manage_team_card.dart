@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_list_tile.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -66,7 +67,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
       await action();
     } catch (e) {
       if (mounted) {
-        ViroSnackBar.show(context, 'Erreur : $e');
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -147,7 +148,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     canEdit: perms.canEditMessagingLinks(team),
                   ),
                   _buildRosterSection(
-                    title: 'Coachs',
+                    title: AppCopy.teams.coachesSection,
                     titleColor: const Color(0xFFEA580C),
                     canAdd: canAddCoach,
                     onAdd: canAddCoach
@@ -169,7 +170,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     }),
                   ),
                   _buildRosterSection(
-                    title: 'Joueurs',
+                    title: AppCopy.teams.playersSection,
                     titleColor: widget.accent,
                     canAdd: canAddPlayer,
                     onAdd: canAddPlayer
@@ -204,7 +205,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                       )
                     else if (_pending != null && _pending!.isNotEmpty)
                       _buildRosterSection(
-                        title: 'En attente',
+                        title: AppCopy.teams.pendingSection,
                         titleColor: ViroColors.gray600,
                         canAdd: false,
                         children: _pending!.map(
@@ -272,7 +273,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                 TextButton.icon(
                   onPressed: _busy ? null : onAdd,
                   icon: ViroIcon(ViroIcons.add, size: 18),
-                  label: const Text('Ajouter'),
+                  label: Text(AppCopy.common.add),
                 ),
             ],
           ),
@@ -281,7 +282,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
           Padding(
             padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
             child: Text(
-              'Aucun membre',
+              AppCopy.teams.noMembers,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: ViroColors.gray600,
                   ),

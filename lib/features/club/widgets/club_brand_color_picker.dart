@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Grille de couleurs prédéfinies : unie obligatoire + bicolore optionnelle.
 class ClubBrandColorPicker extends StatelessWidget {
@@ -26,7 +27,7 @@ class ClubBrandColorPicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
-          'Couleurs unies',
+          AppCopy.club.solidColors,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -51,7 +52,7 @@ class ClubBrandColorPicker extends StatelessWidget {
         ),
         const SizedBox(height: ViroSpacing.lg),
         Text(
-          'Bicolores',
+          AppCopy.club.bicolorColors,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w600,
@@ -59,9 +60,7 @@ class ClubBrandColorPicker extends StatelessWidget {
         ),
         const SizedBox(height: ViroSpacing.xs),
         Text(
-          'Choisissez une 2e couleur en plus de la couleur unie. '
-          'Re-cliquez pour la retirer. '
-          'Gauche : accès membre. Droite : gestion du club.',
+          AppCopy.club.bicolorHelper,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall,
         ),

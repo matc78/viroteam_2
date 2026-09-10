@@ -22,6 +22,7 @@ import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class ClubSelectorScreen extends ConsumerWidget {
   const ClubSelectorScreen({super.key});
@@ -33,7 +34,7 @@ class ClubSelectorScreen extends ConsumerWidget {
     final theme = Theme.of(context).textTheme;
 
     return ViroScaffold(
-      appBar: const ViroAppBar(title: Text('Mes clubs')),
+      appBar: ViroAppBar(title: Text(AppCopy.club.myClubsTitle)),
       body: SafeArea(
         child: clubsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -104,7 +105,7 @@ class _ClubSelectorBody extends ConsumerWidget {
                 ViroSpacing.sm,
               ),
               child: Text(
-                'Mes clubs (${clubs.length})',
+                AppCopy.club.myClubsCount(clubs.length),
                 style: theme.titleSmall?.copyWith(
                   color: ViroColors.primary800,
                   fontWeight: FontWeight.w600,
@@ -144,7 +145,7 @@ class _ClubSelectorBody extends ConsumerWidget {
                 ViroSpacing.sm,
               ),
               child: Text(
-                'Invitations en attente (${invitations.length})',
+                AppCopy.club.pendingInvitesCount(invitations.length),
                 style: theme.titleSmall?.copyWith(
                   color: ViroColors.primary800,
                   fontWeight: FontWeight.w600,
@@ -168,8 +169,8 @@ class _ClubSelectorBody extends ConsumerWidget {
             padding: const EdgeInsets.all(ViroSpacing.lg),
             child: ViroPrimaryButton(
               label: hasClubs
-                  ? '+ Ajouter un club'
-                  : 'Créer ou rejoindre un club',
+                  ? AppCopy.club.addClubSheetTitle
+                  : AppCopy.club.createOrJoinClub,
               outlined: hasClubs,
               onPressed: () => showAddClubSheet(context, ref),
             ),
@@ -202,7 +203,7 @@ class _EmptyStateWidget extends StatelessWidget {
           ),
           const SizedBox(height: ViroSpacing.lg),
           Text(
-            'Vous n\'êtes membre d\'aucun club pour le moment',
+            AppCopy.club.emptyClubsTitle,
             textAlign: TextAlign.center,
             style: theme.titleMedium?.copyWith(
               color: ViroColors.primary800,
@@ -211,13 +212,13 @@ class _EmptyStateWidget extends StatelessWidget {
           ),
           const SizedBox(height: ViroSpacing.md),
           Text(
-            'Rejoignez un club existant ou créez-en un nouveau pour commencer.',
+            AppCopy.club.emptyClubsBody,
             textAlign: TextAlign.center,
             style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
           ),
           const SizedBox(height: ViroSpacing.xl),
           ViroPrimaryButton(
-            label: 'Créer ou rejoindre un club',
+            label: AppCopy.club.createOrJoinClub,
             onPressed: onAdd,
           ),
           const SizedBox(height: ViroSpacing.xl),
@@ -245,7 +246,9 @@ class _ClubCard extends ConsumerWidget {
       brandColorHex: club.brandColorHex,
       clubId: club.id,
     );
-    final memberLabel = club.memberCount == 1 ? 'membre' : 'membres';
+    final memberLabel = club.memberCount == 1
+        ? AppCopy.club.memberSingular
+        : AppCopy.club.memberPlural;
     final familyChild = ref.watch(familyPrimaryChildProvider(club.id)).value;
 
     return GestureDetector(
@@ -321,7 +324,7 @@ class _ClubCard extends ConsumerWidget {
               )
             else
               Text(
-                'Aucun événement à venir',
+                AppCopy.planning.noUpcomingClub,
                 style: theme.bodySmall?.copyWith(
                   color: ViroColors.gray400,
                   fontStyle: FontStyle.italic,
@@ -372,9 +375,9 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
   String? _error;
 
   String _roleLabel(String role) => switch (role) {
-        MemberRoles.coach => 'Entraîneur',
-        MemberRoles.admin => 'Admin',
-        MemberRoles.player => 'Joueur',
+        MemberRoles.coach => AppCopy.common.roleCoach,
+        MemberRoles.admin => AppCopy.common.roleAdmin,
+        MemberRoles.player => AppCopy.common.rolePlayer,
         _ => role,
       };
 
@@ -443,7 +446,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
     final invite = widget.invitation;
-    final clubName = invite.clubName ?? 'Un club';
+    final clubName = invite.clubName ?? AppCopy.club.aClubFallback;
 
     return Container(
       padding: const EdgeInsets.all(ViroSpacing.md),
@@ -465,7 +468,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '$clubName vous a invité',
+                      AppCopy.club.clubInvitedYou(clubName),
                       style: theme.bodyMedium?.copyWith(
                         color: ViroColors.primary800,
                         fontWeight: FontWeight.w600,
@@ -475,9 +478,11 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                       invite.isGuardian
                           ? (invite.firstName != null &&
                                   invite.firstName!.trim().isNotEmpty
-                              ? 'Suivre ${invite.firstName!.trim()}'
-                              : 'Suivre un enfant du club')
-                          : 'Rôle : ${_roleLabel(invite.role)}',
+                              ? AppCopy.club.followChildNamed(
+                                  invite.firstName!.trim(),
+                                )
+                              : AppCopy.club.followChildGeneric)
+                          : AppCopy.club.roleColon(_roleLabel(invite.role)),
                       style: theme.bodySmall?.copyWith(
                         color: ViroColors.primary600,
                       ),
@@ -517,7 +522,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'Refuser',
+                      AppCopy.club.declineInvite,
                       textAlign: TextAlign.center,
                       style: theme.bodySmall?.copyWith(
                         color: ViroColors.primary600,
@@ -554,7 +559,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                             ),
                           )
                         : Text(
-                            'Accepter',
+                            AppCopy.club.acceptInvite,
                             textAlign: TextAlign.center,
                             style: theme.bodySmall?.copyWith(
                               color: ViroColors.white,
@@ -579,10 +584,10 @@ String _eventHighlightLabel(ClubEvent event) {
   final isUpcoming = !eventDay.isBefore(today);
 
   final typeLabel = switch (event.type) {
-    EventTypes.match => 'Match',
-    EventTypes.training => 'Entraînement',
-    EventTypes.tournament => 'Tournoi',
-    _ => event.title.isNotEmpty ? event.title : 'Événement',
+    EventTypes.match => AppCopy.planning.typeMatch,
+    EventTypes.training => AppCopy.planning.typeTraining,
+    EventTypes.tournament => AppCopy.planning.typeTournament,
+    _ => event.title.isNotEmpty ? event.title : AppCopy.planning.typeEvent,
   };
 
   if (isUpcoming) {
@@ -590,21 +595,21 @@ String _eventHighlightLabel(ClubEvent event) {
     final w = weekdays[event.date.weekday - 1];
     final time = event.startTime?.trim();
     if (time != null && time.isNotEmpty) {
-      return 'Prochain : $typeLabel $w $time';
+      return AppCopy.planning.nextEventWithTime(typeLabel, w, time);
     }
-    return 'Prochain : $typeLabel $w';
+    return AppCopy.planning.nextEvent(typeLabel, w);
   }
 
-  return 'Dernier : $typeLabel ${_relativeDate(event.date)}';
+  return AppCopy.planning.lastEvent(typeLabel, _relativeDate(event.date));
 }
 
 String _relativeDate(DateTime date) {
   final now = DateTime.now();
   final diff = now.difference(date);
 
-  if (diff.inDays == 0) return 'aujourd\'hui';
-  if (diff.inDays == 1) return 'hier';
-  if (diff.inDays < 7) return 'il y a ${diff.inDays}j';
-  if (diff.inDays < 30) return 'il y a ${(diff.inDays / 7).floor()}sem';
-  return 'il y a ${(diff.inDays / 30).floor()}m';
+  if (diff.inDays == 0) return AppCopy.planning.todayRelative;
+  if (diff.inDays == 1) return AppCopy.planning.yesterdayRelative;
+  if (diff.inDays < 7) return AppCopy.planning.daysAgo(diff.inDays);
+  if (diff.inDays < 30) return AppCopy.planning.weeksAgo((diff.inDays / 7).floor());
+  return AppCopy.planning.monthsAgo((diff.inDays / 30).floor());
 }

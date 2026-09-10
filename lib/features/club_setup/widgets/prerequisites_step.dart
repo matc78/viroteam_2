@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Étape 0 — ce qu'il faut savoir avant de créer un club.
 class PrerequisitesStep extends StatelessWidget {
@@ -13,11 +14,11 @@ class PrerequisitesStep extends StatelessWidget {
   final bool showResumeBanner;
 
   static final _items = [
-    (ViroIcons.groups, 'Nom et sport du club', 'Comme vos membres vous connaissent'),
-    (ViroIcons.place, 'Ville et lieu de pratique', 'Stade, salle, gymnase…'),
-    (ViroIcons.image, 'Logo du club', 'Ajoutable ou modifiable plus tard'),
-    (ViroIcons.calendar, 'Vos priorités', 'Planning, cotisations, annonces…'),
-    (ViroIcons.roleAdmin, 'Rôle administrateur', 'Invitez vos membres par code'),
+    (ViroIcons.groups, AppCopy.clubSetup.prereqNameSportTitle, AppCopy.clubSetup.prereqNameSportSubtitle),
+    (ViroIcons.place, AppCopy.clubSetup.prereqCityTitle, AppCopy.clubSetup.prereqCitySubtitle),
+    (ViroIcons.image, AppCopy.clubSetup.prereqLogoTitle, AppCopy.clubSetup.prereqLogoSubtitle),
+    (ViroIcons.calendar, AppCopy.clubSetup.prereqPrioritiesTitle, AppCopy.clubSetup.prereqPrioritiesSubtitle),
+    (ViroIcons.roleAdmin, AppCopy.clubSetup.prereqAdminTitle, AppCopy.clubSetup.prereqAdminSubtitle),
   ];
 
   static const _cardWidthFactor = 0.86;
@@ -25,8 +26,8 @@ class PrerequisitesStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SetupStepShell(
-      title: 'Avant de commencer',
-      subtitle: 'Quelques infos et c\'est lancé — on sauvegarde au fur et à mesure.',
+      title: AppCopy.clubSetup.prerequisitesTitle,
+      subtitle: AppCopy.clubSetup.prerequisitesSubtitle,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -92,7 +93,7 @@ class _ResumeBanner extends StatelessWidget {
           const SizedBox(width: ViroSpacing.sm),
           Expanded(
             child: Text(
-              'Reprise de votre création en cours',
+              AppCopy.clubSetup.resumeDraft,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(

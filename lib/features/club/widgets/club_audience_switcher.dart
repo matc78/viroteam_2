@@ -19,7 +19,7 @@ class ClubAudienceSwitcher extends ConsumerWidget {
 
     return targetsAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (error, stackTrace) => const SizedBox.shrink(),
       data: (targets) {
         if (!shouldShowAudienceSwitcher(targets)) {
           return const SizedBox.shrink();

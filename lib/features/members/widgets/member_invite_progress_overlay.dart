@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 
 /// Overlay plein écran pendant l’envoi groupé d’invitations.
@@ -12,7 +13,7 @@ class MemberInviteProgressOverlay extends StatefulWidget {
     required this.completedCount,
     required this.totalCount,
     this.currentMemberName,
-    this.phaseLabel = 'Envoi des invitations…',
+    this.phaseLabel,
   });
 
   /// Nombre d’e-mails déjà traités (0 → total).
@@ -25,7 +26,7 @@ class MemberInviteProgressOverlay extends StatefulWidget {
   final String? currentMemberName;
 
   /// Libellé de phase (préparation / envoi).
-  final String phaseLabel;
+  final String? phaseLabel;
 
   @override
   State<MemberInviteProgressOverlay> createState() =>
@@ -57,6 +58,8 @@ class _MemberInviteProgressOverlayState
     final total = widget.totalCount <= 0 ? 1 : widget.totalCount;
     final progress = (widget.completedCount / total).clamp(0.0, 1.0);
     final theme = Theme.of(context).textTheme;
+    final phaseLabel =
+        widget.phaseLabel ?? AppCopy.members.inviteSendingPhase;
 
     return Material(
       color: ViroColors.scaffold.withValues(alpha: 0.94),
@@ -72,7 +75,7 @@ class _MemberInviteProgressOverlayState
               ),
               const SizedBox(height: ViroSpacing.xl),
               Text(
-                widget.phaseLabel,
+                phaseLabel,
                 textAlign: TextAlign.center,
                 style: theme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
@@ -84,7 +87,7 @@ class _MemberInviteProgressOverlayState
                 widget.currentMemberName != null &&
                         widget.currentMemberName!.trim().isNotEmpty
                     ? widget.currentMemberName!
-                    : 'Merci de patienter…',
+                    : AppCopy.members.pleaseWait,
                 textAlign: TextAlign.center,
                 style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
               ),
@@ -101,7 +104,7 @@ class _MemberInviteProgressOverlayState
               const SizedBox(height: ViroSpacing.sm),
               Text(
                 widget.totalCount == 0
-                    ? 'Préparation…'
+                    ? AppCopy.members.preparing
                     : '${widget.completedCount} / ${widget.totalCount}',
                 style: theme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w600,
@@ -110,7 +113,7 @@ class _MemberInviteProgressOverlayState
               ),
               const SizedBox(height: ViroSpacing.md),
               Text(
-                'Ne quitte pas cet écran pendant l’envoi.',
+                AppCopy.members.stayOnScreenDuringSend,
                 textAlign: TextAlign.center,
                 style: theme.bodySmall?.copyWith(color: ViroColors.gray400),
               ),

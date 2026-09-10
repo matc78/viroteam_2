@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
@@ -56,7 +57,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                                       const SizedBox(width: ViroSpacing.sm),
                                       Expanded(
                                         child: Text(
-                                          'Compte ViroTeam introuvable',
+                                          AppCopy.auth.orphanAccountTitle,
                                           style: theme.titleSmall?.copyWith(
                                             color: ViroColors.primary800,
                                             fontWeight: FontWeight.w700,
@@ -67,9 +68,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: ViroSpacing.sm),
                                   Text(
-                                    'Tu es connecté(e) mais tu n’as pas encore de '
-                                    'compte sur cet environnement. Crée ton compte '
-                                    'ou rejoins un club avec un code d’invitation.',
+                                    AppCopy.auth.orphanAccountHint,
                                     style: theme.bodyMedium?.copyWith(
                                       color: ViroColors.gray600,
                                     ),
@@ -80,7 +79,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                             const SizedBox(height: ViroSpacing.lg),
                           ],
                           Text(
-                            'Bienvenue sur ViroTeam',
+                            AppCopy.auth.welcomeTitle,
                             style: theme.headlineMedium?.copyWith(
                               color: ViroColors.primary800,
                               fontWeight: FontWeight.w800,
@@ -89,7 +88,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: ViroSpacing.md),
                           Text(
-                            'Gérez votre club sportif : planning, convocations, cotisations et communication — tout en un seul endroit.',
+                            AppCopy.auth.welcomeSubtitle,
                             style: theme.bodyLarge?.copyWith(
                               color: ViroColors.gray600,
                             ),
@@ -99,17 +98,17 @@ class OnboardingEntryScreen extends ConsumerWidget {
                           _BenefitRow(
                             icon: ViroIcons.calendar,
                             iconColor: ViroColors.sportCyan,
-                            text: 'Organisez entraînements et matchs',
+                            text: AppCopy.auth.benefitPlanning,
                           ),
                           _BenefitRow(
                             icon: ViroIcons.users,
                             iconColor: ViroColors.sportGreen,
-                            text: 'Suivez les réponses aux convocations',
+                            text: AppCopy.auth.benefitRsvp,
                           ),
                           _BenefitRow(
                             icon: ViroIcons.bell,
                             iconColor: ViroColors.sportYellow,
-                            text: 'Communiquez avec votre club',
+                            text: AppCopy.auth.benefitComms,
                           ),
                         ],
                       ),
@@ -117,13 +116,13 @@ class OnboardingEntryScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _AccentButton(
-                            label: 'J\'ai un code d\'invitation',
+                            label: AppCopy.auth.hasInviteCode,
                             color: ViroColors.sportGreen,
                             onPressed: () => context.push(AppRoutes.join),
                           ),
                           const SizedBox(height: ViroSpacing.sm),
                           _AccentButton(
-                            label: 'Créer mon club',
+                            label: AppCopy.auth.createClub,
                             color: ViroColors.primary600,
                             outlined: true,
                             onPressed: () => context.push(
@@ -141,12 +140,12 @@ class OnboardingEntryScreen extends ConsumerWidget {
                                   context.go(AppRoutes.entry);
                                 }
                               },
-                              child: const Text('Se déconnecter'),
+                              child: Text(AppCopy.auth.signOut),
                             )
                           else
                             TextButton(
                               onPressed: () => context.push(AppRoutes.login),
-                              child: const Text('Déjà un compte ? Se connecter'),
+                              child: Text(AppCopy.auth.alreadyHaveAccount),
                             ),
                         ],
                       ),

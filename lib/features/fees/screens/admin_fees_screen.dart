@@ -16,6 +16,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Admin cotisations : configuration saison + suivi membres.
 class AdminFeesScreen extends ConsumerStatefulWidget {
@@ -96,7 +97,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
       accentColor: memberAccent,
       child: ViroScaffold(
         appBar: ViroAppBar(
-          title: const Text('Cotisations'),
+          title: Text(AppCopy.fees.screenTitle),
           actions: [
             if (_section == 'tracking' && _selectionMode)
               TextButton(
@@ -104,7 +105,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
                   _selectionMode = false;
                   _selectedIds.clear();
                 }),
-                child: const Text('Annuler'),
+                child: Text(AppCopy.common.cancel),
               ),
           ],
         ),
@@ -122,14 +123,14 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
               child: Row(
                 children: [
                   _sectionChip(
-                    label: 'Configuration',
+                    label: AppCopy.fees.tabConfig,
                     selected: _section == 'config',
                     accent: accent,
                     onSelected: (_) => _openConfigTab(),
                   ),
                   const SizedBox(width: ViroSpacing.xs),
                   _sectionChip(
-                    label: 'Suivi',
+                    label: AppCopy.fees.tabTracking,
                     selected: _section == 'tracking',
                     accent: accent,
                     onSelected: (_) => _openTrackingTab(),
@@ -177,7 +178,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
             ? FloatingActionButton.extended(
                 onPressed: _openBulkActions,
                 icon: ViroIcon(ViroIcons.edit, color: Colors.white),
-                label: Text('${_selectedIds.length} sélectionné(s)'),
+                label: Text(AppCopy.fees.selectedCountLabel(_selectedIds.length)),
               )
             : null,
       ),
@@ -210,9 +211,9 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
         _selectionMode = false;
         _selectedIds.clear();
       });
-      if (mounted) ViroSnackBar.show(context, 'Mise à jour effectuée');
+      if (mounted) ViroSnackBar.show(context, AppCopy.fees.updateDone);
     } catch (error) {
-      if (mounted) ViroSnackBar.show(context, 'Erreur : $error');
+      if (mounted) ViroSnackBar.show(context, AppCopy.common.errorWithDetails(error));
     }
   }
 
@@ -228,9 +229,9 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
         _selectionMode = false;
         _selectedIds.clear();
       });
-      if (mounted) ViroSnackBar.show(context, 'Catégories assignées');
+      if (mounted) ViroSnackBar.show(context, AppCopy.fees.tiersAssigned);
     } catch (error) {
-      if (mounted) ViroSnackBar.show(context, 'Erreur : $error');
+      if (mounted) ViroSnackBar.show(context, AppCopy.common.errorWithDetails(error));
     }
   }
 }

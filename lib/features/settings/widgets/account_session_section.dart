@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/account_service.dart';
@@ -33,19 +34,16 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Se déconnecter'),
-        content: const Text(
-          'Tu quittes la session sur cet appareil. '
-          'Tu pourras te reconnecter à tout moment avec le même compte.',
-        ),
+        title: Text(AppCopy.settings.signOut),
+        content: Text(AppCopy.settings.signOutDialogBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Annuler'),
+            child: Text(AppCopy.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Se déconnecter'),
+            child: Text(AppCopy.settings.signOut),
           ),
         ],
       ),
@@ -61,7 +59,9 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
       await ref.read(authServiceProvider).signOut();
       if (mounted) context.go(AppRoutes.entry);
     } catch (_) {
-      if (mounted) ViroSnackBar.show(context, 'Déconnexion impossible');
+      if (mounted) {
+        ViroSnackBar.show(context, AppCopy.settings.signOutFailed);
+      }
     } finally {
       if (mounted) setState(() => _signingOut = false);
     }
@@ -72,7 +72,7 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
     final accountService = ref.read(accountServiceProvider);
     final firebaseUser = ref.read(authStateProvider).value;
     if (firebaseUser == null) {
-      ViroSnackBar.show(context, 'Aucun utilisateur connecté');
+      ViroSnackBar.show(context, AppCopy.settings.notConnected);
       return;
     }
 
@@ -87,24 +87,21 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Supprimer le compte'),
+              title: Text(AppCopy.settings.deleteAccountTitle),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Action irréversible. Ton compte Auth sera supprimé. '
-                    'Les données club ne sont pas purgées automatiquement.',
-                  ),
+                  Text(AppCopy.settings.deleteAccountDialogBody),
                   const SizedBox(height: ViroSpacing.md),
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
                     value: confirmed,
                     onChanged: (value) =>
                         setDialogState(() => confirmed = value ?? false),
-                    title: const Text(
-                      'Je confirme vouloir supprimer mon compte',
-                      style: TextStyle(fontSize: 14),
+                    title: Text(
+                      AppCopy.settings.deleteAccountConfirmCheckbox,
+                      style: const TextStyle(fontSize: 14),
                     ),
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
@@ -114,28 +111,28 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
                       controller: passwordController,
                       obscureText: true,
                       enabled: confirmed,
-                      decoration: const InputDecoration(
-                        labelText: 'Mot de passe actuel',
+                      decoration: InputDecoration(
+                        labelText: AppCopy.settings.currentPassword,
                       ),
                     ),
                   ] else
-                    const Text(
-                      'Une fenêtre Google s’ouvrira pour confirmer.',
-                      style: TextStyle(fontSize: 13),
+                    Text(
+                      AppCopy.settings.googleConfirmWindow,
+                      style: const TextStyle(fontSize: 13),
                     ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Annuler'),
+                  child: Text(AppCopy.common.cancel),
                 ),
                 TextButton(
                   onPressed: !confirmed
                       ? null
                       : () => Navigator.of(dialogContext).pop(true),
                   child: Text(
-                    'Supprimer',
+                    AppCopy.settings.deleteAccountAction,
                     style: TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
                 ),
@@ -166,13 +163,16 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
           context,
           error.code == 'wrong-password' ||
                   error.code == 'invalid-credential'
-              ? 'Mot de passe incorrect'
-              : callableErrorMessage(error, fallback: 'Suppression impossible'),
+              ? AppCopy.settings.wrongPassword
+              : callableErrorMessage(
+                  error,
+                  fallback: AppCopy.settings.deleteFailed,
+                ),
         );
       }
     } catch (_) {
       if (mounted) {
-        ViroSnackBar.show(context, 'Suppression impossible');
+        ViroSnackBar.show(context, AppCopy.settings.deleteFailed);
       }
     } finally {
       if (mounted) setState(() => _deleting = false);
@@ -189,7 +189,7 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Session',
+          AppCopy.settings.sessionSection,
           style: theme.titleSmall?.copyWith(
             color: ViroColors.primary800,
             fontWeight: FontWeight.w700,
@@ -197,7 +197,7 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
         ),
         const SizedBox(height: ViroSpacing.xs),
         Text(
-          'Actions sensibles — une confirmation te sera demandée.',
+          AppCopy.settings.sessionSubtitle,
           style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
         ),
         const SizedBox(height: ViroSpacing.sm),
@@ -209,8 +209,8 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
           child: Column(
             children: [
               SettingsListTile(
-                title: 'Se déconnecter',
-                subtitle: 'Quitter la session sur cet appareil',
+                title: AppCopy.settings.signOut,
+                subtitle: AppCopy.settings.signOutSubtitle,
                 icon: ViroIcons.logout,
                 onTap: busy ? null : _confirmSignOut,
                 trailing: _signingOut
@@ -222,8 +222,8 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
                     : null,
               ),
               SettingsListTile(
-                title: 'Supprimer mon compte',
-                subtitle: 'Action irréversible',
+                title: AppCopy.settings.deleteMyAccount,
+                subtitle: AppCopy.settings.deleteAccountSubtitle,
                 icon: ViroIcons.trash,
                 showDivider: false,
                 onTap: busy ? null : _confirmDeleteAccount,

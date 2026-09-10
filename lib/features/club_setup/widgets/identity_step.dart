@@ -12,6 +12,7 @@ import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
 import 'package:viro_team_v2/utils/sport_emoji.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Étape identité — logo, nom et sport.
 class IdentityStep extends StatelessWidget {
@@ -39,7 +40,7 @@ class IdentityStep extends StatelessWidget {
 
     return SetupStepShell(
       centerBody: true,
-      subtitle: 'Nom et sport pour démarrer. Le logo, c\'est bonus.',
+      subtitle: AppCopy.clubSetup.identitySubtitle,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -59,8 +60,8 @@ class IdentityStep extends StatelessWidget {
           Center(
             child: Text(
               draft.logoBytes != null
-                  ? 'Modifier le logo'
-                  : 'Ajouter un logo (optionnel)',
+                  ? AppCopy.clubSetup.editLogo
+                  : AppCopy.clubSetup.addLogoOptional,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: sportAccent,
                     fontWeight: FontWeight.w600,
@@ -70,16 +71,16 @@ class IdentityStep extends StatelessWidget {
           const SizedBox(height: ViroSpacing.sm),
           TextFormField(
             controller: nameController,
-            decoration: const InputDecoration(
-              labelText: 'Nom du club',
-              hintText: 'Ex. Viroflay Volley club',
+            decoration: InputDecoration(
+              labelText: AppCopy.clubSetup.clubNameLabel,
+              hintText: AppCopy.clubSetup.clubNameHint,
               isDense: true,
             ),
             onChanged: onNameChanged,
           ),
           const SizedBox(height: ViroSpacing.sm),
           Text(
-            'Sport pratiqué',
+            AppCopy.clubSetup.sportPracticed,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.w700,

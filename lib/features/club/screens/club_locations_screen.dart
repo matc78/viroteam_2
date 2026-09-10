@@ -21,6 +21,7 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Gestion admin des lieux de pratique du club (ajout / suppression).
 class ClubLocationsScreen extends ConsumerStatefulWidget {
@@ -92,7 +93,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ViroSnackBar.show(context, 'Erreur : $e');
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -120,7 +121,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
     );
 
     final next = [...club.practiceLocations, location];
-    await _persist(next, successMessage: 'Lieu ajouté');
+    await _persist(next, successMessage: AppCopy.club.locationAdded);
     if (!mounted) return;
     _cityController.clear();
     _postalController.clear();
@@ -134,16 +135,16 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Supprimer ce lieu ?'),
+        title: Text(AppCopy.club.deleteLocationConfirm),
         content: Text(club.practiceLocations[index].name),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Annuler'),
+            child: Text(AppCopy.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Supprimer'),
+            child: Text(AppCopy.common.delete),
           ),
         ],
       ),
@@ -151,7 +152,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
     if (confirmed != true || !mounted) return;
     final next = List<PracticeLocation>.from(club.practiceLocations)
       ..removeAt(index);
-    await _persist(next, successMessage: 'Lieu supprimé');
+    await _persist(next, successMessage: AppCopy.club.locationDeleted);
   }
 
   String _locationSubtitle(PracticeLocation location) {
@@ -188,14 +189,14 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
             icon: ViroIcon(ViroIcons.chevronLeft),
             onPressed: () => context.pop(),
           ),
-          title: const Text('Lieux du club'),
+          title: Text(AppCopy.club.locationsScreenTitle),
         ),
         body: clubAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => const ViroErrorState(),
           data: (club) {
             if (club == null) {
-              return const Center(child: Text('Club introuvable'));
+              return Center(child: Text(AppCopy.common.clubNotFound));
             }
             _ensureCategory(club.sport);
             final categories =
@@ -206,7 +207,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
               padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
               children: [
                 Text(
-                  'Lieux enregistrés',
+                  AppCopy.club.locationsRegisteredTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: accent,
@@ -214,7 +215,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  'Utilisés pour le planning, les matchs et le lieu de RDV.',
+                  AppCopy.club.locationsRegisteredHelper,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: ViroColors.gray600,
                       ),
@@ -225,7 +226,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                     margin: EdgeInsets.zero,
                     padding: const EdgeInsets.all(ViroSpacing.md),
                     child: Text(
-                      'Aucun lieu pour l’instant. Ajoutez le premier ci-dessous.',
+                      AppCopy.club.noLocationsHint,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   )
@@ -266,7 +267,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                   ],
                 const SizedBox(height: ViroSpacing.xl),
                 Text(
-                  'Ajouter un lieu',
+                  AppCopy.club.addLocationSectionTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: accent,
@@ -280,7 +281,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Type de lieu',
+                        AppCopy.club.locationTypeLabel,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: ViroColors.gray600,
@@ -341,9 +342,9 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                         TextField(
                           controller: _customCategoryController,
                           enabled: !_busy,
-                          decoration: const InputDecoration(
-                            labelText: 'Préciser',
-                            hintText: 'Terrain synthétique…',
+                          decoration: InputDecoration(
+                            labelText: AppCopy.club.specifyLabel,
+                            hintText: AppCopy.club.specifyLocationHint,
                             isDense: true,
                           ),
                           onChanged: (_) => setState(() {}),
@@ -357,13 +358,13 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                         addressService: _addressService,
                         accent: accent,
                         enabled: !_busy,
-                        addressLabel: 'Adresse',
-                        addressHint: 'Rue, numéro ou lieu…',
+                        addressLabel: AppCopy.clubSetup.addressLabel,
+                        addressHint: AppCopy.clubSetup.addressHint,
                         onFieldChanged: () => setState(() {}),
                       ),
                       const SizedBox(height: ViroSpacing.md),
                       ViroPrimaryButton(
-                        label: 'Ajouter le lieu',
+                        label: AppCopy.club.addLocationButton,
                         isLoading: _busy,
                         onPressed:
                             _busy || !_canAdd ? null : () => _addLocation(club),

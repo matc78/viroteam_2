@@ -6,6 +6,7 @@ import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Étape effectif — carrousel horizontal de valeurs (sélection obligatoire).
 class MemberCountStep extends StatefulWidget {
@@ -87,7 +88,7 @@ class _MemberCountStepState extends State<MemberCountStep> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.lg),
               child: Text(
-                'Combien de membres gérez-vous environ ?',
+                AppCopy.clubSetup.memberCountQuestion,
                 textAlign: TextAlign.center,
                 style: theme.bodySmall?.copyWith(
                   color: ViroColors.gray600,
@@ -142,8 +143,8 @@ class _MemberCountStepState extends State<MemberCountStep> {
               padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.lg),
               child: Text(
                 effectiveSelected == null
-                    ? 'Faites glisser puis choisissez un effectif.'
-                    : '≈ ${ClubMemberCountRanges.recapLabel(effectiveSelected)}',
+                    ? AppCopy.clubSetup.memberCountDragHint
+                    : AppCopy.clubSetup.approxMemberCount(ClubMemberCountRanges.recapLabel(effectiveSelected)),
                 textAlign: TextAlign.center,
                 style: theme.bodySmall?.copyWith(
                   color: ViroColors.gray600,

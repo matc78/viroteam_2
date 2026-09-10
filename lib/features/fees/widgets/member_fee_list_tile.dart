@@ -5,6 +5,7 @@ import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_status_chip.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class MemberFeeListTile extends StatelessWidget {
   const MemberFeeListTile({
@@ -31,7 +32,7 @@ class MemberFeeListTile extends StatelessWidget {
     final theme = Theme.of(context).textTheme;
     final display = fee.displayStatus(season.paymentDeadlineAt);
     final tier = season.tierById(fee.tierId);
-    final tierLabel = tier?.label ?? 'Non assigné';
+    final tierLabel = tier?.label ?? AppCopy.fees.tierUnassigned;
     final amount = fee.status == MemberFeeStatus.exonere
         ? '—'
         : formatFeeAmountCents(fee.amountDueCents(season));

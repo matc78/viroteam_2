@@ -1,3 +1,4 @@
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 
 /// Libellé FR d’un flag coach (aligné portail).
@@ -16,33 +17,33 @@ class CoachPermissionLabel {
 /// Liste des droits coach éditables (ordre portail).
 final coachPermissionLabels = <CoachPermissionLabel>[
   CoachPermissionLabel(
-    label: 'Créer des événements',
-    description: 'Le coach peut créer et gérer le planning de ses équipes.',
+    label: AppCopy.club.permCreateEventsLabel,
+    description: AppCopy.club.permCreateEventsDesc,
     apply: _applyCanCreateEvents,
   ),
   CoachPermissionLabel(
-    label: 'Gérer le roster',
-    description: 'Ajouter des joueurs aux équipes qu’il entraîne.',
+    label: AppCopy.club.permManageRosterLabel,
+    description: AppCopy.club.permManageRosterDesc,
     apply: _applyCanManageTeamRoster,
   ),
   CoachPermissionLabel(
-    label: 'Inviter des joueurs',
-    description: 'Créer une fiche membre et envoyer une invitation.',
+    label: AppCopy.club.permInvitePlayersLabel,
+    description: AppCopy.club.permInvitePlayersDesc,
     apply: _applyCanInvitePlayers,
   ),
   CoachPermissionLabel(
-    label: 'Prendre les présences',
-    description: 'Réserver pour une future UI présences (flag stocké).',
+    label: AppCopy.club.permTakeAttendanceLabel,
+    description: AppCopy.club.permTakeAttendanceDesc,
     apply: _applyCanTakeAttendance,
   ),
   CoachPermissionLabel(
-    label: 'Voir les cotisations',
-    description: 'Accès lecture au suivi des cotisations du club.',
+    label: AppCopy.club.permViewFeesLabel,
+    description: AppCopy.club.permViewFeesDesc,
     apply: _applyCanViewFees,
   ),
   CoachPermissionLabel(
-    label: 'Modifier les licences',
-    description: 'Éditer le numéro de licence des joueurs.',
+    label: AppCopy.club.permEditLicensesLabel,
+    description: AppCopy.club.permEditLicensesDesc,
     apply: _applyCanEditMemberLicenses,
   ),
 ];

@@ -6,6 +6,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class QuickAction {
   const QuickAction({
@@ -147,30 +148,30 @@ class MemberQuickActionsGrid extends StatelessWidget {
       actions: [
         if (onPlanning != null)
           QuickAction(
-            label: 'Planning',
+            label: AppCopy.club.actionPlanning,
             icon: ViroIcons.calendar,
             onTap: onPlanning,
           ),
         QuickAction(
-          label: 'Mes équipes',
+          label: AppCopy.club.actionMyTeams,
           icon: ViroIcons.users,
           onTap: onMyTeams,
         ),
         if (onAnnouncements != null)
           QuickAction(
-            label: 'Annonces',
+            label: AppCopy.club.actionAnnouncements,
             icon: ViroIcons.bell,
             onTap: onAnnouncements,
           ),
         if (onMyFee != null)
           QuickAction(
-            label: 'Ma cotisation',
+            label: AppCopy.club.actionMyFee,
             icon: ViroIcons.payments,
             onTap: onMyFee,
           ),
         if (onPortal != null)
           QuickAction(
-            label: 'Espace club',
+            label: AppCopy.club.actionPortal,
             icon: ViroIcons.roleAdmin,
             onTap: onPortal,
           ),
@@ -200,17 +201,17 @@ class FamilyQuickActionsGrid extends StatelessWidget {
       accentColor: accentColor,
       actions: [
         QuickAction(
-          label: 'Planning',
+          label: AppCopy.club.actionPlanning,
           icon: ViroIcons.calendar,
           onTap: onPlanning,
         ),
         QuickAction(
-          label: 'Cotisation',
+          label: AppCopy.club.actionFee,
           icon: ViroIcons.payments,
           onTap: onFee,
         ),
         QuickAction(
-          label: 'Infos',
+          label: AppCopy.club.actionInfos,
           icon: ViroIcons.bell,
           onTap: onInfos,
         ),
@@ -252,54 +253,54 @@ class ClubManagementActionsGrid extends StatelessWidget {
     return [
       if (onPlanning != null)
         QuickAction(
-          label: 'Planning',
+          label: AppCopy.club.actionPlanning,
           icon: ViroIcons.calendar,
           onTap: onPlanning,
         ),
       QuickAction(
-        label: 'Gérer les équipes',
+        label: AppCopy.club.actionManageTeams,
         icon: ViroIcons.users,
         onTap: onManageTeams,
       ),
       if (role == MemberRoles.admin || role == MemberRoles.coach)
         QuickAction(
-          label: 'Gérer les membres',
+          label: AppCopy.club.actionManageMembers,
           icon: ViroIcons.user,
           onTap: onManageMembers,
         ),
       if (role == MemberRoles.admin && onFees != null)
         QuickAction(
-          label: 'Suivi cotisations',
+          label: AppCopy.club.actionFeesTracking,
           icon: ViroIcons.payments,
           onTap: onFees,
         ),
       if (role == MemberRoles.admin && onAppearance != null)
         QuickAction(
-          label: 'Apparence',
+          label: AppCopy.club.actionAppearance,
           icon: ViroIcons.settings,
           onTap: onAppearance,
         ),
       if (role == MemberRoles.admin && onEquipment != null)
         QuickAction(
-          label: 'Équipements',
+          label: AppCopy.club.actionEquipment,
           icon: ViroIcons.ball,
           onTap: onEquipment,
         ),
       if (role == MemberRoles.admin && onLocations != null)
         QuickAction(
-          label: 'Lieux',
+          label: AppCopy.club.actionLocations,
           icon: ViroIcons.place,
           onTap: onLocations,
         ),
       if (role == MemberRoles.admin && onSettings != null)
         QuickAction(
-          label: 'Paramètres',
+          label: AppCopy.club.actionSettings,
           icon: ViroIcons.key,
           onTap: onSettings,
         ),
       if (onPortal != null)
         QuickAction(
-          label: 'Espace club',
+          label: AppCopy.club.actionPortal,
           icon: ViroIcons.roleAdmin,
           onTap: onPortal,
         ),

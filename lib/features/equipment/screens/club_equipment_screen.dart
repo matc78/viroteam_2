@@ -19,6 +19,7 @@ import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/equipment_list_tile.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Inventaire équipements club (aligné portail `/equipment`).
 class ClubEquipmentScreen extends ConsumerStatefulWidget {
@@ -93,7 +94,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
           updatedByUid: uid,
           input: input,
         );
-        if (mounted) ViroSnackBar.show(context, 'Équipement créé');
+        if (mounted) ViroSnackBar.show(context, AppCopy.equipment.created);
       } else {
         await service.updateItem(
           clubId: widget.clubId,
@@ -101,7 +102,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
           updatedByUid: uid,
           input: input,
         );
-        if (mounted) ViroSnackBar.show(context, 'Équipement mis à jour');
+        if (mounted) ViroSnackBar.show(context, AppCopy.equipment.updated);
       }
       ref.invalidate(clubEquipmentProvider(widget.clubId));
     } catch (error) {
@@ -115,16 +116,16 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer cet équipement ?'),
-        content: Text('« ${item.name} » sera retiré de l’inventaire.'),
+        title: Text(AppCopy.equipment.deleteConfirmTitle),
+        content: Text(AppCopy.equipment.deleteConfirmBody(item.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
+            child: Text(AppCopy.common.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Supprimer'),
+            child: Text(AppCopy.common.delete),
           ),
         ],
       ),
@@ -138,7 +139,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
             itemId: item.id,
           );
       ref.invalidate(clubEquipmentProvider(widget.clubId));
-      if (mounted) ViroSnackBar.show(context, 'Équipement supprimé');
+      if (mounted) ViroSnackBar.show(context, AppCopy.equipment.deleted);
     } catch (error) {
       if (mounted) ViroSnackBar.show(context, error.toString());
     } finally {
@@ -215,7 +216,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
             icon: ViroIcon(ViroIcons.chevronLeft),
             onPressed: () => context.pop(),
           ),
-          title: const Text('Équipements'),
+          title: Text(AppCopy.equipment.screenTitle),
         ),
         floatingActionButton: _busy
             ? null
@@ -247,7 +248,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                         ViroSpacing.sm,
                       ),
                       child: Text(
-                        'Stock simple du club : quantités, état, emplacement.',
+                        AppCopy.equipment.intro,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: ViroColors.gray600,
                             ),
@@ -262,7 +263,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                       child: TextField(
                         controller: _searchController,
                         decoration: InputDecoration(
-                          hintText: 'Rechercher…',
+                          hintText: AppCopy.equipment.searchHint,
                           prefixIcon: ViroIcon(ViroIcons.search),
                         ),
                         onChanged: (value) =>
@@ -282,7 +283,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                       child: Row(
                         children: _filterChipRow([
                           _filterChip(
-                            label: 'Toutes catégories',
+                            label: AppCopy.equipment.allCategories,
                             selected: _categoryFilter == 'all',
                             accent: managementAccent,
                             onTap: () =>
@@ -314,14 +315,14 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                       child: Row(
                         children: _filterChipRow([
                           _filterChip(
-                            label: 'Tous états',
+                            label: AppCopy.equipment.allConditions,
                             selected: _conditionFilter == 'all',
                             accent: managementAccent,
                             onTap: () =>
                                 setState(() => _conditionFilter = 'all'),
                           ),
                           _filterChip(
-                            label: 'OK',
+                            label: AppCopy.equipment.conditionOk,
                             selected:
                                 _conditionFilter == EquipmentConditions.ok,
                             accent: managementAccent,
@@ -330,7 +331,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                             ),
                           ),
                           _filterChip(
-                            label: 'Usé',
+                            label: AppCopy.equipment.conditionUsed,
                             selected:
                                 _conditionFilter == EquipmentConditions.use,
                             accent: managementAccent,
@@ -339,7 +340,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                             ),
                           ),
                           _filterChip(
-                            label: 'HS',
+                            label: AppCopy.equipment.conditionBroken,
                             selected:
                                 _conditionFilter == EquipmentConditions.hs,
                             accent: managementAccent,
@@ -357,8 +358,8 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                       child: Center(
                         child: Text(
                           items.isEmpty
-                              ? 'Aucun équipement pour le moment'
-                              : 'Aucun résultat',
+                              ? AppCopy.equipment.empty
+                              : AppCopy.equipment.emptySearch,
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium

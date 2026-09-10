@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
@@ -85,7 +86,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Rejoindre un club'),
+        title: Text(AppCopy.join.joinClubTitle),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -112,7 +113,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
               ),
               const SizedBox(height: ViroSpacing.lg),
               Text(
-                'Entrez votre code',
+                AppCopy.join.enterCodeTitle,
                 style: theme.headlineSmall?.copyWith(
                   color: ViroColors.primary800,
                   fontWeight: FontWeight.w800,
@@ -121,7 +122,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
               ),
               const SizedBox(height: ViroSpacing.sm),
               Text(
-                'Demandez le code d\'invitation à votre entraîneur ou à l\'administrateur du club.',
+                AppCopy.join.enterCodeSubtitle,
                 style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
                 textAlign: TextAlign.center,
               ),
@@ -137,7 +138,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
                   color: ViroColors.primary800,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'ASMP1K2E',
+                  hintText: AppCopy.join.codeHint,
                   hintStyle: theme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     letterSpacing: 4,
@@ -184,7 +185,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
               ],
               const SizedBox(height: ViroSpacing.xl),
               ViroPrimaryButton(
-                label: 'Valider le code',
+                label: AppCopy.join.validateCode,
                 isLoading: _loading,
                 onPressed: _validate,
               ),
@@ -195,7 +196,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
                   _HelpChip(
                     icon: ViroIcons.users,
                     iconColor: ViroColors.sportCyan,
-                    label: 'Demandez à votre coach',
+                    label: AppCopy.join.askYourCoach,
                   ),
                 ],
               ),

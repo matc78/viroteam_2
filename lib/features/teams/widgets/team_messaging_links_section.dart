@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/teams/widgets/edit_team_messaging_links_sheet.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
@@ -33,7 +34,7 @@ class TeamMessagingLinksSection extends StatelessWidget {
   Future<void> _openLink(BuildContext context, String url) async {
     final uri = Uri.tryParse(url.trim());
     if (uri == null) {
-      ViroSnackBar.show(context, 'Lien invalide');
+      ViroSnackBar.show(context, AppCopy.teams.invalidLink);
       return;
     }
     final launched = await launchUrl(
@@ -41,7 +42,7 @@ class TeamMessagingLinksSection extends StatelessWidget {
       mode: LaunchMode.externalApplication,
     );
     if (!launched && context.mounted) {
-      ViroSnackBar.show(context, 'Impossible d\'ouvrir le lien');
+      ViroSnackBar.show(context, AppCopy.teams.cannotOpenLink);
     }
   }
 
@@ -66,7 +67,7 @@ class TeamMessagingLinksSection extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'DISCUSSIONS',
+                  AppCopy.teams.discussionsHeader,
                   style: theme.labelSmall?.copyWith(
                     color: accent,
                     fontWeight: FontWeight.w800,
@@ -90,7 +91,7 @@ class TeamMessagingLinksSection extends StatelessWidget {
                         ViroIcon(ViroIcons.edit, size: 16, color: accent),
                         const SizedBox(width: 4),
                         Text(
-                          'Modifier',
+                          AppCopy.common.edit,
                           style: theme.labelSmall?.copyWith(
                             color: accent,
                             fontWeight: FontWeight.w700,
@@ -118,7 +119,7 @@ class TeamMessagingLinksSection extends StatelessWidget {
                     const SizedBox(width: ViroSpacing.md),
                     Expanded(
                       child: Text(
-                        'Ajouter les liens WhatsApp',
+                        AppCopy.teams.addWhatsappLinks,
                         style: theme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: ViroColors.primary800,
@@ -138,14 +139,14 @@ class TeamMessagingLinksSection extends StatelessWidget {
             if (_hasTeamLink)
               _MessagingLinkTile(
                 icon: ViroIcons.whatsapp,
-                label: 'Groupe équipe',
+                label: AppCopy.teams.teamGroupLabel,
                 accent: accent,
                 onTap: () => _openLink(context, team.messagingLink!),
               ),
             if (_hasParentsLink)
               _MessagingLinkTile(
                 icon: ViroIcons.chat,
-                label: 'Groupe parents',
+                label: AppCopy.teams.parentsGroupLabel,
                 accent: accent,
                 onTap: () => _openLink(context, team.parentsMessagingLink!),
               ),

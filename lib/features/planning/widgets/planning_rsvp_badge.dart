@@ -3,6 +3,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club_event.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Badge icône + compteur (résumé).
 class PlanningRsvpCountBadge extends StatelessWidget {
@@ -136,7 +137,7 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
           count: counts.yes,
           color: ViroColors.success,
           selected: status == RsvpStatus.yes,
-          semanticLabel: 'Présent',
+          semanticLabel: AppCopy.planning.rsvpPresent,
           onTap: () => onSelected(RsvpStatus.yes),
         ),
         const SizedBox(width: ViroSpacing.sm),
@@ -145,7 +146,7 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
           count: counts.no,
           color: ViroColors.error,
           selected: status == RsvpStatus.no,
-          semanticLabel: 'Absent',
+          semanticLabel: AppCopy.planning.rsvpAbsent,
           onTap: () => onSelected(RsvpStatus.no),
         ),
         const SizedBox(width: ViroSpacing.sm),
@@ -154,7 +155,7 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
           count: counts.none,
           color: ViroColors.warning,
           selected: status == RsvpStatus.none || status == RsvpStatus.maybe,
-          semanticLabel: 'En attente',
+          semanticLabel: AppCopy.planning.rsvpPending,
           onTap: () => onSelected(RsvpStatus.none),
         ),
       ],

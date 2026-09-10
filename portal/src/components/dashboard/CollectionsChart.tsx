@@ -48,7 +48,7 @@ export function CollectionsChart({
             Encaissements
           </h2>
           <p className={styles.subtitle}>
-            {showHelloAsso ? "CB HelloAsso vs hors-ligne" : "Paiements hors-ligne"}
+            {showHelloAsso ? "CB Stripe vs hors-ligne" : "Paiements hors-ligne"}
           </p>
         </div>
         <div className={styles.totals}>

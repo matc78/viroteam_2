@@ -145,14 +145,15 @@ Suivre intégralement [`DEPLOY_IOS.md`](DEPLOY_IOS.md) (compte Apple, Firebase p
 
 | Item | Notes |
 |------|--------|
-| **HelloAsso live** | Partenariat → secrets Functions → `helloAssoPaymentsLive = true` (app) + `NEXT_PUBLIC_HELLOASSO_LIVE=true` (portail) → slug orga par club |
+| **Stripe Connect live** | Secrets `STRIPE_*_TEST` (dev) puis `STRIPE_*_LIVE` (prod) → webhooks Dashboard → `NEXT_PUBLIC_STRIPE_LIVE=true` (portail) → onboarding Express par club → `onlinePaymentEnabled` |
+| **HelloAsso** (futur) | Partenariat → secrets Functions → flags HelloAsso (code conservé, dormant) |
 | Upload photo justificatif d’aide | Backlog Phase 7 |
 | FCM / push rappels | Backlog Phase 8 |
 | App Check | Hardening post-MVP |
 | Workflow CI iOS | Optionnel (certs Apple en secrets) |
 | 2ᵉ parent / dark mode / i18n | Hors scope immédiat (`ROADMAP.md`) |
 
-Flags paiement CB restent à `false` tant que le partenariat n’est pas clos — le hors-ligne / manuel fonctionne.
+Paiement CB Stripe actif en **debug app** (`FeatureFlags.stripePaymentsLive`) dès que les secrets test + Connect club sont en place. Release : flip `_stripePaymentsLiveRelease` + clés live.
 
 ---
 

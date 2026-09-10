@@ -1,4 +1,7 @@
-import type { ClubRecord } from "@/lib/firebase/clubService";
+import type {
+  ClubRecord,
+  StripeConnectStatus,
+} from "@/lib/firebase/clubService";
 import type {
   FeePaymentMethod,
   FeeSeasonRecord,
@@ -19,7 +22,7 @@ export type FeeTierDraft = {
   category: string;
 };
 
-/** Config cotisations (saison + HelloAsso) pour le formulaire. */
+/** Config cotisations (saison + Stripe Connect) pour le formulaire. */
 export type FeesConfig = {
   seasonId: string | null;
   seasonLabel: string;
@@ -33,14 +36,15 @@ export type FeesConfig = {
   paymentMethods: FeePaymentMethod[];
   tiers: FeeTierDraft[];
   onlinePaymentEnabled: boolean;
-  helloAssoOrganizationSlug: string;
+  stripeConnectedAccountId: string;
+  stripeConnectStatus: StripeConnectStatus;
 };
 
 export const FEE_PAYMENT_METHOD_OPTIONS: {
   id: FeePaymentMethod;
   label: string;
 }[] = [
-  { id: "carte_bancaire", label: "Carte bancaire (HelloAsso)" },
+  { id: "carte_bancaire", label: "Carte bancaire (Stripe)" },
   { id: "virement", label: "Virement" },
   { id: "cheque", label: "Chèque" },
   { id: "especes", label: "Espèces" },
@@ -76,7 +80,8 @@ export function tiersDraftToFeeTiers(tiers: FeeTierDraft[]): FeeTier[] {
 /** Config vide pour création de saison. */
 export function emptyFeesConfig(params: {
   onlinePaymentEnabled?: boolean;
-  helloAssoOrganizationSlug?: string;
+  stripeConnectedAccountId?: string;
+  stripeConnectStatus?: StripeConnectStatus;
   seasonEndDate?: Date | null;
 }): FeesConfig {
   const seasonOptions = buildSeasonLabelOptions();
@@ -92,7 +97,8 @@ export function emptyFeesConfig(params: {
     paymentMethods: ["virement", "cheque", "especes"],
     tiers: [{ id: `tier_${Date.now()}`, label: "Standard", amountCents: 0, category: "" }],
     onlinePaymentEnabled: params.onlinePaymentEnabled ?? false,
-    helloAssoOrganizationSlug: params.helloAssoOrganizationSlug ?? "",
+    stripeConnectedAccountId: params.stripeConnectedAccountId ?? "",
+    stripeConnectStatus: params.stripeConnectStatus ?? "not_connected",
   };
 }
 
@@ -118,6 +124,7 @@ export function seasonRecordToFeesConfig(
       category: tier.category ?? "",
     })),
     onlinePaymentEnabled: club.onlinePaymentEnabled,
-    helloAssoOrganizationSlug: club.helloAssoOrganizationSlug,
+    stripeConnectedAccountId: club.stripeConnectedAccountId,
+    stripeConnectStatus: club.stripeConnectStatus,
   };
 }

@@ -12,9 +12,10 @@ import {
   FeesConfig,
   seasonRecordToFeesConfig,
 } from "@/lib/dashboard/feesConfig";
-import { HELLOASSO_PAYMENTS_LIVE } from "@/lib/featureFlags";
+import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { createStripeCheckout } from "@/lib/firebase/callableService";
 import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
 import {
   amountDueCents,
@@ -26,6 +27,8 @@ import {
 } from "@/lib/firebase/feeService";
 import { getLinkedMemberId } from "@/lib/firebase/memberService";
 import { feeStatusLabel } from "@/lib/members/membersView";
+import { StripeFeeCheckout } from "@/components/fees/StripeFeeCheckout";
+import { useToast } from "@/components/ToastProvider";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
 import tabStyles from "@/components/dashboard/MembersTabs.module.css";
@@ -56,7 +59,8 @@ async function loadFeesConfigForClub(club: ClubRecord): Promise<FeesConfig> {
   if (!season) {
     return emptyFeesConfig({
       onlinePaymentEnabled: club.onlinePaymentEnabled,
-      helloAssoOrganizationSlug: club.helloAssoOrganizationSlug,
+      stripeConnectedAccountId: club.stripeConnectedAccountId,
+      stripeConnectStatus: club.stripeConnectStatus,
       seasonEndDate: club.seasonEndDate,
     });
   }
@@ -110,12 +114,49 @@ function playerFeeEmptyMessage(data: PlayerFeeData): string {
 /** Vue cotisation self pour le rôle joueur. */
 function PlayerFeesSelfView() {
   const { activeClub, user } = useAuth();
+  const { showToast } = useToast();
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutSession, setCheckoutSession] = useState<{
+    clientSecret: string;
+    publishableKey: string;
+  } | null>(null);
   const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub && user ? activeClub : null,
     (club) => loadPlayerSelfFee(club, user!.uid),
     [user?.uid],
     "/fees",
   );
+
+  async function handleCheckout() {
+    if (!activeClub || !data?.season || !data.fee || !data.linkedMemberId) {
+      return;
+    }
+    setCheckoutBusy(true);
+    try {
+      const result = await createStripeCheckout({
+        clubId: activeClub.id,
+        seasonId: data.season.id,
+        memberId: data.linkedMemberId,
+        amountCents: data.remaining,
+        currency: data.season.currency || "eur",
+      });
+      if (result.clientSecret && result.publishableKey) {
+        setCheckoutSession({
+          clientSecret: result.clientSecret,
+          publishableKey: result.publishableKey,
+        });
+        return;
+      }
+      showToast(result.message ?? "Paiement enregistré.");
+      reload();
+    } catch (err: unknown) {
+      showToast(
+        err instanceof Error ? err.message : "Impossible de lancer le paiement.",
+      );
+    } finally {
+      setCheckoutBusy(false);
+    }
+  }
 
   if (loading && !data) {
     return <DashboardSkeleton variant="fees" />;
@@ -127,6 +168,11 @@ function PlayerFeesSelfView() {
     data.fee &&
     data.fee.status !== MemberFeeStatuses.paye &&
     data.fee.status !== MemberFeeStatuses.exonere;
+  const canPayOnline =
+    STRIPE_PAYMENTS_LIVE &&
+    Boolean(activeClub?.onlinePaymentEnabled) &&
+    showDetails &&
+    data!.remaining > 0;
 
   return (
     <div className={refreshing ? transitionStyles.refreshing : undefined}>
@@ -182,20 +228,34 @@ function PlayerFeesSelfView() {
           </dl>
         )}
 
-        {showDetails &&
-        !HELLOASSO_PAYMENTS_LIVE &&
-        data!.remaining > 0 ? (
-          <p className={familyStyles.empty}>
-            Le paiement en ligne via HelloAsso arrive bientôt. En attendant,
-            suivez les consignes ci-dessus.
-          </p>
+        {canPayOnline ? (
+          <button
+            type="button"
+            className={feeStyles.payButton}
+            disabled={checkoutBusy}
+            onClick={() => void handleCheckout()}
+          >
+            {checkoutBusy ? "Préparation…" : "Payer en ligne"}
+          </button>
         ) : null}
 
-        {showDetails &&
-        data!.fee!.status === MemberFeeStatuses.paye ? (
-          <p className={familyStyles.empty}>Déjà payé.</p>
+        {showDetails && !canPayOnline && data!.remaining > 0 ? (
+          <p className={familyStyles.empty}>
+            {STRIPE_PAYMENTS_LIVE
+              ? "Le paiement CB n’est pas encore activé pour ce club. Suis les consignes ci-dessus."
+              : "Le paiement en ligne arrive bientôt. En attendant, suis les consignes ci-dessus."}
+          </p>
         ) : null}
       </section>
+
+      {checkoutSession ? (
+        <StripeFeeCheckout
+          clientSecret={checkoutSession.clientSecret}
+          publishableKey={checkoutSession.publishableKey}
+          onClose={() => setCheckoutSession(null)}
+          onPaid={() => reload()}
+        />
+      ) : null}
     </div>
   );
 }

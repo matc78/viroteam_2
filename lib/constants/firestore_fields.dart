@@ -185,6 +185,8 @@ abstract final class FirestoreFields {
   static const String receiptUrl = 'receiptUrl';
   static const String helloAssoOrganizationSlug = 'helloAssoOrganizationSlug';
   static const String onlinePaymentEnabled = 'onlinePaymentEnabled';
+  static const String stripeConnectedAccountId = 'stripeConnectedAccountId';
+  static const String stripeConnectStatus = 'stripeConnectStatus';
   static const String promoCode = 'promoCode';
   static const String validatedBy = 'validatedBy';
   static const String validatedAt = 'validatedAt';

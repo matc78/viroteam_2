@@ -60,6 +60,8 @@ export const Fields = {
   memberCount: "memberCount",
   helloAssoOrganizationSlug: "helloAssoOrganizationSlug",
   onlinePaymentEnabled: "onlinePaymentEnabled",
+  stripeConnectedAccountId: "stripeConnectedAccountId",
+  stripeConnectStatus: "stripeConnectStatus",
   seasonEndDate: "seasonEndDate",
   seasonLabel: "seasonLabel",
   isActive: "isActive",

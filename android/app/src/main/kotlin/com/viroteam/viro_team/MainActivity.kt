@@ -1,5 +1,6 @@
 package com.viroteam.viro_team
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+/** Activity hôte Flutter — FlutterFragmentActivity requis pour Stripe PaymentSheet. */
+class MainActivity : FlutterFragmentActivity()

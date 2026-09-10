@@ -14,14 +14,20 @@ import {
   tiersDraftToFeeTiers,
 } from "@/lib/dashboard/feesConfig";
 import { updateClubSeasonEndDate, updateOnlinePaymentConfig } from "@/lib/firebase/clubService";
+import type { StripeConnectStatus } from "@/lib/firebase/clubService";
 import { loadTeamsForClub } from "@/lib/firebase/eventService";
 import {
   createSeason,
   parseDateInput,
   updateSeason,
 } from "@/lib/firebase/feeService";
+import {
+  createStripeConnectLink,
+  getStripeConnectStatus,
+} from "@/lib/firebase/callableService";
 import { defaultSeasonEndDate, isSeasonEndAfterMax, maxSeasonEndDate } from "@/lib/planning/seasonEnd";
-import { HELLOASSO_PAYMENTS_LIVE } from "@/lib/featureFlags";
+import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
+import { useSearchParams } from "next/navigation";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import { PlanningSelect } from "./PlanningSelect";
@@ -36,6 +42,8 @@ type FeesConfigFormProps = {
 };
 
 const SEASON_LABEL_OPTIONS = buildSeasonLabelOptions();
+/** Timeout d'ouverture Stripe Connect (callable + cold start). */
+const STRIPE_CONNECT_OPEN_TIMEOUT_MS = 45_000;
 
 /** Formate une date locale en `YYYY-MM-DD`. */
 function toDateInputValue(date: Date): string {
@@ -45,7 +53,7 @@ function toDateInputValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Formulaire de configuration cotisations (saison + HelloAsso → Firestore). */
+/** Formulaire de configuration cotisations (saison + Stripe Connect → Firestore). */
 export function FeesConfigForm({
   initial,
   clubId,
@@ -53,6 +61,7 @@ export function FeesConfigForm({
   onSaved,
 }: FeesConfigFormProps) {
   const { showToast } = useToast();
+  const searchParams = useSearchParams();
   const [seasonId, setSeasonId] = useState(initial.seasonId);
   const [seasonLabel, setSeasonLabel] = useState(() =>
     SEASON_LABEL_OPTIONS.includes(initial.seasonLabel)
@@ -81,9 +90,14 @@ export function FeesConfigForm({
   const [onlinePaymentEnabled, setOnlinePaymentEnabled] = useState(
     initial.onlinePaymentEnabled,
   );
-  const [helloAssoOrganizationSlug, setHelloAssoOrganizationSlug] = useState(
-    initial.helloAssoOrganizationSlug,
+  const [stripeConnectStatus, setStripeConnectStatus] =
+    useState<StripeConnectStatus>(initial.stripeConnectStatus);
+  const [stripeAccountId, setStripeAccountId] = useState(
+    initial.stripeConnectedAccountId,
   );
+  const [stripeOpening, setStripeOpening] = useState(false);
+  const [statusBusy, setStatusBusy] = useState(false);
+  const connectBusy = stripeOpening || statusBusy;
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [sportCategories, setSportCategories] = useState<string[]>([]);
@@ -91,6 +105,8 @@ export function FeesConfigForm({
     null,
   );
   const [categoryDraft, setCategoryDraft] = useState("");
+
+  const stripeReady = stripeConnectStatus === "complete";
 
   useEffect(() => {
     let cancelled = false;
@@ -110,26 +126,42 @@ export function FeesConfigForm({
     };
   }, [clubId]);
 
+  useEffect(() => {
+    const stripeParam = searchParams.get("stripe");
+    if (stripeParam !== "return" && stripeParam !== "refresh") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const status = await getStripeConnectStatus({ clubId });
+        if (cancelled) return;
+        setStripeConnectStatus(status.status as StripeConnectStatus);
+        setStripeAccountId(status.accountId ?? "");
+        if (status.status === "complete") {
+          showToast("Compte Stripe connecté", "success");
+        } else if (stripeParam === "refresh") {
+          showToast("Onboarding Stripe à reprendre", "error");
+        }
+      } catch {
+        if (!cancelled) {
+          showToast("Impossible de rafraîchir le statut Stripe", "error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [clubId, searchParams, showToast]);
+
   const canSave = useMemo(() => {
     if (!seasonLabel.trim()) return false;
     if (!seasonEndDate) return false;
     if (tiers.length === 0) return false;
     if (tiers.some((tier) => !tier.label.trim() || tier.amountCents <= 0)) return false;
-    if (
-      HELLOASSO_PAYMENTS_LIVE &&
-      onlinePaymentEnabled &&
-      !helloAssoOrganizationSlug.trim()
-    ) {
+    if (STRIPE_PAYMENTS_LIVE && onlinePaymentEnabled && !stripeReady) {
       return false;
     }
     return true;
-  }, [
-    seasonLabel,
-    seasonEndDate,
-    tiers,
-    onlinePaymentEnabled,
-    helloAssoOrganizationSlug,
-  ]);
+  }, [seasonLabel, seasonEndDate, tiers, onlinePaymentEnabled, stripeReady]);
 
   function setOnlinePayment(enabled: boolean) {
     setOnlinePaymentEnabled(enabled);
@@ -137,6 +169,76 @@ export function FeesConfigForm({
       setPaymentMethods((current) =>
         current.filter((method) => method !== "carte_bancaire"),
       );
+    } else if (!paymentMethods.includes("carte_bancaire")) {
+      setPaymentMethods((current) => [...current, "carte_bancaire"]);
+    }
+  }
+
+  async function handleConnectStripe() {
+    if (connectBusy) return;
+    setStripeOpening(true);
+    let redirected = false;
+    let timeoutId = 0;
+    try {
+      const origin = window.location.origin;
+      const result = await Promise.race([
+        createStripeConnectLink({
+          clubId,
+          returnUrl: `${origin}/fees?stripe=return`,
+          refreshUrl: `${origin}/fees?stripe=refresh`,
+        }),
+        new Promise<never>((_, reject) => {
+          timeoutId = window.setTimeout(() => {
+            reject(
+              new Error(
+                "Délai dépassé — Stripe ne répond pas, réessaie dans un instant",
+              ),
+            );
+          }, STRIPE_CONNECT_OPEN_TIMEOUT_MS);
+        }),
+      ]);
+      if (result.url) {
+        redirected = true;
+        window.location.assign(result.url);
+        return;
+      }
+      showToast("Lien Stripe indisponible", "error");
+    } catch (err: unknown) {
+      showToast(
+        err instanceof Error
+          ? err.message
+          : "Impossible de lancer Stripe Connect",
+        "error",
+      );
+    } finally {
+      window.clearTimeout(timeoutId);
+      // Garder le loader jusqu'au changement de page (succès).
+      if (!redirected) setStripeOpening(false);
+    }
+  }
+
+  async function handleRefreshConnectStatus() {
+    if (connectBusy) return;
+    setStatusBusy(true);
+    try {
+      const status = await getStripeConnectStatus({ clubId });
+      setStripeConnectStatus(status.status as StripeConnectStatus);
+      setStripeAccountId(status.accountId ?? "");
+      showToast(
+        status.status === "complete"
+          ? "Compte Stripe prêt"
+          : "Statut Stripe mis à jour",
+        "success",
+      );
+    } catch (err: unknown) {
+      showToast(
+        err instanceof Error
+          ? err.message
+          : "Rafraîchissement Stripe échoué",
+        "error",
+      );
+    } finally {
+      setStatusBusy(false);
     }
   }
 
@@ -222,8 +324,7 @@ export function FeesConfigForm({
 
       await updateOnlinePaymentConfig({
         clubId,
-        enabled: HELLOASSO_PAYMENTS_LIVE && onlinePaymentEnabled,
-        organizationSlug: helloAssoOrganizationSlug,
+        enabled: STRIPE_PAYMENTS_LIVE && onlinePaymentEnabled && stripeReady,
       });
 
       const parsedSeasonEnd = parseDateInput(seasonEndDate);
@@ -508,16 +609,22 @@ export function FeesConfigForm({
       <section
         className={`${panelStyles.panel} ${styles.section}`}
         data-tone="orange"
-        data-enabled={onlinePaymentEnabled ? "true" : "false"}
-        aria-labelledby="fees-helloasso"
+        data-enabled={
+          !STRIPE_PAYMENTS_LIVE
+            ? "false"
+            : onlinePaymentEnabled && stripeReady
+              ? "true"
+              : "setup"
+        }
+        aria-labelledby="fees-stripe"
       >
         <div className={styles.sectionTop}>
-          <h2 id="fees-helloasso" className={styles.sectionTitle}>
-            HelloAsso
+          <h2 id="fees-stripe" className={styles.sectionTitle}>
+            Stripe
           </h2>
           <label className={styles.toggle}>
             <span className={styles.toggleLabel}>
-              {onlinePaymentEnabled && HELLOASSO_PAYMENTS_LIVE
+              {onlinePaymentEnabled && STRIPE_PAYMENTS_LIVE && stripeReady
                 ? "Activé"
                 : "Désactivé"}
             </span>
@@ -526,33 +633,70 @@ export function FeesConfigForm({
               role="switch"
               checked={onlinePaymentEnabled}
               onChange={(e) => setOnlinePayment(e.target.checked)}
-              disabled={!HELLOASSO_PAYMENTS_LIVE}
-              aria-label="Activer le paiement en ligne HelloAsso"
+              disabled={!STRIPE_PAYMENTS_LIVE || !stripeReady}
+              aria-label="Activer le paiement en ligne Stripe"
             />
             <span className={styles.toggleTrack} aria-hidden="true" />
           </label>
         </div>
         <div className={styles.sectionBody}>
-          {!HELLOASSO_PAYMENTS_LIVE ? (
+          {!STRIPE_PAYMENTS_LIVE ? (
             <p className={styles.sectionLead} role="status">
-              Paiement en ligne HelloAsso — partenariat en cours. Vous pouvez
-              préparer le slug de votre organisation ; l&apos;activation sera
-              disponible prochainement.
+              Paiement CB Stripe — active{" "}
+              <code>NEXT_PUBLIC_STRIPE_LIVE=true</code> en local après avoir
+              posé les secrets Functions.
             </p>
           ) : (
             <p className={styles.sectionLead}>
-              Affiche le bouton « Payer en ligne » aux membres dans l&apos;app.
+              Connecte le compte bancaire du club via Stripe Express, puis
+              active le bouton « Payer en ligne » pour les membres.
             </p>
           )}
-          <label className={styles.field}>
-            <span className={styles.label}>Slug organisation HelloAsso</span>
-            <input
-              className={styles.input}
-              value={helloAssoOrganizationSlug}
-              onChange={(event) => setHelloAssoOrganizationSlug(event.target.value)}
-              placeholder="mon-club-asso"
-            />
-          </label>
+          <p className={styles.sectionLead} role="status">
+            Statut Connect :{" "}
+            <strong>
+              {stripeConnectStatus === "complete"
+                ? "prêt"
+                : stripeConnectStatus === "pending"
+                  ? "en cours"
+                  : stripeConnectStatus === "restricted"
+                    ? "restreint"
+                    : "non connecté"}
+            </strong>
+            {stripeAccountId ? ` (${stripeAccountId})` : null}
+          </p>
+          <div className={styles.chips}>
+            <button
+              type="button"
+              className={styles.primaryButton}
+              disabled={!STRIPE_PAYMENTS_LIVE || connectBusy}
+              aria-busy={stripeOpening || undefined}
+              onClick={() => void handleConnectStripe()}
+            >
+              {stripeOpening ? (
+                <>
+                  <span className={styles.buttonSpinner} aria-hidden="true" />
+                  Ouverture…
+                </>
+              ) : stripeReady ? (
+                "Mettre à jour Stripe"
+              ) : stripeConnectStatus === "pending" ? (
+                "Continuer l’onboarding"
+              ) : (
+                "Connecter Stripe"
+              )}
+            </button>
+            {stripeAccountId ? (
+              <button
+                type="button"
+                className={styles.chip}
+                disabled={connectBusy}
+                onClick={() => void handleRefreshConnectStatus()}
+              >
+                Rafraîchir le statut
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
 

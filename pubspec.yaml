@@ -35,6 +35,7 @@ dependencies:
   posthog_flutter: ^4.8.1
   shared_preferences: ^2.5.3
   http: ^1.4.0
+  flutter_stripe: ^11.5.0
 
 dev_dependencies:
   flutter_test:

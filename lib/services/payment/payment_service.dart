@@ -1,19 +1,25 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 
-/// Contrat paiement cotisations in-app (HelloAsso).
+/// Merchant ID Apple Pay (à aligner avec le provisioning Apple / Stripe).
+const String kStripeApplePayMerchantId = 'merchant.com.viroteam.app';
+
+/// Contrat paiement cotisations in-app.
 ///
 /// Le marquage `paye` / crédit `amountPaidCents` se fait uniquement via
-/// webhook Cloud Functions — jamais depuis le retour URL client.
+/// webhook Cloud Functions — jamais depuis le retour client.
 abstract class PaymentService {
   /// Indique si le paiement in-app est disponible.
   bool get isInAppPaymentEnabled;
 
-  /// Démarre un checkout HelloAsso (éventuellement 3× + aides).
+  /// Démarre un checkout (éventuellement aides ; 1× Stripe v1).
   Future<PaymentCheckoutResult> createCheckout({
     required String clubId,
     required String seasonId,
@@ -110,16 +116,17 @@ class NoopPaymentService implements PaymentService {
   }
 }
 
-/// Paiement via HelloAsso (callable + ouverture du redirectUrl).
-class HelloAssoPaymentService implements PaymentService {
-  HelloAssoPaymentService({FirebaseFunctions? functions})
+/// Paiement via Stripe Connect (callable PaymentIntent + PaymentSheet).
+class StripePaymentService implements PaymentService {
+  StripePaymentService({FirebaseFunctions? functions})
       : _functions = functions ??
             FirebaseFunctions.instanceFor(region: 'europe-west1');
 
   final FirebaseFunctions _functions;
 
   @override
-  bool get isInAppPaymentEnabled => FeatureFlags.inAppPayments;
+  bool get isInAppPaymentEnabled =>
+      FeatureFlags.inAppPayments && FeatureFlags.stripePaymentsLive;
 
   @override
   Future<PaymentCheckoutResult> createCheckout({
@@ -134,7 +141,134 @@ class HelloAssoPaymentService implements PaymentService {
     String? backUrl,
     String? errorUrl,
   }) async {
-    if (!FeatureFlags.inAppPayments) {
+    if (!isInAppPaymentEnabled) {
+      return PaymentCheckoutResult.unavailable();
+    }
+    if (amountCents <= 0 && aids.isEmpty) {
+      return const PaymentCheckoutResult(
+        status: PaymentCheckoutStatus.failed,
+        message: 'Montant invalide',
+      );
+    }
+
+    try {
+      final callable =
+          _functions.httpsCallable(cloudCallableName('createStripeCheckout'));
+      final response = await callable.call<Map<String, dynamic>>({
+        'clubId': clubId,
+        'seasonId': seasonId,
+        'memberId': memberId,
+        'amountCents': amountCents,
+        'currency': currency.toLowerCase(),
+        'aids': aids.map((a) => a.toCallableMap()).toList(),
+        'provider': FeePaymentProviders.stripe,
+      });
+
+      final data = response.data;
+      final clientSecret = data['clientSecret'] as String?;
+      final publishableKey = data['publishableKey'] as String?;
+      final paymentIntentId = data['paymentIntentId']?.toString();
+      final sessionId = data['sessionId'] as String?;
+
+      if (clientSecret == null ||
+          clientSecret.isEmpty ||
+          publishableKey == null ||
+          publishableKey.isEmpty) {
+        if (data['ok'] == true) {
+          return PaymentCheckoutResult(
+            status: PaymentCheckoutStatus.started,
+            sessionId: sessionId,
+            message: data['message'] as String? ??
+                'Aides enregistrées — en attente de justificatif',
+          );
+        }
+        return PaymentCheckoutResult(
+          status: PaymentCheckoutStatus.failed,
+          message: data['message'] as String? ??
+              'Stripe n\'a pas renvoyé de client_secret',
+        );
+      }
+
+      Stripe.publishableKey = publishableKey;
+      Stripe.merchantIdentifier = kStripeApplePayMerchantId;
+      await Stripe.instance.applySettings();
+
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'ViroTeam',
+          style: ThemeMode.system,
+          googlePay: PaymentSheetGooglePay(
+            merchantCountryCode: 'FR',
+            testEnv: !kReleaseMode,
+          ),
+          applePay: const PaymentSheetApplePay(
+            merchantCountryCode: 'FR',
+          ),
+        ),
+      );
+
+      await Stripe.instance.presentPaymentSheet();
+
+      return PaymentCheckoutResult(
+        status: PaymentCheckoutStatus.started,
+        externalPaymentId: paymentIntentId,
+        sessionId: sessionId,
+        message:
+            'Paiement envoyé. Le statut se mettra à jour après confirmation '
+            'serveur (pas immédiatement).',
+      );
+    } on StripeException catch (e) {
+      if (e.error.code == FailureCode.Canceled) {
+        return const PaymentCheckoutResult(
+          status: PaymentCheckoutStatus.cancelled,
+          message: 'Paiement annulé',
+        );
+      }
+      return PaymentCheckoutResult(
+        status: PaymentCheckoutStatus.failed,
+        message: e.error.localizedMessage ?? 'Erreur Stripe',
+      );
+    } on FirebaseFunctionsException catch (e) {
+      return PaymentCheckoutResult(
+        status: PaymentCheckoutStatus.failed,
+        message: e.message ?? 'Erreur Stripe (${e.code})',
+      );
+    } catch (e) {
+      return PaymentCheckoutResult(
+        status: PaymentCheckoutStatus.failed,
+        message: 'Erreur paiement : $e',
+      );
+    }
+  }
+}
+
+/// Paiement via HelloAsso (callable + ouverture du redirectUrl) — dormant.
+class HelloAssoPaymentService implements PaymentService {
+  HelloAssoPaymentService({FirebaseFunctions? functions})
+      : _functions = functions ??
+            FirebaseFunctions.instanceFor(region: 'europe-west1');
+
+  final FirebaseFunctions _functions;
+
+  @override
+  bool get isInAppPaymentEnabled =>
+      FeatureFlags.inAppPayments && FeatureFlags.helloAssoPaymentsLive;
+
+  @override
+  Future<PaymentCheckoutResult> createCheckout({
+    required String clubId,
+    required String seasonId,
+    required String memberId,
+    required int amountCents,
+    required String currency,
+    int installmentCount = 1,
+    List<FeeAidDraft> aids = const [],
+    String? returnUrl,
+    String? backUrl,
+    String? errorUrl,
+  }) async {
+    if (!isInAppPaymentEnabled) {
       return PaymentCheckoutResult.unavailable();
     }
     if (amountCents <= 0 && aids.isEmpty) {
@@ -167,7 +301,6 @@ class HelloAssoPaymentService implements PaymentService {
       final sessionId = data['sessionId'] as String?;
 
       if (redirectUrl == null || redirectUrl.isEmpty) {
-        // Cas aides-only : pas de CB, session enregistrée côté serveur.
         if (data['ok'] == true) {
           return PaymentCheckoutResult(
             status: PaymentCheckoutStatus.started,

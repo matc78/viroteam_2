@@ -1,10 +1,14 @@
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
-import { getStorage } from "firebase-admin/storage";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { db, defineDualCallable, defineDualRequest } from "./db";
 import { assertCanActForMember } from "./guardians";
+import {
+  aidLabel,
+  creditMemberFeeFromCardPayment,
+  generateAndStoreReceipt,
+} from "./feePayments";
 
 export {
   inviteGuardian,
@@ -66,6 +70,17 @@ export {
   scheduleRsvpNotifyFlush,
   scheduleRsvpNotifyFlushDev,
 } from "./notifications";
+
+export {
+  createStripeConnectLink,
+  createStripeConnectLinkDev,
+  getStripeConnectStatus,
+  getStripeConnectStatusDev,
+  createStripeCheckout,
+  createStripeCheckoutDev,
+  stripeWebhook,
+  stripeWebhookDev,
+} from "./stripe";
 
 const helloAssoClientId = defineSecret("HELLOASSO_CLIENT_ID");
 const helloAssoClientSecret = defineSecret("HELLOASSO_CLIENT_SECRET");
@@ -415,118 +430,34 @@ export const {
         .collection("member_fees")
         .doc(memberId);
 
-      await db().runTransaction(async (tx) => {
-        const feeSnap = await tx.get(feeRef);
-        if (!feeSnap.exists) {
-          throw new Error("fee missing");
-        }
-        const fee = feeSnap.data()!;
-
-        const appliedIds =
-          (fee.appliedExternalPaymentIds as string[] | undefined) ?? [];
-        if (externalPaymentId && appliedIds.includes(externalPaymentId)) {
-          return; // idempotent
-        }
-
-        const seasonSnap = await tx.get(
-          db()
-            .collection("clubs")
-            .doc(clubId)
-            .collection("fee_seasons")
-            .doc(seasonId),
-        );
-        const season = seasonSnap.data() ?? {};
-        const tiers = (season.tiers as { tierId: string; amountCents: number }[]) ?? [];
-        const tier = tiers.find((t) => t.tierId === fee.tierId);
-        const due = fee.status === "exonere" ? 0 : (tier?.amountCents ?? 0);
-
-        const previousPaid = Number(fee.amountPaidCents ?? 0);
-        // Sur Order : créditer le montant de session si amount absent.
-        let credit = amount;
-        if (credit <= 0 && sessionId) {
-          const sessionSnap = await tx.get(
-            db()
-              .collection("clubs")
-              .doc(clubId)
-              .collection("fee_seasons")
-              .doc(seasonId)
-              .collection("payment_sessions")
-              .doc(sessionId),
-          );
-          credit = Number(sessionSnap.data()?.amountCents ?? 0);
-        }
-
-        // Pour un plan 3×, chaque Payment crédite son échéance.
-        const newPaid = previousPaid + Math.max(0, credit);
-        const aids = (fee.aids as { status: string; amountCents: number }[]) ?? [];
-        const validatedAids = aids
-          .filter((a) => a.status === "validated")
-          .reduce((s, a) => s + Number(a.amountCents ?? 0), 0);
-        const pendingAids = aids.some((a) => a.status === "pending_proof");
-        const remaining = due - (newPaid + validatedAids);
-
-        let nextStatus = "a_payer";
-        if (remaining <= 0 && !pendingAids) {
-          nextStatus = "paye";
-        } else if (newPaid > 0 || validatedAids > 0 || pendingAids) {
-          nextStatus = "partiel";
-        }
-
-        tx.set(
-          feeRef,
-          {
-            amountPaidCents: newPaid,
-            status: nextStatus,
-            paidVia: "helloasso",
-            paymentProvider: "helloasso",
-            externalPaymentId: externalPaymentId || null,
-            externalOrderId: externalOrderId || null,
-            appliedExternalPaymentIds: externalPaymentId
-              ? [...appliedIds, externalPaymentId]
-              : appliedIds,
-            paidAt:
-              nextStatus === "paye"
-                ? admin.firestore.FieldValue.serverTimestamp()
-                : fee.paidAt ?? null,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true },
-        );
-
-        if (sessionId) {
-          const sessionRef = db()
-            .collection("clubs")
-            .doc(clubId)
-            .collection("fee_seasons")
-            .doc(seasonId)
-            .collection("payment_sessions")
-            .doc(sessionId);
-          tx.set(
-            sessionRef,
-            {
-              status: nextStatus === "paye" ? "completed" : "partial",
-              lastExternalPaymentId: externalPaymentId || null,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true },
-          );
-        }
+      const { creditedCents } = await creditMemberFeeFromCardPayment({
+        clubId,
+        seasonId,
+        memberId,
+        sessionId,
+        amountCents: amount,
+        externalPaymentId,
+        externalOrderId: externalOrderId || undefined,
+        provider: "helloasso",
       });
 
       // Reçu PDF (best-effort, hors transaction).
-      try {
-        const receiptUrl = await generateAndStoreReceipt({
-          clubId,
-          seasonId,
-          memberId,
-          amountCents: amount,
-          externalPaymentId,
-        });
-        if (receiptUrl) {
-          await feeRef.set({ receiptUrl }, { merge: true });
+      if (creditedCents > 0) {
+        try {
+          const receiptUrl = await generateAndStoreReceipt({
+            clubId,
+            seasonId,
+            memberId,
+            amountCents: creditedCents > 0 ? creditedCents : amount,
+            externalPaymentId,
+            providerLabel: "encaissement confirmé (HelloAsso)",
+          });
+          if (receiptUrl) {
+            await feeRef.set({ receiptUrl }, { merge: true });
+          }
+        } catch (e) {
+          console.error("receipt generation failed", e);
         }
-      } catch (e) {
-        console.error("receipt generation failed", e);
       }
 
       res.json({ ok: true });
@@ -556,21 +487,6 @@ function safeEqual(a: string, b: string): boolean {
   const bufB = Buffer.from(b, "utf8");
   if (bufA.length !== bufB.length) return false;
   return crypto.timingSafeEqual(bufA, bufB);
-}
-
-function aidLabel(type: string): string {
-  switch (type) {
-    case "pass_sport":
-      return "Pass'Sport";
-    case "pass_plus":
-      return "Pass+";
-    case "ancv":
-      return "Chèques ANCV";
-    case "promo":
-      return "Code promo";
-    default:
-      return "Autre aide";
-  }
 }
 
 /** Construit initialAmount + terms pour 1× ou 3× (contraintes HelloAsso). */
@@ -699,96 +615,4 @@ async function getHelloAssoAccessToken(): Promise<string> {
   );
 
   return tokenCache.accessToken;
-}
-
-async function generateAndStoreReceipt(params: {
-  clubId: string;
-  seasonId: string;
-  memberId: string;
-  amountCents: number;
-  externalPaymentId: string;
-}): Promise<string | null> {
-  const { clubId, seasonId, memberId, amountCents, externalPaymentId } =
-    params;
-
-  const [clubSnap, feeSnap] = await Promise.all([
-    db().collection("clubs").doc(clubId).get(),
-    db()
-      .collection("clubs")
-      .doc(clubId)
-      .collection("fee_seasons")
-      .doc(seasonId)
-      .collection("member_fees")
-      .doc(memberId)
-      .get(),
-  ]);
-
-  const clubName = (clubSnap.data()?.name as string) ?? clubId;
-  const memberName =
-    (feeSnap.data()?.memberDisplayName as string) ?? memberId;
-  const euros = (Math.max(0, amountCents) / 100).toFixed(2).replace(".", ",");
-
-  const pdfBuffer = await buildReceiptPdf({
-    clubName,
-    memberName,
-    amountLabel: `${euros} €`,
-    paymentId: externalPaymentId || "—",
-    paidAt: new Date(),
-  });
-
-  const path = `receipts/${clubId}/${seasonId}/${memberId}_${Date.now()}.pdf`;
-  const bucket = getStorage().bucket();
-  const file = bucket.file(path);
-  await file.save(pdfBuffer, {
-    contentType: "application/pdf",
-    metadata: { cacheControl: "private, max-age=3600" },
-  });
-
-  // Plus de fichier public : URL signée 1 h (lecture client interdite sur receipts/**).
-  const [url] = await file.getSignedUrl({
-    action: "read",
-    expires: Date.now() + RECEIPT_SIGNED_URL_TTL_MS,
-  });
-  return url;
-}
-
-const RECEIPT_SIGNED_URL_TTL_MS = 60 * 60 * 1000;
-
-function buildReceiptPdf(input: {
-  clubName: string;
-  memberName: string;
-  amountLabel: string;
-  paymentId: string;
-  paidAt: Date;
-}): Promise<Buffer> {
-  // Lazy-load : pdfkit ralentit trop le discovery Firebase au deploy.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const PDFDocument = require("pdfkit") as typeof import("pdfkit");
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 50 });
-    const chunks: Buffer[] = [];
-    doc.on("data", (c) => chunks.push(c as Buffer));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-
-    doc.fontSize(20).text("Attestation de paiement", { align: "center" });
-    doc.moveDown();
-    doc.fontSize(12).text(`Club : ${input.clubName}`);
-    doc.text(`Adhérent : ${input.memberName}`);
-    doc.text(`Montant : ${input.amountLabel}`);
-    doc.text(`Référence : ${input.paymentId}`);
-    doc.text(
-      `Date : ${input.paidAt.toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-      })}`,
-    );
-    doc.moveDown();
-    doc.text(
-      "Document généré automatiquement suite à un encaissement confirmé (HelloAsso).",
-      { width: 480 },
-    );
-    doc.end();
-  });
 }

@@ -94,6 +94,8 @@ class Club {
     this.memberCount = 0,
     this.helloAssoOrganizationSlug,
     this.onlinePaymentEnabled = false,
+    this.stripeConnectedAccountId,
+    this.stripeConnectStatus,
     this.seasonEndDate,
     this.createdAt,
     this.coachPermissions = CoachPermissions.defaults,
@@ -115,8 +117,14 @@ class Club {
   final int memberCount;
   final String? helloAssoOrganizationSlug;
 
-  /// Paiement en ligne HelloAsso proposé aux membres (défaut : désactivé).
+  /// Paiement en ligne proposé aux membres (défaut : désactivé).
   final bool onlinePaymentEnabled;
+
+  /// Compte Stripe Connect Express du club.
+  final String? stripeConnectedAccountId;
+
+  /// Statut onboarding Stripe (`not_connected` | `pending` | `complete` | `restricted`).
+  final String? stripeConnectStatus;
 
   /// Fin de saison sportive (récurrence planning).
   final DateTime? seasonEndDate;
@@ -127,6 +135,11 @@ class Club {
 
   /// Dernier envoi groupé d’invitations aux non inscrits.
   final DateTime? lastBulkMemberInviteAt;
+
+  /// `true` si Stripe Connect est prêt à encaisser.
+  bool get isStripeConnectReady =>
+      stripeConnectStatus == 'complete' &&
+      (stripeConnectedAccountId?.isNotEmpty ?? false);
 
   factory Club.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -161,6 +174,10 @@ class Club {
           data[FirestoreFields.helloAssoOrganizationSlug] as String?,
       onlinePaymentEnabled:
           data[FirestoreFields.onlinePaymentEnabled] as bool? ?? false,
+      stripeConnectedAccountId:
+          data[FirestoreFields.stripeConnectedAccountId] as String?,
+      stripeConnectStatus:
+          data[FirestoreFields.stripeConnectStatus] as String?,
       seasonEndDate:
           (data[FirestoreFields.seasonEndDate] as Timestamp?)?.toDate(),
       createdAt: (data[FirestoreFields.createdAt] as Timestamp?)?.toDate(),

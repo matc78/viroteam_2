@@ -61,9 +61,13 @@ final class AppCopyFees {
   String get ibanHint => 'FR76…';
   String get paymentModes => 'Modes de paiement';
   String get sectionHelloAsso => 'HelloAsso';
+  String get sectionStripe => 'Paiement CB (Stripe)';
   String get onlinePayment => 'Paiement en ligne';
-  String get onlinePaymentSubtitle => 'Carte bancaire via HelloAsso';
+  String get onlinePaymentSubtitle => 'Carte bancaire via Stripe';
   String get helloAssoSlug => 'Slug organisation HelloAsso';
+  String get stripeConfigOnPortalHint =>
+      'Configure Stripe Connect et active le paiement CB '
+      'depuis le portail web (Cotisations → Stripe).';
   String get sectionTiers => 'Paliers tarifaires';
   String get tiersSectionHint =>
       'Un libellé et un montant par palier de cotisation.';
@@ -76,7 +80,7 @@ final class AppCopyFees {
   String get payOnlineTitle => 'Payer en ligne';
   String get comingSoon => 'Bientôt disponible';
   String get paymentSoonBody =>
-      'Le paiement en ligne via HelloAsso arrive bientôt. '
+      'Le paiement en ligne via Stripe arrive bientôt. '
       'En attendant, utilise les moyens de paiement indiqués '
       'par ton club.';
 
@@ -88,6 +92,7 @@ final class AppCopyFees {
       'Ta cotisation $seasonLabel est à jour';
   String confirmedOn(String date) => 'Confirmé le $date';
   String get paidViaHelloAsso => 'Payé via HelloAsso';
+  String get paidViaStripe => 'Payé via Stripe';
   String get paidOffline => 'Payé hors-ligne';
   String get downloadAttestation => 'Télécharger l\'attestation PDF';
   String exemptForSeason(String seasonLabel) =>
@@ -110,6 +115,12 @@ final class AppCopyFees {
       'Le paiement en ligne via HelloAsso est disponible ci-dessus.';
   String get helloAssoComingSoonFollowClub =>
       'Le paiement en ligne via HelloAsso arrive bientôt. '
+      'En attendant, suis les consignes du club.';
+  String get stripeAvailableAbove =>
+      'Le paiement en ligne via Stripe est disponible ci-dessus '
+      '(carte, Apple Pay, Google Pay).';
+  String get stripeComingSoonFollowClub =>
+      'Le paiement en ligne via Stripe arrive bientôt. '
       'En attendant, suis les consignes du club.';
   String childFeeNotConfigured(String label) =>
       'La cotisation de $label n\'a pas encore été paramétrée par le club.';
@@ -139,6 +150,7 @@ final class AppCopyFees {
       'L\'aide passera en « attente de justificatif » ; '
       'seul le reste est encaissé par carte.';
   String get cardPaymentHelloAsso => 'Paiement carte (HelloAsso)';
+  String get cardPaymentStripe => 'Paiement carte (Stripe)';
   String get once => '1 fois';
   String get threeTimes => '3 fois';
   String aidDiscount(String amount) => 'Aide : − $amount';
@@ -148,8 +160,8 @@ final class AppCopyFees {
   String payAmount(String amount) => 'Payer $amount';
   String get saveAid => 'Enregistrer l\'aide';
   String get webhookConfirmHint =>
-      'La cotisation n\'est confirmée qu\'après le webhook HelloAsso, '
-      'pas au retour dans l\'app.';
+      'La cotisation n\'est confirmée qu\'après le webhook Stripe, '
+      'pas juste après le paiement dans l\'app.';
 
   String selectedMembers(int count) =>
       '$count membre${count > 1 ? 's' : ''} sélectionné${count > 1 ? 's' : ''}';

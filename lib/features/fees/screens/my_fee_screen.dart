@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/project_config.dart';
-import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -21,7 +19,9 @@ import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_status_chip.dart';
+import 'package:viro_team_v2/features/fees/widgets/fee_checkout_sheet.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
@@ -206,6 +206,47 @@ class _FeeContent extends ConsumerWidget {
   final MemberFee fee;
   final String clubId;
 
+  /// Ouvre le bottom sheet aides + PaymentSheet Stripe.
+  Future<void> _openStripeCheckout(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final paymentService = ref.read(paymentServiceProvider);
+    final result = await showModalBottomSheet<PaymentCheckoutResult>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return FeeCheckoutSheet(
+          season: season,
+          fee: fee,
+          onConfirm: ({
+            required int cardAmountCents,
+            required int installmentCount,
+            required List<FeeAidDraft> aids,
+          }) {
+            return paymentService.createCheckout(
+              clubId: clubId,
+              seasonId: season.id,
+              memberId: fee.memberId,
+              amountCents: cardAmountCents,
+              currency: season.currency,
+              installmentCount: installmentCount,
+              aids: aids,
+            );
+          },
+        );
+      },
+    );
+    if (!context.mounted || result == null) return;
+    if (result.message != null && result.message!.isNotEmpty) {
+      ViroSnackBar.show(context, result.message!);
+    }
+    ref.invalidate(
+      myFeeProvider((clubId: clubId, memberId: fee.memberId)),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
@@ -216,7 +257,7 @@ class _FeeContent extends ConsumerWidget {
     final deadline = season.paymentDeadlineAt;
     final club = ref.watch(clubProvider(clubId)).value;
     final accent = ref.watch(clubMemberAccentProvider(clubId));
-    final onlinePaymentEnabled = FeatureFlags.helloAssoPaymentsLive &&
+    final onlinePaymentEnabled = FeatureFlags.stripePaymentsLive &&
         (club?.onlinePaymentEnabled ?? false);
     final canPay = display == MemberFeeDisplayStatus.aPayer ||
         display == MemberFeeDisplayStatus.enRetard ||
@@ -274,6 +315,13 @@ class _FeeContent extends ConsumerWidget {
                     style: theme.bodyMedium?.copyWith(
                       color: ViroColors.gray600,
                     ),
+                  ),
+                ],
+                if (fee.paidVia == FeePaidVia.stripe) ...[
+                  const SizedBox(height: ViroSpacing.xs),
+                  Text(
+                    AppCopy.fees.paidViaStripe,
+                    style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                   ),
                 ],
                 if (fee.paidVia == FeePaidVia.inApp ||
@@ -450,7 +498,7 @@ class _FeeContent extends ConsumerWidget {
           const SizedBox(height: ViroSpacing.lg),
           ViroPrimaryButton(
             label: AppCopy.fees.payOnline,
-            onPressed: () => context.push(AppRoutes.clubFeePayPath(clubId)),
+            onPressed: () => _openStripeCheckout(context, ref),
           ),
         ],
 
@@ -539,9 +587,9 @@ class _FeeContent extends ConsumerWidget {
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: Text(
-                  FeatureFlags.helloAssoPaymentsLive && onlinePaymentEnabled
-                      ? AppCopy.fees.helloAssoAvailableAbove
-                      : AppCopy.fees.helloAssoComingSoonFollowClub,
+                  onlinePaymentEnabled
+                      ? AppCopy.fees.stripeAvailableAbove
+                      : AppCopy.fees.stripeComingSoonFollowClub,
                   style: theme.bodySmall?.copyWith(
                     color: ViroColors.gray600,
                     height: 1.4,

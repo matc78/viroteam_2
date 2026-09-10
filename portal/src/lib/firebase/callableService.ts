@@ -232,7 +232,7 @@ export async function setEventRsvp(params: {
   return callFunction("setEventRsvp", params);
 }
 
-/** Checkout HelloAsso pour sa fiche ou un enfant lié. */
+/** Checkout HelloAsso pour sa fiche ou un enfant lié (dormant). */
 export async function createHelloAssoCheckout(params: {
   clubId: string;
   seasonId: string;
@@ -244,6 +244,57 @@ export async function createHelloAssoCheckout(params: {
   errorUrl?: string;
 }): Promise<{ redirectUrl?: string; checkoutUrl?: string }> {
   return callFunction("createHelloAssoCheckout", params);
+}
+
+/** Crée / reprend l'onboarding Stripe Connect Express (admin). */
+export async function createStripeConnectLink(params: {
+  clubId: string;
+  returnUrl: string;
+  refreshUrl: string;
+}): Promise<{
+  ok: boolean;
+  url: string;
+  accountId: string;
+  status: string;
+}> {
+  return callFunction("createStripeConnectLink", params);
+}
+
+/** Rafraîchit le statut Connect Stripe du club (admin). */
+export async function getStripeConnectStatus(params: {
+  clubId: string;
+}): Promise<{
+  ok: boolean;
+  status: string;
+  accountId: string | null;
+  chargesEnabled: boolean;
+  detailsSubmitted: boolean;
+}> {
+  return callFunction("getStripeConnectStatus", params);
+}
+
+/** Checkout Stripe (PaymentIntent) pour sa fiche ou un enfant lié. */
+export async function createStripeCheckout(params: {
+  clubId: string;
+  seasonId: string;
+  memberId: string;
+  amountCents: number;
+  currency?: string;
+  aids?: Array<{
+    type: string;
+    amountCents: number;
+    promoCode?: string;
+    label?: string;
+  }>;
+}): Promise<{
+  ok: boolean;
+  sessionId?: string;
+  paymentIntentId?: string | null;
+  clientSecret?: string | null;
+  publishableKey?: string | null;
+  message?: string;
+}> {
+  return callFunction("createStripeCheckout", params);
 }
 
 /** Enregistre un token FCM (app ou web). */

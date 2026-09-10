@@ -1,6 +1,6 @@
 {
   "name": "viroteam-functions",
-  "description": "Cloud Functions ViroTeam — invitations, HelloAsso checkout/webhook, reçus PDF",
+  "description": "Cloud Functions ViroTeam — invitations, Stripe Connect checkout/webhook, HelloAsso (dormant), reçus PDF",
   "engines": {
     "node": "20"
   },
@@ -14,7 +14,8 @@
   "dependencies": {
     "firebase-admin": "^13.0.0",
     "firebase-functions": "^6.0.0",
-    "pdfkit": "^0.15.2"
+    "pdfkit": "^0.15.2",
+    "stripe": "^17.7.0"
   },
   "devDependencies": {
     "@types/pdfkit": "^0.13.9",

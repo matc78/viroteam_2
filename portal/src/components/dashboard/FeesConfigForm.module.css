@@ -114,6 +114,13 @@
   pointer-events: none;
 }
 
+/* Onboarding Stripe : section interactive avant activation du toggle CB. */
+.section[data-enabled="setup"] .sectionBody {
+  opacity: 1;
+  filter: none;
+  pointer-events: auto;
+}
+
 .sectionHeader {
   display: flex;
   align-items: flex-start;
@@ -469,6 +476,7 @@ select.input:focus {
   border: none;
   background: var(--color-primary-600);
   color: var(--color-white);
+  gap: 0.55rem;
 }
 
 .primaryButton:disabled {
@@ -478,6 +486,22 @@ select.input:focus {
 
 .primaryButton:hover:not(:disabled) {
   background: var(--color-primary-800);
+}
+
+.buttonSpinner {
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 2px solid color-mix(in srgb, var(--color-white) 35%, transparent);
+  border-top-color: var(--color-white);
+  border-radius: 50%;
+  animation: feesButtonSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes feesButtonSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .secondaryButton {

@@ -17,6 +17,10 @@ export type ClubRecord = {
   adminIds: string[];
   helloAssoOrganizationSlug: string;
   onlinePaymentEnabled: boolean;
+  /** Compte Stripe Connect Express du club. */
+  stripeConnectedAccountId: string;
+  /** Statut onboarding Stripe Connect. */
+  stripeConnectStatus: StripeConnectStatus;
   /** Fin de saison sportive (planning / récurrence), si configurée. */
   seasonEndDate: Date | null;
   /** URL du logo club (Storage), si présent. */
@@ -28,6 +32,13 @@ export type ClubRecord = {
   coachPermissions: CoachPermissions;
 };
 
+/** Statuts Stripe Connect Express stockés sur le club. */
+export type StripeConnectStatus =
+  | "not_connected"
+  | "pending"
+  | "complete"
+  | "restricted";
+
 /** Parse un document clubs/{clubId}. */
 export function parseClub(
   id: string,
@@ -36,6 +47,13 @@ export function parseClub(
   const adminIdsRaw = data[Fields.adminIds];
   const rawLogo = data[Fields.logoUrl];
   const rawBrand = data[Fields.brandColorHex];
+  const rawStatus = String(data[Fields.stripeConnectStatus] ?? "not_connected");
+  const stripeConnectStatus: StripeConnectStatus =
+    rawStatus === "pending" ||
+    rawStatus === "complete" ||
+    rawStatus === "restricted"
+      ? rawStatus
+      : "not_connected";
   return {
     id,
     name: String(data[Fields.name] ?? ""),
@@ -48,6 +66,10 @@ export function parseClub(
       data[Fields.helloAssoOrganizationSlug] ?? "",
     ),
     onlinePaymentEnabled: Boolean(data[Fields.onlinePaymentEnabled]),
+    stripeConnectedAccountId: String(
+      data[Fields.stripeConnectedAccountId] ?? "",
+    ),
+    stripeConnectStatus,
     seasonEndDate: toDate(data[Fields.seasonEndDate]),
     logoUrl:
       typeof rawLogo === "string" && rawLogo.trim() ? rawLogo.trim() : null,
@@ -72,16 +94,13 @@ export async function getClubsByIds(clubIds: string[]): Promise<ClubRecord[]> {
   return results.filter((club): club is ClubRecord => club !== null);
 }
 
-/** Met à jour la config paiement en ligne HelloAsso du club. */
+/** Met à jour la config paiement en ligne (toggle CB) du club. */
 export async function updateOnlinePaymentConfig(params: {
   clubId: string;
   enabled: boolean;
-  organizationSlug?: string | null;
 }): Promise<void> {
-  const slug = params.organizationSlug?.trim() ?? "";
   await updateDoc(doc(getAppFirestore(), Collections.clubs, params.clubId), {
     [Fields.onlinePaymentEnabled]: params.enabled,
-    [Fields.helloAssoOrganizationSlug]: slug,
   });
 }
 

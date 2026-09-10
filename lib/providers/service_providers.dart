@@ -73,7 +73,7 @@ final announcementServiceProvider = Provider<AnnouncementService>(
 final feeServiceProvider = Provider<FeeService>((ref) => FeeService());
 
 final paymentServiceProvider = Provider<PaymentService>(
-  (ref) => HelloAssoPaymentService(),
+  (ref) => StripePaymentService(),
 );
 
 final guardianServiceProvider = Provider<GuardianService>(

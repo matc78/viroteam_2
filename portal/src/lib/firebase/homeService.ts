@@ -109,8 +109,10 @@ function isCardPayment(fee: MemberFeeRecord): boolean {
   const via = (fee.paidVia ?? "").toLowerCase();
   const provider = (fee.paymentProvider ?? "").toLowerCase();
   return (
+    via === "stripe" ||
     via === "helloasso" ||
     via === "in_app" ||
+    provider.includes("stripe") ||
     provider.includes("helloasso") ||
     provider === "carte_bancaire"
   );

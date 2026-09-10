@@ -57,11 +57,13 @@ abstract final class FeePaidVia {
   static const String offline = 'offline';
   static const String inApp = 'in_app';
   static const String helloasso = 'helloasso';
+  static const String stripe = 'stripe';
 }
 
 /// Prestataire de paiement en ligne.
 abstract final class FeePaymentProviders {
   static const String helloasso = 'helloasso';
+  static const String stripe = 'stripe';
 }
 
 class MemberFee {

@@ -45,7 +45,6 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
   DateTime? _paymentDeadline;
   final _instructionsCtrl = TextEditingController();
   final _ibanCtrl = TextEditingController();
-  final _helloAssoSlugCtrl = TextEditingController();
   List<String> _paymentMethods = const [
     FeePaymentMethods.virement,
     FeePaymentMethods.cheque,
@@ -58,7 +57,6 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
       amountCents: 0,
     ),
   ];
-  bool _onlinePaymentEnabled = false;
   bool _saving = false;
   /// Première config : 0 = saison+paliers, 1 = paiement.
   int _firstSetupStep = 0;
@@ -67,11 +65,10 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
   void dispose() {
     _instructionsCtrl.dispose();
     _ibanCtrl.dispose();
-    _helloAssoSlugCtrl.dispose();
     super.dispose();
   }
 
-  bool get _onlineCardAvailable => FeatureFlags.helloAssoPaymentsLive;
+  bool get _onlineCardAvailable => FeatureFlags.stripePaymentsLive;
 
   List<String> get _configurablePaymentMethods =>
       FeePaymentMethods.seasonConfigOptions(
@@ -81,7 +78,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
   void _syncFromData({FeeSeason? season, required Club club}) {
     final key =
         '${season?.id ?? 'new'}:'
-        '${club.onlinePaymentEnabled}:${club.helloAssoOrganizationSlug ?? ''}';
+        '${club.onlinePaymentEnabled}:${club.stripeConnectStatus ?? ''}';
     if (_syncKey == key) return;
     _syncKey = key;
 
@@ -129,9 +126,6 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
       ];
       _firstSetupStep = 0;
     }
-
-    _onlinePaymentEnabled = club.onlinePaymentEnabled;
-    _helloAssoSlugCtrl.text = club.helloAssoOrganizationSlug ?? '';
   }
 
   List<String> _normalizePaymentMethods(Iterable<String> methods) {
@@ -160,11 +154,6 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
   bool get _canSave {
     if (!_seasonAndTiersValid) return false;
     if (!isValidIbanFormat(_ibanCtrl.text)) return false;
-    if (FeatureFlags.helloAssoPaymentsLive &&
-        _onlinePaymentEnabled &&
-        _helloAssoSlugCtrl.text.trim().isEmpty) {
-      return false;
-    }
     return true;
   }
 
@@ -179,17 +168,6 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
     );
     if (picked == null || !mounted) return;
     setState(() => _paymentDeadline = picked);
-  }
-
-  void _setOnlinePayment(bool enabled) {
-    setState(() {
-      _onlinePaymentEnabled = enabled;
-      if (!enabled) {
-        _paymentMethods = _paymentMethods
-            .where((method) => method != FeePaymentMethods.carteBancaire)
-            .toList();
-      }
-    });
   }
 
   void _togglePaymentMethod(String method) {
@@ -258,12 +236,6 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
           ),
         );
       }
-
-      await clubService.updateOnlinePaymentConfig(
-        clubId: widget.clubId,
-        enabled: FeatureFlags.helloAssoPaymentsLive && _onlinePaymentEnabled,
-        organizationSlug: _helloAssoSlugCtrl.text.trim(),
-      );
 
       invalidateClubVisualCaches(ref, widget.clubId);
       if (mounted) {
@@ -438,39 +410,20 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
   }
 
   Widget _helloAssoSection({required Color accent}) {
-    if (!FeatureFlags.helloAssoPaymentsLive) {
-      return const SizedBox.shrink();
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: ViroSpacing.lg),
-        _sectionTitle(AppCopy.fees.sectionHelloAsso),
+        _sectionTitle(AppCopy.fees.sectionStripe),
         const SizedBox(height: ViroSpacing.sm),
         ViroCard(
           accentColor: accent,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(AppCopy.fees.onlinePayment),
-                subtitle: Text(AppCopy.fees.onlinePaymentSubtitle),
-                value: _onlinePaymentEnabled,
-                activeThumbColor: accent,
-                onChanged:
-                    _saving ? null : (value) => _setOnlinePayment(value),
-              ),
-              if (_onlinePaymentEnabled)
-                TextField(
-                  controller: _helloAssoSlugCtrl,
-                  decoration: InputDecoration(
-                    labelText: AppCopy.fees.helloAssoSlug,
-                  ),
-                  enabled: !_saving,
-                  onChanged: (_) => setState(() {}),
+          child: Text(
+            AppCopy.fees.stripeConfigOnPortalHint,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: ViroColors.gray600,
+                  height: 1.45,
                 ),
-            ],
           ),
         ),
       ],

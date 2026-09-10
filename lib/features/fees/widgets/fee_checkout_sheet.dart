@@ -11,7 +11,7 @@ import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
-/// Bottom sheet membre : aides + 1×/3× + lancement HelloAsso.
+/// Bottom sheet membre : aides + lancement Stripe (1×).
 class FeeCheckoutSheet extends StatefulWidget {
   const FeeCheckoutSheet({
     super.key,
@@ -37,7 +37,6 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
   String _aidType = FeeAidTypes.passSport;
   final _aidAmountCtrl = TextEditingController();
   final _promoCtrl = TextEditingController();
-  int _installmentCount = 1;
   bool _submitting = false;
 
   @override
@@ -81,7 +80,7 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
       }
       final result = await widget.onConfirm(
         cardAmountCents: _cardCents,
-        installmentCount: _installmentCount,
+        installmentCount: 1,
         aids: aids,
       );
       if (!mounted) return;
@@ -118,7 +117,6 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
               style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
             ),
             const SizedBox(height: ViroSpacing.md),
-
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(AppCopy.fees.hasAidToggle),
@@ -132,7 +130,10 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
                 decoration: InputDecoration(labelText: AppCopy.fees.aidType),
                 items: [
                   for (final t in FeeAidTypes.all)
-                    DropdownMenuItem(value: t, child: Text(FeeAidTypes.label(t))),
+                    DropdownMenuItem(
+                      value: t,
+                      child: Text(FeeAidTypes.label(t)),
+                    ),
                 ],
                 onChanged: (v) {
                   if (v != null) setState(() => _aidType = v);
@@ -165,25 +166,12 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
                 style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
               ),
             ],
-
             const SizedBox(height: ViroSpacing.md),
             Text(
-              AppCopy.fees.cardPaymentHelloAsso,
+              AppCopy.fees.cardPaymentStripe,
               style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: ViroSpacing.sm),
-            SegmentedButton<int>(
-              segments: [
-                ButtonSegment(value: 1, label: Text(AppCopy.fees.once)),
-                ButtonSegment(value: 3, label: Text(AppCopy.fees.threeTimes)),
-              ],
-              selected: {_installmentCount},
-              onSelectionChanged: (s) {
-                setState(() => _installmentCount = s.first);
-              },
-            ),
             const SizedBox(height: ViroSpacing.md),
-
             DecoratedBox(
               decoration: BoxDecoration(
                 color: ViroColors.primary50,
@@ -196,13 +184,14 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
                   children: [
                     if (_aidCents > 0)
                       Text(
-                        AppCopy.fees.aidDiscount(formatFeeAmountCents(_aidCents)),
+                        AppCopy.fees
+                            .aidDiscount(formatFeeAmountCents(_aidCents)),
                         style: theme.bodyMedium,
                       ),
                     Text(
                       AppCopy.fees.cardAmountDue(
                         formatFeeAmountCents(_cardCents),
-                        inThreeTimes: _installmentCount == 3,
+                        inThreeTimes: false,
                       ),
                       style: theme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
@@ -229,7 +218,8 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
                 Expanded(
                   child: Text(
                     AppCopy.fees.webhookConfirmHint,
-                    style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                    style:
+                        theme.bodySmall?.copyWith(color: ViroColors.gray600),
                   ),
                 ),
               ],

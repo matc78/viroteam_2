@@ -16,8 +16,12 @@ Logique sensible hors client (HelloAsso, invitations). Spec paiement :
 | `extendGuardianInvite` / `…Dev` | Callable — prolonge l’expiration d’une invite parent |
 | `regenerateGuardianInvite` / `…Dev` | Callable — nouveau code + reset expiration invite parent |
 | `setEventRsvp` / `setEventRsvpDev` | Callable — RSVP pour soi ou un enfant lié |
-| `createHelloAssoCheckout` / `…Dev` | Callable — crée un checkout HelloAsso (1×/3× + aides) |
-| `helloAssoWebhook` / `helloAssoWebhookDev` | HTTP — crédite `amountPaidCents` / statut **uniquement** après notif serveur ; **503** sans `HELLOASSO_WEBHOOK_TOKEN`, **401** sans jeton valide (`?token=` ou header `x-webhook-token`), **400** sans `externalPaymentId` |
+| `createStripeConnectLink` / `…Dev` | Callable — onboarding Connect (Accounts v2 Express + Account Link) |
+| `getStripeConnectStatus` / `…Dev` | Callable — rafraîchit le statut Connect du club |
+| `createStripeCheckout` / `…Dev` | Callable — PaymentIntent destination charge + aides |
+| `stripeWebhook` / `stripeWebhookDev` | HTTP — crédite `amountPaidCents` après `payment_intent.succeeded` |
+| `createHelloAssoCheckout` / `…Dev` | Callable — crée un checkout HelloAsso (1×/3× + aides) — dormant |
+| `helloAssoWebhook` / `helloAssoWebhookDev` | HTTP — crédite cotisation HelloAsso — dormant |
 | `lookupInvitationByCode` / `…Dev` | Callable **sans auth** — retrouve une invitation pending par code (e-mail masqué `emailHint`, jamais l’e-mail complet) |
 | `deleteMyAccount` / `deleteMyAccountDev` | Callable — anonymise les fiches du compte (cascade tolérante aux erreurs) puis supprime le compte Auth |
 | `setMemberRole` / `setMemberRoleDev` | Callable — admin du club change un rôle (garde « dernier admin », sync `adminIds` + `clubMemberships`) |
@@ -40,6 +44,16 @@ Les docs `invitations` `type: guardian` sont créés **uniquement** via `inviteG
 ## Secrets / params
 
 ```bash
+# Stripe (test = v2-dev / *Dev ; live = v2-prod)
+firebase functions:secrets:set STRIPE_SECRET_KEY_TEST
+firebase functions:secrets:set STRIPE_PUBLISHABLE_KEY_TEST
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET_TEST
+# Placeholders acceptables tant que la prod n'est pas branchée :
+firebase functions:secrets:set STRIPE_SECRET_KEY_LIVE
+firebase functions:secrets:set STRIPE_PUBLISHABLE_KEY_LIVE
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET_LIVE
+
+# HelloAsso (dormant — multi-prestataire futur)
 firebase functions:secrets:set HELLOASSO_CLIENT_ID
 firebase functions:secrets:set HELLOASSO_CLIENT_SECRET
 firebase functions:secrets:set HELLOASSO_WEBHOOK_TOKEN   # jeton aléatoire long ; vide ⇒ webhook désactivé (503)
@@ -55,10 +69,16 @@ firebase functions:secrets:set BREVO_API_KEY
 Brevo : domaine `viroteam.com` authentifié + expéditeur `noreply@viroteam.com`.
 La callable `sendMemberInvites` envoie un mail transactionnel par membre (code individuel).
 
-Sur chaque club : champ `helloAssoOrganizationSlug`.
+**Stripe Connect** : chaque club onboarde un compte Express via le portail (`createStripeConnectLink`). Champs club : `stripeConnectedAccountId`, `stripeConnectStatus`, `onlinePaymentEnabled`.
 
-Webhook : coller l’URL de `helloAssoWebhook` **suffixée `?token=<HELLOASSO_WEBHOOK_TOKEN>`** dans HelloAsso → Mon Compte → Intégrations et API (types Order + Payment).
-Tant qu’aucun secret n’est configuré, le webhook répond 503 (décision produit : HelloAsso non prévu pour l’instant).
+Webhooks Stripe (Dashboard → Developers → Webhooks) :
+- `stripeWebhookDev` → events `payment_intent.succeeded`, `account.updated` (clés test)
+- `stripeWebhook` → idem (clés live)
+
+Sur chaque club (HelloAsso dormant) : champ `helloAssoOrganizationSlug`.
+
+Webhook HelloAsso : coller l’URL de `helloAssoWebhook` **suffixée `?token=<HELLOASSO_WEBHOOK_TOKEN>`** dans HelloAsso → Mon Compte → Intégrations et API (types Order + Payment).
+Tant qu’aucun secret n’est configuré, le webhook répond 503.
 
 Reçus PDF : stockés dans `receipts/{clubId}/{seasonId}/…` (bucket privé, plus de `makePublic`) ; `member_fees.receiptUrl` est une **URL signée valable 1 h** (le compte de service des functions doit avoir le rôle *Service Account Token Creator* pour signer).
 
@@ -70,6 +90,9 @@ Reçus PDF : stockés dans `receipts/{clubId}/{seasonId}/…` (bucket privé, pl
 cd functions
 npm install
 npm run build
+# Sur Windows le discovery peut dépasser 10s : augmenter le timeout
+# PowerShell :
+$env:FUNCTIONS_DISCOVERY_TIMEOUT=60
 firebase deploy --only functions
 ```
 

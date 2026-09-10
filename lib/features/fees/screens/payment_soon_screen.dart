@@ -10,7 +10,7 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
-/// Placeholder affiché à la place du portail de paiement HelloAsso.
+/// Placeholder affiché si le flux paiement Stripe n'est pas disponible.
 class PaymentSoonScreen extends ConsumerWidget {
   const PaymentSoonScreen({super.key, required this.clubId});
 

@@ -171,6 +171,7 @@ abstract final class FirestoreFields {
   static const String notesAdmin = 'notesAdmin';
   static const String paidAt = 'paidAt';
   static const String markedBy = 'markedBy';
+  static const String markedAt = 'markedAt';
   static const String createdBy = 'createdBy';
   static const String paidVia = 'paidVia';
   static const String paymentProvider = 'paymentProvider';

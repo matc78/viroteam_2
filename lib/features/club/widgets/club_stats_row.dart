@@ -14,6 +14,7 @@ class ClubStatsRow extends StatelessWidget {
     required this.attendanceRate,
     required this.nextEvent,
     required this.club,
+    this.pitchAttendanceRate,
     this.accentColor,
     this.onMembersTap,
     this.onNextEventTap,
@@ -21,6 +22,8 @@ class ClubStatsRow extends StatelessWidget {
   });
 
   final double? attendanceRate;
+  /// Présence terrain (appel) — affiché seulement si non null.
+  final double? pitchAttendanceRate;
   final ClubEvent? nextEvent;
   final Club club;
   final Color? accentColor;
@@ -42,6 +45,21 @@ class ClubStatsRow extends StatelessWidget {
             subtitle: AppCopy.club.statRsvpPositive,
             accentColor: accentColor,
             onTap: onAttendanceTap,
+          ),
+        ),
+      );
+    }
+
+    if (pitchAttendanceRate != null) {
+      if (cards.isNotEmpty) cards.add(const SizedBox(width: ViroSpacing.sm));
+      cards.add(
+        SizedBox(
+          width: 150,
+          child: ViroStatsCard(
+            label: AppCopy.club.statPitchAttendance,
+            value: '${pitchAttendanceRate!.round()} %',
+            subtitle: AppCopy.club.statPitchAttendanceSubtitle,
+            accentColor: accentColor,
           ),
         ),
       );

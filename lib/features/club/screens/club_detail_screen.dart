@@ -117,6 +117,8 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final announcementsAsync =
         ref.watch(visibleClubAnnouncementsProvider(clubId));
     final attendanceAsync = ref.watch(clubAttendanceRateProvider(clubId));
+    final pitchAttendanceAsync =
+        ref.watch(clubPitchAttendanceRateProvider(clubId));
     final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
 
     return ClubAccentTheme(
@@ -152,6 +154,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 ref.refresh(clubMemberProvider(clubId).future),
                 ref.refresh(memberEventsProvider.future),
                 ref.refresh(clubAttendanceRateProvider(clubId).future),
+                ref.refresh(clubPitchAttendanceRateProvider(clubId).future),
                 ref.refresh(
                   clubAnnouncementsProvider(clubId).future,
                 ),
@@ -210,6 +213,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 ),
                 ..._buildStatsSlivers(
                   attendanceAsync: attendanceAsync,
+                  pitchAttendanceAsync: pitchAttendanceAsync,
                   eventsAsync: eventsAsync,
                   club: club,
                   member: memberAsync.value,
@@ -274,9 +278,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                             ClubManagementActionsGrid(
                               role: m.role,
                               accentColor: managementAccent,
-                              onManageTeams: () => context.push(
-                                AppRoutes.clubManageTeamsPath(clubId),
-                              ),
                               onManageMembers: () => context.push(
                                 AppRoutes.clubMembersPath(clubId),
                               ),
@@ -518,6 +519,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
 
   List<Widget> _buildStatsSlivers({
     required AsyncValue<double?> attendanceAsync,
+    required AsyncValue<double?> pitchAttendanceAsync,
     required AsyncValue<ClubEventsState> eventsAsync,
     required Club club,
     required ClubMember? member,
@@ -527,9 +529,14 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final canOpenMembers = member != null &&
         (member.role == MemberRoles.admin || member.role == MemberRoles.coach);
 
-    ClubStatsRow buildRow({required double? rate, required ClubEvent? next}) {
+    ClubStatsRow buildRow({
+      required double? rate,
+      required double? pitchRate,
+      required ClubEvent? next,
+    }) {
       return ClubStatsRow(
         attendanceRate: rate,
+        pitchAttendanceRate: pitchRate,
         nextEvent: next,
         club: club,
         accentColor: accent,
@@ -539,15 +546,24 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       );
     }
 
+    final pitchRate = pitchAttendanceAsync.value;
     return attendanceAsync.when(
       loading: () => const [],
       error: (_, __) {
         final next = eventsAsync.value?.upcoming.firstOrNull;
-        return [SliverToBoxAdapter(child: buildRow(rate: null, next: next))];
+        return [
+          SliverToBoxAdapter(
+            child: buildRow(rate: null, pitchRate: pitchRate, next: next),
+          ),
+        ];
       },
       data: (rate) {
         final next = eventsAsync.value?.upcoming.firstOrNull;
-        return [SliverToBoxAdapter(child: buildRow(rate: rate, next: next))];
+        return [
+          SliverToBoxAdapter(
+            child: buildRow(rate: rate, pitchRate: pitchRate, next: next),
+          ),
+        ];
       },
     );
   }

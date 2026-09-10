@@ -13,6 +13,7 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
@@ -23,6 +24,7 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/planning/widgets/planning_roll_call_sheet.dart';
 
 enum _CancelScope { single, series }
 
@@ -95,13 +97,62 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
 class _PlanningEventDetailSheetState
     extends ConsumerState<PlanningEventDetailSheet> {
   bool _sendingPush = false;
+  late ClubEvent _event;
 
-  IconData get _typeIcon => switch (widget.event.type) {
+  @override
+  void initState() {
+    super.initState();
+    _event = widget.event;
+  }
+
+  IconData get _typeIcon => switch (_event.type) {
         EventTypes.training => ViroIcons.whistle,
         EventTypes.match => ViroIcons.ball,
         EventTypes.tournament => ViroIcons.trophy,
         _ => ViroIcons.calendar,
       };
+
+  /// Événement du jour ou passé (appel possible).
+  bool get _isRollCallDayOrPast {
+    if (_event.canceled) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final eventDay = DateTime(
+      _event.date.year,
+      _event.date.month,
+      _event.date.day,
+    );
+    return !eventDay.isAfter(today);
+  }
+
+  bool get _canTakeAttendance {
+    final club = ref.watch(clubProvider(widget.clubId)).value;
+    final member = ref.watch(clubMemberProvider(widget.clubId)).value;
+    if (club == null || member == null) return false;
+    final perms = club.coachPermissions;
+    return perms.allowsTakeAttendance(
+      isAdmin: member.role == MemberRoles.admin,
+      isCoach: member.role == MemberRoles.coach,
+    );
+  }
+
+  Future<void> _openRollCall() async {
+    final saved = await PlanningRollCallSheet.show(
+      context: context,
+      ref: ref,
+      clubId: widget.clubId,
+      event: _event,
+      excludeCoachUids: widget.excludeCoachUids,
+    );
+    if (!saved || !mounted) return;
+    final fresh = await ref.read(eventServiceProvider).getEvent(
+          clubId: widget.clubId,
+          eventId: _event.id,
+        );
+    if (!mounted) return;
+    if (fresh != null) setState(() => _event = fresh);
+    ref.invalidate(clubPitchAttendanceRateProvider(widget.clubId));
+  }
 
   /// Envoie une notification push ponctuelle à l'audience de l'événement.
   Future<void> _sendEventPush() async {
@@ -110,7 +161,7 @@ class _PlanningEventDetailSheetState
     try {
       await ref.read(pushNotificationServiceProvider).sendEventPush(
             clubId: widget.clubId,
-            eventId: widget.event.id,
+            eventId: _event.id,
           );
       if (!mounted) return;
       ViroStatusToast.show(
@@ -135,7 +186,7 @@ class _PlanningEventDetailSheetState
 
   /// RSVP d'un membre en tenant compte de toutes ses clés audience.
   RsvpStatus _rsvpForMember(String id, ClubMember member) =>
-      widget.event.rsvpStatusForUser(
+      _event.rsvpStatusForUser(
         id,
         clubAudienceId: member.memberId,
         memberAudienceKeys: eventAudienceKeys(member),
@@ -185,7 +236,7 @@ class _PlanningEventDetailSheetState
     coachEntries.sort(compareEntries);
 
     final playerEntries = <({String id, ClubMember member, bool isCoach})>[];
-    for (final id in widget.event.playerMemberIds(widget.excludeCoachUids)) {
+    for (final id in _event.playerMemberIds(widget.excludeCoachUids)) {
       final member = clubMemberForTeamUid(byUid, id);
       if (member == null) continue;
       final keys = eventAudienceKeys(member);
@@ -248,8 +299,8 @@ class _PlanningEventDetailSheetState
 
   /// Équipes ciblées par l'événement (aucune si pas d'équipe liée).
   List<ClubTeam> _eventTeams(List<ClubTeam> teams) {
-    if (widget.event.teamIds.isEmpty) return const [];
-    final eventTeamIds = widget.event.teamIds.toSet();
+    if (_event.teamIds.isEmpty) return const [];
+    final eventTeamIds = _event.teamIds.toSet();
     return teams.where((team) => eventTeamIds.contains(team.id)).toList();
   }
 
@@ -259,7 +310,7 @@ class _PlanningEventDetailSheetState
 
     final service = ref.read(eventServiceProvider);
     if (scope == _CancelScope.series) {
-      final seriesId = widget.event.seriesId!;
+      final seriesId = _event.seriesId!;
       final count = await service.cancelEventSeries(
         clubId: widget.clubId,
         seriesId: seriesId,
@@ -276,7 +327,7 @@ class _PlanningEventDetailSheetState
 
     await service.cancelEvent(
       clubId: widget.clubId,
-      eventId: widget.event.id,
+      eventId: _event.id,
     );
     if (!mounted) return;
     Navigator.pop(context);
@@ -285,7 +336,7 @@ class _PlanningEventDetailSheetState
   }
 
   Future<_CancelScope?> _askCancelScope() async {
-    if (!widget.event.isRecurringSeries) {
+    if (!_event.isRecurringSeries) {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -335,7 +386,7 @@ class _PlanningEventDetailSheetState
 
   @override
   Widget build(BuildContext context) {
-    final event = widget.event;
+    final event = _event;
     final theme = Theme.of(context).textTheme;
     final accent = Theme.of(context).colorScheme.primary;
     final headline = PlanningEventDisplay.headline(event);
@@ -525,6 +576,19 @@ class _PlanningEventDetailSheetState
                     _sendingPush ? AppCopy.planning.sending : AppCopy.planning.sendNotification,
                   ),
                   style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(
+                      ViroSpacing.buttonHeightMedium,
+                    ),
+                  ),
+                ),
+              ],
+              if (_canTakeAttendance && _isRollCallDayOrPast) ...[
+                const SizedBox(height: ViroSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: _openRollCall,
+                  icon: ViroIcon(ViroIcons.whistle, size: 18),
+                  label: Text(AppCopy.planning.takeAttendance),
+                  style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(
                       ViroSpacing.buttonHeightMedium,
                     ),

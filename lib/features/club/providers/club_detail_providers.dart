@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
@@ -106,6 +107,22 @@ final clubAttendanceRateProvider =
   return ref.read(eventServiceProvider).computeAttendanceRate(
         clubId: clubId,
         authUid: auth.uid,
+      );
+});
+
+/// Taux d'appel terrain (optionnel) — null si aucun appel sur 30 j.
+final clubPitchAttendanceRateProvider =
+    FutureProvider.family<double?, String>((ref, clubId) async {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
+  if (auth == null) return null;
+  if (ref.watch(isGuardianOnlyInClubProvider(clubId))) return null;
+  final member = ref.watch(clubMemberProvider(clubId)).value;
+  if (member == null ||
+      !MemberRoleHierarchy.isCoachOrAbove(member.role)) {
+    return null;
+  }
+  return ref.read(eventServiceProvider).computePitchAttendanceRate(
+        clubId: clubId,
       );
 });
 

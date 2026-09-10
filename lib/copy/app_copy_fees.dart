@@ -53,6 +53,7 @@ final class AppCopyFees {
   String get paymentDeadline => 'Date limite de paiement';
   String get optional => 'Optionnelle';
   String get sectionPayment => 'Paiement';
+  String get sectionPaymentCollapsed => 'Paiement & consignes';
   String get paymentSectionHint => 'Instructions, IBAN et modes acceptés.';
   String get paymentInstructions => 'Instructions de paiement';
   String get paymentInstructionsHint => 'Ordre du chèque, coordonnées…';
@@ -66,6 +67,11 @@ final class AppCopyFees {
   String get sectionTiers => 'Paliers tarifaires';
   String get tiersSectionHint =>
       'Un libellé et un montant par palier de cotisation.';
+  String get setupStepSeasonTiers => 'Saison & tarifs';
+  String get setupStepPayment => 'Paiement';
+  String get setupNext => 'Continuer';
+  String get setupBack => 'Retour';
+  String setupStepOf(int step, int total) => 'Étape $step sur $total';
 
   String get payOnlineTitle => 'Payer en ligne';
   String get comingSoon => 'Bientôt disponible';

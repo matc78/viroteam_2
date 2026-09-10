@@ -60,6 +60,8 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
   ];
   bool _onlinePaymentEnabled = false;
   bool _saving = false;
+  /// Première config : 0 = saison+paliers, 1 = paiement.
+  int _firstSetupStep = 0;
 
   @override
   void dispose() {
@@ -125,6 +127,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
           amountCents: 0,
         ),
       ];
+      _firstSetupStep = 0;
     }
 
     _onlinePaymentEnabled = club.onlinePaymentEnabled;
@@ -144,13 +147,18 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
   List<String> _paymentMethodsForSave() =>
       _normalizePaymentMethods(_paymentMethods);
 
-  bool get _canSave {
+  bool get _seasonAndTiersValid {
     if (_seasonLabel.trim().isEmpty) return false;
     if (_tiers.isEmpty) return false;
     if (_tiers.any((tier) =>
         tier.label.trim().isEmpty || tier.amountCents <= 0)) {
       return false;
     }
+    return true;
+  }
+
+  bool get _canSave {
+    if (!_seasonAndTiersValid) return false;
     if (!isValidIbanFormat(_ibanCtrl.text)) return false;
     if (FeatureFlags.helloAssoPaymentsLive &&
         _onlinePaymentEnabled &&
@@ -302,6 +310,226 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
     );
   }
 
+  Widget _seasonSection({
+    required Color accent,
+    required DateFormat dateFormat,
+    required List<String> seasonOptions,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(AppCopy.fees.sectionSeason),
+        const SizedBox(height: ViroSpacing.xs),
+        Text(
+          AppCopy.fees.seasonSectionHint,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: ViroColors.gray600,
+              ),
+        ),
+        const SizedBox(height: ViroSpacing.sm),
+        ViroCard(
+          accentColor: accent,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<String>(
+                key: ValueKey(_seasonLabel),
+                initialValue: _seasonLabel,
+                decoration: InputDecoration(
+                  labelText: AppCopy.fees.seasonLabel,
+                ),
+                items: seasonOptions
+                    .map(
+                      (label) => DropdownMenuItem(
+                        value: label,
+                        child: Text(label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: _saving
+                    ? null
+                    : (value) {
+                        if (value == null) return;
+                        setState(() => _seasonLabel = value);
+                      },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(AppCopy.fees.paymentDeadline),
+                subtitle: Text(
+                  _paymentDeadline != null
+                      ? dateFormat.format(_paymentDeadline!)
+                      : AppCopy.fees.optional,
+                ),
+                trailing: ViroIcon(
+                  ViroIcons.calendar,
+                  color: accent,
+                ),
+                onTap: _saving ? null : _pickPaymentDeadline,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tiersSection({required Color accent}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(AppCopy.fees.sectionTiers),
+        const SizedBox(height: ViroSpacing.xs),
+        Text(
+          AppCopy.fees.tiersSectionHint,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: ViroColors.gray600,
+              ),
+        ),
+        const SizedBox(height: ViroSpacing.sm),
+        FeeTierEditor(
+          tiers: _tiers,
+          accentColor: accent,
+          onChanged: (next) => setState(() => _tiers = next),
+        ),
+      ],
+    );
+  }
+
+  Widget _paymentFields({required Color accent}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: _instructionsCtrl,
+          decoration: InputDecoration(
+            labelText: AppCopy.fees.paymentInstructions,
+            hintText: AppCopy.fees.paymentInstructionsHint,
+          ),
+          maxLines: 3,
+          enabled: !_saving,
+        ),
+        const SizedBox(height: ViroSpacing.sm),
+        TextField(
+          controller: _ibanCtrl,
+          decoration: InputDecoration(
+            labelText: AppCopy.fees.ibanLabel,
+            hintText: AppCopy.fees.ibanHint,
+          ),
+          enabled: !_saving,
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: ViroSpacing.md),
+        Text(
+          AppCopy.fees.paymentModes,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
+        const SizedBox(height: ViroSpacing.sm),
+        Wrap(
+          spacing: ViroSpacing.xs,
+          runSpacing: ViroSpacing.xs,
+          children: [
+            for (final method in _configurablePaymentMethods)
+              _paymentMethodChip(method),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _helloAssoSection({required Color accent}) {
+    if (!FeatureFlags.helloAssoPaymentsLive) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: ViroSpacing.lg),
+        _sectionTitle(AppCopy.fees.sectionHelloAsso),
+        const SizedBox(height: ViroSpacing.sm),
+        ViroCard(
+          accentColor: accent,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(AppCopy.fees.onlinePayment),
+                subtitle: Text(AppCopy.fees.onlinePaymentSubtitle),
+                value: _onlinePaymentEnabled,
+                activeThumbColor: accent,
+                onChanged:
+                    _saving ? null : (value) => _setOnlinePayment(value),
+              ),
+              if (_onlinePaymentEnabled)
+                TextField(
+                  controller: _helloAssoSlugCtrl,
+                  decoration: InputDecoration(
+                    labelText: AppCopy.fees.helloAssoSlug,
+                  ),
+                  enabled: !_saving,
+                  onChanged: (_) => setState(() {}),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _paymentSectionExpanded({required Color accent}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(AppCopy.fees.sectionPayment),
+        const SizedBox(height: ViroSpacing.xs),
+        Text(
+          AppCopy.fees.paymentSectionHint,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: ViroColors.gray600,
+              ),
+        ),
+        const SizedBox(height: ViroSpacing.sm),
+        ViroCard(
+          accentColor: accent,
+          child: _paymentFields(accent: accent),
+        ),
+        _helloAssoSection(accent: accent),
+      ],
+    );
+  }
+
+  Widget _paymentSectionCollapsed({required Color accent}) {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: EdgeInsets.zero,
+        initiallyExpanded: false,
+        title: Text(
+          AppCopy.fees.sectionPaymentCollapsed,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: accent,
+              ),
+        ),
+        subtitle: Text(
+          AppCopy.fees.paymentSectionHint,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: ViroColors.gray600,
+              ),
+        ),
+        children: [
+          ViroCard(
+            accentColor: accent,
+            child: _paymentFields(accent: accent),
+          ),
+          _helloAssoSection(accent: accent),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = widget.accentColor ?? ViroColors.primary800;
@@ -327,10 +555,12 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
               seasonOptions.insert(0, _seasonLabel);
             }
 
+            final isFirstSetup = season == null;
+
             return ListView(
               padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
               children: [
-                if (season == null)
+                if (isFirstSetup) ...[
                   Padding(
                     padding: const EdgeInsets.only(bottom: ViroSpacing.md),
                     child: Text(
@@ -340,161 +570,75 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                           ),
                     ),
                   ),
-                _sectionTitle(AppCopy.fees.sectionSeason),
-                const SizedBox(height: ViroSpacing.xs),
-                Text(
-                  AppCopy.fees.seasonSectionHint,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
-                      ),
-                ),
-                const SizedBox(height: ViroSpacing.sm),
-                ViroCard(
-                  accentColor: accent,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        key: ValueKey(_seasonLabel),
-                        initialValue: _seasonLabel,
-                        decoration: InputDecoration(
-                          labelText: AppCopy.fees.seasonLabel,
-                        ),
-                        items: seasonOptions
-                            .map(
-                              (label) => DropdownMenuItem(
-                                value: label,
-                                child: Text(label),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: _saving
-                            ? null
-                            : (value) {
-                                if (value == null) return;
-                                setState(() => _seasonLabel = value);
-                              },
-                      ),
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(AppCopy.fees.paymentDeadline),
-                        subtitle: Text(
-                          _paymentDeadline != null
-                              ? dateFormat.format(_paymentDeadline!)
-                              : AppCopy.fees.optional,
-                        ),
-                        trailing: ViroIcon(
-                          ViroIcons.calendar,
+                  Text(
+                    AppCopy.fees.setupStepOf(_firstSetupStep + 1, 2),
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
                           color: accent,
+                          fontWeight: FontWeight.w700,
                         ),
-                        onTap: _saving ? null : _pickPaymentDeadline,
-                      ),
-                    ],
                   ),
-                ),
-                const SizedBox(height: ViroSpacing.lg),
-                _sectionTitle(AppCopy.fees.sectionPayment),
-                const SizedBox(height: ViroSpacing.xs),
-                Text(
-                  AppCopy.fees.paymentSectionHint,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
-                      ),
-                ),
-                const SizedBox(height: ViroSpacing.sm),
-                ViroCard(
-                  accentColor: accent,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _instructionsCtrl,
-                        decoration: InputDecoration(
-                          labelText: AppCopy.fees.paymentInstructions,
-                          hintText: AppCopy.fees.paymentInstructionsHint,
+                  const SizedBox(height: ViroSpacing.xs),
+                  Text(
+                    _firstSetupStep == 0
+                        ? AppCopy.fees.setupStepSeasonTiers
+                        : AppCopy.fees.setupStepPayment,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                        maxLines: 3,
-                        enabled: !_saving,
-                      ),
-                      const SizedBox(height: ViroSpacing.sm),
-                      TextField(
-                        controller: _ibanCtrl,
-                        decoration: InputDecoration(
-                          labelText: AppCopy.fees.ibanLabel,
-                          hintText: AppCopy.fees.ibanHint,
-                        ),
-                        enabled: !_saving,
-                      ),
-                      const SizedBox(height: ViroSpacing.md),
-                      Text(
-                        AppCopy.fees.paymentModes,
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      const SizedBox(height: ViroSpacing.sm),
-                      Wrap(
-                        spacing: ViroSpacing.xs,
-                        runSpacing: ViroSpacing.xs,
-                        children: [
-                          for (final method in _configurablePaymentMethods)
-                            _paymentMethodChip(method),
-                        ],
-                      ),
-                    ],
                   ),
-                ),
-                if (FeatureFlags.helloAssoPaymentsLive) ...[
-                  const SizedBox(height: ViroSpacing.lg),
-                  _sectionTitle(AppCopy.fees.sectionHelloAsso),
-                  const SizedBox(height: ViroSpacing.sm),
-                  ViroCard(
-                    accentColor: accent,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(AppCopy.fees.onlinePayment),
-                          subtitle: Text(AppCopy.fees.onlinePaymentSubtitle),
-                          value: _onlinePaymentEnabled,
-                          activeThumbColor: accent,
-                          onChanged:
-                              _saving ? null : (value) => _setOnlinePayment(value),
-                        ),
-                        if (_onlinePaymentEnabled)
-                          TextField(
-                            controller: _helloAssoSlugCtrl,
-                            decoration: InputDecoration(
-                              labelText: AppCopy.fees.helloAssoSlug,
-                            ),
-                            enabled: !_saving,
-                          ),
-                      ],
+                  const SizedBox(height: ViroSpacing.md),
+                  if (_firstSetupStep == 0) ...[
+                    _seasonSection(
+                      accent: accent,
+                      dateFormat: dateFormat,
+                      seasonOptions: seasonOptions,
                     ),
+                    const SizedBox(height: ViroSpacing.lg),
+                    _tiersSection(accent: accent),
+                    const SizedBox(height: ViroSpacing.lg),
+                    ViroPrimaryButton(
+                      label: AppCopy.fees.setupNext,
+                      onPressed: !_seasonAndTiersValid || _saving
+                          ? null
+                          : () => setState(() => _firstSetupStep = 1),
+                    ),
+                  ] else ...[
+                    _paymentSectionExpanded(accent: accent),
+                    const SizedBox(height: ViroSpacing.lg),
+                    OutlinedButton(
+                      onPressed: _saving
+                          ? null
+                          : () => setState(() => _firstSetupStep = 0),
+                      child: Text(AppCopy.fees.setupBack),
+                    ),
+                    const SizedBox(height: ViroSpacing.sm),
+                    ViroPrimaryButton(
+                      label: _saving ? AppCopy.fees.saving : AppCopy.fees.save,
+                      isLoading: _saving,
+                      onPressed: !_canSave || _saving
+                          ? null
+                          : () => _save(season, club),
+                    ),
+                  ],
+                ] else ...[
+                  _seasonSection(
+                    accent: accent,
+                    dateFormat: dateFormat,
+                    seasonOptions: seasonOptions,
+                  ),
+                  const SizedBox(height: ViroSpacing.lg),
+                  _tiersSection(accent: accent),
+                  const SizedBox(height: ViroSpacing.lg),
+                  _paymentSectionCollapsed(accent: accent),
+                  const SizedBox(height: ViroSpacing.lg),
+                  ViroPrimaryButton(
+                    label: _saving ? AppCopy.fees.saving : AppCopy.fees.save,
+                    isLoading: _saving,
+                    onPressed: !_canSave || _saving
+                        ? null
+                        : () => _save(season, club),
                   ),
                 ],
-                const SizedBox(height: ViroSpacing.lg),
-                _sectionTitle(AppCopy.fees.sectionTiers),
-                const SizedBox(height: ViroSpacing.xs),
-                Text(
-                  AppCopy.fees.tiersSectionHint,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
-                      ),
-                ),
-                const SizedBox(height: ViroSpacing.sm),
-                FeeTierEditor(
-                  tiers: _tiers,
-                  accentColor: accent,
-                  onChanged: (next) => setState(() => _tiers = next),
-                ),
-                const SizedBox(height: ViroSpacing.lg),
-                ViroPrimaryButton(
-                  label: _saving ? AppCopy.fees.saving : AppCopy.fees.save,
-                  isLoading: _saving,
-                  onPressed: !_canSave || _saving
-                      ? null
-                      : () => _save(season, club),
-                ),
                 const SizedBox(height: ViroSpacing.xl),
               ],
             );

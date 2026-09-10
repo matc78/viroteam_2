@@ -7,6 +7,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_bulk_action_sheet.dart';
@@ -29,8 +30,9 @@ class AdminFeesScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
-  /// `config` | `tracking`
-  String _section = 'config';
+  /// `config` | `tracking` — null tant que la saison n'est pas résolue.
+  String? _section;
+  bool _didApplyDefaultSection = false;
   String? _tierFilter;
   final _searchCtrl = TextEditingController();
   String _search = '';
@@ -78,11 +80,21 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
 
   void _openTrackingTab() => setState(() => _section = 'tracking');
 
+  void _ensureDefaultSection(AsyncValue<FeeSeason?> seasonAsync) {
+    if (_didApplyDefaultSection) return;
+    if (!seasonAsync.hasValue && !seasonAsync.hasError) return;
+    _didApplyDefaultSection = true;
+    _section = seasonAsync.asData?.value != null ? 'tracking' : 'config';
+  }
+
   @override
   Widget build(BuildContext context) {
     final member = ref.watch(clubMemberProvider(widget.clubId)).value;
     final accent = ref.watch(clubManagementAccentProvider(widget.clubId));
     final memberAccent = ref.watch(clubMemberAccentProvider(widget.clubId));
+    final seasonAsync = ref.watch(activeSeasonProvider(widget.clubId));
+
+    _ensureDefaultSection(seasonAsync);
 
     if (member != null && member.role != MemberRoles.admin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -93,13 +105,15 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
       );
     }
 
+    final section = _section;
+
     return ClubAccentTheme(
       accentColor: memberAccent,
       child: ViroScaffold(
         appBar: ViroAppBar(
           title: Text(AppCopy.fees.screenTitle),
           actions: [
-            if (_section == 'tracking' && _selectionMode)
+            if (section == 'tracking' && _selectionMode)
               TextButton(
                 onPressed: () => setState(() {
                   _selectionMode = false;
@@ -109,7 +123,9 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
               ),
           ],
         ),
-        body: Column(
+        body: section == null
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SingleChildScrollView(
@@ -124,14 +140,14 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
                 children: [
                   _sectionChip(
                     label: AppCopy.fees.tabConfig,
-                    selected: _section == 'config',
+                    selected: section == 'config',
                     accent: accent,
                     onSelected: (_) => _openConfigTab(),
                   ),
                   const SizedBox(width: ViroSpacing.xs),
                   _sectionChip(
                     label: AppCopy.fees.tabTracking,
-                    selected: _section == 'tracking',
+                    selected: section == 'tracking',
                     accent: accent,
                     onSelected: (_) => _openTrackingTab(),
                   ),
@@ -139,7 +155,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
               ),
             ),
             Expanded(
-              child: _section == 'config'
+              child: section == 'config'
                   ? FeeConfigTab(
                       clubId: widget.clubId,
                       accentColor: accent,
@@ -172,7 +188,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
             ),
           ],
         ),
-        floatingActionButton: _section == 'tracking' &&
+        floatingActionButton: section == 'tracking' &&
                 _selectionMode &&
                 _selectedIds.isNotEmpty
             ? FloatingActionButton.extended(

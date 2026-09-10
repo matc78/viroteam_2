@@ -169,7 +169,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
-        title: Text(AppCopy.planning.screenTitle),
+        title: Text(AppCopy.planning.clubScreenTitle),
         actions: [
           IconButton(
             icon: ViroIcon(ViroIcons.calendarPlus),

@@ -5,6 +5,10 @@ final class AppCopyPlanning {
   const AppCopyPlanning();
 
   String get screenTitle => 'Planning';
+  /// Planning membre (home / 14 jours) — répondre aux convocations.
+  String get memberScreenTitle => 'Mes prochains événements';
+  /// Planning club — vue jour + création.
+  String get clubScreenTitle => 'Planning du club';
   String get emptyDayAdmin =>
       'Rien de prévu ce jour-là.\nTape sur + pour poser un événement.';
   String get emptyDay => 'Rien de prévu ce jour-là.';
@@ -22,6 +26,8 @@ final class AppCopyPlanning {
   String get loadClubsError => 'Impossible de charger tes clubs';
   String get loadPlanningError => 'Impossible de charger le planning';
   String get rsvpFailed => 'RSVP impossible, réessaie';
+  String get moreOptions => 'Plus d\'options';
+  String get moreOptionsSubtitle => 'RDV, récurrence…';
 
   String get clubFallbackName => 'Club';
   String get allClub => 'Tout le club';
@@ -108,6 +114,17 @@ final class AppCopyPlanning {
       'Que veux-tu annuler ?';
   String get thisEventOnly => 'Cet événement seulement';
   String get wholeSeries => 'Toute la série';
+
+  String get takeAttendance => 'Faire l\'appel';
+  String get takeAttendanceTitle => 'Faire l\'appel';
+  String get takeAttendanceSubtitle =>
+      'Optionnel — pour les stats. Le RSVP avant la séance reste la priorité.';
+  String get markAllPresent => 'Tous présents';
+  String get attendancePresent => 'Présent';
+  String get attendanceAbsent => 'Absent';
+  String get attendanceSaved => 'Appel enregistré';
+  String get attendanceSaveFailed => 'Enregistrement impossible, réessaie';
+  String get attendanceUnmarked => 'Non pointé';
 
   String eventsCancelled(int count) =>
       count > 1 ? '$count événements annulés' : 'Événement annulé';

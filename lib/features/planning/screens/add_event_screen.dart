@@ -58,6 +58,8 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
   TimeOfDay _start = const TimeOfDay(hour: 18, minute: 0);
   TimeOfDay _end = const TimeOfDay(hour: 19, minute: 30);
   TimeOfDay _meetingTime = const TimeOfDay(hour: 17, minute: 30);
+  /// True dès que le coach ajuste manuellement l'heure de RDV.
+  bool _meetingTimeManuallyEdited = false;
   String? _matchVenue;
   bool _isRecurring = false;
   DateTime? _recurrenceEndDate;
@@ -242,6 +244,25 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
   }) async {
     final picked = await showTimePicker(context: context, initialTime: initial);
     if (picked != null) setState(() => onPicked(picked));
+  }
+
+  /// RDV = début − 30 min (borné à 00:00).
+  TimeOfDay _meetingTimeFromStart(TimeOfDay start) {
+    final totalMinutes = start.hour * 60 + start.minute - 30;
+    final clamped = totalMinutes < 0 ? 0 : totalMinutes;
+    return TimeOfDay(hour: clamped ~/ 60, minute: clamped % 60);
+  }
+
+  void _setStartTime(TimeOfDay start) {
+    _start = start;
+    if (!_meetingTimeManuallyEdited) {
+      _meetingTime = _meetingTimeFromStart(start);
+    }
+  }
+
+  void _setMeetingTime(TimeOfDay meeting) {
+    _meetingTimeManuallyEdited = true;
+    _meetingTime = meeting;
   }
 
   List<String> _audienceForTeam(ClubTeam team) {
@@ -689,7 +710,9 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _PickValueRow(
-                      label: _isMatch ? AppCopy.planning.matchDay : AppCopy.planning.date,
+                      label: _isMatch
+                          ? AppCopy.planning.matchDay
+                          : AppCopy.planning.date,
                       value: formatEventDate(_date),
                       valueStyle: valueStyle,
                       accentColor: accent,
@@ -700,36 +723,18 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                     ),
                     const SizedBox(height: ViroSpacing.md),
                     if (_isMatch)
-                      Row(
-                        children: [
-                          _PickValueRow(
-                            label: AppCopy.planning.matchTime,
-                            value: _formatTime(_start),
-                            valueStyle: valueStyle,
-                            accentColor: accent,
-                            expand: false,
-                            onTap: _saving
-                                ? null
-                                : () => _pickTime(
-                                      initial: _start,
-                                      onPicked: (t) => _start = t,
-                                    ),
-                          ),
-                          const SizedBox(width: ViroSpacing.lg),
-                          _PickValueRow(
-                            label: AppCopy.planning.meetingTime,
-                            value: _formatTime(_meetingTime),
-                            valueStyle: valueStyle,
-                            accentColor: accent,
-                            expand: false,
-                            onTap: _saving
-                                ? null
-                                : () => _pickTime(
-                                      initial: _meetingTime,
-                                      onPicked: (t) => _meetingTime = t,
-                                    ),
-                          ),
-                        ],
+                      _PickValueRow(
+                        label: AppCopy.planning.matchTime,
+                        value: _formatTime(_start),
+                        valueStyle: valueStyle,
+                        accentColor: accent,
+                        expand: false,
+                        onTap: _saving
+                            ? null
+                            : () => _pickTime(
+                                  initial: _start,
+                                  onPicked: _setStartTime,
+                                ),
                       )
                     else
                       Row(
@@ -744,7 +749,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                                 ? null
                                 : () => _pickTime(
                                       initial: _start,
-                                      onPicked: (t) => _start = t,
+                                      onPicked: _setStartTime,
                                     ),
                           ),
                           const SizedBox(width: ViroSpacing.lg),
@@ -766,81 +771,134 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   ],
                 ),
               ),
-              if (_isTraining) ...[
-                const SizedBox(height: ViroSpacing.md),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(
-                    AppCopy.planning.weeklyRecurrence,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  value: _isRecurring,
-                  onChanged: _saving
-                      ? null
-                      : (v) => setState(() {
-                            _isRecurring = v;
-                            if (v && _recurrenceEndDate == null) {
-                              _recurrenceEndDate =
-                                  _seasonRecurrenceEndFor(_date);
-                            }
-                          }),
-                ),
-                if (_isRecurring) ...[
-                  const SizedBox(height: ViroSpacing.sm),
-                  _PickValueRow(
-                    label: AppCopy.planning.seasonEnd,
-                    value: _recurrenceEndDate != null
-                        ? DateFormat('EEEE dd/MM/yyyy', 'fr_FR')
-                            .format(_recurrenceEndDate!)
-                        : AppCopy.planning.chooseDate,
-                    valueStyle: valueStyle,
-                    accentColor: accent,
-                    subtitle: AppCopy.planning.seasonEndDefaultSubtitle,
-                    trailing: ViroIcon(ViroIcons.calendar, color: accent),
-                    onTap: _saving
-                        ? null
-                        : () => _pickDate(isRecurrenceEnd: true),
-                  ),
-                ],
-              ],
-              if (practiceLocations.isNotEmpty) ...[
-                const SizedBox(height: ViroSpacing.md),
-                DropdownButtonFormField<int>(
-                  key: ValueKey('rdv_$_selectedMeetingLocationIndex'),
-                  initialValue: selectedMeetingLocationValid
-                      ? _selectedMeetingLocationIndex
-                      : null,
-                  isDense: true,
-                  isExpanded: true,
-                  style: dropdownStyle,
-                  menuMaxHeight: 240,
-                  decoration: _inputDecoration(label: AppCopy.planning.meetingLocation),
-                  selectedItemBuilder: (context) => [
-                    for (final location in practiceLocations)
-                      Text(
-                        _practiceLocationLabel(location),
-                        style: dropdownStyle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                  ],
-                  items: [
-                    for (var i = 0; i < practiceLocations.length; i++)
-                      DropdownMenuItem(
-                        value: i,
-                        child: Text(
-                          _practiceLocationLabel(practiceLocations[i]),
-                          style: dropdownStyle,
-                          overflow: TextOverflow.ellipsis,
+              const SizedBox(height: ViroSpacing.md),
+              if (_isMatch ||
+                  _isTraining ||
+                  practiceLocations.isNotEmpty)
+                Theme(
+                  data: Theme.of(context)
+                      .copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: EdgeInsets.zero,
+                    initiallyExpanded: false,
+                    title: Text(
+                      AppCopy.planning.moreOptions,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                          ),
+                    ),
+                    subtitle: Text(
+                      AppCopy.planning.moreOptionsSubtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: ViroColors.gray600,
+                          ),
+                    ),
+                    children: [
+                      if (_isMatch) ...[
+                        _PickValueRow(
+                          label: AppCopy.planning.meetingTime,
+                          value: _formatTime(_meetingTime),
+                          valueStyle: valueStyle,
+                          accentColor: accent,
+                          onTap: _saving
+                              ? null
+                              : () => _pickTime(
+                                    initial: _meetingTime,
+                                    onPicked: _setMeetingTime,
+                                  ),
                         ),
-                      ),
-                  ],
-                  onChanged: _saving
-                      ? null
-                      : (v) =>
-                          setState(() => _selectedMeetingLocationIndex = v),
+                        const SizedBox(height: ViroSpacing.md),
+                      ],
+                      if (_isTraining) ...[
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            AppCopy.planning.weeklyRecurrence,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          value: _isRecurring,
+                          onChanged: _saving
+                              ? null
+                              : (v) => setState(() {
+                                    _isRecurring = v;
+                                    if (v && _recurrenceEndDate == null) {
+                                      _recurrenceEndDate =
+                                          _seasonRecurrenceEndFor(_date);
+                                    }
+                                  }),
+                        ),
+                        if (_isRecurring) ...[
+                          const SizedBox(height: ViroSpacing.sm),
+                          _PickValueRow(
+                            label: AppCopy.planning.seasonEnd,
+                            value: _recurrenceEndDate != null
+                                ? DateFormat('EEEE dd/MM/yyyy', 'fr_FR')
+                                    .format(_recurrenceEndDate!)
+                                : AppCopy.planning.chooseDate,
+                            valueStyle: valueStyle,
+                            accentColor: accent,
+                            subtitle:
+                                AppCopy.planning.seasonEndDefaultSubtitle,
+                            trailing: ViroIcon(
+                              ViroIcons.calendar,
+                              color: accent,
+                            ),
+                            onTap: _saving
+                                ? null
+                                : () => _pickDate(isRecurrenceEnd: true),
+                          ),
+                          const SizedBox(height: ViroSpacing.md),
+                        ],
+                      ],
+                      if (practiceLocations.isNotEmpty)
+                        DropdownButtonFormField<int>(
+                          key: ValueKey('rdv_$_selectedMeetingLocationIndex'),
+                          initialValue: selectedMeetingLocationValid
+                              ? _selectedMeetingLocationIndex
+                              : null,
+                          isDense: true,
+                          isExpanded: true,
+                          style: dropdownStyle,
+                          menuMaxHeight: 240,
+                          decoration: _inputDecoration(
+                            label: AppCopy.planning.meetingLocation,
+                          ),
+                          selectedItemBuilder: (context) => [
+                            for (final location in practiceLocations)
+                              Text(
+                                _practiceLocationLabel(location),
+                                style: dropdownStyle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                          items: [
+                            for (var i = 0;
+                                i < practiceLocations.length;
+                                i++)
+                              DropdownMenuItem(
+                                value: i,
+                                child: Text(
+                                  _practiceLocationLabel(
+                                    practiceLocations[i],
+                                  ),
+                                  style: dropdownStyle,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: _saving
+                              ? null
+                              : (v) => setState(
+                                    () => _selectedMeetingLocationIndex = v,
+                                  ),
+                        ),
+                    ],
+                  ),
                 ),
-              ],
                 ],
               ),
               Positioned(

@@ -105,7 +105,7 @@ class MemberPlanningScreen extends ConsumerWidget {
 
     return ViroScaffold(
       appBar: ViroAppBar(
-        title: Text(AppCopy.planning.screenTitle),
+        title: Text(AppCopy.planning.memberScreenTitle),
       ),
       body: clubsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

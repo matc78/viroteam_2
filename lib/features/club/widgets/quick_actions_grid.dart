@@ -257,11 +257,12 @@ class ClubManagementActionsGrid extends StatelessWidget {
           icon: ViroIcons.calendar,
           onTap: onPlanning,
         ),
-      QuickAction(
-        label: AppCopy.club.actionManageTeams,
-        icon: ViroIcons.users,
-        onTap: onManageTeams,
-      ),
+      if (onManageTeams != null)
+        QuickAction(
+          label: AppCopy.club.actionManageTeams,
+          icon: ViroIcons.users,
+          onTap: onManageTeams,
+        ),
       if (role == MemberRoles.admin || role == MemberRoles.coach)
         QuickAction(
           label: AppCopy.club.actionManageMembers,

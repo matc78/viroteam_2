@@ -27,7 +27,7 @@ final class AppCopyHome {
       'il atterrit ici tout seul.';
 
   String get upcomingPlanningTitle => 'Planning à venir';
-  String get seeAllPlanning => 'Voir tout le planning';
+  String get seeAllPlanning => 'Voir mes 14 prochains jours';
   String get addClub => 'Ajouter un club';
   String get createOrJoinClub => 'Créer ou rejoindre un club';
   String get joinClubForPlanning =>

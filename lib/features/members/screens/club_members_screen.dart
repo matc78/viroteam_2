@@ -68,7 +68,9 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   static const _bulkInviteCooldown = Duration(hours: 1);
 
   Future<void> _openManageTeams() async {
-    await context.push(AppRoutes.clubManageTeamsPath(widget.clubId));
+    await context.push(
+      AppRoutes.clubMyTeamsPath(widget.clubId, tab: 'manage'),
+    );
   }
 
   @override

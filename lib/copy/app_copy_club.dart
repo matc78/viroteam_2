@@ -49,7 +49,7 @@ final class AppCopyClub {
       'Créer une fiche membre et envoyer une invitation.';
   String get permTakeAttendanceLabel => 'Prendre les présences';
   String get permTakeAttendanceDesc =>
-      'Réserver pour une future UI présences (flag stocké).';
+      'Pointer après la séance pour les stats (optionnel — le RSVP reste prioritaire).';
   String get permViewFeesLabel => 'Voir les cotisations';
   String get permViewFeesDesc =>
       'Accès lecture au suivi des cotisations du club.';
@@ -101,12 +101,15 @@ final class AppCopyClub {
   String get familyAudienceMe => 'Moi';
 
   String get statResponses30d => 'Réponses (30 j)';
-  String get statRsvpPositive => 'RSVP positifs';
+  String get statRsvpPositive => 'Réponses positives';
+  String get statPitchAttendance => 'Présence terrain';
+  String get statPitchAttendanceSubtitle => 'Appels sur 30 j';
   String get statNextEvent => 'Prochain event';
   String get statMembers => 'Membres';
 
   String get actionPlanning => 'Planning';
-  String get actionMyTeams => 'Mes équipes';
+  String get actionMyTeams => 'Équipes';
+  String get actionTeams => 'Équipes';
   String get actionAnnouncements => 'Annonces';
   String get actionMyFee => 'Ma cotisation';
   String get actionPortal => 'Espace club';

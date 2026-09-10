@@ -17,6 +17,10 @@ final class AppCopyTeams {
 
   String get manageTitle => 'Gérer les équipes';
   String get myTeamsTitle => 'Mes équipes';
+  /// Hub unique (fiche club).
+  String get hubTitle => 'Équipes';
+  String get hubTabMine => 'Mes équipes';
+  String get hubTabManage => 'Gestion';
   String get createTeamFab => 'Créer une équipe';
   String get teamCreated => 'Équipe créée — c’est parti.';
   String get emptyMyTeams =>

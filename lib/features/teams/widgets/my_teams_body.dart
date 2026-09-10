@@ -1,0 +1,87 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_expansion_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
+
+/// Liste « Mes équipes » (roster lecture) — corps du hub Équipes.
+class MyTeamsBody extends ConsumerWidget {
+  const MyTeamsBody({super.key, required this.clubId});
+
+  final String clubId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final clubAsync = ref.watch(clubProvider(clubId));
+    final teamsAsync = ref.watch(myTeamsProvider(clubId));
+
+    return clubAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => const ViroErrorState(),
+      data: (club) {
+        if (club == null) {
+          return Center(child: Text(AppCopy.common.clubNotFound));
+        }
+
+        final accent = ref.watch(clubMemberAccentProvider(clubId));
+
+        return teamsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => const ViroErrorState(),
+          data: (teams) {
+            return ViroRefreshIndicator(
+              onRefresh: () async {
+                await Future.wait([
+                  ref.refresh(clubProvider(clubId).future),
+                  ref.refresh(myTeamsProvider(clubId).future),
+                ]);
+              },
+              child: teams.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(ViroSpacing.xl),
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.sizeOf(context).height * 0.4,
+                          child: Center(
+                            child: Text(
+                              AppCopy.teams.emptyMyTeams,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyLarge
+                                  ?.copyWith(color: ViroColors.gray600),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(
+                        ViroSpacing.screenHorizontal,
+                        ViroSpacing.md,
+                        ViroSpacing.screenHorizontal,
+                        ViroSpacing.xl,
+                      ),
+                      itemCount: teams.length,
+                      itemBuilder: (context, index) {
+                        return TeamExpansionCard(
+                          team: teams[index],
+                          club: club,
+                          accent: accent,
+                        );
+                      },
+                    ),
+            );
+          },
+        );
+      },
+    );
+  }
+}

@@ -29,8 +29,7 @@ import 'package:viro_team_v2/features/planning/screens/add_event_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/club_planning_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/member_planning_screen.dart';
 import 'package:viro_team_v2/features/members/screens/club_members_screen.dart';
-import 'package:viro_team_v2/features/teams/screens/manage_teams_screen.dart';
-import 'package:viro_team_v2/features/teams/screens/my_teams_screen.dart';
+import 'package:viro_team_v2/features/teams/screens/teams_hub_screen.dart';
 
 import 'package:viro_team_v2/features/club_setup/screens/club_setup_wizard_screen.dart';
 
@@ -120,10 +119,15 @@ abstract final class AppRoutes {
 
   static String clubMembersPath(String clubId) => '/club/$clubId/members';
 
-  static String clubMyTeamsPath(String clubId) => '/club/$clubId/teams';
+  static String clubMyTeamsPath(String clubId, {String? tab}) {
+    final base = '/club/$clubId/teams';
+    if (tab == null || tab.isEmpty) return base;
+    return '$base?tab=$tab';
+  }
 
   static String clubManageTeamsPath(String clubId) =>
-      '/club/$clubId/teams/manage';
+      clubMyTeamsPath(clubId, tab: 'manage');
+
 
   static String clubPlanningPath(String clubId) => '/club/$clubId/planning';
 
@@ -505,31 +509,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
-
         path: AppRoutes.clubManageTeams,
-
-        builder: (_, state) {
-
+        redirect: (context, state) {
           final clubId = state.pathParameters['clubId']!;
-
-          return ManageTeamsScreen(clubId: clubId);
-
+          return AppRoutes.clubMyTeamsPath(clubId, tab: 'manage');
         },
-
       ),
-
       GoRoute(
-
         path: AppRoutes.clubMyTeams,
-
         builder: (_, state) {
-
           final clubId = state.pathParameters['clubId']!;
-
-          return MyTeamsScreen(clubId: clubId);
-
+          final tab = state.uri.queryParameters['tab'];
+          return TeamsHubScreen(
+            clubId: clubId,
+            initialTab: tab == 'manage'
+                ? TeamsHubTab.manage
+                : TeamsHubTab.mine,
+          );
         },
-
       ),
 
       GoRoute(

@@ -28,6 +28,7 @@ Ne créer un widget/service neuf que si rien d’existant ne convient (après ad
 - Icônes : `ViroIcons` / `ViroIcon` (Phosphor) — pas `Icons.*`.
 - Couleurs / espacements / motion : uniquement `lib/config/` (pas de magic numbers).
 - Interactions : `ViroPressable` / boutons flottants Viro.
+- **Textes UI** : via `AppCopy` (`lib/copy/`) — pas de littéraux FR dans widgets/écrans. Voix « pote de vestiaire » (tutoiement).
 
 ## Firestore
 

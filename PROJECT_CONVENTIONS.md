@@ -41,7 +41,7 @@ Référence technique : `lib/config/viro_theme.dart`, `viro_colors.dart`, `viro_
 ```dart
 // ✅ Bon
 ViroScaffold(
-  appBar: const ViroAppBar(title: Text('Planning')),
+  appBar: ViroAppBar(title: Text(AppCopy.planning.screenTitle)),
   body: …,
 )
 
@@ -97,6 +97,7 @@ Scaffold(
 lib/
   app/              # MaterialApp, router
   config/           # Thème, motion, project_config, routes
+  copy/             # AppCopy — tous les textes UI (FR)
   features/         # Par domaine (auth, events, tournaments…)
     <feature>/
       screens/      # Écrans fins (composition uniquement)
@@ -147,14 +148,45 @@ lib/
 
 - **Couleurs / typo / espacements** : uniquement via `lib/config/` (pas de `Color(0xFF…)` dans les features).
 - **Thème** : respecter la section 2 (`ViroScaffold`, pas de fond bleu opaque).
-- **Textes UI** : français, dans les widgets (pas de i18n pour l’instant).
+- **Textes UI** : via **`AppCopy`** (`lib/copy/`) — pas de littéraux FR dans les widgets/écrans.
 - **Navigation** : `go_router` (pas de `Navigator.push` dispersé).
 - **État** : Riverpod (providers par feature, session globale en tête d’arbre).
 - **Nommage** : `FeatureNomScreen`, `FeatureNomListTile`, `feature_nom_service.dart`.
 
 ---
 
+## 5bis. Voix produit (app)
+
+Ton **pote de vestiaire** : tutoiement, décontracté, sportif, humour léger dosé.
+
+| Règle | Détail |
+|-------|--------|
+| Tutoiement | **tu** partout dans l’app (pas de vouvoiement SaaS) |
+| Humour OK | Empty states, succès, onboarding, home calme — max une touche sport par phrase |
+| Humour non | Suppression de compte, paiement, erreurs critiques, confirmations destructives |
+| Glossaire métier | Garder `Coach`, `Match`, `Cotisation`, `Convocation` — on change les phrases, pas les termes |
+| Portail | Hors scope (ton plus institutionnel possible) |
+
+```dart
+// ✅ Bon
+Text(AppCopy.home.quietSubtitle)
+
+// ❌ Mauvais — littéral UI dans le widget
+Text('Aucun événement pour le moment')
+```
+
+Exemples de cible :
+
+| Avant | Après |
+|-------|--------|
+| « Votre planning est à jour — rien à venir… » | « Terrain libre — rien au planning pour l’instant. Profite-en pour récupérer. » |
+| « Aucun membre pour le moment » | « Effectif encore vide — ajoute ton premier joueur. » |
+| « Gérez votre club sportif… » | « Ton club, ton vestiaire digital : planning, convoc’, cotisations. » |
+
+---
+
 ## 6. Qualité
+
 
 - `flutter analyze` sans erreur avant merge.
 - Test widget minimal pour chaque `*ListTile` dans `test/widgets/lists/`.
@@ -189,3 +221,4 @@ lib/
 | 2026-07 | Repo standalone ; règles Cursor scindées + `CHANGELOG.md` |
 | 2026-07 | Specs produit dans `docs/specs/` ; typos `viroheam` corrigées |
 | 2026-08 | Parents = relation (pas rôle) ; spec `viroteam_v2_parents_spec.md` ; V1 = 1 adulte / enfant |
+| 2026-09 | Copy UI centralisé dans `AppCopy` (`lib/copy/`) ; voix « pote de vestiaire » (tutoiement) |

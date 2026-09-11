@@ -88,3 +88,12 @@
   width: 0.55rem;
   height: 0.55rem;
 }
+
+.badgeIconOnly {
+  gap: 0;
+  padding: 0.15rem;
+}
+
+.badgeIconOnly.badgeSm {
+  padding: 0.1rem;
+}

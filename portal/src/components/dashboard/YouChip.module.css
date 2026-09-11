@@ -1,0 +1,16 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  vertical-align: middle;
+  color: var(--tone-blue-text);
+  background: color-mix(in srgb, var(--tone-blue-soft) 75%, white);
+  border: 1px solid var(--tone-blue-border);
+}

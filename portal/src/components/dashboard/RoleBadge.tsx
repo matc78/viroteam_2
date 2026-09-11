@@ -11,6 +11,8 @@ type RoleBadgeProps = {
   size?: "md" | "sm";
   /** Libellé custom (ex. « Famille » avec le ton joueur). */
   label?: string;
+  /** Affiche uniquement l’icône (accessibilité via aria-label). */
+  iconOnly?: boolean;
 };
 
 /** Badge rôle club (admin / coach / joueur / parent) — même style que la colonne Membres. */
@@ -20,6 +22,7 @@ export function RoleBadge({
   muted = false,
   size = "md",
   label: labelOverride,
+  iconOnly = false,
 }: RoleBadgeProps) {
   const tone =
     role === MemberRoles.admin ||
@@ -36,14 +39,17 @@ export function RoleBadge({
         styles.badge,
         muted ? styles.badgeMuted : "",
         size === "sm" ? styles.badgeSm : "",
+        iconOnly ? styles.badgeIconOnly : "",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
       data-tone={tone}
+      title={label}
+      aria-label={label}
     >
       <RoleBadgeIcon role={tone} />
-      {label}
+      {iconOnly ? null : label}
     </span>
   );
 }

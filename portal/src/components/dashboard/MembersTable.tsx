@@ -9,11 +9,13 @@ import {
 import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
 import type { MemberRow, MembersFilters } from "@/lib/members/membersView";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import { PlanningSelect } from "./PlanningSelect";
 import { InviteEmailButton } from "./InviteEmailButton";
 import { MemberAvatar } from "./MemberAvatar";
 import { MembersBulkBar } from "./MembersBulkBar";
 import { RoleBadge } from "./RoleBadge";
+import { isCurrentUserMember, YouChip } from "./YouChip";
 import styles from "./MembersTable.module.css";
 
 type SortColumn =
@@ -106,6 +108,7 @@ export function MembersTable({
   onImportClick,
   onExportClick,
 }: MembersTableProps) {
+  const { user } = useAuth();
   const [sortColumn, setSortColumn] = useState<SortColumn>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
@@ -367,7 +370,12 @@ export function MembersTable({
                             hasLinkedAccount={row.hasLinkedAccount}
                           />
                           <div className={styles.nameText}>
-                            <span className={styles.name}>{row.displayName}</span>
+                            <span className={styles.name}>
+                              {row.displayName}
+                              {isCurrentUserMember(row, user?.uid) ? (
+                                <YouChip />
+                              ) : null}
+                            </span>
                             {showContact && row.email ? (
                               <span className={styles.sub}>{row.email}</span>
                             ) : null}
@@ -375,7 +383,7 @@ export function MembersTable({
                         </div>
                       </td>
                       <td>
-                        <RoleBadge role={row.role} />
+                        <RoleBadge role={row.role} iconOnly />
                       </td>
                       <td>
                         {row.teamLabels.length > 0

@@ -20,6 +20,7 @@ import {
   createSeason,
   parseDateInput,
   updateSeason,
+  updateSeasonPaymentMethods,
 } from "@/lib/firebase/feeService";
 import {
   createStripeConnectLink,
@@ -27,7 +28,7 @@ import {
 } from "@/lib/firebase/callableService";
 import { defaultSeasonEndDate, isSeasonEndAfterMax, maxSeasonEndDate } from "@/lib/planning/seasonEnd";
 import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import { PlanningSelect } from "./PlanningSelect";
@@ -44,6 +45,67 @@ type FeesConfigFormProps = {
 const SEASON_LABEL_OPTIONS = buildSeasonLabelOptions();
 /** Timeout d'ouverture Stripe Connect (callable + cold start). */
 const STRIPE_CONNECT_OPEN_TIMEOUT_MS = 45_000;
+
+type FeesFormSnapshot = {
+  seasonLabel: string;
+  currency: FeeCurrency;
+  paymentDeadline: string;
+  seasonEndDate: string;
+  paymentInstructions: string;
+  iban: string;
+  paymentMethods: FeePaymentMethod[];
+  tiers: FeeTierDraft[];
+  onlinePaymentEnabled: boolean;
+};
+
+/** Instantané comparable pour détecter les changements non enregistrés. */
+function buildFormSnapshot(params: {
+  seasonLabel: string;
+  currency: FeeCurrency;
+  paymentDeadline: string;
+  seasonEndDate: string;
+  paymentInstructions: string;
+  iban: string;
+  paymentMethods: FeePaymentMethod[];
+  tiers: FeeTierDraft[];
+  onlinePaymentEnabled: boolean;
+}): FeesFormSnapshot {
+  return {
+    seasonLabel: params.seasonLabel,
+    currency: params.currency,
+    paymentDeadline: params.paymentDeadline,
+    seasonEndDate: params.seasonEndDate,
+    paymentInstructions: params.paymentInstructions,
+    iban: params.iban,
+    paymentMethods: [...params.paymentMethods].sort(),
+    tiers: params.tiers.map((tier) => ({
+      id: tier.id,
+      label: tier.label,
+      amountCents: tier.amountCents,
+      category: tier.category,
+    })),
+    onlinePaymentEnabled: params.onlinePaymentEnabled,
+  };
+}
+
+/** Compare deux instantanés de formulaire cotisations. */
+function snapshotsEqual(a: FeesFormSnapshot, b: FeesFormSnapshot): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Libellé court du statut Connect Stripe. */
+function stripeStatusLabel(status: StripeConnectStatus): string {
+  switch (status) {
+    case "complete":
+      return "Prêt";
+    case "pending":
+      return "En cours";
+    case "restricted":
+      return "Restreint";
+    default:
+      return "Non connecté";
+  }
+}
 
 /** Formate une date locale en `YYYY-MM-DD`. */
 function toDateInputValue(date: Date): string {
@@ -62,6 +124,7 @@ export function FeesConfigForm({
 }: FeesConfigFormProps) {
   const { showToast } = useToast();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [seasonId, setSeasonId] = useState(initial.seasonId);
   const [seasonLabel, setSeasonLabel] = useState(() =>
     SEASON_LABEL_OPTIONS.includes(initial.seasonLabel)
@@ -105,8 +168,82 @@ export function FeesConfigForm({
     null,
   );
   const [categoryDraft, setCategoryDraft] = useState("");
+  const [savedSnapshot, setSavedSnapshot] = useState<FeesFormSnapshot>(() =>
+    buildFormSnapshot({
+      seasonLabel: SEASON_LABEL_OPTIONS.includes(initial.seasonLabel)
+        ? initial.seasonLabel
+        : SEASON_LABEL_OPTIONS[1] ?? SEASON_LABEL_OPTIONS[0] ?? "",
+      currency: FEE_CURRENCY_OPTIONS.some((option) => option.id === initial.currency)
+        ? (initial.currency as FeeCurrency)
+        : "EUR",
+      paymentDeadline: initial.paymentDeadline,
+      seasonEndDate:
+        initial.seasonEndDate || toDateInputValue(defaultSeasonEndDate()),
+      paymentInstructions: initial.paymentInstructions,
+      iban: initial.iban,
+      paymentMethods: initial.paymentMethods,
+      tiers: initial.tiers,
+      onlinePaymentEnabled: initial.onlinePaymentEnabled,
+    }),
+  );
 
   const stripeReady = stripeConnectStatus === "complete";
+
+  const currentSnapshot = useMemo(
+    () =>
+      buildFormSnapshot({
+        seasonLabel,
+        currency,
+        paymentDeadline,
+        seasonEndDate,
+        paymentInstructions,
+        iban,
+        paymentMethods,
+        tiers,
+        onlinePaymentEnabled,
+      }),
+    [
+      seasonLabel,
+      currency,
+      paymentDeadline,
+      seasonEndDate,
+      paymentInstructions,
+      iban,
+      paymentMethods,
+      tiers,
+      onlinePaymentEnabled,
+    ],
+  );
+
+  const isDirty = !snapshotsEqual(currentSnapshot, savedSnapshot);
+
+  const seasonValid = useMemo(() => {
+    if (!seasonLabel.trim()) return false;
+    if (!seasonEndDate) return false;
+    if (tiers.length === 0) return false;
+    if (tiers.some((tier) => !tier.label.trim() || tier.amountCents <= 0)) {
+      return false;
+    }
+    return true;
+  }, [seasonLabel, seasonEndDate, tiers]);
+
+  const stripeGateOk = !(
+    STRIPE_PAYMENTS_LIVE &&
+    onlinePaymentEnabled &&
+    !stripeReady
+  );
+
+  const onlineConfigDirty =
+    onlinePaymentEnabled !== savedSnapshot.onlinePaymentEnabled ||
+    JSON.stringify(currentSnapshot.paymentMethods) !==
+      JSON.stringify(savedSnapshot.paymentMethods);
+
+  /** Saison déjà créée : on peut sauver le toggle Stripe même si un palier brouillon est invalide. */
+  const canSaveOnlineOnly =
+    Boolean(seasonId) && onlineConfigDirty && stripeGateOk;
+
+  const canSave =
+    isDirty && stripeGateOk && (seasonValid || canSaveOnlineOnly);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,7 +274,10 @@ export function FeesConfigForm({
         setStripeConnectStatus(status.status as StripeConnectStatus);
         setStripeAccountId(status.accountId ?? "");
         if (status.status === "complete") {
-          showToast("Compte Stripe connecté", "success");
+          showToast(
+            "Compte Stripe prêt — active le toggle puis Enregistrer",
+            "success",
+          );
         } else if (stripeParam === "refresh") {
           showToast("Onboarding Stripe à reprendre", "error");
         }
@@ -145,23 +285,16 @@ export function FeesConfigForm({
         if (!cancelled) {
           showToast("Impossible de rafraîchir le statut Stripe", "error");
         }
+      } finally {
+        if (!cancelled) {
+          router.replace("/fees");
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [clubId, searchParams, showToast]);
-
-  const canSave = useMemo(() => {
-    if (!seasonLabel.trim()) return false;
-    if (!seasonEndDate) return false;
-    if (tiers.length === 0) return false;
-    if (tiers.some((tier) => !tier.label.trim() || tier.amountCents <= 0)) return false;
-    if (STRIPE_PAYMENTS_LIVE && onlinePaymentEnabled && !stripeReady) {
-      return false;
-    }
-    return true;
-  }, [seasonLabel, seasonEndDate, tiers, onlinePaymentEnabled, stripeReady]);
+  }, [clubId, searchParams, showToast, router]);
 
   function setOnlinePayment(enabled: boolean) {
     setOnlinePaymentEnabled(enabled);
@@ -295,6 +428,59 @@ export function FeesConfigForm({
     ? tiers.find((tier) => tier.id === categoryLinkTierId) ?? null
     : null;
 
+  async function persistOnlinePayment(enabled: boolean) {
+    const methods = enabled
+      ? paymentMethods.includes("carte_bancaire")
+        ? paymentMethods
+        : [...paymentMethods, "carte_bancaire" as FeePaymentMethod]
+      : paymentMethods.filter((method) => method !== "carte_bancaire");
+
+    if (seasonId) {
+      await updateSeasonPaymentMethods(clubId, seasonId, methods);
+    }
+    await updateOnlinePaymentConfig({
+      clubId,
+      enabled: STRIPE_PAYMENTS_LIVE && enabled && stripeReady,
+    });
+
+    setPaymentMethods(methods);
+    setOnlinePaymentEnabled(enabled);
+    setSavedSnapshot(
+      buildFormSnapshot({
+        seasonLabel,
+        currency,
+        paymentDeadline,
+        seasonEndDate,
+        paymentInstructions,
+        iban,
+        paymentMethods: methods,
+        tiers,
+        onlinePaymentEnabled: STRIPE_PAYMENTS_LIVE && enabled && stripeReady,
+      }),
+    );
+  }
+
+  async function handleActivateOnlinePayments() {
+    if (!stripeReady || !seasonId || connectBusy || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      await persistOnlinePayment(true);
+      showToast("Paiement CB Stripe activé pour les membres", "success");
+      onSaved?.();
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Impossible d’activer le paiement CB",
+        "error",
+      );
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canSave || savingRef.current) return;
@@ -302,46 +488,72 @@ export function FeesConfigForm({
     setSaving(true);
 
     try {
-      const seasonPayload = {
-        seasonLabel: seasonLabel.trim(),
-        currency,
-        paymentDeadlineAt: parseDateInput(paymentDeadline),
-        paymentInstructions: paymentInstructions.trim(),
-        paymentMethods,
-        iban,
-        tiers: tiersDraftToFeeTiers(tiers),
-      };
+      const enabled =
+        STRIPE_PAYMENTS_LIVE && onlinePaymentEnabled && stripeReady;
 
-      if (seasonId) {
-        await updateSeason(clubId, seasonId, seasonPayload);
+      if (seasonValid) {
+        const seasonPayload = {
+          seasonLabel: seasonLabel.trim(),
+          currency,
+          paymentDeadlineAt: parseDateInput(paymentDeadline),
+          paymentInstructions: paymentInstructions.trim(),
+          paymentMethods,
+          iban,
+          tiers: tiersDraftToFeeTiers(tiers),
+        };
+
+        if (seasonId) {
+          await updateSeason(clubId, seasonId, seasonPayload);
+        } else {
+          const newId = await createSeason(clubId, {
+            ...seasonPayload,
+            createdBy: uid,
+          });
+          setSeasonId(newId);
+        }
+
+        await updateOnlinePaymentConfig({ clubId, enabled });
+
+        const parsedSeasonEnd = parseDateInput(seasonEndDate);
+        if (parsedSeasonEnd && isSeasonEndAfterMax(parsedSeasonEnd)) {
+          showToast(
+            `La fin de saison ne peut pas dépasser le ${toDateInputValue(maxSeasonEndDate())} (31 juillet).`,
+            "error",
+          );
+          savingRef.current = false;
+          setSaving(false);
+          return;
+        }
+        if (parsedSeasonEnd) {
+          await updateClubSeasonEndDate({
+            clubId,
+            seasonEndDate: parsedSeasonEnd,
+          });
+        }
+
+        setSavedSnapshot(
+          buildFormSnapshot({
+            seasonLabel: seasonLabel.trim(),
+            currency,
+            paymentDeadline,
+            seasonEndDate,
+            paymentInstructions: paymentInstructions.trim(),
+            iban,
+            paymentMethods,
+            tiers,
+            onlinePaymentEnabled: enabled,
+          }),
+        );
+      } else if (canSaveOnlineOnly) {
+        await persistOnlinePayment(onlinePaymentEnabled);
       } else {
-        const newId = await createSeason(clubId, {
-          ...seasonPayload,
-          createdBy: uid,
-        });
-        setSeasonId(newId);
-      }
-
-      await updateOnlinePaymentConfig({
-        clubId,
-        enabled: STRIPE_PAYMENTS_LIVE && onlinePaymentEnabled && stripeReady,
-      });
-
-      const parsedSeasonEnd = parseDateInput(seasonEndDate);
-      if (parsedSeasonEnd && isSeasonEndAfterMax(parsedSeasonEnd)) {
         showToast(
-          `La fin de saison ne peut pas dépasser le ${toDateInputValue(maxSeasonEndDate())} (31 juillet).`,
+          "Complète les paliers (montant > 0) avant d’enregistrer.",
           "error",
         );
         savingRef.current = false;
         setSaving(false);
         return;
-      }
-      if (parsedSeasonEnd) {
-        await updateClubSeasonEndDate({
-          clubId,
-          seasonEndDate: parsedSeasonEnd,
-        });
       }
 
       showToast("Enregistré dans Firestore", "success");
@@ -619,9 +831,18 @@ export function FeesConfigForm({
         aria-labelledby="fees-stripe"
       >
         <div className={styles.sectionTop}>
-          <h2 id="fees-stripe" className={styles.sectionTitle}>
-            Stripe
-          </h2>
+          <div className={styles.sectionTitleRow}>
+            <h2 id="fees-stripe" className={styles.sectionTitle}>
+              Stripe
+            </h2>
+            <span
+              className={styles.connectStatusBadge}
+              data-status={stripeConnectStatus}
+              role="status"
+            >
+              {stripeStatusLabel(stripeConnectStatus)}
+            </span>
+          </div>
           <label className={styles.toggle}>
             <span className={styles.toggleLabel}>
               {onlinePaymentEnabled && STRIPE_PAYMENTS_LIVE && stripeReady
@@ -652,19 +873,24 @@ export function FeesConfigForm({
               active le bouton « Payer en ligne » pour les membres.
             </p>
           )}
-          <p className={styles.sectionLead} role="status">
-            Statut Connect :{" "}
-            <strong>
-              {stripeConnectStatus === "complete"
-                ? "prêt"
-                : stripeConnectStatus === "pending"
-                  ? "en cours"
-                  : stripeConnectStatus === "restricted"
-                    ? "restreint"
-                    : "non connecté"}
-            </strong>
-            {stripeAccountId ? ` (${stripeAccountId})` : null}
-          </p>
+          {stripeAccountId ? (
+            <p className={styles.connectAccountId}>
+              Compte connecté · {stripeAccountId}
+            </p>
+          ) : null}
+          {STRIPE_PAYMENTS_LIVE &&
+          stripeReady &&
+          !onlinePaymentEnabled &&
+          seasonId ? (
+            <button
+              type="button"
+              className={styles.activateButton}
+              disabled={saving || connectBusy}
+              onClick={() => void handleActivateOnlinePayments()}
+            >
+              Activer les paiements CB maintenant
+            </button>
+          ) : null}
           <div className={styles.chips}>
             <button
               type="button"
@@ -704,10 +930,20 @@ export function FeesConfigForm({
         <button
           type="submit"
           className={styles.primaryButton}
+          data-ready={canSave ? "true" : undefined}
           disabled={!canSave || saving}
         >
           {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
+        {canSave ? (
+          <span className={styles.unsavedHint} role="status">
+            Modifications non enregistrées
+          </span>
+        ) : isDirty && !seasonValid && !canSaveOnlineOnly ? (
+          <span className={styles.unsavedHint} role="status">
+            Un palier est incomplet (montant &gt; 0 requis)
+          </span>
+        ) : null}
       </div>
 
       {categoryLinkTier ? (

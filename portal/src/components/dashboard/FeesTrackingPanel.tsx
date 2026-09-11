@@ -22,9 +22,12 @@ import {
   type FeeTier,
 } from "@/lib/firebase/feeService";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import panelStyles from "./DashboardPanel.module.css";
 import { FeesMultiFilter } from "./FeesMultiFilter";
 import { PlanningSelect } from "./PlanningSelect";
+import { RoleBadge } from "./RoleBadge";
+import { isCurrentUserMember, YouChip } from "./YouChip";
 import styles from "./FeesTrackingPanel.module.css";
 
 /** Moyen hors-ligne par défaut (pas de choix à chaque encaissement). */
@@ -861,6 +864,8 @@ function FeeTrackingRowItem({
   onMarkPaid,
   onAidStatus,
 }: FeeTrackingRowItemProps) {
+  const { user } = useAuth();
+  const isSelf = isCurrentUserMember(row, user?.uid);
   const isExonere = row.status === MemberFeeStatuses.exonere;
   const needsTier = !row.tierId && !isExonere;
   const canMarkPaid =
@@ -893,7 +898,11 @@ function FeeTrackingRowItem({
           </td>
         ) : null}
         <td>
-          <span className={styles.rowName}>{row.displayName}</span>
+          <span className={styles.rowName}>
+            {row.displayName}
+            <RoleBadge role={row.role} size="sm" iconOnly />
+            {isSelf ? <YouChip /> : null}
+          </span>
           {row.sportCategories.length > 0 ? (
             <span className={styles.rowSub}>
               {row.sportCategories.join(" · ")}

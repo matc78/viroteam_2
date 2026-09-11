@@ -25,6 +25,10 @@ import {
 /** Ligne suivi cotisation (une action claire par membre). */
 export type FeeTrackingRow = {
   memberId: string;
+  /** UID Auth lié, si le membre a un compte. */
+  accountUid: string | null;
+  /** Rôle club (admin / coach / player). */
+  role: string;
   displayName: string;
   firstName: string;
   lastName: string;
@@ -148,6 +152,8 @@ export async function loadFeesTrackingData(
 
     return {
       memberId: member.memberId,
+      accountUid: member.accountUid,
+      role: member.role,
       displayName: fee?.memberDisplayName || member.displayName,
       firstName: member.firstName,
       lastName: member.lastName,

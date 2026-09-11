@@ -279,6 +279,25 @@ export async function createSeason(
   return newRef.id;
 }
 
+/** Met à jour uniquement les moyens de paiement d'une saison. */
+export async function updateSeasonPaymentMethods(
+  clubId: string,
+  seasonId: string,
+  paymentMethods: FeePaymentMethod[],
+): Promise<void> {
+  const ref = doc(
+    getAppFirestore(),
+    Collections.clubs,
+    clubId,
+    Collections.feeSeasons,
+    seasonId,
+  );
+  await updateDoc(ref, {
+    [Fields.paymentMethods]: paymentMethods,
+    [Fields.updatedAt]: serverTimestamp(),
+  });
+}
+
 /** Met à jour une saison existante. */
 export async function updateSeason(
   clubId: string,

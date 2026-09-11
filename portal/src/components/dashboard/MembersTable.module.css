@@ -328,6 +328,10 @@
 .name {
   font-weight: 650;
   color: var(--color-primary-900);
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
 .sub {

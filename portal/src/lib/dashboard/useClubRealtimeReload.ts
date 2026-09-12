@@ -69,6 +69,7 @@ export function useClubRealtimeReload({
       return;
     }
 
+    const resolvedClubId: string = clubId;
     const db = getAppFirestore();
     const unsubscribes: Unsubscribe[] = [];
     const feeUnsubs: Unsubscribe[] = [];
@@ -100,14 +101,19 @@ export function useClubRealtimeReload({
 
     function watchCollection(relativePath: string, key = relativePath) {
       const segments = relativePath.split("/").filter(Boolean);
-      const ref = collection(db, Collections.clubs, clubId, ...segments);
+      const ref = collection(
+        db,
+        Collections.clubs,
+        resolvedClubId,
+        ...segments,
+      );
       unsubscribes.push(
         onSnapshot(
           ref,
           () => scheduleReload(key),
           (error) => {
             console.error("[realtime] listener collection en erreur", {
-              clubId,
+              clubId: resolvedClubId,
               path: relativePath,
               code: error.code,
               message: error.message,
@@ -142,7 +148,7 @@ export function useClubRealtimeReload({
             const feeRef = doc(
               db,
               Collections.clubs,
-              clubId!,
+              resolvedClubId,
               Collections.feeSeasons,
               seasonId,
               Collections.memberFees,
@@ -155,7 +161,7 @@ export function useClubRealtimeReload({
                 () => scheduleReload(key),
                 (error) => {
                   console.error("[realtime] listener member_fee doc en erreur", {
-                    clubId,
+                    clubId: resolvedClubId,
                     seasonId,
                     memberId,
                     code: error.code,
@@ -171,7 +177,7 @@ export function useClubRealtimeReload({
         const feesRef = collection(
           db,
           Collections.clubs,
-          clubId!,
+          resolvedClubId,
           Collections.feeSeasons,
           seasonId,
           Collections.memberFees,
@@ -182,7 +188,7 @@ export function useClubRealtimeReload({
             () => scheduleReload("__member_fees__"),
             (error) => {
               console.error("[realtime] listener member_fees en erreur", {
-                clubId,
+                clubId: resolvedClubId,
                 seasonId,
                 code: error.code,
                 message: error.message,
@@ -194,7 +200,7 @@ export function useClubRealtimeReload({
 
       async function syncActiveSeasonFees() {
         try {
-          const season = await getActiveSeason(clubId!);
+          const season = await getActiveSeason(resolvedClubId);
           if (cancelled) return;
           if (!season) {
             clearFeeListeners();
@@ -214,7 +220,7 @@ export function useClubRealtimeReload({
       const seasonsRef = collection(
         db,
         Collections.clubs,
-        clubId,
+        resolvedClubId,
         Collections.feeSeasons,
       );
       unsubscribes.push(
@@ -226,7 +232,7 @@ export function useClubRealtimeReload({
           },
           (error) => {
             console.error("[realtime] listener fee_seasons en erreur", {
-              clubId,
+              clubId: resolvedClubId,
               code: error.code,
               message: error.message,
             });

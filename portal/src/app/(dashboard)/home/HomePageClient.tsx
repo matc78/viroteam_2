@@ -108,8 +108,6 @@ function AdminHomeView({
             eyebrow="Espace club"
             heading="Tableau de bord"
             lead="Chargement de votre espace club…"
-            onRefresh={reload}
-            refreshing={refreshing}
           />
           {error ? (
             <p className={introStyles.lead} role="alert">
@@ -124,8 +122,6 @@ function AdminHomeView({
               eyebrow="Espace club"
               heading={`Bonjour ${data.adminDisplayName}`}
               lead={`Vue d’ensemble de ${data.clubName} — ${data.seasonLabel}.`}
-              onRefresh={reload}
-              refreshing={refreshing}
             />
             {error ? (
               <p className={introStyles.lead} role="alert">
@@ -284,8 +280,6 @@ function CoachHomeView({
             ? `Vue de vos équipes — ${data.clubName}.`
             : "Chargement de votre espace coach…"
         }
-        onRefresh={reload}
-        refreshing={refreshing}
       />
 
       {error ? (
@@ -504,8 +498,6 @@ function PlayerHomeView({
             ? `Annonces, convocations et cotisation — ${data.clubName}.`
             : "Chargement de votre espace…"
         }
-        onRefresh={reload}
-        refreshing={refreshing}
       />
 
       {error ? (

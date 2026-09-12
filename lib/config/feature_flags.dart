@@ -17,5 +17,5 @@ abstract final class FeatureFlags {
   static bool get stripePaymentsLive => kDebugMode || _stripePaymentsLiveRelease;
 
   /// Flip à `true` pour activer Stripe aussi en release (après clés live).
-  static const bool _stripePaymentsLiveRelease = false;
+  static const bool _stripePaymentsLiveRelease = true;
 }

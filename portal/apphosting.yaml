@@ -51,6 +51,13 @@ env:
       - BUILD
       - RUNTIME
 
+  # Stripe Connect live (CB cotisations)
+  - variable: NEXT_PUBLIC_STRIPE_LIVE
+    value: "true"
+    availability:
+      - BUILD
+      - RUNTIME
+
   # PostHog
   - variable: NEXT_PUBLIC_POSTHOG_KEY
     value: phc_wMm5hy9zFdbcsgUXoibRunuxb2crXmL6iLnLSMLHBvBv

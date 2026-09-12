@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import * as Sentry from "@sentry/nextjs";
 import {
   Elements,
   PaymentElement,
@@ -9,11 +10,17 @@ import {
 } from "@stripe/react-stripe-js";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { useToast } from "@/components/ToastProvider";
+import {
+  FeePaymentAnalytics,
+  feePaymentErrorCode,
+} from "@/lib/fees/feePaymentAnalytics";
 import styles from "./StripeFeeCheckout.module.css";
 
 type StripeFeeCheckoutProps = {
   clientSecret: string;
   publishableKey: string;
+  amountCents?: number;
+  currency?: string;
   onClose: () => void;
   onPaid: () => void;
 };
@@ -32,11 +39,17 @@ function stripePromiseFor(publishableKey: string): Promise<Stripe | null> {
 
 /** Formulaire Payment Element (CB + Apple Pay / Google Pay). */
 function StripeCheckoutForm({
+  amountCents,
+  currency,
   onClose,
   onPaid,
+  onSettled,
 }: {
+  amountCents?: number;
+  currency?: string;
   onClose: () => void;
   onPaid: () => void;
+  onSettled: () => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -56,12 +69,26 @@ function StripeCheckoutForm({
         },
       });
       if (result.error) {
+        const code = result.error.code ?? result.error.type ?? "unknown";
+        FeePaymentAnalytics.trackFailed({
+          stage: "element",
+          errorCode: typeof code === "string" ? code : "unknown",
+        });
+        Sentry.captureException(result.error, {
+          tags: { feature: "fees", area: "confirm_payment" },
+          extra: { stage: "element", error_code: code },
+        });
         showToast(
           result.error.message ?? "Paiement refusé ou annulé.",
           "error",
         );
         return;
       }
+      onSettled();
+      FeePaymentAnalytics.trackSubmitted({
+        amountCents,
+        currency,
+      });
       showToast(
         "Paiement envoyé. Le statut se mettra à jour après confirmation.",
         "success",
@@ -69,6 +96,14 @@ function StripeCheckoutForm({
       onPaid();
       onClose();
     } catch (err: unknown) {
+      FeePaymentAnalytics.trackFailed({
+        stage: "element",
+        errorCode: feePaymentErrorCode(err),
+      });
+      Sentry.captureException(err, {
+        tags: { feature: "fees", area: "confirm_payment" },
+        extra: { stage: "element" },
+      });
       showToast(
         err instanceof Error ? err.message : "Erreur lors du paiement.",
         "error",
@@ -118,11 +153,22 @@ function StripeCheckoutForm({
 export function StripeFeeCheckout({
   clientSecret,
   publishableKey,
+  amountCents,
+  currency,
   onClose,
   onPaid,
 }: StripeFeeCheckoutProps) {
+  const settledRef = useRef(false);
+
+  function handleClose() {
+    if (!settledRef.current) {
+      FeePaymentAnalytics.trackCancelled("element");
+    }
+    onClose();
+  }
+
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onClick={handleClose}>
       <div
         className={styles.panel}
         role="dialog"
@@ -145,7 +191,15 @@ export function StripeFeeCheckout({
             locale: "fr",
           }}
         >
-          <StripeCheckoutForm onClose={onClose} onPaid={onPaid} />
+          <StripeCheckoutForm
+            amountCents={amountCents}
+            currency={currency}
+            onClose={handleClose}
+            onPaid={onPaid}
+            onSettled={() => {
+              settledRef.current = true;
+            }}
+          />
         </Elements>
       </div>
     </div>

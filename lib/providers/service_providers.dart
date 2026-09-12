@@ -14,6 +14,7 @@ import 'package:viro_team_v2/services/join_request_service.dart';
 import 'package:viro_team_v2/services/member_invite_service.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
+import 'package:viro_team_v2/features/fees/services/fee_payment_analytics.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/services/push_notification_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
@@ -23,6 +24,10 @@ import 'package:viro_team_v2/services/user_service.dart';
 
 final analyticsServiceProvider = Provider<AnalyticsService>(
   (ref) => AnalyticsService(),
+);
+
+final feePaymentAnalyticsProvider = Provider<FeePaymentAnalytics>(
+  (ref) => FeePaymentAnalytics(analytics: ref.watch(analyticsServiceProvider)),
 );
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
@@ -78,7 +83,9 @@ final clubActivityServiceProvider = Provider<ClubActivityService>(
 );
 
 final paymentServiceProvider = Provider<PaymentService>(
-  (ref) => StripePaymentService(),
+  (ref) => StripePaymentService(
+    analytics: ref.watch(feePaymentAnalyticsProvider),
+  ),
 );
 
 final guardianServiceProvider = Provider<GuardianService>(

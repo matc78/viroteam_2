@@ -27,6 +27,11 @@ import {
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { createStripeCheckout } from "@/lib/firebase/callableService";
 import {
+  FeePaymentAnalytics,
+  feePaymentErrorCode,
+} from "@/lib/fees/feePaymentAnalytics";
+import * as Sentry from "@sentry/nextjs";
+import {
   amountDueCents,
   getActiveSeason,
   getMemberFee,
@@ -121,15 +126,33 @@ export function FamilyFeesClient() {
         currency: data.season.currency || "eur",
       });
       if (result.clientSecret && result.publishableKey) {
+        FeePaymentAnalytics.trackStarted({
+          amountCents: data.remaining,
+          currency: data.season.currency || "eur",
+          hasSession: Boolean(result.sessionId),
+        });
         setCheckoutSession({
           clientSecret: result.clientSecret,
           publishableKey: result.publishableKey,
         });
         return;
       }
+      FeePaymentAnalytics.trackStarted({
+        amountCents: data.remaining,
+        currency: data.season.currency || "eur",
+        hasSession: Boolean(result.sessionId),
+      });
       showToast(result.message ?? "Paiement enregistré.");
       reload();
     } catch (err: unknown) {
+      FeePaymentAnalytics.trackFailed({
+        stage: "callable",
+        errorCode: feePaymentErrorCode(err),
+      });
+      Sentry.captureException(err, {
+        tags: { feature: "fees", area: "create_checkout" },
+        extra: { stage: "callable" },
+      });
       showToast(
         err instanceof Error ? err.message : "Impossible de lancer le paiement.",
       );
@@ -260,6 +283,8 @@ export function FamilyFeesClient() {
         <StripeFeeCheckout
           clientSecret={checkoutSession.clientSecret}
           publishableKey={checkoutSession.publishableKey}
+          amountCents={data?.remaining}
+          currency={data?.season?.currency || "eur"}
           onClose={() => setCheckoutSession(null)}
           onPaid={() => reload()}
         />

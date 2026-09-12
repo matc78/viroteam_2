@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,7 @@ import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
+import 'package:viro_team_v2/features/fees/services/fee_payment_analytics.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 
 /// Merchant ID Apple Pay (à aligner avec le provisioning Apple / Stripe).
@@ -124,11 +126,15 @@ class NoopPaymentService implements PaymentService {
 
 /// Paiement via Stripe Connect (callable PaymentIntent + PaymentSheet).
 class StripePaymentService implements PaymentService {
-  StripePaymentService({FirebaseFunctions? functions})
-      : _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'europe-west1');
+  StripePaymentService({
+    FirebaseFunctions? functions,
+    FeePaymentAnalytics? analytics,
+  })  : _functions = functions ??
+            FirebaseFunctions.instanceFor(region: 'europe-west1'),
+        _analytics = analytics;
 
   final FirebaseFunctions _functions;
+  final FeePaymentAnalytics? _analytics;
 
   @override
   bool get isInAppPaymentEnabled =>
@@ -151,6 +157,7 @@ class StripePaymentService implements PaymentService {
       return PaymentCheckoutResult.unavailable();
     }
     if (amountCents <= 0 && aids.isEmpty) {
+      _trackFailed(stage: 'callable', errorCode: 'invalid_amount');
       return const PaymentCheckoutResult(
         status: PaymentCheckoutStatus.failed,
         message: 'Montant invalide',
@@ -175,12 +182,20 @@ class StripePaymentService implements PaymentService {
       final publishableKey = data['publishableKey'] as String?;
       final paymentIntentId = data['paymentIntentId']?.toString();
       final sessionId = data['sessionId'] as String?;
+      final hasSession = sessionId != null && sessionId.isNotEmpty;
 
       if (clientSecret == null ||
           clientSecret.isEmpty ||
           publishableKey == null ||
           publishableKey.isEmpty) {
         if (data['ok'] == true) {
+          _analytics?.trackStarted(
+            surface: FeePaymentAnalytics.surfaceApp,
+            amountCents: amountCents,
+            currency: currency,
+            aidCount: aids.length,
+            hasSession: hasSession,
+          );
           return PaymentCheckoutResult(
             status: PaymentCheckoutStatus.started,
             sessionId: sessionId,
@@ -188,6 +203,7 @@ class StripePaymentService implements PaymentService {
                 'Aides enregistrées — en attente de justificatif',
           );
         }
+        _trackFailed(stage: 'callable', errorCode: 'missing_client_secret');
         return PaymentCheckoutResult(
           status: PaymentCheckoutStatus.failed,
           message: data['message'] as String? ??
@@ -195,12 +211,27 @@ class StripePaymentService implements PaymentService {
         );
       }
 
+      _analytics?.trackStarted(
+        surface: FeePaymentAnalytics.surfaceApp,
+        amountCents: amountCents,
+        currency: currency,
+        aidCount: aids.length,
+        hasSession: hasSession,
+      );
+
       Stripe.publishableKey = publishableKey;
       Stripe.merchantIdentifier = kStripeApplePayMerchantId;
       await Stripe.instance.applySettings();
 
       await _initPaymentSheetWithLargerInputs(clientSecret: clientSecret);
       await Stripe.instance.presentPaymentSheet();
+
+      _analytics?.trackSubmitted(
+        surface: FeePaymentAnalytics.surfaceApp,
+        amountCents: amountCents,
+        currency: currency,
+        aidCount: aids.length,
+      );
 
       return PaymentCheckoutResult(
         status: PaymentCheckoutStatus.started,
@@ -212,25 +243,80 @@ class StripePaymentService implements PaymentService {
       );
     } on StripeException catch (e) {
       if (e.error.code == FailureCode.Canceled) {
+        _analytics?.trackCancelled(
+          surface: FeePaymentAnalytics.surfaceApp,
+          stage: 'sheet',
+        );
         return const PaymentCheckoutResult(
           status: PaymentCheckoutStatus.cancelled,
           message: 'Paiement annulé',
         );
       }
+      final errorCode = e.error.code.toString();
+      _trackFailed(stage: 'sheet', errorCode: errorCode, error: e);
       return PaymentCheckoutResult(
         status: PaymentCheckoutStatus.failed,
         message: e.error.localizedMessage ?? 'Erreur Stripe',
       );
     } on FirebaseFunctionsException catch (e) {
+      _trackFailed(stage: 'callable', errorCode: e.code, error: e);
       return PaymentCheckoutResult(
         status: PaymentCheckoutStatus.failed,
         message: e.message ?? 'Erreur Stripe (${e.code})',
       );
-    } catch (e) {
+    } catch (e, stack) {
+      _trackFailed(
+        stage: 'sheet',
+        errorCode: 'unknown',
+        error: e,
+        stack: stack,
+      );
       return PaymentCheckoutResult(
         status: PaymentCheckoutStatus.failed,
         message: 'Erreur paiement : $e',
       );
+    }
+  }
+
+  void _trackFailed({
+    required String stage,
+    required String errorCode,
+    Object? error,
+    StackTrace? stack,
+  }) {
+    _analytics?.trackFailed(
+      surface: FeePaymentAnalytics.surfaceApp,
+      stage: stage,
+      errorCode: errorCode,
+    );
+    _recordSoftCrash(
+      error: error ?? Exception('fee_payment_failed:$errorCode'),
+      stack: stack,
+      stage: stage,
+      errorCode: errorCode,
+    );
+  }
+
+  /// Enregistre une erreur soft Crashlytics (best-effort, sans PII).
+  void _recordSoftCrash({
+    required Object error,
+    StackTrace? stack,
+    required String stage,
+    required String errorCode,
+  }) {
+    try {
+      FirebaseCrashlytics.instance.recordError(
+        error,
+        stack,
+        fatal: false,
+        reason: 'fee_payment_failed',
+        information: <Object>[
+          'stage=$stage',
+          'error_code=$errorCode',
+        ],
+      );
+    } catch (_) {
+      // Le monitoring ne doit jamais bloquer le paiement.
     }
   }
 }

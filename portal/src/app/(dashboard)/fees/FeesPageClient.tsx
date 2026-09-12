@@ -38,6 +38,11 @@ import { getLinkedMemberId } from "@/lib/firebase/memberService";
 import { feeStatusLabel } from "@/lib/members/membersView";
 import { StripeFeeCheckout } from "@/components/fees/StripeFeeCheckout";
 import { useToast } from "@/components/ToastProvider";
+import {
+  FeePaymentAnalytics,
+  feePaymentErrorCode,
+} from "@/lib/fees/feePaymentAnalytics";
+import * as Sentry from "@sentry/nextjs";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
 import tabStyles from "@/components/dashboard/MembersTabs.module.css";
@@ -159,15 +164,33 @@ function PlayerFeesSelfView() {
         currency: data.season.currency || "eur",
       });
       if (result.clientSecret && result.publishableKey) {
+        FeePaymentAnalytics.trackStarted({
+          amountCents: data.remaining,
+          currency: data.season.currency || "eur",
+          hasSession: Boolean(result.sessionId),
+        });
         setCheckoutSession({
           clientSecret: result.clientSecret,
           publishableKey: result.publishableKey,
         });
         return;
       }
+      FeePaymentAnalytics.trackStarted({
+        amountCents: data.remaining,
+        currency: data.season.currency || "eur",
+        hasSession: Boolean(result.sessionId),
+      });
       showToast(result.message ?? "Paiement enregistré.");
       reload();
     } catch (err: unknown) {
+      FeePaymentAnalytics.trackFailed({
+        stage: "callable",
+        errorCode: feePaymentErrorCode(err),
+      });
+      Sentry.captureException(err, {
+        tags: { feature: "fees", area: "create_checkout" },
+        extra: { stage: "callable" },
+      });
       showToast(
         err instanceof Error ? err.message : "Impossible de lancer le paiement.",
       );
@@ -288,6 +311,8 @@ function PlayerFeesSelfView() {
         <StripeFeeCheckout
           clientSecret={checkoutSession.clientSecret}
           publishableKey={checkoutSession.publishableKey}
+          amountCents={data?.remaining}
+          currency={data?.season?.currency || "eur"}
           onClose={() => setCheckoutSession(null)}
           onPaid={() => reload()}
         />

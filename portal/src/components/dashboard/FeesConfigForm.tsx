@@ -26,6 +26,11 @@ import {
   createStripeConnectLink,
   getStripeConnectStatus,
 } from "@/lib/firebase/callableService";
+import {
+  FeePaymentAnalytics,
+  feePaymentErrorCode,
+} from "@/lib/fees/feePaymentAnalytics";
+import * as Sentry from "@sentry/nextjs";
 import { defaultSeasonEndDate, isSeasonEndAfterMax, maxSeasonEndDate } from "@/lib/planning/seasonEnd";
 import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import {
@@ -353,6 +358,7 @@ export function FeesConfigForm({
     setStripeOpening(true);
     let redirected = false;
     let timeoutId = 0;
+    FeePaymentAnalytics.trackConnectStarted();
     try {
       const origin = window.location.origin;
       const result = await Promise.race([
@@ -376,8 +382,13 @@ export function FeesConfigForm({
         window.location.assign(result.url);
         return;
       }
+      FeePaymentAnalytics.trackConnectFailed("missing_url");
       showToast("Lien Stripe indisponible", "error");
     } catch (err: unknown) {
+      FeePaymentAnalytics.trackConnectFailed(feePaymentErrorCode(err));
+      Sentry.captureException(err, {
+        tags: { feature: "fees", area: "stripe_connect" },
+      });
       showToast(
         err instanceof Error
           ? err.message
@@ -405,6 +416,10 @@ export function FeesConfigForm({
         "success",
       );
     } catch (err: unknown) {
+      FeePaymentAnalytics.trackConnectFailed(feePaymentErrorCode(err));
+      Sentry.captureException(err, {
+        tags: { feature: "fees", area: "stripe_connect_status" },
+      });
       showToast(
         err instanceof Error
           ? err.message

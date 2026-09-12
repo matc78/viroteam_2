@@ -34,6 +34,10 @@ import {
 } from "./constants";
 import { addMemberToTeam } from "./teamService";
 import { toDate } from "./types";
+import {
+  appendClubActivityToTransaction,
+  ClubActivityTypes,
+} from "./activityService";
 
 /** Rôle club (aligné MemberRoles Flutter). */
 export type ClubMemberRole =
@@ -451,6 +455,8 @@ export async function addMemberWithInvitation(params: {
   club: Pick<ClubRecord, "name" | "sport">;
   /** E-mail de l’invité (obligatoire, seul ce compte pourra accepter). */
   email: string;
+  /** false pour import CSV (log agrégé côté appelant). */
+  logActivity?: boolean;
 }): Promise<AddMemberResult> {
   const trimmedFirst = formatFirstName(params.firstName);
   const trimmedLast = formatLastName(params.lastName);
@@ -524,6 +530,16 @@ export async function addMemberWithInvitation(params: {
       [Fields.memberCount]: memberCount + 1,
       [Fields.updatedAt]: serverTimestamp(),
     });
+
+    if (params.logActivity !== false) {
+      appendClubActivityToTransaction(tx, params.clubId, {
+        type: ClubActivityTypes.membersAdded,
+        actorUid: params.sentByUid,
+        count: 1,
+        summary: displayName,
+        entityIds: [memberRef.id],
+      });
+    }
   });
 
   const member: ClubMemberRecord = {

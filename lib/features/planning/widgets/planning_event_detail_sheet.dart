@@ -314,6 +314,7 @@ class _PlanningEventDetailSheetState
       final count = await service.cancelEventSeries(
         clubId: widget.clubId,
         seriesId: seriesId,
+        title: _event.title,
       );
       if (!mounted) return;
       Navigator.pop(context);
@@ -328,6 +329,7 @@ class _PlanningEventDetailSheetState
     await service.cancelEvent(
       clubId: widget.clubId,
       eventId: _event.id,
+      title: _event.title,
     );
     if (!mounted) return;
     Navigator.pop(context);

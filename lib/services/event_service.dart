@@ -2,8 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/services/club_activity_service.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
@@ -12,12 +14,16 @@ class EventService {
   EventService({
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
+    ClubActivityService? activityService,
   })  : _db = firestore ?? appFirestore,
         _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'europe-west1');
+            FirebaseFunctions.instanceFor(region: 'europe-west1'),
+        _activity = activityService ??
+            ClubActivityService(firestore: firestore);
 
   final FirebaseFirestore _db;
   final FirebaseFunctions _functions;
+  final ClubActivityService _activity;
 
   CollectionReference<Map<String, dynamic>> _events(String clubId) =>
       _db
@@ -613,6 +619,14 @@ class EventService {
         FirestoreFields.createdAt: FieldValue.serverTimestamp(),
       });
     }
+    _activity.appendToBatch(
+      batch: batch,
+      clubId: clubId,
+      type: ClubActivityTypes.eventsCreated,
+      actorUid: creatorId,
+      count: dates.length,
+      summary: title,
+    );
     await batch.commit();
     return dates.length;
   }
@@ -639,16 +653,25 @@ class EventService {
   Future<void> cancelEvent({
     required String clubId,
     required String eventId,
+    String? title,
   }) async {
     await _events(clubId).doc(eventId).update({
       FirestoreFields.canceled: true,
     });
+    await _activity.log(
+      clubId: clubId,
+      type: ClubActivityTypes.eventCancelled,
+      count: 1,
+      summary: title?.trim() ?? '',
+      eventId: eventId,
+    );
   }
 
   /// Annule tous les événements d'une série récurrente.
   Future<int> cancelEventSeries({
     required String clubId,
     required String seriesId,
+    String? title,
   }) async {
     final snap = await _events(clubId)
         .where(FirestoreFields.seriesId, isEqualTo: seriesId)
@@ -659,6 +682,13 @@ class EventService {
     for (final doc in snap.docs) {
       batch.update(doc.reference, {FirestoreFields.canceled: true});
     }
+    _activity.appendToBatch(
+      batch: batch,
+      clubId: clubId,
+      type: ClubActivityTypes.eventCancelled,
+      count: snap.docs.length,
+      summary: title?.trim() ?? '',
+    );
     await batch.commit();
     return snap.docs.length;
   }

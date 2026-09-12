@@ -19,6 +19,10 @@ import { Collections, Fields, MemberRoles } from "./constants";
 import { getClub } from "./clubService";
 import { toDate } from "./types";
 import { resolveSeasonEndDate } from "@/lib/planning/seasonEnd";
+import {
+  appendClubActivityToBatch,
+  ClubActivityTypes,
+} from "./activityService";
 
 /** Types d'événements club (aligné EventTypes Flutter). */
 export type EventType = "training" | "match" | "tournament" | "other";
@@ -431,6 +435,13 @@ export async function createClubEvent(
     if (seriesId) payload[Fields.seriesId] = seriesId;
     batch.set(eventRef, payload);
   }
+
+  appendClubActivityToBatch(batch, input.clubId, {
+    type: ClubActivityTypes.eventsCreated,
+    actorUid: input.creatorId,
+    count: dates.length,
+    summary: input.title,
+  });
 
   await batch.commit();
   return dates.length;

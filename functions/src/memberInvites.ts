@@ -4,6 +4,7 @@ import { defineSecret, defineString } from "firebase-functions/params";
 import { escapeHtml, sendBrevoTransactionalEmail } from "./brevo";
 import { db, defineDualCallable } from "./db";
 import { assertClubAdmin } from "./guardians";
+import { ClubActivityTypes, logClubActivity } from "./clubActivity";
 
 const brevoApiKey = defineSecret("BREVO_API_KEY");
 const brevoSenderEmail = defineString("BREVO_SENDER_EMAIL", {
@@ -469,6 +470,15 @@ export const {
             error instanceof Error ? error.message : "Échec d’envoi",
         });
       }
+    }
+
+    if (sent > 0) {
+      await logClubActivity({
+        clubId,
+        type: ClubActivityTypes.invitationsSent,
+        actorUid: callerUid,
+        count: sent,
+      });
     }
 
     return { ok: true, sent, skipped, failed, results };

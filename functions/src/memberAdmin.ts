@@ -23,6 +23,7 @@ import {
   type AdminMemberRef,
 } from "./memberAdminUtils";
 import { recomputeParentTeamIdsSafe } from "./parentTeams";
+import { ClubActivityTypes, logClubActivity } from "./clubActivity";
 
 export {
   isLastAdmin,
@@ -221,6 +222,9 @@ async function handleRemoveMember(
     await memberRef.collection("guardians").get()
   ).docs;
 
+  let removedDisplayName = "";
+  let didRemove = false;
+
   await db().runTransaction(async (tx) => {
     // --- Lectures (toutes avant la première écriture) ---
     const [memberSnap, clubSnap, adminMembers] = await Promise.all([
@@ -241,6 +245,17 @@ async function handleRemoveMember(
     const accountUid = accountUidOf(member);
     const adminIds = stringArray(clubSnap.data()?.adminIds);
     const target: AdminMemberRef = { memberId, accountUid };
+    const firstName = String(member.firstName ?? "").trim();
+    const lastName = String(member.lastName ?? "").trim();
+    const snapshot =
+      member.snapshot && typeof member.snapshot === "object"
+        ? (member.snapshot as Record<string, unknown>)
+        : {};
+    removedDisplayName =
+      [firstName, lastName].filter(Boolean).join(" ") ||
+      String(snapshot.displayName ?? "").trim() ||
+      memberId;
+    didRemove = true;
 
     if (role === ROLE_ADMIN && isLastAdmin({ adminIds, adminMembers, target })) {
       throw new HttpsError(
@@ -342,6 +357,17 @@ async function handleRemoveMember(
   // Hors transaction : sous-collection guardians orpheline + parentTeamIds.
   if (guardianDocs.length > 0) {
     await detachGuardiansOfMember(clubId, memberId, guardianDocs);
+  }
+
+  if (didRemove) {
+    await logClubActivity({
+      clubId,
+      type: ClubActivityTypes.membersRemoved,
+      actorUid: callerUid,
+      count: 1,
+      summary: removedDisplayName,
+      entityIds: [memberId],
+    });
   }
 
   return { ok: true };

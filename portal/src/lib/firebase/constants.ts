@@ -8,6 +8,8 @@ export const Collections = {
   events: "events",
   feeSeasons: "fee_seasons",
   memberFees: "member_fees",
+  paymentEvents: "payment_events",
+  activityEvents: "activity_events",
   teams: "teams",
   invitations: "invitations",
   guardians: "guardians",
@@ -80,7 +82,22 @@ export const Fields = {
   paidAt: "paidAt",
   paidVia: "paidVia",
   paymentProvider: "paymentProvider",
+  externalPaymentId: "externalPaymentId",
   amountPaidCents: "amountPaidCents",
+  amountPaidCentsBefore: "amountPaidCentsBefore",
+  amountPaidCentsAfter: "amountPaidCentsAfter",
+  deltaCents: "deltaCents",
+  statusAfter: "statusAfter",
+  actorUid: "actorUid",
+  actorDisplayName: "actorDisplayName",
+  count: "count",
+  summary: "summary",
+  entityIds: "entityIds",
+  sessionId: "sessionId",
+  aidId: "aidId",
+  aidLabel: "aidLabel",
+  aidAmountCents: "aidAmountCents",
+  note: "note",
   aids: "aids",
   offlineMethod: "offlineMethod",
   markedBy: "markedBy",
@@ -92,6 +109,7 @@ export const Fields = {
   title: "title",
   type: "type",
   location: "location",
+  eventId: "eventId",
   date: "date",
   dateId: "dateId",
   startTime: "startTime",
@@ -100,11 +118,13 @@ export const Fields = {
   matchVenue: "matchVenue",
   teamIds: "teamIds",
   allTeams: "allTeams",
+  teamId: "teamId",
   teamMemberIds: "teamMemberIds",
   playerIds: "playerIds",
   coachIds: "coachIds",
   pendingPlayerIds: "pendingPlayerIds",
   category: "category",
+  announcementId: "announcementId",
   rsvp: "rsvp",
   attendance: "attendance",
   creatorId: "creatorId",
@@ -201,6 +221,19 @@ export const FeePaidVia = {
   manual: "manual",
   helloasso: "helloasso",
   inApp: "in_app",
+  stripe: "stripe",
+} as const;
+
+/** Types d’événements ledger `payment_events`. */
+export const FeePaymentEventTypes = {
+  offlineCredit: "offline_credit",
+  cardCredit: "card_credit",
+  adjustAbsolute: "adjust_absolute",
+  aidValidated: "aid_validated",
+  aidRejected: "aid_rejected",
+  markedPaid: "marked_paid",
+  exempted: "exempted",
+  unexempted: "unexempted",
 } as const;
 
 /** Moyens hors-ligne acceptés (aligné Flutter FeePaymentMethods.offline). */
@@ -249,6 +282,17 @@ export const GuardianStatuses = {
   pending: "pending",
   active: "active",
   revoked: "revoked",
+} as const;
+
+/** Types du journal d’activité club (`activity_events`). */
+export const ClubActivityTypes = {
+  membersAdded: "members_added",
+  membersRemoved: "members_removed",
+  invitationsSent: "invitations_sent",
+  eventsCreated: "events_created",
+  eventCancelled: "event_cancelled",
+  teamCreated: "team_created",
+  announcementPublished: "announcement_published",
 } as const;
 
 /** Ciblage des annonces club (aligné AnnouncementTargetTypes Flutter). */

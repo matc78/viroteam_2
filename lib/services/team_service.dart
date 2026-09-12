@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
+import 'package:viro_team_v2/services/club_activity_service.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
@@ -13,11 +15,15 @@ class TeamService {
   TeamService({
     FirebaseFirestore? firestore,
     EventService? eventService,
+    ClubActivityService? activityService,
   })  : _db = firestore ?? appFirestore,
-        _eventService = eventService ?? EventService(firestore: firestore);
+        _eventService = eventService ?? EventService(firestore: firestore),
+        _activity = activityService ??
+            ClubActivityService(firestore: firestore);
 
   final FirebaseFirestore _db;
   final EventService _eventService;
+  final ClubActivityService _activity;
 
   CollectionReference<Map<String, dynamic>> _teams(String clubId) => _db
       .collection(ProjectConfig.clubsCollection)
@@ -175,14 +181,26 @@ class TeamService {
     required String name,
     required String category,
   }) async {
-    final ref = await _teams(clubId).add({
-      FirestoreFields.name: name.trim(),
+    final trimmedName = name.trim();
+    final ref = _teams(clubId).doc();
+    final batch = _db.batch();
+    batch.set(ref, {
+      FirestoreFields.name: trimmedName,
       FirestoreFields.category: category,
       FirestoreFields.playerIds: <String>[],
       FirestoreFields.coachIds: <String>[],
       FirestoreFields.pendingPlayerIds: <String>[],
       FirestoreFields.createdAt: FieldValue.serverTimestamp(),
     });
+    _activity.appendToBatch(
+      batch: batch,
+      clubId: clubId,
+      type: ClubActivityTypes.teamCreated,
+      count: 1,
+      summary: trimmedName,
+      teamId: ref.id,
+    );
+    await batch.commit();
     return ref.id;
   }
 

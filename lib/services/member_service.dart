@@ -5,6 +5,8 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/services/club_activity_service.dart';
+import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
@@ -87,12 +89,16 @@ class MemberService {
   MemberService({
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
+    ClubActivityService? activityService,
   })  : _db = firestore ?? appFirestore,
         _functions =
-            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1');
+            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1'),
+        _activity = activityService ??
+            ClubActivityService(firestore: firestore);
 
   final FirebaseFirestore _db;
   final FirebaseFunctions _functions;
+  final ClubActivityService _activity;
 
   /// Valide et normalise l'e-mail obligatoire d'une invitation membre
   /// (trim + minuscules). Lève [ArgumentError] si vide ou mal formé.
@@ -263,6 +269,8 @@ class MemberService {
   /// [email] est obligatoire : l'invitation ne pourra être acceptée que par
   /// ce compte. Il est normalisé (trim + minuscules) et écrit sur
   /// l'invitation (`email`) et la fiche (`snapshot.email`).
+  ///
+  /// [logActivity] : false pour les imports bulk (log agrégé côté appelant).
   Future<AddMemberResult> addMemberWithInvitation({
     required String clubId,
     required String firstName,
@@ -271,6 +279,7 @@ class MemberService {
     required String sentByUid,
     required Club club,
     required String email,
+    bool logActivity = true,
   }) async {
     final trimmedFirst = formatFirstName(firstName);
     final trimmedLast = formatLastName(lastName);
@@ -332,6 +341,18 @@ class MemberService {
         FirestoreFields.memberCount: memberCount + 1,
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       });
+
+      if (logActivity) {
+        _activity.appendToTransaction(
+          tx: tx,
+          clubId: clubId,
+          type: ClubActivityTypes.membersAdded,
+          actorUid: sentByUid,
+          count: 1,
+          summary: displayName,
+          entityIds: [memberRef.id],
+        );
+      }
     });
 
     final member = ClubMember(

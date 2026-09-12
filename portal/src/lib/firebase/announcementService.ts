@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   deleteField,
   getDocs,
@@ -10,6 +9,7 @@ import {
   updateDoc,
   doc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
 import {
@@ -25,6 +25,10 @@ import type { ClubMemberRecord } from "./memberService";
 import { toDate } from "./types";
 import type { PlanningGuestSelection } from "@/lib/planning/resolveGuestAudience";
 import { resolveGuestAudience } from "@/lib/planning/resolveGuestAudience";
+import {
+  appendClubActivityToBatch,
+  ClubActivityTypes,
+} from "./activityService";
 
 /** Annonce club (bureau + famille). */
 export type ClubAnnouncementRecord = {
@@ -250,7 +254,11 @@ export async function createAnnouncement(params: {
       ? []
       : params.targetIds;
 
-  const ref = await addDoc(announcementsCollection(params.clubId), {
+  const preview =
+    message.length > 80 ? `${message.slice(0, 80)}…` : message;
+  const announcementRef = doc(announcementsCollection(params.clubId));
+  const batch = writeBatch(getAppFirestore());
+  batch.set(announcementRef, {
     [Fields.senderId]: params.senderId,
     [Fields.senderFirstName]: params.senderFirstName.trim(),
     [Fields.senderLastName]: params.senderLastName.trim(),
@@ -260,7 +268,15 @@ export async function createAnnouncement(params: {
     [Fields.endsAt]: Timestamp.fromDate(params.endsAt),
     [Fields.createdAt]: serverTimestamp(),
   });
-  return ref.id;
+  appendClubActivityToBatch(batch, params.clubId, {
+    type: ClubActivityTypes.announcementPublished,
+    actorUid: params.senderId,
+    count: 1,
+    summary: preview,
+    announcementId: announcementRef.id,
+  });
+  await batch.commit();
+  return announcementRef.id;
 }
 
 /** Clôture manuellement une annonce en cours. */

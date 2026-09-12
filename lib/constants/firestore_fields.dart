@@ -95,6 +95,7 @@ abstract final class FirestoreFields {
   static const String type = 'type';
   static const String title = 'title';
   static const String location = 'location';
+  static const String eventId = 'eventId';
   static const String allTeams = 'allTeams';
   static const String date = 'date';
   static const String dateId = 'dateId';
@@ -114,6 +115,7 @@ abstract final class FirestoreFields {
   static const String lastManualPushAt = 'lastManualPushAt';
 
   // teams/{teamId} (+ practiceLocations.category)
+  static const String teamId = 'teamId';
   static const String category = 'category';
   static const String categoryCustom = 'categoryCustom';
   static const String playerIds = 'playerIds';
@@ -123,6 +125,7 @@ abstract final class FirestoreFields {
   static const String parentsMessagingLink = 'parentsMessagingLink';
 
   // announcements
+  static const String announcementId = 'announcementId';
   static const String senderId = 'senderId';
   static const String senderFirstName = 'senderFirstName';
   static const String senderLastName = 'senderLastName';
@@ -179,6 +182,20 @@ abstract final class FirestoreFields {
   static const String externalOrderId = 'externalOrderId';
   static const String checkoutIntentId = 'checkoutIntentId';
   static const String amountPaidCents = 'amountPaidCents';
+  static const String amountPaidCentsBefore = 'amountPaidCentsBefore';
+  static const String amountPaidCentsAfter = 'amountPaidCentsAfter';
+  static const String deltaCents = 'deltaCents';
+  static const String statusAfter = 'statusAfter';
+  static const String actorUid = 'actorUid';
+  static const String actorDisplayName = 'actorDisplayName';
+  static const String count = 'count';
+  static const String summary = 'summary';
+  static const String entityIds = 'entityIds';
+  static const String sessionId = 'sessionId';
+  static const String aidId = 'aidId';
+  static const String aidLabel = 'aidLabel';
+  static const String aidAmountCents = 'aidAmountCents';
+  static const String note = 'note';
   static const String aids = 'aids';
   static const String installmentCount = 'installmentCount';
   static const String offlineMethod = 'offlineMethod';

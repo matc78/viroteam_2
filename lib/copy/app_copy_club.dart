@@ -117,6 +117,7 @@ final class AppCopyClub {
   String get actionInfos => 'Infos';
   String get actionManageTeams => 'Gérer les équipes';
   String get actionManageMembers => 'Gérer les membres';
+  String get actionRecentActivity => 'Dernières actions';
   String get actionFeesTracking => 'Suivi cotisations';
   String get actionAppearance => 'Apparence';
   String get actionEquipment => 'Équipements';

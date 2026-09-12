@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { TeamPageClient } from "@/app/(dashboard)/team/TeamPageClient";
 import { AnnouncementsPageClient } from "@/app/(dashboard)/announcements/AnnouncementsPageClient";
+import { ActivityPageClient } from "@/app/(dashboard)/activity/ActivityPageClient";
 import { EquipmentPageClient } from "@/app/(dashboard)/equipment/EquipmentPageClient";
 import { FeesPageClient } from "@/app/(dashboard)/fees/FeesPageClient";
 import { HomePageClient } from "@/app/(dashboard)/home/HomePageClient";
@@ -21,6 +22,7 @@ type ModuleId =
   | "my-planning"
   | "fees"
   | "announcements"
+  | "activity"
   | "equipment"
   | "settings";
 
@@ -70,6 +72,12 @@ const MODULES: ModuleDef[] = [
     match: (pathname) =>
       pathname === "/announcements" || pathname.startsWith("/announcements/"),
     render: () => <AnnouncementsPageClient />,
+  },
+  {
+    id: "activity",
+    match: (pathname) =>
+      pathname === "/activity" || pathname.startsWith("/activity/"),
+    render: () => <ActivityPageClient />,
   },
   {
     id: "equipment",

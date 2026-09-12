@@ -281,6 +281,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                               onManageMembers: () => context.push(
                                 AppRoutes.clubMembersPath(clubId),
                               ),
+                              onActivity: () => context.push(
+                                AppRoutes.clubActivityPath(clubId),
+                              ),
                               onFees: m.role == MemberRoles.admin
                                   ? () => context.push(
                                         AppRoutes.clubFeesPath(clubId),

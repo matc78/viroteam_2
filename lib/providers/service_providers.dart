@@ -4,6 +4,7 @@ import 'package:viro_team_v2/services/account_service.dart';
 import 'package:viro_team_v2/services/announcement_service.dart';
 import 'package:viro_team_v2/services/auth_service.dart';
 import 'package:viro_team_v2/services/club_service.dart';
+import 'package:viro_team_v2/services/club_activity_service.dart';
 import 'package:viro_team_v2/services/equipment_service.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/services/fee_service.dart';
@@ -71,6 +72,10 @@ final announcementServiceProvider = Provider<AnnouncementService>(
 );
 
 final feeServiceProvider = Provider<FeeService>((ref) => FeeService());
+
+final clubActivityServiceProvider = Provider<ClubActivityService>(
+  (ref) => ClubActivityService(),
+);
 
 final paymentServiceProvider = Provider<PaymentService>(
   (ref) => StripePaymentService(),

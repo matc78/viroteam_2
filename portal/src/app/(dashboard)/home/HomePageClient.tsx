@@ -9,6 +9,7 @@ import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { FeeStatusChart } from "@/components/dashboard/FeeStatusChart";
 import { KpiCard } from "@/components/dashboard/KpiCard";
+import { RecentActivityPreview } from "@/components/dashboard/RecentActivityPreview";
 import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
 import {
@@ -32,6 +33,11 @@ import {
   isClubResourceReady,
   useAsyncClubResource,
 } from "@/lib/dashboard/useAsyncClubResource";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
@@ -54,6 +60,16 @@ function formatEuros(cents: number): string {
     style: "currency",
     currency: "EUR",
   }).format(cents / 100);
+}
+
+function formatAnnouncementWhen(date: Date | null): string {
+  if (!date) return "";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 /** Home admin (KPIs + charts cotisations). */
@@ -86,40 +102,53 @@ function AdminHomeView({
 
   return (
     <div className={refreshing ? transitionStyles.refreshing : undefined}>
-      <DashboardPageIntro
-        eyebrow="Espace club"
-        heading={data ? `Bonjour ${data.adminDisplayName}` : "Tableau de bord"}
-        lead={
-          data
-            ? `Vue d’ensemble de ${data.clubName} — ${data.seasonLabel}.`
-            : "Chargement de votre espace club…"
-        }
-        onRefresh={reload}
-        refreshing={refreshing}
-      />
-
-      {error ? (
-        <p className={introStyles.lead} role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <div className={styles.homeActions}>
-        <Link href="/announcements" className={styles.announcementsCta}>
-          Annonces
-        </Link>
-      </div>
-
-      {data ? (
+      {!data ? (
         <>
-          <section className={styles.kpiGrid} aria-label="Indicateurs clés">
+          <DashboardPageIntro
+            eyebrow="Espace club"
+            heading="Tableau de bord"
+            lead="Chargement de votre espace club…"
+            onRefresh={reload}
+            refreshing={refreshing}
+          />
+          {error ? (
+            <p className={introStyles.lead} role="alert">
+              {error}
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <div className={styles.homeBoard}>
+          <div className={styles.homeIntro}>
+            <DashboardPageIntro
+              eyebrow="Espace club"
+              heading={`Bonjour ${data.adminDisplayName}`}
+              lead={`Vue d’ensemble de ${data.clubName} — ${data.seasonLabel}.`}
+              onRefresh={reload}
+              refreshing={refreshing}
+            />
+            {error ? (
+              <p className={introStyles.lead} role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
+
+          <div className={styles.kpiColumn} aria-label="Indicateurs clés">
             {data.kpis.map((kpi) => (
               <KpiCard key={kpi.id} kpi={kpi} />
             ))}
-          </section>
+          </div>
 
-          {showPersonalRsvp ? (
-            <section className={styles.rsvpStack} aria-label="Événements et RSVP">
+          <div className={styles.homeBody}>
+            <section
+              className={
+                data.hasCoachedTeams || data.coachedUpcomingEvents.length > 0
+                  ? styles.coachedActivityRow
+                  : styles.activityPreviewAlone
+              }
+              aria-label="Équipes et activité"
+            >
               {data.hasCoachedTeams || data.coachedUpcomingEvents.length > 0 ? (
                 <UpcomingEvents
                   title="Équipes entraînées"
@@ -133,7 +162,12 @@ function AdminHomeView({
                   onRsvpUpdated={reload}
                 />
               ) : null}
-              {data.hasPlayerTeams || data.playerUpcomingEvents.length > 0 ? (
+              <RecentActivityPreview clubId={clubId} />
+            </section>
+
+            {showPersonalRsvp &&
+            (data.hasPlayerTeams || data.playerUpcomingEvents.length > 0) ? (
+              <section className={styles.rsvpStack} aria-label="Mes convocations">
                 <UpcomingEvents
                   title="Mes convocations"
                   subtitle="Équipes où tu joues · ta réponse RSVP"
@@ -145,30 +179,76 @@ function AdminHomeView({
                   audienceIds={rsvpAudienceIds}
                   onRsvpUpdated={reload}
                 />
-              ) : null}
+              </section>
+            ) : null}
+
+            <section
+              className={styles.activityGrid}
+              aria-label="Planning et alertes"
+            >
+              <UpcomingEvents
+                title="Prochains événements du club"
+                subtitle="14 prochains jours · vue club"
+                titleId="admin-club-upcoming-title"
+                events={data.upcomingEvents}
+                detailedRsvp
+              />
+              <AttentionList items={data.attentionItems} />
             </section>
-          ) : null}
 
-          <section className={styles.activityGrid} aria-label="Planning et alertes">
-            <UpcomingEvents
-              title="Prochains événements du club"
-              subtitle="14 prochains jours · vue club"
-              titleId="admin-club-upcoming-title"
-              events={data.upcomingEvents}
-              detailedRsvp
-            />
-            <AttentionList items={data.attentionItems} />
-          </section>
+            <section className={styles.chartsGrid} aria-label="Cotisations">
+              <FeeStatusChart segments={data.feeStatus} />
+              <CollectionsChart
+                months={data.collections}
+                showHelloAsso={showHelloAsso}
+              />
+            </section>
+          </div>
 
-          <section className={styles.chartsGrid} aria-label="Cotisations">
-            <FeeStatusChart segments={data.feeStatus} />
-            <CollectionsChart
-              months={data.collections}
-              showHelloAsso={showHelloAsso}
-            />
-          </section>
-        </>
-      ) : null}
+          <aside
+            className={`${panelStyles.panel} ${styles.announcementsColumn}`}
+            data-tone="blue"
+            aria-labelledby="home-announcements-title"
+          >
+            <header className={styles.announcementsColumnHeader}>
+              <h2
+                id="home-announcements-title"
+                className={styles.sectionTitle}
+              >
+                Annonces
+              </h2>
+              <Link href="/announcements" className={styles.viewAllInline}>
+                Voir tout →
+              </Link>
+            </header>
+            {data.announcements.length === 0 ? (
+              <p className={styles.emptyHint}>Aucune annonce en cours.</p>
+            ) : (
+              <ul className={styles.homeAnnouncementList}>
+                {data.announcements.map((announcement) => (
+                  <li
+                    key={announcement.id}
+                    className={styles.homeAnnouncementItem}
+                  >
+                    <p className={styles.homeAnnouncementMessage}>
+                      {announcement.message}
+                    </p>
+                    <p className={styles.homeAnnouncementMeta}>
+                      {announcement.senderName}
+                      {announcement.targetLabel
+                        ? ` · ${announcement.targetLabel}`
+                        : ""}
+                      {announcement.createdAt
+                        ? ` · ${formatAnnouncementWhen(announcement.createdAt)}`
+                        : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
@@ -297,7 +377,10 @@ function CoachHomeView({
             )}
           </section>
 
-          <section className={styles.rsvpStack} aria-label="Événements et RSVP">
+          <section
+            className={styles.coachedActivityRow}
+            aria-label="Équipes et activité"
+          >
             <UpcomingEvents
               title="Équipes entraînées"
               subtitle="14 prochains jours · réponses de tes équipes"
@@ -309,7 +392,11 @@ function CoachHomeView({
               audienceIds={rsvpAudienceIds}
               onRsvpUpdated={reload}
             />
-            {data.hasPlayerTeams || data.playerUpcomingEvents.length > 0 ? (
+            <RecentActivityPreview clubId={clubId} />
+          </section>
+
+          {data.hasPlayerTeams || data.playerUpcomingEvents.length > 0 ? (
+            <section className={styles.rsvpStack} aria-label="Mes convocations">
               <UpcomingEvents
                 title="Mes convocations"
                 subtitle="Équipes où tu joues · ta réponse RSVP"
@@ -321,8 +408,8 @@ function CoachHomeView({
                 audienceIds={rsvpAudienceIds}
                 onRsvpUpdated={reload}
               />
-            ) : null}
-          </section>
+            </section>
+          ) : null}
 
           <section
             className={`${panelStyles.panel} ${styles.weekPanel}`}
@@ -580,6 +667,7 @@ export function HomePageClient() {
   const { activeClub, activeClubRole, profile, user } = useAuth();
   const displayName = profile?.displayName || "Membre";
   const role = activeClubRole ?? MemberRoles.admin;
+  const homeActive = useIsPortalRouteActive(["/home"]);
 
   const adminResource = useAsyncClubResource(
     role === MemberRoles.admin ? activeClub : null,
@@ -613,6 +701,30 @@ export function HomePageClient() {
       }),
     [displayName, role, user?.uid],
   );
+
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.homeAdmin,
+    listenActiveMemberFees: true,
+    onReload: adminResource.reload,
+    enabled: homeActive && role === MemberRoles.admin,
+  });
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.homeCoach,
+    onReload: coachResource.reload,
+    enabled: homeActive && role === MemberRoles.coach,
+  });
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.homePlayer,
+    listenActiveMemberFees: true,
+    memberFeeIds: playerResource.data?.linkedMemberId
+      ? [playerResource.data.linkedMemberId]
+      : [],
+    onReload: playerResource.reload,
+    enabled: homeActive && role === MemberRoles.player,
+  });
 
   const active = useMemo(() => {
     if (role === MemberRoles.coach) return coachResource;

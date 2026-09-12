@@ -66,7 +66,9 @@ abstract final class ProjectConfig {
   static const String pendingMembersSubcollection = 'pending_members';
   static const String feeSeasonsSubcollection = 'fee_seasons';
   static const String memberFeesSubcollection = 'member_fees';
+  static const String paymentEventsSubcollection = 'payment_events';
   static const String paymentSessionsSubcollection = 'payment_sessions';
+  static const String activityEventsSubcollection = 'activity_events';
   static const String equipmentSubcollection = 'equipment';
   static const String paymentsHelloAssoSpecDoc =
       'docs/specs/viroteam_v2_payments_helloasso_spec.md';

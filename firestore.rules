@@ -327,6 +327,14 @@ service cloud.firestore {
         allow create, update, delete: if isClubCoachOrAdmin(clubId);
       }
 
+      // ——— Journal d’activité club (append-only) ———
+      match /activity_events/{eventId} {
+        allow read: if isClubCoachOrAdmin(clubId);
+        allow create: if isClubCoachOrAdmin(clubId)
+          && request.resource.data.actorUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
       // ——— Cotisations ———
       match /fee_seasons/{seasonId} {
         allow read: if isClubMember(clubId) || isClubGuardian(clubId);
@@ -339,6 +347,15 @@ service cloud.firestore {
             || isActiveGuardianOf(clubId, memberId);
           // Admin manuel (hors-ligne / aides) ; CB via Cloud Functions (Admin SDK).
           allow write: if isClubAdmin(clubId);
+
+          // Ledger immuable : create admin, update/delete interdits.
+          match /payment_events/{eventId} {
+            allow read: if isClubCoachOrAdmin(clubId)
+              || ownsMemberDoc(clubId, memberId)
+              || isActiveGuardianOf(clubId, memberId);
+            allow create: if isClubAdmin(clubId);
+            allow update, delete: if false;
+          }
         }
 
         match /payment_sessions/{sessionId} {

@@ -22,6 +22,10 @@ import {
   syncUpcomingEventsAudienceFromTeams,
   type TeamOption,
 } from "./eventService";
+import {
+  appendClubActivityToTransaction,
+  ClubActivityTypes,
+} from "./activityService";
 
 /** Rôle roster équipe (joueur ou coach). */
 export type TeamRosterRole =
@@ -101,6 +105,12 @@ export async function createTeam(params: {
       [Fields.pendingPlayerIds]: [],
       [Fields.createdAt]: serverTimestamp(),
       [Fields.updatedAt]: serverTimestamp(),
+    });
+    appendClubActivityToTransaction(tx, params.clubId, {
+      type: ClubActivityTypes.teamCreated,
+      count: 1,
+      summary: trimmedName,
+      teamId: teamRef.id,
     });
   });
   return teamRef.id;

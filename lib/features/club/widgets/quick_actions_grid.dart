@@ -229,6 +229,7 @@ class ClubManagementActionsGrid extends StatelessWidget {
     this.onPlanning,
     this.onManageTeams,
     this.onManageMembers,
+    this.onActivity,
     this.onFees,
     this.onPortal,
     this.onAppearance,
@@ -242,6 +243,7 @@ class ClubManagementActionsGrid extends StatelessWidget {
   final VoidCallback? onPlanning;
   final VoidCallback? onManageTeams;
   final VoidCallback? onManageMembers;
+  final VoidCallback? onActivity;
   final VoidCallback? onFees;
   final VoidCallback? onPortal;
   final VoidCallback? onAppearance;
@@ -268,6 +270,13 @@ class ClubManagementActionsGrid extends StatelessWidget {
           label: AppCopy.club.actionManageMembers,
           icon: ViroIcons.user,
           onTap: onManageMembers,
+        ),
+      if ((role == MemberRoles.admin || role == MemberRoles.coach) &&
+          onActivity != null)
+        QuickAction(
+          label: AppCopy.club.actionRecentActivity,
+          icon: ViroIcons.clock,
+          onTap: onActivity,
         ),
       if (role == MemberRoles.admin && onFees != null)
         QuickAction(

@@ -2,15 +2,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/announcements/announcement_target_types.dart';
+import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
+import 'package:viro_team_v2/services/club_activity_service.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
 
 class AnnouncementService {
-  AnnouncementService({FirebaseFirestore? firestore})
-      : _db = firestore ?? appFirestore;
+  AnnouncementService({
+    FirebaseFirestore? firestore,
+    ClubActivityService? activityService,
+  })  : _db = firestore ?? appFirestore,
+        _activity = activityService ??
+            ClubActivityService(firestore: firestore);
 
   final FirebaseFirestore _db;
+  final ClubActivityService _activity;
 
   CollectionReference<Map<String, dynamic>> _announcements(String clubId) =>
       _db
@@ -143,7 +150,12 @@ class AnnouncementService {
     if (trimmed.isEmpty) {
       throw ArgumentError('Le message est obligatoire.');
     }
-    await _announcements(clubId).add({
+    final preview = trimmed.length > 80
+        ? '${trimmed.substring(0, 80)}…'
+        : trimmed;
+    final ref = _announcements(clubId).doc();
+    final batch = _db.batch();
+    batch.set(ref, {
       FirestoreFields.senderId: senderId,
       FirestoreFields.senderFirstName: senderFirstName,
       FirestoreFields.senderLastName: senderLastName,
@@ -156,6 +168,16 @@ class AnnouncementService {
       FirestoreFields.endsAt: Timestamp.fromDate(endsAt),
       FirestoreFields.createdAt: FieldValue.serverTimestamp(),
     });
+    _activity.appendToBatch(
+      batch: batch,
+      clubId: clubId,
+      type: ClubActivityTypes.announcementPublished,
+      actorUid: senderId,
+      count: 1,
+      summary: preview,
+      announcementId: ref.id,
+    );
+    await batch.commit();
   }
 
   /// Clôture manuellement une annonce (reste listée côté staff, masquée aux membres).

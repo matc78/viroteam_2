@@ -300,6 +300,10 @@ export function isBureauRouteAllowed(
   if (pathname === "/my-planning" || pathname.startsWith("/my-planning/")) {
     return true;
   }
+  // Journal d’activité : admin + coach (CTA home, hors nav strip).
+  if (pathname === "/activity" || pathname.startsWith("/activity/")) {
+    return caps.isAdmin || caps.isCoach;
+  }
   if (caps.isPlayer) {
     for (const href of PLAYER_DEEP_LINK_ROUTES) {
       if (pathname === href || pathname.startsWith(`${href}/`)) return true;

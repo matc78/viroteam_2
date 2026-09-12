@@ -21,7 +21,10 @@ import {
   type ClubMemberRecord,
 } from "./memberService";
 import {
+  announcementTargetLabel,
   loadAnnouncementsForMember,
+  loadClubAnnouncements,
+  partitionAnnouncements,
 } from "./announcementService";
 import {
   eventTouchesTeams,
@@ -68,6 +71,15 @@ export type AttentionItem = {
   detail: string;
 };
 
+/** Aperçu annonce pour la colonne home admin. */
+export type HomeAnnouncementPreview = {
+  id: string;
+  message: string;
+  senderName: string;
+  createdAt: Date | null;
+  targetLabel: string;
+};
+
 /** Données agrégées pour la home dashboard. */
 export type HomeDashboardData = {
   clubName: string;
@@ -79,6 +91,8 @@ export type HomeDashboardData = {
   /** True si l’admin joue aussi dans au moins une équipe. */
   hasPlayerTeams: boolean;
   kpis: HomeKpi[];
+  /** Annonces actives (aperçu colonne droite). */
+  announcements: HomeAnnouncementPreview[];
   feeStatus: FeeStatusSegment[];
   collections: CollectionMonth[];
   /** Aperçu club (tous les events). */
@@ -89,6 +103,8 @@ export type HomeDashboardData = {
   playerUpcomingEvents: UpcomingEvent[];
   attentionItems: AttentionItem[];
 };
+
+const HOME_ANNOUNCEMENT_PREVIEW_LIMIT = 5;
 
 const MONTH_LABELS = [
   "Jan",
@@ -400,11 +416,30 @@ export async function loadHomeDashboard(params: {
   const linkedMemberId = params.uid
     ? await getLinkedMemberId(params.club.id, params.uid)
     : null;
-  const [season, teams, allUpcomingEvents] = await Promise.all([
-    getActiveSeason(params.club.id),
-    loadTeamsForClub(params.club.id),
-    loadUpcomingEvents(params.club.id),
-  ]);
+  const [season, teams, allUpcomingEvents, clubAnnouncements] =
+    await Promise.all([
+      getActiveSeason(params.club.id),
+      loadTeamsForClub(params.club.id),
+      loadUpcomingEvents(params.club.id),
+      loadClubAnnouncements(params.club.id),
+    ]);
+  const teamNamesById = new Map(
+    teams.map((team) => [team.id, team.name] as const),
+  );
+  const { active: activeAnnouncements } =
+    partitionAnnouncements(clubAnnouncements);
+  const announcements: HomeAnnouncementPreview[] = activeAnnouncements
+    .slice(0, HOME_ANNOUNCEMENT_PREVIEW_LIMIT)
+    .map((announcement) => ({
+      id: announcement.id,
+      message: announcement.message,
+      senderName: [announcement.senderFirstName, announcement.senderLastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || "Club",
+      createdAt: announcement.createdAt,
+      targetLabel: announcementTargetLabel(announcement, teamNamesById),
+    }));
   const fees = season ? await listMemberFees(params.club.id, season.id) : [];
   const upcomingEvents = allUpcomingEvents.slice(0, HOME_PREVIEW_EVENT_LIMIT);
   const upcomingEventCount = allUpcomingEvents.length;
@@ -497,6 +532,7 @@ export async function loadHomeDashboard(params: {
         tone: "warning",
       },
     ],
+    announcements,
     feeStatus: segments,
     collections: buildCollections(fees),
     upcomingEvents,

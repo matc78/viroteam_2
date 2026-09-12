@@ -38,6 +38,22 @@
           }
         },
         {
+          "client_id": "396501317680-maoefdhkcp1798tfeo66t41akatgc50c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.viroteam.viro_team",
+            "certificate_hash": "58427f9ae3596ead8fa86562594cde879b83bb16"
+          }
+        },
+        {
+          "client_id": "396501317680-t5obsbnteiipqb3eb6ff8k1662cqfcvb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.viroteam.viro_team",
+            "certificate_hash": "44b29788d6fcfa6551cbda50339fa66a92b790a1"
+          }
+        },
+        {
           "client_id": "396501317680-afnku6clj84s00aa5f8ejcjm4oigphom.apps.googleusercontent.com",
           "client_type": 3
         }

@@ -12,6 +12,11 @@ import {
   FeesConfig,
   seasonRecordToFeesConfig,
 } from "@/lib/dashboard/feesConfig";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
@@ -126,6 +131,15 @@ function PlayerFeesSelfView() {
     [user?.uid],
     "/fees",
   );
+  const feesActive = useIsPortalRouteActive(["/fees"]);
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.fees,
+    listenActiveMemberFees: true,
+    memberFeeIds: data?.linkedMemberId ? [data.linkedMemberId] : [],
+    onReload: reload,
+    enabled: feesActive,
+  });
 
   async function handleCheckout() {
     if (!activeClub || !data?.season || !data.fee || !data.linkedMemberId) {
@@ -289,6 +303,14 @@ function FeesStaffView() {
       [isAdmin, isCoachRead],
       "/fees",
     );
+  const feesActive = useIsPortalRouteActive(["/fees"]);
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.fees,
+    listenActiveMemberFees: true,
+    onReload: reload,
+    enabled: feesActive,
+  });
   const [tab, setTab] = useState<FeesTab>("config");
 
   if (loading && !config) {

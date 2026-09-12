@@ -106,6 +106,11 @@ export function PersonalPlanningClient({
   }, [resetFlag]);
 
   useEffect(() => {
+    if (!hasNewEvents || !isPanelActive) return;
+    bumpReload(false);
+  }, [hasNewEvents, isPanelActive, bumpReload]);
+
+  useEffect(() => {
     const becameActive = isPanelActive && !wasPanelActiveRef.current;
     wasPanelActiveRef.current = isPanelActive;
     if (becameActive) {

@@ -48,20 +48,20 @@
   margin-top: 0.55rem;
   min-height: 2.2rem;
   padding: 0.4rem 0.95rem;
-  border: 1px solid var(--color-gray-200);
+  border: 1.5px solid color-mix(in srgb, var(--color-sport-orange) 50%, var(--color-gray-200));
   flex-shrink: 0;
   border-radius: 999px;
-  background: transparent;
-  color: var(--color-primary-800);
+  background: color-mix(in srgb, var(--tone-orange-soft) 75%, white);
+  color: var(--tone-orange-text);
   font: inherit;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .refreshButton:hover:not(:disabled) {
-  background: var(--color-gray-50);
-  border-color: var(--color-gray-300);
+  background: var(--tone-orange-soft);
+  border-color: var(--color-sport-orange);
 }
 
 .refreshButton:disabled {
@@ -71,15 +71,19 @@
 
 .refreshHighlight {
   position: relative;
-  border-color: var(--refresh-accent, var(--color-primary-500));
-  background: var(--refresh-accent, var(--color-primary-500));
+  border-color: var(--refresh-accent, var(--color-sport-orange));
+  background: var(--refresh-accent, var(--color-sport-orange));
   color: #fff;
   animation: sidebarRefreshPulse 1.8s ease-in-out infinite;
 }
 
 .refreshHighlight:hover:not(:disabled) {
-  border-color: var(--refresh-accent, var(--color-primary-600));
-  background: color-mix(in srgb, var(--refresh-accent, var(--color-primary-500)) 85%, #000);
+  border-color: var(--refresh-accent, var(--tone-orange-text));
+  background: color-mix(
+    in srgb,
+    var(--refresh-accent, var(--color-sport-orange)) 85%,
+    #000
+  );
   color: #fff;
 }
 
@@ -103,8 +107,23 @@
 }
 
 @keyframes sidebarRefreshPulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--refresh-accent, var(--color-primary-500)) 40%, transparent); }
-  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--refresh-accent, var(--color-primary-500)) 0%, transparent); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0
+      color-mix(
+        in srgb,
+        var(--refresh-accent, var(--color-sport-orange)) 40%,
+        transparent
+      );
+  }
+  50% {
+    box-shadow: 0 0 0 5px
+      color-mix(
+        in srgb,
+        var(--refresh-accent, var(--color-sport-orange)) 0%,
+        transparent
+      );
+  }
 }
 
 .createPlus {

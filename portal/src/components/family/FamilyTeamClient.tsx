@@ -13,6 +13,11 @@ import {
   isClubResourceReady,
   useAsyncClubResource,
 } from "@/lib/dashboard/useAsyncClubResource";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import { loadTeamsByIds } from "@/lib/firebase/eventService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
@@ -39,6 +44,7 @@ export function FamilyTeamClient() {
     selectedTarget,
     loading: audienceLoading,
   } = useFamilyAudience();
+  const familyTeamActive = useIsPortalRouteActive(["/family/team"]);
 
   const { data, loading, refreshing, error, reload, loadedClubId } =
     useAsyncClubResource(
@@ -95,6 +101,12 @@ export function FamilyTeamClient() {
       profile?.uid,
     ],
   );
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.familyTeam,
+    onReload: reload,
+    enabled: familyTeamActive,
+  });
 
   useReportPageReady(
     !audienceLoading &&

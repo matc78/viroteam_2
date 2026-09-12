@@ -12,11 +12,10 @@ type FamilyGuardProps = {
 
 /**
  * Protège l’espace famille : login + au moins un parentLink active.
- * Sans droit parent : déconnexion + écran app (sauf bureau → landing bureau).
+ * Sans droit parent : /access-denied (session conservée), sauf bureau → landing bureau.
  */
 export function FamilyGuard({ children }: FamilyGuardProps) {
-  const { status, isParent, isBureauUser, logout, setActiveSpace, profile } =
-    useAuth();
+  const { status, isParent, isBureauUser, setActiveSpace, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const denyingRef = useRef(false);
@@ -39,22 +38,11 @@ export function FamilyGuard({ children }: FamilyGuardProps) {
 
     if (denyingRef.current) return;
     denyingRef.current = true;
-    const firstName = profile?.firstName?.trim();
-    if (firstName && typeof window !== "undefined") {
-      try {
-        sessionStorage.setItem("viro.accessDeniedFirstName", firstName);
-      } catch {
-        // ignore
-      }
-    }
-    void logout().then(() => {
-      router.replace("/access-denied?reason=role");
-    });
+    router.replace("/access-denied?reason=role");
   }, [
     status,
     isParent,
     isBureauUser,
-    logout,
     router,
     pathname,
     setActiveSpace,

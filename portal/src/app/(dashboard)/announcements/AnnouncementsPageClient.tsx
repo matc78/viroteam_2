@@ -11,6 +11,11 @@ import {
 } from "@/lib/auth/bureauPermissions";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
+import {
   announcementTargetLabel,
   clearAnnouncementEndsAt,
   closeAnnouncement,
@@ -88,6 +93,13 @@ export function AnnouncementsPageClient() {
     [],
     "/announcements",
   );
+  const announcementsActive = useIsPortalRouteActive(["/announcements"]);
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.announcements,
+    onReload: reload,
+    enabled: announcementsActive,
+  });
   const [tab, setTab] = useState<AnnouncementsTab>("active");
   const [createOpen, setCreateOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);

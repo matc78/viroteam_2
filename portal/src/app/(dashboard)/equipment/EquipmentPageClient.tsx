@@ -10,6 +10,11 @@ import {
 import { useToast } from "@/components/ToastProvider";
 import { bureauCapabilities } from "@/lib/auth/bureauPermissions";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import {
@@ -67,6 +72,13 @@ export function EquipmentPageClient() {
     [],
     "/equipment",
   );
+  const equipmentActive = useIsPortalRouteActive(["/equipment"]);
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.equipment,
+    onReload: reload,
+    enabled: equipmentActive,
+  });
 
   const [filters, setFilters] = useState<EquipmentFilters>(DEFAULT_FILTERS);
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);

@@ -7,10 +7,10 @@
   max-width: 12rem;
   min-height: 2.25rem;
   padding: 0.28rem 0.7rem 0.28rem 0.4rem;
-  border: 1.5px solid var(--color-primary-300);
+  border: 1.5px solid color-mix(in srgb, var(--color-sport-cyan) 45%, var(--color-gray-200));
   border-radius: var(--radius-sm);
-  background: var(--color-white);
-  color: var(--color-primary-800);
+  background: color-mix(in srgb, var(--color-sport-cyan) 8%, white);
+  color: var(--tone-blue-text);
   font: inherit;
   text-decoration: none;
   flex-shrink: 0;
@@ -22,27 +22,35 @@
 }
 
 .tile:hover {
-  background: color-mix(in srgb, var(--color-primary-100) 55%, transparent);
-  border-color: var(--color-primary-400);
+  background: color-mix(in srgb, var(--color-sport-cyan) 16%, white);
+  border-color: var(--color-sport-cyan);
   color: var(--color-primary-900);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary-900) 6%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-sport-cyan) 18%, transparent);
 }
 
 .tile:focus-visible {
-  outline: 2px solid var(--color-primary-400);
+  outline: 2px solid var(--color-sport-cyan);
   outline-offset: 2px;
 }
 
 .tileActive {
-  background: var(--color-primary-600);
-  border-color: color-mix(in srgb, var(--color-primary-600) 70%, black);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary-600) 32%, transparent);
+  background: linear-gradient(
+    135deg,
+    var(--color-sport-cyan),
+    color-mix(in srgb, var(--color-sport-cyan) 55%, var(--color-sport-green))
+  );
+  border-color: color-mix(in srgb, var(--color-sport-cyan) 70%, black);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-sport-cyan) 35%, transparent);
   color: #fff;
 }
 
 .tileActive:hover {
-  background: var(--color-primary-600);
-  border-color: color-mix(in srgb, var(--color-primary-600) 70%, black);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-sport-cyan) 88%, black),
+    color-mix(in srgb, var(--color-sport-green) 70%, var(--color-sport-cyan))
+  );
+  border-color: color-mix(in srgb, var(--color-sport-cyan) 60%, black);
   color: #fff;
 }
 
@@ -54,12 +62,12 @@
   height: 1.85rem;
   border-radius: 999px;
   flex-shrink: 0;
-  background: color-mix(in srgb, var(--color-primary-100) 70%, transparent);
+  background: color-mix(in srgb, var(--color-sport-cyan) 22%, white);
   color: inherit;
 }
 
 .tileActive .icon {
-  background: color-mix(in srgb, #fff 22%, transparent);
+  background: color-mix(in srgb, #fff 24%, transparent);
 }
 
 .iconSvg {

@@ -163,7 +163,10 @@ function FamilyShellChrome() {
                   className={styles.avatarImage}
                 />
               ) : (
-                <span className={styles.avatar} aria-hidden="true">
+                <span
+                  className={`${styles.avatar} ${styles.avatarToneParent}`}
+                  aria-hidden="true"
+                >
                   {userInitials(resolvedName)}
                 </span>
               )}

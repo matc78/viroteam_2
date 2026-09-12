@@ -22,6 +22,11 @@ import {
   useAsyncClubResource,
 } from "@/lib/dashboard/useAsyncClubResource";
 import { usePlanningChangeListener } from "@/lib/dashboard/usePlanningChangeListener";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   dateOnly,
@@ -50,6 +55,7 @@ export function FamilyPlanningClient() {
     selectedTarget,
     loading: audienceLoading,
   } = useFamilyAudience();
+  const familyPlanningActive = useIsPortalRouteActive(["/family/planning"]);
 
   const [view, setView] = useState<CalendarView>("week");
   const [cursor, setCursor] = useState(() => dateOnly(new Date()));
@@ -146,6 +152,13 @@ export function FamilyPlanningClient() {
     ],
   );
 
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.planning,
+    onReload: reload,
+    enabled: familyPlanningActive,
+  });
+
   useReportPageReady(
     !audienceLoading &&
       isClubResourceReady(
@@ -164,6 +177,7 @@ export function FamilyPlanningClient() {
   const { hasNewEvents, resetFlag } = usePlanningChangeListener(
     activeClub?.id ?? null,
     listenedTeamIds,
+    familyPlanningActive,
   );
 
   /** Recharge les données et acquitte le flag de changement. */
@@ -171,6 +185,12 @@ export function FamilyPlanningClient() {
     resetFlag();
     reload();
   }
+
+  useEffect(() => {
+    if (!hasNewEvents) return;
+    resetFlag();
+    reload();
+  }, [hasNewEvents, resetFlag, reload]);
 
   /** Initialise les filtres équipe quand les données arrivent. */
   const teamOptions = useMemo(

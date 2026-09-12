@@ -16,6 +16,7 @@ import {
 } from "@/lib/auth/bureauPermissions";
 import { usePlayerFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { MemberRoles } from "@/lib/firebase/constants";
 import { site } from "@/lib/site";
 import {
   buildClubMembershipTiles,
@@ -23,6 +24,14 @@ import {
   type PortalSpace,
 } from "@/lib/firebase/types";
 import styles from "./DashboardShell.module.css";
+
+/** Classe CSS avatar selon le rôle bureau actif. */
+function avatarToneClass(role: string | null): string {
+  if (role === MemberRoles.admin) return styles.avatarToneAdmin;
+  if (role === MemberRoles.coach) return styles.avatarToneCoach;
+  if (role === MemberRoles.player) return styles.avatarTonePlayer;
+  return "";
+}
 
 const NAV_ITEMS = [
   { href: "/home", label: "Accueil", toneClass: "toneOrange" },
@@ -36,6 +45,7 @@ const NAV_ITEMS = [
 ] as const;
 
 const WIDE_PATH_PREFIXES = [
+  "/home",
   "/members",
   "/planning",
   "/my-planning",
@@ -183,7 +193,12 @@ export function DashboardShell() {
                   className={styles.avatarImage}
                 />
               ) : (
-                <span className={styles.avatar} aria-hidden="true">
+                <span
+                  className={[styles.avatar, avatarToneClass(activeClubRole)]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-hidden="true"
+                >
                   {userInitials(resolvedUserName)}
                 </span>
               )}

@@ -21,18 +21,23 @@ export function DashboardSkeleton({ variant }: DashboardSkeletonProps) {
 
       {variant === "home" ? (
         <>
-          <div className={styles.kpiGrid}>
-            {Array.from({ length: 4 }, (_, index) => (
-              <div key={index} className={`${styles.bone} ${styles.kpiCard}`} />
-            ))}
-          </div>
-          <div className={styles.activityGrid}>
-            <div className={`${styles.bone} ${styles.activityMain}`} />
-            <div className={`${styles.bone} ${styles.activitySide}`} />
-          </div>
-          <div className={styles.chartsGrid}>
-            <div className={`${styles.bone} ${styles.chartCard}`} />
-            <div className={`${styles.bone} ${styles.chartCard}`} />
+          <div className={styles.homeBoard}>
+            <div className={styles.kpiColumn}>
+              {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className={`${styles.bone} ${styles.kpiCard}`} />
+              ))}
+            </div>
+            <div className={styles.homeBody}>
+              <div className={styles.activityGrid}>
+                <div className={`${styles.bone} ${styles.activityMain}`} />
+                <div className={`${styles.bone} ${styles.activitySide}`} />
+              </div>
+              <div className={styles.chartsGrid}>
+                <div className={`${styles.bone} ${styles.chartCard}`} />
+                <div className={`${styles.bone} ${styles.chartCard}`} />
+              </div>
+            </div>
+            <div className={`${styles.bone} ${styles.announcementsSide}`} />
           </div>
         </>
       ) : null}

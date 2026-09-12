@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { JoinOnboardingForm } from "@/components/auth/JoinOnboardingForm";
@@ -19,27 +19,14 @@ import { site } from "@/lib/site";
 import formStyles from "./AuthForm.module.css";
 import styles from "./AccessDenied.module.css";
 
-const ACCESS_DENIED_FIRST_NAME_KEY = "viro.accessDeniedFirstName";
-
-function readStoredAccessDeniedFirstName(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    const value = sessionStorage.getItem(ACCESS_DENIED_FIRST_NAME_KEY)?.trim();
-    if (value) sessionStorage.removeItem(ACCESS_DENIED_FIRST_NAME_KEY);
-    return value ?? "";
-  } catch {
-    return "";
-  }
-}
-
 /** Écran accès limité — onboarding join (acceptation web) si pas de club. */
 export function AccessDeniedContent() {
-  const { logout, status, profile } = useAuth();
+  const { logout, status, profile, user } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const fromSignup = searchParams.get("from") === "signup";
   const reason = searchParams.get("reason");
   const forceAppMessage = reason === "unknown" || reason === "role";
-  const [storedFirstName] = useState(readStoredAccessDeniedFirstName);
   const [clubNames, setClubNames] = useState<string[]>([]);
 
   const hasClubs = (profile?.clubMemberships.length ?? 0) > 0;
@@ -73,11 +60,24 @@ export function AccessDeniedContent() {
   }, [profile, forceAppMessage]);
 
   const firstName = useMemo(() => {
-    if (forceAppMessage) return storedFirstName;
     const fromProfile = profile?.firstName?.trim();
     if (fromProfile) return fromProfile;
     return splitDisplayName(profile?.displayName ?? "").firstName;
-  }, [profile, forceAppMessage, storedFirstName]);
+  }, [profile]);
+
+  const accountDisplayName = useMemo(() => {
+    const displayName = profile?.displayName?.trim();
+    if (displayName) return displayName;
+    const composed = [profile?.firstName, profile?.lastName]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(" ");
+    if (composed) return composed;
+    return user?.displayName?.trim() || "";
+  }, [profile, user]);
+
+  const accountEmail =
+    profile?.email?.trim() || user?.email?.trim() || "";
 
   const title = buildAccessDeniedTitle({
     fromSignup,
@@ -95,11 +95,24 @@ export function AccessDeniedContent() {
 
   async function handleLogout() {
     await logout();
+    router.replace("/login");
   }
 
   return (
     <AuthShell accent="orange" eyebrow="Accès limité" title={title} lead={lead}>
       <div className={styles.body}>
+        {status === "signedIn" && (accountDisplayName || accountEmail) ? (
+          <div className={styles.accountCard} aria-live="polite">
+            <p className={styles.accountLabel}>Connecté avec</p>
+            {accountDisplayName ? (
+              <p className={styles.accountName}>{accountDisplayName}</p>
+            ) : null}
+            {accountEmail ? (
+              <p className={styles.accountEmail}>{accountEmail}</p>
+            ) : null}
+          </div>
+        ) : null}
+
         {needsJoinOnboarding ? (
           <JoinOnboardingForm />
         ) : (
@@ -110,7 +123,7 @@ export function AccessDeniedContent() {
         )}
 
         <div className={styles.actions}>
-          {status === "signedIn" && !forceAppMessage ? (
+          {status === "signedIn" ? (
             <button
               type="button"
               className={formStyles.submit}

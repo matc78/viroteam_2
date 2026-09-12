@@ -406,6 +406,11 @@ export function MembersTable({
                       {canInviteActions ? (
                         <td>
                           <div className={styles.rowActions}>
+                            {row.hasLinkedAccount ? (
+                              <span className={styles.badge} data-tone="ok">
+                                Déjà inscrit
+                              </span>
+                            ) : null}
                             {!row.hasLinkedAccount &&
                             isMemberInviteValid(row) ? (
                               <>

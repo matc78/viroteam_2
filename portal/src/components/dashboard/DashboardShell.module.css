@@ -203,16 +203,34 @@
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 999px;
-  background: linear-gradient(
-    145deg,
-    var(--color-primary-400),
-    var(--color-primary-600)
-  );
+  --avatar-from: var(--color-sport-cyan);
+  --avatar-to: var(--color-primary-600);
+  background: linear-gradient(145deg, var(--avatar-from), var(--avatar-to));
   color: var(--color-white);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   flex-shrink: 0;
+}
+
+.avatarToneParent {
+  --avatar-from: #34d399;
+  --avatar-to: var(--color-role-parent);
+}
+
+.avatarToneCoach {
+  --avatar-from: #fb923c;
+  --avatar-to: var(--color-role-coach);
+}
+
+.avatarToneAdmin {
+  --avatar-from: #a78bfa;
+  --avatar-to: var(--color-role-admin);
+}
+
+.avatarTonePlayer {
+  --avatar-from: #60a5fa;
+  --avatar-to: var(--color-role-player);
 }
 
 .avatarImage {

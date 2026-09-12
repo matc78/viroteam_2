@@ -15,6 +15,11 @@ import {
   isClubResourceReady,
   useAsyncClubResource,
 } from "@/lib/dashboard/useAsyncClubResource";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { createStripeCheckout } from "@/lib/firebase/callableService";
 import {
@@ -25,6 +30,7 @@ import {
   type FeeSeasonRecord,
   type MemberFeeRecord,
 } from "@/lib/firebase/feeService";
+import { FeePaymentHistory } from "@/components/fees/FeePaymentHistory";
 import { feeStatusLabel } from "@/lib/members/membersView";
 import { useState } from "react";
 import styles from "./FamilyHomeClient.module.css";
@@ -83,6 +89,15 @@ export function FamilyFeesClient() {
     },
     [selectedMemberId],
   );
+  const familyFeesActive = useIsPortalRouteActive(["/family/fees"]);
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.familyFees,
+    listenActiveMemberFees: true,
+    memberFeeIds: selectedMemberId ? [selectedMemberId] : [],
+    onReload: reload,
+    enabled: familyFeesActive,
+  });
 
   useReportPageReady(
     !audienceLoading &&
@@ -190,6 +205,15 @@ export function FamilyFeesClient() {
             ) : null}
           </dl>
         )}
+
+        {activeClub && data?.season && data.fee && selectedMemberId ? (
+          <FeePaymentHistory
+            clubId={activeClub.id}
+            seasonId={data.season.id}
+            memberId={selectedMemberId}
+            compact
+          />
+        ) : null}
 
         {data?.fee && data.remaining > 0 ? (
           canPayOnline ? (

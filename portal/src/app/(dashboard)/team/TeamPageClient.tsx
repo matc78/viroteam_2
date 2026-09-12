@@ -11,6 +11,11 @@ import {
   teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { MemberRoles } from "@/lib/firebase/constants";
 import { getLinkedMemberId } from "@/lib/firebase/memberService";
@@ -22,6 +27,7 @@ async function noopAsync(): Promise<void> {}
 export function TeamPageClient() {
   const { activeClub, activeClubRole, user } = useAuth();
   const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
+  const teamActive = useIsPortalRouteActive(["/team"]);
 
   const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub,
@@ -29,6 +35,12 @@ export function TeamPageClient() {
     [activeClubRole],
     "/team",
   );
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.team,
+    onReload: reload,
+    enabled: teamActive,
+  });
 
   useEffect(() => {
     if (!activeClub || !user) {

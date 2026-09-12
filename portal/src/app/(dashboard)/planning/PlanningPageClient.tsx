@@ -22,6 +22,11 @@ import {
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import { usePlanningChangeListener } from "@/lib/dashboard/usePlanningChangeListener";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import type { ClubEventView } from "@/lib/firebase/eventService";
 import {
   dateOnly,
@@ -99,6 +104,13 @@ function PlanningPageContent() {
     [range.start.getTime(), range.end.getTime()],
     "/planning",
   );
+  const planningActive = useIsPortalRouteActive(["/planning"]);
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.planning,
+    onReload: reload,
+    enabled: planningActive,
+  });
 
   /** Nettoie les query params deep-link après application (keep-alive). */
   function clearPlanningDeepLinkParams() {
@@ -170,6 +182,7 @@ function PlanningPageContent() {
   const { hasNewEvents, resetFlag } = usePlanningChangeListener(
     activeClub?.id ?? null,
     scopedTeams.map((team) => team.id),
+    planningActive,
   );
 
   /** Recharge les données et acquitte le flag de changement. */
@@ -177,6 +190,12 @@ function PlanningPageContent() {
     resetFlag();
     reload();
   }
+
+  useEffect(() => {
+    if (!hasNewEvents) return;
+    resetFlag();
+    reload();
+  }, [hasNewEvents, resetFlag, reload]);
 
   useEffect(() => {
     if (!activeClub) {

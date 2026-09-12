@@ -5,11 +5,11 @@ import styles from "./CollectionsChart.module.css";
 /** Props du graphe encaissements mensuels. */
 type CollectionsChartProps = {
   months: CollectionMonth[];
-  /** Affiche la série CB HelloAsso (paiement en ligne activé sur le club). */
+  /** Affiche la série CB (paiement en ligne activé sur le club). */
   showHelloAsso?: boolean;
 };
 
-/** Barres mensuelles : encaissements CB HelloAsso vs hors-ligne. */
+/** Barres mensuelles : encaissements CB vs hors-ligne. */
 export function CollectionsChart({
   months,
   showHelloAsso = false,
@@ -111,7 +111,7 @@ export function CollectionsChart({
               className={`${styles.swatch} ${styles.swatchCard}`}
               aria-hidden="true"
             />
-            HelloAsso CB
+            CB
           </li>
         ) : null}
         <li className={styles.legendItem}>

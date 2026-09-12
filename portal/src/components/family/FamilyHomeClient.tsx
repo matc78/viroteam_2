@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, type CSSProperties } from "react";
+import { usePathname } from "next/navigation";
 import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -21,6 +22,10 @@ import {
   isClubResourceReady,
   useAsyncClubResource,
 } from "@/lib/dashboard/useAsyncClubResource";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import {
   loadAnnouncementsForGuardian,
   loadAnnouncementsForMember,
@@ -99,6 +104,7 @@ type FamilyHomeData = {
 
 /** Accueil famille : chips + couleur club, nom enfant mis en avant. */
 export function FamilyHomeClient() {
+  const pathname = usePathname();
   const { activeClub, profile } = useAuth();
   const { selectedMemberId, selectedTarget, loading: audienceLoading } =
     useFamilyAudience();
@@ -226,6 +232,15 @@ export function FamilyHomeClient() {
       profile?.displayName,
     ],
   );
+  const familyHomeActive = pathname === "/family";
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.familyHome,
+    listenActiveMemberFees: true,
+    memberFeeIds: selectedMemberId ? [selectedMemberId] : [],
+    onReload: reload,
+    enabled: familyHomeActive,
+  });
 
   useReportPageReady(
     !audienceLoading &&

@@ -43,8 +43,11 @@ export function usePlanningChangeListener(
   const teamIdsKey = teamIds.slice().sort().join(",");
 
   const resetFlag = useCallback(() => {
-    baselineIdsRef.current = new Set(lastMergedRef.current);
     setHasNewEvents(false);
+    // Pendant le 1er sync (baseline encore null), ne pas figer un set vide :
+    // sinon tous les events du 1er snapshot allument la pastille.
+    if (baselineIdsRef.current === null) return;
+    baselineIdsRef.current = new Set(lastMergedRef.current);
   }, []);
 
   useEffect(() => {
@@ -52,6 +55,8 @@ export function usePlanningChangeListener(
 
     // Nouvelle souscription → le prochain snapshot complet est la baseline.
     baselineIdsRef.current = null;
+    lastMergedRef.current = new Set();
+    setHasNewEvents(false);
 
     const db = getAppFirestore();
     const eventsCol = collection(db, `clubs/${clubId}/events`);
@@ -152,8 +157,11 @@ export function useMultiClubPlanningChangeListener(
     .join("|");
 
   const resetFlag = useCallback(() => {
-    baselineIdsRef.current = new Set(lastMergedRef.current);
     setHasNewEvents(false);
+    // Pendant le 1er sync (baseline encore null), ne pas figer un set vide :
+    // sinon tous les events du 1er snapshot allument la pastille.
+    if (baselineIdsRef.current === null) return;
+    baselineIdsRef.current = new Set(lastMergedRef.current);
   }, []);
 
   useEffect(() => {
@@ -168,6 +176,8 @@ export function useMultiClubPlanningChangeListener(
 
     // Nouvelle souscription → le prochain snapshot complet est la baseline.
     baselineIdsRef.current = null;
+    lastMergedRef.current = new Set();
+    setHasNewEvents(false);
 
     const db = getAppFirestore();
     const idsByKey = new Map<string, Set<string>>();

@@ -16,7 +16,7 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-primary-600);
+  color: var(--color-sport-orange);
 }
 
 .heading {
@@ -39,17 +39,19 @@
   margin-top: 0.15rem;
   padding: 0.55rem 0.95rem;
   border-radius: 10px;
-  border: 1px solid var(--color-primary-100);
-  background: var(--color-surface-card, #fff);
-  color: var(--color-primary-800);
+  border: 1.5px solid color-mix(in srgb, var(--color-sport-orange) 55%, var(--color-gray-200));
+  background: color-mix(in srgb, var(--tone-orange-soft) 75%, white);
+  color: var(--tone-orange-text);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-sport-orange) 12%, transparent);
 }
 
 .refreshButton:hover:not(:disabled) {
-  border-color: var(--color-primary-300);
-  background: var(--color-primary-50);
+  border-color: var(--color-sport-orange);
+  background: var(--tone-orange-soft);
+  color: var(--tone-orange-text);
 }
 
 .refreshButton:disabled {
@@ -60,15 +62,19 @@
 /* Bouton accentué quand de nouvelles données sont disponibles */
 .refreshHighlight {
   position: relative;
-  border-color: var(--refresh-accent, var(--color-primary-500));
-  background: var(--refresh-accent, var(--color-primary-500));
+  border-color: var(--refresh-accent, var(--color-sport-orange));
+  background: var(--refresh-accent, var(--color-sport-orange));
   color: #fff;
   animation: refreshPulse 1.8s ease-in-out infinite;
 }
 
 .refreshHighlight:hover:not(:disabled) {
-  border-color: var(--refresh-accent, var(--color-primary-600));
-  background: color-mix(in srgb, var(--refresh-accent, var(--color-primary-500)) 85%, #000);
+  border-color: var(--refresh-accent, var(--tone-orange-text));
+  background: color-mix(
+    in srgb,
+    var(--refresh-accent, var(--color-sport-orange)) 85%,
+    #000
+  );
   color: #fff;
 }
 
@@ -93,7 +99,22 @@
 }
 
 @keyframes refreshPulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--refresh-accent, var(--color-primary-500)) 40%, transparent); }
-  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--refresh-accent, var(--color-primary-500)) 0%, transparent); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0
+      color-mix(
+        in srgb,
+        var(--refresh-accent, var(--color-sport-orange)) 40%,
+        transparent
+      );
+  }
+  50% {
+    box-shadow: 0 0 0 6px
+      color-mix(
+        in srgb,
+        var(--refresh-accent, var(--color-sport-orange)) 0%,
+        transparent
+      );
+  }
 }
 

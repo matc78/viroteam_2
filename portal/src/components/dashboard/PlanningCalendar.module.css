@@ -33,7 +33,7 @@
 .todayButton,
 .iconButton,
 .viewButton {
-  border: 1.5px solid color-mix(in srgb, var(--tone-blue-border) 55%, var(--color-gray-200));
+  border: 1.5px solid color-mix(in srgb, var(--color-sport-cyan) 40%, var(--color-gray-200));
   background: var(--color-white);
   color: var(--tone-blue-text);
   cursor: pointer;
@@ -66,8 +66,8 @@
 .todayButton:hover,
 .iconButton:hover,
 .viewButton:hover {
-  border-color: var(--tone-blue-border);
-  background: var(--tone-blue-surface);
+  border-color: var(--color-sport-cyan);
+  background: color-mix(in srgb, var(--color-sport-cyan) 12%, white);
 }
 
 .todayButton:focus-visible,
@@ -96,26 +96,30 @@
   padding: 0.2rem;
   gap: 0.15rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--tone-blue-soft) 70%, white);
-  border: 1.5px solid color-mix(in srgb, var(--tone-blue-border) 45%, white);
+  background: color-mix(in srgb, var(--tone-green-soft) 55%, white);
+  border: 1.5px solid color-mix(in srgb, var(--tone-green-border) 50%, white);
 }
 
 .viewButton {
   border-color: transparent;
   background: transparent;
-  color: var(--tone-blue-text);
+  color: var(--tone-green-text);
 }
 
 .viewButton[data-active="true"] {
-  background: var(--tone-blue);
-  border-color: var(--tone-blue);
+  background: linear-gradient(
+    135deg,
+    var(--color-sport-green),
+    color-mix(in srgb, var(--color-sport-green) 70%, var(--color-sport-cyan))
+  );
+  border-color: color-mix(in srgb, var(--color-sport-green) 80%, black);
   color: var(--color-white);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--tone-blue) 28%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-sport-green) 30%, transparent);
 }
 
 .viewButton[data-active="true"]:hover {
-  background: var(--color-primary-600);
-  border-color: var(--color-primary-600);
+  background: color-mix(in srgb, var(--color-sport-green) 88%, black);
+  border-color: color-mix(in srgb, var(--color-sport-green) 70%, black);
   color: var(--color-white);
 }
 

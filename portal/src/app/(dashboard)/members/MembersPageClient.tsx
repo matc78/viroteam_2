@@ -24,6 +24,11 @@ import {
   teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
+import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
 import {
@@ -35,6 +40,10 @@ import {
 } from "@/lib/firebase/guardianService";
 import { sendMemberInvites } from "@/lib/firebase/callableService";
 import { applyMemberFeeChanges } from "@/lib/firebase/feeService";
+import {
+  ClubActivityTypes,
+  logClubActivity,
+} from "@/lib/firebase/activityService";
 import {
   addMemberWithInvitation,
   assignMemberToTeam,
@@ -113,6 +122,14 @@ function MembersPageContent() {
     [activeClubRole],
     "/members",
   );
+  const membersActive = useIsPortalRouteActive(["/members"]);
+  useClubRealtimeReload({
+    clubId: activeClub?.id,
+    collections: ClubListenSets.members,
+    listenActiveMemberFees: true,
+    onReload: reload,
+    enabled: membersActive,
+  });
 
   const teamIdsSyncToastShownRef = useRef(false);
   const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
@@ -774,6 +791,7 @@ function MembersPageContent() {
                 sentByUid: user.uid,
                 club: activeClub,
                 email: action.email,
+                logActivity: false,
               });
               memberId = result.member.memberId;
               report.created += 1;
@@ -919,6 +937,22 @@ function MembersPageContent() {
             importAborted = true;
             break;
           }
+        }
+      }
+
+      if (!importAborted && report.created > 0) {
+        try {
+          await logClubActivity(activeClub.id, {
+            type: ClubActivityTypes.membersAdded,
+            actorUid: user.uid,
+            count: report.created,
+            summary:
+              report.created === 1
+                ? "1 membre importé"
+                : `${report.created} membres importés`,
+          });
+        } catch {
+          // Best-effort : l’import métier a déjà réussi.
         }
       }
 

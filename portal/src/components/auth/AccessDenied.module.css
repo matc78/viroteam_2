@@ -5,6 +5,34 @@
   margin-top: var(--space-sm);
 }
 
+.accountCard {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-primary-100);
+  background: var(--color-surface-card, var(--color-white));
+}
+
+.accountLabel {
+  margin: 0 0 0.2rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-gray-600);
+}
+
+.accountName {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-primary-800);
+}
+
+.accountEmail {
+  margin: 0.15rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--color-gray-600);
+  word-break: break-word;
+}
+
 .note {
   margin: 0;
   font-size: 0.9375rem;

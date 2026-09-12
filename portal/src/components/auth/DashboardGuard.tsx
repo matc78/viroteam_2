@@ -12,11 +12,10 @@ type DashboardGuardProps = {
 
 /**
  * Protège les routes dashboard : login + rôle bureau (admin, coach ou joueur).
- * Parent seul → landing famille ; sans accès → déconnexion + /access-denied.
+ * Parent seul → landing famille ; sans accès → /access-denied (session conservée).
  */
 export function DashboardGuard({ children }: DashboardGuardProps) {
-  const { status, isBureauUser, isParent, logout, setActiveSpace, profile } =
-    useAuth();
+  const { status, isBureauUser, isParent, setActiveSpace, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const denyingRef = useRef(false);
@@ -41,22 +40,11 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
 
     if (denyingRef.current) return;
     denyingRef.current = true;
-    const firstName = profile?.firstName?.trim();
-    if (firstName && typeof window !== "undefined") {
-      try {
-        sessionStorage.setItem("viro.accessDeniedFirstName", firstName);
-      } catch {
-        // ignore
-      }
-    }
-    void logout().then(() => {
-      router.replace("/access-denied?reason=role");
-    });
+    router.replace("/access-denied?reason=role");
   }, [
     status,
     isBureauUser,
     isParent,
-    logout,
     router,
     pathname,
     setActiveSpace,

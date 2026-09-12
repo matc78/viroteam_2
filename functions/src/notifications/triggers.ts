@@ -20,6 +20,7 @@ import {
 } from "./copy";
 import {
   calendarDaysUntil,
+  dateIdToDayMonthLabel,
   dateIdToIsoDate,
   feesDeepLink,
   homeDeepLink,
@@ -192,10 +193,11 @@ async function handleEventCreated(params: {
   for (const kind of kinds) {
     if (kind === "j7" && params.eventData.reminderSentJ7 === true) continue;
     if (kind === "j2" && params.eventData.reminderSentJ2 === true) continue;
+    const dateLabel = dateIdToDayMonthLabel(dateId);
     const copy =
       kind === "j7"
-        ? eventReminderJ7Copy(String(params.eventData.title ?? ""))
-        : eventReminderJ2Copy(String(params.eventData.title ?? ""));
+        ? eventReminderJ7Copy(String(params.eventData.title ?? ""), dateLabel)
+        : eventReminderJ2Copy(String(params.eventData.title ?? ""), dateLabel);
     await sendEventAudiencePush({
       firestore: params.firestore,
       clubId: params.clubId,

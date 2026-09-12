@@ -17,6 +17,7 @@ import {
 import {
   addDaysToDateId,
   calendarDaysUntil,
+  dateIdToDayMonthLabel,
   dateIdToIsoDate,
   feesDeepLink,
   homeDeepLink,
@@ -46,8 +47,9 @@ test("truncatePushBody tronque avec ellipse", () => {
 });
 
 test("copies event / fee / annonce", () => {
-  assert.equal(eventReminderJ7Copy("Match").title, "Rappel — dans une semaine");
-  assert.equal(eventReminderJ2Copy("Match").body, "Match");
+  assert.equal(eventReminderJ7Copy("Match", "19/09").title, "Rappel — 19/09");
+  assert.equal(eventReminderJ2Copy("Match", "12/09").title, "Rappel — 12/09");
+  assert.equal(eventReminderJ2Copy("Match", "12/09").body, "Match");
   assert.match(eventManualPushCopy({
     title: "Entr.",
     dateLabel: "lun. 8 sept.",
@@ -100,6 +102,8 @@ test("preferenceOffWarning couvre les 4 clés", () => {
 
 test("deep links et dateId", () => {
   assert.equal(dateIdToIsoDate("20260908"), "2026-09-08");
+  assert.equal(dateIdToDayMonthLabel("20260908"), "08/09");
+  assert.equal(dateIdToDayMonthLabel("20261019"), "19/10");
   assert.equal(
     planningDeepLink("c1", "20260908"),
     "viroteam://planning?clubId=c1&date=2026-09-08",

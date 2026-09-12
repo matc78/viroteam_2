@@ -10,20 +10,28 @@ export function truncatePushBody(
   return `${normalized.slice(0, Math.max(0, maxChars - 1)).trimEnd()}…`;
 }
 
-/** Corps / titre pour un rappel J-7. */
-export function eventReminderJ7Copy(title: string): { title: string; body: string } {
+/** Corps / titre pour un rappel J-7 (date en jj/mm). */
+export function eventReminderJ7Copy(
+  title: string,
+  dateLabel: string,
+): { title: string; body: string } {
   const eventTitle = title.trim() || "Événement";
+  const dayMonth = dateLabel.trim() || "date à confirmer";
   return {
-    title: "Rappel — dans une semaine",
+    title: `Rappel — ${dayMonth}`,
     body: eventTitle,
   };
 }
 
-/** Corps / titre pour un rappel J-2. */
-export function eventReminderJ2Copy(title: string): { title: string; body: string } {
+/** Corps / titre pour un rappel J-2 (date en jj/mm). */
+export function eventReminderJ2Copy(
+  title: string,
+  dateLabel: string,
+): { title: string; body: string } {
   const eventTitle = title.trim() || "Événement";
+  const dayMonth = dateLabel.trim() || "date à confirmer";
   return {
-    title: "Rappel — dans 2 jours",
+    title: `Rappel — ${dayMonth}`,
     body: eventTitle,
   };
 }

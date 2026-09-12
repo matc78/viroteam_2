@@ -9,6 +9,7 @@ import {
 } from "./copy";
 import {
   addDaysToDateId,
+  dateIdToDayMonthLabel,
   dateIdToIsoDate,
   feesDeepLink,
   parisDateId,
@@ -72,10 +73,11 @@ async function processClubEventReminders(params: {
     if (data.canceled === true) continue;
     if (data[flagField] === true) continue;
 
+    const dateLabel = dateIdToDayMonthLabel(params.dateId);
     const copy =
       params.kind === "j7"
-        ? eventReminderJ7Copy(String(data.title ?? ""))
-        : eventReminderJ2Copy(String(data.title ?? ""));
+        ? eventReminderJ7Copy(String(data.title ?? ""), dateLabel)
+        : eventReminderJ2Copy(String(data.title ?? ""), dateLabel);
     const deepLink = planningDeepLink(params.clubId, params.dateId);
     const webPath = `/planning?clubId=${encodeURIComponent(params.clubId)}&date=${encodeURIComponent(dateIdToIsoDate(params.dateId))}`;
     const recipients = await resolveEventRecipientUids({

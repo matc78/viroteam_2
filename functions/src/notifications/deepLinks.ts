@@ -43,6 +43,14 @@ export function parisDateLabel(date: Date): string {
   }).format(date);
 }
 
+/** Libellé jour/mois à partir d'une dateId `YYYYMMDD` (ex. « 19/09 »). */
+export function dateIdToDayMonthLabel(dateId: string): string {
+  const iso = dateIdToIsoDate(dateId);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return iso;
+  return `${match[3]}/${match[2]}`;
+}
+
 /** Ajoute `days` calendaires à une dateId Paris `YYYYMMDD`. */
 export function addDaysToDateId(dateId: string, days: number): string {
   const iso = dateIdToIsoDate(dateId);

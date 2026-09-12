@@ -98,8 +98,40 @@ final class AppCopyFees {
   String exemptForSeason(String seasonLabel) =>
       'Tu es exonéré(e) de cotisation pour la saison $seasonLabel.';
   String paidAmount(String amount) => 'Payé : $amount';
+  String dueAmount(String amount) => 'Dû : $amount';
   String pendingAidAmount(String amount) => 'Aide en attente : $amount';
   String remainingAmount(String amount) => 'Reste : $amount';
+  String get fieldNeedsTier => 'Tarif à assigner';
+  String get fieldSettled => 'Soldé';
+  String get fieldUpToDateHint =>
+      'À jour — les corrections détaillées se font sur le portail.';
+  String get fieldMarkPaidTitle => 'Marquer payé';
+  String fieldMarkPaidSubtitle(String amount) =>
+      'Enregistre le reste ($amount) en espèces';
+  String get fieldPartialPayment => 'Encaisser un montant';
+  String get fieldPartialPaymentSubtitle =>
+      'Chèque, espèces, ANCV… (montant libre)';
+  String get fieldAssignTierTitle => 'Assigner un tarif';
+  String get fieldAssignTierSubtitle => 'Choisis le palier pour ce membre';
+  String trackingSubtitle({
+    required String tierLabel,
+    required String due,
+    required String paid,
+    required String remaining,
+    required bool showPaidBreakdown,
+  }) {
+    if (!showPaidBreakdown) return '$tierLabel · $due';
+    return '$tierLabel · ${dueAmount(due)} · ${paidAmount(paid)} · ${remainingAmount(remaining)}';
+  }
+
+  String get adjustPaidAmount => 'Corriger le déjà payé';
+  String get adjustPaidAmountSubtitle =>
+      'Rectifie le montant encaissé (erreur de saisie, trop-perçu…)';
+  String get adjustPaidAmountHint =>
+      'Indique le total déjà encaissé pour ce membre (pas un nouveau paiement).';
+  String get adjustPaidNoteHint => 'Motif de la correction (optionnel)';
+  String get adjustPaidSaved => 'Montant déjà payé mis à jour';
+  String get markPaidOfflineHint => 'Enregistre le reste dû (espèces)';
   String categoryLabel(String label) => 'Catégorie : $label';
   String get aidValidated => 'Validée';
   String get aidRejected => 'Refusée';
@@ -196,6 +228,7 @@ final class AppCopyFees {
   String unpaidSection(int count) => 'En attente ($count)';
   String paidSection(int count) => 'Payés ($count)';
   String exemptSection(int count) => 'Exonérés ($count)';
+  String upToDateSection(int count) => 'À jour ($count)';
   String get privateNoteHint => 'Note privée';
 
   String trackingStats({
@@ -241,4 +274,36 @@ final class AppCopyFees {
         'other' => aidOther,
         _ => type,
       };
+
+  String get paymentHistoryTitle => 'Historique des paiements';
+  String get paymentHistoryEmpty => 'Aucune transaction pour l’instant.';
+  String get paymentHistoryLoadError =>
+      'Impossible de charger l’historique.';
+  String get fieldPaymentHistory => 'Voir l’historique';
+
+  String paymentEventTitle(String type) => switch (type) {
+        'offline_credit' => 'Paiement hors-ligne',
+        'card_credit' => 'Paiement CB',
+        'adjust_absolute' => 'Correction du montant',
+        'aid_validated' => 'Aide validée',
+        'aid_rejected' => 'Aide refusée',
+        'marked_paid' => 'Marqué payé',
+        'exempted' => 'Exonération',
+        'unexempted' => 'Fin d’exonération',
+        _ => 'Mouvement',
+      };
+
+  /// Formate un montant en euros pour l’historique.
+  String formatEventAmountCents(int cents) {
+    final euros = cents / 100;
+    final formatted =
+        euros.toStringAsFixed(euros.truncateToDouble() == euros ? 0 : 2);
+    return '$formatted €';
+  }
+
+  /// Montant signé (+ / −) pour un delta d’historique.
+  String formatEventDeltaCents(int deltaCents) {
+    final sign = deltaCents > 0 ? '+' : '';
+    return '$sign${formatEventAmountCents(deltaCents)}';
+  }
 }

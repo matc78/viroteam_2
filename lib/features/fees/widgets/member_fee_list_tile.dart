@@ -7,6 +7,7 @@ import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_status_chip.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
+/// Tuile suivi cotisations — vue terrain (reste dû en priorité).
 class MemberFeeListTile extends StatelessWidget {
   const MemberFeeListTile({
     super.key,
@@ -16,7 +17,8 @@ class MemberFeeListTile extends StatelessWidget {
     required this.selectionMode,
     required this.onTap,
     required this.onLongPress,
-    required this.onMenu,
+    this.onMenu,
+    this.showMenu = true,
   });
 
   final MemberFee fee;
@@ -25,7 +27,8 @@ class MemberFeeListTile extends StatelessWidget {
   final bool selectionMode;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
-  final VoidCallback onMenu;
+  final VoidCallback? onMenu;
+  final bool showMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +36,22 @@ class MemberFeeListTile extends StatelessWidget {
     final display = fee.displayStatus(season.paymentDeadlineAt);
     final tier = season.tierById(fee.tierId);
     final tierLabel = tier?.label ?? AppCopy.fees.tierUnassigned;
-    final amount = fee.status == MemberFeeStatus.exonere
-        ? '—'
-        : formatFeeAmountCents(fee.amountDueCents(season));
+    final remainingCents = fee.remainingCents(season);
+    final needsTier =
+        fee.status != MemberFeeStatus.exonere &&
+        (fee.tierId == null || fee.tierId!.isEmpty);
+
+    final String subtitle;
+    if (fee.status == MemberFeeStatus.exonere) {
+      subtitle = AppCopy.fees.statusExonere;
+    } else if (needsTier) {
+      subtitle = AppCopy.fees.fieldNeedsTier;
+    } else if (remainingCents > 0) {
+      subtitle =
+          '$tierLabel · ${AppCopy.fees.remainingAmount(formatFeeAmountCents(remainingCents))}';
+    } else {
+      subtitle = '$tierLabel · ${AppCopy.fees.fieldSettled}';
+    }
 
     return ListTile(
       onTap: onTap,
@@ -56,16 +72,18 @@ class MemberFeeListTile extends StatelessWidget {
         fee.memberDisplayName,
         style: theme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
       ),
-      subtitle: Text('$tierLabel · $amount'),
+      subtitle: Text(subtitle),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           FeeStatusChip(status: display, compact: true),
-          const SizedBox(width: ViroSpacing.xs),
-          IconButton(
-            icon: ViroIcon(ViroIcons.moreVertical),
-            onPressed: onMenu,
-          ),
+          if (showMenu && onMenu != null) ...[
+            const SizedBox(width: ViroSpacing.xs),
+            IconButton(
+              icon: ViroIcon(ViroIcons.moreVertical),
+              onPressed: onMenu,
+            ),
+          ],
         ],
       ),
     );

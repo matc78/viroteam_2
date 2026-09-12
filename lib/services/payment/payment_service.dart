@@ -1,15 +1,21 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
+import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 
 /// Merchant ID Apple Pay (à aligner avec le provisioning Apple / Stripe).
 const String kStripeApplePayMerchantId = 'merchant.com.viroteam.app';
+
+/// Facteur d’échelle typo PaymentSheet (champs CB plus grands / plus faciles à taper).
+/// Non exposé en Dart par flutter_stripe 11 — injecté via `appearance.font.scale` natif.
+const double kStripePaymentSheetFontScale = 1.35;
 
 /// Contrat paiement cotisations in-app.
 ///
@@ -193,21 +199,7 @@ class StripePaymentService implements PaymentService {
       Stripe.merchantIdentifier = kStripeApplePayMerchantId;
       await Stripe.instance.applySettings();
 
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'ViroTeam',
-          style: ThemeMode.system,
-          googlePay: PaymentSheetGooglePay(
-            merchantCountryCode: 'FR',
-            testEnv: !kReleaseMode,
-          ),
-          applePay: const PaymentSheetApplePay(
-            merchantCountryCode: 'FR',
-          ),
-        ),
-      );
-
+      await _initPaymentSheetWithLargerInputs(clientSecret: clientSecret);
       await Stripe.instance.presentPaymentSheet();
 
       return PaymentCheckoutResult(
@@ -240,6 +232,66 @@ class StripePaymentService implements PaymentService {
         message: 'Erreur paiement : $e',
       );
     }
+  }
+}
+
+/// Initialise le PaymentSheet avec une typo agrandie (champs CB plus confortables).
+///
+/// `flutter_stripe` 11 n’expose pas `appearance.font.scale` en Dart, alors que
+/// les SDK natifs Android/iOS le supportent — on l’injecte dans le payload.
+/// Si le MethodChannel échoue, repli sur [Stripe.instance.initPaymentSheet]
+/// (sans scale, mais paiement toujours possible).
+Future<void> _initPaymentSheetWithLargerInputs({
+  required String clientSecret,
+}) async {
+  final parameters = SetupPaymentSheetParameters(
+    paymentIntentClientSecret: clientSecret,
+    merchantDisplayName: 'ViroTeam',
+    style: ThemeMode.system,
+    // Carte + wallets d'abord ; le reste (Bancontact, Klarna…) suit
+    // dans l'ordre dynamique Stripe.
+    paymentMethodOrder: const [
+      'card',
+      'apple_pay',
+      'google_pay',
+    ],
+    googlePay: PaymentSheetGooglePay(
+      merchantCountryCode: 'FR',
+      testEnv: !kReleaseMode,
+    ),
+    applePay: const PaymentSheetApplePay(
+      merchantCountryCode: 'FR',
+    ),
+    appearance: PaymentSheetAppearance(
+      colors: PaymentSheetAppearanceColors(
+        primary: ViroColors.primary600,
+        componentBackground: ViroColors.gray50,
+        componentBorder: ViroColors.gray200,
+        componentText: ViroColors.gray900,
+        primaryText: ViroColors.gray900,
+        secondaryText: ViroColors.gray600,
+        placeholderText: ViroColors.gray400,
+      ),
+      shapes: const PaymentSheetShape(
+        borderRadius: 14,
+        borderWidth: 1.5,
+      ),
+    ),
+  );
+
+  try {
+    final paramsJson = Map<String, dynamic>.from(parameters.toJson());
+    final appearanceJson = Map<String, dynamic>.from(
+      (paramsJson['appearance'] as Map?)?.cast<String, dynamic>() ??
+          <String, dynamic>{},
+    );
+    appearanceJson['font'] = const {'scale': kStripePaymentSheetFontScale};
+    paramsJson['appearance'] = appearanceJson;
+
+    const channel = MethodChannel('flutter.stripe/payments');
+    await channel.invokeMethod('initPaymentSheet', {'params': paramsJson});
+  } catch (_) {
+    await Stripe.instance.initPaymentSheet(paymentSheetParameters: parameters);
   }
 }
 

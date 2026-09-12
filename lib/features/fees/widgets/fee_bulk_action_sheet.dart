@@ -1,33 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/fees/models/fee_tier.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
+/// Actions groupées terrain : marquer payé + assigner tarif.
 class FeeBulkActionSheet extends StatelessWidget {
   const FeeBulkActionSheet({
     super.key,
     required this.selectedCount,
     required this.tiers,
     required this.onMarkPaid,
-    required this.onMarkExempt,
-    required this.onMarkUnpaid,
     required this.onAssignTier,
   });
 
   final int selectedCount;
   final List<FeeTier> tiers;
   final VoidCallback onMarkPaid;
-  final VoidCallback onMarkExempt;
-  final VoidCallback onMarkUnpaid;
   final ValueChanged<String> onAssignTier;
 
+  /// Affiche le sheet d’actions groupées.
   static Future<void> show(
     BuildContext context, {
     required int selectedCount,
     required List<FeeTier> tiers,
     required VoidCallback onMarkPaid,
-    required VoidCallback onMarkExempt,
-    required VoidCallback onMarkUnpaid,
     required ValueChanged<String> onAssignTier,
   }) {
     return showModalBottomSheet<void>(
@@ -40,14 +37,6 @@ class FeeBulkActionSheet extends StatelessWidget {
         onMarkPaid: () {
           Navigator.pop(ctx);
           onMarkPaid();
-        },
-        onMarkExempt: () {
-          Navigator.pop(ctx);
-          onMarkExempt();
-        },
-        onMarkUnpaid: () {
-          Navigator.pop(ctx);
-          onMarkUnpaid();
         },
         onAssignTier: (tierId) {
           Navigator.pop(ctx);
@@ -74,19 +63,10 @@ class FeeBulkActionSheet extends StatelessWidget {
             ),
             const SizedBox(height: ViroSpacing.md),
             ListTile(
-              leading: const Icon(Icons.check_circle_outline),
+              leading: ViroIcon(ViroIcons.check),
               title: Text(AppCopy.fees.markPaid),
+              subtitle: Text(AppCopy.fees.markPaidOfflineHint),
               onTap: onMarkPaid,
-            ),
-            ListTile(
-              leading: const Icon(Icons.remove_circle_outline),
-              title: Text(AppCopy.fees.markExempt),
-              onTap: onMarkExempt,
-            ),
-            ListTile(
-              leading: const Icon(Icons.schedule),
-              title: Text(AppCopy.fees.markUnpaid),
-              onTap: onMarkUnpaid,
             ),
             if (tiers.isNotEmpty) ...[
               const Divider(),

@@ -49,11 +49,45 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.7rem;
+  padding: 0.4rem 0.85rem;
   border-radius: 999px;
-  border: 1.5px solid transparent;
+  border: 2px solid transparent;
   font-size: 0.84rem;
   font-weight: 550;
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+  opacity: 0.55;
+  transition:
+    opacity 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background-color 140ms ease,
+    transform 140ms ease,
+    filter 140ms ease;
+}
+
+button.summaryChip:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+button.summaryChip[data-active="true"] {
+  opacity: 1;
+  font-weight: 700;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, currentColor 22%, transparent),
+    0 2px 8px color-mix(in srgb, currentColor 18%, transparent);
+  filter: saturate(1.15);
+}
+
+button.summaryChip[data-active="true"]::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
 }
 
 .summaryChip strong {
@@ -67,16 +101,58 @@
   color: var(--tone-amber-text);
 }
 
+button.summaryChip[data-tone="action"][data-active="true"] {
+  background: var(--tone-amber-soft);
+  border-color: var(--tone-amber-border);
+}
+
 .summaryChip[data-tone="due"] {
   background: var(--color-fee-due-soft);
   border-color: color-mix(in srgb, var(--color-fee-due) 30%, transparent);
   color: var(--color-fee-due);
 }
 
+button.summaryChip[data-tone="due"][data-active="true"] {
+  background: color-mix(in srgb, var(--color-fee-due-soft) 60%, white);
+  border-color: var(--color-fee-due);
+}
+
 .summaryChip[data-tone="aid"] {
   background: color-mix(in srgb, var(--tone-orange-soft) 70%, white);
   border-color: color-mix(in srgb, var(--tone-orange-border) 45%, transparent);
   color: var(--tone-orange-text);
+  cursor: default;
+  opacity: 1;
+}
+
+.summaryChip[data-tone="paid"] {
+  background: color-mix(in srgb, var(--tone-green-soft, #dcfce7) 75%, white);
+  border-color: color-mix(
+    in srgb,
+    var(--tone-green-border, #86efac) 50%,
+    transparent
+  );
+  color: var(--tone-green-text, #166534);
+}
+
+button.summaryChip[data-tone="paid"][data-active="true"] {
+  background: color-mix(in srgb, var(--tone-green-soft, #bbf7d0) 90%, white);
+  border-color: var(--tone-green-border, #16a34a);
+}
+
+.summaryChip[data-tone="partial"] {
+  background: color-mix(in srgb, var(--tone-blue-soft, #dbeafe) 75%, white);
+  border-color: color-mix(
+    in srgb,
+    var(--tone-blue-border, #93c5fd) 50%,
+    transparent
+  );
+  color: var(--tone-blue-text, #1d4ed8);
+}
+
+button.summaryChip[data-tone="partial"][data-active="true"] {
+  background: color-mix(in srgb, var(--tone-blue-soft, #bfdbfe) 90%, white);
+  border-color: var(--tone-blue-border, #2563eb);
 }
 
 .smartButton {
@@ -347,9 +423,11 @@
 
 .table th:last-child,
 .table td:last-child {
-  width: 15rem;
+  width: 7.25rem;
+  max-width: 7.25rem;
   text-align: right;
   overflow: visible;
+  white-space: nowrap;
 }
 
 .table tbody tr:hover {
@@ -450,6 +528,38 @@
   color: var(--color-fee-due);
 }
 
+.amounts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+  line-height: 1.25;
+}
+
+.amountLine {
+  color: var(--color-text-muted, #64748b);
+}
+
+.amountLine[data-paid="true"] {
+  color: var(--tone-green-text, #166534);
+  font-weight: 600;
+}
+
+.soldHint {
+  color: var(--tone-green-text, #166534);
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+.paymentMethod {
+  display: inline-block;
+  max-width: 9.5rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-gray-700);
+}
+
 .rowActions {
   display: flex;
   flex-wrap: wrap;
@@ -479,6 +589,7 @@
 .primaryButton,
 .actionButton,
 .ghostButton,
+.outlineButton,
 .linkButton {
   font: inherit;
   cursor: pointer;
@@ -529,6 +640,27 @@
 .ghostButton:hover:not(:disabled) {
   color: var(--tone-orange-text);
   background: color-mix(in srgb, var(--tone-orange-soft) 55%, white);
+}
+
+.outlineButton {
+  min-height: 1.85rem;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+  border: 1.5px solid var(--color-gray-300);
+  background: var(--color-white);
+  color: var(--color-primary-800);
+  border-radius: var(--radius-sm);
+}
+
+.outlineButton:hover:not(:disabled) {
+  border-color: var(--tone-amber-border);
+  background: color-mix(in srgb, var(--tone-amber-soft) 45%, white);
+  color: var(--tone-amber-text);
+}
+
+.outlineButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .barSecondaryButton {
@@ -640,7 +772,8 @@
 
   .table th:last-child,
   .table td:last-child {
-    width: 12rem;
+    width: 6.75rem;
+    max-width: 6.75rem;
   }
 
   .bar {

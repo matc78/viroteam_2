@@ -1,0 +1,106 @@
+.panel {
+  width: min(100%, 28rem);
+}
+
+.memberName {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+}
+
+.summary {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--color-gray-600);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.option:hover:not(:disabled) {
+  border-color: var(--tone-amber-border);
+  background: color-mix(in srgb, var(--tone-amber-soft) 35%, white);
+}
+
+.option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.optionDanger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-error, #b91c1c) 40%, white);
+  background: color-mix(in srgb, var(--color-error, #b91c1c) 8%, white);
+}
+
+.optionTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+}
+
+.optionHint {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--color-gray-600);
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--color-gray-600);
+}
+
+.input,
+.textarea {
+  min-height: 2.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-primary-900);
+  font: inherit;
+}
+
+.textarea {
+  min-height: 4.25rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--tone-amber-border) 70%, transparent);
+  outline-offset: 1px;
+  border-color: var(--tone-amber-border);
+}

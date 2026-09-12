@@ -20,6 +20,7 @@ import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_status_chip.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_checkout_sheet.dart';
+import 'package:viro_team_v2/features/fees/widgets/fee_payment_history_list.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -578,6 +579,13 @@ class _FeeContent extends ConsumerWidget {
             const SizedBox(height: ViroSpacing.md),
           ],
         ],
+
+        FeePaymentHistoryList(
+          clubId: clubId,
+          seasonId: season.id,
+          memberId: fee.memberId,
+        ),
+        const SizedBox(height: ViroSpacing.lg),
 
         ViroCard(
           child: Row(

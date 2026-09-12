@@ -142,6 +142,23 @@ export async function creditMemberFeeFromCardPayment(params: {
       { merge: true },
     );
 
+    if (creditedCents > 0) {
+      const eventRef = feeRef.collection("payment_events").doc();
+      tx.set(eventRef, {
+        type: "card_credit",
+        deltaCents: creditedCents,
+        amountPaidCentsBefore: previousPaid,
+        amountPaidCentsAfter: newPaid,
+        statusAfter: nextStatus,
+        actorUid: "system",
+        paidVia: provider,
+        paymentProvider: provider,
+        externalPaymentId,
+        sessionId: sessionId || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
     if (sessionId) {
       const sessionRef = db()
         .collection("clubs")

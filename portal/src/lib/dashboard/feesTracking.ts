@@ -9,6 +9,8 @@ import {
 } from "@/lib/firebase/eventService";
 import {
   FeeSeasonRecord,
+  amountDueCents,
+  feePaymentMethodLabel,
   getActiveSeason,
   listMemberFees,
   remainingCents,
@@ -38,7 +40,11 @@ export type FeeTrackingRow = {
   tierId: string | null;
   status: string | null;
   feeStatusLabel: string;
+  amountDueCents: number;
+  amountPaidCents: number;
   remainingCents: number;
+  /** Libellé moyen de paiement (Stripe, espèces…), ou null. */
+  paymentMethodLabel: string | null;
   pendingAids: FeeAidRecord[];
   /** True si une action admin est encore attendue. */
   needsAction: boolean;
@@ -61,6 +67,10 @@ export type FeesTrackingData = {
     needsAction: number;
     remainingDue: number;
     pendingAids: number;
+    /** Fiches soldées (`paye`). */
+    paid: number;
+    /** Paiement partiel enregistré. */
+    partial: number;
   };
 };
 
@@ -137,6 +147,8 @@ export async function loadFeesTrackingData(
       fee?.aids.filter((aid) => aid.status === FeeAidStatuses.pendingProof) ??
       [];
     const remaining = fee ? remainingCents(fee, season) : 0;
+    const due = fee ? amountDueCents(fee, season) : 0;
+    const paid = fee?.amountPaidCents ?? 0;
     const status = fee?.status ?? null;
     const resolved = resolveMemberTeams(member, teams);
     const memberTeams = teams.filter((team) =>
@@ -162,7 +174,10 @@ export async function loadFeesTrackingData(
       tierId: fee?.tierId ?? null,
       status,
       feeStatusLabel: feeStatusLabel(status),
+      amountDueCents: due,
+      amountPaidCents: paid,
       remainingCents: remaining,
+      paymentMethodLabel: fee ? feePaymentMethodLabel(fee) : null,
       pendingAids,
       needsAction: rowNeedsAction(fee, remaining, pendingAids),
       resolvedTeamIds: resolved.teamIds,
@@ -181,10 +196,15 @@ export async function loadFeesTrackingData(
   let remainingDue = 0;
   let pendingAidsCount = 0;
   let needsAction = 0;
+  let paid = 0;
+  let partial = 0;
   for (const row of rows) {
     if (row.needsAction) needsAction += 1;
     if (row.remainingCents > 0) remainingDue += 1;
     pendingAidsCount += row.pendingAids.length;
+    if (row.status === MemberFeeStatuses.paye) paid += 1;
+    if (row.status === MemberFeeStatuses.exonere) paid += 1;
+    if (row.status === MemberFeeStatuses.partiel) partial += 1;
   }
 
   const sportCategories = [
@@ -204,6 +224,8 @@ export async function loadFeesTrackingData(
       needsAction,
       remainingDue,
       pendingAids: pendingAidsCount,
+      paid,
+      partial,
     },
   };
 }

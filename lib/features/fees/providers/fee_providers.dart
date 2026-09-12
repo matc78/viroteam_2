@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
+import 'package:viro_team_v2/features/fees/models/fee_payment_event.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -73,6 +74,19 @@ final allMemberFeesProvider =
   return ref.read(feeServiceProvider).watchAllMemberFees(
         clubId: clubId,
         seasonId: season.id,
+      );
+});
+
+/// Historique ledger d'une fiche cotisation.
+final memberFeePaymentEventsProvider = StreamProvider.family<
+    List<FeePaymentEvent>,
+    ({String clubId, String seasonId, String memberId})>((ref, params) {
+  final auth = ref.watch(firestoreAuthReadyProvider).value;
+  if (auth == null) return Stream.value(const []);
+  return ref.read(feeServiceProvider).watchPaymentEvents(
+        clubId: params.clubId,
+        seasonId: params.seasonId,
+        memberId: params.memberId,
       );
 });
 

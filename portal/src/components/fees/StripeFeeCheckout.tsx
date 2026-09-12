@@ -83,6 +83,7 @@ function StripeCheckoutForm({
       <PaymentElement
         options={{
           layout: "tabs",
+          paymentMethodOrder: ["card", "apple_pay", "google_pay"],
           wallets: {
             applePay: "auto",
             googlePay: "auto",

@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
+import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/member_fee_list_tile.dart';
 import 'package:viro_team_v2/features/fees/widgets/offline_payment_dialog.dart';
+import 'package:viro_team_v2/features/fees/widgets/fee_payment_history_list.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -36,16 +38,14 @@ int pendingFeeInitCount({
 class FeeTrackingLists {
   const FeeTrackingLists({
     required this.unpaid,
-    required this.paid,
-    required this.exempt,
+    required this.upToDate,
   });
 
   final List<MemberFee> unpaid;
-  final List<MemberFee> paid;
-  final List<MemberFee> exempt;
+  final List<MemberFee> upToDate;
 }
 
-/// Onglet suivi des cotisations membres (admin).
+/// Onglet suivi des cotisations membres (admin) — actions terrain.
 class FeeMembersTrackingTab extends ConsumerWidget {
   const FeeMembersTrackingTab({
     super.key,
@@ -98,15 +98,13 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   FeeTrackingLists _splitFees(List<MemberFee> fees, FeeSeason season) {
     final filtered = _applySearchAndTier(fees);
     final unpaid = <MemberFee>[];
-    final paid = <MemberFee>[];
-    final exempt = <MemberFee>[];
+    final upToDate = <MemberFee>[];
 
     for (final f in filtered) {
       switch (f.displayStatus(season.paymentDeadlineAt)) {
         case MemberFeeDisplayStatus.paye:
-          paid.add(f);
         case MemberFeeDisplayStatus.exonere:
-          exempt.add(f);
+          upToDate.add(f);
         case MemberFeeDisplayStatus.aPayer:
         case MemberFeeDisplayStatus.enRetard:
         case MemberFeeDisplayStatus.echeanceAujourdhui:
@@ -116,9 +114,8 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     }
 
     _sortByName(unpaid);
-    _sortByName(paid);
-    _sortByName(exempt);
-    return FeeTrackingLists(unpaid: unpaid, paid: paid, exempt: exempt);
+    _sortByName(upToDate);
+    return FeeTrackingLists(unpaid: unpaid, upToDate: upToDate);
   }
 
   Widget _sectionTitle(BuildContext context, String title) {
@@ -140,30 +137,46 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     );
   }
 
+  bool _needsFieldActions(MemberFee fee, FeeSeason season) {
+    if (fee.status == MemberFeeStatus.exonere) return false;
+    if (fee.status == MemberFeeStatus.paye) return false;
+    final needsTier = fee.tierId == null || fee.tierId!.isEmpty;
+    if (needsTier) return true;
+    return fee.remainingCents(season) > 0;
+  }
+
   Widget _feeTile(
     BuildContext context,
     WidgetRef ref,
     MemberFee fee,
-    FeeSeason season,
-  ) {
+    FeeSeason season, {
+    required bool actionable,
+  }) {
     final selected = selectedIds.contains(fee.memberId);
     return MemberFeeListTile(
       fee: fee,
       season: season,
       selected: selected,
       selectionMode: selectionMode,
+      showMenu: actionable && !selectionMode,
       onTap: () {
         if (selectionMode) {
           onSelect(fee.memberId, !selected);
+          return;
+        }
+        if (actionable) {
+          _showFieldActions(context, ref, fee, season);
         } else {
-          _showMemberMenu(context, ref, fee, season);
+          ViroSnackBar.show(context, AppCopy.fees.fieldUpToDateHint);
         }
       },
       onLongPress: () {
         if (!selectionMode) onToggleSelection();
         onSelect(fee.memberId, true);
       },
-      onMenu: () => _showMemberMenu(context, ref, fee, season),
+      onMenu: actionable
+          ? () => _showFieldActions(context, ref, fee, season)
+          : null,
     );
   }
 
@@ -226,7 +239,9 @@ class FeeMembersTrackingTab extends ConsumerWidget {
         ViroSnackBar.show(context, AppCopy.fees.sheetsCreated(created));
       }
     } catch (e) {
-      if (context.mounted) ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
+      if (context.mounted) {
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
+      }
     }
   }
 
@@ -246,12 +261,79 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     }
   }
 
-  void _showMemberMenu(
+  Future<void> _markRemainingPaid(
+    BuildContext context,
+    WidgetRef ref,
+    MemberFee fee,
+    FeeSeason season,
+  ) async {
+    final remaining = fee.remainingCents(season);
+    if (remaining <= 0) return;
+    try {
+      await ref.read(feeServiceProvider).validateOfflinePayment(
+            clubId: clubId,
+            seasonId: season.id,
+            memberId: fee.memberId,
+            offlineMethod: FeePaymentMethods.especes,
+            amountCents: remaining,
+            season: season,
+            currentFee: fee,
+          );
+      if (context.mounted) {
+        ViroSnackBar.show(context, AppCopy.fees.offlinePaymentSaved);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
+      }
+    }
+  }
+
+  Future<void> _collectPartial(
+    BuildContext context,
+    WidgetRef ref,
+    MemberFee fee,
+    FeeSeason season,
+  ) async {
+    final result = await showDialog<({String method, int amountCents})>(
+      context: context,
+      builder: (dCtx) => OfflinePaymentDialog(
+        memberDisplayName: fee.memberDisplayName,
+        remainingCents: fee.remainingCents(season),
+      ),
+    );
+    if (!context.mounted || result == null) return;
+    try {
+      await ref.read(feeServiceProvider).validateOfflinePayment(
+            clubId: clubId,
+            seasonId: season.id,
+            memberId: fee.memberId,
+            offlineMethod: result.method,
+            amountCents: result.amountCents,
+            season: season,
+            currentFee: fee,
+          );
+      if (context.mounted) {
+        ViroSnackBar.show(context, AppCopy.fees.offlinePaymentSaved);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
+      }
+    }
+  }
+
+  /// Actions rapides terrain : payer / encaisser / assigner tarif.
+  void _showFieldActions(
     BuildContext context,
     WidgetRef ref,
     MemberFee fee,
     FeeSeason season,
   ) {
+    final needsTier = fee.tierId == null || fee.tierId!.isEmpty;
+    final remaining = fee.remainingCents(season);
+    final accent = accentColor ?? ViroColors.primary600;
+
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -263,172 +345,93 @@ class FeeMembersTrackingTab extends ConsumerWidget {
             children: [
               ListTile(
                 title: Text(fee.memberDisplayName),
-                subtitle:
-                    Text(fee.displayStatus(season.paymentDeadlineAt).label),
+                subtitle: Text(
+                  needsTier
+                      ? AppCopy.fees.fieldNeedsTier
+                      : remaining > 0
+                          ? AppCopy.fees.remainingAmount(
+                              formatFeeAmountCents(remaining),
+                            )
+                          : AppCopy.fees.fieldSettled,
+                ),
               ),
-              ListTile(
-                leading: ViroIcon(ViroIcons.payments, color: accentColor ?? ViroColors.primary600),
-                title: Text(AppCopy.fees.validateOffline),
-                subtitle: Text(AppCopy.fees.validateOfflineSubtitle),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await Future<void>.delayed(Duration.zero);
-                  if (!context.mounted) return;
-                  final result = await showDialog<
-                      ({String method, int amountCents})>(
-                    context: context,
-                    builder: (dCtx) => OfflinePaymentDialog(
-                      memberDisplayName: fee.memberDisplayName,
-                      remainingCents: fee.remainingCents(season),
-                    ),
-                  );
-                  if (!context.mounted || result == null) return;
-                  try {
-                    await ref.read(feeServiceProvider).validateOfflinePayment(
-                          clubId: clubId,
-                          seasonId: season.id,
-                          memberId: fee.memberId,
-                          offlineMethod: result.method,
-                          amountCents: result.amountCents,
-                          season: season,
-                          currentFee: fee,
-                        );
-                    if (context.mounted) {
-                      ViroSnackBar.show(context, AppCopy.fees.offlinePaymentSaved);
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
-                    }
-                  }
-                },
-              ),
-              ListTile(
-                leading: ViroIcon(ViroIcons.check, color: ViroColors.success),
-                title: Text(AppCopy.fees.markPaid),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await ref.read(feeServiceProvider).setMemberFeeStatus(
-                        clubId: clubId,
-                        seasonId: season.id,
-                        memberId: fee.memberId,
-                        status: MemberFeeStatus.paye,
-                      );
-                },
-              ),
-              ListTile(
-                leading: ViroIcon(ViroIcons.clock, color: ViroColors.warning),
-                title: Text(AppCopy.fees.markUnpaid),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await ref.read(feeServiceProvider).setMemberFeeStatus(
-                        clubId: clubId,
-                        seasonId: season.id,
-                        memberId: fee.memberId,
-                        status: MemberFeeStatus.aPayer,
-                      );
-                },
-              ),
-              ListTile(
-                leading: ViroIcon(ViroIcons.block, color: ViroColors.gray600),
-                title: Text(AppCopy.fees.markExempt),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await ref.read(feeServiceProvider).setMemberFeeStatus(
-                        clubId: clubId,
-                        seasonId: season.id,
-                        memberId: fee.memberId,
-                        status: MemberFeeStatus.exonere,
-                      );
-                },
-              ),
-              if (fee.aids.any((a) => a.isPendingProof)) ...[
-                const Divider(),
-                for (final aid in fee.aids.where((a) => a.isPendingProof)) ...[
-                  ListTile(
-                    leading: ViroIcon(ViroIcons.note, color: accentColor ?? ViroColors.primary600),
-                    title: Text(AppCopy.fees.validateAid(aid.label)),
-                    subtitle: Text(
-                      '${aid.amountCents / 100} € — justificatif',
-                    ),
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      await ref.read(feeServiceProvider).setFeeAidStatus(
-                            clubId: clubId,
-                            seasonId: season.id,
-                            memberId: fee.memberId,
-                            aidId: aid.id,
-                            aidStatus: FeeAidStatuses.validated,
-                            season: season,
-                            currentFee: fee,
-                          );
-                      if (context.mounted) {
-                        ViroSnackBar.show(context, AppCopy.fees.aidValidatedSnack);
-                      }
-                    },
-                  ),
-                  ListTile(
-                    leading: ViroIcon(ViroIcons.close, color: ViroColors.error),
-                    title: Text(AppCopy.fees.refuseAid(aid.label)),
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      await ref.read(feeServiceProvider).setFeeAidStatus(
-                            clubId: clubId,
-                            seasonId: season.id,
-                            memberId: fee.memberId,
-                            aidId: aid.id,
-                            aidStatus: FeeAidStatuses.rejected,
-                            season: season,
-                            currentFee: fee,
-                          );
-                      if (context.mounted) {
-                        ViroSnackBar.show(context, AppCopy.fees.aidRefusedSnack);
-                      }
-                    },
-                  ),
-                ],
-              ],
-              if (season.tiers.isNotEmpty) ...[
-                const Divider(),
+              if (needsTier) ...[
+                ListTile(
+                  leading: ViroIcon(ViroIcons.payments, color: accent),
+                  title: Text(AppCopy.fees.fieldAssignTierTitle),
+                  subtitle: Text(AppCopy.fees.fieldAssignTierSubtitle),
+                ),
                 for (final tier in season.tiers)
                   ListTile(
-                    title: Text(AppCopy.fees.categoryColon(tier.label)),
+                    title: Text(tier.label),
+                    subtitle: Text(formatFeeAmountCents(tier.amountCents)),
                     onTap: () async {
                       Navigator.pop(ctx);
-                      await ref.read(feeServiceProvider).setMemberFeeTier(
-                            clubId: clubId,
-                            seasonId: season.id,
-                            memberId: fee.memberId,
-                            tierId: tier.tierId,
+                      try {
+                        await ref.read(feeServiceProvider).setMemberFeeTier(
+                              clubId: clubId,
+                              seasonId: season.id,
+                              memberId: fee.memberId,
+                              tierId: tier.tierId,
+                              season: season,
+                              currentFee: fee,
+                            );
+                        if (context.mounted) {
+                          ViroSnackBar.show(context, AppCopy.fees.tiersAssigned);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ViroSnackBar.show(
+                            context,
+                            AppCopy.common.errorWithDetails(e),
                           );
+                        }
+                      }
                     },
                   ),
+              ] else if (remaining > 0) ...[
+                ListTile(
+                  leading: ViroIcon(ViroIcons.check, color: ViroColors.success),
+                  title: Text(AppCopy.fees.fieldMarkPaidTitle),
+                  subtitle: Text(
+                    AppCopy.fees.fieldMarkPaidSubtitle(
+                      formatFeeAmountCents(remaining),
+                    ),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await _markRemainingPaid(context, ref, fee, season);
+                  },
+                ),
+                ListTile(
+                  leading: ViroIcon(ViroIcons.payments, color: accent),
+                  title: Text(AppCopy.fees.fieldPartialPayment),
+                  subtitle: Text(AppCopy.fees.fieldPartialPaymentSubtitle),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await Future<void>.delayed(Duration.zero);
+                    if (!context.mounted) return;
+                    await _collectPartial(context, ref, fee, season);
+                  },
+                ),
               ],
               ListTile(
-                leading: ViroIcon(ViroIcons.note, color: accentColor ?? ViroColors.primary600),
-                title: Text(AppCopy.fees.adminNote),
+                leading: ViroIcon(ViroIcons.clock, color: accent),
+                title: Text(AppCopy.fees.fieldPaymentHistory),
                 onTap: () async {
                   Navigator.pop(ctx);
                   await Future<void>.delayed(Duration.zero);
                   if (!context.mounted) return;
-                  final saved = await showDialog<String?>(
+                  await showFeePaymentHistorySheet(
                     context: context,
-                    builder: (dCtx) => MemberFeeNoteDialog(
-                      initialText: fee.notesAdmin ?? '',
-                    ),
+                    clubId: clubId,
+                    seasonId: season.id,
+                    memberId: fee.memberId,
+                    memberDisplayName: fee.memberDisplayName,
                   );
-                  if (!context.mounted || saved == null) return;
-                  await ref.read(feeServiceProvider).setMemberFeeNote(
-                        clubId: clubId,
-                        seasonId: season.id,
-                        memberId: fee.memberId,
-                        note: saved,
-                      );
-                  if (context.mounted) {
-                    ViroSnackBar.show(context, AppCopy.fees.noteSaved);
-                  }
                 },
               ),
+              const SizedBox(height: ViroSpacing.sm),
             ],
           ),
         ),
@@ -442,10 +445,10 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     final feesAsync = ref.watch(allMemberFeesProvider(clubId));
     final stats = ref.watch(feeStatsProvider(clubId));
     final members = ref.watch(clubMembersProvider(clubId)).value ?? [];
-    final pendingAsMembers = (ref.watch(pendingTeamMembersProvider(clubId)).value ??
-            [])
-        .map(pendingAsClubMember)
-        .toList();
+    final pendingAsMembers =
+        (ref.watch(pendingTeamMembersProvider(clubId)).value ?? [])
+            .map(pendingAsClubMember)
+            .toList();
 
     return seasonAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -453,10 +456,10 @@ class FeeMembersTrackingTab extends ConsumerWidget {
       data: (season) {
         if (season == null) {
           return ViroEmptyState(
-            message:
-                AppCopy.fees.noActiveSeasonAdmin,
+            message: AppCopy.fees.noActiveSeasonAdmin,
             icon: ViroIcons.payments,
-            actionLabel: onOpenConfig != null ? AppCopy.fees.configureSeason : null,
+            actionLabel:
+                onOpenConfig != null ? AppCopy.fees.configureSeason : null,
             onAction: onOpenConfig,
           );
         }
@@ -472,9 +475,8 @@ class FeeMembersTrackingTab extends ConsumerWidget {
               pendingAsMembers: pendingAsMembers,
               existingMemberIds: existingIds,
             );
-            final hasAnyList = lists.unpaid.isNotEmpty ||
-                lists.paid.isNotEmpty ||
-                lists.exempt.isNotEmpty;
+            final hasAnyList =
+                lists.unpaid.isNotEmpty || lists.upToDate.isNotEmpty;
 
             return Column(
               children: [
@@ -586,26 +588,32 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                               if (lists.unpaid.isNotEmpty) ...[
                                 _sectionTitle(
                                   context,
-                                  AppCopy.fees.unpaidSection(lists.unpaid.length),
+                                  AppCopy.fees
+                                      .unpaidSection(lists.unpaid.length),
                                 ),
                                 for (final fee in lists.unpaid)
-                                  _feeTile(context, ref, fee, season),
+                                  _feeTile(
+                                    context,
+                                    ref,
+                                    fee,
+                                    season,
+                                    actionable: _needsFieldActions(fee, season),
+                                  ),
                               ],
-                              if (lists.paid.isNotEmpty) ...[
+                              if (lists.upToDate.isNotEmpty) ...[
                                 _sectionTitle(
                                   context,
-                                  AppCopy.fees.paidSection(lists.paid.length),
+                                  AppCopy.fees
+                                      .upToDateSection(lists.upToDate.length),
                                 ),
-                                for (final fee in lists.paid)
-                                  _feeTile(context, ref, fee, season),
-                              ],
-                              if (lists.exempt.isNotEmpty) ...[
-                                _sectionTitle(
-                                  context,
-                                  AppCopy.fees.exemptSection(lists.exempt.length),
-                                ),
-                                for (final fee in lists.exempt)
-                                  _feeTile(context, ref, fee, season),
+                                for (final fee in lists.upToDate)
+                                  _feeTile(
+                                    context,
+                                    ref,
+                                    fee,
+                                    season,
+                                    actionable: false,
+                                  ),
                               ],
                               const SizedBox(height: ViroSpacing.lg),
                             ],
@@ -620,53 +628,3 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     );
   }
 }
-
-/// Dialogue note admin — le [TextEditingController] vit dans le State du dialogue.
-class MemberFeeNoteDialog extends StatefulWidget {
-  const MemberFeeNoteDialog({super.key, required this.initialText});
-
-  final String initialText;
-
-  @override
-  State<MemberFeeNoteDialog> createState() => MemberFeeNoteDialogState();
-}
-
-class MemberFeeNoteDialogState extends State<MemberFeeNoteDialog> {
-  late final TextEditingController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialText);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(AppCopy.fees.adminNote),
-      content: TextField(
-        controller: _controller,
-        maxLines: 3,
-        autofocus: true,
-        decoration: InputDecoration(hintText: AppCopy.fees.privateNoteHint),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(AppCopy.common.cancel),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, _controller.text),
-          child: Text(AppCopy.fees.save),
-        ),
-      ],
-    );
-  }
-}
-

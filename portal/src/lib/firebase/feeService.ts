@@ -4,18 +4,22 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   serverTimestamp,
   Timestamp,
   updateDoc,
   where,
   writeBatch,
+  type WriteBatch,
 } from "firebase/firestore";
 import { getAppFirestore, getFirebaseAuth } from "./app";
 import {
   Collections,
   FeeAidStatuses,
   FeePaidVia,
+  FeePaymentEventTypes,
   Fields,
   MemberFeeStatuses,
   OfflinePaymentMethod,
@@ -77,6 +81,8 @@ export type MemberFeeRecord = {
   paidAt: Date | null;
   paidVia: string | null;
   paymentProvider: string | null;
+  /** Moyen hors-ligne (chèque, espèces…) si `paidVia === offline`. */
+  offlineMethod: string | null;
   aids: FeeAidRecord[];
 };
 
@@ -107,6 +113,245 @@ function memberFeesCol(clubId: string, seasonId: string) {
     seasonId,
     Collections.memberFees,
   );
+}
+
+function paymentEventsCol(
+  clubId: string,
+  seasonId: string,
+  memberId: string,
+) {
+  return collection(
+    getAppFirestore(),
+    Collections.clubs,
+    clubId,
+    Collections.feeSeasons,
+    seasonId,
+    Collections.memberFees,
+    memberId,
+    Collections.paymentEvents,
+  );
+}
+
+/** Entrée d’historique cotisation. */
+export type FeePaymentEventRecord = {
+  id: string;
+  type: string;
+  deltaCents: number;
+  amountPaidCentsBefore: number;
+  amountPaidCentsAfter: number;
+  statusAfter: string;
+  actorUid: string;
+  createdAt: Date | null;
+  offlineMethod: string | null;
+  paidVia: string | null;
+  paymentProvider: string | null;
+  externalPaymentId: string | null;
+  sessionId: string | null;
+  aidId: string | null;
+  aidLabel: string | null;
+  aidAmountCents: number | null;
+  note: string | null;
+};
+
+function parsePaymentEvent(
+  id: string,
+  data: Record<string, unknown>,
+): FeePaymentEventRecord {
+  return {
+    id,
+    type: String(data[Fields.type] ?? ""),
+    deltaCents: Number(data[Fields.deltaCents] ?? 0),
+    amountPaidCentsBefore: Number(data[Fields.amountPaidCentsBefore] ?? 0),
+    amountPaidCentsAfter: Number(data[Fields.amountPaidCentsAfter] ?? 0),
+    statusAfter: String(data[Fields.statusAfter] ?? ""),
+    actorUid: String(data[Fields.actorUid] ?? ""),
+    createdAt: toDate(data[Fields.createdAt]),
+    offlineMethod:
+      data[Fields.offlineMethod] != null
+        ? String(data[Fields.offlineMethod])
+        : null,
+    paidVia: data[Fields.paidVia] != null ? String(data[Fields.paidVia]) : null,
+    paymentProvider:
+      data[Fields.paymentProvider] != null
+        ? String(data[Fields.paymentProvider])
+        : null,
+    externalPaymentId:
+      data[Fields.externalPaymentId] != null
+        ? String(data[Fields.externalPaymentId])
+        : null,
+    sessionId:
+      data[Fields.sessionId] != null ? String(data[Fields.sessionId]) : null,
+    aidId: data[Fields.aidId] != null ? String(data[Fields.aidId]) : null,
+    aidLabel:
+      data[Fields.aidLabel] != null ? String(data[Fields.aidLabel]) : null,
+    aidAmountCents:
+      data[Fields.aidAmountCents] != null
+        ? Number(data[Fields.aidAmountCents])
+        : null,
+    note: data[Fields.note] != null ? String(data[Fields.note]) : null,
+  };
+}
+
+function paymentEventPayload(params: {
+  type: string;
+  deltaCents: number;
+  amountPaidCentsBefore: number;
+  amountPaidCentsAfter: number;
+  statusAfter: string;
+  actorUid: string;
+  offlineMethod?: string | null;
+  paidVia?: string | null;
+  paymentProvider?: string | null;
+  externalPaymentId?: string | null;
+  sessionId?: string | null;
+  aidId?: string | null;
+  aidLabel?: string | null;
+  aidAmountCents?: number | null;
+  note?: string | null;
+}): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    [Fields.type]: params.type,
+    [Fields.deltaCents]: params.deltaCents,
+    [Fields.amountPaidCentsBefore]: params.amountPaidCentsBefore,
+    [Fields.amountPaidCentsAfter]: params.amountPaidCentsAfter,
+    [Fields.statusAfter]: params.statusAfter,
+    [Fields.actorUid]: params.actorUid,
+    [Fields.createdAt]: serverTimestamp(),
+  };
+  if (params.offlineMethod) payload[Fields.offlineMethod] = params.offlineMethod;
+  if (params.paidVia) payload[Fields.paidVia] = params.paidVia;
+  if (params.paymentProvider) {
+    payload[Fields.paymentProvider] = params.paymentProvider;
+  }
+  if (params.externalPaymentId) {
+    payload[Fields.externalPaymentId] = params.externalPaymentId;
+  }
+  if (params.sessionId) payload[Fields.sessionId] = params.sessionId;
+  if (params.aidId) payload[Fields.aidId] = params.aidId;
+  if (params.aidLabel) payload[Fields.aidLabel] = params.aidLabel;
+  if (params.aidAmountCents != null) {
+    payload[Fields.aidAmountCents] = params.aidAmountCents;
+  }
+  if (params.note?.trim()) payload[Fields.note] = params.note.trim();
+  return payload;
+}
+
+function appendPaymentEvent(
+  batch: WriteBatch,
+  clubId: string,
+  seasonId: string,
+  memberId: string,
+  payload: Record<string, unknown>,
+): void {
+  const eventRef = doc(paymentEventsCol(clubId, seasonId, memberId));
+  batch.set(eventRef, payload);
+}
+
+/** Charge l’historique des transactions d’une fiche (plus récent d’abord). */
+export async function listPaymentEvents(params: {
+  clubId: string;
+  seasonId: string;
+  memberId: string;
+  limitCount?: number;
+}): Promise<FeePaymentEventRecord[]> {
+  const { clubId, seasonId, memberId, limitCount = 50 } = params;
+  const snap = await getDocs(
+    query(
+      paymentEventsCol(clubId, seasonId, memberId),
+      orderBy(Fields.createdAt, "desc"),
+      limit(limitCount),
+    ),
+  );
+  return snap.docs.map((eventDoc) =>
+    parsePaymentEvent(
+      eventDoc.id,
+      eventDoc.data() as Record<string, unknown>,
+    ),
+  );
+}
+
+/** Libellé UI d’un type d’événement ledger. */
+export function feePaymentEventTitle(type: string): string {
+  switch (type) {
+    case FeePaymentEventTypes.offlineCredit:
+      return "Paiement hors-ligne";
+    case FeePaymentEventTypes.cardCredit:
+      return "Paiement CB";
+    case FeePaymentEventTypes.adjustAbsolute:
+      return "Correction du montant";
+    case FeePaymentEventTypes.aidValidated:
+      return "Aide validée";
+    case FeePaymentEventTypes.aidRejected:
+      return "Aide refusée";
+    case FeePaymentEventTypes.markedPaid:
+      return "Marqué payé";
+    case FeePaymentEventTypes.exempted:
+      return "Exonération";
+    case FeePaymentEventTypes.unexempted:
+      return "Fin d’exonération";
+    default:
+      return "Mouvement";
+  }
+}
+
+/** Détail UI d’une ligne d’historique. */
+export function feePaymentEventDetail(event: FeePaymentEventRecord): string {
+  const formatEuros = (cents: number) =>
+    new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+    }).format(cents / 100);
+  const signed = (cents: number) =>
+    `${cents > 0 ? "+" : ""}${formatEuros(cents)}`;
+
+  const parts: string[] = [];
+  switch (event.type) {
+    case FeePaymentEventTypes.offlineCredit:
+      if (event.deltaCents !== 0) parts.push(signed(event.deltaCents));
+      if (event.offlineMethod) {
+        parts.push(feePaymentMethodLabelFromOffline(event.offlineMethod));
+      }
+      break;
+    case FeePaymentEventTypes.cardCredit:
+      if (event.deltaCents !== 0) parts.push(signed(event.deltaCents));
+      if (event.paymentProvider === "stripe") parts.push("Stripe");
+      else if (event.paymentProvider === "helloasso") parts.push("HelloAsso");
+      else if (event.paymentProvider) parts.push(event.paymentProvider);
+      break;
+    case FeePaymentEventTypes.adjustAbsolute:
+      parts.push(
+        `Total payé : ${formatEuros(event.amountPaidCentsAfter)} (${signed(event.deltaCents)})`,
+      );
+      break;
+    case FeePaymentEventTypes.aidValidated:
+    case FeePaymentEventTypes.aidRejected:
+      if (event.aidLabel?.trim()) parts.push(event.aidLabel.trim());
+      if (event.aidAmountCents != null) {
+        parts.push(formatEuros(event.aidAmountCents));
+      }
+      break;
+    default:
+      if (event.deltaCents !== 0) parts.push(signed(event.deltaCents));
+  }
+  if (event.note?.trim()) parts.push(event.note.trim());
+  return parts.join(" · ");
+}
+
+function feePaymentMethodLabelFromOffline(method: string): string {
+  switch (method) {
+    case "virement":
+      return "Virement";
+    case "cheque":
+      return "Chèque";
+    case "especes":
+      return "Espèces";
+    case "ancv":
+      return "Chèques ANCV";
+    case "cheques_vacances":
+      return "Chèques-vacances";
+    default:
+      return method;
+  }
 }
 
 function parseTiers(raw: unknown): FeeTier[] {
@@ -191,8 +436,63 @@ export function parseMemberFee(
       data[Fields.paymentProvider] != null
         ? String(data[Fields.paymentProvider])
         : null,
+    offlineMethod:
+      data[Fields.offlineMethod] != null
+        ? String(data[Fields.offlineMethod])
+        : null,
     aids: parseAids(data[Fields.aids]),
   };
+}
+
+const OFFLINE_METHOD_LABELS: Record<string, string> = {
+  virement: "Virement",
+  cheque: "Chèque",
+  especes: "Espèces",
+  ancv: "Chèques ANCV",
+  cheques_vacances: "Chèques-vacances",
+  carte_bancaire: "Carte bancaire",
+};
+
+/**
+ * Libellé du moyen de paiement d’une fiche (CB Stripe, hors-ligne, etc.).
+ * `null` si aucun encaissement encore enregistré.
+ */
+export function feePaymentMethodLabel(fee: MemberFeeRecord): string | null {
+  if (fee.amountPaidCents <= 0) return null;
+
+  const via = (fee.paidVia ?? "").toLowerCase();
+  const provider = (fee.paymentProvider ?? "").toLowerCase();
+
+  if (
+    via === FeePaidVia.stripe ||
+    provider.includes("stripe") ||
+    provider === "carte_bancaire"
+  ) {
+    return "Carte (Stripe)";
+  }
+  if (
+    via === FeePaidVia.helloasso ||
+    via === FeePaidVia.inApp ||
+    provider.includes("helloasso")
+  ) {
+    return "Carte (HelloAsso)";
+  }
+  if (via === FeePaidVia.offline) {
+    const offline = fee.offlineMethod
+      ? OFFLINE_METHOD_LABELS[fee.offlineMethod] ?? fee.offlineMethod
+      : null;
+    return offline ? `Hors-ligne · ${offline}` : "Hors-ligne";
+  }
+  if (via === FeePaidVia.manual) {
+    return "Manuel";
+  }
+  if (fee.offlineMethod) {
+    return OFFLINE_METHOD_LABELS[fee.offlineMethod] ?? fee.offlineMethod;
+  }
+  if (fee.amountPaidCents > 0) {
+    return "Encaissé";
+  }
+  return null;
 }
 
 /** Charge la saison active du club (`isActive == true`). Retourne la première si plusieurs. */
@@ -400,6 +700,96 @@ export function remainingCents(
   return remaining < 0 ? 0 : remaining;
 }
 
+/** Résultat du recalcul de statut cotisation. */
+export type MemberFeeStatusResolution = {
+  statusValue: string;
+  isFullyPaid: boolean;
+  clearPaidAt: boolean;
+};
+
+/** Montant catalogue pour un palier (0 si exonéré / sans palier). */
+export function amountDueCentsForTier(params: {
+  season: FeeSeasonRecord;
+  tierId: string | null | undefined;
+  isExempt: boolean;
+}): number {
+  const { season, tierId, isExempt } = params;
+  if (isExempt || !tierId) return 0;
+  const tier = season.tiers.find((item) => item.tierId === tierId);
+  return tier?.amountCents ?? 0;
+}
+
+/**
+ * Recalcule le statut stocké à partir du dû, du payé et des aides.
+ * Aligné sur le webhook Stripe et le client Flutter.
+ */
+export function resolveMemberFeePaymentStatus(params: {
+  isExempt: boolean;
+  dueCents: number;
+  amountPaidCents: number;
+  validatedAidsCents: number;
+  hasPendingAids: boolean;
+}): MemberFeeStatusResolution {
+  const {
+    isExempt,
+    dueCents,
+    amountPaidCents,
+    validatedAidsCents: validated,
+    hasPendingAids,
+  } = params;
+
+  if (isExempt) {
+    return {
+      statusValue: MemberFeeStatuses.exonere,
+      isFullyPaid: false,
+      clearPaidAt: true,
+    };
+  }
+
+  const remaining = dueCents - (amountPaidCents + validated);
+  if (remaining <= 0 && !hasPendingAids) {
+    return {
+      statusValue: MemberFeeStatuses.paye,
+      isFullyPaid: true,
+      clearPaidAt: false,
+    };
+  }
+
+  if (amountPaidCents > 0 || validated > 0) {
+    return {
+      statusValue: MemberFeeStatuses.partiel,
+      isFullyPaid: false,
+      clearPaidAt: true,
+    };
+  }
+
+  return {
+    statusValue: MemberFeeStatuses.aPayer,
+    isFullyPaid: false,
+    clearPaidAt: true,
+  };
+}
+
+function feeSeasonRef(clubId: string, seasonId: string) {
+  return doc(
+    getAppFirestore(),
+    Collections.clubs,
+    clubId,
+    Collections.feeSeasons,
+    seasonId,
+  );
+}
+
+/** Charge une saison par id. */
+export async function getSeasonById(
+  clubId: string,
+  seasonId: string,
+): Promise<FeeSeasonRecord | null> {
+  const snap = await getDoc(feeSeasonRef(clubId, seasonId));
+  if (!snap.exists()) return null;
+  return parseFeeSeason(snap.id, snap.data() as Record<string, unknown>);
+}
+
 /** Début de journée calendaire (minuit local). */
 export function startOfCalendarDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -492,21 +882,145 @@ export async function validateOfflinePayment(params: {
 
   const uid = currentUid();
   const newPaid = fee.amountPaidCents + amountCents;
-  const covered = newPaid + validatedAidsCents(fee);
-  const due = amountDueCents(fee, season);
-  const isFullyPaid = due - covered <= 0;
+  const resolution = resolveMemberFeePaymentStatus({
+    isExempt: fee.status === MemberFeeStatuses.exonere,
+    dueCents: amountDueCents(fee, season),
+    amountPaidCents: newPaid,
+    validatedAidsCents: validatedAidsCents(fee),
+    hasPendingAids: fee.aids.some(
+      (aid) => aid.status === FeeAidStatuses.pendingProof,
+    ),
+  });
 
-  await updateDoc(memberFeeRef(clubId, seasonId, memberId), {
+  const batch = writeBatch(getAppFirestore());
+  batch.update(memberFeeRef(clubId, seasonId, memberId), {
     [Fields.amountPaidCents]: newPaid,
     [Fields.offlineMethod]: offlineMethod,
     [Fields.paidVia]: FeePaidVia.offline,
-    [Fields.feeStatus]: isFullyPaid
-      ? MemberFeeStatuses.paye
-      : MemberFeeStatuses.partiel,
-    ...(isFullyPaid ? { [Fields.paidAt]: serverTimestamp() } : {}),
+    [Fields.feeStatus]: resolution.statusValue,
+    ...(resolution.isFullyPaid
+      ? { [Fields.paidAt]: serverTimestamp() }
+      : resolution.clearPaidAt
+        ? { [Fields.paidAt]: deleteField() }
+        : {}),
     [Fields.markedBy]: uid,
     [Fields.updatedAt]: serverTimestamp(),
   });
+
+  if (amountCents > 0) {
+    appendPaymentEvent(
+      batch,
+      clubId,
+      seasonId,
+      memberId,
+      paymentEventPayload({
+        type: FeePaymentEventTypes.offlineCredit,
+        deltaCents: amountCents,
+        amountPaidCentsBefore: fee.amountPaidCents,
+        amountPaidCentsAfter: newPaid,
+        statusAfter: resolution.statusValue,
+        actorUid: uid,
+        offlineMethod,
+        paidVia: FeePaidVia.offline,
+      }),
+    );
+  }
+
+  await batch.commit();
+}
+
+/** Pose le montant déjà encaissé (absolu) et recalcule le statut. */
+export async function adjustMemberFeePaidAmount(params: {
+  clubId: string;
+  seasonId: string;
+  memberId: string;
+  amountPaidCents: number;
+  season: FeeSeasonRecord;
+  note?: string | null;
+}): Promise<void> {
+  const { clubId, seasonId, memberId, amountPaidCents, season, note } = params;
+  if (amountPaidCents < 0) throw new Error("Montant invalide");
+
+  const feeRef = memberFeeRef(clubId, seasonId, memberId);
+  const snap = await getDoc(feeRef);
+  if (!snap.exists()) throw new Error("Fiche cotisation introuvable");
+
+  const fee = parseMemberFee(snap.id, snap.data() as Record<string, unknown>);
+  if (fee.status === MemberFeeStatuses.exonere) {
+    throw new Error("Membre exonéré — ajustement impossible");
+  }
+  if (!fee.tierId) {
+    throw new Error("Aucune cotisation assignée pour ce membre");
+  }
+
+  const resolution = resolveMemberFeePaymentStatus({
+    isExempt: false,
+    dueCents: amountDueCents(fee, season),
+    amountPaidCents,
+    validatedAidsCents: validatedAidsCents(fee),
+    hasPendingAids: fee.aids.some(
+      (aid) => aid.status === FeeAidStatuses.pendingProof,
+    ),
+  });
+
+  const uid = currentUid();
+  const payload: Record<string, unknown> = {
+    [Fields.amountPaidCents]: amountPaidCents,
+    [Fields.feeStatus]: resolution.statusValue,
+    [Fields.markedBy]: uid,
+    [Fields.updatedAt]: serverTimestamp(),
+    ...(resolution.isFullyPaid
+      ? { [Fields.paidAt]: serverTimestamp() }
+      : resolution.clearPaidAt
+        ? { [Fields.paidAt]: deleteField() }
+        : {}),
+  };
+
+  if (amountPaidCents === 0) {
+    payload[Fields.paidVia] = deleteField();
+    payload[Fields.offlineMethod] = deleteField();
+    payload[Fields.paymentProvider] = deleteField();
+  } else if (amountPaidCents !== fee.amountPaidCents) {
+    payload[Fields.paidVia] = FeePaidVia.manual;
+    payload[Fields.offlineMethod] = deleteField();
+    payload[Fields.paymentProvider] = deleteField();
+  }
+
+  const trimmedNote = note?.trim();
+  if (trimmedNote) {
+    const previousRaw = (snap.data() as Record<string, unknown>)[
+      Fields.notesAdmin
+    ];
+    const previous =
+      typeof previousRaw === "string" ? previousRaw.trim() : "";
+    payload[Fields.notesAdmin] = previous
+      ? `${previous}\n${trimmedNote}`
+      : trimmedNote;
+  }
+
+  const batch = writeBatch(getAppFirestore());
+  batch.update(feeRef, payload);
+
+  if (amountPaidCents !== fee.amountPaidCents) {
+    appendPaymentEvent(
+      batch,
+      clubId,
+      seasonId,
+      memberId,
+      paymentEventPayload({
+        type: FeePaymentEventTypes.adjustAbsolute,
+        deltaCents: amountPaidCents - fee.amountPaidCents,
+        amountPaidCentsBefore: fee.amountPaidCents,
+        amountPaidCentsAfter: amountPaidCents,
+        statusAfter: resolution.statusValue,
+        actorUid: uid,
+        paidVia: amountPaidCents === 0 ? null : FeePaidVia.manual,
+        note: trimmedNote,
+      }),
+    );
+  }
+
+  await batch.commit();
 }
 
 /** Résultat d’un encaissement groupé hors-ligne. */
@@ -599,28 +1113,20 @@ export async function setFeeAidStatus(params: {
   const validatedAids = updatedAids
     .filter((aid) => aid.status === FeeAidStatuses.validated)
     .reduce((sum, aid) => sum + aid.amountCents, 0);
-  const covered = fee.amountPaidCents + validatedAids;
-  const due = amountDueCents(fee, season);
-  const remaining = due - covered;
-  const hasPending =
-    updatedAids.some((aid) => aid.status === FeeAidStatuses.pendingProof) ||
-    remaining > 0;
+  const hasPendingAids = updatedAids.some(
+    (aid) => aid.status === FeeAidStatuses.pendingProof,
+  );
+  const resolution = resolveMemberFeePaymentStatus({
+    isExempt: fee.status === MemberFeeStatuses.exonere,
+    dueCents: amountDueCents(fee, season),
+    amountPaidCents: fee.amountPaidCents,
+    validatedAidsCents: validatedAids,
+    hasPendingAids,
+  });
 
-  let nextStatus: string;
-  if (fee.status === MemberFeeStatuses.exonere) {
-    nextStatus = MemberFeeStatuses.exonere;
-  } else if (
-    remaining <= 0 &&
-    !updatedAids.some((aid) => aid.status === FeeAidStatuses.pendingProof)
-  ) {
-    nextStatus = MemberFeeStatuses.paye;
-  } else if (fee.amountPaidCents > 0 || validatedAids > 0) {
-    nextStatus = MemberFeeStatuses.partiel;
-  } else {
-    nextStatus = MemberFeeStatuses.aPayer;
-  }
-
-  await updateDoc(memberFeeRef(clubId, seasonId, memberId), {
+  const touchedAid = fee.aids.find((aid) => aid.id === aidId);
+  const batch = writeBatch(getAppFirestore());
+  batch.update(memberFeeRef(clubId, seasonId, memberId), {
     [Fields.aids]: updatedAids.map((aid) => ({
       [Fields.id]: aid.id,
       [Fields.type]: aid.type,
@@ -633,15 +1139,40 @@ export async function setFeeAidStatus(params: {
         ? { [Fields.validatedAt]: Timestamp.fromDate(aid.validatedAt) }
         : {}),
     })),
-    [Fields.feeStatus]: nextStatus,
-    ...(nextStatus === MemberFeeStatuses.paye
+    [Fields.feeStatus]: resolution.statusValue,
+    ...(resolution.isFullyPaid
       ? { [Fields.paidAt]: serverTimestamp() }
-      : hasPending && nextStatus !== MemberFeeStatuses.paye
+      : resolution.clearPaidAt
         ? { [Fields.paidAt]: deleteField() }
         : {}),
     [Fields.markedBy]: uid,
     [Fields.updatedAt]: serverTimestamp(),
   });
+
+  if (touchedAid) {
+    appendPaymentEvent(
+      batch,
+      clubId,
+      seasonId,
+      memberId,
+      paymentEventPayload({
+        type:
+          aidStatus === FeeAidStatuses.validated
+            ? FeePaymentEventTypes.aidValidated
+            : FeePaymentEventTypes.aidRejected,
+        deltaCents: 0,
+        amountPaidCentsBefore: fee.amountPaidCents,
+        amountPaidCentsAfter: fee.amountPaidCents,
+        statusAfter: resolution.statusValue,
+        actorUid: uid,
+        aidId: touchedAid.id,
+        aidLabel: touchedAid.label,
+        aidAmountCents: touchedAid.amountCents,
+      }),
+    );
+  }
+
+  await batch.commit();
 }
 
 const FEE_STATUS_VALUES = new Set<string>([
@@ -676,6 +1207,10 @@ export async function setMemberFeeStatus(params: {
     throw new Error("Fiche cotisation introuvable pour ce membre");
   }
 
+  const existing = parseMemberFee(
+    snap.id,
+    snap.data() as Record<string, unknown>,
+  );
   const uid = currentUid();
   const payload: Record<string, unknown> = {
     [Fields.feeStatus]: status,
@@ -690,7 +1225,36 @@ export async function setMemberFeeStatus(params: {
     payload[Fields.paidAt] = deleteField();
   }
 
-  await updateDoc(feeRef, payload);
+  const batch = writeBatch(getAppFirestore());
+  batch.update(feeRef, payload);
+
+  const eventType =
+    status === MemberFeeStatuses.exonere
+      ? FeePaymentEventTypes.exempted
+      : status === MemberFeeStatuses.paye
+        ? FeePaymentEventTypes.markedPaid
+        : existing.status === MemberFeeStatuses.exonere
+          ? FeePaymentEventTypes.unexempted
+          : null;
+  if (eventType) {
+    appendPaymentEvent(
+      batch,
+      clubId,
+      seasonId,
+      memberId,
+      paymentEventPayload({
+        type: eventType,
+        deltaCents: 0,
+        amountPaidCentsBefore: existing.amountPaidCents,
+        amountPaidCentsAfter: existing.amountPaidCents,
+        statusAfter: status,
+        actorUid: uid,
+        paidVia: FeePaidVia.manual,
+      }),
+    );
+  }
+
+  await batch.commit();
 }
 
 /** Modification cotisation / statut à appliquer (création si besoin). */
@@ -709,6 +1273,7 @@ export type MemberFeeApplyChange = {
  * Applique en lot palier et/ou statut.
  * Crée la fiche `member_fees/{memberId}` si elle n’existe pas.
  * Sans palier, seul le statut `exonere` est autorisé (pas à payer / partiel / payé).
+ * Un changement de palier (ou statut `a_payer`) recalcule le statut selon le déjà payé.
  */
 export async function applyMemberFeeChanges(params: {
   clubId: string;
@@ -718,9 +1283,12 @@ export async function applyMemberFeeChanges(params: {
   const { clubId, seasonId, changes } = params;
   if (changes.length === 0) return;
 
+  const season = await getSeasonById(clubId, seasonId);
+  if (!season) throw new Error("Saison de cotisation introuvable");
+
   const uid = currentUid();
   const db = getAppFirestore();
-  const maxBatch = 450;
+  const maxBatch = 200;
   const assignableWithoutTier = new Set<string>([MemberFeeStatuses.exonere]);
 
   for (let offset = 0; offset < changes.length; offset += maxBatch) {
@@ -750,15 +1318,14 @@ export async function applyMemberFeeChanges(params: {
 
       const nextTierId =
         change.tierId !== undefined ? change.tierId : (existing?.tierId ?? null);
-      const nextStatus =
-        change.status ??
-        existing?.status ??
-        (change.feeExists ? undefined : MemberFeeStatuses.aPayer);
+      const requestedStatus = change.status;
+      const isExemptRequest = requestedStatus === MemberFeeStatuses.exonere;
+      const wasExempt = existing?.status === MemberFeeStatuses.exonere;
 
       if (
         !nextTierId &&
-        nextStatus &&
-        !assignableWithoutTier.has(nextStatus)
+        requestedStatus &&
+        !assignableWithoutTier.has(requestedStatus)
       ) {
         throw new Error(
           "Sans cotisation assignée, seul le statut Exonéré est autorisé",
@@ -766,7 +1333,20 @@ export async function applyMemberFeeChanges(params: {
       }
 
       if (!change.feeExists) {
-        const createStatus = nextStatus ?? MemberFeeStatuses.aPayer;
+        const createExempt = isExemptRequest;
+        const createStatus = createExempt
+          ? MemberFeeStatuses.exonere
+          : resolveMemberFeePaymentStatus({
+              isExempt: false,
+              dueCents: amountDueCentsForTier({
+                season,
+                tierId: nextTierId,
+                isExempt: false,
+              }),
+              amountPaidCents: 0,
+              validatedAidsCents: 0,
+              hasPendingAids: false,
+            }).statusValue;
         if (!nextTierId && createStatus !== MemberFeeStatuses.exonere) {
           throw new Error(
             "Sans cotisation assignée, seul le statut Exonéré est autorisé",
@@ -789,6 +1369,23 @@ export async function applyMemberFeeChanges(params: {
           createPayload[Fields.paidVia] = FeePaidVia.manual;
         }
         batch.set(feeRef, createPayload);
+        if (createStatus === MemberFeeStatuses.exonere) {
+          appendPaymentEvent(
+            batch,
+            clubId,
+            seasonId,
+            change.memberId,
+            paymentEventPayload({
+              type: FeePaymentEventTypes.exempted,
+              deltaCents: 0,
+              amountPaidCentsBefore: 0,
+              amountPaidCentsAfter: 0,
+              statusAfter: createStatus,
+              actorUid: uid,
+              paidVia: FeePaidVia.manual,
+            }),
+          );
+        }
         continue;
       }
 
@@ -806,13 +1403,77 @@ export async function applyMemberFeeChanges(params: {
         }
       }
 
-      if (change.status !== undefined) {
-        updatePayload[Fields.feeStatus] = change.status;
-        updatePayload[Fields.paidVia] = FeePaidVia.manual;
-        updatePayload[Fields.paidAt] = deleteField();
+      const shouldRecalc =
+        change.tierId !== undefined ||
+        requestedStatus === MemberFeeStatuses.aPayer ||
+        isExemptRequest;
+
+      let statusAfter = existing?.status ?? MemberFeeStatuses.aPayer;
+
+      if (shouldRecalc) {
+        const resolution = resolveMemberFeePaymentStatus({
+          isExempt: isExemptRequest,
+          dueCents: amountDueCentsForTier({
+            season,
+            tierId: nextTierId,
+            isExempt: isExemptRequest,
+          }),
+          amountPaidCents: existing?.amountPaidCents ?? 0,
+          validatedAidsCents: existing ? validatedAidsCents(existing) : 0,
+          hasPendingAids:
+            existing?.aids.some(
+              (aid) => aid.status === FeeAidStatuses.pendingProof,
+            ) ?? false,
+        });
+        updatePayload[Fields.feeStatus] = resolution.statusValue;
+        statusAfter = resolution.statusValue;
+        if (isExemptRequest) {
+          updatePayload[Fields.paidVia] = FeePaidVia.manual;
+          updatePayload[Fields.paidAt] = deleteField();
+          if (change.tierId === undefined) {
+            updatePayload[Fields.tierId] = deleteField();
+          }
+        } else if (resolution.isFullyPaid) {
+          updatePayload[Fields.paidAt] = serverTimestamp();
+        } else if (resolution.clearPaidAt) {
+          updatePayload[Fields.paidAt] = deleteField();
+        }
       }
 
       batch.set(feeRef, updatePayload, { merge: true });
+
+      if (isExemptRequest) {
+        appendPaymentEvent(
+          batch,
+          clubId,
+          seasonId,
+          change.memberId,
+          paymentEventPayload({
+            type: FeePaymentEventTypes.exempted,
+            deltaCents: 0,
+            amountPaidCentsBefore: existing?.amountPaidCents ?? 0,
+            amountPaidCentsAfter: existing?.amountPaidCents ?? 0,
+            statusAfter,
+            actorUid: uid,
+            paidVia: FeePaidVia.manual,
+          }),
+        );
+      } else if (wasExempt && change.tierId) {
+        appendPaymentEvent(
+          batch,
+          clubId,
+          seasonId,
+          change.memberId,
+          paymentEventPayload({
+            type: FeePaymentEventTypes.unexempted,
+            deltaCents: 0,
+            amountPaidCentsBefore: existing?.amountPaidCents ?? 0,
+            amountPaidCentsAfter: existing?.amountPaidCents ?? 0,
+            statusAfter,
+            actorUid: uid,
+          }),
+        );
+      }
     }
 
     await batch.commit();

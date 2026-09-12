@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@sentry/nextjs": "^10.70.0",
-    "@stripe/react-stripe-js": "^6.9.0",
-    "@stripe/stripe-js": "^7.10.0",
+    "@stripe/react-stripe-js": "^6.10.0",
+    "@stripe/stripe-js": "^9.16.0",
     "firebase": "^11.10.0",
     "firebase-admin": "^13.10.0",
     "framer-motion": "^12.43.0",

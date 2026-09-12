@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/ToastProvider";
 import {
   loadFeesTrackingData,
@@ -9,6 +9,11 @@ import {
 } from "@/lib/dashboard/feesTracking";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import {
+  ClubListenSets,
+  useClubRealtimeReload,
+  useIsPortalRouteActive,
+} from "@/lib/dashboard/useClubRealtimeReload";
+import {
   FeeAidStatuses,
   MemberFeeStatuses,
   type OfflinePaymentMethod,
@@ -16,12 +21,14 @@ import {
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import {
   applyMemberFeeChanges,
+  adjustMemberFeePaidAmount,
   bulkValidateOfflinePayments,
   setFeeAidStatus,
   validateOfflinePayment,
   type FeeTier,
 } from "@/lib/firebase/feeService";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import { CorrectMemberFeeDialog } from "@/components/dashboard/CorrectMemberFeeDialog";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import panelStyles from "./DashboardPanel.module.css";
 import { FeesMultiFilter } from "./FeesMultiFilter";
@@ -32,6 +39,9 @@ import styles from "./FeesTrackingPanel.module.css";
 
 /** Moyen hors-ligne par défaut (pas de choix à chaque encaissement). */
 const DEFAULT_OFFLINE_METHOD: OfflinePaymentMethod = "especes";
+
+/** Vue liste : à traiter, tous, payés, partiels, reste dû. */
+type FeesStatusView = "pending" | "all" | "paid" | "partial" | "due";
 
 /** Props du panneau suivi cotisations. */
 type FeesTrackingPanelProps = {
@@ -59,6 +69,54 @@ function feeStatusTone(status: string | null): string {
   return "gray";
 }
 
+function matchesStatusView(row: FeeTrackingRow, view: FeesStatusView): boolean {
+  switch (view) {
+    case "pending":
+      return row.needsAction;
+    case "paid":
+      return (
+        row.status === MemberFeeStatuses.paye ||
+        row.status === MemberFeeStatuses.exonere
+      );
+    case "partial":
+      return row.status === MemberFeeStatuses.partiel;
+    case "due":
+      return row.remainingCents > 0;
+    case "all":
+      return true;
+  }
+}
+
+function statusViewMetaLabel(view: FeesStatusView): string {
+  switch (view) {
+    case "pending":
+      return "actions en attente";
+    case "paid":
+      return "payés / exonérés";
+    case "partial":
+      return "paiement partiel";
+    case "due":
+      return "avec reste dû";
+    case "all":
+      return "tous les membres";
+  }
+}
+
+function statusViewEmptyLabel(view: FeesStatusView): string {
+  switch (view) {
+    case "pending":
+      return "Rien à traiter — tout est à jour. Consulte Payés pour le détail.";
+    case "paid":
+      return "Aucun membre payé ou exonéré pour l’instant.";
+    case "partial":
+      return "Aucun paiement partiel.";
+    case "due":
+      return "Aucun reste dû.";
+    case "all":
+      return "Aucun membre ne correspond aux filtres.";
+  }
+}
+
 /**
  * Suivi cotisations simplifié : tableau filtrable, actions directes
  * (assigner / exonérer / marquer payé / valider aides).
@@ -73,22 +131,53 @@ export function FeesTrackingPanel({
     loadFeesTrackingData,
     [],
   );
+  const feesActive = useIsPortalRouteActive(["/fees"]);
+  useClubRealtimeReload({
+    clubId: club.id,
+    collections: ClubListenSets.fees,
+    listenActiveMemberFees: true,
+    onReload: reload,
+    enabled: feesActive,
+  });
   const [search, setSearch] = useState("");
   const [tierFilter, setTierFilter] = useState("all");
   const [sportCategoryFilters, setSportCategoryFilters] = useState<string[]>(
     [],
   );
   const [teamFilters, setTeamFilters] = useState<string[]>([]);
-  const [showAll, setShowAll] = useState(false);
+  const [statusView, setStatusView] = useState<FeesStatusView>("pending");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busyMemberId, setBusyMemberId] = useState<string | null>(null);
   const [busyBulk, setBusyBulk] = useState(false);
+  const [correctRow, setCorrectRow] = useState<FeeTrackingRow | null>(null);
+  const [correctError, setCorrectError] = useState<string | null>(null);
+  const [correctBusy, setCorrectBusy] = useState(false);
+
+  /** Garde la modale alignée sur les données temps réel. */
+  useEffect(() => {
+    if (!correctRow || !data) return;
+    const fresh = data.rows.find((row) => row.memberId === correctRow.memberId);
+    if (!fresh) {
+      setCorrectRow(null);
+      return;
+    }
+    if (
+      fresh.status !== correctRow.status ||
+      fresh.tierId !== correctRow.tierId ||
+      fresh.amountPaidCents !== correctRow.amountPaidCents ||
+      fresh.remainingCents !== correctRow.remainingCents ||
+      fresh.amountDueCents !== correctRow.amountDueCents ||
+      fresh.paymentMethodLabel !== correctRow.paymentMethodLabel
+    ) {
+      setCorrectRow(fresh);
+    }
+  }, [data, correctRow]);
 
   const visibleRows = useMemo(() => {
     if (!data) return [];
     const needle = search.trim().toLowerCase();
     return data.rows.filter((row) => {
-      if (!showAll && !row.needsAction) return false;
+      if (!matchesStatusView(row, statusView)) return false;
       if (tierFilter !== "all" && row.tierId !== tierFilter) return false;
       if (
         sportCategoryFilters.length > 0 &&
@@ -112,7 +201,7 @@ export function FeesTrackingPanel({
   }, [
     data,
     search,
-    showAll,
+    statusView,
     tierFilter,
     sportCategoryFilters,
     teamFilters,
@@ -274,96 +363,141 @@ export function FeesTrackingPanel({
 
   const busy = busyBulk || busyMemberId != null;
 
-  async function assignTier(row: FeeTrackingRow, tierId: string) {
-    if (!tierId || busy) return;
-    setBusyMemberId(row.memberId);
+  function openCorrect(row: FeeTrackingRow) {
+    if (busy) return;
+    setCorrectError(null);
+    setCorrectRow(row);
+  }
+
+  function closeCorrect() {
+    if (correctBusy) return;
+    setCorrectRow(null);
+    setCorrectError(null);
+  }
+
+  async function correctChangeTier(tierId: string) {
+    if (!data || !correctRow) return;
+    const wasExonere = correctRow.status === MemberFeeStatuses.exonere;
+    setCorrectBusy(true);
+    setCorrectError(null);
     try {
       await applyMemberFeeChanges({
         clubId: club.id,
-        seasonId: data!.season.id,
+        seasonId: data.season.id,
         changes: [
           {
-            memberId: row.memberId,
-            memberDisplayName: row.displayName,
+            memberId: correctRow.memberId,
+            memberDisplayName: correctRow.displayName,
             tierId,
             status: MemberFeeStatuses.aPayer,
-            feeExists: Boolean(row.fee),
+            feeExists: Boolean(correctRow.fee),
           },
         ],
       });
-      showToast("Cotisation assignée", "success");
-      await reload();
-    } catch (assignError) {
+      const paidHint =
+        correctRow.amountPaidCents > 0
+          ? ` — statut recalculé (${formatEuros(correctRow.amountPaidCents)} déjà payé)`
+          : "";
+      setCorrectRow(null);
       showToast(
-        assignError instanceof Error
-          ? assignError.message
-          : "Échec de l’assignation",
-        "error",
+        wasExonere
+          ? "Membre désexonéré — tarif assigné"
+          : `Tarif mis à jour${paidHint}`,
+        "success",
+      );
+      await reload();
+    } catch (err) {
+      setCorrectError(
+        err instanceof Error ? err.message : "Échec du changement de tarif",
       );
     } finally {
-      setBusyMemberId(null);
+      setCorrectBusy(false);
     }
   }
 
-  async function exonerate(row: FeeTrackingRow) {
-    if (busy) return;
-    const confirmed = window.confirm(
-      `Exonérer ${row.displayName} de cotisation ?`,
-    );
-    if (!confirmed) return;
-    setBusyMemberId(row.memberId);
+  async function correctAdjustPaid(values: {
+    amountPaidCents: number;
+    note: string | null;
+  }) {
+    if (!data || !correctRow) return;
+    setCorrectBusy(true);
+    setCorrectError(null);
     try {
-      await applyMemberFeeChanges({
+      await adjustMemberFeePaidAmount({
         clubId: club.id,
-        seasonId: data!.season.id,
-        changes: [
-          {
-            memberId: row.memberId,
-            memberDisplayName: row.displayName,
-            tierId: null,
-            status: MemberFeeStatuses.exonere,
-            feeExists: Boolean(row.fee),
-          },
-        ],
+        seasonId: data.season.id,
+        memberId: correctRow.memberId,
+        amountPaidCents: values.amountPaidCents,
+        season: data.season,
+        note: values.note,
       });
-      showToast("Membre exonéré", "success");
+      setCorrectRow(null);
+      showToast("Montant déjà payé mis à jour", "success");
       await reload();
-    } catch (exonerateError) {
-      showToast(
-        exonerateError instanceof Error
-          ? exonerateError.message
-          : "Échec de l’exonération",
-        "error",
+    } catch (err) {
+      setCorrectError(
+        err instanceof Error ? err.message : "Échec de la correction",
       );
     } finally {
-      setBusyMemberId(null);
+      setCorrectBusy(false);
     }
   }
 
-  async function markPaid(row: FeeTrackingRow) {
-    if (!data || busy || !row.fee || row.remainingCents <= 0) return;
-    setBusyMemberId(row.memberId);
+  async function correctMarkPaid() {
+    if (!data || !correctRow || correctRow.remainingCents <= 0) return;
+    setCorrectBusy(true);
+    setCorrectError(null);
     try {
       await validateOfflinePayment({
         clubId: club.id,
         seasonId: data.season.id,
-        memberId: row.memberId,
+        memberId: correctRow.memberId,
         offlineMethod: DEFAULT_OFFLINE_METHOD,
-        amountCents: row.remainingCents,
+        amountCents: correctRow.remainingCents,
         season: data.season,
       });
+      setCorrectRow(null);
       showToast(
-        `Payé enregistré (${formatEuros(row.remainingCents)})`,
+        `Reste dû enregistré (${formatEuros(correctRow.remainingCents)})`,
         "success",
       );
       await reload();
-    } catch (payError) {
-      showToast(
-        payError instanceof Error ? payError.message : "Échec du paiement",
-        "error",
+    } catch (err) {
+      setCorrectError(
+        err instanceof Error ? err.message : "Échec du paiement",
       );
     } finally {
-      setBusyMemberId(null);
+      setCorrectBusy(false);
+    }
+  }
+
+  async function correctExonerate() {
+    if (!data || !correctRow) return;
+    setCorrectBusy(true);
+    setCorrectError(null);
+    try {
+      await applyMemberFeeChanges({
+        clubId: club.id,
+        seasonId: data.season.id,
+        changes: [
+          {
+            memberId: correctRow.memberId,
+            memberDisplayName: correctRow.displayName,
+            tierId: null,
+            status: MemberFeeStatuses.exonere,
+            feeExists: Boolean(correctRow.fee),
+          },
+        ],
+      });
+      setCorrectRow(null);
+      showToast("Membre exonéré", "success");
+      await reload();
+    } catch (err) {
+      setCorrectError(
+        err instanceof Error ? err.message : "Échec de l’exonération",
+      );
+    } finally {
+      setCorrectBusy(false);
     }
   }
 
@@ -489,7 +623,7 @@ export function FeesTrackingPanel({
       <p className={styles.lead}>
         {readOnly
           ? `Vue lecture — saison ${data.season.seasonLabel}.`
-          : `Assignez un tarif, marquez comme payé, ou validez une aide — saison ${data.season.seasonLabel}.`}
+          : `Corrigez tarif, montant ou reste dû via le bouton Corriger — saison ${data.season.seasonLabel}.`}
       </p>
 
       {error ? (
@@ -499,13 +633,50 @@ export function FeesTrackingPanel({
       ) : null}
 
       <div className={styles.summaryRow}>
-        <div className={styles.summary} role="status">
-          <span className={styles.summaryChip} data-tone="action">
+        <div className={styles.summary} role="toolbar" aria-label="Vues de suivi">
+          <button
+            type="button"
+            className={styles.summaryChip}
+            data-tone="action"
+            data-active={statusView === "pending" ? "true" : undefined}
+            aria-pressed={statusView === "pending"}
+            onClick={() => setStatusView("pending")}
+          >
             <strong>{data.counts.needsAction}</strong> à traiter
-          </span>
-          <span className={styles.summaryChip} data-tone="due">
+          </button>
+          <button
+            type="button"
+            className={styles.summaryChip}
+            data-tone="due"
+            data-active={statusView === "due" ? "true" : undefined}
+            aria-pressed={statusView === "due"}
+            onClick={() => setStatusView("due")}
+          >
             <strong>{data.counts.remainingDue}</strong> avec reste dû
-          </span>
+          </button>
+          {data.counts.partial > 0 ? (
+            <button
+              type="button"
+              className={styles.summaryChip}
+              data-tone="partial"
+              data-active={statusView === "partial" ? "true" : undefined}
+              aria-pressed={statusView === "partial"}
+              onClick={() => setStatusView("partial")}
+            >
+              <strong>{data.counts.partial}</strong> partiel
+              {data.counts.partial > 1 ? "s" : ""}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={styles.summaryChip}
+            data-tone="paid"
+            data-active={statusView === "paid" ? "true" : undefined}
+            aria-pressed={statusView === "paid"}
+            onClick={() => setStatusView("paid")}
+          >
+            <strong>{data.counts.paid}</strong> à jour
+          </button>
           {data.counts.pendingAids > 0 ? (
             <span className={styles.summaryChip} data-tone="aid">
               <strong>{data.counts.pendingAids}</strong> aide
@@ -616,10 +787,16 @@ export function FeesTrackingPanel({
           <button
             type="button"
             className={styles.toggleButton}
-            aria-pressed={showAll}
-            onClick={() => setShowAll((current) => !current)}
+            aria-pressed={statusView === "all"}
+            onClick={() =>
+              setStatusView((current) =>
+                current === "all" ? "pending" : "all",
+              )
+            }
           >
-            {showAll ? "Voir seulement à traiter" : "Voir tous les membres"}
+            {statusView === "all"
+              ? "Voir seulement à traiter"
+              : "Voir tous les membres"}
           </button>
         </div>
       </FadeScrollArea>
@@ -678,14 +855,13 @@ export function FeesTrackingPanel({
 
       <p className={styles.meta}>
         {visibleRows.length} membre{visibleRows.length > 1 ? "s" : ""}
-        {!showAll ? " · actions en attente" : null}
+        {" · "}
+        {statusViewMetaLabel(statusView)}
       </p>
 
       {visibleRows.length === 0 ? (
         <p className={styles.empty} role="status">
-          {showAll
-            ? "Aucun membre ne correspond aux filtres."
-            : "Rien à traiter — tout est à jour."}
+          {statusViewEmptyLabel(statusView)}
         </p>
       ) : (
         <FadeScrollArea className={styles.tableWrap} axis="horizontal">
@@ -725,7 +901,8 @@ export function FeesTrackingPanel({
                 <th scope="col">Statut</th>
                 <th scope="col">Cotisation</th>
                 <th scope="col">Équipe</th>
-                <th scope="col">Reste dû</th>
+                <th scope="col">Paiement</th>
+                <th scope="col">Montants</th>
                 {!readOnly ? <th scope="col">Actions</th> : null}
               </tr>
             </thead>
@@ -747,9 +924,7 @@ export function FeesTrackingPanel({
                       return next;
                     });
                   }}
-                  onAssignTier={(tierId) => void assignTier(row, tierId)}
-                  onExonerate={() => void exonerate(row)}
-                  onMarkPaid={() => void markPaid(row)}
+                  onCorrect={() => openCorrect(row)}
                   onAidStatus={(aidId, status) =>
                     void handleAidStatus(row, aidId, status)
                   }
@@ -828,6 +1003,22 @@ export function FeesTrackingPanel({
           </div>
         </div>
       ) : null}
+
+      {correctRow ? (
+        <CorrectMemberFeeDialog
+          clubId={club.id}
+          seasonId={data.season.id}
+          row={correctRow}
+          tiers={data.season.tiers}
+          busy={correctBusy}
+          error={correctError}
+          onClose={closeCorrect}
+          onChangeTier={correctChangeTier}
+          onAdjustPaid={correctAdjustPaid}
+          onMarkPaid={correctMarkPaid}
+          onExonerate={correctExonerate}
+        />
+      ) : null}
     </section>
   );
 }
@@ -840,9 +1031,7 @@ type FeeTrackingRowItemProps = {
   disabled: boolean;
   readOnly?: boolean;
   onToggleSelect: () => void;
-  onAssignTier: (tierId: string) => void;
-  onExonerate: () => void;
-  onMarkPaid: () => void;
+  onCorrect: () => void;
   onAidStatus: (
     aidId: string,
     status:
@@ -859,25 +1048,15 @@ function FeeTrackingRowItem({
   disabled,
   readOnly = false,
   onToggleSelect,
-  onAssignTier,
-  onExonerate,
-  onMarkPaid,
+  onCorrect,
   onAidStatus,
 }: FeeTrackingRowItemProps) {
   const { user } = useAuth();
   const isSelf = isCurrentUserMember(row, user?.uid);
   const isExonere = row.status === MemberFeeStatuses.exonere;
-  const needsTier = !row.tierId && !isExonere;
-  const canMarkPaid =
-    Boolean(row.fee && row.tierId) && !isExonere && row.remainingCents > 0;
   const tierLabel = row.tierId
     ? (tiers.find((tier) => tier.tierId === row.tierId)?.label ?? "Cotisation")
     : null;
-
-  const tierSelectOptions = tiers.map((tier) => ({
-    value: tier.tierId,
-    label: tierOptionLabel(tier),
-  }));
 
   return (
     <>
@@ -924,7 +1103,9 @@ function FeeTrackingRowItem({
         </td>
         <td>
           {tierLabel ?? (
-            <span className={styles.muted}>{isExonere ? "—" : "Non assignée"}</span>
+            <span className={styles.muted}>
+              {isExonere ? "—" : "Non assignée"}
+            </span>
           )}
         </td>
         <td>
@@ -935,55 +1116,52 @@ function FeeTrackingRowItem({
           )}
         </td>
         <td>
-          {row.remainingCents > 0 ? (
-            <span className={styles.remaining}>
-              {formatEuros(row.remainingCents)}
-            </span>
+          {row.paymentMethodLabel ? (
+            <span className={styles.paymentMethod}>{row.paymentMethodLabel}</span>
           ) : (
             <span className={styles.muted}>—</span>
+          )}
+        </td>
+        <td>
+          {isExonere || !row.tierId ? (
+            <span className={styles.muted}>—</span>
+          ) : (
+            <span className={styles.amounts}>
+              <span className={styles.amountLine}>
+                Dû {formatEuros(row.amountDueCents)}
+              </span>
+              <span
+                className={styles.amountLine}
+                data-paid={row.amountPaidCents > 0 ? "true" : undefined}
+              >
+                Payé {formatEuros(row.amountPaidCents)}
+              </span>
+              {row.remainingCents > 0 ? (
+                <span className={styles.remaining}>
+                  Reste {formatEuros(row.remainingCents)}
+                </span>
+              ) : (
+                <span className={styles.soldHint}>Soldé</span>
+              )}
+            </span>
           )}
         </td>
         {!readOnly ? (
           <td>
             <div className={styles.rowActions}>
-              {needsTier ? (
-                <>
-                  <PlanningSelect
-                    id={`fees-tier-${row.memberId}`}
-                    value=""
-                    placeholder="Choisir…"
-                    aria-label={`Assigner cotisation ${row.displayName}`}
-                    disabled={disabled || tiers.length === 0}
-                    options={tierSelectOptions}
-                    onChange={(next) => {
-                      if (next) onAssignTier(next);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className={styles.ghostButton}
-                    disabled={disabled}
-                    onClick={onExonerate}
-                  >
-                    Exonérer
-                  </button>
-                </>
-              ) : null}
-
-              {canMarkPaid ? (
-                <button
-                  type="button"
-                  className={styles.actionButton}
-                  disabled={disabled}
-                  onClick={onMarkPaid}
-                >
-                  {busy ? "…" : `Payé (${formatEuros(row.remainingCents)})`}
-                </button>
-              ) : null}
-
-              {!row.needsAction ? (
-                <span className={styles.doneHint}>À jour</span>
-              ) : null}
+              <button
+                type="button"
+                className={styles.outlineButton}
+                disabled={disabled}
+                onClick={onCorrect}
+                title={
+                  isExonere
+                    ? "Désexonérer ou corriger"
+                    : "Corriger tarif, montant, reste dû…"
+                }
+              >
+                {busy ? "…" : "Corriger"}
+              </button>
             </div>
           </td>
         ) : null}
@@ -992,7 +1170,7 @@ function FeeTrackingRowItem({
       {row.pendingAids.map((aid) => (
         <tr key={`${row.memberId}-${aid.id}`} className={styles.aidRow}>
           {!readOnly ? <td /> : null}
-          <td colSpan={readOnly ? 5 : 5}>
+          <td colSpan={readOnly ? 6 : 6}>
             <span className={styles.aidLabel}>
               Aide · {aid.label || aid.type} — {formatEuros(aid.amountCents)}
             </span>

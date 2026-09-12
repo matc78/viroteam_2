@@ -208,38 +208,60 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
       context,
       selectedCount: _selectedIds.length,
       tiers: season.tiers,
-      onMarkPaid: () => _bulkStatus(MemberFeeStatus.paye, season.id),
-      onMarkExempt: () => _bulkStatus(MemberFeeStatus.exonere, season.id),
-      onMarkUnpaid: () => _bulkStatus(MemberFeeStatus.aPayer, season.id),
-      onAssignTier: (tierId) => _bulkTier(tierId, season.id),
+      onMarkPaid: () => _bulkMarkRemainingPaid(season),
+      onAssignTier: (tierId) => _bulkTier(tierId, season),
     );
   }
 
-  Future<void> _bulkStatus(MemberFeeStatus status, String seasonId) async {
+  /// Enregistre le reste dû (espèces) pour chaque membre sélectionné.
+  Future<void> _bulkMarkRemainingPaid(FeeSeason season) async {
+    final fees = ref.read(allMemberFeesProvider(widget.clubId)).value ?? [];
+    final byId = {for (final fee in fees) fee.memberId: fee};
+    var applied = 0;
     try {
-      await ref.read(feeServiceProvider).bulkSetStatus(
-            clubId: widget.clubId,
-            seasonId: seasonId,
-            memberIds: _selectedIds.toList(),
-            status: status,
-          );
+      for (final memberId in _selectedIds) {
+        final fee = byId[memberId];
+        if (fee == null) continue;
+        if (fee.status == MemberFeeStatus.exonere) continue;
+        if (fee.tierId == null || fee.tierId!.isEmpty) continue;
+        final remaining = fee.remainingCents(season);
+        if (remaining <= 0) continue;
+        await ref.read(feeServiceProvider).validateOfflinePayment(
+              clubId: widget.clubId,
+              seasonId: season.id,
+              memberId: memberId,
+              offlineMethod: FeePaymentMethods.especes,
+              amountCents: remaining,
+              season: season,
+              currentFee: fee,
+            );
+        applied += 1;
+      }
       setState(() {
         _selectionMode = false;
         _selectedIds.clear();
       });
-      if (mounted) ViroSnackBar.show(context, AppCopy.fees.updateDone);
+      if (mounted) {
+        ViroSnackBar.show(
+          context,
+          applied > 0 ? AppCopy.fees.updateDone : AppCopy.fees.noMembersToShow,
+        );
+      }
     } catch (error) {
-      if (mounted) ViroSnackBar.show(context, AppCopy.common.errorWithDetails(error));
+      if (mounted) {
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(error));
+      }
     }
   }
 
-  Future<void> _bulkTier(String tierId, String seasonId) async {
+  Future<void> _bulkTier(String tierId, FeeSeason season) async {
     try {
       await ref.read(feeServiceProvider).bulkSetTier(
             clubId: widget.clubId,
-            seasonId: seasonId,
+            seasonId: season.id,
             memberIds: _selectedIds.toList(),
             tierId: tierId,
+            season: season,
           );
       setState(() {
         _selectionMode = false;
@@ -247,7 +269,9 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
       });
       if (mounted) ViroSnackBar.show(context, AppCopy.fees.tiersAssigned);
     } catch (error) {
-      if (mounted) ViroSnackBar.show(context, AppCopy.common.errorWithDetails(error));
+      if (mounted) {
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(error));
+      }
     }
   }
 }

@@ -192,7 +192,6 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
     setState(() => _saving = true);
     try {
       final feeService = ref.read(feeServiceProvider);
-      final clubService = ref.read(clubServiceProvider);
       final iban = _ibanCtrl.text.trim().isEmpty
           ? null
           : normalizeIban(_ibanCtrl.text);

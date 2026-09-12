@@ -28,11 +28,27 @@ import {
 } from "@/lib/firebase/callableService";
 import { defaultSeasonEndDate, isSeasonEndAfterMax, maxSeasonEndDate } from "@/lib/planning/seasonEnd";
 import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
+import {
+  cardFeeCentsFromNet,
+  cardGrossCentsFromNet,
+} from "@/lib/stripe/cardGrossFromNet";
 import { useRouter, useSearchParams } from "next/navigation";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import { PlanningSelect } from "./PlanningSelect";
 import styles from "./FeesConfigForm.module.css";
+
+/** Explication du montant CB affiché à côté du montant club. */
+const CARD_FEE_INFO =
+  "Le montant CB couvre les frais Stripe (1,5 % + 0,25 €) et 1 € pour la plateforme, pour que le club reçoive le montant saisi.";
+
+/** Formate des centimes en euros (FR). */
+function formatEuros(cents: number): string {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+  }).format(cents / 100);
+}
 
 /** Props du formulaire de configuration cotisations. */
 type FeesConfigFormProps = {
@@ -162,12 +178,37 @@ export function FeesConfigForm({
   const [statusBusy, setStatusBusy] = useState(false);
   const connectBusy = stripeOpening || statusBusy;
   const [saving, setSaving] = useState(false);
+  const [feeInfoOpenTierId, setFeeInfoOpenTierId] = useState<string | null>(
+    null,
+  );
   const savingRef = useRef(false);
   const [sportCategories, setSportCategories] = useState<string[]>([]);
   const [categoryLinkTierId, setCategoryLinkTierId] = useState<string | null>(
     null,
   );
   const [categoryDraft, setCategoryDraft] = useState("");
+  const feeInfoRootRef = useRef<HTMLUListElement | null>(null);
+
+  useEffect(() => {
+    if (!feeInfoOpenTierId) return;
+    function onPointerDown(event: PointerEvent) {
+      const root = feeInfoRootRef.current;
+      if (!root) return;
+      if (event.target instanceof Node && !root.contains(event.target)) {
+        setFeeInfoOpenTierId(null);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setFeeInfoOpenTierId(null);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [feeInfoOpenTierId]);
+
   const [savedSnapshot, setSavedSnapshot] = useState<FeesFormSnapshot>(() =>
     buildFormSnapshot({
       seasonLabel: SEASON_LABEL_OPTIONS.includes(initial.seasonLabel)
@@ -662,7 +703,7 @@ export function FeesConfigForm({
             Ajouter un palier
           </button>
         </div>
-        <ul className={styles.tierList}>
+        <ul className={styles.tierList} ref={feeInfoRootRef}>
           {tiers.map((tier, index) => (
             <li key={tier.id} className={styles.tierRow}>
               <span className={`badge badge-amber ${styles.tierBadge}`}>
@@ -732,24 +773,69 @@ export function FeesConfigForm({
                   aria-label="Libellé"
                 />
               </div>
-              <label className={styles.field}>
-                <span className={styles.label}>Montant (€)</span>
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={(tier.amountCents / 100).toFixed(2)}
-                  onChange={(e) => {
-                    const euros = Number.parseFloat(e.target.value);
-                    updateTier(tier.id, {
-                      amountCents: Number.isFinite(euros)
-                        ? Math.round(euros * 100)
-                        : 0,
-                    });
-                  }}
-                />
-              </label>
+              <div className={styles.amountRow}>
+                <label className={styles.field}>
+                  <span className={styles.label}>Montant (€)</span>
+                  <input
+                    className={styles.input}
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={(tier.amountCents / 100).toFixed(2)}
+                    onChange={(e) => {
+                      const euros = Number.parseFloat(e.target.value);
+                      updateTier(tier.id, {
+                        amountCents: Number.isFinite(euros)
+                          ? Math.round(euros * 100)
+                          : 0,
+                      });
+                    }}
+                  />
+                </label>
+                {tier.amountCents > 0 ? (
+                  <div className={styles.cardGross}>
+                    <span className={styles.cardGrossArrow} aria-hidden>
+                      →
+                    </span>
+                    <div className={styles.cardGrossText}>
+                      <span className={styles.cardGrossLabel}>
+                        CB en ligne :{" "}
+                        {formatEuros(cardGrossCentsFromNet(tier.amountCents))}
+                      </span>
+                      <span className={styles.cardGrossFees}>
+                        dont {formatEuros(cardFeeCentsFromNet(tier.amountCents))}{" "}
+                        de frais
+                      </span>
+                    </div>
+                    <div className={styles.infoWrap}>
+                      <button
+                        type="button"
+                        className={styles.infoButton}
+                        aria-label="Pourquoi ce montant CB ?"
+                        aria-expanded={feeInfoOpenTierId === tier.id}
+                        aria-controls={`fee-info-${tier.id}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setFeeInfoOpenTierId((current) =>
+                            current === tier.id ? null : tier.id,
+                          );
+                        }}
+                      >
+                        i
+                      </button>
+                      {feeInfoOpenTierId === tier.id ? (
+                        <div
+                          id={`fee-info-${tier.id}`}
+                          className={styles.infoPopover}
+                          role="tooltip"
+                        >
+                          {CARD_FEE_INFO}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <button
                 type="button"
                 className={`${styles.ghostButton} ${styles.tierDelete}`}

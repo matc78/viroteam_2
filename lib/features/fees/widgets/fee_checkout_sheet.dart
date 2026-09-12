@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
+import 'package:viro_team_v2/features/fees/utils/card_gross_from_net.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
@@ -38,6 +39,10 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
     final remaining = widget.fee.remainingCents(widget.season);
     return remaining < 0 ? 0 : remaining;
   }
+
+  int get _grossCents => cardGrossCentsFromNet(_cardCents);
+
+  int get _feeCents => cardFeeCentsFromNet(_cardCents);
 
   Future<void> _submit() async {
     if (_submitting) return;
@@ -93,14 +98,30 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
             ),
             child: Padding(
               padding: const EdgeInsets.all(ViroSpacing.md),
-              child: Text(
-                AppCopy.fees.cardAmountDue(
-                  formatFeeAmountCents(_cardCents),
-                  inThreeTimes: false,
-                ),
-                style: theme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppCopy.fees.cardAmountDue(
+                      formatFeeAmountCents(_grossCents),
+                      inThreeTimes: false,
+                    ),
+                    style: theme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (_feeCents > 0) ...[
+                    const SizedBox(height: ViroSpacing.xs),
+                    Text(
+                      AppCopy.fees.cardFeesIncluded(
+                        formatFeeAmountCents(_feeCents),
+                      ),
+                      style: theme.bodySmall?.copyWith(
+                        color: ViroColors.gray600,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
@@ -108,7 +129,7 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
           ViroPrimaryButton(
             label: _submitting
                 ? AppCopy.fees.opening
-                : AppCopy.fees.payAmount(formatFeeAmountCents(_cardCents)),
+                : AppCopy.fees.payAmount(formatFeeAmountCents(_grossCents)),
             onPressed: _submitting || _cardCents <= 0 ? null : _submit,
           ),
         ],

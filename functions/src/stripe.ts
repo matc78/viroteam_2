@@ -14,6 +14,10 @@ import {
   creditMemberFeeFromCardPayment,
   generateAndStoreReceipt,
 } from "./feePayments";
+import {
+  cardFeeCentsFromNet,
+  cardGrossCentsFromNet,
+} from "./stripeFees";
 import { requireString, requireUid } from "./common";
 
 const stripeSecretKeyTest = defineSecret("STRIPE_SECRET_KEY_TEST");
@@ -466,8 +470,8 @@ export const {
         createdAt: now,
       }));
 
-    const cardAmount = Math.round(amountCents);
-    if (cardAmount <= 0) {
+    const netCents = Math.round(amountCents);
+    if (netCents <= 0) {
       const existingAids =
         (feeSnap.data()?.aids as Record<string, unknown>[] | undefined) ?? [];
       await feeRef.set(
@@ -488,6 +492,9 @@ export const {
       };
     }
 
+    const grossCents = cardGrossCentsFromNet(netCents);
+    const applicationFeeCents = cardFeeCentsFromNet(netCents);
+
     const { publishableKey } = stripeCredentials();
     if (!publishableKey || !publishableKey.startsWith("pk_")) {
       throw new HttpsError(
@@ -503,12 +510,13 @@ export const {
         : clubId;
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: cardAmount,
+      amount: grossCents,
       currency,
       automatic_payment_methods: { enabled: true },
       transfer_data: {
         destination: connectedAccountId,
       },
+      application_fee_amount: applicationFeeCents,
       description: `Cotisation ${clubName}`.slice(0, 250),
       metadata: {
         sessionId: sessionRef.id,
@@ -516,6 +524,8 @@ export const {
         seasonId,
         memberId,
         provider: "stripe",
+        netAmountCents: String(netCents),
+        applicationFeeCents: String(applicationFeeCents),
       },
     });
 
@@ -530,7 +540,9 @@ export const {
       clubId,
       seasonId,
       memberId,
-      amountCents: cardAmount,
+      amountCents: netCents,
+      grossAmountCents: grossCents,
+      applicationFeeCents,
       installmentCount: 1,
       aids: aidDocs,
       status: "pending",
@@ -681,7 +693,29 @@ async function handlePaymentIntentSucceeded(
     return;
   }
 
-  const amountCents = Number(paymentIntent.amount_received || paymentIntent.amount || 0);
+  let amountCents = 0;
+  const metadataNet = Number(metadata.netAmountCents ?? 0);
+  if (Number.isFinite(metadataNet) && metadataNet > 0) {
+    amountCents = Math.round(metadataNet);
+  } else if (sessionId) {
+    const sessionSnap = await db()
+      .collection("clubs")
+      .doc(clubId)
+      .collection("fee_seasons")
+      .doc(seasonId)
+      .collection("payment_sessions")
+      .doc(sessionId)
+      .get();
+    const sessionNet = Number(sessionSnap.data()?.amountCents ?? 0);
+    if (Number.isFinite(sessionNet) && sessionNet > 0) {
+      amountCents = Math.round(sessionNet);
+    }
+  }
+  if (amountCents <= 0) {
+    amountCents = Number(
+      paymentIntent.amount_received || paymentIntent.amount || 0,
+    );
+  }
   const { creditedCents } = await creditMemberFeeFromCardPayment({
     clubId,
     seasonId,

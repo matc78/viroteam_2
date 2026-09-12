@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/fees/models/fee_tier.dart';
+import 'package:viro_team_v2/features/fees/utils/card_gross_from_net.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
@@ -226,16 +227,96 @@ class _TierCardState extends State<_TierCard> {
               onChanged: (_) => _emit(),
             ),
             const SizedBox(height: ViroSpacing.sm),
-            TextField(
-              controller: _amountCtrl,
-              decoration: _fieldDecoration.copyWith(
-                labelText: AppCopy.fees.amount,
-                suffixText: '€',
-                hintText: AppCopy.fees.amountHint,
-              ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => _emit(),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _amountCtrl,
+                    decoration: _fieldDecoration.copyWith(
+                      labelText: AppCopy.fees.amount,
+                      suffixText: '€',
+                      hintText: AppCopy.fees.amountHint,
+                    ),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(_emit),
+                  ),
+                ),
+                if ((parseAmountToCents(_amountCtrl.text) ?? 0) > 0) ...[
+                  const SizedBox(width: ViroSpacing.sm),
+                  Expanded(
+                    flex: 3,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            '→',
+                            style: theme.bodyMedium?.copyWith(
+                              color: ViroColors.gray400,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: ViroSpacing.xs),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  AppCopy.fees.cardOnlineAmount(
+                                    formatFeeAmountCents(
+                                      cardGrossCentsFromNet(
+                                        parseAmountToCents(_amountCtrl.text) ??
+                                            0,
+                                      ),
+                                    ),
+                                  ),
+                                  style: theme.labelMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: widget.accentColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  AppCopy.fees.cardOnlineFees(
+                                    formatFeeAmountCents(
+                                      cardFeeCentsFromNet(
+                                        parseAmountToCents(_amountCtrl.text) ??
+                                            0,
+                                      ),
+                                    ),
+                                  ),
+                                  style: theme.labelSmall?.copyWith(
+                                    color: ViroColors.gray600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Tooltip(
+                            message: AppCopy.fees.cardFeeInfoTooltip,
+                            triggerMode: TooltipTriggerMode.tap,
+                            preferBelow: true,
+                            waitDuration: Duration.zero,
+                            showDuration: const Duration(seconds: 6),
+                            child: ViroIcon(
+                              ViroIcons.info,
+                              size: 18,
+                              color: ViroColors.gray400,
+                              semanticLabel: AppCopy.fees.cardFeeInfoTooltip,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),

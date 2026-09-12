@@ -45,6 +45,12 @@ final class AppCopyFees {
   String get tierLabelHint => 'U14, Senior, Licencié…';
   String get amount => 'Montant';
   String get amountHint => '150,00';
+  String cardOnlineAmount(String amount) => 'CB en ligne : $amount';
+  String cardOnlineFees(String fees) => 'dont $fees de frais';
+  String get cardFeeInfoTooltip =>
+      'Le montant CB couvre les frais Stripe (1,5 % + 0,25 €) '
+      'et 1 € pour la plateforme, pour que le club reçoive '
+      'le montant saisi.';
 
   String get sectionSeason => 'Saison';
   String get seasonSectionHint =>
@@ -188,6 +194,8 @@ final class AppCopyFees {
   String aidDiscount(String amount) => 'Aide : − $amount';
   String cardAmountDue(String amount, {required bool inThreeTimes}) =>
       'À payer par CB : $amount${inThreeTimes ? ' (en 3 fois)' : ''}';
+  String cardFeesIncluded(String fees) =>
+      'dont $fees de frais en payant par CB';
   String get opening => 'Ouverture…';
   String payAmount(String amount) => 'Payer $amount';
   String get saveAid => 'Enregistrer l\'aide';

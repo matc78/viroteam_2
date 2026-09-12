@@ -41,6 +41,7 @@ abstract final class ViroIcons {
   static IconData get moreVertical => PhosphorIconsRegular.dotsThreeVertical;
   static IconData get eye => PhosphorIconsRegular.eye;
   static IconData get eyeSlash => PhosphorIconsRegular.eyeSlash;
+  static IconData get info => PhosphorIconsRegular.info;
 
   // Compte
   static IconData get user => PhosphorIconsRegular.user;
@@ -106,6 +107,8 @@ abstract final class ViroIcons {
             ('checkCircle', checkCircle),
             ('xCircle', xCircle),
             ('search', search),
+            ('copy', copy),
+            ('info', info),
           ],
         ),
         ViroIconCatalogGroup(

@@ -12,6 +12,10 @@ import transitionStyles from "@/components/dashboard/DashboardPageTransition.mod
 import { useToast } from "@/components/ToastProvider";
 import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import {
+  cardFeeCentsFromNet,
+  cardGrossCentsFromNet,
+} from "@/lib/stripe/cardGrossFromNet";
+import {
   isClubResourceReady,
   useAsyncClubResource,
 } from "@/lib/dashboard/useAsyncClubResource";
@@ -189,6 +193,21 @@ export function FamilyFeesClient() {
               <dt>Reste dû</dt>
               <dd>{formatEuros(data.remaining)}</dd>
             </div>
+            {canPayOnline ? (
+              <div className={feeStyles.full}>
+                <dt>Paiement CB</dt>
+                <dd>
+                  {formatEuros(cardGrossCentsFromNet(data.remaining))}
+                  {cardFeeCentsFromNet(data.remaining) > 0 ? (
+                    <span className={styles.empty}>
+                      {" "}
+                      (dont {formatEuros(cardFeeCentsFromNet(data.remaining))}{" "}
+                      de frais)
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            ) : null}
             {data.season.paymentInstructions ? (
               <div className={feeStyles.full}>
                 <dt>Consignes</dt>
@@ -223,7 +242,9 @@ export function FamilyFeesClient() {
               disabled={checkoutBusy}
               onClick={() => void handleCheckout()}
             >
-              {checkoutBusy ? "Préparation…" : "Payer en ligne"}
+              {checkoutBusy
+                ? "Préparation…"
+                : `Payer ${formatEuros(cardGrossCentsFromNet(data.remaining))}`}
             </button>
           ) : (
             <p className={styles.empty}>

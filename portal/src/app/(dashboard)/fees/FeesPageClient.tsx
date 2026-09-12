@@ -18,6 +18,10 @@ import {
   useIsPortalRouteActive,
 } from "@/lib/dashboard/useClubRealtimeReload";
 import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
+import {
+  cardFeeCentsFromNet,
+  cardGrossCentsFromNet,
+} from "@/lib/stripe/cardGrossFromNet";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { createStripeCheckout } from "@/lib/firebase/callableService";
@@ -225,6 +229,22 @@ function PlayerFeesSelfView() {
               <dt>Reste dû</dt>
               <dd>{formatEuros(data!.remaining)}</dd>
             </div>
+            {canPayOnline ? (
+              <div className={feeStyles.full}>
+                <dt>Paiement CB</dt>
+                <dd>
+                  {formatEuros(cardGrossCentsFromNet(data!.remaining))}
+                  {cardFeeCentsFromNet(data!.remaining) > 0 ? (
+                    <span className={familyStyles.empty}>
+                      {" "}
+                      (dont{" "}
+                      {formatEuros(cardFeeCentsFromNet(data!.remaining))} de
+                      frais)
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            ) : null}
             {data!.season!.paymentInstructions ? (
               <div className={feeStyles.full}>
                 <dt>Consignes</dt>
@@ -249,7 +269,9 @@ function PlayerFeesSelfView() {
             disabled={checkoutBusy}
             onClick={() => void handleCheckout()}
           >
-            {checkoutBusy ? "Préparation…" : "Payer en ligne"}
+            {checkoutBusy
+              ? "Préparation…"
+              : `Payer ${formatEuros(cardGrossCentsFromNet(data!.remaining))}`}
           </button>
         ) : null}
 

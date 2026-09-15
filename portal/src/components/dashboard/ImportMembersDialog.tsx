@@ -186,6 +186,16 @@ function ImportPlanStats({ plan }: { plan: MembersImportPlan }) {
       value: plan.stats.updateTeams,
       tone: "warn",
     },
+    {
+      key: "withoutEmail",
+      label: pluralLabel(
+        plan.stats.withoutEmail,
+        "Sans e-mail",
+        "Sans e-mail",
+      ),
+      value: plan.stats.withoutEmail,
+      tone: "info",
+    },
   ].filter((chip) => chip.value > 0);
 
   if (chips.length === 0) return null;
@@ -277,7 +287,7 @@ export function ImportMembersDialog({
 }: ImportMembersDialogProps) {
   const [formatTab, setFormatTab] = useState<FormatTab>("csv");
   const [rawCsv, setRawCsv] = useState("");
-  const [sendInvites, setSendInvites] = useState(true);
+  const [sendInvites, setSendInvites] = useState(false);
   const [excelReadError, setExcelReadError] = useState<string | null>(null);
   const [excelFileName, setExcelFileName] = useState<string | null>(null);
   const [csvFileName, setCsvFileName] = useState<string | null>(null);
@@ -506,10 +516,11 @@ export function ImportMembersDialog({
                 </p>
                 <ul className={styles.helpList}>
                   <li>
-                    <strong>email</strong> : obligatoire et valide pour chaque
-                    ligne (sauf membre déjà inscrit). Seule cette adresse
-                    pourra accepter l’invitation ; un même e-mail ne peut pas
-                    apparaître sur deux lignes.
+                    <strong>email</strong> : optionnel. Recommandé pour inviter
+                    plus tard (Activation). S’il est renseigné, il doit être
+                    valide ; seule cette adresse pourra accepter l’invitation.
+                    Un même e-mail ne peut pas apparaître sur deux lignes. Sans
+                    e-mail → fiche club seule, pas d’invitation créée.
                   </li>
                   <li>
                     <strong>role</strong> :{" "}
@@ -596,9 +607,10 @@ export function ImportMembersDialog({
                     titre au-dessus des en-têtes, pas de lignes vides au milieu.
                   </li>
                   <li>
-                    <strong>email</strong> obligatoire et valide sur chaque
-                    ligne (sauf membre déjà inscrit) : seule cette adresse
-                    pourra accepter l’invitation.
+                    <strong>email</strong> optionnel. Recommandé pour inviter
+                    plus tard (Activation). S’il est renseigné, il doit être
+                    valide : seule cette adresse pourra accepter l’invitation.
+                    Sans e-mail → fiche club seule.
                   </li>
                   <li>
                     <strong>role</strong> :{" "}
@@ -782,8 +794,8 @@ export function ImportMembersDialog({
                   />
                   <span className={styles.checkBox} aria-hidden="true" />
                   <span className={styles.checkLabel}>
-                    Envoyer les invitations par e-mail (Brevo) aux membres
-                    créés ou mis à jour
+                    Envoyer maintenant les mails aux lignes qui ont un e-mail
+                    (sinon plus tard dans l’onglet Activation)
                   </span>
                 </label>
 
@@ -817,6 +829,9 @@ export function ImportMembersDialog({
                           : ""}
                         {plan.stats.withTeam > 0
                           ? ` · ${plan.stats.withTeam} rattachement${plan.stats.withTeam > 1 ? "s" : ""} équipe`
+                          : ""}
+                        {plan.stats.withoutEmail > 0
+                          ? ` · ${plan.stats.withoutEmail} sans e-mail (invite plus tard)`
                           : ""}
                         .
                       </p>

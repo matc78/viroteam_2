@@ -8,6 +8,7 @@ import {
 } from "@/lib/firebase/feeService";
 import {
   listClubMembers,
+  isMemberInviteValid,
   memberRoleLabel,
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
@@ -248,3 +249,130 @@ export function filterMemberRows(
     return haystack.includes(search);
   });
 }
+
+/** Buckets d’activation du roster (comptes liés vs invites). */
+export type ActivationBucket =
+  | "linked"
+  | "pendingInvite"
+  | "withEmailNotLinked"
+  | "noEmail";
+
+/** Compteurs d’activation pour l’onglet Activation. */
+export type ActivationStats = {
+  linked: number;
+  pendingInvite: number;
+  withEmailNotLinked: number;
+  noEmail: number;
+  total: number;
+};
+
+/** True si le membre a un e-mail exploitable pour une invitation. */
+export function memberHasInviteEmail(member: {
+  email?: string | null;
+}): boolean {
+  return Boolean(member.email?.trim());
+}
+
+/** True si non lié + e-mail (éligible à sendMemberInvites / ensurePendingInvite). */
+export function isMemberInviteEmailEligible(member: {
+  hasLinkedAccount: boolean;
+  email?: string | null;
+}): boolean {
+  return !member.hasLinkedAccount && memberHasInviteEmail(member);
+}
+
+/** True si invite pending encore valide (code + expiration). */
+export function memberHasValidPendingInvite(member: {
+  pendingInviteCode?: string | null;
+  pendingInviteExpiresAt?: Date | string | null;
+}): boolean {
+  return isMemberInviteValid({
+    pendingInviteCode: member.pendingInviteCode ?? null,
+    pendingInviteExpiresAt: member.pendingInviteExpiresAt ?? null,
+  });
+}
+
+/**
+ * True si non lié + e-mail + pas d’invite valide (premier envoi ou code expiré).
+ * Exclut volontairement « Invite en cours » pour éviter les envois Brevo en double.
+ */
+export function isMemberNeedingFirstInvite(member: {
+  hasLinkedAccount: boolean;
+  email?: string | null;
+  pendingInviteCode?: string | null;
+  pendingInviteExpiresAt?: Date | string | null;
+}): boolean {
+  return (
+    isMemberInviteEmailEligible(member) && !memberHasValidPendingInvite(member)
+  );
+}
+
+/**
+ * Calcule les stats d’activation à partir des lignes membres déjà chargées.
+ * Les buckets `withEmailNotLinked` et `pendingInvite` sont disjoints
+ * (somme des 4 buckets = total).
+ */
+export function computeActivationStats(
+  rows: Array<{
+    hasLinkedAccount: boolean;
+    email?: string | null;
+    pendingInviteCode?: string | null;
+    pendingInviteExpiresAt?: Date | string | null;
+  }>,
+): ActivationStats {
+  let linked = 0;
+  let pendingInvite = 0;
+  let withEmailNotLinked = 0;
+  let noEmail = 0;
+
+  for (const row of rows) {
+    if (row.hasLinkedAccount) {
+      linked += 1;
+      continue;
+    }
+    if (!memberHasInviteEmail(row)) {
+      noEmail += 1;
+      continue;
+    }
+    if (memberHasValidPendingInvite(row)) {
+      pendingInvite += 1;
+    } else {
+      withEmailNotLinked += 1;
+    }
+  }
+
+  return {
+    linked,
+    pendingInvite,
+    withEmailNotLinked,
+    noEmail,
+    total: rows.length,
+  };
+}
+
+/** Filtre les lignes selon le bucket d’activation sélectionné. */
+export function filterActivationRows<
+  T extends {
+    hasLinkedAccount: boolean;
+    email?: string | null;
+    pendingInviteCode?: string | null;
+    pendingInviteExpiresAt?: Date | string | null;
+  },
+>(rows: T[], bucket: ActivationBucket): T[] {
+  return rows.filter((row) => {
+    if (bucket === "linked") return row.hasLinkedAccount;
+    if (bucket === "noEmail") {
+      return !row.hasLinkedAccount && !memberHasInviteEmail(row);
+    }
+    if (bucket === "pendingInvite") {
+      return (
+        !row.hasLinkedAccount &&
+        memberHasInviteEmail(row) &&
+        memberHasValidPendingInvite(row)
+      );
+    }
+    // withEmailNotLinked : e-mail + pas d’invite valide (disjoint de pending).
+    return isMemberNeedingFirstInvite(row);
+  });
+}
+

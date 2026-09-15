@@ -1,0 +1,227 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.summaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+}
+
+.summaryLead {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+}
+
+.summaryHint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-gray-600);
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: 0.25rem;
+}
+
+.buttonPrimary,
+.buttonSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  border: none;
+  background: var(--color-primary-600);
+  color: var(--color-white);
+}
+
+.buttonPrimary:hover:not(:disabled) {
+  background: var(--color-primary-700);
+}
+
+.buttonSecondary {
+  border: 1.5px solid var(--color-gray-200);
+  background: var(--color-white);
+  color: var(--color-primary-900);
+}
+
+.buttonSecondary:hover:not(:disabled) {
+  border-color: var(--color-primary-300);
+}
+
+.buttonPrimary:disabled,
+.buttonSecondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 7.5rem;
+  padding: 0.55rem 0.85rem;
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-gray-700);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chip:hover {
+  border-color: var(--color-primary-300);
+}
+
+.chipActive {
+  border-color: var(--color-primary-500);
+  background: var(--color-primary-100);
+  color: var(--color-primary-900);
+}
+
+.chipValue {
+  font-size: 1.25rem;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+.chipLabel {
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.bucketHint {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-gray-600);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-lg);
+  border: 1.5px dashed var(--color-gray-200);
+  border-radius: var(--radius-md);
+  text-align: center;
+  color: var(--color-gray-600);
+  font-size: 0.95rem;
+}
+
+.tableCard {
+  border: 1.5px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  overflow: hidden;
+}
+
+.tableScroll {
+  max-height: min(28rem, 60vh);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-gray-100);
+  vertical-align: middle;
+}
+
+.table th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+  background: var(--color-gray-50);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.row {
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--color-primary-50);
+}
+
+.nameButton {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary-800);
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.muted {
+  color: var(--color-gray-600);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badge[data-tone="ok"] {
+  background: color-mix(in srgb, var(--color-success, #16a34a) 16%, white);
+  color: var(--color-success, #15803d);
+}
+
+.badge[data-tone="warn"] {
+  background: var(--color-primary-100);
+  color: var(--color-primary-800);
+}
+
+.badge[data-tone="info"] {
+  background: color-mix(in srgb, var(--color-primary-400, #60a5fa) 18%, white);
+  color: var(--color-primary-800);
+}
+
+.badge[data-tone="muted"] {
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+}

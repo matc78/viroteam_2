@@ -74,6 +74,8 @@ export type MembersImportPlan = {
     updateTeams: number;
     admins: number;
     withTeam: number;
+    /** Lignes create/update sans e-mail (invite plus tard). */
+    withoutEmail: number;
   };
 };
 
@@ -385,6 +387,7 @@ export function buildMembersImportPlan(params: {
     updateTeams: 0,
     admins: 0,
     withTeam: 0,
+    withoutEmail: 0,
   };
 
   const lines = params.content
@@ -428,9 +431,6 @@ export function buildMembersImportPlan(params: {
       ]);
 
   const existingByKey = new Map<string, string>();
-  const existingById = new Map(
-    params.existingMembers.map((member) => [member.memberId, member]),
-  );
   for (const member of params.existingMembers) {
     const key = `${normalizeCompareKey(member.firstName)}|${normalizeCompareKey(member.lastName)}`;
     if (!existingByKey.has(key)) {
@@ -451,7 +451,6 @@ export function buildMembersImportPlan(params: {
   const seenEmailInCsv = new Map<string, number>();
   const teamCategoryInCsv = new Map<string, { category: string; lineNumber: number }>();
   const blockingErrors: string[] = [];
-  const missingEmailLineNumbers: number[] = [];
 
   for (let offset = 0; offset < dataLines.length; offset += 1) {
     const line = dataLines[offset]!;
@@ -468,6 +467,7 @@ export function buildMembersImportPlan(params: {
     const roleRaw = cell("role");
     const role = normalizeImportRole(roleRaw);
     // E-mail normalisé (trim + lowercase) : c’est l’adresse qui pourra accepter.
+    // Optionnel à l’import : sans e-mail → fiche seule, invite plus tard.
     const email = cell("email").toLowerCase();
     const licenseRaw = cell("license");
     const teamNameRaw = cell("team");
@@ -481,17 +481,6 @@ export function buildMembersImportPlan(params: {
     let teamName = teamNameRaw;
     let category = "";
     let teamIgnoredForAdmin = false;
-
-    // E-mail obligatoire sauf pour un membre déjà inscrit (compte lié) : son
-    // e-mail CSV est ignoré à l’import.
-    const personKeyForEmail =
-      firstNameRaw && lastNameRaw
-        ? `${normalizeCompareKey(firstNameRaw)}|${normalizeCompareKey(lastNameRaw)}`
-        : "";
-    const existingForEmail = personKeyForEmail
-      ? existingById.get(existingByKey.get(personKeyForEmail) ?? "")
-      : undefined;
-    const emailRequired = !existingForEmail?.accountUid?.trim();
 
     if (!firstNameRaw || !lastNameRaw) {
       error = "Prénom et nom obligatoires.";
@@ -515,11 +504,7 @@ export function buildMembersImportPlan(params: {
       }
     }
 
-    if (!error && emailRequired && !email) {
-      missingEmailLineNumbers.push(lineNumber);
-      error =
-        "E-mail obligatoire : seule l’adresse invitée pourra accepter l’invitation. Corrigez le fichier puis réessayez.";
-    } else if (!error && email && validateEmail(email)) {
+    if (!error && email && validateEmail(email)) {
       error = `E-mail invalide (« ${email} »). Utilisez le format prenom.nom@exemple.fr, puis réessayez.`;
     } else if (!error && !role) {
       error = `Rôle invalide (« ${roleRaw || "vide"} »). Utilisez player, coach ou admin (ou joueur, entraîneur, administrateur). Corrigez le fichier puis réessayez.`;
@@ -601,12 +586,6 @@ export function buildMembersImportPlan(params: {
       error,
       existingMemberId,
     });
-  }
-
-  if (missingEmailLineNumbers.length > 1) {
-    blockingErrors.push(
-      `Import impossible : ${missingEmailLineNumbers.length} lignes sans e-mail (lignes ${missingEmailLineNumbers.join(", ")}). L’e-mail est obligatoire pour chaque membre à inviter : complétez le fichier puis réessayez.`,
-    );
   }
 
   const uniqueLineBlocking = [...new Set(blockingErrors)];
@@ -704,6 +683,7 @@ export function buildMembersImportPlan(params: {
         (action) => action.role === MemberRoles.admin,
       ).length,
       withTeam: memberActions.filter((action) => Boolean(action.teamName)).length,
+      withoutEmail: memberActions.filter((action) => !action.email.trim()).length,
     },
   };
 }

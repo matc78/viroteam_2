@@ -434,6 +434,7 @@ export function MembersTable({
                               </>
                             ) : null}
                             {!row.hasLinkedAccount &&
+                            Boolean(row.email?.trim()) &&
                             !isMemberInviteValid(row) ? (
                               <button
                                 type="button"

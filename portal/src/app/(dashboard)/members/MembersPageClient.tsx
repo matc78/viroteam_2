@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ActivationRosterPanel } from "@/components/dashboard/ActivationRosterPanel";
 import { AddMemberDialog } from "@/components/dashboard/AddMemberDialog";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -46,15 +47,16 @@ import {
 } from "@/lib/firebase/activityService";
 import {
   addMemberWithInvitation,
+  addMemberWithoutInvitation,
   assignMemberToTeam,
   buildInviteMessage,
   extendMemberInvitation,
   getLinkedMemberId,
-  isMemberInviteValid,
   regenerateMemberInvitation,
   removeMember,
   updateMemberLicense,
   updateMemberRole,
+  updatePendingMemberNames,
   updatePendingMemberProfile,
   type AddMemberResult,
   type ClubMemberRole,
@@ -76,7 +78,9 @@ import {
 import {
   feeStatusLabel,
   filterMemberRows,
+  isMemberInviteEmailEligible,
   loadMembersPageData,
+  type MemberRow,
   type MembersFilters,
 } from "@/lib/members/membersView";
 import {
@@ -100,7 +104,7 @@ const DEFAULT_PARENT_FILTERS: ParentsFilters = {
   status: "all",
 };
 
-type MembersTab = "roster" | "parents" | "teams";
+type MembersTab = "activation" | "roster" | "parents" | "teams";
 
 /** Contenu page Membres branché sur Firestore. */
 function MembersPageContent() {
@@ -245,10 +249,7 @@ function MembersPageContent() {
     });
     return scopedMembers.filter(
       (row) =>
-        selectedIds.has(row.memberId) &&
-        !row.hasLinkedAccount &&
-        Boolean(row.email?.trim()) &&
-        isMemberInviteValid(row),
+        selectedIds.has(row.memberId) && isMemberInviteEmailEligible(row),
     ).length;
   }, [
     data,
@@ -783,17 +784,32 @@ function MembersPageContent() {
                     ? MemberRoles.coach
                     : MemberRoles.player;
 
-              const result = await addMemberWithInvitation({
-                clubId: activeClub.id,
-                firstName: action.firstName,
-                lastName: action.lastName,
-                role: createRole,
-                sentByUid: user.uid,
-                club: activeClub,
-                email: action.email,
-                logActivity: false,
-              });
-              memberId = result.member.memberId;
+              if (action.email.trim() && meta.sendInvites) {
+                // Invitation créée tout de suite : le mail Brevo part juste après.
+                const result = await addMemberWithInvitation({
+                  clubId: activeClub.id,
+                  firstName: action.firstName,
+                  lastName: action.lastName,
+                  role: createRole,
+                  sentByUid: user.uid,
+                  club: activeClub,
+                  email: action.email,
+                  logActivity: false,
+                });
+                memberId = result.member.memberId;
+              } else {
+                // Sans envoi immédiat : e-mail éventuel stocké, invite via Activation.
+                const member = await addMemberWithoutInvitation({
+                  clubId: activeClub.id,
+                  firstName: action.firstName,
+                  lastName: action.lastName,
+                  role: createRole,
+                  sentByUid: user.uid,
+                  email: action.email.trim() || undefined,
+                  logActivity: false,
+                });
+                memberId = member.memberId;
+              }
               report.created += 1;
             } else {
               const existing = existingById.get(memberId);
@@ -809,17 +825,36 @@ function MembersPageContent() {
                 const nameChanged =
                   existing.firstName.trim() !== action.firstName.trim() ||
                   existing.lastName.trim() !== action.lastName.trim();
-                const emailChanged =
-                  (existing.email ?? "").trim().toLowerCase() !==
-                  action.email.trim().toLowerCase();
-                if (nameChanged || emailChanged) {
+                const csvEmail = action.email.trim().toLowerCase();
+                const existingEmail = (existing.email ?? "").trim().toLowerCase();
+                const emailChanged = Boolean(csvEmail) && csvEmail !== existingEmail;
+                if (csvEmail && (nameChanged || emailChanged)) {
                   try {
                     await updatePendingMemberProfile({
                       clubId: activeClub.id,
                       memberId,
                       firstName: action.firstName,
                       lastName: action.lastName,
-                      email: action.email,
+                      email: csvEmail,
+                    });
+                  } catch (err: unknown) {
+                    report.failed += 1;
+                    report.errors.push(
+                      `Ligne ${action.lineNumber} : profil non mis à jour (${
+                        err instanceof Error ? err.message : "échec"
+                      }). Corrigez puis réessayez.`,
+                    );
+                    importAborted = true;
+                    break;
+                  }
+                } else if (nameChanged && !csvEmail) {
+                  // Cellule e-mail vide : on ne vide pas l’e-mail existant.
+                  try {
+                    await updatePendingMemberNames({
+                      clubId: activeClub.id,
+                      memberId,
+                      firstName: action.firstName,
+                      lastName: action.lastName,
                     });
                   } catch (err: unknown) {
                     report.failed += 1;
@@ -1083,18 +1118,18 @@ function MembersPageContent() {
     return data.members.filter((member) => selectedIds.has(member.memberId));
   }
 
-  async function handleBulkSendInvites() {
-    if (!activeClub) return;
-    const inviteableIds = selectedMemberRows()
-      .filter(
-        (row) =>
-          !row.hasLinkedAccount &&
-          Boolean(row.email?.trim()) &&
-          isMemberInviteValid(row),
-      )
-      .map((row) => row.memberId);
-
-    if (inviteableIds.length === 0) {
+  async function handleSendInvitesForIds(memberIds: string[]) {
+    if (!activeClub || !data) return;
+    const uniqueIds = [...new Set(memberIds.filter(Boolean))];
+    const membersById = new Map(
+      data.members.map((member) => [member.memberId, member]),
+    );
+    // Garde-fou : uniquement non liés avec e-mail (évite comptes liés / sans mail).
+    const eligibleIds = uniqueIds.filter((memberId) => {
+      const member = membersById.get(memberId);
+      return member ? isMemberInviteEmailEligible(member) : false;
+    });
+    if (eligibleIds.length === 0) {
       showToast("Aucun membre éligible à une invitation e-mail.", "error");
       return;
     }
@@ -1105,8 +1140,8 @@ function MembersPageContent() {
       let skipped = 0;
       let failed = 0;
       const chunkSize = 100;
-      for (let offset = 0; offset < inviteableIds.length; offset += chunkSize) {
-        const chunk = inviteableIds.slice(offset, offset + chunkSize);
+      for (let offset = 0; offset < eligibleIds.length; offset += chunkSize) {
+        const chunk = eligibleIds.slice(offset, offset + chunkSize);
         const result = await sendMemberInvites({
           clubId: activeClub.id,
           memberIds: chunk,
@@ -1123,6 +1158,7 @@ function MembersPageContent() {
         }.`,
         failed > 0 ? "error" : "success",
       );
+      reload();
     } catch (err: unknown) {
       showToast(
         err instanceof Error ? err.message : "Envoi groupé impossible.",
@@ -1131,6 +1167,13 @@ function MembersPageContent() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleBulkSendInvites() {
+    const inviteableIds = selectedMemberRows()
+      .filter((row) => isMemberInviteEmailEligible(row))
+      .map((row) => row.memberId);
+    await handleSendInvitesForIds(inviteableIds);
   }
 
   async function handleBulkSetFeeStatus(status: string) {
@@ -1380,17 +1423,28 @@ function MembersPageContent() {
           eyebrow="Espace club"
           heading="Membres"
           lead={
-            membersTab === "roster"
-              ? `Gérez les membres de ${activeClub?.name ?? "votre club"}, leurs licences et les invitations.`
-              : membersTab === "parents"
-                ? `Suivez les invitations et parents connectés de ${activeClub?.name ?? "votre club"}.`
-                : `Créez les équipes de ${activeClub?.name ?? "votre club"}, leurs catégories, joueurs et coachs.`
+            membersTab === "activation"
+              ? `Suivez l’activation des comptes de ${activeClub?.name ?? "votre club"} : liés, à inviter, sans e-mail.`
+              : membersTab === "roster"
+                ? `Gérez les membres de ${activeClub?.name ?? "votre club"}, leurs licences et les invitations.`
+                : membersTab === "parents"
+                  ? `Suivez les invitations et parents connectés de ${activeClub?.name ?? "votre club"}.`
+                  : `Créez les équipes de ${activeClub?.name ?? "votre club"}, leurs catégories, joueurs et coachs.`
           }
           onRefresh={reload}
           refreshing={refreshing}
         />
 
         <div className={tabStyles.tabs} role="tablist" aria-label="Membres">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={membersTab === "activation"}
+            className={`${tabStyles.tab} ${membersTab === "activation" ? tabStyles.tabActive : ""}`}
+            onClick={() => setMembersTab("activation")}
+          >
+            Activation
+          </button>
           <button
             type="button"
             role="tab"
@@ -1429,6 +1483,22 @@ function MembersPageContent() {
           <p className={introStyles.lead} role="alert">
             {error}
           </p>
+        ) : null}
+
+        {data && membersTab === "activation" ? (
+          <ActivationRosterPanel
+            members={membersVisibleToViewer({
+              role: activeClubRole,
+              uid: user?.uid ?? null,
+              linkedMemberId,
+              teams: data.teams,
+              members: data.members,
+            })}
+            busy={busy}
+            canInviteActions={caps.canAddMember}
+            onOpenMember={(member: MemberRow) => setSelectedMemberId(member.memberId)}
+            onSendInvitesForIds={handleSendInvitesForIds}
+          />
         ) : null}
 
         {data && membersTab === "roster" ? (
@@ -1561,7 +1631,9 @@ function MembersPageContent() {
         ) : null}
       </div>
 
-      {selectedMember && activeClub && membersTab === "roster" ? (
+      {selectedMember &&
+      activeClub &&
+      (membersTab === "roster" || membersTab === "activation") ? (
         <MemberDetailPanel
           clubId={activeClub.id}
           member={selectedMember}

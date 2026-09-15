@@ -580,6 +580,111 @@ export async function addMemberWithInvitation(params: {
 }
 
 /**
+ * Crée une fiche membre sans invitation (import roster / invite plus tard).
+ * E-mail optionnel : stocké dans `snapshot` pour `sendMemberInvites` depuis Activation.
+ */
+export async function addMemberWithoutInvitation(params: {
+  clubId: string;
+  firstName: string;
+  lastName: string;
+  role:
+    | typeof MemberRoles.player
+    | typeof MemberRoles.coach
+    | typeof MemberRoles.admin;
+  sentByUid: string;
+  /** E-mail à conserver sans créer d’invitation (normalisé si fourni). */
+  email?: string;
+  /** false pour import CSV (log agrégé côté appelant). */
+  logActivity?: boolean;
+}): Promise<ClubMemberRecord> {
+  const trimmedFirst = formatFirstName(params.firstName);
+  const trimmedLast = formatLastName(params.lastName);
+  const trimmedEmail = params.email?.trim()
+    ? normalizeRequiredInviteEmail(params.email)
+    : null;
+  if (
+    params.role !== MemberRoles.player &&
+    params.role !== MemberRoles.coach &&
+    params.role !== MemberRoles.admin
+  ) {
+    throw new Error("Rôle invalide : utilisez joueur, coach ou admin.");
+  }
+
+  const db = getAppFirestore();
+  const memberRef = doc(membersCol(params.clubId));
+  const clubDocument = clubRef(params.clubId);
+  const displayName = `${trimmedFirst} ${trimmedLast}`;
+
+  await runTransaction(db, async (tx) => {
+    const clubSnap = await tx.get(clubDocument);
+    const memberCount =
+      Number(clubSnap.data()?.[Fields.memberCount] ?? 0) || 0;
+
+    const snapshot: Record<string, unknown> = {
+      [Fields.displayName]: displayName,
+    };
+    if (trimmedEmail) {
+      snapshot[Fields.email] = trimmedEmail;
+    }
+
+    const memberPayload: Record<string, unknown> = {
+      [Fields.memberId]: memberRef.id,
+      [Fields.role]: params.role,
+      [Fields.status]: "active",
+      [Fields.firstName]: trimmedFirst,
+      [Fields.lastName]: trimmedLast,
+      [Fields.teamIds]: [],
+      [Fields.snapshot]: snapshot,
+      [Fields.joinedAt]: serverTimestamp(),
+      [Fields.updatedAt]: serverTimestamp(),
+    };
+
+    if (params.role === MemberRoles.player) {
+      memberPayload[Fields.playerInfo] = { [Fields.license]: "" };
+    }
+    if (params.role === MemberRoles.coach) {
+      memberPayload[Fields.coachInfo] = { [Fields.headCoach]: false };
+    }
+
+    tx.set(memberRef, memberPayload);
+
+    tx.update(clubDocument, {
+      [Fields.memberCount]: memberCount + 1,
+      [Fields.updatedAt]: serverTimestamp(),
+    });
+
+    if (params.logActivity !== false) {
+      appendClubActivityToTransaction(tx, params.clubId, {
+        type: ClubActivityTypes.membersAdded,
+        actorUid: params.sentByUid,
+        count: 1,
+        summary: displayName,
+        entityIds: [memberRef.id],
+      });
+    }
+  });
+
+  return {
+    memberId: memberRef.id,
+    role: params.role,
+    status: "active",
+    firstName: trimmedFirst,
+    lastName: trimmedLast,
+    displayName,
+    accountUid: null,
+    email: trimmedEmail,
+    avatarUrl: null,
+    teamIds: [],
+    license: "",
+    activeInvitationId: null,
+    pendingInviteCode: null,
+    pendingInviteExpiresAt: null,
+    hasLinkedAccount: false,
+    joinedAt: new Date(),
+  };
+}
+
+/**
  * Prolonge une invitation pending : remet expiresAt à aujourd’hui + INVITE_TTL_DAYS.
  * Refusé si le membre a déjà un compte lié.
  */
@@ -804,9 +909,75 @@ export async function updateMemberLicense(params: {
 }
 
 /**
+ * Met à jour prénom / nom d’un membre pas encore inscrit, sans toucher à l’e-mail.
+ * Utile à l’import CSV quand la cellule e-mail est vide (on ne vide pas l’existant).
+ */
+export async function updatePendingMemberNames(params: {
+  clubId: string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+}): Promise<void> {
+  const trimmedFirst = formatFirstName(params.firstName);
+  const trimmedLast = formatLastName(params.lastName);
+
+  const db = getAppFirestore();
+  const memberDocument = doc(membersCol(params.clubId), params.memberId);
+
+  await runTransaction(db, async (tx) => {
+    const memberSnap = await tx.get(memberDocument);
+    if (!memberSnap.exists()) {
+      throw new Error("Membre introuvable.");
+    }
+    const data = memberSnap.data() as Record<string, unknown>;
+    const accountUid = String(data[Fields.accountUid] ?? "").trim();
+    const legacyUserId = String(data[Fields.userId] ?? "").trim();
+    if (accountUid || legacyUserId) {
+      throw new Error(
+        "Impossible de modifier l’identité d’un membre déjà inscrit.",
+      );
+    }
+
+    const activeInvitationId = String(
+      data[Fields.activeInvitationId] ?? "",
+    ).trim();
+    const inviteDocument = activeInvitationId
+      ? doc(invitationsCol(params.clubId), activeInvitationId)
+      : null;
+    const inviteSnap = inviteDocument ? await tx.get(inviteDocument) : null;
+
+    const existingSnapshot =
+      data[Fields.snapshot] && typeof data[Fields.snapshot] === "object"
+        ? { ...(data[Fields.snapshot] as Record<string, unknown>) }
+        : {};
+    const displayName = `${trimmedFirst} ${trimmedLast}`;
+    const nextSnapshot: Record<string, unknown> = {
+      ...existingSnapshot,
+      [Fields.displayName]: displayName,
+    };
+
+    tx.update(memberDocument, {
+      [Fields.firstName]: trimmedFirst,
+      [Fields.lastName]: trimmedLast,
+      [Fields.snapshot]: nextSnapshot,
+      [Fields.updatedAt]: serverTimestamp(),
+    });
+
+    if (inviteDocument && inviteSnap?.exists()) {
+      tx.update(inviteDocument, {
+        [Fields.firstName]: trimmedFirst,
+        [Fields.lastName]: trimmedLast,
+        [Fields.updatedAt]: serverTimestamp(),
+      });
+    }
+  });
+}
+
+/**
  * Met à jour prénom / nom / e-mail d’un membre pas encore inscrit.
- * L’e-mail reste obligatoire (normalisé) et est synchronisé sur l’invitation
- * active, qui ne peut être acceptée que par cette adresse.
+ * L’e-mail est obligatoire ici (normalisé) car on prépare l’invitation :
+ * seule cette adresse pourra accepter. Synchronisé sur l’invitation active
+ * s’il en existe une.
  */
 export async function updatePendingMemberProfile(params: {
   clubId: string;

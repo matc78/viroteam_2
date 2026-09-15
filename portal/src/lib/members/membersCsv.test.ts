@@ -14,26 +14,26 @@ function plan(lines: string[], existingMembers: Parameters<
   });
 }
 
-describe("buildMembersImportPlan — e-mail obligatoire", () => {
+describe("buildMembersImportPlan — e-mail optionnel", () => {
   it("accepte un fichier où chaque ligne a un e-mail valide (normalisé)", () => {
     const result = plan(["Alice,Dupont,player, Alice@Example.COM ,,,"]);
     expect(result.blockingErrors).toEqual([]);
     expect(result.memberActions).toHaveLength(1);
     expect(result.memberActions[0]?.email).toBe("alice@example.com");
+    expect(result.stats.withoutEmail).toBe(0);
   });
 
-  it("bloque et liste les lignes sans e-mail", () => {
+  it("accepte des lignes sans e-mail (fiche seule, invite plus tard)", () => {
     const result = plan([
       "Alice,Dupont,player,,,,",
       "Bob,Martin,coach,bob@example.com,,,",
       "Chloé,Durand,player,,,,",
     ]);
-    expect(result.memberActions).toEqual([]);
-    expect(result.blockingErrors.some((e) => e.startsWith("Ligne 2 :"))).toBe(true);
-    expect(result.blockingErrors.some((e) => e.startsWith("Ligne 4 :"))).toBe(true);
-    expect(
-      result.blockingErrors.some((e) => e.includes("lignes 2, 4")),
-    ).toBe(true);
+    expect(result.blockingErrors).toEqual([]);
+    expect(result.memberActions).toHaveLength(3);
+    expect(result.stats.withoutEmail).toBe(2);
+    expect(result.memberActions[0]?.email).toBe("");
+    expect(result.memberActions[1]?.email).toBe("bob@example.com");
   });
 
   it("bloque un e-mail mal formé", () => {

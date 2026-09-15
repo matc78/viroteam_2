@@ -271,6 +271,10 @@ export function TeamsPanel({
                       setAddingToTeam({ team, role });
                     }}
                     onRemoveMember={(person, role) => {
+                      const ok = window.confirm(
+                        `Retirer ${person.displayName} de l’équipe ? Cette personne perdra l’accès au chat d’équipe et à l’historique.`,
+                      );
+                      if (!ok) return;
                       void onRemoveMember({
                         teamId: team.id,
                         memberId: person.memberId,

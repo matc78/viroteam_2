@@ -782,6 +782,7 @@ export function MemberDetailPanel({
                   <div className={styles.dangerRow}>
                     <p className={styles.centeredNote}>
                       Confirmer la suppression de {member.displayName} ?
+                      Cette personne perdra l’accès au chat et à l’historique.
                     </p>
                     <button
                       type="button"

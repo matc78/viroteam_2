@@ -28,6 +28,8 @@ abstract final class ViroIcons {
   static IconData get whistle => PhosphorIconsRegular.megaphoneSimple;
   static IconData get chat => PhosphorIconsRegular.chatCircle;
   static IconData get whatsapp => PhosphorIconsRegular.whatsappLogo;
+  static IconData get send => PhosphorIconsRegular.paperPlaneTilt;
+  static IconData get megaphone => PhosphorIconsRegular.megaphone;
 
   // Actions
   static IconData get edit => PhosphorIconsRegular.pencilSimple;
@@ -49,6 +51,7 @@ abstract final class ViroIcons {
   static IconData get bell => PhosphorIconsRegular.bell;
   static IconData get payments => PhosphorIconsRegular.currencyEur;
   static IconData get image => PhosphorIconsRegular.image;
+  static IconData get poll => PhosphorIconsRegular.chartBar;
   static IconData get selectAll => PhosphorIconsRegular.selectionAll;
   static IconData get note => PhosphorIconsRegular.notePencil;
   static IconData get block => PhosphorIconsRegular.prohibit;
@@ -96,6 +99,8 @@ abstract final class ViroIcons {
             ('whistle', whistle),
             ('chat', chat),
             ('whatsapp', whatsapp),
+            ('send', send),
+            ('megaphone', megaphone),
           ],
         ),
         ViroIconCatalogGroup(
@@ -109,6 +114,7 @@ abstract final class ViroIcons {
             ('search', search),
             ('copy', copy),
             ('info', info),
+            ('poll', poll),
           ],
         ),
         ViroIconCatalogGroup(
@@ -117,6 +123,9 @@ abstract final class ViroIcons {
             ('user', user),
             ('logout', logout),
             ('bell', bell),
+            ('image', image),
+            ('selectAll', selectAll),
+            ('note', note),
           ],
         ),
         ViroIconCatalogGroup(

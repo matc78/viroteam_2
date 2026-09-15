@@ -155,7 +155,7 @@ export function feeReminderCopy(params: {
 
 /** Texte de confirmation quand on désactive une préférence. */
 export function preferenceOffWarning(
-  key: "events" | "announcements" | "fees" | "rsvp",
+  key: "events" | "announcements" | "fees" | "rsvp" | "chat",
 ): string {
   switch (key) {
     case "events":
@@ -166,5 +166,7 @@ export function preferenceOffWarning(
       return "Vous ne recevrez plus les rappels hebdomadaires de cotisation.";
     case "rsvp":
       return "Vous ne recevrez plus de notification à chaque changement de RSVP.";
+    case "chat":
+      return "Vous ne recevrez plus de notification pour les nouveaux messages.";
   }
 }

@@ -4,7 +4,8 @@ export type NotificationPreferenceKey =
   | "events"
   | "announcements"
   | "fees"
-  | "rsvp";
+  | "rsvp"
+  | "chat";
 
 export type FcmPlatform = "ios" | "android" | "web";
 
@@ -21,6 +22,7 @@ export type NotificationPreferences = {
   announcements: boolean;
   fees: boolean;
   rsvp: boolean;
+  chat: boolean;
 };
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
@@ -28,6 +30,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   announcements: true,
   fees: true,
   rsvp: true,
+  chat: true,
 };
 
 export const MANUAL_PUSH_COOLDOWN_MS = 60 * 60 * 1000;

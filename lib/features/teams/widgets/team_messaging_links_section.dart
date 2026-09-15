@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
-import 'package:viro_team_v2/features/teams/widgets/edit_team_messaging_links_sheet.dart';
+import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/models/club_team.dart';
+import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
-/// Bloc des liens de discussion d'équipe, affiché au-dessus du roster.
-class TeamMessagingLinksSection extends StatelessWidget {
+/// CTA vers les chats in-app équipe / parents (remplace les liens WhatsApp).
+class TeamMessagingLinksSection extends ConsumerWidget {
   const TeamMessagingLinksSection({
     super.key,
     required this.team,
@@ -20,137 +23,74 @@ class TeamMessagingLinksSection extends StatelessWidget {
 
   final ClubTeam team;
   final Color accent;
+  /// Conservé pour compat des call sites (manage / expansion).
+  // ignore: unused_field
   final bool canEdit;
 
-  bool get _hasTeamLink =>
-      team.messagingLink != null && team.messagingLink!.isNotEmpty;
-
-  bool get _hasParentsLink =>
-      team.parentsMessagingLink != null &&
-      team.parentsMessagingLink!.isNotEmpty;
-
-  bool get _hasAnyLink => _hasTeamLink || _hasParentsLink;
-
-  Future<void> _openLink(BuildContext context, String url) async {
-    final uri = Uri.tryParse(url.trim());
-    if (uri == null) {
-      ViroSnackBar.show(context, AppCopy.teams.invalidLink);
-      return;
+  Future<void> _openSystemChat(
+    BuildContext context,
+    WidgetRef ref, {
+    required String systemKey,
+  }) async {
+    try {
+      final id = await ref.read(chatServiceProvider).ensureAndFindConversationId(
+            clubId: team.clubId,
+            systemKey: systemKey,
+          );
+      if (!context.mounted) return;
+      if (id == null) {
+        ViroSnackBar.show(context, AppCopy.chat.loadError);
+        return;
+      }
+      context.push(AppRoutes.conversationPath(team.clubId, id));
+    } catch (_) {
+      if (context.mounted) {
+        ViroSnackBar.show(context, AppCopy.chat.loadError);
+      }
     }
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched && context.mounted) {
-      ViroSnackBar.show(context, AppCopy.teams.cannotOpenLink);
-    }
-  }
-
-  Future<void> _openEditSheet(BuildContext context) {
-    return showEditTeamMessagingLinksSheet(context, team: team);
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (!_hasAnyLink && !canEdit) {
-      return const SizedBox.shrink();
-    }
-
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
+    // Parents seuls : pas dans `team:{id}` (joueurs + coaches uniquement).
+    final isGuardianOnly =
+        ref.watch(isGuardianOnlyInClubProvider(team.clubId));
 
     return Padding(
       padding: const EdgeInsets.only(top: ViroSpacing.sm, bottom: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  AppCopy.teams.discussionsHeader,
-                  style: theme.labelSmall?.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                  ),
-                ),
-              ),
-              if (canEdit && _hasAnyLink)
-                ViroPressable(
-                  floating: false,
-                  borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
-                  onTap: () => _openEditSheet(context),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: ViroSpacing.xs,
-                      vertical: 2,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ViroIcon(ViroIcons.edit, size: 16, color: accent),
-                        const SizedBox(width: 4),
-                        Text(
-                          AppCopy.common.edit,
-                          style: theme.labelSmall?.copyWith(
-                            color: accent,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
+          Text(
+            AppCopy.teams.discussionsHeader,
+            style: theme.labelSmall?.copyWith(
+              color: accent,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
           ),
-          if (!_hasAnyLink && canEdit)
-            ViroPressable(
-              floating: false,
-              borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
-              onTap: () => _openEditSheet(context),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: ViroSpacing.sm,
-                  horizontal: ViroSpacing.xs,
-                ),
-                child: Row(
-                  children: [
-                    ViroIcon(ViroIcons.whatsapp, size: 22, color: accent),
-                    const SizedBox(width: ViroSpacing.md),
-                    Expanded(
-                      child: Text(
-                        AppCopy.teams.addWhatsappLinks,
-                        style: theme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: ViroColors.primary800,
-                        ),
-                      ),
-                    ),
-                    ViroIcon(
-                      ViroIcons.add,
-                      size: 18,
-                      color: ViroColors.gray400,
-                    ),
-                  ],
-                ),
+          if (!isGuardianOnly)
+            _MessagingLinkTile(
+              icon: ViroIcons.chat,
+              label: AppCopy.chat.openTeamChat,
+              accent: accent,
+              onTap: () => _openSystemChat(
+                context,
+                ref,
+                systemKey: 'team:${team.id}',
               ),
-            )
-          else ...[
-            if (_hasTeamLink)
-              _MessagingLinkTile(
-                icon: ViroIcons.whatsapp,
-                label: AppCopy.teams.teamGroupLabel,
-                accent: accent,
-                onTap: () => _openLink(context, team.messagingLink!),
-              ),
-            if (_hasParentsLink)
-              _MessagingLinkTile(
-                icon: ViroIcons.chat,
-                label: AppCopy.teams.parentsGroupLabel,
-                accent: accent,
-                onTap: () => _openLink(context, team.parentsMessagingLink!),
-              ),
-          ],
+            ),
+          _MessagingLinkTile(
+            icon: ViroIcons.users,
+            label: AppCopy.chat.openParentsChat,
+            accent: accent,
+            onTap: () => _openSystemChat(
+              context,
+              ref,
+              systemKey: 'parents:${team.id}',
+            ),
+          ),
         ],
       ),
     );

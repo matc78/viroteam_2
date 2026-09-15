@@ -21,11 +21,13 @@ final class AppCopyMembers {
 
   String get deleteMemberTitle => 'Supprimer ce membre ?';
   String deleteMemberBody(String name) =>
-      '$name sera retiré(e) du club.';
+      '$name sera retiré(e) du club. '
+      'Accès au chat et historique de discussion seront perdus.';
   String get deleteMemberAction => 'Supprimer';
   String get deleteMemberConfirm => 'Confirmer la suppression';
   String deleteMemberNamed(String name) =>
-      'Confirmer la suppression de $name ?';
+      'Confirmer la suppression de $name ? '
+      'Cette personne perdra l’accès au chat et à l’historique.';
   String get deleteMemberButton => 'Supprimer le membre';
   String get removeMemberImpossible => 'Suppression du membre impossible.';
 

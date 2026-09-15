@@ -205,6 +205,7 @@ test("prefs : défaut opt-in + filtre + rate limit", () => {
     announcements: true,
     fees: true,
     rsvp: true,
+    chat: true,
   });
   assert.equal(parseNotificationPreferences({ events: false }).events, false);
   assert.equal(parseNotificationPreferences({}).rsvp, true);
@@ -214,11 +215,11 @@ test("prefs : défaut opt-in + filtre + rate limit", () => {
     uidPrefs: new Map([
       [
         "a",
-        { events: true, announcements: true, fees: true, rsvp: true },
+        { events: true, announcements: true, fees: true, rsvp: true, chat: true },
       ],
       [
         "b",
-        { events: false, announcements: true, fees: true, rsvp: true },
+        { events: false, announcements: true, fees: true, rsvp: true, chat: true },
       ],
     ]),
     uids: ["a", "b", "c"],
@@ -230,11 +231,11 @@ test("prefs : défaut opt-in + filtre + rate limit", () => {
     uidPrefs: new Map([
       [
         "a",
-        { events: true, announcements: true, fees: true, rsvp: true },
+        { events: true, announcements: true, fees: true, rsvp: true, chat: true },
       ],
       [
         "b",
-        { events: true, announcements: true, fees: true, rsvp: false },
+        { events: true, announcements: true, fees: true, rsvp: false, chat: true },
       ],
     ]),
     uids: ["a", "b", "c"],

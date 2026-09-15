@@ -8,6 +8,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
@@ -16,27 +17,31 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
-/// Bandeau bas fixe des clubs (fond verre dépoli + logos).
+/// Bandeau bas fixe des clubs (fond verre dépoli + logos + chat).
 class ClubSelectorBar extends ConsumerWidget {
   const ClubSelectorBar({
     super.key,
     required this.clubs,
     required this.pendingByClub,
     this.onAddClub,
+    this.onOpenChat,
   });
 
   final List<UserClubEntry> clubs;
   final Map<String, int> pendingByClub;
   final VoidCallback? onAddClub;
+  final VoidCallback? onOpenChat;
 
   /// Hauteur utile des logos (hors safe area bas).
-  static const double barHeight = 88;
-  static const double _logoSize = 56;
-  static const double _addButtonSize = 36;
+  static const double barHeight = 80;
+  static const double _logoSize = 44;
+  static const double _addButtonSize = 28;
+  static const double _chatButtonSize = 40;
   static const double _glassBlurSigma = 18;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final chatUnread = ref.watch(chatTotalUnreadProvider);
     final items = clubs.map((entry) {
       final club = entry.club;
       final membership = entry.membership;
@@ -82,34 +87,45 @@ class ClubSelectorBar extends ConsumerWidget {
                 Positioned.fill(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
+                      final rightReserve = onOpenChat != null
+                          ? _chatButtonSize + ViroSpacing.screenHorizontal + 8
+                          : ViroSpacing.screenHorizontal;
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: ViroSpacing.screenHorizontal,
+                        padding: EdgeInsets.only(
+                          left: ViroSpacing.screenHorizontal,
+                          right: rightReserve,
                         ),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
-                            minWidth: constraints.maxWidth -
-                                ViroSpacing.screenHorizontal * 2,
+                            minWidth: constraints.maxWidth - rightReserve -
+                                ViroSpacing.screenHorizontal,
                             minHeight: constraints.maxHeight,
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.center,
-                            children: items,
+                            children: [
+                              ...items,
+                              if (onAddClub != null)
+                                _AddClubBarItem(onTap: onAddClub!),
+                            ],
                           ),
                         ),
                       );
                     },
                   ),
                 ),
-                if (onAddClub != null)
+                if (onOpenChat != null)
                   Positioned(
                     right: ViroSpacing.screenHorizontal,
                     top: 0,
                     bottom: 0,
                     child: Center(
-                      child: _AddClubBarItem(onTap: onAddClub!),
+                      child: _ChatBarItem(
+                        badgeCount: chatUnread > 0 ? chatUnread : null,
+                        onTap: onOpenChat!,
+                      ),
                     ),
                   ),
               ],
@@ -135,28 +151,109 @@ class _AddClubBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.sm / 2),
+      child: Semantics(
+        button: true,
+        label: AppCopy.home.addClub,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: ClubSelectorBar._logoSize,
+                height: ClubSelectorBar._logoSize,
+                alignment: Alignment.center,
+                child: Container(
+                  width: _size,
+                  height: _size,
+                  decoration: BoxDecoration(
+                    color: ViroColors.primary50,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: ViroColors.primary200,
+                      width: 1,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: ViroIcon(
+                    ViroIcons.add,
+                    size: 14,
+                    color: ViroColors.primary600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              const SizedBox(width: 52, height: 14),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatBarItem extends StatelessWidget {
+  const _ChatBarItem({required this.onTap, this.badgeCount});
+
+  final VoidCallback onTap;
+  final int? badgeCount;
+
+  static const double _size = ClubSelectorBar._chatButtonSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
     return Semantics(
       button: true,
-      label: AppCopy.home.addClub,
+      label: AppCopy.chat.chatEntry,
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          width: _size,
-          height: _size,
-          decoration: BoxDecoration(
-            color: ViroColors.primary50,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: ViroColors.primary200,
-              width: 1,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: _size,
+              height: _size,
+              decoration: BoxDecoration(
+                color: ViroColors.primary50,
+                shape: BoxShape.circle,
+                border: Border.all(color: ViroColors.primary200),
+              ),
+              alignment: Alignment.center,
+              child: ViroIcon(
+                ViroIcons.chat,
+                size: 20,
+                color: ViroColors.primary600,
+              ),
             ),
-          ),
-          alignment: Alignment.center,
-          child: ViroIcon(
-            ViroIcons.add,
-            size: 16,
-            color: ViroColors.primary600,
-          ),
+            if (badgeCount != null)
+              Positioned(
+                top: -2,
+                right: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: ViroColors.error,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    badgeCount! > 99 ? '99+' : '$badgeCount',
+                    textAlign: TextAlign.center,
+                    style: theme.labelSmall?.copyWith(
+                      color: ViroColors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -241,7 +338,7 @@ class _ClubBarItem extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             SizedBox(
-              width: 64,
+              width: 52,
               height: 14,
               child: Text(
                 label,

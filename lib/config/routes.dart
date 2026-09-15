@@ -37,6 +37,8 @@ import 'package:viro_team_v2/features/club_setup/screens/club_setup_wizard_scree
 import 'package:viro_team_v2/features/clubs/screens/club_selector_screen.dart';
 
 import 'package:viro_team_v2/features/home/screens/home_member_screen.dart';
+import 'package:viro_team_v2/features/chat/screens/conversations_screen.dart';
+import 'package:viro_team_v2/features/chat/screens/chat_thread_screen.dart';
 
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
 
@@ -114,6 +116,10 @@ abstract final class AppRoutes {
 
   static const clubLocations = '/club/:clubId/locations';
 
+  static const conversations = '/conversations';
+
+  static const conversation = '/conversations/:clubId/:conversationId';
+
   static const designPreview = '/dev/design';
 
 
@@ -164,6 +170,9 @@ abstract final class AppRoutes {
   static String clubSettingsPath(String clubId) => '/club/$clubId/settings';
 
   static String clubLocationsPath(String clubId) => '/club/$clubId/locations';
+
+  static String conversationPath(String clubId, String conversationId) =>
+      '/conversations/$clubId/$conversationId';
 
 }
 
@@ -437,6 +446,23 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         builder: (context, state) => const HomeMemberScreen(),
 
+      ),
+
+      GoRoute(
+        path: AppRoutes.conversations,
+        builder: (context, state) => const ConversationsScreen(),
+      ),
+
+      GoRoute(
+        path: AppRoutes.conversation,
+        builder: (context, state) {
+          final clubId = state.pathParameters['clubId']!;
+          final conversationId = state.pathParameters['conversationId']!;
+          return ChatThreadScreen(
+            clubId: clubId,
+            conversationId: conversationId,
+          );
+        },
       ),
 
       GoRoute(

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -33,15 +34,23 @@ class PushNotificationService {
   Future<void> start() async {
     if (kIsWeb) return;
 
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    try {
+      await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (error, stack) {
+      _recordSoftFcmFailure(
+        error: error,
+        stack: stack,
+        reason: 'fcm_request_permission_failed',
+      );
+    }
 
     _bindListenersOnce();
 
-    final token = await _messaging.getToken();
+    final token = await _fetchTokenSafely();
     if (token != null) {
       await registerToken(token);
     }
@@ -50,12 +59,45 @@ class PushNotificationService {
   /// Ré-enregistre le token après login (sans rebrancher les listeners).
   Future<void> syncTokenAfterAuth() async {
     if (kIsWeb) return;
-    final token = await _messaging.getToken();
+    final token = await _fetchTokenSafely();
     if (token != null) {
       // Force un nouvel enregistrement même si le token matériel est identique
       // (changement de compte sur le même appareil).
       _lastRegisteredToken = null;
       await registerToken(token);
+    }
+  }
+
+  /// Récupère le token FCM sans faire planter l'app (Play Services HS, etc.).
+  Future<String?> _fetchTokenSafely() async {
+    try {
+      return await _messaging.getToken();
+    } catch (error, stack) {
+      _recordSoftFcmFailure(
+        error: error,
+        stack: stack,
+        reason: 'fcm_get_token_failed',
+      );
+      return null;
+    }
+  }
+
+  /// Enregistre une erreur soft Crashlytics (best-effort).
+  void _recordSoftFcmFailure({
+    required Object error,
+    StackTrace? stack,
+    required String reason,
+  }) {
+    debugPrint('FCM soft failure ($reason): $error');
+    try {
+      FirebaseCrashlytics.instance.recordError(
+        error,
+        stack,
+        fatal: false,
+        reason: reason,
+      );
+    } catch (_) {
+      // Le monitoring ne doit jamais bloquer le démarrage.
     }
   }
 
@@ -110,7 +152,7 @@ class PushNotificationService {
   /// Désenregistre le token (logout).
   Future<void> unregisterCurrentToken() async {
     try {
-      final token = await _messaging.getToken();
+      final token = await _fetchTokenSafely();
       if (token == null || token.isEmpty) return;
       await _functions
           .httpsCallable(cloudCallableName('unregisterFcmToken'))

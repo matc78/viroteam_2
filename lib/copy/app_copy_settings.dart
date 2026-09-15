@@ -34,6 +34,8 @@ final class AppCopySettings {
   String get notifAnnouncementsSubtitle => 'À la publication d’une annonce';
   String get notifFees => 'Cotisations';
   String get notifFeesSubtitle => 'Rappel chaque lundi soir';
+  String get notifChat => 'Messages';
+  String get notifChatSubtitle => 'Nouveaux messages des discussions';
   String get disableNotificationsTitle => 'Désactiver les notifications';
   String get disableAction => 'Désactiver';
   String get notifPrefSaveFailed =>
@@ -46,6 +48,8 @@ final class AppCopySettings {
       'Tu ne recevras plus les rappels hebdomadaires de cotisation.';
   String get notifOffWarningRsvp =>
       'Tu ne recevras plus de notification à chaque changement de RSVP.';
+  String get notifOffWarningChat =>
+      'Tu ne recevras plus de notification pour les nouveaux messages.';
   String get notifOffWarningDefault =>
       'Tu ne recevras plus ce type de notification.';
 

@@ -215,6 +215,62 @@ abstract final class FirestoreFields {
   static const String clubSport = 'clubSport';
   static const String roleRequested = 'roleRequested';
   static const String message = 'message';
+
+  // clubs/{clubId}/conversations/{convId}
+  static const String systemKey = 'systemKey';
+  static const String titleOverride = 'titleOverride';
+  static const String participantUids = 'participantUids';
+  static const String writePolicy = 'writePolicy';
+  static const String lastMessageAt = 'lastMessageAt';
+  static const String lastMessagePreview = 'lastMessagePreview';
+  static const String lastSenderUid = 'lastSenderUid';
+  static const String categoryKey = 'categoryKey';
+
+  // messages
+  static const String storagePath = 'storagePath';
+  static const String downloadUrl = 'downloadUrl';
+  static const String thumbUrl = 'thumbUrl';
+  static const String width = 'width';
+  static const String height = 'height';
+  static const String deletedAt = 'deletedAt';
+  static const String deletedByUid = 'deletedByUid';
+  static const String reactions = 'reactions';
+  static const String senderUid = 'senderUid';
+  static const String text = 'text';
+  static const String pollQuestion = 'pollQuestion';
+  static const String pollOptions = 'pollOptions';
+  static const String pollVotes = 'pollVotes';
+  static const String pollAllowMultiple = 'pollAllowMultiple';
+
+  // users/{uid}/chatState/{clubId}_{convId}
+  static const String muted = 'muted';
+  static const String lastReadAt = 'lastReadAt';
+  static const String unreadCount = 'unreadCount';
+}
+
+/// Types de conversation chat MVP.
+abstract final class ChatConversationTypes {
+  static const String team = 'team';
+  static const String parents = 'parents';
+  static const String staff = 'staff';
+  static const String club = 'club';
+  static const String category = 'category';
+  static const String dm = 'dm';
+  static const String coachGroup = 'coach_group';
+}
+
+/// Qui peut écrire dans une conversation.
+abstract final class ChatWritePolicies {
+  static const String open = 'open';
+  static const String adminsOnly = 'admins_only';
+  static const String coachesAndAdmins = 'coaches_and_admins';
+}
+
+/// Types de message chat MVP.
+abstract final class ChatMessageTypes {
+  static const String text = 'text';
+  static const String image = 'image';
+  static const String poll = 'poll';
 }
 
 /// Rôles membre d'un club — hiérarchie : admin ⊃ coach ⊃ player.

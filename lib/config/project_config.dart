@@ -50,6 +50,7 @@ abstract final class ProjectConfig {
       'docs/specs/viroteam_v2_web_portal_spec.md';
   static const String parentsSpecDoc =
       'docs/specs/viroteam_v2_parents_spec.md';
+  static const String chatSpecDoc = 'docs/specs/viroteam_v2_chat_spec.md';
 
   // —— Collections Firestore (voir firestoreModelDoc) ——
   static const String usersCollection = 'users';
@@ -70,6 +71,9 @@ abstract final class ProjectConfig {
   static const String paymentSessionsSubcollection = 'payment_sessions';
   static const String activityEventsSubcollection = 'activity_events';
   static const String equipmentSubcollection = 'equipment';
+  static const String conversationsSubcollection = 'conversations';
+  static const String chatMessagesSubcollection = 'messages';
+  static const String chatStateSubcollection = 'chatState';
   static const String paymentsHelloAssoSpecDoc =
       'docs/specs/viroteam_v2_payments_helloasso_spec.md';
 

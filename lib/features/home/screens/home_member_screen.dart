@@ -269,6 +269,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                   clubs: clubs,
                   pendingByClub: pendingCounts,
                   onAddClub: () => showAddClubSheet(context, ref),
+                  onOpenChat: () => context.push(AppRoutes.conversations),
                 ),
               ),
             ],

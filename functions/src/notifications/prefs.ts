@@ -25,6 +25,7 @@ export function parseNotificationPreferences(
     fees: readBool(map.fees, DEFAULT_NOTIFICATION_PREFERENCES.fees),
     // Compat legacy: si `rsvp` n'existe pas encore, reprendre la préférence `events`.
     rsvp: readBool(map.rsvp, legacyEventsPreference),
+    chat: readBool(map.chat, DEFAULT_NOTIFICATION_PREFERENCES.chat),
   };
 }
 

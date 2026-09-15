@@ -48,6 +48,7 @@ class NotificationPreferencesSection extends ConsumerWidget {
       'announcements' => current.copyWith(announcements: enabled),
       'fees' => current.copyWith(fees: enabled),
       'rsvp' => current.copyWith(rsvp: enabled),
+      'chat' => current.copyWith(chat: enabled),
       _ => current,
     };
 
@@ -139,6 +140,19 @@ class NotificationPreferencesSection extends ConsumerWidget {
                   context: context,
                   ref: ref,
                   key: 'fees',
+                  enabled: value,
+                ),
+              ),
+              const Divider(height: 1),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: Text(AppCopy.settings.notifChat),
+                subtitle: Text(AppCopy.settings.notifChatSubtitle),
+                value: prefs.chat,
+                onChanged: (value) => _setPreference(
+                  context: context,
+                  ref: ref,
+                  key: 'chat',
                   enabled: value,
                 ),
               ),

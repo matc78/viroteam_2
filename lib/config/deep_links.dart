@@ -39,6 +39,14 @@ String? deepLinkRouteFromUri(Uri uri) {
     return AppRoutes.clubMyFeePath(clubId);
   }
 
+  if (host == 'chat' || path == 'chat') {
+    final conversationId =
+        uri.queryParameters['conversationId']?.trim() ?? '';
+    if (clubId.isEmpty) return AppRoutes.conversations;
+    if (conversationId.isEmpty) return AppRoutes.conversations;
+    return AppRoutes.conversationPath(clubId, conversationId);
+  }
+
   return null;
 }
 

@@ -210,6 +210,11 @@ service cloud.firestore {
         && !affectedKeys().hasAny(['parentLinks', 'parentClubIds', 'parentTeamIds', 'deleted']);
       // Suppression de compte : callable `deleteMyAccount` (anonymisation).
       allow delete: if false;
+
+      // Mute / unread chat (client).
+      match /chatState/{stateId} {
+        allow read, write: if isOwner(uid);
+      }
     }
 
     // ————————————————————————————————————————————————————————————
@@ -325,6 +330,131 @@ service cloud.firestore {
       match /pending_members/{docId} {
         allow read: if isClubMember(clubId);
         allow create, update, delete: if isClubCoachOrAdmin(clubId);
+      }
+
+      // ——— Chat in-app (MVP) ———
+      // Création / sync participants : Cloud Functions uniquement.
+      // DM : callable `createCoachDm`.
+      match /conversations/{conversationId} {
+        function conversationDoc() {
+          return get(/databases/$(database)/documents/clubs/$(clubId)/conversations/$(conversationId)).data;
+        }
+        function isConvParticipantFrom(data) {
+          return isSignedIn()
+            && request.auth.uid in data.get('participantUids', []);
+        }
+        function canWriteMessagesOn(data) {
+          let policy = data.get('writePolicy', 'open');
+          return isConvParticipantFrom(data) && (
+            policy == 'open'
+            || (policy == 'admins_only' && isClubAdmin(clubId))
+            || (policy == 'coaches_and_admins' && isClubCoachOrAdmin(clubId))
+          );
+        }
+
+        allow read: if isConvParticipantFrom(resource.data);
+        allow create: if false;
+        allow update: if isConvParticipantFrom(resource.data)
+          && affectedKeys().hasOnly([
+            'titleOverride', 'updatedAt',
+            'lastMessageAt', 'lastMessagePreview', 'lastSenderUid'
+          ]);
+        allow delete: if false;
+
+        match /messages/{messageId} {
+          /// Listes de votes : inchangées, ou seule la présence de `auth.uid` change.
+          function uidListDiffersOnlyByMe(oldList, newList) {
+            return oldList is list && newList is list
+              && (
+                oldList.toSet() == newList.toSet()
+                || oldList.toSet().difference(newList.toSet())
+                     .union(newList.toSet().difference(oldList.toSet()))
+                   == [request.auth.uid].toSet()
+              );
+          }
+
+          /// Pour une option `oN`, seuls les votes de l’appelant peuvent bouger.
+          function pollOptionVotesOnlyOwn(oldVotes, newVotes, optionId) {
+            let oldRaw = oldVotes.get(optionId, []);
+            let newRaw = newVotes.get(optionId, []);
+            return uidListDiffersOnlyByMe(
+              oldRaw is list ? oldRaw : [],
+              newRaw is list ? newRaw : []
+            );
+          }
+
+          /// `pollVotes` : clés o0–o11 uniquement, et chaque liste ≠ que par mon uid.
+          function onlyOwnPollVotesUpdate() {
+            let oldVotes = resource.data.get('pollVotes', {});
+            let newVotes = request.resource.data.get('pollVotes', {});
+            let changed = newVotes.diff(oldVotes).affectedKeys();
+            return oldVotes is map && newVotes is map
+              && changed.hasOnly([
+                'o0', 'o1', 'o2', 'o3', 'o4', 'o5',
+                'o6', 'o7', 'o8', 'o9', 'o10', 'o11'
+              ])
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o0')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o1')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o2')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o3')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o4')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o5')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o6')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o7')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o8')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o9')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o10')
+              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o11');
+          }
+
+          allow read: if isConvParticipantFrom(conversationDoc());
+          allow create: if canWriteMessagesOn(conversationDoc())
+            && request.resource.data.senderUid == request.auth.uid
+            && (
+              request.resource.data.get('type', '') == 'text'
+              || (
+                request.resource.data.get('type', '') == 'image'
+                && request.resource.data.keys().hasAll(['storagePath', 'downloadUrl'])
+                && request.resource.data.storagePath is string
+                && request.resource.data.storagePath.size() > 0
+                && request.resource.data.downloadUrl is string
+                && request.resource.data.downloadUrl.size() > 0
+              )
+              || (
+                request.resource.data.get('type', '') == 'poll'
+                && conversationDoc().get('participantUids', []).size() > 2
+                && request.resource.data.get('pollQuestion', '') is string
+                && request.resource.data.pollQuestion.size() > 0
+                && request.resource.data.pollQuestion.size() <= 200
+                && request.resource.data.get('pollOptions', []) is list
+                && request.resource.data.pollOptions.size() >= 2
+                && request.resource.data.pollOptions.size() <= 12
+                && request.resource.data.get('pollVotes', {}) is map
+                && request.resource.data.get('pollAllowMultiple', false) is bool
+              )
+            );
+          // Soft-delete, réactions, ou vote sondage (pollVotes seul, uid propre).
+          allow update: if isConvParticipantFrom(conversationDoc()) && (
+            (
+              affectedKeys().hasOnly(['reactions'])
+            ) || (
+              affectedKeys().hasOnly(['pollVotes'])
+              && resource.data.get('type', '') == 'poll'
+              && resource.data.get('deletedAt', null) == null
+              && request.resource.data.get('type', '') == 'poll'
+              && onlyOwnPollVotesUpdate()
+            ) || (
+              affectedKeys().hasOnly(['deletedAt', 'deletedByUid'])
+              && resource.data.get('deletedAt', null) == null
+              && request.resource.data.deletedByUid == request.auth.uid
+              && (
+                request.auth.uid == resource.data.senderUid
+                || isClubCoachOrAdmin(clubId)
+              )
+            )
+          );
+          allow delete: if false;
+        }
       }
 
       // ——— Journal d’activité club (append-only) ———

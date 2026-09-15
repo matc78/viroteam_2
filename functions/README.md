@@ -26,7 +26,15 @@ Logique sensible hors client (HelloAsso, invitations). Spec paiement :
 | `deleteMyAccount` / `deleteMyAccountDev` | Callable — anonymise les fiches du compte (cascade tolérante aux erreurs) puis supprime le compte Auth |
 | `setMemberRole` / `setMemberRoleDev` | Callable — admin du club change un rôle (garde « dernier admin », sync `adminIds` + `clubMemberships`) |
 | `removeMember` / `removeMemberDev` | Callable — admin du club retire un membre (garde « dernier admin », rosters, invitation → `revoked`, `member_accounts`) |
-| `onTeamWritten` / `onTeamWrittenDev` | Trigger Firestore `clubs/{clubId}/teams/{teamId}` — recalcule `users/{uid}.parentTeamIds` des parents des joueurs ajoutés/retirés |
+| `onTeamWritten` / `onTeamWrittenDev` | Trigger Firestore `clubs/{clubId}/teams/{teamId}` — recalcule `users/{uid}.parentTeamIds` des parents des joueurs ajoutés/retirés + sync chats `team` / `parents` |
+| `createCoachDm` / `…Dev` | Callable — crée une DM / groupe coaches (joueurs & parents → coaches/admins uniquement) |
+| `createCategoryChannel` / `…Dev` | Callable admin — canal catégorie (écriture admin par défaut) |
+| `ensureClubChatSynced` / `…Dev` | Callable — backfill idempotent chats système d’un club (équipes déjà créées) |
+| `backfillMyAdminClubChats` / `…Dev` | Callable — backfill de tous les clubs où l’appelant est admin |
+| `onMemberWrittenForChat` / `…Dev` | Trigger membres — sync chats `staff` + `club` |
+| `onClubWrittenForChat` / `…Dev` | Trigger club — resync si `adminIds` change |
+| `onChatMessageCreatedForPush` / `…Dev` | Trigger message — push 1 notif / message (mute + pref `chat`) |
+| `scheduleSeasonChatPurge` / `…Dev` | Cron 03:00 Europe/Paris — purge messages si `seasonEndDate` dans les 48 h (Storage conservé) |
 | `registerFcmToken` / `…Dev` | Callable — enregistre un token FCM (`users/{uid}/fcmTokens`) |
 | `unregisterFcmToken` / `…Dev` | Callable — supprime un token FCM |
 | `sendEventPush` / `…Dev` | Callable — notif manuelle event (coach/admin, 1/h) |
@@ -117,3 +125,11 @@ git tag functions-v1.0.0 && git push origin functions-v1.0.0
 ```
 
 **Important** : le `returnUrl` client ne doit jamais marquer une cotisation `paye`.
+## Backfill clubs existants (chat)
+
+Apr�s d�ploiement des Functions chat, les clubs qui avaient d�j� des �quipes n�ont pas encore de docs `conversations`. Deux options :
+
+1. **Automatique** � ouvrir l��cran Discussions dans l�app (appelle `ensureClubChatSynced` pour chaque club de la session).
+2. **Admin** � callable `backfillMyAdminClubChats` / `�Dev` pour synchroniser tous les clubs o� tu es dans `adminIds`.
+
+Les upserts sont idempotents (`systemKey`).

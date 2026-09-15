@@ -36,5 +36,17 @@ service firebase.storage {
     match /receipts/{allPaths=**} {
       allow read, write: if false;
     }
+
+    // Médias chat : chemin `…/{uid}/{messageId}.jpg`.
+    // Les Storage rules ne peuvent pas lire les bases Firestore nommées
+    // (v2-dev / v2-prod) → pas de check participantUids ici.
+    // Lecture/écriture limitées au propriétaire du segment uid ; les autres
+    // participants affichent via `downloadUrl` tokenisé (Firestore).
+    match /clubs/{clubId}/chat/{conversationId}/{userId}/{fileName} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId)
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
   }
 }

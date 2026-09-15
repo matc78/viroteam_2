@@ -219,6 +219,19 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
     });
   }
 
+  // Sync chats équipe / parents (best-effort).
+  try {
+    const { syncTeamConversations } = await import("./chat/sync");
+    await syncTeamConversations({
+      firestore,
+      clubId,
+      teamId,
+      teamData: after,
+    });
+  } catch (error) {
+    console.error("syncTeamConversations failed", { clubId, teamId, error });
+  }
+
   const changedPlayers = uniq([...playerDiff.added, ...playerDiff.removed]);
   if (changedPlayers.length === 0) return;
 

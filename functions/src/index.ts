@@ -53,6 +53,25 @@ export { uploadClubLogo, uploadClubLogoDev } from "./uploadClubLogo";
 export { onTeamWritten, onTeamWrittenDev } from "./parentTeams";
 
 export {
+  createCoachDm,
+  createCoachDmDev,
+  createCategoryChannel,
+  createCategoryChannelDev,
+  ensureClubChatSynced,
+  ensureClubChatSyncedDev,
+  backfillMyAdminClubChats,
+  backfillMyAdminClubChatsDev,
+  onMemberWrittenForChat,
+  onMemberWrittenForChatDev,
+  onClubWrittenForChat,
+  onClubWrittenForChatDev,
+  onChatMessageCreatedForPush,
+  onChatMessageCreatedForPushDev,
+  scheduleSeasonChatPurge,
+  scheduleSeasonChatPurgeDev,
+} from "./chat";
+
+export {
   registerFcmToken,
   registerFcmTokenDev,
   unregisterFcmToken,

@@ -65,14 +65,14 @@ env:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_POSTHOG_HOST
-    value: https://eu.i.posthog.com
+    value: /ingest
     availability:
       - BUILD
       - RUNTIME
 
   # Sentry
   - variable: NEXT_PUBLIC_SENTRY_DSN
-    value: https://76ef59d0483792a5c5b9d10b7160ddbb@o4511937020821504.ingest.de.sentry.io/4511937058832464
+    value: https://8a5f00da2dcdcaf1c707d18fa6459c46@o4511937020821504.ingest.de.sentry.io/4511937062436944
     availability:
       - BUILD
       - RUNTIME

@@ -9,6 +9,7 @@ import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePanels";
 import { PersonalPlanningTile } from "@/components/dashboard/PersonalPlanningTile";
+import { MessagingTile } from "@/components/chat/MessagingTile";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import {
   bureauCapabilities,
@@ -49,6 +50,7 @@ const WIDE_PATH_PREFIXES = [
   "/members",
   "/planning",
   "/my-planning",
+  "/messages",
   "/equipment",
 ] as const;
 
@@ -66,6 +68,14 @@ function isMyPlanningPath(pathname: string): boolean {
   return (
     pathname === "/my-planning" || pathname.startsWith("/my-planning/")
   );
+}
+
+function isMessagesPath(pathname: string): boolean {
+  return pathname === "/messages" || pathname.startsWith("/messages/");
+}
+
+function isCrossClubPath(pathname: string): boolean {
+  return isMyPlanningPath(pathname) || isMessagesPath(pathname);
 }
 
 function userInitials(displayName: string): string {
@@ -120,7 +130,7 @@ export function DashboardShell() {
     const nextRole = membershipRoleForClub(profile, clubId);
     const nextCaps = bureauCapabilities(nextRole, club?.coachPermissions);
     const stayOnPage =
-      !isMyPlanningPath(pathname) &&
+      !isCrossClubPath(pathname) &&
       isBureauRouteAllowed(pathname, nextCaps);
     const target = stayOnPage ? pathname : "/home";
     beginPageLoad(target, { clubId, space });
@@ -133,10 +143,13 @@ export function DashboardShell() {
   const resolvedUserName = profile?.displayName ?? "Membre";
   const wide = isWidePath(pathname);
   const onMyPlanning = isMyPlanningPath(pathname);
+  const onMessages = isMessagesPath(pathname);
+  const onCrossClub = onMyPlanning || onMessages;
   const fillViewport =
     pathname === "/planning" ||
     pathname.startsWith("/planning/") ||
-    onMyPlanning;
+    onMyPlanning ||
+    onMessages;
 
   return (
     <div
@@ -167,7 +180,7 @@ export function DashboardShell() {
           <div className={styles.headerCenter}>
             <ClubMembershipPicker
               clubs={clubsWithRoles}
-              activeClubId={onMyPlanning ? null : (activeClub?.id ?? null)}
+              activeClubId={onCrossClub ? null : (activeClub?.id ?? null)}
               activeSpace={activeSpace}
               compact
               showCreateClub
@@ -177,6 +190,7 @@ export function DashboardShell() {
 
           <div className={styles.actions}>
             <PersonalPlanningTile href="/my-planning" />
+            <MessagingTile />
             <Link
               href="/settings"
               className={styles.userBlockLink}
@@ -204,7 +218,7 @@ export function DashboardShell() {
               )}
               <div className={styles.userMeta}>
                 <span className={styles.userName}>{resolvedUserName}</span>
-                {!onMyPlanning ? (
+                {!onCrossClub ? (
                   <RoleBadge role={activeClubRole} className={styles.roleChip} />
                 ) : null}
               </div>
@@ -212,7 +226,7 @@ export function DashboardShell() {
           </div>
         </div>
 
-        {!onMyPlanning ? (
+        {!onCrossClub ? (
           <nav className={styles.navStrip} aria-label="Modules espace club">
             {visibleNavItems.map((item) => {
               const isActive = isNavItemActive(pathname, item.href);

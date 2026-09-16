@@ -8,6 +8,7 @@ import { FamilyRouteGuard } from "@/components/auth/FamilyRouteGuard";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { PersonalPlanningTile } from "@/components/dashboard/PersonalPlanningTile";
+import { MessagingTile } from "@/components/chat/MessagingTile";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import {
   FamilyAudienceProvider,
@@ -41,6 +42,17 @@ function isFamilyMyPlanningPath(pathname: string): boolean {
     pathname === "/family/my-planning" ||
     pathname.startsWith("/family/my-planning/")
   );
+}
+
+function isFamilyMessagesPath(pathname: string): boolean {
+  return (
+    pathname === "/family/messages" ||
+    pathname.startsWith("/family/messages/")
+  );
+}
+
+function isFamilyCrossClubPath(pathname: string): boolean {
+  return isFamilyMyPlanningPath(pathname) || isFamilyMessagesPath(pathname);
 }
 
 function userInitials(displayName: string): string {
@@ -88,7 +100,7 @@ function FamilyShellChrome() {
     }
 
     const stayOnPage =
-      !isFamilyMyPlanningPath(pathname) && isFamilyRouteAllowed(pathname);
+      !isFamilyCrossClubPath(pathname) && isFamilyRouteAllowed(pathname);
     const target = stayOnPage ? pathname : "/family";
     beginPageLoad(target, { clubId, space });
     selectClubContext(clubId, space);
@@ -99,9 +111,11 @@ function FamilyShellChrome() {
 
   const resolvedName = profile?.displayName ?? "Famille";
   const onMyPlanning = isFamilyMyPlanningPath(pathname);
+  const onMessages = isFamilyMessagesPath(pathname);
+  const onCrossClub = onMyPlanning || onMessages;
   const isPlanning =
     pathname.startsWith("/family/planning") || onMyPlanning;
-  const fillViewport = isPlanning;
+  const fillViewport = isPlanning || onMessages;
 
   return (
     <div
@@ -132,7 +146,7 @@ function FamilyShellChrome() {
           <div className={styles.headerCenter}>
             <ClubMembershipPicker
               clubs={clubsWithRoles}
-              activeClubId={onMyPlanning ? null : (activeClub?.id ?? null)}
+              activeClubId={onCrossClub ? null : (activeClub?.id ?? null)}
               activeSpace={activeSpace}
               compact
               showCreateClub
@@ -145,6 +159,7 @@ function FamilyShellChrome() {
 
           <div className={styles.actions}>
             <PersonalPlanningTile href="/family/my-planning" />
+            <MessagingTile />
             <Link
               href="/family/settings"
               className={styles.userBlockLink}
@@ -172,16 +187,18 @@ function FamilyShellChrome() {
               )}
               <div className={styles.userMeta}>
                 <span className={styles.userName}>{resolvedName}</span>
-                <RoleBadge
-                  role={PortalUiRoles.parent}
-                  className={styles.roleChip}
-                />
+                {!onCrossClub ? (
+                  <RoleBadge
+                    role={PortalUiRoles.parent}
+                    className={styles.roleChip}
+                  />
+                ) : null}
               </div>
             </Link>
           </div>
         </div>
 
-        {!onMyPlanning ? (
+        {!onCrossClub ? (
           <nav className={styles.navStrip} aria-label="Espace famille">
             {NAV_ITEMS.map((item) => {
               const isActive = isNavItemActive(pathname, item.href);
@@ -209,7 +226,7 @@ function FamilyShellChrome() {
       <main
         className={[
           styles.main,
-          isPlanning ? styles.mainWide : "",
+          isPlanning || onMessages ? styles.mainWide : "",
           fillViewport ? styles.mainFill : "",
         ]
           .filter(Boolean)

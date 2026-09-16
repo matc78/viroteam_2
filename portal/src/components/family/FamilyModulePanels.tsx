@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { FamilyTeamClient } from "@/components/family/FamilyTeamClient";
 import { FamilyFeesClient } from "@/components/family/FamilyFeesClient";
@@ -8,6 +8,7 @@ import { FamilyHomeClient } from "@/components/family/FamilyHomeClient";
 import { FamilyPlanningClient } from "@/components/family/FamilyPlanningClient";
 import { FamilySettingsClient } from "@/components/family/FamilySettingsClient";
 import { PersonalPlanningClient } from "@/components/dashboard/PersonalPlanningClient";
+import { MessagesPageClient } from "@/components/chat/MessagesPageClient";
 import styles from "@/components/dashboard/DashboardModulePanels.module.css";
 
 type ModuleId =
@@ -15,6 +16,7 @@ type ModuleId =
   | "team"
   | "planning"
   | "my-planning"
+  | "messages"
   | "fees"
   | "settings";
 
@@ -49,6 +51,13 @@ const MODULES: ModuleDef[] = [
       pathname === "/family/my-planning" ||
       pathname.startsWith("/family/my-planning/"),
     // Rendu dédié ci-dessous (isPanelActive pour keep-alive).
+    render: () => null,
+  },
+  {
+    id: "messages",
+    match: (pathname) =>
+      pathname === "/family/messages" ||
+      pathname.startsWith("/family/messages/"),
     render: () => null,
   },
   {
@@ -106,6 +115,13 @@ export function FamilyModulePanels() {
                 eyebrow="Espace famille"
                 isPanelActive={isActive}
               />
+            ) : module.id === "messages" ? (
+              <Suspense fallback={null}>
+                <MessagesPageClient
+                  eyebrow="Espace famille"
+                  isPanelActive={isActive}
+                />
+              </Suspense>
             ) : (
               module.render()
             )}

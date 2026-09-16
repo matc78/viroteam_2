@@ -142,7 +142,7 @@ function defineMessageCreatedTrigger(databaseId: FirestoreDatabaseId) {
               clubId,
               preferenceKey: "chat",
               deepLink: `viroteam://chat?clubId=${encodeURIComponent(clubId)}&conversationId=${encodeURIComponent(conversationId)}`,
-              webPath: `/conversations/${clubId}/${conversationId}`,
+              webPath: `/messages?clubId=${encodeURIComponent(clubId)}&conversationId=${encodeURIComponent(conversationId)}`,
               extra: { conversationId },
             }),
           },

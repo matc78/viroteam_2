@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { TeamPageClient } from "@/app/(dashboard)/team/TeamPageClient";
 import { AnnouncementsPageClient } from "@/app/(dashboard)/announcements/AnnouncementsPageClient";
@@ -11,6 +11,7 @@ import { HomePageClient } from "@/app/(dashboard)/home/HomePageClient";
 import { MembersPageClient } from "@/app/(dashboard)/members/MembersPageClient";
 import { PlanningPageClient } from "@/app/(dashboard)/planning/PlanningPageClient";
 import { PersonalPlanningClient } from "@/components/dashboard/PersonalPlanningClient";
+import { MessagesPageClient } from "@/components/chat/MessagesPageClient";
 import { SettingsPageClient } from "@/app/(dashboard)/settings/SettingsPageClient";
 import styles from "./DashboardModulePanels.module.css";
 
@@ -20,6 +21,7 @@ type ModuleId =
   | "team"
   | "planning"
   | "my-planning"
+  | "messages"
   | "fees"
   | "announcements"
   | "activity"
@@ -60,6 +62,12 @@ const MODULES: ModuleDef[] = [
     match: (pathname) =>
       pathname === "/my-planning" || pathname.startsWith("/my-planning/"),
     // Rendu dédié ci-dessous (isPanelActive pour keep-alive).
+    render: () => null,
+  },
+  {
+    id: "messages",
+    match: (pathname) =>
+      pathname === "/messages" || pathname.startsWith("/messages/"),
     render: () => null,
   },
   {
@@ -134,6 +142,13 @@ export function DashboardModulePanels() {
                 eyebrow="Espace club"
                 isPanelActive={isActive}
               />
+            ) : module.id === "messages" ? (
+              <Suspense fallback={null}>
+                <MessagesPageClient
+                  eyebrow="Espace club"
+                  isPanelActive={isActive}
+                />
+              </Suspense>
             ) : (
               module.render()
             )}

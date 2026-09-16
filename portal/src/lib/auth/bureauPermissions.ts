@@ -72,7 +72,12 @@ const NAV_COACH_BASE = [
 const NAV_PLAYER = ["/home", "/team", "/planning"] as const;
 
 /** Routes accessibles hors nav principale (deep links joueur). */
-const PLAYER_DEEP_LINK_ROUTES = ["/fees", "/settings", "/my-planning"] as const;
+const PLAYER_DEEP_LINK_ROUTES = [
+  "/fees",
+  "/settings",
+  "/my-planning",
+  "/messages",
+] as const;
 
 /** Construit les capacités Bureau selon le rôle + droits coach du club. */
 export function bureauCapabilities(
@@ -300,6 +305,9 @@ export function isBureauRouteAllowed(
   if (pathname === "/my-planning" || pathname.startsWith("/my-planning/")) {
     return true;
   }
+  if (pathname === "/messages" || pathname.startsWith("/messages/")) {
+    return true;
+  }
   // Journal d’activité : admin + coach (CTA home, hors nav strip).
   if (pathname === "/activity" || pathname.startsWith("/activity/")) {
     return caps.isAdmin || caps.isCoach;
@@ -327,6 +335,7 @@ const FAMILY_DEEP_LINK_ROUTES = [
   "/family/fees",
   "/family/settings",
   "/family/my-planning",
+  "/family/messages",
 ] as const;
 
 /** True si la route famille est autorisée. */

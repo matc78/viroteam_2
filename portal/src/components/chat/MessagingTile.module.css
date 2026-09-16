@@ -1,0 +1,122 @@
+.tile {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 12rem;
+  min-height: 2.25rem;
+  padding: 0.28rem 0.7rem 0.28rem 0.4rem;
+  border: 1.5px solid color-mix(in srgb, var(--color-sport-green) 45%, var(--color-gray-200));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-sport-green) 8%, white);
+  color: var(--tone-green-text, var(--color-primary-900));
+  font: inherit;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.tile:hover {
+  background: color-mix(in srgb, var(--color-sport-green) 16%, white);
+  border-color: var(--color-sport-green);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-sport-green) 18%, transparent);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--color-sport-green);
+  outline-offset: 2px;
+}
+
+.tileActive {
+  background: linear-gradient(
+    135deg,
+    var(--color-sport-green),
+    color-mix(in srgb, var(--color-sport-green) 55%, var(--color-sport-cyan))
+  );
+  border-color: color-mix(in srgb, var(--color-sport-green) 70%, black);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-sport-green) 35%, transparent);
+  color: #fff;
+}
+
+.icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--color-sport-green) 22%, white);
+  color: inherit;
+}
+
+.tileActive .icon {
+  background: color-mix(in srgb, #fff 24%, transparent);
+}
+
+.iconSvg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.badge {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.4rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: var(--color-sport-orange, #e85d04);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1.1rem;
+  text-align: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 8.5rem;
+  padding-right: 0.15rem;
+}
+
+@media (max-width: 1024px) {
+  .tile {
+    padding: 0.22rem 0.55rem 0.22rem 0.32rem;
+    gap: 0.35rem;
+    min-height: 2rem;
+  }
+
+  .label {
+    font-size: 0.74rem;
+  }
+
+  .icon {
+    width: 1.55rem;
+    height: 1.55rem;
+  }
+
+  .iconSvg {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .label {
+    max-width: 5.5rem;
+  }
+}

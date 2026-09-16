@@ -1,0 +1,31 @@
+.window {
+  position: fixed;
+  right: calc(1.25rem + min(22.5rem, calc(100vw - 1.5rem)) + 0.75rem);
+  bottom: 0;
+  z-index: 61;
+  width: min(24rem, calc(100vw - 2rem));
+  height: min(34rem, calc(100dvh - var(--header-height) - 1rem));
+  border: 1px solid var(--color-gray-200);
+  border-bottom: none;
+  border-radius: 0.75rem 0.75rem 0 0;
+  background: #fff;
+  box-shadow:
+    0 -2px 8px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
+    0 -12px 28px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
+  overflow: hidden;
+}
+
+.clubLabel {
+  display: inline-block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-gray-500);
+}
+
+@media (max-width: 1100px) {
+  .window {
+    right: 1.25rem;
+    bottom: min(32rem, 50dvh);
+  }
+}

@@ -1,9 +1,10 @@
-/** Préférences push (events / annonces / cotisations / RSVP). */
+/** Préférences push (events / annonces / cotisations / RSVP / chat). */
 export type NotificationPreferences = {
   events: boolean;
   announcements: boolean;
   fees: boolean;
   rsvp: boolean;
+  chat: boolean;
 };
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
@@ -11,6 +12,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   announcements: true,
   fees: true,
   rsvp: true,
+  chat: true,
 };
 
 /** Parse le map Firestore (défaut = opt-in). */
@@ -38,6 +40,10 @@ export function parseNotificationPreferences(
       typeof map.rsvp === "boolean"
         ? map.rsvp
         : DEFAULT_NOTIFICATION_PREFERENCES.rsvp,
+    chat:
+      typeof map.chat === "boolean"
+        ? map.chat
+        : DEFAULT_NOTIFICATION_PREFERENCES.chat,
   };
 }
 
@@ -54,5 +60,7 @@ export function preferenceOffWarning(
       return "Vous ne recevrez plus les rappels hebdomadaires de cotisation.";
     case "rsvp":
       return "Vous ne recevrez plus de notification à chaque changement de RSVP.";
+    case "chat":
+      return "Vous ne recevrez plus de notification pour les nouveaux messages.";
   }
 }

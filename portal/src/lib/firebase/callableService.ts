@@ -331,3 +331,37 @@ export async function uploadClubLogo(params: {
 }): Promise<{ logoUrl: string }> {
   return callFunction("uploadClubLogo", params);
 }
+
+/** Démarre une DM avec coaches / admins (joueur ou parent). */
+export async function createCoachDm(params: {
+  clubId: string;
+  targetUids: string[];
+  teamId?: string;
+}): Promise<{ conversationId: string }> {
+  return callFunction("createCoachDm", params);
+}
+
+/** Crée un canal catégorie (admin). */
+export async function createCategoryChannel(params: {
+  clubId: string;
+  categoryKey: string;
+  title: string;
+  writePolicy?: string;
+}): Promise<{ conversationId: string }> {
+  return callFunction("createCategoryChannel", params);
+}
+
+/** Backfill conversations système d’un club. */
+export async function ensureClubChatSynced(params: {
+  clubId: string;
+}): Promise<{ teamsSynced: number }> {
+  return callFunction("ensureClubChatSynced", params);
+}
+
+/** Backfill de tous les clubs où l’appelant est admin. */
+export async function backfillMyAdminClubChats(): Promise<{
+  clubsSynced: number;
+  teamsSynced: number;
+}> {
+  return callFunction("backfillMyAdminClubChats", {});
+}

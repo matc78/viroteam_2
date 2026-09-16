@@ -36,6 +36,11 @@ const TOGGLE_ROWS: Array<{
     title: "Cotisations",
     subtitle: "Rappel chaque lundi soir",
   },
+  {
+    key: "chat",
+    title: "Messagerie",
+    subtitle: "Nouveaux messages dans tes discussions",
+  },
 ];
 
 /** Accordion préférences push (bureau + famille). */
@@ -49,6 +54,7 @@ export function NotificationPreferencesSection() {
     announcements: true,
     fees: true,
     rsvp: true,
+    chat: true,
   };
 
   async function setPreference(

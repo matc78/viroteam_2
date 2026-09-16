@@ -15,6 +15,9 @@ export const Collections = {
   guardians: "guardians",
   announcements: "announcements",
   equipment: "equipment",
+  conversations: "conversations",
+  chatMessages: "messages",
+  chatState: "chatState",
 } as const;
 
 /** Noms de champs Firestore alignés sur FirestoreFields Flutter. */
@@ -173,6 +176,57 @@ export const Fields = {
   assignedTeamId: "assignedTeamId",
   notes: "notes",
   updatedBy: "updatedBy",
+  // Chat
+  systemKey: "systemKey",
+  titleOverride: "titleOverride",
+  participantUids: "participantUids",
+  writePolicy: "writePolicy",
+  lastMessageAt: "lastMessageAt",
+  lastMessagePreview: "lastMessagePreview",
+  lastSenderUid: "lastSenderUid",
+  categoryKey: "categoryKey",
+  storagePath: "storagePath",
+  downloadUrl: "downloadUrl",
+  thumbUrl: "thumbUrl",
+  width: "width",
+  height: "height",
+  deletedAt: "deletedAt",
+  deletedByUid: "deletedByUid",
+  reactions: "reactions",
+  senderUid: "senderUid",
+  text: "text",
+  pollQuestion: "pollQuestion",
+  pollOptions: "pollOptions",
+  pollVotes: "pollVotes",
+  pollAllowMultiple: "pollAllowMultiple",
+  muted: "muted",
+  lastReadAt: "lastReadAt",
+  unreadCount: "unreadCount",
+} as const;
+
+/** Types de conversation chat MVP. */
+export const ChatConversationTypes = {
+  team: "team",
+  parents: "parents",
+  staff: "staff",
+  club: "club",
+  category: "category",
+  dm: "dm",
+  coachGroup: "coach_group",
+} as const;
+
+/** Qui peut écrire dans une conversation. */
+export const ChatWritePolicies = {
+  open: "open",
+  adminsOnly: "admins_only",
+  coachesAndAdmins: "coaches_and_admins",
+} as const;
+
+/** Types de message chat MVP. */
+export const ChatMessageTypes = {
+  text: "text",
+  image: "image",
+  poll: "poll",
 } as const;
 
 /** États d’un item d’inventaire. */

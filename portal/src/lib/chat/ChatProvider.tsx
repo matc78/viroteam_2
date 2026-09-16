@@ -1,0 +1,304 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { FloatingThread } from "@/components/chat/FloatingThread";
+import { MessagingDock } from "@/components/chat/MessagingDock";
+import { ComposeConversationDialog } from "@/components/chat/ComposeConversationDialog";
+import { useAuth } from "@/lib/firebase/AuthProvider";
+import {
+  ensureClubsChatSynced,
+  markRead,
+  messagesPagePath,
+  totalUnreadCount,
+  watchChatStates,
+  watchInbox,
+} from "@/lib/firebase/chatService";
+import type {
+  ChatConversation,
+  ChatThreadKey,
+  ChatUserState,
+} from "@/lib/firebase/chatTypes";
+import { membershipRoleForClub } from "@/lib/firebase/types";
+
+type ChatContextValue = {
+  dockOpen: boolean;
+  dockExpanded: boolean;
+  composeOpen: boolean;
+  activeThread: ChatThreadKey | null;
+  conversations: ChatConversation[];
+  chatStates: Record<string, ChatUserState>;
+  totalUnread: number;
+  inboxLoading: boolean;
+  clubNameById: Record<string, string>;
+  clubColorById: Record<string, string | null>;
+  messagesHref: string;
+  isMobileLayout: boolean;
+  toggleDock: () => void;
+  setDockOpen: (open: boolean) => void;
+  setDockExpanded: (expanded: boolean) => void;
+  openCompose: () => void;
+  closeCompose: () => void;
+  openThread: (thread: ChatThreadKey) => void;
+  closeFloatingThread: () => void;
+  maximizeThread: () => void;
+  roleForClub: (clubId: string) => string | null;
+};
+
+const ChatContext = createContext<ChatContextValue | null>(null);
+
+const MOBILE_MQ = "(max-width: 767px)";
+
+/**
+ * État messagerie global (dock + 1 fenêtre flottante).
+ * Survit aux changements de module / club / espace bureau↔famille.
+ */
+export function ChatProvider({ children }: { children: ReactNode }) {
+  const {
+    user,
+    status,
+    profile,
+    activeSpace,
+    bureauClubs,
+    familyClubs,
+  } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const [dockOpen, setDockOpen] = useState(false);
+  const [dockExpanded, setDockExpanded] = useState(true);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [activeThread, setActiveThread] = useState<ChatThreadKey | null>(null);
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [chatStates, setChatStates] = useState<Record<string, ChatUserState>>(
+    {},
+  );
+  const [inboxLoading, setInboxLoading] = useState(false);
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
+
+  const syncedClubsRef = useRef<string>("");
+
+  const clubIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const club of bureauClubs) ids.add(club.id);
+    for (const club of familyClubs) ids.add(club.id);
+    return [...ids];
+  }, [bureauClubs, familyClubs]);
+
+  const clubNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const club of [...bureauClubs, ...familyClubs]) {
+      map[club.id] = club.name;
+    }
+    return map;
+  }, [bureauClubs, familyClubs]);
+
+  const clubColorById = useMemo(() => {
+    const map: Record<string, string | null> = {};
+    for (const club of [...bureauClubs, ...familyClubs]) {
+      map[club.id] = club.brandColorHex;
+    }
+    return map;
+  }, [bureauClubs, familyClubs]);
+
+  const messagesHref = messagesPagePath(
+    activeSpace === "family" ? "family" : "bureau",
+  );
+
+  const onMessagesPage =
+    pathname === "/messages" ||
+    pathname.startsWith("/messages/") ||
+    pathname === "/family/messages" ||
+    pathname.startsWith("/family/messages/");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia(MOBILE_MQ);
+    const update = () => setIsMobileLayout(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (status !== "signedIn" || !user || clubIds.length === 0) {
+      setConversations([]);
+      setChatStates({});
+      setInboxLoading(false);
+      return;
+    }
+
+    setInboxLoading(true);
+    const clubKey = clubIds.slice().sort().join(",");
+    if (syncedClubsRef.current !== clubKey) {
+      syncedClubsRef.current = clubKey;
+      void ensureClubsChatSynced(clubIds);
+    }
+
+    const unsubInbox = watchInbox({
+      uid: user.uid,
+      clubIds,
+      onData: (list) => {
+        setConversations(list);
+        setInboxLoading(false);
+      },
+      onError: () => setInboxLoading(false),
+    });
+    const unsubStates = watchChatStates({
+      uid: user.uid,
+      onData: setChatStates,
+    });
+
+    return () => {
+      unsubInbox();
+      unsubStates();
+    };
+  }, [status, user, clubIds]);
+
+  const totalUnread = useMemo(
+    () => totalUnreadCount(chatStates),
+    [chatStates],
+  );
+
+  const roleForClub = useCallback(
+    (clubId: string) => membershipRoleForClub(profile, clubId),
+    [profile],
+  );
+
+  const toggleDock = useCallback(() => {
+    setDockOpen((previous) => {
+      const next = !previous;
+      if (next) setDockExpanded(true);
+      return next;
+    });
+  }, []);
+
+  const openCompose = useCallback(() => setComposeOpen(true), []);
+  const closeCompose = useCallback(() => setComposeOpen(false), []);
+
+  const openThread = useCallback(
+    (thread: ChatThreadKey) => {
+      setActiveThread(thread);
+      setDockOpen(true);
+      setDockExpanded(true);
+      if (user) {
+        void markRead({
+          uid: user.uid,
+          clubId: thread.clubId,
+          conversationId: thread.conversationId,
+        });
+      }
+      if (isMobileLayout || onMessagesPage) {
+        router.push(
+          messagesPagePath(
+            activeSpace === "family" ? "family" : "bureau",
+            thread,
+          ),
+        );
+        setActiveThread(null);
+      }
+    },
+    [user, isMobileLayout, onMessagesPage, router, activeSpace],
+  );
+
+  const closeFloatingThread = useCallback(() => {
+    setActiveThread(null);
+  }, []);
+
+  const maximizeThread = useCallback(() => {
+    if (!activeThread) {
+      router.push(messagesHref);
+      return;
+    }
+    router.push(
+      messagesPagePath(
+        activeSpace === "family" ? "family" : "bureau",
+        activeThread,
+      ),
+    );
+    setActiveThread(null);
+  }, [activeThread, router, messagesHref, activeSpace]);
+
+  const value = useMemo<ChatContextValue>(
+    () => ({
+      dockOpen,
+      dockExpanded,
+      composeOpen,
+      activeThread,
+      conversations,
+      chatStates,
+      totalUnread,
+      inboxLoading,
+      clubNameById,
+      clubColorById,
+      messagesHref,
+      isMobileLayout,
+      toggleDock,
+      setDockOpen,
+      setDockExpanded,
+      openCompose,
+      closeCompose,
+      openThread,
+      closeFloatingThread,
+      maximizeThread,
+      roleForClub,
+    }),
+    [
+      dockOpen,
+      dockExpanded,
+      composeOpen,
+      activeThread,
+      conversations,
+      chatStates,
+      totalUnread,
+      inboxLoading,
+      clubNameById,
+      clubColorById,
+      messagesHref,
+      isMobileLayout,
+      toggleDock,
+      openCompose,
+      closeCompose,
+      openThread,
+      closeFloatingThread,
+      maximizeThread,
+      roleForClub,
+    ],
+  );
+
+  const showChrome =
+    status === "signedIn" && user != null && clubIds.length > 0;
+
+  return (
+    <ChatContext.Provider value={value}>
+      {children}
+      {showChrome ? (
+        <>
+          <MessagingDock />
+          {!isMobileLayout && !onMessagesPage && activeThread ? (
+            <FloatingThread thread={activeThread} />
+          ) : null}
+          {composeOpen ? <ComposeConversationDialog /> : null}
+        </>
+      ) : null}
+    </ChatContext.Provider>
+  );
+}
+
+/** Accès au contexte messagerie (lance si hors ChatProvider). */
+export function useChat(): ChatContextValue {
+  const ctx = useContext(ChatContext);
+  if (!ctx) {
+    throw new Error("useChat doit être utilisé dans ChatProvider.");
+  }
+  return ctx;
+}

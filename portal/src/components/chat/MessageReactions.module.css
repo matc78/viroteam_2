@@ -1,0 +1,309 @@
+.bar {
+  position: absolute;
+  left: 0.4rem;
+  bottom: 0;
+  /* Un peu plus bas pour mieux couper la bordure (style WhatsApp). */
+  transform: translateY(62%);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  pointer-events: auto;
+}
+
+.chipGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.chipGroup:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.08rem 0.38rem;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-primary-900) 10%, transparent);
+}
+
+.chipMine {
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--color-primary-500) 45%, transparent),
+    0 1px 3px color-mix(in srgb, var(--color-primary-900) 10%, transparent);
+}
+
+.count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--color-gray-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.quickBar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.35rem 0.45rem;
+  background: #fff;
+  border-radius: 999px;
+  border: 1px solid var(--color-gray-200);
+  box-shadow:
+    0 4px 12px color-mix(in srgb, var(--color-primary-900) 12%, transparent),
+    0 10px 28px color-mix(in srgb, var(--color-primary-900) 16%, transparent);
+  flex-shrink: 0;
+}
+
+.quickEmojiBtn {
+  width: 2.15rem;
+  height: 2.15rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.quickEmojiBtn:hover {
+  background: var(--color-gray-50, #f8fafc);
+}
+
+.quickEmojiImg {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: block;
+  pointer-events: none;
+}
+
+.quickMoreBtn {
+  position: relative;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-gray-200);
+  background: var(--color-gray-50, #f8fafc);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.quickMoreFaceImg {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
+  pointer-events: none;
+}
+
+.quickMorePlus {
+  position: absolute;
+  right: -0.12rem;
+  bottom: -0.08rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: var(--color-primary-600, #134a7d);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 0.9rem;
+  text-align: center;
+  border: 1.5px solid #fff;
+}
+
+.quickExpanded {
+  width: min(100%, 22rem);
+}
+
+.detailsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: transparent;
+}
+
+.detailsCard {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 0.95rem;
+  box-shadow:
+    0 6px 18px color-mix(in srgb, var(--color-primary-900) 16%, transparent),
+    0 18px 44px color-mix(in srgb, var(--color-primary-900) 20%, transparent);
+  overflow: hidden;
+  z-index: 81;
+}
+
+.detailsTop {
+  padding: 0.85rem 0.9rem 0.55rem;
+  flex-shrink: 0;
+}
+
+.detailsTitle {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-gray-900, #111827);
+}
+
+.detailsFilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.addReactionBtn {
+  position: relative;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-gray-200);
+  background: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.addReactionFace {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.addReactionPlus {
+  position: absolute;
+  right: -0.1rem;
+  bottom: -0.05rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  background: var(--color-primary-600, #134a7d);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 0.95rem;
+  text-align: center;
+  border: 1.5px solid #fff;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filterChipActive {
+  background: color-mix(in srgb, var(--color-primary-500) 18%, white);
+  color: var(--color-primary-800);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-primary-500) 45%, transparent);
+}
+
+.filterChipMine:not(.filterChipActive) {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-primary-500) 45%, transparent);
+}
+
+.detailsPicker {
+  margin-top: 0.65rem;
+}
+
+.reactorList {
+  margin: 0;
+  padding: 0.15rem 0 0.35rem;
+  list-style: none;
+  border-top: 1px solid var(--color-gray-100);
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+.reactorRow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.55rem 0.9rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+}
+
+.reactorRow:not(:disabled) {
+  cursor: pointer;
+}
+
+.reactorRow:not(:disabled):hover {
+  background: var(--color-gray-50, #f8fafc);
+}
+
+.reactorText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.reactorName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-gray-900, #111827);
+}
+
+.reactorHint {
+  font-size: 0.72rem;
+  color: var(--color-gray-500);
+}
+
+.reactorEmoji {
+  font-size: 1.25rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border-radius: 999px;
+}
+
+.reactorEmojiMine {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--color-primary-500) 45%, transparent);
+}

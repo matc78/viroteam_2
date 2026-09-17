@@ -6,16 +6,31 @@
   height: 100%;
 }
 
-.composeBtn {
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.composeBtn,
+.categoryBtn {
   border: none;
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.9rem;
-  background: var(--color-sport-green);
-  color: #fff;
   font: inherit;
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+.composeBtn {
+  background: var(--color-primary-500);
+  color: #fff;
+}
+
+.categoryBtn {
+  background: var(--color-gray-100);
+  color: var(--color-primary-800);
 }
 
 .layout {
@@ -72,7 +87,13 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: color-mix(in srgb, var(--color-gray-50, #f8fafc) 70%, white);
+  background-color: #f4f7fa;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 62%), rgb(255 255 255 / 62%)),
+    url("/chat/thread-bg.png");
+  background-repeat: repeat;
+  background-position: top left;
+  background-size: 420px auto, 420px auto;
 }
 
 .placeholder {
@@ -85,10 +106,19 @@
 
 .clubLabel {
   display: inline-block;
-  margin-top: 0.15rem;
-  font-size: 0.72rem;
+  margin: 0;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
   font-weight: 700;
-  color: var(--color-gray-500);
+  line-height: 1.2;
+  background: var(--club-brand, var(--color-primary-500));
+  color: var(--club-brand-text, #fff);
+  max-width: 8.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 @media (max-width: 900px) {

@@ -1,0 +1,87 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: center;
+  width: min(100%, 18.5rem);
+  margin: 0.35rem auto 0.85rem;
+  padding: 1.15rem 1.1rem 1rem;
+  border-radius: 1.35rem;
+  background: #fff;
+  border: 1px solid var(--color-gray-100);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--color-primary-900) 6%, transparent);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.cardButton {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.cardButton:hover {
+  border-color: color-mix(in srgb, var(--color-primary-500) 28%, white);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary-900) 10%, transparent);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.25rem;
+  height: 4.25rem;
+  margin-bottom: 0.2rem;
+  border-radius: 999px;
+  font-size: 1.55rem;
+  font-weight: 800;
+}
+
+.title {
+  margin: 0;
+  max-width: 100%;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-primary-900);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clubChip {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: var(--club-brand, var(--color-primary-500));
+  color: var(--club-brand-text, #fff);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-gray-500);
+}
+
+.roleStats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  list-style: none;
+}

@@ -1,0 +1,7 @@
+.img {
+  display: inline-block;
+  vertical-align: -0.15em;
+  object-fit: contain;
+  pointer-events: none;
+  flex-shrink: 0;
+}

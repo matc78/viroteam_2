@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ChatIcon } from "@/components/chat/ChatIcons";
+import infoStyles from "./ConversationInfoPanel.module.css";
 import styles from "./CreatePollSheet.module.css";
 
 type CreatePollSheetProps = {
@@ -12,7 +14,7 @@ type CreatePollSheetProps = {
   }) => Promise<void>;
 };
 
-/** Formulaire création de sondage chat. */
+/** Panneau création de sondage (même slot / largeur que infos groupe). */
 export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
@@ -41,19 +43,20 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
   }
 
   return (
-    <div className={styles.backdrop} role="dialog" aria-modal="true">
-      <div className={styles.panel}>
-        <header className={styles.header}>
-          <h3 className={styles.title}>Sondage</h3>
-          <button
-            type="button"
-            className={styles.close}
-            aria-label="Fermer"
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </header>
+    <aside className={infoStyles.panel} aria-label="Créer un sondage">
+      <header className={infoStyles.header}>
+        <button
+          type="button"
+          className={infoStyles.headerIconBtn}
+          aria-label="Fermer"
+          onClick={onClose}
+        >
+          <ChatIcon name="close" size={20} />
+        </button>
+        <h2 className={infoStyles.headerTitle}>Sondage</h2>
+      </header>
+
+      <div className={`${infoStyles.scrollBody} ${styles.form}`}>
         <label className={styles.label}>
           Question
           <input
@@ -104,6 +107,6 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
           Envoyer le sondage
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

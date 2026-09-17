@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useChat } from "@/lib/chat/ChatProvider";
 import styles from "./MessagingTile.module.css";
 
@@ -23,24 +25,39 @@ function ChatIcon() {
   );
 }
 
+/** True si la route courante est la page Messagerie (bureau ou famille). */
+function isMessagesPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    pathname === "/messages" ||
+    pathname.startsWith("/messages/") ||
+    pathname === "/family/messages" ||
+    pathname.startsWith("/family/messages/")
+  );
+}
+
 /**
- * Bouton header Messagerie : ouvre le dock (pas de navigation).
+ * Bouton header Messagerie : navigue vers la page messagerie.
+ * Actif sur la page Messagerie (comme « Mon planning » sur sa route).
  * Badge non-lus si > 0.
  */
 export function MessagingTile() {
-  const { dockOpen, totalUnread, toggleDock } = useChat();
+  const pathname = usePathname();
+  const { totalUnread, messagesHref } = useChat();
+  const isActive = isMessagesPath(pathname);
   const label =
     totalUnread > 0
       ? `Messagerie, ${totalUnread} non lu${totalUnread > 1 ? "s" : ""}`
       : "Messagerie";
 
   return (
-    <button
-      type="button"
-      className={`${styles.tile}${dockOpen ? ` ${styles.tileActive}` : ""}`}
+    <Link
+      href={messagesHref}
+      scroll={false}
+      prefetch
+      className={`${styles.tile}${isActive ? ` ${styles.tileActive}` : ""}`}
       aria-label={label}
-      aria-pressed={dockOpen}
-      onClick={toggleDock}
+      aria-current={isActive ? "page" : undefined}
     >
       <span className={styles.icon}>
         <ChatIcon />
@@ -51,6 +68,6 @@ export function MessagingTile() {
         ) : null}
       </span>
       <span className={styles.label}>Messagerie</span>
-    </button>
+    </Link>
   );
 }

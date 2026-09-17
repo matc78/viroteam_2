@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  // Évite que Turbopack prenne la racine monorepo (package-lock.json parent).
+  turbopack: {
+    root: path.join(__dirname),
+  },
   // PostHog API utilise des trailing slashes (/e/) — ne pas les retirer.
   skipTrailingSlashRedirect: true,
   async rewrites() {

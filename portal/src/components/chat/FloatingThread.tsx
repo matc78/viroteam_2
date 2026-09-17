@@ -14,6 +14,7 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
   const {
     chatStates,
     clubNameById,
+    clubColorById,
     roleForClub,
     closeFloatingThread,
     maximizeThread,
@@ -29,6 +30,8 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
         clubRole={roleForClub(thread.clubId)}
         chatState={chatStates[stateId]}
         compact
+        clubName={clubName}
+        clubColor={clubColorById[thread.clubId]}
         onClose={closeFloatingThread}
         onMaximize={maximizeThread}
         headerExtra={

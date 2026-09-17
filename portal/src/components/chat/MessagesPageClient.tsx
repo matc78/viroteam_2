@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChatThreadView } from "@/components/chat/ChatThreadView";
 import { ConversationListItem } from "@/components/chat/ConversationListItem";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { useChat } from "@/lib/chat/ChatProvider";
+import {
+  readableTextOnBrand,
+  splitBrandColorHex,
+} from "@/lib/clubSetup/clubBrandColors";
+import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { chatStateDocId } from "@/lib/firebase/chatTypes";
+import { sortInboxConversations } from "@/lib/firebase/chatService";
 import styles from "./MessagesPageClient.module.css";
 
 type MessagesPageClientProps = {
@@ -30,8 +36,11 @@ export function MessagesPageClient({
     chatStates,
     clubNameById,
     clubColorById,
+    previewSenderByKey,
     inboxLoading,
     openCompose,
+    openCategoryChannel,
+    isAdminSomewhere,
     roleForClub,
     setDockOpen,
   } = useChat();
@@ -61,9 +70,10 @@ export function MessagesPageClient({
   }, [isPanelActive, queryClubId, queryConversationId]);
 
   const filtered = useMemo(() => {
+    const sorted = sortInboxConversations(conversations, chatStates);
     const q = query.trim().toLowerCase();
-    if (!q) return conversations;
-    return conversations.filter((conversation) => {
+    if (!q) return sorted;
+    return sorted.filter((conversation) => {
       const title = (
         conversation.titleOverride ||
         conversation.title ||
@@ -76,7 +86,7 @@ export function MessagesPageClient({
         conversation.lastMessagePreview.toLowerCase().includes(q)
       );
     });
-  }, [conversations, query, clubNameById]);
+  }, [conversations, chatStates, query, clubNameById]);
 
   function selectConversation(clubId: string, conversationId: string) {
     setSelectedClubId(clubId);
@@ -90,6 +100,11 @@ export function MessagesPageClient({
     selectedClubId && selectedConversationId
       ? chatStateDocId(selectedClubId, selectedConversationId)
       : null;
+  const selectedClubBrand = selectedClubId
+    ? splitBrandColorHex(
+        clubColorById[selectedClubId] ?? ClubSetupDefaults.brandColorHex,
+      ).primary
+    : null;
 
   return (
     <div className={styles.pageRoot}>
@@ -98,13 +113,24 @@ export function MessagesPageClient({
         heading="Messagerie"
         lead="Toutes tes discussions, tous clubs confondus — équipes, parents, coaches."
       >
-        <button
-          type="button"
-          className={styles.composeBtn}
-          onClick={openCompose}
-        >
-          Nouvelle discussion
-        </button>
+        <div className={styles.headerActions}>
+          {isAdminSomewhere ? (
+            <button
+              type="button"
+              className={styles.categoryBtn}
+              onClick={openCategoryChannel}
+            >
+              Canal catégorie
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={styles.composeBtn}
+            onClick={openCompose}
+          >
+            Nouvelle discussion
+          </button>
+        </div>
       </DashboardPageIntro>
 
       <div className={styles.layout}>
@@ -136,6 +162,8 @@ export function MessagesPageClient({
                     chatState={chatStates[id]}
                     clubName={clubNameById[conversation.clubId]}
                     clubColor={clubColorById[conversation.clubId]}
+                    clubRole={roleForClub(conversation.clubId)}
+                    previewSenderByKey={previewSenderByKey}
                     selected={selected}
                     onSelect={() =>
                       selectConversation(conversation.clubId, conversation.id)
@@ -154,9 +182,20 @@ export function MessagesPageClient({
               conversationId={selectedConversationId}
               clubRole={roleForClub(selectedClubId)}
               chatState={stateId ? chatStates[stateId] : undefined}
+              clubName={clubNameById[selectedClubId]}
+              clubColor={clubColorById[selectedClubId]}
               headerExtra={
-                clubNameById[selectedClubId] ? (
-                  <span className={styles.clubLabel}>
+                clubNameById[selectedClubId] && selectedClubBrand ? (
+                  <span
+                    className={styles.clubLabel}
+                    style={
+                      {
+                        "--club-brand": selectedClubBrand,
+                        "--club-brand-text":
+                          readableTextOnBrand(selectedClubBrand),
+                      } as CSSProperties
+                    }
+                  >
                     {clubNameById[selectedClubId]}
                   </span>
                 ) : null

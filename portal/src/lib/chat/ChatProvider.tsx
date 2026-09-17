@@ -14,6 +14,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { FloatingThread } from "@/components/chat/FloatingThread";
 import { MessagingDock } from "@/components/chat/MessagingDock";
 import { ComposeConversationDialog } from "@/components/chat/ComposeConversationDialog";
+import { CreateCategoryChannelDialog } from "@/components/chat/CreateCategoryChannelDialog";
+import {
+  previewSenderKey,
+  type ChatPreviewSender,
+} from "@/lib/chat/conversationPreview";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   ensureClubsChatSynced,
@@ -28,12 +33,16 @@ import type {
   ChatThreadKey,
   ChatUserState,
 } from "@/lib/firebase/chatTypes";
-import { membershipRoleForClub } from "@/lib/firebase/types";
+import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
+import { listClubMembers } from "@/lib/firebase/memberService";
+import { membershipRoleForClub, splitDisplayName } from "@/lib/firebase/types";
 
 type ChatContextValue = {
   dockOpen: boolean;
   dockExpanded: boolean;
   composeOpen: boolean;
+  categoryChannelOpen: boolean;
+  isAdminSomewhere: boolean;
   activeThread: ChatThreadKey | null;
   conversations: ChatConversation[];
   chatStates: Record<string, ChatUserState>;
@@ -41,6 +50,8 @@ type ChatContextValue = {
   inboxLoading: boolean;
   clubNameById: Record<string, string>;
   clubColorById: Record<string, string | null>;
+  /** Annuaire `clubId:uid` → prénom + rôle (fallback preview). */
+  previewSenderByKey: Record<string, ChatPreviewSender>;
   messagesHref: string;
   isMobileLayout: boolean;
   toggleDock: () => void;
@@ -48,6 +59,8 @@ type ChatContextValue = {
   setDockExpanded: (expanded: boolean) => void;
   openCompose: () => void;
   closeCompose: () => void;
+  openCategoryChannel: () => void;
+  closeCategoryChannel: () => void;
   openThread: (thread: ChatThreadKey) => void;
   closeFloatingThread: () => void;
   maximizeThread: () => void;
@@ -77,6 +90,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [dockOpen, setDockOpen] = useState(false);
   const [dockExpanded, setDockExpanded] = useState(true);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [categoryChannelOpen, setCategoryChannelOpen] = useState(false);
   const [activeThread, setActiveThread] = useState<ChatThreadKey | null>(null);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [chatStates, setChatStates] = useState<Record<string, ChatUserState>>(
@@ -84,6 +98,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
   const [inboxLoading, setInboxLoading] = useState(false);
   const [isMobileLayout, setIsMobileLayout] = useState(false);
+  const [previewSenderByKey, setPreviewSenderByKey] = useState<
+    Record<string, ChatPreviewSender>
+  >({});
 
   const syncedClubsRef = useRef<string>("");
 
@@ -130,6 +147,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!onMessagesPage) return;
+    setDockOpen(false);
+    setActiveThread(null);
+  }, [onMessagesPage]);
+
+  useEffect(() => {
     if (status !== "signedIn" || !user || clubIds.length === 0) {
       setConversations([]);
       setChatStates({});
@@ -164,14 +187,59 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, [status, user, clubIds]);
 
+  useEffect(() => {
+    if (status !== "signedIn" || clubIds.length === 0) {
+      setPreviewSenderByKey({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const directory: Record<string, ChatPreviewSender> = {};
+      await Promise.all(
+        clubIds.map(async (clubId) => {
+          try {
+            const members = await listClubMembers(clubId);
+            for (const member of members) {
+              if (!member.accountUid) continue;
+              const firstName =
+                member.firstName.trim() ||
+                splitDisplayName(member.displayName).firstName;
+              if (!firstName) continue;
+              directory[previewSenderKey(clubId, member.accountUid)] = {
+                firstName,
+                role: member.role,
+              };
+            }
+          } catch {
+            // Lecture membres optionnelle pour la preview.
+          }
+        }),
+      );
+      if (!cancelled) setPreviewSenderByKey(directory);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, clubIds]);
+
   const totalUnread = useMemo(
     () => totalUnreadCount(chatStates),
     [chatStates],
   );
 
+  const familyClubIdSet = useMemo(
+    () => new Set(familyClubs.map((club) => club.id)),
+    [familyClubs],
+  );
+
   const roleForClub = useCallback(
-    (clubId: string) => membershipRoleForClub(profile, clubId),
-    [profile],
+    (clubId: string) => {
+      const membershipRole = membershipRoleForClub(profile, clubId);
+      if (membershipRole) return membershipRole;
+      if (familyClubIdSet.has(clubId)) return PortalUiRoles.parent;
+      return null;
+    },
+    [profile, familyClubIdSet],
   );
 
   const toggleDock = useCallback(() => {
@@ -184,6 +252,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const openCompose = useCallback(() => setComposeOpen(true), []);
   const closeCompose = useCallback(() => setComposeOpen(false), []);
+  const openCategoryChannel = useCallback(
+    () => setCategoryChannelOpen(true),
+    [],
+  );
+  const closeCategoryChannel = useCallback(
+    () => setCategoryChannelOpen(false),
+    [],
+  );
+
+  const isAdminSomewhere = useMemo(
+    () =>
+      bureauClubs.some(
+        (club) => membershipRoleForClub(profile, club.id) === MemberRoles.admin,
+      ),
+    [bureauClubs, profile],
+  );
 
   const openThread = useCallback(
     (thread: ChatThreadKey) => {
@@ -233,6 +317,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       dockOpen,
       dockExpanded,
       composeOpen,
+      categoryChannelOpen,
+      isAdminSomewhere,
       activeThread,
       conversations,
       chatStates,
@@ -240,6 +326,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       inboxLoading,
       clubNameById,
       clubColorById,
+      previewSenderByKey,
       messagesHref,
       isMobileLayout,
       toggleDock,
@@ -247,6 +334,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setDockExpanded,
       openCompose,
       closeCompose,
+      openCategoryChannel,
+      closeCategoryChannel,
       openThread,
       closeFloatingThread,
       maximizeThread,
@@ -256,6 +345,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       dockOpen,
       dockExpanded,
       composeOpen,
+      categoryChannelOpen,
+      isAdminSomewhere,
       activeThread,
       conversations,
       chatStates,
@@ -263,11 +354,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       inboxLoading,
       clubNameById,
       clubColorById,
+      previewSenderByKey,
       messagesHref,
       isMobileLayout,
       toggleDock,
       openCompose,
       closeCompose,
+      openCategoryChannel,
+      closeCategoryChannel,
       openThread,
       closeFloatingThread,
       maximizeThread,
@@ -283,11 +377,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       {children}
       {showChrome ? (
         <>
-          <MessagingDock />
+          {!onMessagesPage ? <MessagingDock /> : null}
           {!isMobileLayout && !onMessagesPage && activeThread ? (
             <FloatingThread thread={activeThread} />
           ) : null}
           {composeOpen ? <ComposeConversationDialog /> : null}
+          {categoryChannelOpen ? <CreateCategoryChannelDialog /> : null}
         </>
       ) : null}
     </ChatContext.Provider>

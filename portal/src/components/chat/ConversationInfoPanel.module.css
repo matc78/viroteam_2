@@ -1,0 +1,479 @@
+.panel {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 clamp(17rem, 36%, 24rem);
+  width: clamp(17rem, 36%, 24rem);
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  align-self: stretch;
+  background: #fff;
+  overflow: hidden;
+  border-left: 1px solid var(--color-gray-100);
+}
+
+@media (max-width: 900px) {
+  .panel {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    width: 100%;
+    flex: none;
+    border-left: none;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-gray-100);
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.headerIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-gray-600);
+  cursor: pointer;
+}
+
+.headerIconBtn:hover {
+  background: var(--color-gray-100);
+  color: var(--color-primary-900);
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-primary-900);
+}
+
+.scrollBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1.75rem 1.25rem 1.35rem;
+  text-align: center;
+  background: #fff;
+}
+
+.heroAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 7.5rem;
+  height: 7.5rem;
+  border-radius: 999px;
+  font-size: 2.6rem;
+  font-weight: 700;
+  margin-bottom: 0.55rem;
+}
+
+.heroTitleRow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  max-width: 100%;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(100%, 16rem);
+}
+
+.editNameBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-gray-500);
+  cursor: pointer;
+}
+
+.editNameBtn:hover {
+  background: var(--color-gray-100);
+  color: var(--color-primary-600);
+}
+
+.heroMeta {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-gray-500);
+  font-weight: 500;
+}
+
+.heroMetaAccent {
+  font-weight: 600;
+}
+
+.clubChip {
+  display: inline-block;
+  margin-top: 0.45rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--club-brand, var(--color-primary-500));
+  color: var(--club-brand-text, #fff);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.quickActions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.75rem;
+  padding: 0.35rem 1.25rem 1.5rem;
+  background: #fff;
+}
+
+.quickBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 4.25rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-primary-800);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quickIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 999px;
+  background: var(--color-gray-100);
+  color: var(--color-primary-600);
+  transition: background 0.15s ease;
+}
+
+.quickBtn:hover .quickIcon {
+  background: color-mix(in srgb, var(--color-primary-500) 12%, white);
+}
+
+.block {
+  margin-top: 0.55rem;
+  background: #fff;
+  border-top: 1px solid var(--color-gray-100);
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.listRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+  padding: 0.95rem 1.15rem;
+  border: none;
+  border-bottom: 1px solid var(--color-gray-100);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.listRow:last-child {
+  border-bottom: none;
+}
+
+.listRow:hover {
+  background: color-mix(in srgb, var(--color-primary-500) 4%, white);
+}
+
+.listIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  color: var(--color-gray-500);
+}
+
+.listBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.listLabel {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-primary-900);
+  line-height: 1.3;
+}
+
+.listHint {
+  font-size: 0.8rem;
+  color: var(--color-gray-500);
+  line-height: 1.35;
+}
+
+.listMeta {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-gray-500);
+}
+
+.mediaExpand {
+  padding: 0 1.15rem 1rem 3.9rem;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.empty,
+.emptyPad {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-gray-500);
+}
+
+.emptyPad {
+  padding: 0.85rem 1.15rem 1.1rem;
+}
+
+.imageGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  margin-bottom: 0.65rem;
+}
+
+.imageThumb {
+  aspect-ratio: 1;
+  border-radius: 0.35rem;
+  overflow: hidden;
+  background: var(--color-gray-100);
+}
+
+.imageThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.linkList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.linkList a {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--color-primary-500);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.membersHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.85rem 1.15rem 0.35rem;
+}
+
+.membersTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-primary-900);
+}
+
+.membersSearch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-gray-500);
+  cursor: pointer;
+}
+
+.membersSearch:hover {
+  background: var(--color-gray-100);
+  color: var(--color-primary-600);
+}
+
+.memberList {
+  margin: 0;
+  padding: 0 0 0.35rem;
+  list-style: none;
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.65rem 1.15rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.memberRow:hover {
+  background: color-mix(in srgb, var(--color-primary-500) 4%, white);
+}
+
+.memberRowText {
+  flex: 1;
+  min-width: 0;
+}
+
+.memberFirst {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-primary-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberDetail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  background: #fff;
+}
+
+.memberName {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+}
+
+.renameOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--color-primary-900) 28%, transparent);
+}
+
+.renameCard {
+  width: min(100%, 20rem);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-card);
+}
+
+.renameTitle {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-primary-900);
+}
+
+.renameInput {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.renameActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.renameCancel,
+.renameSubmit {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.renameCancel {
+  background: var(--color-gray-100);
+  color: var(--color-gray-600);
+}
+
+.renameSubmit {
+  background: var(--color-primary-500);
+  color: #fff;
+}
+
+.renameSubmit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

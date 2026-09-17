@@ -1,0 +1,67 @@
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.35rem 1.25rem 1.1rem;
+  background: #fff;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.question {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.mode {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-gray-500);
+  font-weight: 500;
+}
+
+.summary {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-gray-500);
+  font-weight: 500;
+}
+
+.optionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem 0.35rem;
+}
+
+.optionTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.voteBadge {
+  flex-shrink: 0;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-primary-600);
+  background: color-mix(in srgb, var(--color-primary-500) 14%, white);
+}
+
+.emptyOption {
+  margin: 0;
+  padding: 0.35rem 1.15rem 0.85rem;
+  font-size: 0.85rem;
+  color: var(--color-gray-500);
+}

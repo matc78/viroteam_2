@@ -1,0 +1,22 @@
+.wrap {
+  width: min(100%, 22rem);
+  display: flex;
+  justify-content: center;
+}
+
+.wrap :global(.EmojiPickerReact) {
+  --epr-emoji-size: 1.55rem;
+  --epr-header-padding: 0.55rem;
+  border-radius: 0.85rem !important;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary-900) 18%, transparent) !important;
+  border: 1px solid var(--color-gray-200) !important;
+}
+
+.loading {
+  padding: 0.65rem 1rem;
+  font-size: 0.8rem;
+  color: var(--color-gray-500);
+  background: #fff;
+  border-radius: 0.85rem;
+  border: 1px solid var(--color-gray-200);
+}

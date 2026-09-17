@@ -12,6 +12,7 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  startAfter,
   type Unsubscribe,
   updateDoc,
   where,
@@ -24,12 +25,14 @@ import {
   ensureClubChatSynced as ensureClubChatSyncedCallable,
 } from "./callableService";
 import {
+  ChatConversationTypes,
   ChatMessageTypes,
   ChatWritePolicies,
   Collections,
   Fields,
   MemberRoles,
 } from "./constants";
+import { prepareChatImageUpload } from "@/lib/chat/createImageThumbnail";
 import { uploadImageAtPath } from "./storage";
 import {
   type ChatConversation,
@@ -101,6 +104,27 @@ function previewText(text: string): string {
   return text.length > 120 ? `${text.slice(0, 117)}…` : text;
 }
 
+/** Champs preview conversation à écrire à l’envoi d’un message. */
+function conversationPreviewUpdate(params: {
+  preview: string;
+  senderUid: string;
+  senderFirstName?: string | null;
+  senderRole?: string | null;
+}): Record<string, unknown> {
+  const firstName = params.senderFirstName?.trim() ?? "";
+  const role = params.senderRole?.trim() ?? "";
+  return {
+    [Fields.lastMessageAt]: serverTimestamp(),
+    [Fields.lastMessagePreview]: params.preview,
+    [Fields.lastSenderUid]: params.senderUid,
+    ...(firstName
+      ? { [Fields.lastSenderFirstName]: firstName }
+      : {}),
+    ...(role ? { [Fields.lastSenderRole]: role } : {}),
+    [Fields.updatedAt]: serverTimestamp(),
+  };
+}
+
 /** Parse un document conversation. */
 export function parseChatConversation(
   clubId: string,
@@ -130,6 +154,14 @@ export function parseChatConversation(
     lastSenderUid:
       typeof data[Fields.lastSenderUid] === "string"
         ? data[Fields.lastSenderUid]
+        : null,
+    lastSenderFirstName:
+      typeof data[Fields.lastSenderFirstName] === "string"
+        ? data[Fields.lastSenderFirstName]
+        : null,
+    lastSenderRole:
+      typeof data[Fields.lastSenderRole] === "string"
+        ? data[Fields.lastSenderRole]
         : null,
     createdAt: toDate(data[Fields.createdAt]),
     updatedAt: toDate(data[Fields.updatedAt]),
@@ -170,6 +202,7 @@ export function parseChatMessage(
       typeof data[Fields.deletedByUid] === "string"
         ? data[Fields.deletedByUid]
         : null,
+    editedAt: toDate(data[Fields.editedAt]),
     reactions: parseUidListsMap(data[Fields.reactions]),
     pollQuestion:
       typeof data[Fields.pollQuestion] === "string"
@@ -178,6 +211,18 @@ export function parseChatMessage(
     pollOptions: parsePollOptions(data[Fields.pollOptions]),
     pollVotes: parseUidListsMap(data[Fields.pollVotes]),
     pollAllowMultiple: Boolean(data[Fields.pollAllowMultiple]),
+    replyToMessageId:
+      typeof data[Fields.replyToMessageId] === "string"
+        ? data[Fields.replyToMessageId]
+        : null,
+    replyToText:
+      typeof data[Fields.replyToText] === "string"
+        ? data[Fields.replyToText]
+        : null,
+    replyToSenderUid:
+      typeof data[Fields.replyToSenderUid] === "string"
+        ? data[Fields.replyToSenderUid]
+        : null,
   };
 }
 
@@ -189,6 +234,7 @@ export function parseChatUserState(
   return {
     id,
     muted: Boolean(data[Fields.muted]),
+    favorite: Boolean(data[Fields.favorite]),
     lastReadAt: toDate(data[Fields.lastReadAt]),
     unreadCount: Number(data[Fields.unreadCount] ?? 0) || 0,
   };
@@ -309,7 +355,7 @@ export function watchMessages(params: {
   const q = query(
     messagesCol(params.clubId, params.conversationId),
     orderBy(Fields.createdAt, "desc"),
-    limit(params.messageLimit ?? 50),
+    limit(params.messageLimit ?? DEFAULT_MESSAGE_WINDOW),
   );
   return onSnapshot(
     q,
@@ -326,6 +372,47 @@ export function watchMessages(params: {
     },
     (error) => params.onError?.(error),
   );
+}
+
+const DEFAULT_MESSAGE_WINDOW = 100;
+
+/** Messages plus anciens qu’un curseur (ordre chrono croissant pour l’UI). */
+export async function fetchOlderMessages(params: {
+  clubId: string;
+  conversationId: string;
+  beforeCreatedAt: Date;
+  beforeDocId: string;
+  limit?: number;
+}): Promise<ChatMessage[]> {
+  const pageSize = params.limit ?? 50;
+  const cursorRef = doc(
+    messagesCol(params.clubId, params.conversationId),
+    params.beforeDocId,
+  );
+  const cursorSnap = await getDoc(cursorRef);
+  const q = cursorSnap.exists()
+    ? query(
+        messagesCol(params.clubId, params.conversationId),
+        orderBy(Fields.createdAt, "desc"),
+        startAfter(cursorSnap),
+        limit(pageSize),
+      )
+    : query(
+        messagesCol(params.clubId, params.conversationId),
+        orderBy(Fields.createdAt, "desc"),
+        startAfter(params.beforeCreatedAt),
+        limit(pageSize),
+      );
+  const snap = await getDocs(q);
+  const list = snap.docs.map((docSnap) =>
+    parseChatMessage(
+      params.clubId,
+      params.conversationId,
+      docSnap.id,
+      docSnap.data(),
+    ),
+  );
+  return list.reverse();
 }
 
 /** États mute / unread de l’utilisateur. */
@@ -382,13 +469,33 @@ export function canWriteToConversation(params: {
   }
 }
 
+type ReplyPayload = {
+  replyToMessageId?: string | null;
+  replyToText?: string | null;
+  replyToSenderUid?: string | null;
+};
+
+function replyFields(payload: ReplyPayload): Record<string, string> {
+  const messageId = payload.replyToMessageId?.trim() ?? "";
+  const text = payload.replyToText?.trim() ?? "";
+  const senderUid = payload.replyToSenderUid?.trim() ?? "";
+  if (!messageId || !text || !senderUid) return {};
+  return {
+    [Fields.replyToMessageId]: messageId,
+    [Fields.replyToText]: text,
+    [Fields.replyToSenderUid]: senderUid,
+  };
+}
+
 /** Envoie un message texte et met à jour le preview. */
 export async function sendTextMessage(params: {
   clubId: string;
   conversationId: string;
   senderUid: string;
   text: string;
-}): Promise<void> {
+  senderFirstName?: string | null;
+  senderRole?: string | null;
+} & ReplyPayload): Promise<void> {
   const trimmed = params.text.trim();
   if (!trimmed) return;
   const messageRef = doc(messagesCol(params.clubId, params.conversationId));
@@ -399,13 +506,17 @@ export async function sendTextMessage(params: {
     [Fields.senderUid]: params.senderUid,
     [Fields.createdAt]: serverTimestamp(),
     [Fields.reactions]: {},
+    ...replyFields(params),
   });
-  batch.update(doc(conversationsCol(params.clubId), params.conversationId), {
-    [Fields.lastMessageAt]: serverTimestamp(),
-    [Fields.lastMessagePreview]: previewText(trimmed),
-    [Fields.lastSenderUid]: params.senderUid,
-    [Fields.updatedAt]: serverTimestamp(),
-  });
+  batch.update(
+    doc(conversationsCol(params.clubId), params.conversationId),
+    conversationPreviewUpdate({
+      preview: previewText(trimmed),
+      senderUid: params.senderUid,
+      senderFirstName: params.senderFirstName,
+      senderRole: params.senderRole,
+    }),
+  );
   await batch.commit();
 }
 
@@ -416,31 +527,51 @@ export async function sendImageMessage(params: {
   senderUid: string;
   bytes: ArrayBuffer;
   contentType?: string;
-}): Promise<void> {
+  senderFirstName?: string | null;
+  senderRole?: string | null;
+} & ReplyPayload): Promise<void> {
   const messageRef = doc(messagesCol(params.clubId, params.conversationId));
-  const contentType = params.contentType ?? "image/jpeg";
-  const path = `clubs/${params.clubId}/chat/${params.conversationId}/${params.senderUid}/${messageRef.id}.jpg`;
-  const url = await uploadImageAtPath({
-    path,
-    bytes: params.bytes,
-    contentType,
-  });
+  const prepared = await prepareChatImageUpload(
+    params.bytes,
+    params.contentType,
+  );
+  const basePath = `clubs/${params.clubId}/chat/${params.conversationId}/${params.senderUid}/${messageRef.id}`;
+  const fullPath = `${basePath}.jpg`;
+  const thumbPath = `${basePath}_thumb.jpg`;
+  const [downloadUrl, thumbUrl] = await Promise.all([
+    uploadImageAtPath({
+      path: fullPath,
+      bytes: prepared.fullBytes,
+      contentType: prepared.contentType,
+    }),
+    uploadImageAtPath({
+      path: thumbPath,
+      bytes: prepared.thumbBytes,
+      contentType: "image/jpeg",
+    }),
+  ]);
   const batch = writeBatch(db());
   batch.set(messageRef, {
     [Fields.type]: ChatMessageTypes.image,
-    [Fields.storagePath]: path,
-    [Fields.downloadUrl]: url,
-    [Fields.thumbUrl]: url,
+    [Fields.storagePath]: fullPath,
+    [Fields.downloadUrl]: downloadUrl,
+    [Fields.thumbUrl]: thumbUrl,
+    [Fields.width]: prepared.width,
+    [Fields.height]: prepared.height,
     [Fields.senderUid]: params.senderUid,
     [Fields.createdAt]: serverTimestamp(),
     [Fields.reactions]: {},
+    ...replyFields(params),
   });
-  batch.update(doc(conversationsCol(params.clubId), params.conversationId), {
-    [Fields.lastMessageAt]: serverTimestamp(),
-    [Fields.lastMessagePreview]: "📷 Photo",
-    [Fields.lastSenderUid]: params.senderUid,
-    [Fields.updatedAt]: serverTimestamp(),
-  });
+  batch.update(
+    doc(conversationsCol(params.clubId), params.conversationId),
+    conversationPreviewUpdate({
+      preview: "📷 Photo",
+      senderUid: params.senderUid,
+      senderFirstName: params.senderFirstName,
+      senderRole: params.senderRole,
+    }),
+  );
   await batch.commit();
 }
 
@@ -460,7 +591,25 @@ export async function softDeleteMessage(params: {
   );
 }
 
-/** Crée un sondage (groupes > 2 participants). */
+/** Modifie le texte d’un message (auteur uniquement). */
+export async function editTextMessage(params: {
+  clubId: string;
+  conversationId: string;
+  messageId: string;
+  text: string;
+}): Promise<void> {
+  const trimmed = params.text.trim();
+  if (!trimmed) return;
+  await updateDoc(
+    doc(messagesCol(params.clubId, params.conversationId), params.messageId),
+    {
+      [Fields.text]: trimmed,
+      [Fields.editedAt]: serverTimestamp(),
+    },
+  );
+}
+
+/** Crée un sondage (groupes / canaux — pas les DM 1:1). */
 export async function sendPollMessage(params: {
   clubId: string;
   conversationId: string;
@@ -468,6 +617,8 @@ export async function sendPollMessage(params: {
   question: string;
   optionTexts: string[];
   allowMultiple?: boolean;
+  senderFirstName?: string | null;
+  senderRole?: string | null;
 }): Promise<void> {
   const trimmedQuestion = params.question.trim();
   const options = params.optionTexts
@@ -483,8 +634,12 @@ export async function sendPollMessage(params: {
   const convDoc = await getDoc(
     doc(conversationsCol(params.clubId), params.conversationId),
   );
-  const participants = stringList(convDoc.data()?.[Fields.participantUids]);
-  if (participants.length <= 2) {
+  const convData = convDoc.data();
+  const convType = String(convData?.[Fields.type] ?? "");
+  const participants = stringList(convData?.[Fields.participantUids]);
+  const isDmOnly =
+    convType === ChatConversationTypes.dm && participants.length <= 2;
+  if (isDmOnly) {
     throw new Error("Les sondages sont réservés aux groupes.");
   }
 
@@ -510,12 +665,15 @@ export async function sendPollMessage(params: {
     [Fields.createdAt]: serverTimestamp(),
     [Fields.reactions]: {},
   });
-  batch.update(doc(conversationsCol(params.clubId), params.conversationId), {
-    [Fields.lastMessageAt]: serverTimestamp(),
-    [Fields.lastMessagePreview]: preview,
-    [Fields.lastSenderUid]: params.senderUid,
-    [Fields.updatedAt]: serverTimestamp(),
-  });
+  batch.update(
+    doc(conversationsCol(params.clubId), params.conversationId),
+    conversationPreviewUpdate({
+      preview,
+      senderUid: params.senderUid,
+      senderFirstName: params.senderFirstName,
+      senderRole: params.senderRole,
+    }),
+  );
   await batch.commit();
 }
 
@@ -617,6 +775,43 @@ export async function setMuted(params: {
     },
     { merge: true },
   );
+}
+
+/** Ajoute / retire la conversation des favoris. */
+export async function setFavorite(params: {
+  uid: string;
+  clubId: string;
+  conversationId: string;
+  favorite: boolean;
+}): Promise<void> {
+  const id = chatStateDocId(params.clubId, params.conversationId);
+  await setDoc(
+    doc(chatStateCol(params.uid), id),
+    {
+      [Fields.favorite]: params.favorite,
+      [Fields.updatedAt]: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+/**
+ * Trie l’inbox : favoris en tête, puis date du dernier message.
+ */
+export function sortInboxConversations(
+  conversations: ChatConversation[],
+  chatStates: Record<string, ChatUserState>,
+): ChatConversation[] {
+  const sorted = [...conversations];
+  sorted.sort((a, b) => {
+    const aFav = chatStates[chatStateDocId(a.clubId, a.id)]?.favorite ? 1 : 0;
+    const bFav = chatStates[chatStateDocId(b.clubId, b.id)]?.favorite ? 1 : 0;
+    if (aFav !== bFav) return bFav - aFav;
+    const aAt = a.lastMessageAt?.getTime() ?? a.createdAt?.getTime() ?? 0;
+    const bAt = b.lastMessageAt?.getTime() ?? b.createdAt?.getTime() ?? 0;
+    return bAt - aAt;
+  });
+  return sorted;
 }
 
 /** Marque la conversation comme lue. */

@@ -11,6 +11,11 @@ type MemberAvatarProps = {
   size?: "xs" | "sm" | "md";
   /** Fond initiales : défaut (bleu) ou blanc cassé. */
   tone?: "default" | "offwhite";
+  /**
+   * Si false, pas de `<button>` zoom (à utiliser quand l’avatar est déjà
+   * dans un bouton parent — ex. ligne réaction).
+   */
+  enableZoom?: boolean;
 };
 
 /** Avatar membre (photo / initiales / icône), zoom au clic si photo. */
@@ -20,10 +25,11 @@ export function MemberAvatar({
   hasLinkedAccount,
   size = "md",
   tone = "default",
+  enableZoom = true,
 }: MemberAvatarProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const photoUrl = avatarUrl?.trim() || null;
-  const canZoom = hasLinkedAccount && Boolean(photoUrl);
+  const canZoom = enableZoom && hasLinkedAccount && Boolean(photoUrl);
   const initials = memberInitials(displayName);
 
   const avatar = (

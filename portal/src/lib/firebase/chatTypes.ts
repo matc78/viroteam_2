@@ -25,6 +25,8 @@ export type ChatConversation = {
   lastMessageAt: Date | null;
   lastMessagePreview: string;
   lastSenderUid: string | null;
+  lastSenderFirstName: string | null;
+  lastSenderRole: string | null;
   createdAt: Date | null;
   updatedAt: Date | null;
 };
@@ -45,17 +47,22 @@ export type ChatMessage = {
   createdAt: Date;
   deletedAt: Date | null;
   deletedByUid: string | null;
+  editedAt: Date | null;
   reactions: Record<string, string[]>;
   pollQuestion: string | null;
   pollOptions: ChatPollOption[];
   pollVotes: Record<string, string[]>;
   pollAllowMultiple: boolean;
+  replyToMessageId: string | null;
+  replyToText: string | null;
+  replyToSenderUid: string | null;
 };
 
 /** État chat local (`users/{uid}/chatState/{clubId}_{convId}`). */
 export type ChatUserState = {
   id: string;
   muted: boolean;
+  favorite: boolean;
   lastReadAt: Date | null;
   unreadCount: number;
 };
@@ -71,6 +78,17 @@ export function chatDisplayTitle(conversation: ChatConversation): string {
   const override = conversation.titleOverride?.trim();
   if (override) return override;
   return conversation.title || "Discussion";
+}
+
+/**
+ * True si la conversation est un groupe (pas un DM 1:1).
+ * Les DM coach multi-cibles (`coach_group`) et canaux système comptent comme groupe.
+ */
+export function isGroupConversation(conversation: ChatConversation): boolean {
+  if (conversation.type === ChatConversationTypes.dm) {
+    return conversation.participantUids.length > 2;
+  }
+  return true;
 }
 
 /** Id doc chatState. */

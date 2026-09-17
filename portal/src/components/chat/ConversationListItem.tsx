@@ -1,5 +1,18 @@
 "use client";
 
+import type { CSSProperties } from "react";
+import { ChatIcon } from "@/components/chat/ChatIcons";
+import { RoleBadge } from "@/components/dashboard/RoleBadge";
+import {
+  previewSenderRoleTone,
+  resolveConversationPreviewSender,
+  type ChatPreviewSender,
+} from "@/lib/chat/conversationPreview";
+import {
+  readableTextOnBrand,
+  splitBrandColorHex,
+} from "@/lib/clubSetup/clubBrandColors";
+import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import {
   chatDisplayTitle,
   chatStateDocId,
@@ -13,6 +26,10 @@ type ConversationListItemProps = {
   chatState?: ChatUserState;
   clubName?: string;
   clubColor?: string | null;
+  /** Rôle de l’utilisateur dans le club de cette discussion. */
+  clubRole?: string | null;
+  /** Annuaire fallback `clubId:uid` → prénom + rôle. */
+  previewSenderByKey?: Record<string, ChatPreviewSender>;
   selected?: boolean;
   onSelect: () => void;
 };
@@ -43,13 +60,26 @@ export function ConversationListItem({
   chatState,
   clubName,
   clubColor,
+  clubRole,
+  previewSenderByKey,
   selected = false,
   onSelect,
 }: ConversationListItemProps) {
   const unread = chatState && !chatState.muted ? chatState.unreadCount : 0;
   const muted = chatState?.muted ?? false;
+  const favorite = chatState?.favorite ?? false;
   const title = chatDisplayTitle(conversation);
   const initial = title.trim().slice(0, 1).toUpperCase() || "?";
+  const brand = splitBrandColorHex(
+    clubColor ?? ClubSetupDefaults.brandColorHex,
+  ).primary;
+  const brandText = readableTextOnBrand(brand);
+  const previewSender = resolveConversationPreviewSender(
+    conversation,
+    previewSenderByKey,
+  );
+  const previewText = conversation.lastMessagePreview.trim();
+  const arrowRole = previewSenderRoleTone(previewSender?.role);
 
   return (
     <button
@@ -60,12 +90,10 @@ export function ConversationListItem({
       <span
         className={styles.avatar}
         style={
-          clubColor
-            ? {
-                background: `color-mix(in srgb, ${clubColor.split("+")[0]} 35%, white)`,
-                color: clubColor.split("+")[0],
-              }
-            : undefined
+          {
+            background: `color-mix(in srgb, ${brand} 35%, white)`,
+            color: brand,
+          } as CSSProperties
         }
         aria-hidden
       >
@@ -73,19 +101,63 @@ export function ConversationListItem({
       </span>
       <span className={styles.body}>
         <span className={styles.topRow}>
-          <span className={styles.title}>{title}</span>
+          <span className={styles.title}>
+            {favorite ? (
+              <span className={styles.favMark} aria-label="Favori">
+                <ChatIcon name="favoriteFill" size={12} />
+              </span>
+            ) : null}
+            {title}
+          </span>
           <span className={styles.date}>
             {formatListDate(conversation.lastMessageAt)}
           </span>
         </span>
         <span className={styles.metaRow}>
           {clubName ? (
-            <span className={styles.clubBadge}>{clubName}</span>
+            <span
+              className={styles.clubBadge}
+              style={
+                {
+                  "--club-brand": brand,
+                  "--club-brand-text": brandText,
+                } as CSSProperties
+              }
+            >
+              {clubName}
+            </span>
           ) : null}
-          {muted ? <span className={styles.muteMark}>🔇</span> : null}
+          {clubRole ? (
+            <RoleBadge role={clubRole} size="sm" iconOnly />
+          ) : null}
+          {muted ? (
+            <span className={styles.muteMark} aria-label="Notifications coupées">
+              <ChatIcon name="mute" size={12} />
+            </span>
+          ) : null}
         </span>
         <span className={styles.preview}>
-          {conversation.lastMessagePreview || "Aucun message"}
+          {previewText ? (
+            previewSender ? (
+              <>
+                <span className={styles.previewName}>
+                  {previewSender.firstName}
+                </span>{" "}
+                <span
+                  className={styles.previewArrow}
+                  data-role={arrowRole}
+                  aria-hidden
+                >
+                  →
+                </span>{" "}
+                <span className={styles.previewMessage}>{previewText}</span>
+              </>
+            ) : (
+              previewText
+            )
+          ) : (
+            "Aucun message"
+          )}
         </span>
       </span>
       {unread > 0 ? (

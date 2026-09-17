@@ -14,12 +14,12 @@
 }
 
 .item:hover {
-  background: color-mix(in srgb, var(--color-sport-green) 6%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 6%, white);
 }
 
 .itemSelected {
-  background: color-mix(in srgb, var(--color-sport-green) 12%, white);
-  box-shadow: inset 3px 0 0 var(--color-sport-green);
+  background: color-mix(in srgb, var(--color-primary-500) 10%, white);
+  box-shadow: inset 3px 0 0 var(--color-primary-500);
 }
 
 .itemUnread .title {
@@ -64,6 +64,14 @@
   white-space: nowrap;
 }
 
+.favMark {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.2rem;
+  color: var(--color-sport-orange, #e85d04);
+  vertical-align: -0.1em;
+}
+
 .date {
   flex-shrink: 0;
   font-size: 0.72rem;
@@ -74,15 +82,16 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  flex-wrap: wrap;
 }
 
 .clubBadge {
   display: inline-block;
   max-width: 10rem;
-  padding: 0.05rem 0.4rem;
+  padding: 0.08rem 0.45rem;
   border-radius: 999px;
-  background: var(--color-gray-100);
-  color: var(--color-gray-600);
+  background: var(--club-brand, var(--color-primary-500));
+  color: var(--club-brand-text, #fff);
   font-size: 0.65rem;
   font-weight: 700;
   overflow: hidden;
@@ -91,15 +100,58 @@
 }
 
 .muteMark {
-  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-primary-600);
 }
 
 .preview {
   font-size: 0.78rem;
   color: var(--color-gray-500);
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(100% - 2.25rem),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    #000 0%,
+    #000 calc(100% - 2.25rem),
+    transparent 100%
+  );
+}
+
+.previewName {
+  color: var(--color-gray-600);
+  font-weight: 600;
+}
+
+.previewArrow {
+  font-weight: 700;
+  color: var(--color-role-player);
+}
+
+.previewArrow[data-role="player"] {
+  color: var(--color-role-player);
+}
+
+.previewArrow[data-role="coach"] {
+  color: var(--color-role-coach);
+}
+
+.previewArrow[data-role="admin"] {
+  color: var(--color-role-admin);
+}
+
+.previewArrow[data-role="parent"] {
+  color: var(--color-role-parent);
+}
+
+.previewMessage {
+  color: inherit;
 }
 
 .unreadBadge {
@@ -109,7 +161,7 @@
   padding: 0 0.3rem;
   margin-top: 0.2rem;
   border-radius: 999px;
-  background: var(--color-sport-green);
+  background: var(--color-primary-500);
   color: #fff;
   font-size: 0.68rem;
   font-weight: 800;

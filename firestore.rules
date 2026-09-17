@@ -354,16 +354,25 @@ service cloud.firestore {
 
         allow read: if isConvParticipantFrom(resource.data);
         allow create: if false;
-        allow update: if isConvParticipantFrom(resource.data)
-          && affectedKeys().hasOnly([
-            'titleOverride', 'updatedAt',
-            'lastMessageAt', 'lastMessagePreview', 'lastSenderUid',
-            'lastSenderFirstName', 'lastSenderRole'
-          ]);
+        // Rename : tout participant. Preview inbox : seulement si canWriteMessagesOn.
+        allow update: if isConvParticipantFrom(resource.data) && (
+          affectedKeys().hasOnly(['titleOverride', 'updatedAt'])
+          || (
+            canWriteMessagesOn(resource.data)
+            && affectedKeys().hasOnly([
+              'lastMessageAt', 'lastMessagePreview', 'lastSenderUid',
+              'lastSenderFirstName', 'lastSenderRole', 'updatedAt'
+            ])
+            && (
+              !affectedKeys().hasAny(['lastSenderUid'])
+              || request.resource.data.lastSenderUid == request.auth.uid
+            )
+          )
+        );
         allow delete: if false;
 
         match /messages/{messageId} {
-          /// Listes de votes : inchangées, ou seule la présence de `auth.uid` change.
+          /// Listes de votes / réactions : inchangées, ou seule la présence de `auth.uid` change.
           function uidListDiffersOnlyByMe(oldList, newList) {
             return oldList is list && newList is list
               && (
@@ -374,10 +383,10 @@ service cloud.firestore {
               );
           }
 
-          /// Pour une option `oN`, seuls les votes de l’appelant peuvent bouger.
-          function pollOptionVotesOnlyOwn(oldVotes, newVotes, optionId) {
-            let oldRaw = oldVotes.get(optionId, []);
-            let newRaw = newVotes.get(optionId, []);
+          /// Pour une clé map (option / emoji), seuls les uids de l’appelant peuvent bouger.
+          function mapEntryListOnlyOwn(oldMap, newMap, entryKey) {
+            let oldRaw = oldMap.get(entryKey, []);
+            let newRaw = newMap.get(entryKey, []);
             return uidListDiffersOnlyByMe(
               oldRaw is list ? oldRaw : [],
               newRaw is list ? newRaw : []
@@ -394,18 +403,107 @@ service cloud.firestore {
                 'o0', 'o1', 'o2', 'o3', 'o4', 'o5',
                 'o6', 'o7', 'o8', 'o9', 'o10', 'o11'
               ])
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o0')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o1')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o2')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o3')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o4')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o5')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o6')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o7')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o8')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o9')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o10')
-              && pollOptionVotesOnlyOwn(oldVotes, newVotes, 'o11');
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o0')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o1')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o2')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o3')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o4')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o5')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o6')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o7')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o8')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o9')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o10')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o11');
+          }
+
+          /// Réactions autorisées (aligné picker app). Chaque liste ≠ que par mon uid.
+          function allowedReactionEmojis() {
+            return [
+              '👍', '❤️', '😂', '😮', '😢', '🙏',
+              '🔥', '👏', '🙌', '💪', '🤝', '✌️', '🤞', '👋', '🫡',
+              '😊', '😁', '🤣', '😅', '😉', '😍', '🥰', '😘', '😎',
+              '🤔', '🤨', '😐', '😴', '🤯', '😱', '😤', '😡', '🥺',
+              '😭', '🤗', '🤩', '🥳', '💯', '✨', '⭐', '🎉',
+              '✅', '❌', '⚠️',
+              '💙', '💚', '💛', '🧡', '💜', '🖤', '🤍', '💔',
+              '⚽', '🏀', '🏐', '🏉', '🎾', '🥇', '🏆', '🎯',
+              '⚡', '💡', '📌', '👀', '💬', '📣'
+            ];
+          }
+
+          function onlyOwnReactionsUpdate() {
+            let oldReactions = resource.data.get('reactions', {});
+            let newReactions = request.resource.data.get('reactions', {});
+            let changed = newReactions.diff(oldReactions).affectedKeys();
+            return oldReactions is map && newReactions is map
+              && changed.hasOnly(allowedReactionEmojis())
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '👍')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '❤️')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😂')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😮')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😢')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🙏')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🔥')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '👏')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🙌')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '💪')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤝')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '✌️')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤞')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '👋')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🫡')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😊')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😁')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤣')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😅')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😉')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😍')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🥰')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😘')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😎')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤔')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤨')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😐')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😴')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤯')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😱')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😤')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😡')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🥺')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '😭')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤗')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤩')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🥳')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '💯')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '✨')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '⭐')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🎉')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '✅')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '❌')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '⚠️')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '💙')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '💚')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '💛')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🧡')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '💜')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🖤')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤍')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '💔')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '⚽')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🏀')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🏐')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🏉')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🎾')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🥇')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🏆')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '🎯')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '⚡')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '💡')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '📌')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '👀')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '💬')
+              && mapEntryListOnlyOwn(oldReactions, newReactions, '📣');
           }
 
           allow read: if isConvParticipantFrom(conversationDoc());
@@ -457,6 +555,8 @@ service cloud.firestore {
           allow update: if isConvParticipantFrom(conversationDoc()) && (
             (
               affectedKeys().hasOnly(['reactions'])
+              && resource.data.get('deletedAt', null) == null
+              && onlyOwnReactionsUpdate()
             ) || (
               affectedKeys().hasOnly(['pollVotes'])
               && resource.data.get('type', '') == 'poll'

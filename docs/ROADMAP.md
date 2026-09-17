@@ -122,3 +122,7 @@ Partenariat en cours — flags `helloAssoPaymentsLive` (app) et `NEXT_PUBLIC_HEL
 - Dark mode / i18n multi-langue
 - 2ᵉ parent / grands-parents (schéma prêt, plafond V1 = 1)
 - Compte Auth de l’enfant et relais RSVP (hors parents V1)
+
+## Messagerie — idées
+
+- [ ] **Étiquettes de membre** (tags sous le nom dans un groupe, style WhatsApp) : chacun peut définir une courte étiquette visible par tous (rôle perso, surnom, etc.)

@@ -7,7 +7,9 @@ Messagerie club pour remplacer les liens WhatsApp équipe / parents.
 - Texte + photos + sondages (groupes > 2, style WhatsApp).
 - Conversations système : `team`, `parents`, `staff`, `club`, `category`.
 - DM / groupe coaches : joueurs et parents uniquement vers coaches de leurs équipes ou admins (callable `createCoachDm`).
-- Réactions emoji, soft-delete, mute, rename (`titleOverride`).
+- Réactions emoji, soft-delete, mute, rename (`titleOverride`), favoris (`chatState.favorite`).
+- Reply / citation (`replyToMessageId`, `replyToText`, `replyToSenderUid`).
+- Pagination historique (fenêtre live + « charger plus »).
 - Push 1 notif / message + préférence `chat`.
 - Fin de saison : purge des messages (Storage conservé).
 
@@ -19,8 +21,8 @@ clubs/{clubId}/conversations/{convId}/messages/{msgId}
 users/{uid}/chatState/{clubId}_{convId}
 ```
 
-Storage médias : `clubs/{clubId}/chat/{convId}/{uid}/{messageId}.jpg`
-(uid = uploader ; règles Storage owner-only ; affichage via `downloadUrl` tokenisé)
+Storage médias : `clubs/{clubId}/chat/{convId}/{uid}/{messageId}.jpg` (+ `{messageId}_thumb.png`)
+(uid = uploader ; règles Storage owner-only ; affichage via `downloadUrl` / `thumbUrl` tokenisés)
 
 ## Conversation
 
@@ -55,12 +57,17 @@ Storage médias : `clubs/{clubId}/chat/{convId}/{uid}/{messageId}.jpg`
 | `pollOptions` | `{id, text}[]` (2–12) |
 | `pollVotes` | map optionId → uid[] |
 | `pollAllowMultiple` | bool (défaut false) |
+| `replyToMessageId` | string? | id message cité |
+| `replyToText` | string? | extrait snapshot |
+| `replyToSenderUid` | string? | auteur cité |
 
 Sondages : création uniquement si `participantUids.size > 2`. Vote = update `pollVotes` (transaction client).
 
 ## chatState (par user)
 
-`muted` (bool), `lastReadAt`, `unreadCount`
+`muted` (bool), `favorite` (bool), `lastReadAt`, `unreadCount`
+
+Tri inbox : favoris d’abord, puis `lastMessageAt` desc.
 
 ## Mineurs
 

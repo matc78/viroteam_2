@@ -17,6 +17,8 @@ class ChatConversation {
     this.lastMessageAt,
     this.lastMessagePreview = '',
     this.lastSenderUid,
+    this.lastSenderFirstName,
+    this.lastSenderRole,
     this.createdAt,
     this.updatedAt,
   });
@@ -34,6 +36,8 @@ class ChatConversation {
   final DateTime? lastMessageAt;
   final String lastMessagePreview;
   final String? lastSenderUid;
+  final String? lastSenderFirstName;
+  final String? lastSenderRole;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -47,6 +51,17 @@ class ChatConversation {
   bool get isReadonlyForMembers =>
       writePolicy == ChatWritePolicies.adminsOnly ||
       writePolicy == ChatWritePolicies.coachesAndAdmins;
+
+  /// True si ce n’est pas un DM 1:1 (canaux / groupes).
+  bool get isGroup {
+    if (type == ChatConversationTypes.dm) {
+      return participantUids.length > 2;
+    }
+    return true;
+  }
+
+  /// Sondages autorisés uniquement si plus de 2 participants (règles Firestore).
+  bool get allowsPolls => participantUids.length > 2;
 
   factory ChatConversation.fromFirestore({
     required String clubId,
@@ -69,6 +84,8 @@ class ChatConversation {
       lastMessagePreview:
           data[FirestoreFields.lastMessagePreview] as String? ?? '',
       lastSenderUid: data[FirestoreFields.lastSenderUid] as String?,
+      lastSenderFirstName: data[FirestoreFields.lastSenderFirstName] as String?,
+      lastSenderRole: data[FirestoreFields.lastSenderRole] as String?,
       createdAt: _asDateTime(data[FirestoreFields.createdAt]),
       updatedAt: _asDateTime(data[FirestoreFields.updatedAt]),
     );

@@ -5,10 +5,11 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 
-/// Sheet de création d’un sondage (groupes > 2).
+/// Sheet de création d’un sondage (groupes / canaux).
 Future<void> showCreatePollSheet(
   BuildContext context, {
   required WidgetRef ref,
@@ -84,6 +85,16 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
       ViroSnackBar.show(context, AppCopy.chat.pollNeedOptions);
       return;
     }
+    final user = ref.read(viroUserProvider).value;
+    final clubs = ref.read(userClubsProvider).value ?? const [];
+    final membership = clubs
+        .where((e) => e.club.id == widget.clubId)
+        .map((e) => e.membership)
+        .firstOrNull;
+    final firstName = (user?.firstName.trim().isNotEmpty == true)
+        ? user!.firstName.trim()
+        : (user?.displayName.trim().split(RegExp(r'\s+')).firstOrNull ?? '');
+    final senderRole = membership?.role ?? 'parent';
     setState(() => _busy = true);
     try {
       await ref.read(chatServiceProvider).sendPollMessage(
@@ -93,6 +104,8 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
             question: question,
             optionTexts: options,
             allowMultiple: _allowMultiple,
+            senderFirstName: firstName,
+            senderRole: senderRole,
           );
       if (mounted) Navigator.of(context).pop();
     } catch (_) {

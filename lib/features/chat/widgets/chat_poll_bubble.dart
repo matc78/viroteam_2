@@ -3,6 +3,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/chat/widgets/chat_bubble_timestamp.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
@@ -15,6 +16,8 @@ class ChatPollBubble extends StatelessWidget {
     required this.viewerUid,
     required this.onVote,
     required this.onLongPress,
+    this.onViewVotes,
+    this.borderColor,
   });
 
   final ChatMessage message;
@@ -22,6 +25,8 @@ class ChatPollBubble extends StatelessWidget {
   final String? viewerUid;
   final ValueChanged<String> onVote;
   final VoidCallback onLongPress;
+  final VoidCallback? onViewVotes;
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +50,10 @@ class ChatPollBubble extends StatelessWidget {
           decoration: BoxDecoration(
             color: ViroColors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: ViroColors.primary100),
+            border: Border.all(
+              color: borderColor ?? ViroColors.primary100,
+              width: 1.5,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,7 +67,7 @@ class ChatPollBubble extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    AppCopy.chat.createPoll,
+                    AppCopy.chat.pollLabel,
                     style: theme.labelSmall?.copyWith(
                       color: ViroColors.primary600,
                       fontWeight: FontWeight.w600,
@@ -75,12 +83,22 @@ class ChatPollBubble extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              const SizedBox(height: 4),
+              Text(
+                message.pollAllowMultiple
+                    ? AppCopy.chat.pollAllowMultiple
+                    : AppCopy.chat.pollSingleChoice,
+                style: theme.labelSmall?.copyWith(
+                  color: ViroColors.gray600,
+                ),
+              ),
               const SizedBox(height: ViroSpacing.sm),
               for (final option in message.pollOptions)
                 _PollOptionRow(
                   option: option,
                   voteCount: message.pollVotes[option.id]?.length ?? 0,
                   totalVotes: total,
+                  allowMultiple: message.pollAllowMultiple,
                   selected: viewerUid != null &&
                       message.hasVotedFor(viewerUid!, option.id),
                   onTap: viewerUid == null
@@ -88,12 +106,41 @@ class ChatPollBubble extends StatelessWidget {
                       : () => onVote(option.id),
                 ),
               const SizedBox(height: ViroSpacing.xs),
-              Text(
-                AppCopy.chat.pollVotersLabel(uniqueVoters),
-                style: theme.labelSmall?.copyWith(
-                  color: ViroColors.gray600,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      AppCopy.chat.pollVotersLabel(uniqueVoters),
+                      style: theme.labelSmall?.copyWith(
+                        color: ViroColors.gray600,
+                      ),
+                    ),
+                  ),
+                  ChatBubbleTimestamp(
+                    sentAt: message.createdAt,
+                    edited: message.editedAt != null,
+                  ),
+                ],
               ),
+              if (onViewVotes != null) ...[
+                const SizedBox(height: ViroSpacing.sm),
+                Divider(height: 1, color: ViroColors.primary100),
+                ViroPressable(
+                  onTap: onViewVotes,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: ViroSpacing.sm),
+                    child: Center(
+                      child: Text(
+                        AppCopy.chat.viewVotes,
+                        style: theme.labelLarge?.copyWith(
+                          color: ViroColors.primary600,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -107,6 +154,7 @@ class _PollOptionRow extends StatelessWidget {
     required this.option,
     required this.voteCount,
     required this.totalVotes,
+    required this.allowMultiple,
     required this.selected,
     required this.onTap,
   });
@@ -114,6 +162,7 @@ class _PollOptionRow extends StatelessWidget {
   final ChatPollOption option;
   final int voteCount;
   final int totalVotes;
+  final bool allowMultiple;
   final bool selected;
   final VoidCallback? onTap;
 
@@ -122,6 +171,9 @@ class _PollOptionRow extends StatelessWidget {
     final theme = Theme.of(context).textTheme;
     final ratio = totalVotes <= 0 ? 0.0 : voteCount / totalVotes;
     final percent = totalVotes <= 0 ? 0 : (ratio * 100).round();
+    final marker = allowMultiple
+        ? (selected ? ViroIcons.checkboxOn : ViroIcons.checkboxOff)
+        : (selected ? ViroIcons.radioOn : ViroIcons.radioOff);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: ViroSpacing.xs),
@@ -158,14 +210,14 @@ class _PollOptionRow extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      if (selected) ...[
-                        ViroIcon(
-                          ViroIcons.checkCircle,
-                          size: 18,
-                          color: ViroColors.primary600,
-                        ),
-                        const SizedBox(width: 6),
-                      ],
+                      ViroIcon(
+                        marker,
+                        size: 18,
+                        color: selected
+                            ? ViroColors.primary600
+                            : ViroColors.gray400,
+                      ),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           option.text,

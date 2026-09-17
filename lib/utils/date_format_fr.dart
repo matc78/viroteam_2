@@ -5,6 +5,7 @@ final _dateFormat = DateFormat('EEE dd/MM', 'fr_FR');
 final _weekdayFormat = DateFormat('EEEE', 'fr_FR');
 final _dayMonthFormat = DateFormat('d/MM', 'fr_FR');
 final _timeFormat = DateFormat('HH\'h\'mm', 'fr_FR');
+final _chatMessageTimeFormat = DateFormat('HH:mm', 'fr_FR');
 final _relativeFormat = DateFormat.yMMMd('fr_FR');
 
 String _capitalizeFr(String s) {
@@ -77,6 +78,20 @@ String formatEventTime(String? startTime) {
     return _timeFormat.format(DateTime(2000, 1, 1, h, m));
   }
   return startTime;
+}
+
+/// Heure d’envoi d’un message chat (ex. « 14:25 »).
+String formatChatMessageTime(DateTime date) =>
+    _chatMessageTimeFormat.format(date);
+
+/// Libellé séparateur de jour dans un thread chat.
+String formatChatDaySeparator(DateTime date) {
+  final dayOnly = _dateOnly(date);
+  final today = _dateOnly(DateTime.now());
+  final yesterday = today.subtract(const Duration(days: 1));
+  if (dayOnly == today) return "Aujourd'hui";
+  if (dayOnly == yesterday) return 'Hier';
+  return _capitalizeFr(DateFormat('EEEE d MMMM', 'fr_FR').format(dayOnly));
 }
 
 /// Combine un jour calendaire avec une heure `HH:mm` (nullable).

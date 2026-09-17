@@ -36,6 +36,10 @@ abstract final class ViroIcons {
   static IconData get trash => PhosphorIconsRegular.trash;
   static IconData get check => PhosphorIconsBold.check;
   static IconData get checkCircle => PhosphorIconsFill.checkCircle;
+  static IconData get radioOn => PhosphorIconsFill.radioButton;
+  static IconData get radioOff => PhosphorIconsRegular.circle;
+  static IconData get checkboxOn => PhosphorIconsFill.checkSquare;
+  static IconData get checkboxOff => PhosphorIconsRegular.square;
   static IconData get xCircle => PhosphorIconsFill.xCircle;
   static IconData get search => PhosphorIconsRegular.magnifyingGlass;
   static IconData get copy => PhosphorIconsRegular.copy;
@@ -52,6 +56,7 @@ abstract final class ViroIcons {
   static IconData get payments => PhosphorIconsRegular.currencyEur;
   static IconData get image => PhosphorIconsRegular.image;
   static IconData get poll => PhosphorIconsRegular.chartBar;
+  static IconData get smiley => PhosphorIconsRegular.smiley;
   static IconData get selectAll => PhosphorIconsRegular.selectionAll;
   static IconData get note => PhosphorIconsRegular.notePencil;
   static IconData get block => PhosphorIconsRegular.prohibit;
@@ -61,6 +66,21 @@ abstract final class ViroIcons {
   static IconData get google => PhosphorIconsFill.googleLogo;
   static IconData get share => PhosphorIconsRegular.shareNetwork;
   static IconData get calendarPlus => PhosphorIconsRegular.calendarPlus;
+
+  // Messagerie (menu conversation / actions)
+  static IconData get mute => PhosphorIconsRegular.bellSlash;
+  static IconData get favorite => PhosphorIconsRegular.heart;
+  static IconData get favoriteFill => PhosphorIconsFill.heart;
+  static IconData get pin => PhosphorIconsRegular.pushPin;
+  static IconData get attachment => PhosphorIconsRegular.paperclip;
+  static IconData get exportChat => PhosphorIconsRegular.downloadSimple;
+  static IconData get clearChat => PhosphorIconsRegular.minusCircle;
+  static IconData get selectMessages => PhosphorIconsRegular.checkSquare;
+  /// Proxy « messages éphémères » (pas d’équivalent 1:1 WhatsApp dans Phosphor).
+  static IconData get ephemeral => PhosphorIconsRegular.timer;
+  /// Proxy « ajouter à une liste ».
+  static IconData get addToList => PhosphorIconsRegular.listPlus;
+  static IconData get leaveGroup => PhosphorIconsRegular.signOut;
 
   // Rôles (badges)
   static IconData get rolePlayer => PhosphorIconsFill.soccerBall;
@@ -115,6 +135,23 @@ abstract final class ViroIcons {
             ('copy', copy),
             ('info', info),
             ('poll', poll),
+          ],
+        ),
+        ViroIconCatalogGroup(
+          title: 'Messagerie',
+          icons: [
+            ('mute', mute),
+            ('favorite', favorite),
+            ('favoriteFill', favoriteFill),
+            ('pin', pin),
+            ('attachment', attachment),
+            ('exportChat', exportChat),
+            ('clearChat', clearChat),
+            ('selectMessages', selectMessages),
+            ('ephemeral', ephemeral),
+            ('addToList', addToList),
+            ('leaveGroup', leaveGroup),
+            ('block', block),
           ],
         ),
         ViroIconCatalogGroup(

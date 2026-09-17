@@ -71,6 +71,7 @@ flutter:
     - assets/icons/
     - assets/sons/
     - assets/branding/
+    - assets/images/chat/
 
   fonts:
     - family: Inter

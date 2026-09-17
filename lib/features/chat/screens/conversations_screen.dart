@@ -10,23 +10,64 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/features/chat/widgets/new_conversation_sheet.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
+import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/chat_service.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/conversation_list_tile.dart';
 
 /// Liste multi-clubs des conversations.
-class ConversationsScreen extends ConsumerWidget {
+class ConversationsScreen extends ConsumerStatefulWidget {
   const ConversationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConversationsScreen> createState() =>
+      _ConversationsScreenState();
+}
+
+class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() => _query = _searchController.text.trim().toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  bool _matchesQuery(
+    ChatConversation conv, {
+    required String clubName,
+  }) {
+    if (_query.isEmpty) return true;
+    final haystack = [
+      conv.displayTitle,
+      clubName,
+      conv.lastMessagePreview,
+      conv.lastSenderFirstName ?? '',
+    ].join(' ').toLowerCase();
+    return haystack.contains(_query);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final inboxAsync = ref.watch(chatInboxProvider);
     final states = ref.watch(chatStatesProvider).value ?? const {};
     final clubs = ref.watch(userClubsProvider).value ?? const [];
     final clubById = {for (final e in clubs) e.club.id: e.club};
+    final previewSenders =
+        ref.watch(chatPreviewSendersProvider).value ?? const {};
     final isAdminSomewhere = clubs.any(
       (e) => e.membership?.role == MemberRoles.admin,
     );
@@ -48,57 +89,112 @@ class ConversationsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: inboxAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(child: Text(AppCopy.chat.loadError)),
-        data: (conversations) {
-          if (conversations.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(ViroSpacing.lg),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      AppCopy.chat.emptyInbox,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: ViroSpacing.sm),
-                    Text(
-                      AppCopy.chat.emptyInboxHint,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: ViroColors.gray600,
-                          ),
-                    ),
-                  ],
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              ViroSpacing.screenHorizontal,
+              ViroSpacing.sm,
+              ViroSpacing.screenHorizontal,
+              ViroSpacing.xs,
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: AppCopy.chat.searchConversationsHint,
+                prefixIcon: ViroIcon(
+                  ViroIcons.search,
+                  color: ViroColors.primary600,
+                ),
+                filled: true,
+                fillColor: ViroColors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
               ),
-            );
-          }
-          return ListView.separated(
-            itemCount: conversations.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final conv = conversations[index];
-              final club = clubById[conv.clubId];
-              final stateId = ChatUserState.docId(conv.clubId, conv.id);
-              return ConversationListTile(
-                conversation: conv,
-                clubName: club?.name ?? conv.clubId,
-                clubColor: clubAccentColor(
-                  brandColorHex: club?.brandColorHex,
-                  clubId: conv.clubId,
-                ),
-                state: states[stateId],
-                onTap: () => context.push(
-                  AppRoutes.conversationPath(conv.clubId, conv.id),
-                ),
-              );
-            },
-          );
-        },
+            ),
+          ),
+          Expanded(
+            child: inboxAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => Center(child: Text(AppCopy.chat.loadError)),
+              data: (conversations) {
+                if (conversations.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(ViroSpacing.lg),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            AppCopy.chat.emptyInbox,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: ViroSpacing.sm),
+                          Text(
+                            AppCopy.chat.emptyInboxHint,
+                            textAlign: TextAlign.center,
+                            style:
+                                Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: ViroColors.gray600,
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                final sorted = ChatService.sortInboxConversations(
+                  conversations,
+                  states,
+                );
+                final filtered = sorted.where((conv) {
+                  final club = clubById[conv.clubId];
+                  return _matchesQuery(
+                    conv,
+                    clubName: club?.name ?? conv.clubId,
+                  );
+                }).toList();
+                if (filtered.isEmpty) {
+                  return Center(child: Text(AppCopy.chat.searchNoResults));
+                }
+                return ListView.separated(
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final conv = filtered[index];
+                    final club = clubById[conv.clubId];
+                    final stateId = ChatUserState.docId(conv.clubId, conv.id);
+                    final senderUid = conv.lastSenderUid;
+                    final resolved = senderUid == null
+                        ? null
+                        : previewSenders['${conv.clubId}|$senderUid'];
+                    return ConversationListTile(
+                      conversation: conv,
+                      clubName: club?.name ?? conv.clubId,
+                      clubColor: clubAccentColor(
+                        brandColorHex: club?.brandColorHex,
+                        clubId: conv.clubId,
+                      ),
+                      state: states[stateId],
+                      previewFirstName: resolved?.firstName,
+                      previewSenderRole: resolved?.role,
+                      onTap: () => context.push(
+                        AppRoutes.conversationPath(conv.clubId, conv.id),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => showNewConversationSheet(context, ref),

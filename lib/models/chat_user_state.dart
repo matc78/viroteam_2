@@ -6,12 +6,14 @@ class ChatUserState {
   const ChatUserState({
     required this.id,
     this.muted = false,
+    this.favorite = false,
     this.lastReadAt,
     this.unreadCount = 0,
   });
 
   final String id;
   final bool muted;
+  final bool favorite;
   final DateTime? lastReadAt;
   final int unreadCount;
 
@@ -25,6 +27,7 @@ class ChatUserState {
     return ChatUserState(
       id: doc.id,
       muted: data[FirestoreFields.muted] as bool? ?? false,
+      favorite: data[FirestoreFields.favorite] as bool? ?? false,
       lastReadAt: _asDateTime(data[FirestoreFields.lastReadAt]),
       unreadCount: (data[FirestoreFields.unreadCount] as num?)?.toInt() ?? 0,
     );

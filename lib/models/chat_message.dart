@@ -41,11 +41,15 @@ class ChatMessage {
     this.height,
     this.deletedAt,
     this.deletedByUid,
+    this.editedAt,
     this.reactions = const {},
     this.pollQuestion,
     this.pollOptions = const [],
     this.pollVotes = const {},
     this.pollAllowMultiple = false,
+    this.replyToMessageId,
+    this.replyToText,
+    this.replyToSenderUid,
   });
 
   final String id;
@@ -62,6 +66,7 @@ class ChatMessage {
   final DateTime createdAt;
   final DateTime? deletedAt;
   final String? deletedByUid;
+  final DateTime? editedAt;
   final Map<String, List<String>> reactions;
 
   /// Question du sondage (`type == poll`).
@@ -76,9 +81,22 @@ class ChatMessage {
   /// Si true, plusieurs options peuvent être cochées.
   final bool pollAllowMultiple;
 
+  /// Id du message cité (reply).
+  final String? replyToMessageId;
+
+  /// Extrait du message cité.
+  final String? replyToText;
+
+  /// Auteur du message cité.
+  final String? replyToSenderUid;
+
   bool get isDeleted => deletedAt != null;
 
   bool get isPoll => type == ChatMessageTypes.poll;
+
+  bool get hasReply =>
+      (replyToMessageId ?? '').isNotEmpty &&
+      (replyToText ?? '').trim().isNotEmpty;
 
   /// Total de votes (toutes options).
   int get pollTotalVotes {
@@ -133,12 +151,16 @@ class ChatMessage {
       createdAt: _asDateTime(data[FirestoreFields.createdAt]) ?? DateTime.now(),
       deletedAt: _asDateTime(data[FirestoreFields.deletedAt]),
       deletedByUid: data[FirestoreFields.deletedByUid] as String?,
+      editedAt: _asDateTime(data[FirestoreFields.editedAt]),
       reactions: _parseUidListsMap(data[FirestoreFields.reactions]),
       pollQuestion: data[FirestoreFields.pollQuestion] as String?,
       pollOptions: _parsePollOptions(data[FirestoreFields.pollOptions]),
       pollVotes: _parseUidListsMap(data[FirestoreFields.pollVotes]),
       pollAllowMultiple:
           data[FirestoreFields.pollAllowMultiple] as bool? ?? false,
+      replyToMessageId: data[FirestoreFields.replyToMessageId] as String?,
+      replyToText: data[FirestoreFields.replyToText] as String?,
+      replyToSenderUid: data[FirestoreFields.replyToSenderUid] as String?,
     );
   }
 }

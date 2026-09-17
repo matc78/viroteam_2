@@ -47,6 +47,40 @@ final chatInboxProvider = StreamProvider<List<ChatConversation>>((ref) {
   return ref.watch(chatServiceProvider).watchInbox(uid: uid, clubIds: clubIds);
 });
 
+/// Annuaire `clubId|uid` → (prénom, rôle) pour les previews inbox.
+final chatPreviewSendersProvider =
+    FutureProvider<Map<String, ({String firstName, String role})>>((ref) async {
+  final clubIds = ref.watch(chatClubIdsProvider);
+  if (clubIds.isEmpty) return const {};
+  final memberService = ref.read(memberServiceProvider);
+  final out = <String, ({String firstName, String role})>{};
+  await Future.wait(
+    clubIds.map((clubId) async {
+      try {
+        final members =
+            await memberService.watchClubMembers(clubId).first;
+        for (final member in members) {
+          final accountUid = member.accountUid;
+          if (accountUid == null || accountUid.isEmpty) continue;
+          final fromFirst = member.firstName?.trim() ?? '';
+          final firstName = fromFirst.isNotEmpty
+              ? fromFirst
+              : (member.displayName?.trim().split(RegExp(r'\s+')).firstOrNull ??
+                  '');
+          if (firstName.isEmpty) continue;
+          out['$clubId|$accountUid'] = (
+            firstName: firstName,
+            role: member.role,
+          );
+        }
+      } catch (_) {
+        // Best-effort pour la preview.
+      }
+    }),
+  );
+  return out;
+});
+
 /// États mute / unread.
 final chatStatesProvider = StreamProvider<Map<String, ChatUserState>>((ref) {
   final uid = _uidOf(ref);
@@ -75,6 +109,17 @@ final chatMessagesProvider = StreamProvider.family<
   return ref.watch(chatServiceProvider).watchMessages(
         clubId: key.clubId,
         conversationId: key.conversationId,
+      );
+});
+
+/// Un message précis (ex. détails sondage hors fenêtre live).
+final chatMessageProvider = StreamProvider.family<
+    ChatMessage?,
+    ({String clubId, String conversationId, String messageId})>((ref, key) {
+  return ref.watch(chatServiceProvider).watchMessage(
+        clubId: key.clubId,
+        conversationId: key.conversationId,
+        messageId: key.messageId,
       );
 });
 

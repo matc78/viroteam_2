@@ -19,6 +19,18 @@ ViroRole viroRoleFromMemberRole(String role) => switch (role) {
       _ => ViroRole.player,
     };
 
+/// Mappe un rôle chat (`player` | `coach` | `admin` | `parent`) vers le badge UI.
+ViroRole viroRoleFromChatSenderRole(String role) => switch (role) {
+      MemberRoles.admin => ViroRole.admin,
+      MemberRoles.coach => ViroRole.coach,
+      'parent' => ViroRole.parent,
+      _ => ViroRole.player,
+    };
+
+/// Couleur de bordure des bulles de discussion selon le rôle de l’expéditeur.
+Color chatBubbleBorderForRole(String role) =>
+    RoleBadgeVisual.forRole(viroRoleFromChatSenderRole(role)).end;
+
 /// Badge de rôle coloré (joueur, entraîneur, parent, admin).
 class ViroRoleBadge extends StatelessWidget {
   const ViroRoleBadge({

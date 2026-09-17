@@ -357,7 +357,8 @@ service cloud.firestore {
         allow update: if isConvParticipantFrom(resource.data)
           && affectedKeys().hasOnly([
             'titleOverride', 'updatedAt',
-            'lastMessageAt', 'lastMessagePreview', 'lastSenderUid'
+            'lastMessageAt', 'lastMessagePreview', 'lastSenderUid',
+            'lastSenderFirstName', 'lastSenderRole'
           ]);
         allow delete: if false;
 
@@ -432,8 +433,27 @@ service cloud.firestore {
                 && request.resource.data.get('pollVotes', {}) is map
                 && request.resource.data.get('pollAllowMultiple', false) is bool
               )
+            )
+            && (
+              !('replyToMessageId' in request.resource.data)
+              || (
+                request.resource.data.replyToMessageId is string
+                && request.resource.data.replyToMessageId.size() > 0
+                && request.resource.data.replyToMessageId.size() <= 128
+                && request.resource.data.get('replyToText', '') is string
+                && request.resource.data.replyToText.size() > 0
+                && request.resource.data.replyToText.size() <= 200
+                && (
+                  !('replyToSenderUid' in request.resource.data)
+                  || (
+                    request.resource.data.replyToSenderUid is string
+                    && request.resource.data.replyToSenderUid.size() > 0
+                    && request.resource.data.replyToSenderUid.size() <= 128
+                  )
+                )
+              )
             );
-          // Soft-delete, réactions, ou vote sondage (pollVotes seul, uid propre).
+          // Soft-delete, édition texte (auteur), réactions, ou vote sondage.
           allow update: if isConvParticipantFrom(conversationDoc()) && (
             (
               affectedKeys().hasOnly(['reactions'])
@@ -451,6 +471,14 @@ service cloud.firestore {
                 request.auth.uid == resource.data.senderUid
                 || isClubCoachOrAdmin(clubId)
               )
+            ) || (
+              affectedKeys().hasOnly(['text', 'editedAt'])
+              && resource.data.get('deletedAt', null) == null
+              && resource.data.get('type', '') == 'text'
+              && request.auth.uid == resource.data.senderUid
+              && request.resource.data.text is string
+              && request.resource.data.text.size() > 0
+              && request.resource.data.text.size() <= 4000
             )
           );
           allow delete: if false;

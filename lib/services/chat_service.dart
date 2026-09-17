@@ -8,6 +8,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
+import 'package:viro_team_v2/utils/chat_image_prepare.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
@@ -127,6 +128,24 @@ class ChatService {
     });
   }
 
+  /// Un message précis (hors fenêtre live du thread).
+  Stream<ChatMessage?> watchMessage({
+    required String clubId,
+    required String conversationId,
+    required String messageId,
+  }) {
+    return _messages(clubId, conversationId).doc(messageId).snapshots().map(
+      (doc) {
+        if (!doc.exists) return null;
+        return ChatMessage.fromFirestore(
+          clubId: clubId,
+          conversationId: conversationId,
+          doc: doc,
+        );
+      },
+    );
+  }
+
   /// États chat de l’utilisateur (mute / unread).
   Stream<Map<String, ChatUserState>> watchChatStates(String uid) {
     return _chatState(uid).snapshots().map((snap) {
@@ -144,17 +163,36 @@ class ChatService {
     required String conversationId,
     required String senderUid,
     required String text,
+    String? senderFirstName,
+    String? senderRole,
+    String? replyToMessageId,
+    String? replyToText,
+    String? replyToSenderUid,
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
     final ref = _messages(clubId, conversationId).doc();
     final batch = _db.batch();
+    final replyId = replyToMessageId?.trim();
+    final replyPreview = replyToText?.trim();
+    final replySender = replyToSenderUid?.trim();
     batch.set(ref, {
       FirestoreFields.type: ChatMessageTypes.text,
       FirestoreFields.text: trimmed,
       FirestoreFields.senderUid: senderUid,
       FirestoreFields.createdAt: FieldValue.serverTimestamp(),
       FirestoreFields.reactions: <String, dynamic>{},
+      if (replyId != null &&
+          replyId.isNotEmpty &&
+          replyPreview != null &&
+          replyPreview.isNotEmpty) ...{
+        FirestoreFields.replyToMessageId: replyId,
+        FirestoreFields.replyToText: replyPreview.length > 140
+            ? '${replyPreview.substring(0, 137)}…'
+            : replyPreview,
+        if (replySender != null && replySender.isNotEmpty)
+          FirestoreFields.replyToSenderUid: replySender,
+      },
     });
     batch.update(_conversations(clubId).doc(conversationId), {
       FirestoreFields.lastMessageAt: FieldValue.serverTimestamp(),
@@ -162,46 +200,111 @@ class ChatService {
           ? '${trimmed.substring(0, 117)}…'
           : trimmed,
       FirestoreFields.lastSenderUid: senderUid,
+      if (senderFirstName != null && senderFirstName.trim().isNotEmpty)
+        FirestoreFields.lastSenderFirstName: senderFirstName.trim(),
+      if (senderRole != null && senderRole.trim().isNotEmpty)
+        FirestoreFields.lastSenderRole: senderRole.trim(),
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     });
     await batch.commit();
   }
 
-  /// Upload photo puis crée le message image.
+  /// Upload photo puis crée le message image (full + thumb).
   Future<void> sendImageMessage({
     required String clubId,
     required String conversationId,
     required String senderUid,
     required Uint8List bytes,
     String contentType = 'image/jpeg',
+    String? senderFirstName,
+    String? senderRole,
+    String? replyToMessageId,
+    String? replyToText,
+    String? replyToSenderUid,
   }) async {
+    final prepared = await prepareChatImageUpload(bytes);
     final ref = _messages(clubId, conversationId).doc();
     // Segment uid : Storage rules ne peuvent pas lire v2-dev/v2-prod.
     final path =
         'clubs/$clubId/chat/$conversationId/$senderUid/${ref.id}.jpg';
+    final thumbPath =
+        'clubs/$clubId/chat/$conversationId/$senderUid/${ref.id}_thumb.png';
     final storageRef = _storage.ref().child(path);
+    final thumbRef = _storage.ref().child(thumbPath);
     await storageRef.putData(
-      bytes,
+      prepared.fullBytes,
       SettableMetadata(contentType: contentType),
     );
+    await thumbRef.putData(
+      prepared.thumbBytes,
+      SettableMetadata(contentType: prepared.thumbContentType),
+    );
     final url = await storageRef.getDownloadURL();
+    final thumbUrl = await thumbRef.getDownloadURL();
     final batch = _db.batch();
+    final replyId = replyToMessageId?.trim();
+    final replyPreview = replyToText?.trim();
+    final replySender = replyToSenderUid?.trim();
     batch.set(ref, {
       FirestoreFields.type: ChatMessageTypes.image,
       FirestoreFields.storagePath: path,
       FirestoreFields.downloadUrl: url,
-      FirestoreFields.thumbUrl: url,
+      FirestoreFields.thumbUrl: thumbUrl,
+      FirestoreFields.width: prepared.width,
+      FirestoreFields.height: prepared.height,
       FirestoreFields.senderUid: senderUid,
       FirestoreFields.createdAt: FieldValue.serverTimestamp(),
       FirestoreFields.reactions: <String, dynamic>{},
+      if (replyId != null &&
+          replyId.isNotEmpty &&
+          replyPreview != null &&
+          replyPreview.isNotEmpty) ...{
+        FirestoreFields.replyToMessageId: replyId,
+        FirestoreFields.replyToText: replyPreview.length > 140
+            ? '${replyPreview.substring(0, 137)}…'
+            : replyPreview,
+        if (replySender != null && replySender.isNotEmpty)
+          FirestoreFields.replyToSenderUid: replySender,
+      },
     });
     batch.update(_conversations(clubId).doc(conversationId), {
       FirestoreFields.lastMessageAt: FieldValue.serverTimestamp(),
       FirestoreFields.lastMessagePreview: '📷 Photo',
       FirestoreFields.lastSenderUid: senderUid,
+      if (senderFirstName != null && senderFirstName.trim().isNotEmpty)
+        FirestoreFields.lastSenderFirstName: senderFirstName.trim(),
+      if (senderRole != null && senderRole.trim().isNotEmpty)
+        FirestoreFields.lastSenderRole: senderRole.trim(),
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     });
     await batch.commit();
+  }
+
+  /// Charge une page de messages plus anciens que [beforeMessageId].
+  Future<List<ChatMessage>> fetchOlderMessages({
+    required String clubId,
+    required String conversationId,
+    required String beforeMessageId,
+    int limit = 50,
+  }) async {
+    final beforeSnap =
+        await _messages(clubId, conversationId).doc(beforeMessageId).get();
+    if (!beforeSnap.exists) return const [];
+    final snap = await _messages(clubId, conversationId)
+        .orderBy(FirestoreFields.createdAt, descending: true)
+        .startAfterDocument(beforeSnap)
+        .limit(limit)
+        .get();
+    final list = snap.docs
+        .map(
+          (doc) => ChatMessage.fromFirestore(
+            clubId: clubId,
+            conversationId: conversationId,
+            doc: doc,
+          ),
+        )
+        .toList();
+    return list.reversed.toList();
   }
 
   /// Soft-delete d’un message.
@@ -217,7 +320,42 @@ class ChatService {
     });
   }
 
-  /// Crée un sondage (groupes avec plus de 2 participants uniquement).
+  /// Modifie le texte d’un message (auteur uniquement).
+  ///
+  /// Si le message édité est le dernier, met aussi à jour `lastMessagePreview`.
+  Future<void> editTextMessage({
+    required String clubId,
+    required String conversationId,
+    required String messageId,
+    required String text,
+  }) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+    final preview = trimmed.length > 120
+        ? '${trimmed.substring(0, 117)}…'
+        : trimmed;
+    final messageRef = _messages(clubId, conversationId).doc(messageId);
+    final latestSnap = await _messages(clubId, conversationId)
+        .orderBy(FirestoreFields.createdAt, descending: true)
+        .limit(1)
+        .get();
+    final isLatest =
+        latestSnap.docs.isNotEmpty && latestSnap.docs.first.id == messageId;
+    final batch = _db.batch();
+    batch.update(messageRef, {
+      FirestoreFields.text: trimmed,
+      FirestoreFields.editedAt: FieldValue.serverTimestamp(),
+    });
+    if (isLatest) {
+      batch.update(_conversations(clubId).doc(conversationId), {
+        FirestoreFields.lastMessagePreview: preview,
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  /// Crée un sondage (groupes / canaux — pas les DM 1:1).
   Future<void> sendPollMessage({
     required String clubId,
     required String conversationId,
@@ -225,6 +363,8 @@ class ChatService {
     required String question,
     required List<String> optionTexts,
     bool allowMultiple = false,
+    String? senderFirstName,
+    String? senderRole,
   }) async {
     final trimmedQuestion = question.trim();
     final options = optionTexts
@@ -239,13 +379,15 @@ class ChatService {
     }
 
     final convSnap = await _conversations(clubId).doc(conversationId).get();
-    final participants = (convSnap.data()?[FirestoreFields.participantUids]
+    final convData = convSnap.data();
+    final participants = (convData?[FirestoreFields.participantUids]
                 as List<dynamic>?)
             ?.whereType<String>()
             .toList() ??
         const <String>[];
+    // Aligné règles Firestore : `participantUids.size() > 2`.
     if (participants.length <= 2) {
-      throw StateError('Les sondages sont réservés aux groupes.');
+      throw StateError('Les sondages sont réservés aux groupes (> 2).');
     }
 
     final pollOptions = <Map<String, dynamic>>[];
@@ -276,6 +418,10 @@ class ChatService {
           ? '${preview.substring(0, 117)}…'
           : preview,
       FirestoreFields.lastSenderUid: senderUid,
+      if (senderFirstName != null && senderFirstName.trim().isNotEmpty)
+        FirestoreFields.lastSenderFirstName: senderFirstName.trim(),
+      if (senderRole != null && senderRole.trim().isNotEmpty)
+        FirestoreFields.lastSenderRole: senderRole.trim(),
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     });
     await batch.commit();
@@ -397,6 +543,47 @@ class ChatService {
       FirestoreFields.muted: muted,
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  /// Ajoute / retire la conversation des favoris.
+  Future<void> setFavorite({
+    required String uid,
+    required String clubId,
+    required String conversationId,
+    required bool favorite,
+  }) async {
+    final id = ChatUserState.docId(clubId, conversationId);
+    await _chatState(uid).doc(id).set({
+      FirestoreFields.favorite: favorite,
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Trie l’inbox : favoris en tête, puis date du dernier message.
+  static List<ChatConversation> sortInboxConversations(
+    List<ChatConversation> conversations,
+    Map<String, ChatUserState> chatStates,
+  ) {
+    final sorted = [...conversations];
+    sorted.sort((a, b) {
+      final aFav =
+          chatStates[ChatUserState.docId(a.clubId, a.id)]?.favorite == true
+              ? 1
+              : 0;
+      final bFav =
+          chatStates[ChatUserState.docId(b.clubId, b.id)]?.favorite == true
+              ? 1
+              : 0;
+      if (aFav != bFav) return bFav - aFav;
+      final aAt = a.lastMessageAt?.millisecondsSinceEpoch ??
+          a.createdAt?.millisecondsSinceEpoch ??
+          0;
+      final bAt = b.lastMessageAt?.millisecondsSinceEpoch ??
+          b.createdAt?.millisecondsSinceEpoch ??
+          0;
+      return bAt.compareTo(aAt);
+    });
+    return sorted;
   }
 
   /// Marque la conversation comme lue.

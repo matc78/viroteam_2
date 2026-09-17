@@ -224,6 +224,8 @@ abstract final class FirestoreFields {
   static const String lastMessageAt = 'lastMessageAt';
   static const String lastMessagePreview = 'lastMessagePreview';
   static const String lastSenderUid = 'lastSenderUid';
+  static const String lastSenderFirstName = 'lastSenderFirstName';
+  static const String lastSenderRole = 'lastSenderRole';
   static const String categoryKey = 'categoryKey';
 
   // messages
@@ -234,6 +236,7 @@ abstract final class FirestoreFields {
   static const String height = 'height';
   static const String deletedAt = 'deletedAt';
   static const String deletedByUid = 'deletedByUid';
+  static const String editedAt = 'editedAt';
   static const String reactions = 'reactions';
   static const String senderUid = 'senderUid';
   static const String text = 'text';
@@ -241,9 +244,13 @@ abstract final class FirestoreFields {
   static const String pollOptions = 'pollOptions';
   static const String pollVotes = 'pollVotes';
   static const String pollAllowMultiple = 'pollAllowMultiple';
+  static const String replyToMessageId = 'replyToMessageId';
+  static const String replyToText = 'replyToText';
+  static const String replyToSenderUid = 'replyToSenderUid';
 
   // users/{uid}/chatState/{clubId}_{convId}
   static const String muted = 'muted';
+  static const String favorite = 'favorite';
   static const String lastReadAt = 'lastReadAt';
   static const String unreadCount = 'unreadCount';
 }

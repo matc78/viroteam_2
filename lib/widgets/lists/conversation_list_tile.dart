@@ -5,8 +5,9 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
-/// Tuile inbox : titre, preview, nom club gris, accent couleur club.
+/// Tuile inbox : titre, preview « prénom → message », accent couleur club.
 class ConversationListTile extends StatelessWidget {
   const ConversationListTile({
     super.key,
@@ -15,6 +16,8 @@ class ConversationListTile extends StatelessWidget {
     required this.clubColor,
     required this.onTap,
     this.state,
+    this.previewFirstName,
+    this.previewSenderRole,
   });
 
   final ChatConversation conversation;
@@ -23,11 +26,30 @@ class ConversationListTile extends StatelessWidget {
   final VoidCallback onTap;
   final ChatUserState? state;
 
+  /// Prénom de l’auteur du dernier message (persisté ou résolu).
+  final String? previewFirstName;
+
+  /// Rôle de l’auteur (`player` | `coach` | `admin` | `parent`).
+  final String? previewSenderRole;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
     final unread = state?.unreadCount ?? 0;
     final muted = state?.muted ?? false;
+    final favorite = state?.favorite ?? false;
+    final preview = conversation.lastMessagePreview.trim();
+    final firstName = (previewFirstName ??
+            conversation.lastSenderFirstName ??
+            '')
+        .trim();
+    final role = (previewSenderRole ?? conversation.lastSenderRole ?? '')
+        .trim();
+    final arrowColor = chatBubbleBorderForRole(role.isEmpty ? 'player' : role);
+    final previewStyle = theme.bodySmall?.copyWith(
+      color: ViroColors.gray600,
+      fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.w400,
+    );
 
     return ViroPressable(
       onTap: onTap,
@@ -66,11 +88,19 @@ class ConversationListTile extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (favorite) ...[
+                        ViroIcon(
+                          ViroIcons.favoriteFill,
+                          size: 16,
+                          color: ViroColors.error,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
                       if (muted)
                         ViroIcon(
-                          ViroIcons.bell,
+                          ViroIcons.mute,
                           size: 16,
-                          color: ViroColors.gray400,
+                          color: ViroColors.primary600,
                         ),
                       if (unread > 0) ...[
                         const SizedBox(width: 6),
@@ -106,24 +136,87 @@ class ConversationListTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    conversation.lastMessagePreview.isEmpty
-                        ? '—'
-                        : conversation.lastMessagePreview,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
-                      fontWeight:
-                          unread > 0 ? FontWeight.w600 : FontWeight.w400,
+                  if (preview.isEmpty)
+                    Text('—', maxLines: 1, style: previewStyle)
+                  else
+                    _FadingPreviewLine(
+                      child: firstName.isEmpty
+                          ? Text(
+                              preview,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.clip,
+                              style: previewStyle,
+                            )
+                          : Text.rich(
+                              TextSpan(
+                                style: previewStyle,
+                                children: [
+                                  TextSpan(
+                                    text: firstName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: ViroColors.gray600,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: ' → ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: arrowColor,
+                                    ),
+                                  ),
+                                  TextSpan(text: preview),
+                                ],
+                              ),
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.clip,
+                            ),
                     ),
-                  ),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Preview inbox tronquée avec fondu à droite (pas de « … »).
+class _FadingPreviewLine extends StatelessWidget {
+  const _FadingPreviewLine({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        return ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) {
+            final fadeStart =
+                ((maxWidth - 36) / maxWidth).clamp(0.0, 1.0);
+            return LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: const [
+                Color(0xFF000000),
+                Color(0xFF000000),
+                Color(0x00000000),
+              ],
+              stops: [0.0, fadeStart, 1.0],
+            ).createShader(Offset.zero & Size(maxWidth, bounds.height));
+          },
+          child: SizedBox(
+            width: maxWidth,
+            child: child,
+          ),
+        );
+      },
     );
   }
 }

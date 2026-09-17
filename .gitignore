@@ -59,6 +59,11 @@ app.*.map.json
 .fvm/versions
 .fvm/release
 
+# npm à la racine (ne pas installer ici — deps dans portal/ / functions/)
+/node_modules/
+/package.json
+/package-lock.json
+
 # Cloud Functions
 functions/node_modules/
 functions/lib/

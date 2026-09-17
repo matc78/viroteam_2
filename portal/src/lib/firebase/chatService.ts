@@ -25,7 +25,6 @@ import {
   ensureClubChatSynced as ensureClubChatSyncedCallable,
 } from "./callableService";
 import {
-  ChatConversationTypes,
   ChatMessageTypes,
   ChatWritePolicies,
   Collections,
@@ -33,6 +32,7 @@ import {
   MemberRoles,
 } from "./constants";
 import { prepareChatImageUpload } from "@/lib/chat/createImageThumbnail";
+import { isAllowedReactionEmoji } from "@/components/chat/emojiCatalog";
 import { uploadImageAtPath } from "./storage";
 import {
   type ChatConversation,
@@ -635,12 +635,10 @@ export async function sendPollMessage(params: {
     doc(conversationsCol(params.clubId), params.conversationId),
   );
   const convData = convDoc.data();
-  const convType = String(convData?.[Fields.type] ?? "");
   const participants = stringList(convData?.[Fields.participantUids]);
-  const isDmOnly =
-    convType === ChatConversationTypes.dm && participants.length <= 2;
-  if (isDmOnly) {
-    throw new Error("Les sondages sont réservés aux groupes.");
+  // Aligné règles Firestore : `participantUids.size() > 2`.
+  if (participants.length <= 2) {
+    throw new Error("Les sondages sont réservés aux groupes (> 2).");
   }
 
   const pollOptions: ChatPollOption[] = [];
@@ -739,6 +737,9 @@ export async function toggleReaction(params: {
   emoji: string;
   uid: string;
 }): Promise<void> {
+  if (!isAllowedReactionEmoji(params.emoji)) {
+    throw new Error("Réaction non autorisée.");
+  }
   const ref = doc(
     messagesCol(params.clubId, params.conversationId),
     params.messageId,

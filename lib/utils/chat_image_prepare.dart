@@ -38,8 +38,10 @@ Future<ChatImagePrepareResult> prepareChatImageUpload(
 
   late final Uint8List thumbBytes;
   if (targetWidth == null && targetHeight == null) {
-    // Déjà petit : réutilise les bytes (JPEG galerie) ou encode PNG.
-    thumbBytes = bytes;
+    // Déjà petit : encode quand même en PNG (chemin `_thumb.png` + MIME cohérent).
+    final byteData =
+        await fullImage.toByteData(format: ui.ImageByteFormat.png);
+    thumbBytes = byteData?.buffer.asUint8List() ?? bytes;
     fullImage.dispose();
     fullCodec.dispose();
     return ChatImagePrepareResult(
@@ -47,7 +49,7 @@ Future<ChatImagePrepareResult> prepareChatImageUpload(
       thumbBytes: thumbBytes,
       width: width,
       height: height,
-      thumbContentType: 'image/jpeg',
+      thumbContentType: 'image/png',
     );
   }
 

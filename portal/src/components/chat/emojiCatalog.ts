@@ -15,10 +15,94 @@ export const QUICK_REACTION_UNIFIED = QUICK_REACTIONS.map((r) => r.unified);
 
 export const QUICK_REACTION_EMOJIS = QUICK_REACTIONS.map((r) => r.emoji);
 
+/**
+ * Whitelist alignée app Flutter + `firestore.rules` (`onlyOwnReactionsUpdate`).
+ */
+export const ALLOWED_REACTION_EMOJIS = [
+  ...QUICK_REACTION_EMOJIS,
+  "🔥",
+  "👏",
+  "🙌",
+  "💪",
+  "🤝",
+  "✌️",
+  "🤞",
+  "👋",
+  "🫡",
+  "😊",
+  "😁",
+  "🤣",
+  "😅",
+  "😉",
+  "😍",
+  "🥰",
+  "😘",
+  "😎",
+  "🤔",
+  "🤨",
+  "😐",
+  "😴",
+  "🤯",
+  "😱",
+  "😤",
+  "😡",
+  "🥺",
+  "😭",
+  "🤗",
+  "🤩",
+  "🥳",
+  "💯",
+  "✨",
+  "⭐",
+  "🎉",
+  "✅",
+  "❌",
+  "⚠️",
+  "💙",
+  "💚",
+  "💛",
+  "🧡",
+  "💜",
+  "🖤",
+  "🤍",
+  "💔",
+  "⚽",
+  "🏀",
+  "🏐",
+  "🏉",
+  "🎾",
+  "🥇",
+  "🏆",
+  "🎯",
+  "⚡",
+  "💡",
+  "📌",
+  "👀",
+  "💬",
+  "📣",
+] as const;
+
 const FE0F = /\uFE0F/g;
 
 function stripVariationSelector(value: string): string {
   return value.replace(FE0F, "");
+}
+
+const ALLOWED_REACTION_LOOKUP = new Set(
+  ALLOWED_REACTION_EMOJIS.flatMap((emoji) => [
+    emoji,
+    stripVariationSelector(emoji),
+  ]),
+);
+
+/** True si l’emoji est dans la whitelist Firestore / app. */
+export function isAllowedReactionEmoji(emoji: string): boolean {
+  const trimmed = emoji.trim();
+  if (!trimmed) return false;
+  return (
+    ALLOWED_REACTION_LOOKUP.has(trimmed) ||
+    ALLOWED_REACTION_LOOKUP.has(stripVariationSelector(trimmed))
+  );
 }
 
 /** PNG Apple (emoji-datasource) — même CDN que emoji-picker-react. */

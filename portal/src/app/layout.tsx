@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   description: site.seoDescription,
   applicationName: site.name,
   category: "sports",
+  keywords: [...site.seoKeywords],
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -51,6 +52,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export default function RootLayout({

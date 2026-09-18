@@ -30,11 +30,11 @@ export function HowItWorks() {
           <div className={styles.header}>
             <span className={styles.eyebrow}>Démarrer</span>
             <h2 id="how-title" className={styles.title}>
-              Comment ça marche
+              Créer et piloter son club en trois étapes
             </h2>
             <p className={styles.lead}>
-              Trois étapes pour que le bureau organise et que tout le monde
-              suive — y compris sur plusieurs clubs.
+              Portail web pour le bureau, app mobile pour le reste de l’équipe —
+              y compris sur plusieurs clubs.
             </p>
           </div>
 

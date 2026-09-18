@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
   },
   // PostHog API utilise des trailing slashes (/e/) — ne pas les retirer.
   skipTrailingSlashRedirect: true,
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "viroteam.com" }],
+        destination: "https://www.viroteam.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

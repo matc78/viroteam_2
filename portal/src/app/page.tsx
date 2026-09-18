@@ -25,8 +25,8 @@ export default function HomePage() {
           id="planning"
           eyebrow="Planning"
           titleId="showcase-planning-title"
-          title="Un planning clair pour tout le club"
-          lead="Le bureau organise séances et matchs, filtre par équipe ou coach. Membres et parents suivent le calendrier simplement dans l’app — sans chercher l’info ailleurs."
+          title="Planning club : entraînements et matchs au même endroit"
+          lead="Le bureau organise séances et matchs, filtre par équipe ou coach. Membres et parents suivent le calendrier du club simplement dans l’app — sans chercher l’info ailleurs."
           bullets={[
             "Bureau : créez entraînements et matchs, filtrez par équipe ou coach.",
             "Membres et parents : la semaine à jour, au même endroit.",
@@ -45,8 +45,8 @@ export default function HomePage() {
           reverse
           eyebrow="Membres & équipes"
           titleId="showcase-members-title"
-          title="Membres, licences et équipes au même endroit"
-          lead="Gérez les effectifs, les invitations et les licences. Composez vos équipes par catégorie avec joueurs et coachs — sans tableur ni groupe messagerie."
+          title="Gestion des membres, licences et équipes"
+          lead="Gérez les effectifs du club sportif, les invitations et les licences. Composez vos équipes par catégorie avec joueurs et coachs — sans tableur ni fichiers partagés."
           bullets={[
             "Bureau : liste filtrable (rôle, équipe, inscription, cotisation).",
             "Invitations : envoi et copie du lien depuis le tableau.",
@@ -69,12 +69,12 @@ export default function HomePage() {
           id="cotisations"
           eyebrow="Cotisations"
           titleId="showcase-fees-title"
-          title="Cotisations suivies, restes dus clairs"
-          lead="Configurez la saison et les tarifs, suivez qui a payé et ce qui reste dû. Membres et parents voient le statut sans demander."
+          title="Suivi des cotisations du club, restes dus clairs"
+          lead="Configurez la saison et les tarifs de l’association sportive, suivez qui a payé et ce qui reste dû. Membres et parents voient le statut sans demander."
           bullets={[
             "Bureau : saison, tarifs, puis suivi (à payer, partiel, reste dû).",
             "Parents et membres : montant et échéance visibles, simplement.",
-            "Paiement hors-ligne suivi ; paiement en ligne bientôt disponible.",
+            "Paiement hors-ligne suivi ; paiement en ligne (carte) activable par le club.",
           ]}
           screenshots={[
             {

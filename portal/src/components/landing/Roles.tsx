@@ -57,11 +57,11 @@ export function Roles() {
           <div className={styles.header}>
             <span className={styles.eyebrow}>Rôles</span>
             <h2 id="roles-title" className={styles.title}>
-              Chacun suit le club simplement
+              Joueurs, coachs, parents et bureau — chacun son suivi
             </h2>
             <p className={styles.lead}>
-              Un compte, les bons droits — et plusieurs clubs si besoin
-              (multiclub).
+              Une app club sportif avec les bons droits pour chaque rôle — et
+              plusieurs clubs si besoin (multiclub).
             </p>
           </div>
 

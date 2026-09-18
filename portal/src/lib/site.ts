@@ -9,9 +9,55 @@ export const site = {
   ogImage: "/og-image.png",
   description:
     "Planning, convocations et suivi des cotisations pour le bureau. Membres et parents suivent simplement — multiclub inclus.",
-  seoTitle: "ViroTeam — L'app de gestion pour les clubs amateurs",
+  /** Title SERP : marque + intention. */
+  seoTitle:
+    "ViroTeam — App de gestion de club sportif | Planning, convocations, cotisations",
+  /** Meta description : phrases que les gens tapent vraiment. */
   seoDescription:
-    "ViroTeam est l'application de gestion pour les clubs amateurs. Elle centralise planning, convocations, cotisations et équipes — pour le bureau, les coachs, les joueurs et les parents.",
+    "ViroTeam — application et logiciel de gestion pour clubs sportifs amateurs. Planning des entraînements et matchs, convocations, cotisations, membres, licences et équipes. Pour le bureau, coachs, joueurs et parents. Multiclub. App Android + espace club web.",
+  /**
+   * Mots-clés ciblés (Bing / données structurées).
+   * Google ignore la balise keywords : on les réutilise dans titres, FAQ et JSON-LD.
+   */
+  seoKeywords: [
+    "ViroTeam",
+    "Viro Team",
+    "viroteam",
+    "application gestion club sport",
+    "app gestion club amateur",
+    "app club sportif",
+    "logiciel gestion club sportif",
+    "logiciel association sportive",
+    "outil gestion association sportive",
+    "gestion club sportif",
+    "gestion équipe sportive",
+    "organisation club sportif",
+    "planning club sport",
+    "calendrier entraînements club",
+    "calendrier entraînements matchs",
+    "convocations club sport",
+    "convocation match RSVP",
+    "suivi cotisations club",
+    "gestion cotisations club",
+    "cotisations association sportive",
+    "gestion membres club",
+    "gestion membres club sport",
+    "licences club sport",
+    "gestion licences sportives",
+    "gestion équipes catégories",
+    "app coach club",
+    "application coach équipe",
+    "application parents club sport",
+    "app parents club sport",
+    "espace bureau club",
+    "portail gestion club",
+    "multiclub",
+    "application multiclub",
+    "invitation membres club",
+    "application volleyball club",
+    "gestion club volleyball",
+    "app club amateur Android",
+  ],
   playStoreUrl:
     "https://play.google.com/store/apps/details?id=com.viroteam.viro_team",
   /** App Store pas encore publié. */

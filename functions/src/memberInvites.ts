@@ -1,25 +1,18 @@
 import * as admin from "firebase-admin";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { defineSecret, defineString } from "firebase-functions/params";
-import { escapeHtml, sendBrevoTransactionalEmail } from "./brevo";
+import {
+  buildGuyEmail,
+  buildJoinUrl,
+  clubLogoUrlFromData,
+  configuredPlayStoreUrl,
+  brevoApiKey,
+  brevoCallableSecrets,
+  normalizeMemberInviteRole,
+  sendGuyTransactionalEmail,
+} from "./email";
 import { db, defineDualCallable } from "./db";
 import { assertClubAdmin } from "./guardians";
 import { ClubActivityTypes, logClubActivity } from "./clubActivity";
-
-const brevoApiKey = defineSecret("BREVO_API_KEY");
-const brevoSenderEmail = defineString("BREVO_SENDER_EMAIL", {
-  default: "noreply@viroteam.com",
-});
-const brevoSenderName = defineString("BREVO_SENDER_NAME", {
-  default: "ViroTeam",
-});
-const inviteJoinBaseUrl = defineString("INVITE_JOIN_BASE_URL", {
-  default: "https://www.viroteam.com",
-});
-const playStoreUrl = defineString("PLAY_STORE_URL", {
-  default:
-    "https://play.google.com/store/apps/details?id=com.viroteam.viro_team",
-});
 
 const MAX_MEMBER_IDS = 100;
 const INVITE_TTL_DAYS = 7;
@@ -228,80 +221,9 @@ async function ensurePendingInvite(params: {
   return { code, inviteRef: newInviteRef };
 }
 
-function buildJoinUrl(code: string): string {
-  const base = inviteJoinBaseUrl.value().replace(/\/$/, "");
-  return `${base}/join?code=${encodeURIComponent(code.trim().toUpperCase())}`;
-}
-
-function buildInviteText(params: {
-  clubName: string;
-  firstName: string;
-  code: string;
-  joinUrl: string;
-}): string {
-  const storeLine = playStoreUrl.value()
-    ? `\nApp Android : ${playStoreUrl.value()}`
-    : "";
-  const greeting = params.firstName
-    ? `Bonjour ${params.firstName},\n\n`
-    : "Bonjour,\n\n";
-  return `${greeting}Rejoins ${params.clubName} sur ViroTeam !
-Ton code : ${params.code}
-Valable 7 jours.
-Lien : ${params.joinUrl}${storeLine}
-Ou ouvre l'app → « J'ai un code d'invitation » et saisis ce code.
-
-— L'équipe ViroTeam`;
-}
-
-function buildInviteHtml(params: {
-  clubName: string;
-  firstName: string;
-  code: string;
-  joinUrl: string;
-}): string {
-  const safeClub = escapeHtml(params.clubName);
-  const safeFirst = escapeHtml(params.firstName);
-  const safeCode = escapeHtml(params.code);
-  const safeUrl = escapeHtml(params.joinUrl);
-  const greeting = params.firstName
-    ? `Bonjour ${safeFirst},`
-    : "Bonjour,";
-  const storeBlock = playStoreUrl.value()
-    ? `<p style="margin:16px 0 0;font-size:14px;color:#555;">App Android : <a href="${escapeHtml(playStoreUrl.value())}">télécharger</a></p>`
-    : "";
-
-  return `<!DOCTYPE html>
-<html lang="fr">
-<body style="margin:0;padding:24px;background:#f6f7f9;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;padding:28px 24px;">
-    <tr><td>
-      <p style="margin:0 0 12px;font-size:16px;">${greeting}</p>
-      <p style="margin:0 0 16px;font-size:16px;line-height:1.5;">
-        Rejoins <strong>${safeClub}</strong> sur ViroTeam.
-      </p>
-      <p style="margin:0 0 8px;font-size:14px;color:#555;">Ton code d'invitation</p>
-      <p style="margin:0 0 20px;font-size:28px;letter-spacing:0.12em;font-weight:700;">${safeCode}</p>
-      <p style="margin:0 0 8px;font-size:14px;color:#555;">Valable 7 jours.</p>
-      <p style="margin:20px 0;">
-        <a href="${safeUrl}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-size:15px;font-weight:600;">
-          Ouvrir l'invitation
-        </a>
-      </p>
-      <p style="margin:0;font-size:13px;color:#666;line-height:1.45;">
-        Ou ouvre l'app → « J'ai un code d'invitation » et saisis ce code.
-      </p>
-      ${storeBlock}
-      <p style="margin:24px 0 0;font-size:13px;color:#888;">— L'équipe ViroTeam</p>
-    </td></tr>
-  </table>
-</body>
-</html>`;
-}
-
 /**
  * Envoie les e-mails d’invitation membre via Brevo (admin club uniquement).
- * Chaque membre reçoit son code pending individuel.
+ * Chaque membre reçoit son code pending individuel (voix Guy).
  * Prod → v2-prod ; `sendMemberInvitesDev` → v2-dev.
  */
 export const {
@@ -309,7 +231,7 @@ export const {
   dev: sendMemberInvitesDev,
 } = defineDualCallable(
   {
-    secrets: [brevoApiKey],
+    secrets: [...brevoCallableSecrets],
     timeoutSeconds: 120,
   },
   async (request: CallableRequest): Promise<SendMemberInvitesResponse> => {
@@ -319,6 +241,7 @@ export const {
 
     const club = await assertClubAdmin(clubId, callerUid);
     const clubName = String(club.name ?? "ton club").trim() || "ton club";
+    const clubLogoUrl = clubLogoUrlFromData(club as Record<string, unknown>);
     const apiKey = brevoApiKey.value();
     if (!apiKey) {
       throw new HttpsError(
@@ -326,11 +249,6 @@ export const {
         "BREVO_API_KEY non configurée",
       );
     }
-
-    const sender = {
-      name: brevoSenderName.value(),
-      email: brevoSenderEmail.value(),
-    };
 
     const results: InviteSendItemResult[] = [];
     let sent = 0;
@@ -422,29 +340,24 @@ export const {
         const lastName = String(memberData.lastName ?? "").trim();
         const displayName =
           [firstName, lastName].filter(Boolean).join(" ") || undefined;
+        const role = normalizeMemberInviteRole(String(memberData.role ?? "player"));
         const joinUrl = buildJoinUrl(ensured.code);
-        const textContent = buildInviteText({
+        const emailContent = buildGuyEmail({
+          kind: "memberInvite",
+          clubId,
           clubName,
+          clubLogoUrl,
+          role,
           firstName,
           code: ensured.code,
           joinUrl,
-        });
-        const htmlContent = buildInviteHtml({
-          clubName,
-          firstName,
-          code: ensured.code,
-          joinUrl,
+          playStoreUrl: configuredPlayStoreUrl(),
         });
 
-        const brevoResult = await sendBrevoTransactionalEmail({
-          apiKey,
-          sender,
+        const brevoResult = await sendGuyTransactionalEmail({
           toEmail: email,
           toName: displayName,
-          subject: `Invitation ${clubName} — ViroTeam`,
-          textContent,
-          htmlContent,
-          tags: ["member-invite", clubId],
+          email: emailContent,
         });
 
         await ensured.inviteRef.update({

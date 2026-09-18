@@ -5,6 +5,14 @@ import type {
 } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
+import {
+  buildGuyEmail,
+  brevoCallableSecrets,
+  clubLogoUrlFromData,
+  normalizeMemberInviteRole,
+  resolveAuthEmail,
+  trySendGuyTransactionalEmail,
+} from "./email";
 import { db, defineDualCallable } from "./db";
 
 export { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
@@ -327,7 +335,20 @@ async function handleAcceptInvitation(
       lastName,
     });
 
-    return { memberId, linkedMemberId, email };
+    return {
+      memberId,
+      linkedMemberId,
+      email,
+      sentBy: String(invite.sentBy ?? "").trim(),
+      displayName,
+      role: normalizeMemberInviteRole(role),
+      clubName:
+        String(clubSnap.data()?.name ?? invite.clubName ?? "").trim() ||
+        "ton club",
+      clubLogoUrl: clubLogoUrlFromData(
+        (clubSnap.data() ?? {}) as Record<string, unknown>,
+      ),
+    };
   });
 
   if (
@@ -346,6 +367,24 @@ async function handleAcceptInvitation(
     await deleteOrphanPendingMembers({ clubId, email: result.email });
   }
 
+  if (result.sentBy) {
+    const inviterEmail = await resolveAuthEmail(result.sentBy);
+    if (inviterEmail) {
+      await trySendGuyTransactionalEmail({
+        toEmail: inviterEmail,
+        email: buildGuyEmail({
+          kind: "inviteAcceptedMember",
+          clubId,
+          clubName: result.clubName,
+          clubLogoUrl: result.clubLogoUrl,
+          memberDisplayName: result.displayName,
+          role: result.role,
+        }),
+        context: `invite-accepted-member ${clubId}`,
+      });
+    }
+  }
+
   return { ok: true, memberId: result.memberId };
 }
 
@@ -355,4 +394,10 @@ async function handleAcceptInvitation(
 export const {
   prod: acceptInvitation,
   dev: acceptInvitationDev,
-} = defineDualCallable(handleAcceptInvitation);
+} = defineDualCallable(
+  {
+    secrets: [...brevoCallableSecrets],
+    timeoutSeconds: 60,
+  },
+  handleAcceptInvitation,
+);

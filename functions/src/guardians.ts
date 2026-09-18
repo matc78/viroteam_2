@@ -1,7 +1,16 @@
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import type { DocumentData } from "firebase-admin/firestore";
+import type { DocumentData, DocumentReference } from "firebase-admin/firestore";
+import {
+  buildGuyEmail,
+  buildJoinUrl,
+  brevoCallableSecrets,
+  clubLogoUrlFromData,
+  configuredPlayStoreUrl,
+  resolveAuthEmail,
+  trySendGuyTransactionalEmail,
+} from "./email";
 import { db, defineDualCallable } from "./db";
 import { recomputeParentTeamIdsSafe } from "./parentTeams";
 
@@ -408,13 +417,66 @@ async function loadPendingGuardianInvite(params: {
 }
 
 /**
+ * Envoie le mail d’invitation parent (soft-fail) et trace lastEmail* sur l’invite.
+ */
+async function sendGuardianInviteEmail(params: {
+  clubId: string;
+  club: DocumentData;
+  member: DocumentData;
+  email: string;
+  code: string;
+  inviteRef: DocumentReference;
+  callerUid: string;
+}): Promise<void> {
+  const clubName =
+    String(params.club.name ?? "").trim() || "ton club";
+  const childFirstName = String(params.member.firstName ?? "").trim();
+  const joinUrl = buildJoinUrl(params.code);
+  const emailContent = buildGuyEmail({
+    kind: "guardianInvite",
+    clubId: params.clubId,
+    clubName,
+    clubLogoUrl: clubLogoUrlFromData(params.club as Record<string, unknown>),
+    childFirstName,
+    code: params.code,
+    joinUrl,
+    playStoreUrl: configuredPlayStoreUrl(),
+  });
+
+  const brevoResult = await trySendGuyTransactionalEmail({
+    toEmail: params.email,
+    email: emailContent,
+    context: `guardian-invite ${params.clubId}`,
+  });
+
+  const patch: Record<string, unknown> = {
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  if (brevoResult) {
+    patch.lastEmailSentAt = admin.firestore.FieldValue.serverTimestamp();
+    patch.lastEmailSentBy = params.callerUid;
+    patch.lastEmailTo = params.email;
+    patch.lastEmailMessageId = brevoResult.messageId || null;
+    patch.lastEmailError = admin.firestore.FieldValue.delete();
+  } else {
+    patch.lastEmailError = "brevo_send_failed";
+  }
+  await params.inviteRef.update(patch);
+}
+
+/**
  * Admin ou titulaire de fiche : invite un parent (plafond V1 = 1).
  * Prod → v2-prod ; `inviteGuardianDev` → v2-dev.
  */
 export const {
   prod: inviteGuardian,
   dev: inviteGuardianDev,
-} = defineDualCallable(async (request: CallableRequest) => {
+} = defineDualCallable(
+  {
+    secrets: [...brevoCallableSecrets],
+    timeoutSeconds: 60,
+  },
+  async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const memberId = requireString(request.data?.memberId, "memberId");
@@ -495,6 +557,16 @@ export const {
     }
   }
 
+  await sendGuardianInviteEmail({
+    clubId,
+    club,
+    member,
+    email,
+    code,
+    inviteRef,
+    callerUid,
+  });
+
   return {
     ok: true,
     invitationId: inviteRef.id,
@@ -550,7 +622,12 @@ async function findPendingGuardianInvitation(params: {
 export const {
   prod: linkGuardian,
   dev: linkGuardianDev,
-} = defineDualCallable(async (request: CallableRequest) => {
+} = defineDualCallable(
+  {
+    secrets: [...brevoCallableSecrets],
+    timeoutSeconds: 60,
+  },
+  async (request: CallableRequest) => {
   const parentUid = requireUid(request);
   const tokenEmail = request.auth?.token?.email;
   if (typeof tokenEmail !== "string" || !tokenEmail.trim()) {
@@ -602,7 +679,8 @@ export const {
   if (!memberSnap.exists) {
     throw new HttpsError("not-found", "Fiche membre introuvable");
   }
-  const childUid = childAccountUid(memberSnap.data()!, memberId);
+  const memberData = memberSnap.data()!;
+  const childUid = childAccountUid(memberData, memberId);
   if (parentUid === childUid || parentUid === memberId) {
     throw new HttpsError(
       "failed-precondition",
@@ -651,6 +729,40 @@ export const {
     acceptedBy: parentUid,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  // Soft-fail : confirmation à l’inviteur.
+  if (invitedBy) {
+    const inviterEmail = await resolveAuthEmail(invitedBy);
+    if (inviterEmail) {
+      const clubSnap = await clubRef(invitation.clubId).get();
+      const club = clubSnap.data() ?? {};
+      const clubName =
+        String(club.name ?? invitation.data.clubName ?? "").trim() || "ton club";
+      let parentDisplayName = "";
+      try {
+        const parentUser = await admin.auth().getUser(parentUid);
+        parentDisplayName =
+          parentUser.displayName?.trim() ||
+          parentUser.email?.split("@")[0] ||
+          "";
+      } catch {
+        parentDisplayName = email.split("@")[0] ?? "";
+      }
+      const childFirstName = String(memberData.firstName ?? "").trim();
+      await trySendGuyTransactionalEmail({
+        toEmail: inviterEmail,
+        email: buildGuyEmail({
+          kind: "inviteAcceptedGuardian",
+          clubId: invitation.clubId,
+          clubName,
+          clubLogoUrl: clubLogoUrlFromData(club as Record<string, unknown>),
+          parentDisplayName,
+          childFirstName,
+        }),
+        context: `invite-accepted-guardian ${invitation.clubId}`,
+      });
+    }
+  }
 
   return { ok: true, clubId: invitation.clubId, memberId };
 });
@@ -860,7 +972,12 @@ export const {
 export const {
   prod: regenerateGuardianInvite,
   dev: regenerateGuardianInviteDev,
-} = defineDualCallable(async (request: CallableRequest) => {
+} = defineDualCallable(
+  {
+    secrets: [...brevoCallableSecrets],
+    timeoutSeconds: 60,
+  },
+  async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const memberId = requireString(request.data?.memberId, "memberId");
@@ -869,7 +986,7 @@ export const {
       ? request.data.invitationId.trim()
       : "";
 
-  await assertCanManageGuardian({ clubId, memberId, uid: callerUid });
+  const club = await assertCanManageGuardian({ clubId, memberId, uid: callerUid });
 
   const invite = await loadPendingGuardianInvite({
     clubId,
@@ -888,6 +1005,20 @@ export const {
     sentBy: callerUid,
     sentAt: now,
     updatedAt: now,
+  });
+
+  const memberSnap = await memberRef(clubId, memberId).get();
+  const member = memberSnap.exists ? memberSnap.data()! : {};
+  const email = requireEmail(invite.data.email);
+
+  await sendGuardianInviteEmail({
+    clubId,
+    club,
+    member,
+    email,
+    code,
+    inviteRef: invite.ref,
+    callerUid,
   });
 
   return {

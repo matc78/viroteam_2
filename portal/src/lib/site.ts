@@ -12,9 +12,9 @@ export const site = {
   /** Title SERP : marque + intention. */
   seoTitle:
     "ViroTeam — App de gestion de club sportif | Planning, convocations, cotisations",
-  /** Meta description : phrases que les gens tapent vraiment. */
+  /** Meta description SERP (~150 car. pour Google / Bing). */
   seoDescription:
-    "ViroTeam — application et logiciel de gestion pour clubs sportifs amateurs. Planning des entraînements et matchs, convocations, cotisations, membres, licences et équipes. Pour le bureau, coachs, joueurs et parents. Multiclub. App Android + espace club web.",
+    "ViroTeam — logiciel et app de gestion pour clubs sportifs : planning, convocations, cotisations, membres. Bureau, coachs, joueurs et parents. Multiclub.",
   /**
    * Mots-clés ciblés (Bing / données structurées).
    * Google ignore la balise keywords : on les réutilise dans titres, FAQ et JSON-LD.

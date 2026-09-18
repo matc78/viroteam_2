@@ -40,17 +40,17 @@ export function Hero() {
           />
         </motion.p>
 
-        <motion.h1
-          id="hero-brand"
-          className={styles.headline}
+        <motion.div
           custom={0.18}
           variants={fadeUp}
           initial="hidden"
           animate="show"
         >
-          <span className="sr-only">{site.name}. </span>
-          {site.tagline}
-        </motion.h1>
+          <h1 id="hero-brand" className={styles.headline}>
+            <span className="sr-only">{site.name}. </span>
+            {site.tagline}
+          </h1>
+        </motion.div>
 
         <motion.p
           className={styles.support}

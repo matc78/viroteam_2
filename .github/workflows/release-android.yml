@@ -80,11 +80,21 @@ jobs:
             echo "name=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Verify pubspec ↔ ProjectConfig
+        run: node tool/check_app_version.mjs
+
+      - name: Verify pubspec matches release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: node tool/check_app_version.mjs --tag="${{ steps.version.outputs.name }}"
+
       - run: flutter pub get
 
       - name: Resolve build number
         id: build_number
-        run: echo "value=$(date +%s)" >> "$GITHUB_OUTPUT"
+        run: |
+          # Play Store : versionCode strictement croissant (epoch).
+          # Le +N du pubspec reste la référence locale / affichage config.
+          echo "value=$(date +%s)" >> "$GITHUB_OUTPUT"
 
       - name: Build release APK
         run: |

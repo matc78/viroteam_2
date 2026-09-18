@@ -8,6 +8,13 @@ import 'package:flutter/foundation.dart';
 abstract final class ProjectConfig {
   static const String appName = 'ViroTeam';
 
+  // —— Version app (doit matcher `pubspec.yaml` et les tags `v*` / `release-v*`) ——
+  /// Nom marketing (ex. `2.2.2`). Vérifié en CI contre le tag de release.
+  static const String appVersionName = '2.2.2';
+
+  /// Build number local (`+N` du pubspec). La CI release peut le surcharger.
+  static const int appVersionCode = 6;
+
   // —— Firestore ——
   static const String firestoreDevDatabaseId = 'v2-dev';
   static const String firestoreProdDatabaseId = 'v2-prod';

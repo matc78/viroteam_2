@@ -1,5 +1,7 @@
 # ViroTeam
 
+**Site :** [https://www.viroteam.com](https://www.viroteam.com)
+
 Application Flutter de gestion d'équipe sportive (refonte v2, **invitation uniquement**).  
 Portail web admin (Next.js) pour la gestion bureau. Landing marketing incluse.
 
@@ -74,6 +76,15 @@ Détails : [`functions/README.md`](functions/README.md).
 ## CI / Releases
 
 Taguer **uniquement depuis `main` vert**. Aucun secret requis pour la CI qualité.
+
+Avant un tag Android (`vX.Y.Z` / `release-vX.Y.Z`) : aligner `pubspec.yaml` **et** `ProjectConfig.appVersionName` sur le même `X.Y.Z`, puis vérifier :
+
+```bash
+node tool/check_app_version.mjs
+node tool/check_app_version.mjs --tag=v2.2.2   # simule le tag
+```
+
+La CI (job Flutter) et Release Android refusent un tag dont la version ≠ `pubspec.yaml`.
 
 | Déclencheur | Workflow | Effet |
 |-------------|----------|--------|

@@ -59,6 +59,7 @@ jobs:
               - 'pubspec.lock'
               - 'analysis_options.yaml'
               - 'android/**'
+              - 'tool/check_app_version.mjs'
               - '.fvmrc'
               - '.fvm/**'
               - '.github/workflows/ci.yml'
@@ -77,6 +78,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
+
+      - name: Verify app version (pubspec ↔ ProjectConfig [↔ tag])
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/release-v* ]] || [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            node tool/check_app_version.mjs --tag="${{ github.ref_name }}"
+          else
+            node tool/check_app_version.mjs
+          fi
 
       - uses: subosito/flutter-action@v2
         with:

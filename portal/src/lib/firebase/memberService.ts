@@ -18,6 +18,7 @@ import {
   formatLastName,
   formatLicense,
 } from "@/lib/format/personDataFormat";
+import { joinCopy } from "@/lib/copy/joinCopy";
 import { site, webJoinRedirectPath } from "@/lib/site";
 import {
   removeMember as removeMemberCallable,
@@ -158,20 +159,21 @@ export function inviteJoinUrl(code: string): string {
   return `${base}${webJoinRedirectPath(code)}`;
 }
 
-/** Message FR prêt à copier pour WhatsApp / SMS / e-mail (aligné app). */
+/** Message FR prêt à copier pour WhatsApp / SMS / e-mail (voix Guy, aligné app). */
 export function buildInviteMessage(params: {
   clubName: string;
   code: string;
 }): string {
   const joinUrl = inviteJoinUrl(params.code);
   const storeLine = site.playStoreUrl
-    ? `\nApp Android : ${site.playStoreUrl}`
+    ? `\n${joinCopy.playStoreLabel} ${site.playStoreUrl}`
     : "";
-  return `Rejoins ${params.clubName} sur ViroTeam !
-Ton code : ${params.code}
-Valable 7 jours.
-Lien : ${joinUrl}${storeLine}
-Ou ouvre l'app → « J'ai un code d'invitation » et saisis ce code.`;
+  return joinCopy.clubInviteMessage({
+    clubName: params.clubName,
+    code: params.code,
+    joinUrl,
+    storeLine,
+  });
 }
 
 function membersCol(clubId: string) {

@@ -11,6 +11,7 @@ import { collection, doc, getDoc, getDocs, query, where } from "firebase/firesto
 import { toDate } from "@/lib/firebase/types";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import { listClubMembers } from "@/lib/firebase/memberService";
+import { joinCopy } from "@/lib/copy/joinCopy";
 
 /** Enfant lié à une ligne parent (vue admin). */
 export type ParentChildRef = {
@@ -382,18 +383,18 @@ export function filterParentRows(
   });
 }
 
-/** Message FR pour invitation parent (copie presse-papiers) — aligné app. */
+/** Message FR pour invitation parent (copie presse-papiers) — voix Guy, aligné app. */
 export function buildGuardianInviteMessage(params: {
   clubName: string;
   code: string;
   childName?: string;
 }): string {
-  const name = params.childName?.trim() || "ton enfant";
-  return `Tu pourras voir le planning de ${name}, répondre aux convocations et payer la cotisation.
-Club : ${params.clubName}
-Code : ${params.code}
-Ouvre l'app → « J'ai un code d'invitation » et saisis ce code.
-Tu peux aussi te connecter sur le portail avec cet e-mail.`;
+  const name = params.childName?.trim() || joinCopy.defaultChildName;
+  return joinCopy.guardianInviteShareMessage({
+    childFirstName: name,
+    clubName: params.clubName,
+    code: params.code,
+  });
 }
 
 /**

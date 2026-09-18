@@ -1,6 +1,9 @@
 part of 'app_copy.dart';
 
 /// Codes d’invitation, rejoindre un club.
+///
+/// Messages de partage WhatsApp/SMS (voix Guy).
+/// Les e-mails transactionnels Brevo : `functions/src/email/emailCopy.ts`.
 final class AppCopyJoin {
   const AppCopyJoin();
 
@@ -47,26 +50,31 @@ final class AppCopyJoin {
     required String joinUrl,
     required String storeLine,
   }) =>
-      '''Rejoins $clubName sur ViroTeam !
+      '''Salut !
+
+On t'attend. Voilà ton code pour rejoindre $clubName sur ViroTeam.
 
 Ton code : $code
-
 Valable 7 jours.
-
 Lien : $joinUrl$storeLine
 
-Ou ouvre l'app → « J'ai un code d'invitation » et saisis ce code.''';
+Ou ouvre l'app → « J'ai un code d'invitation » et tape ce code.
+
+— Guy''';
 
   String guardianInviteShareMessage({
     required String childFirstName,
     required String clubName,
     required String code,
   }) =>
-      '''Tu pourras voir le planning de $childFirstName, répondre aux convocations et payer la cotisation.
+      '''Salut !
 
-Club : $clubName
+Tu pourras voir le planning de $childFirstName, répondre aux convocations et payer la cotisation — $clubName.
 
-Code : $code
+Ton code : $code
+Valable 7 jours.
 
-Ouvre l'app → « J'ai un code d'invitation » et saisis ce code.''';
+Ouvre l'app → « J'ai un code d'invitation » et tape ce code.
+
+— Guy''';
 }

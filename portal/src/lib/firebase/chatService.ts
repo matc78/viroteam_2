@@ -892,7 +892,7 @@ export async function ensureAndFindConversationId(params: {
   clubId: string;
   systemKey: string;
 }): Promise<string | null> {
-  let id = await findConversationIdBySystemKey(params);
+  const id = await findConversationIdBySystemKey(params);
   if (id) return id;
   await ensureClubChatSynced(params.clubId);
   return findConversationIdBySystemKey(params);

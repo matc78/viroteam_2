@@ -7,26 +7,114 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
-### Sécurité (lot 1 — 2026-09-02)
+### Ajouté
 
-- Règles Firestore réécrites et testées (`rules-tests/`, 41 scénarios dans l'émulateur) : plus d'auto-promotion admin par création de sa propre fiche, rôle/statut/équipes non modifiables par le titulaire, `member_accounts` et `adminIds` réservés aux Cloud Functions
-- Invitations lisibles uniquement par le club (coach/admin) ou l'e-mail invité ; recherche par code via la callable `lookupInvitationByCode` (e-mail masqué) ; e-mail obligatoire à l'invitation (app + portail + import CSV) ; un coach ne peut plus inviter un admin
-- `acceptInvitation` : réservée à l'e-mail invité (côté serveur), correction de l'index `member_accounts` (`memberId` au lieu de `linkedMemberId`) qui verrouillait les utilisateurs après acceptation
-- Nouvelles callables `setMemberRole`, `removeMember` (garde « dernier admin ») et `deleteMyAccount` (anonymisation en cascade puis suppression Auth) ; app et portail n'écrivent plus `users/{autre}` ni `member_accounts`
-- Parents : lecture limitée aux équipes de leurs enfants (`users.parentTeamIds` maintenu par les functions + trigger `onTeamWritten`) pour événements, annonces (club entier ou équipe) et équipes ; app et portail interrogent par équipe
-- Webhook HelloAsso verrouillé par le secret `HELLOASSO_WEBHOOK_TOKEN` (503 sans secret, 401 sans jeton, 400 sans identifiant de paiement) ; alias `paymentWebhook` supprimé ; reçus PDF servis par URL signée (plus de `makePublic`)
-- Document club et fiches pré-créées plus lisibles sans authentification ; `receipts/**` fermé dans Storage
-- Portail : plus de repli silencieux sur `v2-dev` quand `NEXT_PUBLIC_FIRESTORE_DATABASE_ID` manque
+- Messagerie in-app (Flutter + portail) : threads, DM, sondages, réactions, réponses, panel infos, dock flottant, deep links et notifications
+- Backend chat : sync équipes, triggers Cloud Functions et règles Firestore
+- Activation roster et import membres sans e-mail obligatoire (portail)
+- Specs et roadmap messagerie v2
+- SEO landing : sitemap XML (route handler), `robots.txt` élargi, JSON-LD enrichi, mots-clés ciblés, FAQ marketing élargie, redirect `viroteam.com` → `www.viroteam.com`
+- Contrôle d’alignement de version `pubspec.yaml` ↔ `ProjectConfig` ↔ tags (`tool/check_app_version.mjs`) branché en CI et Release Android
+
+### Sécurité
+
+- Durcissement des règles chat (réactions et preview inbox)
+
+### Modifié
+
+- Version app alignée sur les tags Play : `pubspec.yaml` / `ProjectConfig` en `2.2.2+6`
+- Textes landing (hero, sections, FAQ, CTA) pour refléter planning, membres, cotisations et app club
+- Reverse proxy PostHog et DSN Sentry EU
+- Badge / logo Play Store aux couleurs officielles
+- Ignore le `node_modules` npm installé par erreur à la racine du monorepo
+- Messagerie masquée pour le déploiement portail / release app (`CHAT_MESSAGING_LIVE` / `FeatureFlags.chatMessagingLive`) tant qu’elle n’est pas sur le store
 
 ### Corrigé
 
-- Onglet suivi cotisations : 11 libellés corrompus (caractère U+FFFD) ; test d'encodage des sources
-- Routeur : la redirection réagit aux changements de `signUpIntentProvider`
-- iOS : projet prêt pour TestFlight interne (bundle `com.viroteam.viroTeam`, iOS 15, Google Sign-In, SPM désactivé pour `cloud_firestore`, contournement `path_provider_foundation`)
+- Validations sondage / réactions et MIME vignette chat
+
+## [2.2.2] - 2026-09-12
+
+### Modifié
+
+- SHA debug et upload Android dans `google-services.json` (signature Play / debug)
+
+## [2.2.1] - 2026-09-12
+
+### Corrigé
+
+- Build release Android (R8 / Stripe)
+- Typage realtime côté portail
+
+## [2.2.0] - 2026-09-12
 
 ### Ajouté
 
+- Paiement des cotisations via **Stripe Connect Express** (frais CB, `application_fee`, flags live Flutter + App Hosting)
+- Instrumentation cotisations Stripe (PostHog + Sentry / Crashlytics)
+- Journal d’activité club (app, portail et Cloud Functions)
+- Suivi cotisations enrichi : historique, corrections, repli PaymentSheet
+- Push FCM (app + portail web) : rappels, annonces, cotisations, RSVP différées avec debounce, prefs et deep links
+- Planning personnel multi-clubs (bureau et famille) ; redirection multi-profils vers Mon planning
+- Formulaire nouvel événement retravaillé (lieux, RDV, UX) ; appel coach optionnel sans polluer le RSVP
+- Wizard club-setup : lieux sportifs (Nominatim / Places), siège, effectifs, pastille « + » créer un club
+- Invitations membres enrichies (bulk, progression, Cloud Functions) ; acceptation joueur / coach sur le portail web
+- Upload logo club via callable Admin ; permission coach pour modifier les licences
+- Textes UI centralisés dans `AppCopy` (voix « pote de vestiaire »)
+- Voile de chargement logo ViroTeam ; pastilles multi-espace et nav alignée au club
+
 ### Modifié
+
+- Config cotisations allégée (disclosure progressive) ; listes membres / cotisations clarifiées
+- Planning : blocs filled/outline selon RSVP, type/détail séparés, toasts et sélecteur de club
+- Création d’événement, labels planning et hub Équipes simplifiés
+- Portail : rechargement temps réel, voile de nav, polish UI
+- App verrouillée en mode portrait ; menus système déclarés en français (iOS / Android)
+- Date jj/mm dans les rappels push événements ; bouton recharger retiré du dashboard home
+
+### Sécurité
+
+- Proxy Places sécurisé (auth Firebase + limitation par IP)
+- Création club + membre fondateur autorisée en transaction
+
+### Corrigé
+
+- Préférence événements préservée pour le fallback RSVP legacy
+- Lien siège, reprise brouillon club-setup et reporting Sentry
+- RSVP planning immédiat sans pastille « Actualiser » indue
+
+## [2.1.3] - 2026-09-04
+
+### Sécurité
+
+- Lot 1 : règles Firestore réécrites et testées (`rules-tests/`, 41 scénarios) — plus d’auto-promotion admin, rôle/statut/équipes non modifiables par le titulaire, `member_accounts` et `adminIds` réservés aux Cloud Functions
+- Invitations lisibles uniquement par le club (coach/admin) ou l’e-mail invité ; recherche par code via `lookupInvitationByCode` (e-mail masqué) ; e-mail obligatoire à l’invitation ; un coach ne peut plus inviter un admin
+- `acceptInvitation` réservée à l’e-mail invité ; correction d’index `member_accounts` (`memberId`)
+- Callables `setMemberRole`, `removeMember` (garde « dernier admin ») et `deleteMyAccount` ; app et portail n’écrivent plus `users/{autre}` ni `member_accounts`
+- Parents : lecture limitée aux équipes de leurs enfants (`parentTeamIds`) ; parents autorisés à lire les fiches membres pour le roster
+- Webhook HelloAsso verrouillé par `HELLOASSO_WEBHOOK_TOKEN` ; reçus PDF en URL signée ; `receipts/**` fermé dans Storage
+- Document club / fiches pré-créées moins exposés sans auth ; portail : plus de repli silencieux sur `v2-dev`
+
+### Ajouté
+
+- Double rôle coach/joueur (planning, RSVP accueil, cotisation)
+- Page Équipe bureau et famille avec picker de club
+- Popover RSVP ancré style agenda avec liste des convoqués
+- Helpers cotisation et données home/membres pour le portail
+- Parcours club-setup (partie 1) ; préparation beta interne TestFlight iOS
+
+### Modifié
+
+- Homes bureau / famille enrichies (cotisation, marque club, audience, planning)
+- Shell dashboard : nav Équipe et alerte cotisation
+- Urgence visuelle des rappels de cotisation (Flutter)
+
+### Corrigé
+
+- Crashes login et polices pour la review Play Store
+- Onglet suivi cotisations : libellés corrompus (U+FFFD) ; test d’encodage des sources
+- Routeur : redirection réactive aux changements de `signUpIntentProvider`
+- iOS : projet prêt pour TestFlight interne (bundle `com.viroteam.viroTeam`, iOS 15, Google Sign-In, contournements Firestore / `path_provider_foundation`)
 
 ## [2.1.2] - 2026-08-29
 

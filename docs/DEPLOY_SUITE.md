@@ -10,7 +10,11 @@ Taguer **uniquement depuis `main` vert** (CI full matrix OK).
 ## 0. Avant tout tag
 
 - [ ] `main` vert sur GitHub Actions
-- [ ] Changelog figé pour la version (ex. `1.1.0` dans `CHANGELOG.md` + `pubspec.yaml`)
+- [ ] Changelog figé pour la version (ex. `2.2.2` dans `CHANGELOG.md`)
+- [ ] **Version alignée** : `pubspec.yaml` (`X.Y.Z+N`) = `ProjectConfig.appVersionName` / `appVersionCode` = tag (`vX.Y.Z` ou `release-vX.Y.Z`)
+  - Check local : `node tool/check_app_version.mjs`
+  - Simuler un tag : `node tool/check_app_version.mjs --tag=v2.2.2`
+  - La CI et Release Android **échouent** si le tag ≠ pubspec
 - [ ] Pages légales déployables : placeholders mentions légales remplacés (voir section Légal)
 - [ ] Domaine `www.viroteam.com` pointe vers le portail (sinon invitations / privacy URL cassées)
 
@@ -145,6 +149,7 @@ Suivre intégralement [`DEPLOY_IOS.md`](DEPLOY_IOS.md) (compte Apple, Firebase p
 
 | Item | Notes |
 |------|--------|
+| **Messagerie in-app** | Code prêt (Flutter + portail) ; **désactivée** en prod (`CHAT_MESSAGING_LIVE` / `FeatureFlags.chatMessagingLive`) jusqu’à release store. Local portail : `NEXT_PUBLIC_CHAT_MESSAGING_LIVE=true` |
 | **Stripe Connect live** | Secrets `STRIPE_*_TEST` (dev) puis `STRIPE_*_LIVE` (prod) → webhooks Dashboard → `NEXT_PUBLIC_STRIPE_LIVE=true` (portail) → onboarding Express par club → `onlinePaymentEnabled` |
 | **HelloAsso** (futur) | Partenariat → secrets Functions → flags HelloAsso (code conservé, dormant) |
 | Upload photo justificatif d’aide | Backlog Phase 7 |
@@ -161,9 +166,10 @@ Paiement CB Stripe actif en **debug app** (`FeatureFlags.stripePaymentsLive`) d�
 
 ### Portail (`v2-prod`)
 
-- [ ] Landing + login / signup
-- [ ] Bureau admin / coach / joueur
-- [ ] Espace famille parent
+- [ ] Landing + login / signup (pas de promesse messagerie / WhatsApp-as-chat)
+- [ ] Bureau admin / coach / joueur — **pas** de tuile / dock Messagerie
+- [ ] Espace famille parent — **pas** de Messagerie
+- [ ] `/messages` et `/family/messages` redirigent vers home / family
 - [ ] `/legal/*` accessibles
 - [ ] Join `/join?code=`
 

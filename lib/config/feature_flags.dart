@@ -5,6 +5,10 @@ abstract final class FeatureFlags {
   /// Écrans ou flux encore incomplets (uniquement en debug par défaut).
   static bool get showIncompleteFeatures => kDebugMode;
 
+  /// Messagerie in-app — alignée portail `CHAT_MESSAGING_LIVE`.
+  /// Off en release tant que la feature n’est pas sur le store (CHANGELOG Unreleased).
+  static bool get chatMessagingLive => kDebugMode;
+
   /// Paiement in-app (callable + PaymentSheet / webhook).
   /// Désactiver si les secrets Functions ne sont pas déployés.
   static const bool inAppPayments = true;

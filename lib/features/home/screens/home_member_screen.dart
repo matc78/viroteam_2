@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
@@ -269,7 +270,9 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                   clubs: clubs,
                   pendingByClub: pendingCounts,
                   onAddClub: () => showAddClubSheet(context, ref),
-                  onOpenChat: () => context.push(AppRoutes.conversations),
+                  onOpenChat: FeatureFlags.chatMessagingLive
+                      ? () => context.push(AppRoutes.conversations)
+                      : null,
                 ),
               ),
             ],

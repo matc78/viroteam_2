@@ -36,6 +36,7 @@ import type {
 import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
 import { listClubMembers } from "@/lib/firebase/memberService";
 import { membershipRoleForClub, splitDisplayName } from "@/lib/firebase/types";
+import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 
 type ChatContextValue = {
   dockOpen: boolean;
@@ -71,11 +72,46 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 
 const MOBILE_MQ = "(max-width: 767px)";
 
+function isMessagesPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    pathname === "/messages" ||
+    pathname.startsWith("/messages/") ||
+    pathname === "/family/messages" ||
+    pathname.startsWith("/family/messages/")
+  );
+}
+
+/**
+ * Quand la messagerie est désactivée : pas de chrome, redirige les deep links.
+ */
+function ChatMessagingDisabled({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isMessagesPath(pathname)) return;
+    const fallback = pathname.startsWith("/family") ? "/family" : "/home";
+    router.replace(fallback);
+  }, [pathname, router]);
+
+  return <>{children}</>;
+}
+
 /**
  * État messagerie global (dock + 1 fenêtre flottante).
  * Survit aux changements de module / club / espace bureau↔famille.
+ * Inactif si `CHAT_MESSAGING_LIVE` est faux (feature non déployée sur l’app).
  */
 export function ChatProvider({ children }: { children: ReactNode }) {
+  if (!CHAT_MESSAGING_LIVE) {
+    return <ChatMessagingDisabled>{children}</ChatMessagingDisabled>;
+  }
+  return <ChatProviderLive>{children}</ChatProviderLive>;
+}
+
+/** Implémentation live (abonnements Firestore + dock). */
+function ChatProviderLive({ children }: { children: ReactNode }) {
   const {
     user,
     status,
@@ -389,11 +425,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Accès au contexte messagerie (lance si hors ChatProvider). */
+/** Accès au contexte messagerie (lance si hors ChatProvider live). */
 export function useChat(): ChatContextValue {
   const ctx = useContext(ChatContext);
   if (!ctx) {
     throw new Error("useChat doit être utilisé dans ChatProvider.");
   }
   return ctx;
+}
+
+/** Accès optionnel (null si messagerie désactivée / hors provider live). */
+export function useChatOptional(): ChatContextValue | null {
+  return useContext(ChatContext);
 }

@@ -41,7 +41,9 @@ class ClubSelectorBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final chatUnread = ref.watch(chatTotalUnreadProvider);
+    final chatUnread = onOpenChat != null
+        ? ref.watch(chatTotalUnreadProvider)
+        : 0;
     final items = clubs.map((entry) {
       final club = entry.club;
       final membership = entry.membership;

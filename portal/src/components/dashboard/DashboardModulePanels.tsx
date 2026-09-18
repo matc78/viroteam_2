@@ -13,6 +13,7 @@ import { PlanningPageClient } from "@/app/(dashboard)/planning/PlanningPageClien
 import { PersonalPlanningClient } from "@/components/dashboard/PersonalPlanningClient";
 import { MessagesPageClient } from "@/components/chat/MessagesPageClient";
 import { SettingsPageClient } from "@/app/(dashboard)/settings/SettingsPageClient";
+import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 import styles from "./DashboardModulePanels.module.css";
 
 type ModuleId =
@@ -128,6 +129,7 @@ export function DashboardModulePanels() {
   return (
     <div className={styles.root}>
       {MODULES.map((module) => {
+        if (module.id === "messages" && !CHAT_MESSAGING_LIVE) return null;
         if (!mountedIds.has(module.id)) return null;
         const isActive = module.id === activeId;
         return (

@@ -61,6 +61,7 @@ Le mot de passe saisi n’est **pas vérifié** en mode dev bypass — seul l’
 | `/announcements` | Annonces (admin / coach) |
 | `/equipment` | Inventaire équipements (admin) |
 | `/settings` | Paramètres club (saison, logo, droits coachs) + compte |
+| `/messages` | Messagerie (désactivée en prod tant que `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` absent) |
 | `/family` | Espace parent |
 | `/family/settings` | Paramètres compte (espace famille) |
 | `/legal/cgu` | Conditions générales |
@@ -109,7 +110,8 @@ Le workflow [`.github/workflows/deploy-portal.yml`](../.github/workflows/deploy-
 `firebase apphosting:rollouts:create portal --git-commit <sha>`.  
 Redeploy manuel : **Actions → Deploy portal → Run workflow**.
 
-URL live : console App Hosting → backend `portal` (sous-domaine `*.hosted.app`).
+URL live : [https://www.viroteam.com](https://www.viroteam.com)  
+(fallback App Hosting : console → backend `portal`, sous-domaine `*.hosted.app`).
 
 ## Thème
 

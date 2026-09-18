@@ -9,6 +9,7 @@ import {
   type NotificationPreferences,
 } from "@/lib/firebase/notificationPreferences";
 import { updateNotificationPreferences } from "@/lib/firebase/userService";
+import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 import shared from "@/components/settings/settingsShared.module.css";
 
 const TOGGLE_ROWS: Array<{
@@ -42,6 +43,12 @@ const TOGGLE_ROWS: Array<{
     subtitle: "Nouveaux messages dans tes discussions",
   },
 ];
+
+function visibleToggleRows() {
+  return TOGGLE_ROWS.filter(
+    (row) => row.key !== "chat" || CHAT_MESSAGING_LIVE,
+  );
+}
 
 /** Accordion préférences push (bureau + famille). */
 export function NotificationPreferencesSection() {
@@ -89,7 +96,7 @@ export function NotificationPreferencesSection() {
       defaultOpen={false}
     >
       <div className={shared.stack}>
-        {TOGGLE_ROWS.map((row) => (
+        {visibleToggleRows().map((row) => (
           <label key={row.key} className={shared.checkRow}>
             <input
               type="checkbox"

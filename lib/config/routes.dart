@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:viro_team_v2/config/router_refresh.dart';
 
+import 'package:viro_team_v2/config/feature_flags.dart';
+
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 
 import 'package:viro_team_v2/features/auth/screens/auth_loading_screen.dart';
@@ -450,11 +452,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       GoRoute(
         path: AppRoutes.conversations,
+        redirect: (context, state) =>
+            FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
         builder: (context, state) => const ConversationsScreen(),
       ),
 
       GoRoute(
         path: AppRoutes.conversation,
+        redirect: (context, state) =>
+            FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
         builder: (context, state) {
           final clubId = state.pathParameters['clubId']!;
           final conversationId = state.pathParameters['conversationId']!;

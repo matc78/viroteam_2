@@ -9,6 +9,7 @@ import { FamilyPlanningClient } from "@/components/family/FamilyPlanningClient";
 import { FamilySettingsClient } from "@/components/family/FamilySettingsClient";
 import { PersonalPlanningClient } from "@/components/dashboard/PersonalPlanningClient";
 import { MessagesPageClient } from "@/components/chat/MessagesPageClient";
+import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 import styles from "@/components/dashboard/DashboardModulePanels.module.css";
 
 type ModuleId =
@@ -101,6 +102,7 @@ export function FamilyModulePanels() {
   return (
     <div className={styles.root}>
       {MODULES.map((module) => {
+        if (module.id === "messages" && !CHAT_MESSAGING_LIVE) return null;
         if (!mountedIds.has(module.id)) return null;
         const isActive = module.id === activeId;
         return (

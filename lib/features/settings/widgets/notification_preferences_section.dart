@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -143,19 +144,21 @@ class NotificationPreferencesSection extends ConsumerWidget {
                   enabled: value,
                 ),
               ),
-              const Divider(height: 1),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(AppCopy.settings.notifChat),
-                subtitle: Text(AppCopy.settings.notifChatSubtitle),
-                value: prefs.chat,
-                onChanged: (value) => _setPreference(
-                  context: context,
-                  ref: ref,
-                  key: 'chat',
-                  enabled: value,
+              if (FeatureFlags.chatMessagingLive) ...[
+                const Divider(height: 1),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(AppCopy.settings.notifChat),
+                  subtitle: Text(AppCopy.settings.notifChatSubtitle),
+                  value: prefs.chat,
+                  onChanged: (value) => _setPreference(
+                    context: context,
+                    ref: ref,
+                    key: 'chat',
+                    enabled: value,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

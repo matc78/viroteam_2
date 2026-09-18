@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useChat } from "@/lib/chat/ChatProvider";
+import { useChatOptional } from "@/lib/chat/ChatProvider";
+import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 import styles from "./MessagingTile.module.css";
 
 /** Icône bulle messagerie. */
@@ -43,7 +44,10 @@ function isMessagesPath(pathname: string | null): boolean {
  */
 export function MessagingTile() {
   const pathname = usePathname();
-  const { totalUnread, messagesHref } = useChat();
+  const chat = useChatOptional();
+  if (!CHAT_MESSAGING_LIVE || !chat) return null;
+
+  const { totalUnread, messagesHref } = chat;
   const isActive = isMessagesPath(pathname);
   const label =
     totalUnread > 0

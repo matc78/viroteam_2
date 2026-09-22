@@ -89,6 +89,7 @@ git tag functions-dev-v1.1.0 && git push origin functions-dev-v1.1.0
 git tag functions-v1.1.0 && git push origin functions-v1.1.0
 
 # 3 — Portail
+# Avant le tag : mettre à jour portal/CHANGELOG.md (+ version dans portal/package.json)
 git tag portal-v1.1.0 && git push origin portal-v1.1.0
 
 # 4 — Android Play internal + GitHub Release

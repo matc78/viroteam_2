@@ -101,9 +101,12 @@ Config runtime : [`apphosting.yaml`](apphosting.yaml). Déploiement **uniquement
 
 ### Publier une version
 
+1. Mettre à jour [`CHANGELOG.md`](./CHANGELOG.md) (section version = tag) et `package.json` (`version`).
+2. Commit, puis :
+
 ```bash
-git tag portal-v0.1.0
-git push origin portal-v0.1.0
+git tag portal-v1.4.4
+git push origin portal-v1.4.4
 ```
 
 Le workflow [`.github/workflows/deploy-portal.yml`](../.github/workflows/deploy-portal.yml) lance  

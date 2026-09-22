@@ -1,6 +1,7 @@
 # Changelog
 
 Toutes les modifications notables de ce projet sont documentées dans ce fichier.
+Le changelog dédié aux déploiements App Hosting est dans [`portal/CHANGELOG.md`](portal/CHANGELOG.md) (tags `portal-v*`).
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).

@@ -7,6 +7,7 @@ import styles from "../legal.module.css";
 export const metadata: Metadata = {
   title: "Conditions générales d’utilisation — ViroTeam",
   description: "Conditions générales d’utilisation de ViroTeam.",
+  alternates: { canonical: "/legal/cgu" },
 };
 
 /** Page CGU (contenu minimal sérieux). */

@@ -7,6 +7,7 @@ import styles from "../legal.module.css";
 export const metadata: Metadata = {
   title: "Politique de confidentialité — ViroTeam",
   description: "Politique de confidentialité et protection des données ViroTeam.",
+  alternates: { canonical: "/legal/privacy" },
 };
 
 /** Page confidentialité (template à valider avec l’identité réelle de l’éditeur). */

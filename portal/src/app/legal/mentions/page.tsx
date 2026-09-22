@@ -7,6 +7,7 @@ import styles from "../legal.module.css";
 export const metadata: Metadata = {
   title: "Mentions légales — ViroTeam",
   description: "Mentions légales du service ViroTeam.",
+  alternates: { canonical: "/legal/mentions" },
 };
 
 /** Mentions légales — projet personnel non commercial. */

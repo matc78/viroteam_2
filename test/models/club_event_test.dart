@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 
 ClubEvent _event({
@@ -19,6 +21,39 @@ ClubEvent _event({
 }
 
 void main() {
+  group('ClubEvent.calendarDateFromFirestore', () {
+    test('avec dateId "20260519" → 2026-05-19', () {
+      expect(
+        ClubEvent.calendarDateFromFirestore({
+          FirestoreFields.dateId: '20260519',
+        }),
+        DateTime(2026, 5, 19),
+      );
+    });
+
+    test('sans dateId, timestamp hour >= 22 → jour suivant', () {
+      final eveningUtcLegacy = Timestamp.fromDate(
+        DateTime(2026, 5, 18, 22, 0),
+      );
+      expect(
+        ClubEvent.calendarDateFromFirestore({
+          FirestoreFields.date: eveningUtcLegacy,
+        }),
+        DateTime(2026, 5, 19),
+      );
+    });
+
+    test('sans dateId, timestamp matin → même jour', () {
+      final morning = Timestamp.fromDate(DateTime(2026, 5, 19, 9, 0));
+      expect(
+        ClubEvent.calendarDateFromFirestore({
+          FirestoreFields.date: morning,
+        }),
+        DateTime(2026, 5, 19),
+      );
+    });
+  });
+
   group('ClubEvent.rsvpStatusForUser', () {
     test('none quand aucune réponse', () {
       final event = _event();

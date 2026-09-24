@@ -62,9 +62,9 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
     setState(() => _loading = true);
     final ok =
         await ref.read(pendingInvitationProvider.notifier).lookupCode(code);
-    setState(() => _loading = false);
 
     if (!mounted) return;
+    setState(() => _loading = false);
     if (!ok) return;
 
     final auth = ref.read(authStateProvider).value;

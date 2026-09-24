@@ -87,6 +87,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
     required Map<String, ClubTeam> teams,
     required bool canManageEvents,
   }) {
+    final members = ref.read(clubMembersProvider(event.clubId)).value;
     PlanningEventDetailSheet.show(
       context: context,
       ref: ref,
@@ -96,11 +97,8 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
       excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(
         event,
         teams,
-        membersByUid: ref.read(clubMembersProvider(event.clubId)).value != null
-            ? indexClubMembersByUid(
-                ref.read(clubMembersProvider(event.clubId)).value!,
-              )
-            : null,
+        membersByUid:
+            members != null ? indexClubMembersByUid(members) : null,
       ),
       canManageEvents: canManageEvents,
       onCanceled: () {},

@@ -2,21 +2,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/models/parent_link.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
-/// Fiche enfant affichée en liste (parent seul dans le club) — 1er lien actif.
+/// ID enfant à afficher (avatar listes) : sélection audience si enfant valide,
+/// sinon 1er lien actif. `null` si aucun lien.
+String? resolveFamilyPrimaryChildMemberId({
+  required List<ParentLink> childLinks,
+  required FamilyAudienceTarget? selectedAudience,
+}) {
+  if (childLinks.isEmpty) return null;
+
+  final selectedChildId =
+      selectedAudience != null && selectedAudience.isChild
+          ? selectedAudience.memberId
+          : null;
+  if (selectedChildId != null &&
+      childLinks.any((link) => link.memberId == selectedChildId)) {
+    return selectedChildId;
+  }
+  return childLinks.first.memberId;
+}
+
+/// Fiche enfant affichée en liste (parent seul dans le club) —
+/// suit [selectedClubAudienceProvider], sinon 1er lien actif.
 final familyPrimaryChildProvider =
     FutureProvider.family<ClubMember?, String>((ref, clubId) async {
   final user = ref.watch(viroUserProvider).value;
   if (user == null || user.isLicensedInClub(clubId)) return null;
 
   final childLinks = user.activeParentLinksInClub(clubId);
-  if (childLinks.isEmpty) return null;
+  final memberId = resolveFamilyPrimaryChildMemberId(
+    childLinks: childLinks,
+    selectedAudience: ref.watch(selectedClubAudienceProvider(clubId)),
+  );
+  if (memberId == null) return null;
 
   return ref.read(guardianServiceProvider).getClubMember(
         clubId: clubId,
-        memberId: childLinks.first.memberId,
+        memberId: memberId,
       );
 });
 

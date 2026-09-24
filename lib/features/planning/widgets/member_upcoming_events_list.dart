@@ -13,9 +13,21 @@ import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/providers/service_providers.dart';
 
 /// Limite d'événements affichés en aperçu sur la home membre.
 const memberHomePlanningPreviewLimit = 5;
+
+/// Clé RSVP lecture/écriture — même logique que [EventService.resolveAudienceId].
+final memberEventAudienceIdProvider =
+    FutureProvider.family<String?, String>((ref, clubId) async {
+  final uid = ref.watch(authStateProvider).value?.uid;
+  if (uid == null) return null;
+  return ref.read(eventServiceProvider).resolveAudienceId(
+        clubId: clubId,
+        authUid: uid,
+      );
+});
 
 /// Liste groupée par jour des événements à venir d'un membre (multi-clubs).
 class MemberUpcomingEventsList extends ConsumerWidget {
@@ -129,10 +141,14 @@ class _MemberEventCard extends ConsumerWidget {
       membersByUid: membersByUid,
     );
     final clubMember = ref.watch(clubMemberProvider(event.clubId)).value;
-    final audienceId = uid != null ? (clubMember?.memberId ?? uid) : null;
+    final audienceAsync =
+        ref.watch(memberEventAudienceIdProvider(event.clubId));
+    // Pas de fallback uid tant que resolveAudienceId n'a pas répondu (asymétrie écriture).
+    final audienceId = audienceAsync.asData?.value;
     final audienceKeys =
         clubMember != null ? eventAudienceKeys(clubMember) : null;
     final canRsvp = uid != null &&
+        audienceId != null &&
         PlanningEventDisplay.canRsvpOnEvent(
           event,
           uid,
@@ -141,7 +157,7 @@ class _MemberEventCard extends ConsumerWidget {
           member: clubMember,
           membersByUid: membersByUid,
         );
-    final status = uid != null
+    final status = uid != null && audienceId != null
         ? event.rsvpStatusForUser(
             uid,
             clubAudienceId: audienceId,

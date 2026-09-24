@@ -76,6 +76,7 @@ class _InvitationPreviewScreenState
       ref.read(pendingInvitationProvider.notifier).clear();
       if (mounted) context.go(AppRoutes.home);
     } catch (e) {
+      if (!mounted) return;
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);

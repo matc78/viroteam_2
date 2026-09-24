@@ -128,7 +128,8 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     }
     ref.invalidate(clubTeamsProvider(clubId));
 
-    await ref.refresh(clubProvider(clubId).future);
+    ref.invalidate(clubProvider(clubId));
+    await ref.read(clubProvider(clubId).future);
 
     final streamWaits = <Future<Object?>>[
       if (canManage)
@@ -152,6 +153,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     Map<String, ClubTeam> teamsById, {
     required bool canManage,
   }) {
+    final members = ref.read(clubMembersProvider(widget.clubId)).value;
     PlanningEventDetailSheet.show(
       context: context,
       ref: ref,
@@ -161,11 +163,8 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(
         event,
         teamsById,
-        membersByUid: ref.read(clubMembersProvider(widget.clubId)).value != null
-            ? indexClubMembersByUid(
-                ref.read(clubMembersProvider(widget.clubId)).value!,
-              )
-            : null,
+        membersByUid:
+            members != null ? indexClubMembersByUid(members) : null,
       ),
       canManageEvents: canManage,
       onCanceled: () {},

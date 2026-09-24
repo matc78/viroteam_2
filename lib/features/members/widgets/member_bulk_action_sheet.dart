@@ -215,7 +215,11 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
                         ? null
                         : () async {
                             setState(() => _busy = true);
-                            await widget.onSendInvites!();
+                            try {
+                              await widget.onSendInvites!();
+                            } finally {
+                              if (mounted) setState(() => _busy = false);
+                            }
                           },
                   ),
                 if (widget.canAddToTeam)
@@ -278,7 +282,11 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
                   ? null
                   : () async {
                       setState(() => _busy = true);
-                      await widget.onAddToTeam!(team);
+                      try {
+                        await widget.onAddToTeam!(team);
+                      } finally {
+                        if (mounted) setState(() => _busy = false);
+                      }
                     },
             );
           },

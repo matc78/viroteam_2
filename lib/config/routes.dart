@@ -1,4 +1,5 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,7 +29,6 @@ import 'package:viro_team_v2/features/equipment/screens/club_equipment_screen.da
 import 'package:viro_team_v2/features/club/screens/club_detail_screen.dart';
 import 'package:viro_team_v2/features/fees/screens/admin_fees_screen.dart';
 import 'package:viro_team_v2/features/fees/screens/my_fee_screen.dart';
-import 'package:viro_team_v2/features/fees/screens/payment_soon_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/add_event_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/club_planning_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/member_planning_screen.dart';
@@ -151,8 +151,6 @@ abstract final class AppRoutes {
 
   static String clubMyFeePath(String clubId) => '/club/$clubId/fees/mine';
 
-  static String clubFeePayPath(String clubId) => '/club/$clubId/fees/pay';
-
   static String clubCalendarSyncPath(String clubId, {String? eventId}) {
     final base = '/club/$clubId/calendar-sync';
     if (eventId == null || eventId.isEmpty) return base;
@@ -253,7 +251,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           path == AppRoutes.join ||
 
-          path == AppRoutes.designPreview;
+          (kDebugMode && path == AppRoutes.designPreview);
 
 
 
@@ -656,7 +654,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
 
           final clubId = state.pathParameters['clubId']!;
-          return PaymentSoonScreen(clubId: clubId);
+
+          // Deep link legacy `/fees/pay` → même écran que `/fees/mine`
+          // (checkout via FeeCheckoutSheet sur MyFeeScreen).
+          return MyFeeScreen(clubId: clubId);
 
         },
 
@@ -763,13 +764,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       ),
 
-      GoRoute(
+      if (kDebugMode)
+        GoRoute(
 
-        path: AppRoutes.designPreview,
+          path: AppRoutes.designPreview,
 
-        builder: (context, state) => const DesignSystemPreviewScreen(),
+          builder: (context, state) => const DesignSystemPreviewScreen(),
 
-      ),
+        ),
 
     ],
 

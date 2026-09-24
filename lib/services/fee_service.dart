@@ -67,6 +67,21 @@ class FeeService {
     });
   }
 
+  /// Ajoute une entrée immuable au ledger (même transaction que la fiche).
+  void _appendPaymentEventInTransaction({
+    required Transaction tx,
+    required String clubId,
+    required String seasonId,
+    required String memberId,
+    required Map<String, dynamic> payload,
+  }) {
+    final eventRef = _paymentEventsCol(clubId, seasonId, memberId).doc();
+    tx.set(eventRef, {
+      ...payload,
+      FirestoreFields.createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
   // ─── Lecture ───────────────────────────────────────────────────────────────
 
   Stream<FeeSeason?> watchActiveSeason(String clubId) {
@@ -271,6 +286,11 @@ class FeeService {
   }
 
   /// Valide un paiement hors-ligne (chèque, espèces, ANCV, etc.).
+  ///
+  /// Crédit et ledger dans une [Transaction] pour éviter un double crédit
+  /// concurrent (deux admins / deux onglets). [currentFee] est conservé pour
+  /// compatibilité des appelants mais ignoré : la fiche est relue dans la
+  /// transaction.
   Future<void> validateOfflinePayment({
     required String clubId,
     required String seasonId,
@@ -278,6 +298,7 @@ class FeeService {
     required String offlineMethod,
     required int amountCents,
     required FeeSeason season,
+    // ignore: avoid_unused_constructor_parameters, unused_element_parameter
     MemberFee? currentFee,
   }) async {
     final uid = _currentUid();
@@ -288,61 +309,59 @@ class FeeService {
     }
 
     final feeRef = _memberFeesCol(clubId, seasonId).doc(memberId);
-    final fee = currentFee ??
-        await feeRef.get().then(
-              (snap) => snap.exists
-                  ? MemberFee.fromFirestore(memberId, snap)
-                  : null,
-            );
-    if (fee == null) throw StateError('Fiche cotisation introuvable');
 
-    final newPaid = fee.amountPaidCents + amountCents;
-    final resolution = resolveMemberFeePaymentStatus(
-      isExempt: fee.status == MemberFeeStatus.exonere,
-      dueCents: fee.amountDueCents(season),
-      amountPaidCents: newPaid,
-      validatedAidsCents: fee.validatedAidsCents,
-      hasPendingAids: fee.aids.any((aid) => aid.isPendingProof),
-    );
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(feeRef);
+      if (!snap.exists) {
+        throw StateError('Fiche cotisation introuvable');
+      }
+      final fee = MemberFee.fromFirestore(memberId, snap);
 
-    final batch = _db.batch();
-    batch.set(
-      feeRef,
-      {
-        FirestoreFields.amountPaidCents: newPaid,
-        FirestoreFields.offlineMethod: offlineMethod,
-        FirestoreFields.paidVia: FeePaidVia.offline,
-        FirestoreFields.feeStatus: resolution.statusValue,
-        if (resolution.isFullyPaid)
-          FirestoreFields.paidAt: FieldValue.serverTimestamp(),
-        if (resolution.clearPaidAt)
-          FirestoreFields.paidAt: FieldValue.delete(),
-        FirestoreFields.markedBy: uid,
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-
-    if (amountCents > 0) {
-      _appendPaymentEvent(
-        batch: batch,
-        clubId: clubId,
-        seasonId: seasonId,
-        memberId: memberId,
-        payload: feePaymentEventPayload(
-          type: FeePaymentEventTypes.offlineCredit,
-          deltaCents: amountCents,
-          amountPaidCentsBefore: fee.amountPaidCents,
-          amountPaidCentsAfter: newPaid,
-          statusAfter: resolution.statusValue,
-          actorUid: uid,
-          offlineMethod: offlineMethod,
-          paidVia: FeePaidVia.offline,
-        ),
+      final newPaid = fee.amountPaidCents + amountCents;
+      final resolution = resolveMemberFeePaymentStatus(
+        isExempt: fee.status == MemberFeeStatus.exonere,
+        dueCents: fee.amountDueCents(season),
+        amountPaidCents: newPaid,
+        validatedAidsCents: fee.validatedAidsCents,
+        hasPendingAids: fee.aids.any((aid) => aid.isPendingProof),
       );
-    }
 
-    await batch.commit();
+      tx.set(
+        feeRef,
+        {
+          FirestoreFields.amountPaidCents: newPaid,
+          FirestoreFields.offlineMethod: offlineMethod,
+          FirestoreFields.paidVia: FeePaidVia.offline,
+          FirestoreFields.feeStatus: resolution.statusValue,
+          if (resolution.isFullyPaid)
+            FirestoreFields.paidAt: FieldValue.serverTimestamp(),
+          if (resolution.clearPaidAt)
+            FirestoreFields.paidAt: FieldValue.delete(),
+          FirestoreFields.markedBy: uid,
+          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      if (amountCents > 0) {
+        _appendPaymentEventInTransaction(
+          tx: tx,
+          clubId: clubId,
+          seasonId: seasonId,
+          memberId: memberId,
+          payload: feePaymentEventPayload(
+            type: FeePaymentEventTypes.offlineCredit,
+            deltaCents: amountCents,
+            amountPaidCentsBefore: fee.amountPaidCents,
+            amountPaidCentsAfter: newPaid,
+            statusAfter: resolution.statusValue,
+            actorUid: uid,
+            offlineMethod: offlineMethod,
+            paidVia: FeePaidVia.offline,
+          ),
+        );
+      }
+    });
   }
 
   /// Pose le montant déjà encaissé (absolu) et recalcule le statut.

@@ -564,9 +564,7 @@ class EventService {
         .limit(1)
         .get();
     if (snap.docs.isEmpty) return null;
-    final ts = snap.docs.first.data()[FirestoreFields.date] as Timestamp?;
-    if (ts == null) return null;
-    return _startOfDay(ts.toDate());
+    return _calendarDateFromEventData(snap.docs.first.data());
   }
 
   /// Première date d'événement parmi [teamIds] (une requête `array-contains`
@@ -586,9 +584,7 @@ class EventService {
             .limit(1)
             .get();
         if (snap.docs.isEmpty) return null;
-        final ts = snap.docs.first.data()[FirestoreFields.date] as Timestamp?;
-        if (ts == null) return null;
-        return _startOfDay(ts.toDate());
+        return _calendarDateFromEventData(snap.docs.first.data());
       }),
     );
 
@@ -598,6 +594,15 @@ class EventService {
       if (earliest == null || date.isBefore(earliest)) earliest = date;
     }
     return earliest;
+  }
+
+  /// Jour calendaire d'un doc événement, ou null si ni [dateId] ni [date].
+  DateTime? _calendarDateFromEventData(Map<String, dynamic> data) {
+    final dateId = data[FirestoreFields.dateId] as String?;
+    final hasDateId =
+        dateId != null && RegExp(r'^\d{8}$').hasMatch(dateId);
+    if (!hasDateId && data[FirestoreFields.date] == null) return null;
+    return ClubEvent.calendarDateFromFirestore(data);
   }
 
   /// Crée un ou plusieurs événements (récurrence hebdomadaire pour entraînements).

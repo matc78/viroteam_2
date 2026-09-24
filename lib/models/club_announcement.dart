@@ -29,18 +29,26 @@ class ClubAnnouncement {
   final DateTime? endsAt;
   final DateTime? closedAt;
 
+  /// Durée de visibilité par défaut si aucune date limite n’est renseignée.
+  static const defaultVisibility = Duration(days: 7);
+
   String get authorName => '$senderFirstName $senderLastName'.trim();
 
   bool get isBroadcast =>
       targetType == AnnouncementTargetTypes.tousLesMembres ||
       targetType == 'all';
 
+  /// Date de fin effective : `endsAt`, sinon `createdAt` + [defaultVisibility].
+  DateTime get effectiveEndsAt =>
+      endsAt ?? createdAt.add(defaultVisibility);
+
   /// Annonce encore visible pour les destinataires (ni clôturée ni expirée).
+  ///
+  /// Sans `endsAt`, l’annonce expire automatiquement une semaine après
+  /// [createdAt] pour éviter qu’elle ne traîne indéfiniment.
   bool get isActive {
     if (closedAt != null) return false;
-    final limit = endsAt;
-    if (limit != null && !limit.isAfter(DateTime.now())) return false;
-    return true;
+    return effectiveEndsAt.isAfter(DateTime.now());
   }
 
   bool matchesMember({

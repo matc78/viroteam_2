@@ -47,9 +47,11 @@ final clubAnnouncementsProvider =
       );
 });
 
-/// Annonces visibles pour la cible du club (Moi ou enfant).
-final visibleClubAnnouncementsProvider =
-    Provider.family<AsyncValue<List<ClubAnnouncement>>, String>((ref, clubId) {
+AsyncValue<List<ClubAnnouncement>> _filterClubAnnouncements(
+  Ref ref,
+  String clubId, {
+  required bool includeInactiveForStaff,
+}) {
   final announcementsAsync = ref.watch(clubAnnouncementsProvider(clubId));
   final memberAsync = ref.watch(clubMemberProvider(clubId));
   final target = ref.watch(selectedClubAudienceProvider(clubId));
@@ -77,9 +79,30 @@ final visibleClubAnnouncementsProvider =
         member: member,
         clubTeams: teams,
         staffSeesAll: staff,
+        includeInactive: includeInactiveForStaff && staff,
       );
       return AsyncData(visible);
     },
+  );
+}
+
+/// Annonces actives pour la cible du club (preview page club / membres).
+final visibleClubAnnouncementsProvider =
+    Provider.family<AsyncValue<List<ClubAnnouncement>>, String>((ref, clubId) {
+  return _filterClubAnnouncements(
+    ref,
+    clubId,
+    includeInactiveForStaff: false,
+  );
+});
+
+/// Liste écran Annonces : historique complet pour le staff, actives sinon.
+final clubAnnouncementsListProvider =
+    Provider.family<AsyncValue<List<ClubAnnouncement>>, String>((ref, clubId) {
+  return _filterClubAnnouncements(
+    ref,
+    clubId,
+    includeInactiveForStaff: true,
   );
 });
 

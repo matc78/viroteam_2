@@ -51,16 +51,24 @@ export type AnnouncementAudienceTarget = {
   targetIds: string[];
 };
 
+/** Visibilité par défaut sans `endsAt` (aligné app Flutter). */
+export const ANNOUNCEMENT_DEFAULT_VISIBILITY_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** Indique si l’annonce est encore visible pour les destinataires. */
 export function isAnnouncementActive(
-  announcement: Pick<ClubAnnouncementRecord, "endsAt" | "closedAt">,
+  announcement: Pick<ClubAnnouncementRecord, "endsAt" | "closedAt" | "createdAt">,
   now: Date = new Date(),
 ): boolean {
   if (announcement.closedAt) return false;
-  if (announcement.endsAt && announcement.endsAt.getTime() <= now.getTime()) {
-    return false;
-  }
-  return true;
+  const limit =
+    announcement.endsAt ??
+    (announcement.createdAt
+      ? new Date(
+          announcement.createdAt.getTime() + ANNOUNCEMENT_DEFAULT_VISIBILITY_MS,
+        )
+      : null);
+  if (!limit) return false;
+  return limit.getTime() > now.getTime();
 }
 
 /** Partitionne les annonces en cours / terminées. */
@@ -300,7 +308,10 @@ export async function closeAnnouncement(params: {
   );
 }
 
-/** Retire la date limite pour laisser l’annonce ouverte jusqu’à clôture. */
+/**
+ * Retire la date limite explicite.
+ * Sans `endsAt`, la visibilité retombe sur createdAt + 7 jours.
+ */
 export async function clearAnnouncementEndsAt(params: {
   clubId: string;
   announcementId: string;

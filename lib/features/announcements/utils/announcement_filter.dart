@@ -23,15 +23,21 @@ Set<String> memberCategoriesFromTeams({
 abstract final class AnnouncementFilter {
   /// Filtre par ciblage destinataire (sans tenir compte du dismiss).
   ///
-  /// Les non-staff ne voient que les annonces encore actives.
-  /// Le staff voit l’historique complet (en cours + terminées).
+  /// Les non-staff ne voient que les annonces encore actives et ciblées.
+  /// Le staff voit toutes les annonces du club ; [includeInactive] autorise
+  /// l’historique (écran de gestion). Sinon, seules les actives sont gardées
+  /// (preview club / home).
   static List<ClubAnnouncement> forMemberAudience({
     required List<ClubAnnouncement> announcements,
     required ClubMember? member,
     required List<ClubTeam> clubTeams,
     required bool staffSeesAll,
+    bool includeInactive = false,
   }) {
-    if (staffSeesAll) return announcements;
+    if (staffSeesAll) {
+      if (includeInactive) return announcements;
+      return announcements.where((a) => a.isActive).toList();
+    }
     if (member == null) return [];
 
     final categories = memberCategoriesFromTeams(
@@ -65,7 +71,6 @@ abstract final class AnnouncementFilter {
       clubTeams: clubTeams,
       staffSeesAll: staffSeesAll,
     )
-        .where((a) => a.isActive)
         .where((a) => !dismissedIds.contains(a.id))
         .toList();
   }

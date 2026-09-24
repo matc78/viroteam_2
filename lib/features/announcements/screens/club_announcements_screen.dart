@@ -30,7 +30,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final announcementsAsync = ref.watch(visibleClubAnnouncementsProvider(clubId));
+    final announcementsAsync = ref.watch(clubAnnouncementsListProvider(clubId));
     final memberAsync = ref.watch(clubMemberProvider(clubId));
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
     final canManage = memberAsync.maybeWhen(

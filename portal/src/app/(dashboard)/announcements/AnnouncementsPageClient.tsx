@@ -381,7 +381,7 @@ export function AnnouncementsPageClient() {
                           Date limite {formatDateTime(announcement.endsAt)}
                         </span>
                       ) : (
-                        <span>Sans date limite</span>
+                        <span>Limite auto. (7 j après publication)</span>
                       )}
                       {announcement.closedAt ? (
                         <span>
@@ -409,7 +409,7 @@ export function AnnouncementsPageClient() {
                               void handleClearEndsAt(announcement.id)
                             }
                           >
-                            Retirer la date limite
+                            {isBusy ? "…" : "Repasser à la limite auto (7 j)"}
                           </button>
                         ) : null}
                       </div>

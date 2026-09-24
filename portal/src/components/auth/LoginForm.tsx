@@ -9,6 +9,7 @@ import { usePostAuthRedirect } from "@/lib/auth/usePostAuthRedirect";
 import { validateEmail } from "@/lib/auth/validateEmail";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { isUnknownAccountAuthError } from "@/lib/firebase/authErrors";
+import { usePendingOverlay } from "@/lib/ui/usePendingOverlay";
 import styles from "./AuthForm.module.css";
 
 type FieldErrors = {
@@ -26,8 +27,11 @@ function LoginFormContent() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const pendingOverlay = usePendingOverlay("Connexion…");
 
   usePostAuthRedirect();
+
+  const isConnecting = submitting || googleLoading || pendingOverlay.pending;
 
   function validate(): FieldErrors {
     const nextErrors: FieldErrors = {};
@@ -46,8 +50,10 @@ function LoginFormContent() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
+    pendingOverlay.start("Connexion…");
     try {
       await signIn(email, password);
+      // Loader conservé jusqu’à la redirection post-auth (home / access-denied).
     } catch (error) {
       if (isUnknownAccountAuthError(error)) {
         router.replace("/access-denied?reason=unknown");
@@ -59,16 +65,18 @@ function LoginFormContent() {
             ? error.message
             : "Connexion impossible.",
       });
-    } finally {
       setSubmitting(false);
+      pendingOverlay.fail();
     }
   }
 
   async function handleGoogleSignIn() {
     setErrors({});
     setGoogleLoading(true);
+    pendingOverlay.start("Connexion…");
     try {
       await signInWithGoogle();
+      // Loader conservé jusqu’à la redirection post-auth.
     } catch (error) {
       if (isUnknownAccountAuthError(error)) {
         router.replace("/access-denied?reason=unknown");
@@ -77,13 +85,22 @@ function LoginFormContent() {
       const result = handleGoogleAuthError(error);
       if (result.emailToPrefill) setEmail(result.emailToPrefill);
       setErrors({ form: result.formMessage });
-      if (result.shouldStopLoading) setGoogleLoading(false);
+      if (result.shouldStopLoading) {
+        setGoogleLoading(false);
+        pendingOverlay.fail();
+      }
     }
   }
 
   return (
     <>
-      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+      {pendingOverlay.overlay}
+      <form
+        className={styles.form}
+        onSubmit={handleSubmit}
+        noValidate
+        aria-busy={isConnecting || undefined}
+      >
         <div className={styles.field}>
           <label className={styles.label} htmlFor="login-email">
             E-mail
@@ -174,8 +191,19 @@ function LoginFormContent() {
           </p>
         ) : null}
 
-        <button className={styles.submit} type="submit" disabled={submitting || googleLoading}>
-          {submitting ? "Connexion…" : "Se connecter"}
+        <button
+          className={styles.submit}
+          type="submit"
+          disabled={isConnecting}
+        >
+          {submitting ? (
+            <>
+              <span className={styles.submitSpinner} aria-hidden="true" />
+              Connexion…
+            </>
+          ) : (
+            "Se connecter"
+          )}
         </button>
       </form>
 

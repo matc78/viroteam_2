@@ -133,7 +133,7 @@ export function InviteParentDialog({
                 className={dialogStyles.button}
                 disabled={busy || !memberId}
               >
-                Inviter
+                {busy ? "Invitation…" : "Inviter"}
               </button>
             </div>
           </form>

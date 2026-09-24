@@ -14,6 +14,7 @@ import {
   firstNameError,
   lastNameError,
 } from "@/lib/format/personDataFormat";
+import { usePendingOverlay } from "@/lib/ui/usePendingOverlay";
 import formStyles from "./AuthForm.module.css";
 import styles from "./JoinOnboardingForm.module.css";
 
@@ -34,6 +35,7 @@ export function JoinOnboardingForm() {
   const [clubPreview, setClubPreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const pendingOverlay = usePendingOverlay("Validation…");
   const cachedInvitationRef = useRef<{
     code: string;
     invitation: InvitationLookupResult;
@@ -100,6 +102,7 @@ export function JoinOnboardingForm() {
     }
 
     setSubmitting(true);
+    pendingOverlay.start("Validation…");
     setErrors({});
 
     try {
@@ -112,6 +115,8 @@ export function JoinOnboardingForm() {
       if (!invitation) {
         setClubPreview(null);
         setErrors({ code: "Code introuvable ou expiré." });
+        setSubmitting(false);
+        pendingOverlay.fail();
         return;
       }
 
@@ -120,6 +125,8 @@ export function JoinOnboardingForm() {
           form:
             "Cette invitation est destinée à un parent. Ouvre le lien d’invitation reçu par e-mail.",
         });
+        setSubmitting(false);
+        pendingOverlay.fail();
         return;
       }
 
@@ -149,6 +156,7 @@ export function JoinOnboardingForm() {
 
       await refreshProfile();
       router.replace("/home");
+      // Loader conservé jusqu’à la redirection.
     } catch (error) {
       setErrors({
         form:
@@ -156,8 +164,8 @@ export function JoinOnboardingForm() {
             ? error.message
             : "Impossible d’enregistrer ton profil.",
       });
-    } finally {
       setSubmitting(false);
+      pendingOverlay.fail();
     }
   }
 
@@ -171,7 +179,14 @@ export function JoinOnboardingForm() {
   }
 
   return (
-    <form className={styles.joinForm} onSubmit={handleSubmit} noValidate>
+    <>
+      {pendingOverlay.overlay}
+      <form
+        className={styles.joinForm}
+        onSubmit={handleSubmit}
+        noValidate
+        aria-busy={submitting || undefined}
+      >
       <div className={formStyles.field}>
         <label className={formStyles.label} htmlFor="join-first-name">
           Prénom
@@ -255,5 +270,6 @@ export function JoinOnboardingForm() {
         {submitting ? "Validation…" : "Rejoindre le club"}
       </button>
     </form>
+    </>
   );
 }

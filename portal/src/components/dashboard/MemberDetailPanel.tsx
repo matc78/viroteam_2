@@ -564,7 +564,7 @@ export function MemberDetailPanel({
                           disabled={panelBusy}
                           onClick={() => void handleRevokeParent()}
                         >
-                          Révoquer
+                          {guardianBusy ? "Révocation…" : "Révoquer"}
                         </button>
                       ) : (
                         <form
@@ -587,7 +587,7 @@ export function MemberDetailPanel({
                             className={`${dialogStyles.buttonSecondary} ${styles.rowAction}`}
                             disabled={panelBusy}
                           >
-                            Inviter
+                            {guardianBusy ? "Invitation…" : "Inviter"}
                           </button>
                         </form>
                       )}

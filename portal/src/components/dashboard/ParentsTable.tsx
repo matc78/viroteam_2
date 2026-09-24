@@ -192,7 +192,7 @@ export function ParentsTable({
                             className={styles.buttonGhost}
                             disabled={busy}
                           >
-                            OK
+                            {busy ? "…" : "OK"}
                           </button>
                           <button
                             type="button"

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
 import { SettingsAccordion } from "@/components/settings/SettingsAccordion";
 import { useToast } from "@/components/ToastProvider";
 import { validatePassword, PASSWORD_POLICY_HINT } from "@/lib/auth/passwordPolicy";
@@ -54,6 +55,7 @@ export function AccountSettingsSection() {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() ?? "")
       .join("") || "U";
+  const isLeavingAccount = busy === "logout" || busy === "delete";
 
   async function handleAvatarChange(file: File | null) {
     if (!user || !file) return;
@@ -159,6 +161,7 @@ export function AccountSettingsSection() {
       });
       showToast("Compte supprimé.", "success");
       await logout();
+      // Loader conservé jusqu’à la redirection (busy reste "delete").
     } catch (deleteError) {
       setError(
         deleteError instanceof Error
@@ -169,8 +172,29 @@ export function AccountSettingsSection() {
     }
   }
 
+  async function handleLogout() {
+    setBusy("logout");
+    setError(null);
+    try {
+      await logout();
+      // Loader conservé jusqu’à la redirection vers /login.
+    } catch (logoutError) {
+      setError(
+        logoutError instanceof Error
+          ? logoutError.message
+          : "Déconnexion impossible.",
+      );
+      setBusy(null);
+    }
+  }
+
   return (
     <section className={`${panelStyles.panel} ${shared.group}`} data-tone="blue">
+      {isLeavingAccount ? (
+        <AuthLoadingState
+          message={busy === "delete" ? "Suppression…" : "Déconnexion…"}
+        />
+      ) : null}
       <header className={shared.groupHeader}>
         <h2 className={shared.groupTitle}>Compte</h2>
         <p className={shared.groupLead}>
@@ -352,9 +376,9 @@ export function AccountSettingsSection() {
               type="button"
               className={shared.secondaryButton}
               disabled={busy !== null}
-              onClick={() => void logout()}
+              onClick={() => void handleLogout()}
             >
-              Déconnexion
+              {busy === "logout" ? "Déconnexion…" : "Déconnexion"}
             </button>
           </div>
         </SettingsAccordion>

@@ -16,6 +16,7 @@ import {
 import { getClubsByIds } from "@/lib/firebase/clubService";
 import { splitDisplayName } from "@/lib/firebase/types";
 import { site } from "@/lib/site";
+import { usePendingOverlay } from "@/lib/ui/usePendingOverlay";
 import formStyles from "./AuthForm.module.css";
 import styles from "./AccessDenied.module.css";
 
@@ -28,6 +29,7 @@ export function AccessDeniedContent() {
   const reason = searchParams.get("reason");
   const forceAppMessage = reason === "unknown" || reason === "role";
   const [clubNames, setClubNames] = useState<string[]>([]);
+  const pendingOverlay = usePendingOverlay("Déconnexion…");
 
   const hasClubs = (profile?.clubMemberships.length ?? 0) > 0;
   const isParent = (profile?.parentLinks ?? []).some(
@@ -94,12 +96,19 @@ export function AccessDeniedContent() {
       });
 
   async function handleLogout() {
-    await logout();
-    router.replace("/login");
+    pendingOverlay.start("Déconnexion…");
+    try {
+      await logout();
+      router.replace("/login");
+      // Loader conservé jusqu’à la redirection.
+    } catch {
+      pendingOverlay.fail();
+    }
   }
 
   return (
     <AuthShell accent="orange" eyebrow="Accès limité" title={title} lead={lead}>
+      {pendingOverlay.overlay}
       <div className={styles.body}>
         {status === "signedIn" && (accountDisplayName || accountEmail) ? (
           <div className={styles.accountCard} aria-live="polite">
@@ -127,9 +136,10 @@ export function AccessDeniedContent() {
             <button
               type="button"
               className={formStyles.submit}
+              disabled={pendingOverlay.pending}
               onClick={() => void handleLogout()}
             >
-              Se déconnecter
+              {pendingOverlay.pending ? "Déconnexion…" : "Se déconnecter"}
             </button>
           ) : (
             <Link href="/login" className={styles.submitLink}>

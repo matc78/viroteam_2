@@ -989,7 +989,7 @@ export function FeesConfigForm({
               disabled={saving || connectBusy}
               onClick={() => void handleActivateOnlinePayments()}
             >
-              Activer les paiements CB maintenant
+              {saving ? "Activation…" : "Activer les paiements CB maintenant"}
             </button>
           ) : null}
           <div className={styles.chips}>

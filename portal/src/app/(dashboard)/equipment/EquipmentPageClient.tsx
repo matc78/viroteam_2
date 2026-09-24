@@ -84,6 +84,7 @@ export function EquipmentPageClient() {
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const categories = useMemo(() => {
@@ -201,6 +202,7 @@ export function EquipmentPageClient() {
     );
     if (!confirmed) return;
     setBusy(true);
+    setDeletingId(item.id);
     setActionError(null);
     try {
       await deleteEquipmentItem({ clubId: activeClub.id, itemId: item.id });
@@ -214,6 +216,7 @@ export function EquipmentPageClient() {
       );
     } finally {
       setBusy(false);
+      setDeletingId(null);
     }
   }
 
@@ -358,7 +361,7 @@ export function EquipmentPageClient() {
                         disabled={busy}
                         onClick={() => void handleDelete(item)}
                       >
-                        Supprimer
+                        {deletingId === item.id ? "Suppression…" : "Supprimer"}
                       </button>
                     </div>
                   </td>

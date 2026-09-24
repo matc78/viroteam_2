@@ -124,6 +124,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.55rem;
   width: 100%;
   min-height: 2.75rem;
   margin-top: 0;
@@ -136,6 +137,29 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 160ms ease, transform 160ms ease, opacity 160ms ease;
+}
+
+.submitSpinner {
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 2px solid color-mix(in srgb, var(--color-white) 35%, transparent);
+  border-top-color: var(--color-white);
+  border-radius: 50%;
+  animation: authSubmitSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes authSubmitSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .submitSpinner {
+    animation: none;
+    opacity: 0.85;
+  }
 }
 
 .submit:hover:not(:disabled) {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { isInvitationAlreadyProcessed } from "@/lib/auth/invitationAcceptErrors";
 import { useAuth } from "@/lib/firebase/AuthProvider";
@@ -122,16 +123,7 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
   const signupHref = `/signup?next=${encodeURIComponent(joinPath)}`;
 
   if (status === "loading") {
-    return (
-      <AuthShell
-        accent="cyan"
-        eyebrow="Rejoindre un club"
-        title="Validation de l’invitation"
-        lead="Vérification de ta session…"
-      >
-        <p className={styles.hint}>Un instant.</p>
-      </AuthShell>
-    );
+    return <AuthLoadingState message="Vérification de ta session…" />;
   }
 
   if (status === "signedOut") {
@@ -159,24 +151,26 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
     );
   }
 
+  if (busy && !error) {
+    return (
+      <AuthLoadingState
+        message={`On t’ajoute à ${invitation.clubName}…`}
+      />
+    );
+  }
+
   return (
     <AuthShell
       accent="cyan"
       eyebrow="Rejoindre un club"
       title="Validation de l’invitation"
-      lead={
-        busy
-          ? `On t’ajoute à ${invitation.clubName}…`
-          : (error ?? "Invitation membre.")
-      }
+      lead={error ?? "Invitation membre."}
     >
       {error ? (
         <p className={styles.hint} role="alert">
           {error}
         </p>
-      ) : (
-        <p className={styles.hint}>Un instant.</p>
-      )}
+      ) : null}
     </AuthShell>
   );
 }

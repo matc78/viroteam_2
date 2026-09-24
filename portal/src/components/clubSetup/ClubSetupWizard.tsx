@@ -35,6 +35,7 @@ import { isClubSetupPreviewEnabled } from "@/lib/clubSetup/clubSetupPreview";
 import { clubSetupStepIntro } from "@/lib/clubSetup/clubSetupStepIntro";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { ACTIVE_CLUB_STORAGE_KEY } from "@/lib/firebase/constants";
+import { usePendingOverlay } from "@/lib/ui/usePendingOverlay";
 
 /** Orchestrateur wizard création club (5 étapes). */
 export function ClubSetupWizard() {
@@ -44,6 +45,7 @@ export function ClubSetupWizard() {
   const userId = user?.uid ?? null;
   const previewMode =
     isClubSetupPreviewEnabled() && status !== "signedIn";
+  const pendingOverlay = usePendingOverlay("Création du club…");
 
   const draftApi = useClubSetupDraft(userId);
   const {
@@ -310,6 +312,7 @@ export function ClubSetupWizard() {
     }
 
     setSubmitting(true);
+    pendingOverlay.start("Création du club…");
     try {
       const clubId = await createClubFromDraft({
         founderUid: userId,
@@ -332,6 +335,7 @@ export function ClubSetupWizard() {
       await refreshProfile();
       showToast("Club créé avec succès.", "success");
       router.replace("/home");
+      // Loader conservé jusqu’à la redirection.
     } catch (error) {
       Sentry.captureException(error, {
         tags: { feature: "club_setup", area: "create_club" },
@@ -342,8 +346,8 @@ export function ClubSetupWizard() {
         },
       });
       setErrorMessage(`Erreur lors de la création : ${error}`);
-    } finally {
       setSubmitting(false);
+      pendingOverlay.fail();
     }
   }
 
@@ -434,7 +438,9 @@ export function ClubSetupWizard() {
     currentStep === ClubSetupSteps.recap;
 
   return (
-    <ClubSetupShell
+    <>
+      {pendingOverlay.overlay}
+      <ClubSetupShell
       eyebrow={stepIntro.eyebrow}
       title={stepIntro.title}
       lead={stepIntro.lead}
@@ -459,5 +465,6 @@ export function ClubSetupWizard() {
     >
       {stepContent}
     </ClubSetupShell>
+    </>
   );
 }

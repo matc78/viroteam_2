@@ -13,6 +13,7 @@ import {
   validatePassword,
 } from "@/lib/auth/passwordPolicy";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { usePendingOverlay } from "@/lib/ui/usePendingOverlay";
 import styles from "./AuthForm.module.css";
 
 type FieldErrors = {
@@ -46,6 +47,7 @@ function SignupFormContent() {
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isFounderIntent, setIsFounderIntent] = useState(false);
+  const pendingOverlay = usePendingOverlay("Inscription…");
 
   useEffect(() => {
     captureFounderIntentFromSearch(searchParams.toString());
@@ -53,6 +55,8 @@ function SignupFormContent() {
   }, [searchParams]);
 
   usePostAuthRedirect({ accessDeniedFromSignup: true });
+
+  const isBusy = submitting || googleLoading || pendingOverlay.pending;
 
   function validate(): FieldErrors {
     const nextErrors: FieldErrors = {};
@@ -82,8 +86,10 @@ function SignupFormContent() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
+    pendingOverlay.start("Inscription…");
     try {
       await signUp({ email, password, displayName });
+      // Loader conservé jusqu’à la redirection post-auth.
     } catch (error) {
       setErrors({
         form:
@@ -91,8 +97,8 @@ function SignupFormContent() {
             ? error.message
             : "Inscription impossible.",
       });
-    } finally {
       setSubmitting(false);
+      pendingOverlay.fail();
     }
   }
 
@@ -106,24 +112,35 @@ function SignupFormContent() {
     }
     setErrors({});
     setGoogleLoading(true);
+    pendingOverlay.start("Inscription…");
     try {
       await signInWithGoogle({ createProfileIfMissing: true });
+      // Loader conservé jusqu’à la redirection post-auth.
     } catch (error) {
       const result = handleGoogleAuthError(error, "Inscription Google impossible.");
       if (result.emailToPrefill) setEmail(result.emailToPrefill);
       setErrors({ form: result.formMessage });
-      if (result.shouldStopLoading) setGoogleLoading(false);
+      if (result.shouldStopLoading) {
+        setGoogleLoading(false);
+        pendingOverlay.fail();
+      }
     }
   }
 
   return (
     <>
+      {pendingOverlay.overlay}
       {isFounderIntent ? (
         <p className={styles.hint}>
           Crée ton compte, puis configure ton club en quelques étapes.
         </p>
       ) : null}
-      <form className={`${styles.form} ${styles.formCompact}`} onSubmit={handleSubmit} noValidate>
+      <form
+        className={`${styles.form} ${styles.formCompact}`}
+        onSubmit={handleSubmit}
+        noValidate
+        aria-busy={isBusy || undefined}
+      >
         <div className={styles.fieldRow}>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="signup-name">
@@ -287,8 +304,15 @@ function SignupFormContent() {
           </p>
         ) : null}
 
-        <button className={styles.submit} type="submit" disabled={submitting || googleLoading}>
-          {submitting ? "Création…" : "Créer mon compte"}
+        <button className={styles.submit} type="submit" disabled={isBusy}>
+          {submitting ? (
+            <>
+              <span className={styles.submitSpinner} aria-hidden="true" />
+              Création…
+            </>
+          ) : (
+            "Créer mon compte"
+          )}
         </button>
       </form>
 
@@ -297,7 +321,7 @@ function SignupFormContent() {
       <GoogleSignInButton
         onClick={handleGoogleSignUp}
         loading={googleLoading}
-        disabled={submitting}
+        disabled={submitting || pendingOverlay.pending}
       />
 
       <p className={styles.switch}>

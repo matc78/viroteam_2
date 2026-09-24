@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { isInvitationAlreadyProcessed } from "@/lib/auth/invitationAcceptErrors";
 import { useAuth } from "@/lib/firebase/AuthProvider";
@@ -74,16 +75,7 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
   const signupHref = `/signup?next=${encodeURIComponent(joinPath)}`;
 
   if (status === "loading") {
-    return (
-      <AuthShell
-        accent="cyan"
-        eyebrow="Espace famille"
-        title="Activation du suivi"
-        lead="Vérification de ta session…"
-      >
-        <p className={styles.hint}>Un instant.</p>
-      </AuthShell>
-    );
+    return <AuthLoadingState message="Vérification de ta session…" />;
   }
 
   if (status === "signedOut") {
@@ -106,24 +98,26 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
     );
   }
 
+  if (busy && !error) {
+    return (
+      <AuthLoadingState
+        message={`On rattache ton compte à ${invitation.clubName}…`}
+      />
+    );
+  }
+
   return (
     <AuthShell
       accent="cyan"
       eyebrow="Espace famille"
       title="Activation du suivi"
-      lead={
-        busy
-          ? `On rattache ton compte à ${invitation.clubName}…`
-          : (error ?? "Suivi parent.")
-      }
+      lead={error ?? "Suivi parent."}
     >
       {error ? (
         <p className={styles.hint} role="alert">
           {error}
         </p>
-      ) : (
-        <p className={styles.hint}>Un instant.</p>
-      )}
+      ) : null}
     </AuthShell>
   );
 }

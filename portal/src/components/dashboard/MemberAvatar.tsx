@@ -29,7 +29,8 @@ export function MemberAvatar({
 }: MemberAvatarProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const photoUrl = avatarUrl?.trim() || null;
-  const canZoom = enableZoom && hasLinkedAccount && Boolean(photoUrl);
+  const hasPhoto = hasLinkedAccount && Boolean(photoUrl);
+  const canZoom = enableZoom && hasPhoto;
   const initials = memberInitials(displayName);
 
   const avatar = (
@@ -37,7 +38,7 @@ export function MemberAvatar({
       className={`${styles.avatar} ${styles[size]}${tone === "offwhite" ? ` ${styles.offwhite}` : ""}${canZoom ? ` ${styles.clickable}` : ""}`}
       aria-hidden={!canZoom}
     >
-      {canZoom ? (
+      {hasPhoto ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img className={styles.photo} src={photoUrl!} alt="" />
       ) : hasLinkedAccount ? (

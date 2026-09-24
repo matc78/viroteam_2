@@ -118,7 +118,9 @@ class _PollVotesBody extends StatelessWidget {
     final member = memberByUid[uid];
     if (member == null) return AppCopy.chat.pollUnknownVoter;
     final first = member.preferredFirstName.trim();
-    if (first.isNotEmpty && first != 'Enfant') return first;
+    if (first.isNotEmpty && first != AppCopy.common.childFallback) {
+      return first;
+    }
     final display = member.fullName.trim();
     if (display.isNotEmpty) return display.split(RegExp(r'\s+')).first;
     return AppCopy.chat.pollUnknownVoter;

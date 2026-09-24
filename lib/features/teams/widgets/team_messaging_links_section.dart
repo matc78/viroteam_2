@@ -18,14 +18,10 @@ class TeamMessagingLinksSection extends ConsumerWidget {
     super.key,
     required this.team,
     required this.accent,
-    required this.canEdit,
   });
 
   final ClubTeam team;
   final Color accent;
-  /// Conservé pour compat des call sites (manage / expansion).
-  // ignore: unused_field
-  final bool canEdit;
 
   Future<void> _openSystemChat(
     BuildContext context,

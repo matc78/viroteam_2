@@ -208,7 +208,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       final auth = ref.read(authStateProvider).value;
       final club = ref.read(clubForMembersProvider(widget.clubId)).value;
       if (auth == null || club == null) {
-        throw StateError('Session ou club indisponible.');
+        throw StateError(AppCopy.common.sessionOrClubUnavailable);
       }
       await ref.read(memberServiceProvider).ensureMemberInvitation(
             clubId: widget.clubId,
@@ -453,7 +453,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       final auth = ref.read(authStateProvider).value;
       final club = ref.read(clubForMembersProvider(widget.clubId)).value;
       if (auth == null || club == null) {
-        throw StateError('Session ou club indisponible.');
+        throw StateError(AppCopy.common.sessionOrClubUnavailable);
       }
 
       await ref.read(memberServiceProvider).ensureMemberInvitations(

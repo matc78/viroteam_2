@@ -266,8 +266,8 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                             return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: accent.withValues(alpha: 0.12),
-                              child: Icon(
-                                Icons.person_outline,
+                              child: ViroIcon(
+                                ViroIcons.personOutline,
                                 color: accent,
                               ),
                             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 
@@ -142,7 +143,7 @@ class _DayTile extends ConsumerWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: ViroSpacing.xs),
             Text(
               '${date.day}',
               style: TextStyle(

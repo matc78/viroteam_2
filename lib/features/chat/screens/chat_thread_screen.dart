@@ -901,11 +901,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         continue;
       }
       final first = member.preferredFirstName.trim();
-      if (first.isNotEmpty && first != 'Enfant') return first;
+      if (first.isNotEmpty && first != AppCopy.common.childFallback) {
+        return first;
+      }
       final display = member.fullName.trim();
       if (display.isNotEmpty) return display.split(RegExp(r'\s+')).first;
     }
-    return 'Parent';
+    return AppCopy.common.roleParent;
   }
 
   /// Rôle club (ou parent) de l’expéditeur pour la bordure de bulle.
@@ -2127,9 +2129,10 @@ class _AnchoredReactorsPopupState extends State<_AnchoredReactorsPopup> {
     }
 
     final preferred = member?.preferredFirstName.trim() ?? '';
-    final fromMember = preferred.isNotEmpty && preferred != 'Enfant'
-        ? preferred
-        : (member?.fullName.trim() ?? '');
+    final fromMember =
+        preferred.isNotEmpty && preferred != AppCopy.common.childFallback
+            ? preferred
+            : (member?.fullName.trim() ?? '');
     final initialSource =
         firstName.isNotEmpty ? firstName : fromMember;
     final initial = initialSource.isNotEmpty

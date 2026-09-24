@@ -145,7 +145,6 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                   TeamMessagingLinksSection(
                     team: team,
                     accent: widget.accent,
-                    canEdit: perms.canEditMessagingLinks(team),
                   ),
                   _buildRosterSection(
                     title: AppCopy.teams.coachesSection,

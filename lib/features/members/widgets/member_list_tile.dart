@@ -166,8 +166,8 @@ class MemberListTile extends StatelessWidget {
             ),
           if (!selectionMode && !showClubAdminActions && onRemove != null)
             IconButton(
-              icon: Icon(
-                Icons.remove_circle_outline,
+              icon: ViroIcon(
+                ViroIcons.clearChat,
                 color: ViroColors.error,
                 size: 22,
               ),

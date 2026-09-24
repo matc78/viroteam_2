@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
@@ -378,116 +377,5 @@ Future<void> _initPaymentSheetWithLargerInputs({
     await channel.invokeMethod('initPaymentSheet', {'params': paramsJson});
   } catch (_) {
     await Stripe.instance.initPaymentSheet(paymentSheetParameters: parameters);
-  }
-}
-
-/// Paiement via HelloAsso (callable + ouverture du redirectUrl) — dormant.
-class HelloAssoPaymentService implements PaymentService {
-  HelloAssoPaymentService({FirebaseFunctions? functions})
-      : _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'europe-west1');
-
-  final FirebaseFunctions _functions;
-
-  @override
-  bool get isInAppPaymentEnabled =>
-      FeatureFlags.inAppPayments && FeatureFlags.helloAssoPaymentsLive;
-
-  @override
-  Future<PaymentCheckoutResult> createCheckout({
-    required String clubId,
-    required String seasonId,
-    required String memberId,
-    required int amountCents,
-    required String currency,
-    int installmentCount = 1,
-    List<FeeAidDraft> aids = const [],
-    String? returnUrl,
-    String? backUrl,
-    String? errorUrl,
-  }) async {
-    if (!isInAppPaymentEnabled) {
-      return PaymentCheckoutResult.unavailable();
-    }
-    if (amountCents <= 0 && aids.isEmpty) {
-      return const PaymentCheckoutResult(
-        status: PaymentCheckoutStatus.failed,
-        message: 'Montant invalide',
-      );
-    }
-
-    try {
-      final callable = _functions
-          .httpsCallable(cloudCallableName('createHelloAssoCheckout'));
-      final response = await callable.call<Map<String, dynamic>>({
-        'clubId': clubId,
-        'seasonId': seasonId,
-        'memberId': memberId,
-        'amountCents': amountCents,
-        'currency': currency,
-        'installmentCount': installmentCount,
-        'aids': aids.map((a) => a.toCallableMap()).toList(),
-        'provider': FeePaymentProviders.helloasso,
-        if (returnUrl != null) 'returnUrl': returnUrl,
-        if (backUrl != null) 'backUrl': backUrl,
-        if (errorUrl != null) 'errorUrl': errorUrl,
-      });
-
-      final data = response.data;
-      final redirectUrl = data['redirectUrl'] as String?;
-      final checkoutIntentId = data['checkoutIntentId']?.toString();
-      final sessionId = data['sessionId'] as String?;
-
-      if (redirectUrl == null || redirectUrl.isEmpty) {
-        if (data['ok'] == true) {
-          return PaymentCheckoutResult(
-            status: PaymentCheckoutStatus.started,
-            sessionId: sessionId,
-            message: data['message'] as String? ??
-                'Aides enregistrées — en attente de justificatif',
-          );
-        }
-        return PaymentCheckoutResult(
-          status: PaymentCheckoutStatus.failed,
-          message: data['message'] as String? ??
-              'HelloAsso n\'a pas renvoyé d\'URL de paiement',
-        );
-      }
-
-      final uri = Uri.parse(redirectUrl);
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched) {
-        return PaymentCheckoutResult(
-          status: PaymentCheckoutStatus.failed,
-          externalPaymentId: checkoutIntentId,
-          redirectUrl: redirectUrl,
-          sessionId: sessionId,
-          message: 'Impossible d\'ouvrir la page HelloAsso',
-        );
-      }
-
-      return PaymentCheckoutResult(
-        status: PaymentCheckoutStatus.started,
-        externalPaymentId: checkoutIntentId,
-        redirectUrl: redirectUrl,
-        sessionId: sessionId,
-        message:
-            'Paiement ouvert sur HelloAsso. Le statut se mettra à jour '
-            'après confirmation serveur (pas immédiatement au retour).',
-      );
-    } on FirebaseFunctionsException catch (e) {
-      return PaymentCheckoutResult(
-        status: PaymentCheckoutStatus.failed,
-        message: e.message ?? 'Erreur HelloAsso (${e.code})',
-      );
-    } catch (e) {
-      return PaymentCheckoutResult(
-        status: PaymentCheckoutStatus.failed,
-        message: 'Erreur paiement : $e',
-      );
-    }
   }
 }

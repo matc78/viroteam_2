@@ -478,35 +478,6 @@ class EventService {
     });
   }
 
-  /// @deprecated Préférer [watchUpcomingEventsForUser].
-  Stream<List<ClubEvent>> watchUpcomingEventsForClubs({
-    required List<String> clubIds,
-    required String uid,
-  }) =>
-      watchUpcomingEventsForUser(clubIds: clubIds, authUid: uid);
-
-  Stream<List<ClubEvent>> watchPastEventsForClub({
-    required String clubId,
-    required String uid,
-    required DateTime since,
-  }) {
-    return _events(clubId)
-        .where(FirestoreFields.teamMemberIds, arrayContains: uid)
-        .where(
-          FirestoreFields.date,
-          isGreaterThanOrEqualTo: Timestamp.fromDate(since),
-        )
-        .where(
-          FirestoreFields.date,
-          isLessThan: Timestamp.fromDate(_startOfToday()),
-        )
-        .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => ClubEvent.fromFirestore(clubId: clubId, doc: d))
-            .where((e) => !e.canceled)
-            .toList());
-  }
-
   /// Tous les événements d'un jour (vue planning club).
   Stream<List<ClubEvent>> watchClubEventsOnDay({
     required String clubId,

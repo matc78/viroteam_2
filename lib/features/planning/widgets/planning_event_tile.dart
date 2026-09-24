@@ -134,7 +134,7 @@ class PlanningEventTile extends StatelessWidget {
                       ),
                     ],
                     if (location != null) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: ViroSpacing.xs),
                       Text(
                         location,
                         style: theme.bodySmall?.copyWith(

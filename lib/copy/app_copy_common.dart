@@ -56,6 +56,7 @@ final class AppCopyCommon {
   String get errorOccurred => 'Oups, un truc a coincé';
   String get notConnected => 'Personne n’est connecté';
   String get sessionExpired => 'Session expirée — reconnecte-toi.';
+  String get sessionOrClubUnavailable => 'Session ou club indisponible.';
   String get saveFailed => 'Enregistrement impossible.';
   String get saveFailedRetry => 'Enregistrement impossible, réessaie';
 

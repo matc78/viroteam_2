@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/member_guardian.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
@@ -130,7 +131,7 @@ class GuardianService {
     required String memberId,
   }) async {
     final snap = await _memberRef(clubId, memberId).get();
-    if (!snap.exists) return 'Enfant';
+    if (!snap.exists) return AppCopy.common.childFallback;
     return ClubMember.fromFirestore(snap).preferredFirstName;
   }
 

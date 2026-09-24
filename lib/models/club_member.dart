@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 class ClubMember {
   const ClubMember({
@@ -49,9 +50,6 @@ class ClubMember {
   /// Compatibilité : identifiant utilisé pour RSVP/events (accountUid ou memberId).
   String get effectiveUid => accountUid ?? memberId;
 
-  /// @deprecated Utiliser [memberId] ou [accountUid].
-  String get userId => accountUid ?? memberId;
-
   bool get isActive => status == 'active';
 
   String get fullName {
@@ -67,7 +65,7 @@ class ClubMember {
     if (first.isNotEmpty) return first;
     final display = fullName.trim();
     if (display.isNotEmpty) return display.split(' ').first;
-    return 'Enfant';
+    return AppCopy.common.childFallback;
   }
 
   String get initials {

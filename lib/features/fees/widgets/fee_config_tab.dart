@@ -408,7 +408,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
     );
   }
 
-  Widget _helloAssoSection({required Color accent}) {
+  Widget _stripeSection({required Color accent}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -446,7 +446,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
           accentColor: accent,
           child: _paymentFields(accent: accent),
         ),
-        _helloAssoSection(accent: accent),
+        _stripeSection(accent: accent),
       ],
     );
   }
@@ -476,7 +476,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
             accentColor: accent,
             child: _paymentFields(accent: accent),
           ),
-          _helloAssoSection(accent: accent),
+          _stripeSection(accent: accent),
         ],
       ),
     );

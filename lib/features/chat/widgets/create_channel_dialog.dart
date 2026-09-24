@@ -108,7 +108,9 @@ class _CreateChannelDialogState extends ConsumerState<CreateChannelDialog> {
         .whereType<String>()
         .toList();
     if (_scope.kind == ClubAudienceScopeKind.parents) {
-      return names.isEmpty ? '' : 'Parents · ${names.join(' · ')}';
+      return names.isEmpty
+          ? ''
+          : AppCopy.chat.parentsOfTeamLabel(names.join(' · '));
     }
     return names.join(' · ');
   }

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -593,7 +594,7 @@ class MemberService {
           email: email,
           firstName: firstName,
           lastName: lastName,
-          displayName: displayName ?? email ?? 'Parent',
+          displayName: displayName ?? email ?? AppCopy.common.roleParent,
           avatarUrl: avatarUrl,
         );
         return;
@@ -603,7 +604,8 @@ class MemberService {
       existing.firstName ??= firstName;
       existing.lastName ??= lastName;
       existing.avatarUrl ??= avatarUrl;
-      if ((existing.displayName.isEmpty || existing.displayName == 'Parent') &&
+      if ((existing.displayName.isEmpty ||
+              existing.displayName == AppCopy.common.roleParent) &&
           displayName != null &&
           displayName.isNotEmpty) {
         existing.displayName = displayName;
@@ -613,8 +615,9 @@ class MemberService {
     for (var index = 0; index < membersSnap.docs.length; index++) {
       final memberDoc = membersSnap.docs[index];
       final member = membersById[memberDoc.id]!;
-      final childName =
-          member.fullName.trim().isNotEmpty ? member.fullName.trim() : 'Enfant';
+      final childName = member.fullName.trim().isNotEmpty
+          ? member.fullName.trim()
+          : AppCopy.common.childFallback;
       final pendingInvite = pendingGuardianByMember[member.memberId];
       final inviteData = pendingInvite?.data();
       final occupying = occupyingByMemberIndex[index];
@@ -643,7 +646,7 @@ class MemberService {
           email = user[FirestoreFields.email] as String?;
           avatarUrl = user[FirestoreFields.avatarUrl] as String?;
         }
-        if (displayName.isEmpty) displayName = 'Parent';
+        if (displayName.isEmpty) displayName = AppCopy.common.roleParent;
 
         final expiresAt =
             (inviteData?[FirestoreFields.expiresAt] as Timestamp?)?.toDate();

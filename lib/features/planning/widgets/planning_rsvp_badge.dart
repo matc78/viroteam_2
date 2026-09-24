@@ -49,7 +49,7 @@ class PlanningRsvpCountBadge extends StatelessWidget {
             top: -5,
             child: Container(
               constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.xs),
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: BorderRadius.circular(8),

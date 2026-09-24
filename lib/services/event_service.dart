@@ -555,6 +555,9 @@ class EventService {
     );
   }
 
+  /// Première date d'événement du club (lecture globale : membres uniquement).
+  ///
+  /// Pour un parent sans fiche, utiliser [getFirstEventDateForTeams].
   Future<DateTime?> getFirstEventDate(String clubId) async {
     final snap = await _events(clubId)
         .orderBy(FirestoreFields.date)
@@ -564,6 +567,37 @@ class EventService {
     final ts = snap.docs.first.data()[FirestoreFields.date] as Timestamp?;
     if (ts == null) return null;
     return _startOfDay(ts.toDate());
+  }
+
+  /// Première date d'événement parmi [teamIds] (une requête `array-contains`
+  /// par équipe — seul chemin lisible par un parent selon les rules).
+  Future<DateTime?> getFirstEventDateForTeams({
+    required String clubId,
+    required List<String> teamIds,
+  }) async {
+    final uniqueTeamIds = teamIds.where((id) => id.isNotEmpty).toSet();
+    if (uniqueTeamIds.isEmpty) return null;
+
+    final dates = await Future.wait(
+      uniqueTeamIds.map((teamId) async {
+        final snap = await _events(clubId)
+            .where(FirestoreFields.teamIds, arrayContains: teamId)
+            .orderBy(FirestoreFields.date)
+            .limit(1)
+            .get();
+        if (snap.docs.isEmpty) return null;
+        final ts = snap.docs.first.data()[FirestoreFields.date] as Timestamp?;
+        if (ts == null) return null;
+        return _startOfDay(ts.toDate());
+      }),
+    );
+
+    DateTime? earliest;
+    for (final date in dates) {
+      if (date == null) continue;
+      if (earliest == null || date.isBefore(earliest)) earliest = date;
+    }
+    return earliest;
   }
 
   /// Crée un ou plusieurs événements (récurrence hebdomadaire pour entraînements).

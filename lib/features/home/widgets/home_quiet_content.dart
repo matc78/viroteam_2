@@ -160,6 +160,10 @@ class _ClubShortcutTile extends ConsumerWidget {
       club.sport,
       if (location != null && location.isNotEmpty) location,
     ].join(' • ');
+    final sessionRole = viroRoleForClubSession(
+      memberRole: membership?.role,
+      hasFamilyLinks: entry.hasFamilyLinks,
+    );
 
     return ViroCard(
       accentColor: accent,
@@ -202,9 +206,9 @@ class _ClubShortcutTile extends ConsumerWidget {
               ],
             ),
           ),
-          if (membership != null)
+          if (sessionRole != null)
             ViroRoleBadge(
-              role: viroRoleFromMemberRole(membership.role),
+              role: sessionRole,
               compact: true,
             ),
           const SizedBox(width: ViroSpacing.xs),

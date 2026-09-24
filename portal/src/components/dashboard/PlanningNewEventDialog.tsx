@@ -350,12 +350,13 @@ export function PlanningNewEventDialog({
 
     let resolvedTeamIds: string[] = [];
     let resolvedMemberIds: string[] = [];
-    let resolvedTitle = eventTypeLabel(type);
+    // Aligné Flutter : titre = nom d'équipe (le type est affiché à part).
+    let resolvedTitle = "";
 
     if (needsSingleTeam && selectedTeam) {
       resolvedTeamIds = [selectedTeam.id];
       resolvedMemberIds = selectedTeam.playerIds;
-      resolvedTitle = `${eventTypeLabel(type)} - ${selectedTeam.name}`;
+      resolvedTitle = selectedTeam.name;
     } else if (isTournament || isOther) {
       // « Autre » : invités optionnels (audience RSVP vide si aucun).
       resolvedTeamIds = guestAudience.teamIds;
@@ -375,10 +376,10 @@ export function PlanningNewEventDialog({
           guests.length > 3
             ? `${guestLabels.join(", ")}…`
             : guestLabels.join(", ");
-        resolvedTitle = suffix
-          ? `${eventTypeLabel(type)} - ${suffix}`
-          : eventTypeLabel(type);
+        resolvedTitle = suffix || eventTypeLabel(type);
       }
+    } else {
+      resolvedTitle = eventTypeLabel(type);
     }
 
     setError(null);

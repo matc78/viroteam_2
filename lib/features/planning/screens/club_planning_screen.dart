@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,8 +9,10 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
@@ -63,9 +67,26 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   }
 
   Future<void> _initDays() async {
-    final first = await ref
-        .read(eventServiceProvider)
-        .getFirstEventDate(widget.clubId);
+    DateTime? first;
+    try {
+      final user = await ref.read(viroUserFutureProvider.future);
+      final eventService = ref.read(eventServiceProvider);
+      if (user != null && user.isGuardianOnlyInClub(widget.clubId)) {
+        final teamIds = await loadGuardianChildTeamIds(
+          guardianService: ref.read(guardianServiceProvider),
+          user: user,
+          clubId: widget.clubId,
+        );
+        first = await eventService.getFirstEventDateForTeams(
+          clubId: widget.clubId,
+          teamIds: teamIds,
+        );
+      } else {
+        first = await eventService.getFirstEventDate(widget.clubId);
+      }
+    } catch (_) {
+      first = null;
+    }
     if (!mounted) return;
     setState(() {
       _days = buildPlanningDays(firstEventDate: first);
@@ -93,6 +114,37 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       days: _days,
       day: day,
     );
+  }
+
+  /// Recharge le planning sans bloquer indéfiniment sur les StreamProviders.
+  Future<void> _refreshPlanning({required bool canManage}) async {
+    final clubId = widget.clubId;
+    final dayParams = (clubId: clubId, day: _selectedDay);
+
+    if (canManage) {
+      ref.invalidate(clubPlanningEventsProvider(dayParams));
+    } else {
+      ref.invalidate(memberClubPlanningEventsProvider(dayParams));
+    }
+    ref.invalidate(clubTeamsProvider(clubId));
+
+    await ref.refresh(clubProvider(clubId).future);
+
+    final streamWaits = <Future<Object?>>[
+      if (canManage)
+        ref.read(clubPlanningEventsProvider(dayParams).future)
+      else
+        ref.read(memberClubPlanningEventsProvider(dayParams).future),
+      ref.read(clubTeamsProvider(clubId).future),
+    ];
+
+    try {
+      await Future.wait(streamWaits).timeout(const Duration(seconds: 8));
+    } on TimeoutException {
+      // L’indicateur se ferme quand même ; les streams peuvent rattraper ensuite.
+    }
+
+    await _initDays();
   }
 
   void _showEventSheet(
@@ -245,19 +297,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           const Divider(height: 1, color: ViroColors.gray200),
           Expanded(
             child: ViroRefreshIndicator(
-              onRefresh: () async {
-                await Future.wait([
-                  if (canManage)
-                    ref.refresh(clubPlanningEventsProvider(dayParams).future)
-                  else
-                    ref.refresh(
-                      memberClubPlanningEventsProvider(dayParams).future,
-                    ),
-                  ref.refresh(clubTeamsProvider(clubId).future),
-                  ref.refresh(clubProvider(clubId).future),
-                ]);
-                await _initDays();
-              },
+              onRefresh: () => _refreshPlanning(canManage: canManage),
               child: eventsAsync.when(
                 loading: () => ListView(
                   physics: const AlwaysScrollableScrollPhysics(),

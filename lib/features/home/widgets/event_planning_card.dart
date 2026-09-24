@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
@@ -53,9 +54,8 @@ class EventPlanningCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final typeLabel = eventTypeLabel(event.type);
-    final title = event.title.trim();
-    final showTitle = title.isNotEmpty && title != typeLabel;
+    final headline = PlanningEventDisplay.headline(event);
+    final detail = PlanningEventDisplay.detailFromStoredTitle(event);
     final timeStr = formatEventTime(event.startTime);
     final location = event.location?.trim();
     final scheduleParts = [
@@ -89,16 +89,16 @@ class EventPlanningCard extends StatelessWidget {
                   TextSpan(
                     children: [
                       TextSpan(
-                        text: typeLabel,
+                        text: headline,
                         style: theme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: clubColor,
                           height: 1.2,
                         ),
                       ),
-                      if (showTitle)
+                      if (detail != null)
                         TextSpan(
-                          text: ' · $title',
+                          text: ' · $detail',
                           style: theme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: ViroColors.primary800,

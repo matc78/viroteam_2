@@ -3,6 +3,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -49,7 +50,7 @@ class EventRsvpCard extends StatelessWidget {
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: Text(
-                  '${eventTypeLabel(event.type)} · ${event.title}',
+                  PlanningEventDisplay.cardTitleLine(event),
                   style: theme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),

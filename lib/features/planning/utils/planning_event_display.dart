@@ -15,6 +15,38 @@ abstract final class PlanningEventDisplay {
     return typeLabel;
   }
 
+  /// Détail (équipe) extrait du titre stocké, sans redoubler le type.
+  ///
+  /// Couvre les titres portail « Entraînement - Senior 1 » et Flutter « Senior 1 ».
+  static String? detailFromStoredTitle(ClubEvent event) {
+    if (event.type == EventTypes.other) return null;
+    final typeLabel = eventTypeLabel(event.type);
+    final trimmed = event.title.trim();
+    if (trimmed.isEmpty || trimmed == typeLabel) return null;
+
+    for (final separator in const [' - ', ' – ', ' · ']) {
+      final prefix = '$typeLabel$separator';
+      if (trimmed.startsWith(prefix)) {
+        final rest = trimmed.substring(prefix.length).trim();
+        return rest.isEmpty ? null : rest;
+      }
+    }
+    return trimmed;
+  }
+
+  /// Ligne compacte type · détail (tuiles home / RSVP).
+  static String cardTitleLine(ClubEvent event) {
+    if (event.type == EventTypes.other) {
+      return event.title.isNotEmpty
+          ? event.title
+          : eventTypeLabel(event.type);
+    }
+    final typeLabel = eventTypeLabel(event.type);
+    final detail = detailFromStoredTitle(event);
+    if (detail == null) return typeLabel;
+    return '$typeLabel · $detail';
+  }
+
   /// Titre pour calendrier / .ics (titre custom ou type d'événement).
   static String calendarTitle(ClubEvent event) =>
       event.title.isNotEmpty ? event.title : eventTypeLabel(event.type);

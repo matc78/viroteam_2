@@ -23,6 +23,29 @@ const TYPE_TONE: Record<EventType, string> = {
   other: "neutral",
 };
 
+/**
+ * Détail à afficher à côté du badge type (sans redoubler « Entraînement - … »).
+ */
+function eventDetailLabel(event: ClubEventView): string | null {
+  if (event.type === "other") {
+    const title = event.title.trim();
+    return title || null;
+  }
+  const typeLabel = eventTypeLabel(event.type);
+  const teamLabel =
+    event.teamLabels.find((label) => label && label !== "Club") ?? null;
+  if (teamLabel) return teamLabel;
+
+  const trimmed = event.title.trim();
+  if (!trimmed || trimmed === typeLabel) return null;
+  const prefix = `${typeLabel} - `;
+  if (trimmed.startsWith(prefix)) {
+    const rest = trimmed.slice(prefix.length).trim();
+    return rest || null;
+  }
+  return trimmed;
+}
+
 /** Tuile événement réutilisable (home aperçu + page planning). */
 export function PlanningEventTile({
   event,
@@ -34,6 +57,7 @@ export function PlanningEventTile({
   const whenLabel = compact
     ? formatEventWhen(event.startsAt)
     : formatEventTime(event.startsAt);
+  const detailLabel = eventDetailLabel(event);
 
   const rsvpBlock = detailedRsvp ? (
     <div className={styles.rsvpBreakdown} aria-label="Réponses RSVP">
@@ -73,7 +97,7 @@ export function PlanningEventTile({
           >
             {eventTypeLabel(event.type)}
           </span>
-          <p className={styles.title}>{event.title}</p>
+          {detailLabel ? <p className={styles.title}>{detailLabel}</p> : null}
         </div>
         <p className={styles.meta}>
           {teamsLabel} · {whenLabel}

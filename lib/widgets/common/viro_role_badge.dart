@@ -19,6 +19,18 @@ ViroRole viroRoleFromMemberRole(String role) => switch (role) {
       _ => ViroRole.player,
     };
 
+/// Rôle affiché pour un club en session : adhésion licenciée, sinon parent.
+///
+/// [memberRole] = `clubMemberships[].role` ; [hasFamilyLinks] = liens parent actifs.
+ViroRole? viroRoleForClubSession({
+  String? memberRole,
+  bool hasFamilyLinks = false,
+}) {
+  if (memberRole != null) return viroRoleFromMemberRole(memberRole);
+  if (hasFamilyLinks) return ViroRole.parent;
+  return null;
+}
+
 /// Mappe un rôle chat (`player` | `coach` | `admin` | `parent`) vers le badge UI.
 ViroRole viroRoleFromChatSenderRole(String role) => switch (role) {
       MemberRoles.admin => ViroRole.admin,
@@ -37,10 +49,14 @@ class ViroRoleBadge extends StatelessWidget {
     super.key,
     required this.role,
     this.compact = false,
+    this.iconOnly = false,
   });
 
   final ViroRole role;
   final bool compact;
+
+  /// Affiche uniquement l’icône (ex. meta inbox chat, style portail).
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +65,45 @@ class ViroRoleBadge extends StatelessWidget {
     final height = compact ? 28.0 : 36.0;
     final iconSize = compact ? 14.0 : 16.0;
     final fontSize = compact ? 11.0 : 13.0;
+    final iconBox = compact ? 20.0 : 24.0;
+
+    if (iconOnly) {
+      final pad = compact ? 2.0 : 4.0;
+      final box = compact ? 14.0 : 18.0;
+      final glyph = compact ? 9.0 : 12.0;
+      return Container(
+        padding: EdgeInsets.all(pad),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [style.start, style.end],
+          ),
+          borderRadius: BorderRadius.circular(compact ? 6 : 8),
+          boxShadow: [
+            BoxShadow(
+              color: style.end.withValues(alpha: 0.4),
+              blurRadius: compact ? 6 : 10,
+              offset: Offset(0, compact ? 2 : 3),
+            ),
+          ],
+        ),
+        child: Container(
+          width: box,
+          height: box,
+          decoration: BoxDecoration(
+            color: ViroColors.roleBadgeIconBg,
+            borderRadius: BorderRadius.circular(compact ? 3.5 : 5),
+          ),
+          alignment: Alignment.center,
+          child: ViroIcon(
+            style.icon,
+            size: glyph,
+            color: ViroColors.roleBadgeText,
+          ),
+        ),
+      );
+    }
 
     return Container(
       height: height,
@@ -75,8 +130,8 @@ class ViroRoleBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: compact ? 20 : 24,
-            height: compact ? 20 : 24,
+            width: iconBox,
+            height: iconBox,
             decoration: BoxDecoration(
               color: ViroColors.roleBadgeIconBg,
               borderRadius: BorderRadius.circular(6),

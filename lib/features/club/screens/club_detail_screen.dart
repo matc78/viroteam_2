@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,6 +34,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
@@ -97,6 +100,53 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     }
   }
 
+  /// Recharge la fiche club sans bloquer indéfiniment sur les StreamProviders.
+  Future<void> _refreshClub() async {
+    final clubId = widget.clubId;
+    final selected = ref.read(selectedClubAudienceProvider(clubId));
+    final isChildView = selected?.isChild == true;
+
+    ref.invalidate(clubMemberProvider(clubId));
+    ref.invalidate(memberEventsProvider);
+    ref.invalidate(clubAnnouncementsProvider(clubId));
+    if (isChildView && selected != null) {
+      ref.invalidate(
+        clubEventsForMemberProvider(
+          (clubId: clubId, memberId: selected.memberId),
+        ),
+      );
+      ref.invalidate(clubAudienceMemberProvider(clubId));
+    }
+
+    await Future.wait([
+      ref.refresh(clubProvider(clubId).future),
+      ref.refresh(clubAttendanceRateProvider(clubId).future),
+      ref.refresh(clubPitchAttendanceRateProvider(clubId).future),
+    ]);
+
+    final streamWaits = <Future<Object?>>[
+      ref.read(clubMemberProvider(clubId).future),
+      ref.read(memberEventsProvider.future),
+      ref.read(clubAnnouncementsProvider(clubId).future),
+    ];
+    if (isChildView && selected != null) {
+      streamWaits.add(
+        ref.read(
+          clubEventsForMemberProvider(
+            (clubId: clubId, memberId: selected.memberId),
+          ).future,
+        ),
+      );
+      streamWaits.add(ref.read(clubAudienceMemberProvider(clubId).future));
+    }
+
+    try {
+      await Future.wait(streamWaits).timeout(const Duration(seconds: 8));
+    } on TimeoutException {
+      // L’indicateur se ferme quand même ; les streams peuvent rattraper ensuite.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
@@ -148,31 +198,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           final managementAccent = brandColors.managementZoneColor;
 
           return ViroRefreshIndicator(
-            onRefresh: () async {
-              final waits = <Future<Object?>>[
-                ref.refresh(clubProvider(clubId).future),
-                ref.refresh(clubMemberProvider(clubId).future),
-                ref.refresh(memberEventsProvider.future),
-                ref.refresh(clubAttendanceRateProvider(clubId).future),
-                ref.refresh(clubPitchAttendanceRateProvider(clubId).future),
-                ref.refresh(
-                  clubAnnouncementsProvider(clubId).future,
-                ),
-              ];
-              if (isChildView && selected != null) {
-                waits.add(
-                  ref.refresh(
-                    clubEventsForMemberProvider(
-                      (clubId: clubId, memberId: selected.memberId),
-                    ).future,
-                  ),
-                );
-                waits.add(
-                  ref.refresh(clubAudienceMemberProvider(clubId).future),
-                );
-              }
-              await Future.wait(waits);
-            },
+            onRefresh: _refreshClub,
             child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -193,6 +219,13 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               SliverToBoxAdapter(
                 child: ClubAudienceSwitcher(clubId: clubId),
               ),
+              if (isChildView && selected != null)
+                SliverToBoxAdapter(
+                  child: _FamilyContextBanner(
+                    childLabel: selected.label,
+                    accent: memberAccent,
+                  ),
+                ),
               if (isChildView && selected != null)
                 ..._buildFamilySlivers(
                   club: club,
@@ -372,7 +405,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                   padding: const EdgeInsets.symmetric(
                     horizontal: ViroSpacing.screenHorizontal,
                   ),
-                  child: Text(AppCopy.club.noUpcomingEvents),
+                  child: Text(
+                    AppCopy.club.noUpcomingForChild(childLabel),
+                  ),
                 ),
               ),
             ];
@@ -655,16 +690,11 @@ class _ClubHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
     final isFamilyView = familyChild != null;
-    final subtitle = isFamilyView
-        ? [
-            club.name,
-            club.sport,
-            if (club.city != null && club.city!.isNotEmpty) club.city,
-          ].join(' · ')
-        : [
-            club.sport,
-            if (club.city != null && club.city!.isNotEmpty) club.city,
-          ].join(' · ');
+    final clubMeta = [
+      if (isFamilyView) club.name,
+      club.sport,
+      if (club.city != null && club.city!.isNotEmpty) club.city,
+    ].join(' · ');
 
     return Padding(
       padding: const EdgeInsets.all(ViroSpacing.lg),
@@ -672,7 +702,12 @@ class _ClubHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           if (isFamilyView)
-            MemberAvatar(member: familyChild!, size: 72)
+            MemberAvatar(
+              member: familyChild!,
+              size: 72,
+              accentColor: accent,
+              showAccentBorder: true,
+            )
           else
             GestureDetector(
               onLongPress: onAvatarLongPress,
@@ -692,19 +727,97 @@ class _ClubHeader extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+          if (isFamilyView) ...[
+            const SizedBox(height: ViroSpacing.sm),
+            const ViroRoleBadge(role: ViroRole.parent, compact: true),
+            const SizedBox(height: ViroSpacing.sm),
+            Text(
+              AppCopy.club.familyFollowingChild(_familyChildTitle),
+              textAlign: TextAlign.center,
+              style: theme.bodyMedium?.copyWith(
+                color: accent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
-            subtitle,
+            clubMeta,
             textAlign: TextAlign.center,
             style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
           ),
-          if (member != null) ...[
+          if (!isFamilyView && member != null) ...[
             const SizedBox(height: ViroSpacing.sm),
             ViroRoleBadge(
               role: viroRoleFromMemberRole(member!.role),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Rappelle que la fiche club est ouverte en mode parent (infos enfant).
+class _FamilyContextBanner extends StatelessWidget {
+  const _FamilyContextBanner({
+    required this.childLabel,
+    required this.accent,
+  });
+
+  final String childLabel;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        ViroSpacing.screenHorizontal,
+        ViroSpacing.sm,
+        ViroSpacing.screenHorizontal,
+        0,
+      ),
+      child: ViroCard(
+        accentColor: accent,
+        elevated: false,
+        padding: const EdgeInsets.symmetric(
+          horizontal: ViroSpacing.md,
+          vertical: ViroSpacing.sm + 2,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ViroIcon(
+              ViroIcons.roleParent,
+              size: 20,
+              color: accent,
+            ),
+            const SizedBox(width: ViroSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppCopy.members.parentOf(childLabel),
+                    style: theme.labelLarge?.copyWith(
+                      color: accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    AppCopy.club.familyAccessHint,
+                    style: theme.bodySmall?.copyWith(
+                      color: ViroColors.gray600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

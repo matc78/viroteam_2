@@ -14,6 +14,7 @@ class ViroFloatingIconButton extends StatelessWidget {
     this.tooltip,
     this.backgroundColor,
     this.foregroundColor,
+    this.circular = false,
   });
 
   final IconData icon;
@@ -22,24 +23,28 @@ class ViroFloatingIconButton extends StatelessWidget {
   final Color? backgroundColor;
   final Color? foregroundColor;
 
+  /// Pastille ronde (ex. action `+` style inbox) au lieu du carré arrondi.
+  final bool circular;
+
   @override
   Widget build(BuildContext context) {
     final bg = backgroundColor ?? ViroColors.white;
     final fg = foregroundColor ?? ViroColors.primary800;
+    final radius = BorderRadius.circular(circular ? 999 : 14);
 
     final button = ViroPressable(
       onTap: onPressed,
       enabled: onPressed != null,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: radius,
       child: Container(
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: radius,
           boxShadow: ViroMotion.floatingShadow(opacity: 0.16, blur: 18, y: 5),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(11),
-          child: ViroIcon(icon, size: 22, color: fg),
+          padding: EdgeInsets.all(circular ? 10 : 11),
+          child: ViroIcon(icon, size: circular ? 20 : 22, color: fg),
         ),
       ),
     );

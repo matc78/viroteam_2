@@ -301,6 +301,15 @@ class _ClubCard extends ConsumerWidget {
                 children: _roleBadgesFor(membership.role),
               ),
               const SizedBox(height: ViroSpacing.md),
+            ] else if (entry.parentLinks.isNotEmpty) ...[
+              const Wrap(
+                spacing: ViroSpacing.sm,
+                runSpacing: ViroSpacing.sm,
+                children: [
+                  ViroRoleBadge(role: ViroRole.parent, compact: true),
+                ],
+              ),
+              const SizedBox(height: ViroSpacing.md),
             ] else
               const SizedBox(height: ViroSpacing.sm),
             if (entry.highlightEvent != null)

@@ -9,6 +9,8 @@ final class AppCopyClub {
       'Aucun lieu pour l’instant. Ajoute le premier ci-dessous.';
   String get noUpcomingEvents =>
       'Rien à venir pour cette fiche.';
+  String noUpcomingForChild(String firstName) =>
+      'Rien à venir pour $firstName.';
   String get noClubsYet =>
       'Aucun club pour l’instant — crée le tien ou rejoins-en un.';
   String get loadProfileError => 'Impossible de charger le profil';
@@ -99,6 +101,14 @@ final class AppCopyClub {
   String familyFeeBanner(String label) => 'Cotisation de $label';
   String remainingDue(String amountLabel) => 'Reste dû : $amountLabel';
   String get familyAudienceMe => 'Moi';
+
+  /// Sous-titre header fiche club en vue parent.
+  String familyFollowingChild(String firstName) =>
+      'Tu suis la fiche de $firstName';
+
+  /// Bannière sous le header : rappelle le mode parent.
+  String get familyAccessHint =>
+      'Planning, convocations et cotisation — tu gères pour ton enfant.';
 
   String get statResponses30d => 'Réponses (30 j)';
   String get statRsvpPositive => 'Réponses positives';

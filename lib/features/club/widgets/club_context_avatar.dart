@@ -28,7 +28,12 @@ class ClubContextAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (childMember != null) {
-      return MemberAvatar(member: childMember!, size: size);
+      return MemberAvatar(
+        member: childMember!,
+        size: size,
+        accentColor: accentColor,
+        showAccentBorder: borderRadius >= size / 2,
+      );
     }
 
     final logoUrl = club.logoUrl?.trim();

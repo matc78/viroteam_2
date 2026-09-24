@@ -11,11 +11,15 @@ class MemberAvatar extends StatelessWidget {
     required this.member,
     this.size = 44,
     this.accentColor,
+    this.showAccentBorder = false,
   });
 
   final ClubMember member;
   final double size;
   final Color? accentColor;
+
+  /// Bordure couleur club (ex. avatar contextuel parent dans un sélecteur).
+  final bool showAccentBorder;
 
   @override
   Widget build(BuildContext context) {
@@ -25,17 +29,34 @@ class MemberAvatar extends StatelessWidget {
         hasAccount && photoUrl != null && photoUrl.isNotEmpty;
 
     final accent = accentColor ?? ViroColors.primary600;
+    final accentBorder = showAccentBorder
+        ? Border.all(color: accent, width: 1.5)
+        : null;
 
     final Widget avatar;
     if (hasPhoto) {
-      avatar = CircleAvatar(
-        radius: size / 2,
-        backgroundImage: NetworkImage(photoUrl),
+      avatar = Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: accentBorder,
+          image: DecorationImage(
+            image: NetworkImage(photoUrl),
+            fit: BoxFit.cover,
+          ),
+        ),
       );
     } else if (hasAccount) {
-      avatar = CircleAvatar(
-        radius: size / 2,
-        backgroundColor: accent.withValues(alpha: 0.15),
+      avatar = Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: accent.withValues(alpha: 0.15),
+          border: accentBorder,
+        ),
+        alignment: Alignment.center,
         child: Text(
           member.initials,
           style: TextStyle(
@@ -52,7 +73,8 @@ class MemberAvatar extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: ViroColors.gray100,
-          border: Border.all(color: ViroColors.gray300, width: 1.5),
+          border: accentBorder ??
+              Border.all(color: ViroColors.gray300, width: 1.5),
         ),
         alignment: Alignment.center,
         child: ViroIcon(

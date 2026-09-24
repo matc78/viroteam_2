@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,7 +32,9 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class HomeMemberScreen extends ConsumerStatefulWidget {
@@ -130,6 +134,27 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
     }
   }
 
+  /// Recharge la home sans bloquer indéfiniment sur les StreamProviders.
+  Future<void> _refreshHome(WidgetRef ref) async {
+    ref.invalidate(memberEventsProvider);
+    ref.invalidate(homeClubTeamsProvider);
+    ref.invalidate(userClubsWithEventsProvider);
+
+    await Future.wait([
+      ref.refresh(userClubsProvider.future),
+      ref.refresh(viroUserFutureProvider.future),
+    ]);
+
+    try {
+      await Future.wait([
+        ref.read(memberEventsProvider.future),
+        ref.read(homeClubTeamsProvider.future),
+      ]).timeout(const Duration(seconds: 8));
+    } on TimeoutException {
+      // L’indicateur se ferme quand même ; les streams peuvent rattraper ensuite.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final clubsAsync = ref.watch(userClubsProvider);
@@ -158,7 +183,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
         ],
       ),
       body: clubsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: ViroLogoLoader()),
         error: (e, _) => ViroErrorState(
           message: AppCopy.home.loadClubsError,
           onRetry: () => ref.invalidate(userClubsProvider),
@@ -186,16 +211,8 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                     final isFullyQuiet = state.upcoming.isEmpty;
                     final firstName = userAsync.value?.firstName;
 
-                    return RefreshIndicator(
-                      onRefresh: () async {
-                        await Future.wait([
-                          ref.refresh(memberEventsProvider.future),
-                          ref.refresh(userClubsProvider.future),
-                          ref.refresh(userClubsWithEventsProvider.future),
-                          ref.refresh(viroUserFutureProvider.future),
-                          ref.refresh(homeClubTeamsProvider.future),
-                        ]);
-                      },
+                    return ViroRefreshIndicator(
+                      onRefresh: () => _refreshHome(ref),
                       child: CustomScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         controller: _scrollController,
@@ -253,8 +270,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                             ),
                           SliverToBoxAdapter(
                             child: SizedBox(
-                              height: ClubSelectorBar.barHeight +
-                                  MediaQuery.paddingOf(context).bottom,
+                              height: ClubSelectorBar.bottomClearance(context),
                             ),
                           ),
                         ],
@@ -271,7 +287,10 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                   pendingByClub: pendingCounts,
                   onAddClub: () => showAddClubSheet(context, ref),
                   onOpenChat: FeatureFlags.chatMessagingLive
-                      ? () => context.push(AppRoutes.conversations)
+                      ? (origin) => context.push(
+                            AppRoutes.conversations,
+                            extra: origin,
+                          )
                       : null,
                 ),
               ),
@@ -320,9 +339,14 @@ class _HomeLoadingBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      padding: EdgeInsets.all(ViroSpacing.screenHorizontal),
-      child: Column(
+    return SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        ViroSpacing.screenHorizontal,
+        ViroSpacing.screenHorizontal,
+        ViroSpacing.screenHorizontal,
+        ClubSelectorBar.bottomClearance(context),
+      ),
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionShimmer(itemCount: 3),

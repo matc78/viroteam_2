@@ -47,17 +47,40 @@ class ViroScaffold extends StatelessWidget {
         ? Color.lerp(ViroColors.white, ViroColors.error, 0.1)!
         : ViroColors.white;
 
-    return Scaffold(
+    return _ViroScaffoldShell(
       backgroundColor: backgroundColor,
-      appBar: appBar,
-      floatingActionButton: floatingActionButton,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          _DecorShapes(feeDeadlineUrgent: feeDeadlineUrgent),
-          body,
-        ],
+      feeDeadlineUrgent: feeDeadlineUrgent,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: appBar,
+        floatingActionButton: floatingActionButton,
+        body: body,
       ),
+    );
+  }
+}
+
+/// Enveloppe fond + formes décoratives sous le [Scaffold] (y compris derrière l’AppBar).
+class _ViroScaffoldShell extends StatelessWidget {
+  const _ViroScaffoldShell({
+    required this.backgroundColor,
+    required this.feeDeadlineUrgent,
+    required this.child,
+  });
+
+  final Color backgroundColor;
+  final bool feeDeadlineUrgent;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(color: backgroundColor),
+        _DecorShapes(feeDeadlineUrgent: feeDeadlineUrgent),
+        child,
+      ],
     );
   }
 }
@@ -511,7 +534,7 @@ class _ArcPainter extends CustomPainter {
   bool shouldRepaint(covariant _ArcPainter oldDelegate) => color != oldDelegate.color;
 }
 
-/// AppBar légère — fond blanc, texte bleu foncé.
+/// AppBar légère — fond transparent (décor du body visible derrière).
 class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ViroAppBar({
     super.key,
@@ -555,9 +578,10 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       elevation: 0,
       scrolledUnderElevation: 0,
-      backgroundColor: ViroColors.white,
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       foregroundColor: iconColor,
+      forceMaterialTransparency: true,
       leading: leading,
       actions: actions,
       title: title == null
@@ -583,16 +607,6 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
         fontWeight: FontWeight.w700,
       ),
       bottom: bottom,
-      flexibleSpace: DecoratedBox(
-        decoration: BoxDecoration(
-          color: ViroColors.white,
-          border: Border(
-            bottom: BorderSide(
-              color: ViroColors.primary200.withValues(alpha: 0.2),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

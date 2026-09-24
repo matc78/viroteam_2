@@ -8,7 +8,12 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { requireString, requireUid, stringArray, uniq } from "../common";
 import { db, defineDualCallable, runWithDatabase, type FirestoreDatabaseId } from "../db";
 import { buildPushData, sendPushToUids } from "../notifications/send";
-import { createCategoryConversation, syncClubWideConversations } from "./sync";
+import {
+  createScopedChannelConversation,
+  resolveScopedChannelParticipants,
+  type ChannelAudienceScopeType,
+  syncClubWideConversations,
+} from "./sync";
 
 const REGION = "europe-west1";
 
@@ -214,14 +219,51 @@ function defineSeasonChatPurge(databaseId: FirestoreDatabaseId) {
   );
 }
 
-/** Callable admin : crée un canal catégorie (lecture seule par défaut). */
+const CHANNEL_SCOPE_TYPES = new Set<ChannelAudienceScopeType>([
+  "categories",
+  "teams",
+  "parents",
+]);
+
+/** Parse scopeType + scopeIds (compat `categoryKey` legacy). */
+function parseChannelScope(data: Record<string, unknown> | undefined): {
+  scopeType: ChannelAudienceScopeType;
+  scopeIds: string[];
+} {
+  const rawType =
+    typeof data?.scopeType === "string" ? data.scopeType.trim() : "";
+  const scopeIds = uniq(stringArray(data?.scopeIds).map((id) => id.trim()));
+  if (rawType && CHANNEL_SCOPE_TYPES.has(rawType as ChannelAudienceScopeType)) {
+    if (scopeIds.length === 0) {
+      throw new HttpsError("invalid-argument", "scopeIds requis");
+    }
+    return {
+      scopeType: rawType as ChannelAudienceScopeType,
+      scopeIds,
+    };
+  }
+  // Compat anciens clients : categoryKey seul → catégories.
+  const categoryKey =
+    typeof data?.categoryKey === "string" ? data.categoryKey.trim() : "";
+  if (!categoryKey) {
+    throw new HttpsError(
+      "invalid-argument",
+      "scopeType / scopeIds (ou categoryKey) requis",
+    );
+  }
+  return { scopeType: "categories", scopeIds: [categoryKey] };
+}
+
+/** Callable admin : crée un canal ciblé (lecture seule par défaut). */
 async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
   conversationId: string;
 }> {
   const uid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const categoryKey = requireString(request.data?.categoryKey, "categoryKey");
   const title = requireString(request.data?.title, "title");
+  const { scopeType, scopeIds } = parseChannelScope(
+    request.data as Record<string, unknown> | undefined,
+  );
   const writePolicy =
     typeof request.data?.writePolicy === "string" &&
     request.data.writePolicy.trim()
@@ -253,26 +295,26 @@ async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
     throw new HttpsError("permission-denied", "Réservé aux admins");
   }
 
-  // Participants = tous licenciés + parents optionnels : MVP = tous accountUid.
-  const membersSnap = await firestore
-    .collection("clubs")
-    .doc(clubId)
-    .collection("members")
-    .get();
-  const participantUids: string[] = [];
-  for (const doc of membersSnap.docs) {
-    const data = doc.data();
-    if (String(data.status ?? "") === "archived") continue;
-    const accountUid = String(data.accountUid ?? data.userId ?? "").trim();
-    if (accountUid) participantUids.push(accountUid);
-  }
-
-  const conversationId = await createCategoryConversation({
+  const participantUids = await resolveScopedChannelParticipants({
     firestore,
     clubId,
-    categoryKey,
+    scopeType,
+    scopeIds,
+  });
+  if (participantUids.length === 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Aucun participant pour cette cible",
+    );
+  }
+
+  const conversationId = await createScopedChannelConversation({
+    firestore,
+    clubId,
+    scopeType,
+    scopeIds,
     title,
-    participantUids: uniq(participantUids),
+    participantUids,
     writePolicy,
   });
   return { conversationId };

@@ -10,7 +10,7 @@
 }
 
 .panel {
-  width: min(28rem, 100%);
+  width: min(32rem, 100%);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -20,6 +20,8 @@
   box-shadow:
     0 12px 28px color-mix(in srgb, var(--color-primary-900) 14%, transparent),
     0 28px 64px color-mix(in srgb, var(--color-primary-900) 16%, transparent);
+  max-height: min(90vh, 40rem);
+  overflow: auto;
 }
 
 .header {
@@ -66,8 +68,7 @@
   color: var(--color-primary-800);
 }
 
-.field input,
-.field select {
+.field input {
   width: 100%;
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--color-gray-200);
@@ -75,6 +76,58 @@
   font: inherit;
   font-size: 0.88rem;
   box-sizing: border-box;
+}
+
+.clubChips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.clubChip {
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.72;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.clubChip[data-selected="true"] {
+  opacity: 1;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--club-brand) 35%, transparent);
+  transform: translateY(-1px);
+}
+
+.clubChip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.singleClubWrap {
+  display: flex;
+  justify-content: center;
+}
+
+.singleClub {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .error {

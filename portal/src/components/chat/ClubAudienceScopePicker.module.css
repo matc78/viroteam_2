@@ -1,0 +1,90 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.modes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border-radius: 0.55rem;
+  background: var(--color-gray-100);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.modeBtn {
+  border: none;
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  background: transparent;
+  color: var(--color-gray-500);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.modeBtn[data-selected="true"] {
+  background: var(--color-white);
+  color: var(--color-primary-900);
+  box-shadow: 0 1px 2px
+    color-mix(in srgb, var(--color-primary-900) 12%, transparent);
+}
+
+.modeBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.optionsLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.option {
+  border: 1.5px solid
+    color-mix(in srgb, var(--scope-accent, var(--color-primary-500)) 28%, var(--color-gray-200));
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.65rem;
+  background: color-mix(
+    in srgb,
+    var(--scope-accent, var(--color-primary-500)) 8%,
+    white
+  );
+  color: var(--color-primary-900);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.option[data-selected="true"] {
+  border-color: var(--scope-accent, var(--color-primary-500));
+  background: var(--scope-accent, var(--color-primary-500));
+  color: var(--scope-accent-text, #fff);
+}
+
+.option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-gray-500);
+}

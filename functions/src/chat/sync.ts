@@ -315,7 +315,133 @@ export async function syncAllConversationsForClub(params: {
   return { teamsSynced: teamsSnap.size };
 }
 
+/** Scope d’audience pour un canal admin custom. */
+export type ChannelAudienceScopeType = "categories" | "teams" | "parents";
+
+/** Clé système idempotente pour un scope multi. */
+export function channelScopeSystemKey(
+  scopeType: ChannelAudienceScopeType,
+  scopeIds: string[],
+): string {
+  const sorted = [...scopeIds]
+    .map((id) => id.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "fr"));
+  if (scopeType === "categories") {
+    return `category:${sorted.join("|")}`;
+  }
+  if (scopeType === "teams") {
+    return `custom-teams:${sorted.join("|")}`;
+  }
+  return `custom-parents:${sorted.join("|")}`;
+}
+
 /**
+ * Résout les participants Auth d’un canal scoped
+ * (joueurs+coachs, ou parents+coachs) + admins club.
+ */
+export async function resolveScopedChannelParticipants(params: {
+  firestore: Firestore;
+  clubId: string;
+  scopeType: ChannelAudienceScopeType;
+  scopeIds: string[];
+}): Promise<string[]> {
+  const { firestore, clubId, scopeType } = params;
+  const scopeIds = uniq(
+    params.scopeIds.map((id) => id.trim()).filter(Boolean),
+  );
+  if (scopeIds.length === 0) return [];
+
+  const clubRef = firestore.collection("clubs").doc(clubId);
+  const clubSnap = await clubRef.get();
+  const adminIds = stringArray(clubSnap.data()?.adminIds);
+
+  const teamsSnap = await clubRef.collection("teams").get();
+
+  const selectedTeams = teamsSnap.docs.filter((doc) => {
+    if (scopeType === "categories") {
+      const category = String(doc.data()?.category ?? "").trim();
+      return scopeIds.includes(category);
+    }
+    return scopeIds.includes(doc.id);
+  });
+
+  if (selectedTeams.length === 0) {
+    return [];
+  }
+
+  const playerIds: string[] = [];
+  const coachIds: string[] = [];
+  for (const teamDoc of selectedTeams) {
+    const data = teamDoc.data();
+    playerIds.push(...stringArray(data.playerIds));
+    coachIds.push(...stringArray(data.coachIds));
+  }
+
+  // adminIds peut être memberId ou Auth uid — toujours résoudre.
+  const adminUids = await resolveAuthUids(firestore, clubId, adminIds);
+  // Filet : admins déclarés par rôle fiche (adminIds parfois incomplet).
+  const adminMembersSnap = await clubRef
+    .collection("members")
+    .where("role", "==", "admin")
+    .get();
+  for (const adminDoc of adminMembersSnap.docs) {
+    const adminUid = await resolveAuthUid(firestore, clubId, adminDoc.id);
+    if (adminUid) adminUids.push(adminUid);
+  }
+
+  const coachUids = await resolveAuthUids(firestore, clubId, coachIds);
+  const participantUids = [...adminUids, ...coachUids];
+
+  if (scopeType === "parents") {
+    for (const rosterId of uniq(playerIds)) {
+      const memberId = await resolveMemberIdForChat(firestore, clubId, rosterId);
+      if (!memberId) continue;
+      participantUids.push(
+        ...(await activeGuardianUids(firestore, clubId, memberId)),
+      );
+    }
+  } else {
+    const playerUids = await resolveAuthUids(firestore, clubId, playerIds);
+    participantUids.push(...playerUids);
+  }
+
+  return uniq(participantUids);
+}
+
+/**
+ * Crée un canal admin ciblé (admins only write) et retourne son id.
+ */
+export async function createScopedChannelConversation(params: {
+  firestore: Firestore;
+  clubId: string;
+  scopeType: ChannelAudienceScopeType;
+  scopeIds: string[];
+  title: string;
+  participantUids: string[];
+  writePolicy?: string;
+}): Promise<string> {
+  const scopeIds = uniq(
+    params.scopeIds.map((id) => id.trim()).filter(Boolean),
+  );
+  const systemKey = channelScopeSystemKey(params.scopeType, scopeIds);
+  const categoryKey =
+    params.scopeType === "categories" ? scopeIds.join("|") : undefined;
+
+  return upsertSystemConversation({
+    firestore: params.firestore,
+    clubId: params.clubId,
+    systemKey,
+    type: "category",
+    title: params.title,
+    categoryKey,
+    participantUids: params.participantUids,
+    writePolicy: params.writePolicy ?? WRITE_ADMINS,
+  });
+}
+
+/**
+ * @deprecated Préférer [createScopedChannelConversation].
  * Crée un canal catégorie (admins only write) et retourne son id.
  */
 export async function createCategoryConversation(params: {
@@ -326,14 +452,13 @@ export async function createCategoryConversation(params: {
   participantUids: string[];
   writePolicy?: string;
 }): Promise<string> {
-  return upsertSystemConversation({
+  return createScopedChannelConversation({
     firestore: params.firestore,
     clubId: params.clubId,
-    systemKey: `category:${params.categoryKey}`,
-    type: "category",
+    scopeType: "categories",
+    scopeIds: [params.categoryKey],
     title: params.title,
-    categoryKey: params.categoryKey,
     participantUids: params.participantUids,
-    writePolicy: params.writePolicy ?? WRITE_ADMINS,
+    writePolicy: params.writePolicy,
   });
 }

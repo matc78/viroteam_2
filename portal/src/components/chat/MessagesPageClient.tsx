@@ -123,7 +123,7 @@ export function MessagesPageClient({
               className={styles.categoryBtn}
               onClick={openCategoryChannel}
             >
-              Canal catégorie
+              Créer canal
             </button>
           ) : null}
           <button

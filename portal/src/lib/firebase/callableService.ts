@@ -341,11 +341,14 @@ export async function createCoachDm(params: {
   return callFunction("createCoachDm", params);
 }
 
-/** Crée un canal catégorie (admin). */
+/** Crée un canal admin ciblé (catégories / équipes / parents). */
 export async function createCategoryChannel(params: {
   clubId: string;
-  categoryKey: string;
   title: string;
+  scopeType: "categories" | "teams" | "parents";
+  scopeIds: string[];
+  /** @deprecated Préférer scopeType + scopeIds. */
+  categoryKey?: string;
   writePolicy?: string;
 }): Promise<{ conversationId: string }> {
   return callFunction("createCategoryChannel", params);

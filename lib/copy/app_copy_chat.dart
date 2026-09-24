@@ -65,11 +65,27 @@ final class AppCopyChat {
   String get reactionAddMine => 'Réagir aussi';
   String reactionCountLabel(int count) =>
       count <= 1 ? '$count réaction' : '$count réactions';
-  String get createCategoryChannel => 'Canal catégorie';
-  String get categoryChannelHint => 'Canal en lecture seule (admins écrivent).';
+  String get createCategoryChannel => 'Créer canal';
+  String get categoryChannelHint =>
+      'Canal en lecture seule (admins écrivent). Le canal « tout le club » existe déjà.';
   String get categoryKeyLabel => 'Catégorie (ex. U15)';
   String get createChannel => 'Créer le canal';
   String get channelCreated => 'Canal créé.';
+  String get channelAudienceLabel => 'Destinataires';
+  String get scopeCategories => 'Catégories';
+  String get scopeTeams => 'Équipes';
+  String get scopeParents => 'Parents d’équipes';
+  String get noCategoriesForChannel =>
+      'Aucune catégorie sur les équipes du club.';
+  String get noTeamsForChannel => 'Aucune équipe dans ce club.';
+  String get noTeamsWithPlayersForChannel =>
+      'Aucune équipe avec joueurs.';
+  String get channelOptionsCategoriesHint =>
+      'Catégories des équipes du club';
+  String get channelOptionsTeamsHint => 'Équipes du club';
+  String get channelOptionsParentsHint => 'Équipes avec joueurs';
+  String parentsOfTeamLabel(String teamName) => 'Parents · $teamName';
+  String get channelTitleHint => 'Titre affiché';
   String get you => 'Vous';
   String get loadError => 'Impossible de charger les discussions.';
 

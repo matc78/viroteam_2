@@ -9,6 +9,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
+import 'package:viro_team_v2/features/chat/widgets/create_channel_dialog.dart';
 import 'package:viro_team_v2/features/chat/widgets/new_conversation_sheet.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
@@ -307,56 +308,24 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     final clubs = ref.read(userClubsProvider).value ?? const [];
     final adminClubs = clubs
         .where((e) => e.membership?.role == MemberRoles.admin)
+        .map((e) => e.club)
         .toList();
     if (adminClubs.isEmpty) return;
-    final club = adminClubs.first.club;
-    final controller = TextEditingController();
-    final keyController = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(AppCopy.chat.createCategoryChannel),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(AppCopy.chat.categoryChannelHint),
-            const SizedBox(height: ViroSpacing.sm),
-            TextField(
-              controller: keyController,
-              decoration: InputDecoration(
-                labelText: AppCopy.chat.categoryKeyLabel,
-              ),
-            ),
-            TextField(
-              controller: controller,
-              decoration: InputDecoration(labelText: AppCopy.chat.renameHint),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(AppCopy.common.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(AppCopy.chat.createChannel),
-          ),
-        ],
-      ),
+    final result = await CreateChannelDialog.show(
+      context,
+      adminClubs: adminClubs,
     );
-    if (confirmed != true) return;
+    if (result == null) return;
     try {
       final id = await ref.read(chatServiceProvider).createCategoryChannel(
-            clubId: club.id,
-            categoryKey: keyController.text.trim(),
-            title: controller.text.trim().isEmpty
-                ? keyController.text.trim()
-                : controller.text.trim(),
+            clubId: result.clubId,
+            scopeType: result.scopeType,
+            scopeIds: result.scopeIds,
+            title: result.title,
           );
       if (!context.mounted) return;
       ViroSnackBar.show(context, AppCopy.chat.channelCreated);
-      context.push(AppRoutes.conversationPath(club.id, id));
+      context.push(AppRoutes.conversationPath(result.clubId, id));
     } catch (_) {
       if (context.mounted) {
         ViroSnackBar.show(context, AppCopy.chat.sendFailed);

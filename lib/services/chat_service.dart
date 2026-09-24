@@ -633,19 +633,21 @@ class ChatService {
     throw StateError('createCoachDm: réponse invalide');
   }
 
-  /// Callable admin : canal catégorie.
+  /// Callable admin : canal ciblé (catégories / équipes / parents).
   Future<String> createCategoryChannel({
     required String clubId,
-    required String categoryKey,
     required String title,
+    required String scopeType,
+    required List<String> scopeIds,
     String writePolicy = ChatWritePolicies.adminsOnly,
   }) async {
     final callable =
         _functions.httpsCallable(cloudCallableName('createCategoryChannel'));
     final result = await callable.call(<String, dynamic>{
       'clubId': clubId,
-      'categoryKey': categoryKey,
       'title': title,
+      'scopeType': scopeType,
+      'scopeIds': scopeIds,
       'writePolicy': writePolicy,
     });
     final data = result.data;

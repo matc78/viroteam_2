@@ -117,8 +117,8 @@ export function MessagingDock() {
             <button
               type="button"
               className={styles.iconBtn}
-              aria-label="Canal catégorie"
-              title="Canal catégorie"
+              aria-label="Créer canal"
+              title="Créer canal"
               onClick={openCategoryChannel}
             >
               <ChatIcon name="plus" size={18} />

@@ -873,11 +873,12 @@ export async function createCoachDm(params: {
   return result.conversationId;
 }
 
-/** Callable admin : canal catégorie. */
+/** Callable admin : canal ciblé (catégories / équipes / parents). */
 export async function createCategoryChannel(params: {
   clubId: string;
-  categoryKey: string;
   title: string;
+  scopeType: "categories" | "teams" | "parents";
+  scopeIds: string[];
   writePolicy?: string;
 }): Promise<string> {
   const result = await createCategoryChannelCallable(params);

@@ -16,6 +16,7 @@ class HomeFeeReminderItem {
     required this.brandColorHex,
     required this.season,
     required this.fee,
+    this.childFirstName,
   });
 
   final String clubId;
@@ -23,6 +24,9 @@ class HomeFeeReminderItem {
   final String? brandColorHex;
   final FeeSeason season;
   final MemberFee fee;
+
+  /// Prénom de l’enfant si le rappel concerne une fiche parentée.
+  final String? childFirstName;
 
   bool get isOverdue =>
       fee.displayStatus(season.paymentDeadlineAt) ==
@@ -112,25 +116,72 @@ final homeFeeRemindersProvider =
 
   final streams = clubs.map<Stream<List<HomeFeeReminderItem>>>((entry) {
     final club = entry.club;
-    if (!entry.isLicensed && entry.parentLinks.isNotEmpty) {
-      return feeService
-          .watchActiveMemberFee(
-            clubId: club.id,
-            memberId: entry.parentLinks.first.memberId,
-          )
-          .map((data) => _reminderFromFee(club: club, data: data));
+    final clubStreams = <Stream<List<HomeFeeReminderItem>>>[];
+
+    // Cotisations des enfants suivis — prénom depuis la fiche fee, sinon lecture membre.
+    if (entry.hasFamilyLinks) {
+      final guardianService = ref.read(guardianServiceProvider);
+      for (final link in entry.parentLinks) {
+        clubStreams.add(
+          feeService
+              .watchActiveMemberFee(
+                clubId: club.id,
+                memberId: link.memberId,
+              )
+              .asyncMap((data) async {
+                var childName = _firstNameFromDisplayName(
+                  data.fee?.memberDisplayName,
+                );
+                if (childName == null) {
+                  try {
+                    childName = await guardianService.childFirstName(
+                      clubId: club.id,
+                      memberId: link.memberId,
+                    );
+                  } catch (_) {
+                    childName = null;
+                  }
+                }
+                return _reminderFromFee(
+                  club: club,
+                  data: data,
+                  childFirstName: childName,
+                );
+              }),
+        );
+      }
     }
-    return eventService.watchClubMember(clubId: club.id, uid: authUid).asyncExpand(
-      (member) {
-        if (member == null) return Stream.value(<HomeFeeReminderItem>[]);
-        return feeService
-            .watchActiveMemberFee(
-              clubId: club.id,
-              memberId: member.memberId,
-            )
-            .map((data) => _reminderFromFee(club: club, data: data));
-      },
-    );
+
+    // Cotisation de sa propre fiche (licencié), hors enfants déjà listés.
+    if (entry.isLicensed) {
+      final childMemberIds = {
+        for (final link in entry.parentLinks) link.memberId,
+      };
+      clubStreams.add(
+        eventService
+            .watchClubMember(clubId: club.id, uid: authUid)
+            .asyncExpand((member) {
+          if (member == null) {
+            return Stream.value(<HomeFeeReminderItem>[]);
+          }
+          if (childMemberIds.contains(member.memberId)) {
+            return Stream.value(<HomeFeeReminderItem>[]);
+          }
+          return feeService
+              .watchActiveMemberFee(
+                clubId: club.id,
+                memberId: member.memberId,
+              )
+              .map((data) => _reminderFromFee(club: club, data: data));
+        }),
+      );
+    }
+
+    if (clubStreams.isEmpty) {
+      return Stream.value(<HomeFeeReminderItem>[]);
+    }
+    if (clubStreams.length == 1) return clubStreams.first;
+    return combineLatestListStreams<HomeFeeReminderItem>(clubStreams);
   }).toList();
 
   return combineLatestListStreams<HomeFeeReminderItem>(streams).map(
@@ -144,9 +195,17 @@ final feeDeadlineUrgentBackgroundProvider = Provider<bool>((ref) {
   return items.any((item) => item.isFeeDeadlineUrgentDay);
 });
 
+/// Premier prénom utilisable depuis un libellé membre (fiche cotisation).
+String? _firstNameFromDisplayName(String? displayName) {
+  final trimmed = displayName?.trim() ?? '';
+  if (trimmed.isEmpty) return null;
+  return trimmed.split(' ').first;
+}
+
 List<HomeFeeReminderItem> _reminderFromFee({
   required Club club,
   required ({MemberFee? fee, FeeSeason? season}) data,
+  String? childFirstName,
 }) {
   final season = data.season;
   final fee = data.fee;
@@ -159,6 +218,7 @@ List<HomeFeeReminderItem> _reminderFromFee({
   if (fee.remainingCents(season) <= 0 && fee.pendingAidsCents <= 0) {
     return [];
   }
+  final trimmedChildName = childFirstName?.trim();
   return [
     HomeFeeReminderItem(
       clubId: club.id,
@@ -166,6 +226,9 @@ List<HomeFeeReminderItem> _reminderFromFee({
       brandColorHex: club.brandColorHex,
       season: season,
       fee: fee,
+      childFirstName: (trimmedChildName != null && trimmedChildName.isNotEmpty)
+          ? trimmedChildName
+          : null,
     ),
   ];
 }

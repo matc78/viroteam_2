@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -40,9 +41,17 @@ class FeeReminderBanner extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
                   child: _FeeReminderCard(
                     item: item,
-                    onTap: () => context.push(
-                      AppRoutes.clubMyFeePath(item.clubId),
-                    ),
+                    onTap: () {
+                      if (item.childFirstName != null) {
+                        ref
+                            .read(clubAudienceSelectionProvider.notifier)
+                            .select(
+                              clubId: item.clubId,
+                              memberId: item.fee.memberId,
+                            );
+                      }
+                      context.push(AppRoutes.clubMyFeePath(item.clubId));
+                    },
                   ),
                 ),
             ],
@@ -173,7 +182,13 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                       children: [
                         Flexible(
                           child: Text(
-                            AppCopy.fees.feeSeasonTitle(item.season.seasonLabel),
+                            item.childFirstName != null
+                                ? AppCopy.fees.childFeeTitle(
+                                    item.childFirstName!,
+                                  )
+                                : AppCopy.fees.feeSeasonTitle(
+                                    item.season.seasonLabel,
+                                  ),
                             style: theme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: accent,
@@ -185,6 +200,15 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                         ClubChip(label: item.clubName, color: accent),
                       ],
                     ),
+                    if (item.childFirstName != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        AppCopy.fees.feeSeasonTitle(item.season.seasonLabel),
+                        style: theme.bodySmall?.copyWith(
+                          color: ViroColors.gray400,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: ViroSpacing.xs),
                     Row(
                       children: [

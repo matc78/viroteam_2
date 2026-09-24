@@ -62,7 +62,14 @@ export function ConversationInfoPanel({
   const isGroup = isGroupConversation(conversation);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [renameOpen, setRenameOpen] = useState(initialRenameOpen);
-  const [renameDraft, setRenameDraft] = useState(chatDisplayTitle(conversation));
+  const dmOther =
+    !isGroup && participants.length > 0
+      ? participants[0] ?? null
+      : null;
+  const title = chatDisplayTitle(conversation, {
+    peerDisplayName: dmOther?.displayName,
+  });
+  const [renameDraft, setRenameDraft] = useState(title);
   const [renameBusy, setRenameBusy] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
 
@@ -70,7 +77,6 @@ export function ConversationInfoPanel({
     clubColor ?? ClubSetupDefaults.brandColorHex,
   ).primary;
   const brandText = readableTextOnBrand(brand);
-  const title = chatDisplayTitle(conversation);
   const media = useMemo(
     () => extractConversationMedia(messages),
     [messages],
@@ -83,11 +89,6 @@ export function ConversationInfoPanel({
     ? participants.find((participant) => participant.uid === selectedUid) ??
       null
     : null;
-
-  const dmOther =
-    !isGroup && participants.length > 0
-      ? participants[0] ?? null
-      : null;
 
   async function handleRenameSubmit(event: FormEvent) {
     event.preventDefault();

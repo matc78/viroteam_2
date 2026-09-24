@@ -88,7 +88,10 @@
 }
 
 .membersPreview {
+  display: block;
+  min-height: 1.05em;
   font-size: 0.72rem;
+  line-height: 1.05;
   color: var(--color-gray-500);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -276,11 +279,34 @@
   color: var(--color-gray-600);
 }
 
-.senderName {
-  margin: 0 0 0.15rem 0.35rem;
+.unreadSeparator {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0.35rem 0;
+}
+
+.unreadSeparatorLine {
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--color-primary-500) 35%, transparent);
+}
+
+.unreadSeparatorLabel {
+  flex-shrink: 0;
   font-size: 0.72rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
   color: var(--color-primary-600);
+}
+
+.senderName {
+  margin: 0 0 0.2rem 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-role-player);
+  line-height: 1.25;
 }
 
 .emptyHint {
@@ -293,10 +319,28 @@
 .bubbleRow {
   display: flex;
   justify-content: flex-start;
+  align-items: flex-end;
+  gap: 0.4rem;
 }
 
 .bubbleRowMine {
   justify-content: flex-end;
+}
+
+.bubbleRowWithAvatar .bubbleShell {
+  max-width: min(calc(85% - 2rem), 22rem);
+}
+
+.senderAvatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  line-height: 0;
+}
+
+.senderAvatarWithReactions {
+  /* Aligne l’avatar avec le bas de la bulle (pas les pastilles). */
+  margin-bottom: 0.85rem;
 }
 
 /* Conteneur relatif : la bulle + réactions qui coupent la bordure basse. */
@@ -333,16 +377,32 @@
   border-color: var(--color-role-player);
 }
 
+.bubble[data-role="player"] .senderName {
+  color: var(--color-role-player);
+}
+
 .bubble[data-role="coach"] {
   border-color: var(--color-role-coach);
+}
+
+.bubble[data-role="coach"] .senderName {
+  color: var(--color-role-coach);
 }
 
 .bubble[data-role="admin"] {
   border-color: var(--color-role-admin);
 }
 
+.bubble[data-role="admin"] .senderName {
+  color: var(--color-role-admin);
+}
+
 .bubble[data-role="parent"] {
   border-color: var(--color-role-parent);
+}
+
+.bubble[data-role="parent"] .senderName {
+  color: var(--color-role-parent);
 }
 
 .text {

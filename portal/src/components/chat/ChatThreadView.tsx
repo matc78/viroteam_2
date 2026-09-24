@@ -31,18 +31,22 @@ import {
   ReactionQuickBar,
   type ReactionPerson,
 } from "@/components/chat/MessageReactions";
+import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import {
   formatParticipantPreview,
   participantFirstName,
   resolveConversationParticipants,
+  seedParticipantsFromPreviewCache,
   type ConversationParticipant,
 } from "@/lib/chat/conversationParticipants";
+import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
 import {
   formatChatDateSeparator,
   isSameCalendarDay,
 } from "@/lib/chat/formatChatDateSeparator";
 import { formatChatMessageTime } from "@/lib/chat/formatChatMessageTime";
 import { linkifyMessageText } from "@/lib/chat/linkifyMessageText";
+import { useChatOptional } from "@/lib/chat/ChatProvider";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   canWriteToConversation,
@@ -68,6 +72,7 @@ import {
 } from "@/lib/firebase/constants";
 import {
   chatDisplayTitle,
+  chatStateDocId,
   hasVotedFor,
   isChatMessageDeleted,
   isGroupConversation,
@@ -81,9 +86,11 @@ import styles from "./ChatThreadView.module.css";
 const LONG_PRESS_MS = 450;
 const REALTIME_MESSAGE_LIMIT = 100;
 const OLDER_PAGE_SIZE = 50;
+const NEAR_BOTTOM_PX = 100;
 
 type ThreadRow =
   | { kind: "date"; id: string; label: string }
+  | { kind: "unread"; id: string }
   | { kind: "message"; id: string; message: ChatMessage };
 
 /** Texte court pour la citation d’un message. */
@@ -138,9 +145,16 @@ export function ChatThreadView({
   clubColor,
 }: ChatThreadViewProps) {
   const { user, profile } = useAuth();
-  const [conversation, setConversation] = useState<ChatConversation | null>(
-    null,
-  );
+  const chat = useChatOptional();
+  const inboxPeerName =
+    chat?.dmPeerNameByKey[chatStateDocId(clubId, conversationId)] ?? null;
+  const inboxConversation =
+    chat?.conversations.find(
+      (entry) => entry.clubId === clubId && entry.id === conversationId,
+    ) ?? null;
+  const [conversationLive, setConversationLive] =
+    useState<ChatConversation | null>(null);
+  const conversation = conversationLive ?? inboxConversation;
   const [realtimeMessages, setRealtimeMessages] = useState<ChatMessage[]>([]);
   const [olderMessages, setOlderMessages] = useState<ChatMessage[]>([]);
   const [hasMoreOlder, setHasMoreOlder] = useState(false);
@@ -184,14 +198,64 @@ export function ChatThreadView({
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const longPressTimerRef = useRef<number | null>(null);
   const skipAutoScrollRef = useRef(false);
+  const lastAutoScrolledKeyRef = useRef<string | null>(null);
+  /** Ancre séparateur « nouveau » figée à l’open (avant markRead). */
+  const unreadSeparatorAnchorRef = useRef<
+    | { kind: "count"; count: number }
+    | { kind: "after"; afterMs: number }
+    | null
+  >(null);
+  const unreadSnapshotKeyRef = useRef<string | null>(null);
+  const nearBottomRef = useRef(true);
+  const forceScrollAfterSendRef = useRef(false);
+
+  const threadKey = `${clubId}:${conversationId}`;
+  if (unreadSnapshotKeyRef.current !== threadKey) {
+    unreadSnapshotKeyRef.current = threadKey;
+    const snapshotConversation = conversation;
+    const effective = snapshotConversation
+      ? effectiveUnreadCount({
+          conversation: snapshotConversation,
+          chatState,
+          viewerUid: user?.uid,
+        })
+      : chatState && !chatState.muted
+        ? chatState.unreadCount
+        : 0;
+
+    if (effective <= 0) {
+      unreadSeparatorAnchorRef.current = null;
+    } else if (chatState && chatState.unreadCount > 0) {
+      unreadSeparatorAnchorRef.current = {
+        kind: "count",
+        count: chatState.unreadCount,
+      };
+    } else if (chatState?.lastReadAt) {
+      unreadSeparatorAnchorRef.current = {
+        kind: "after",
+        afterMs: chatState.lastReadAt.getTime(),
+      };
+    } else {
+      unreadSeparatorAnchorRef.current = {
+        kind: "count",
+        count: effective,
+      };
+    }
+  }
 
   useEffect(() => {
     setOlderMessages([]);
+    setRealtimeMessages([]);
     setHasMoreOlder(false);
     setLoadingOlder(false);
     setReplyTarget(null);
     setLightboxUrl(null);
     setDragOver(false);
+    lastMarkedIdRef.current = null;
+    skipAutoScrollRef.current = false;
+    nearBottomRef.current = true;
+    forceScrollAfterSendRef.current = false;
+    lastAutoScrolledKeyRef.current = null;
   }, [clubId, conversationId]);
 
   useEffect(() => {
@@ -251,10 +315,11 @@ export function ChatThreadView({
     setPollOpen(true);
   }
   useEffect(() => {
+    setConversationLive(null);
     const unsubConv = watchConversation({
       clubId,
       conversationId,
-      onData: setConversation,
+      onData: setConversationLive,
     });
     const unsubMsgs = watchMessages({
       clubId,
@@ -278,8 +343,30 @@ export function ChatThreadView({
     if (uids.length === 0) {
       setParticipants([]);
       setAllParticipants([]);
+      setParticipantsLoading(false);
       return;
     }
+
+    const seeded = seedParticipantsFromPreviewCache({
+      clubId,
+      participantUids: uids,
+      previewSenderByKey: chat?.previewSenderByKey,
+      userDisplayNameByUid: chat?.userDisplayNameByUid,
+      dmPeerDisplayName: inboxPeerName,
+      viewerUid: user?.uid,
+    });
+    const seededForHeader =
+      conversation && !isGroupConversation(conversation) && user
+        ? seeded.filter((participant) => participant.uid !== user.uid)
+        : seeded;
+    if (seeded.length > 0) {
+      setAllParticipants(seeded);
+      setParticipants(seededForHeader);
+    } else {
+      setAllParticipants([]);
+      setParticipants([]);
+    }
+
     let cancelled = false;
     setParticipantsLoading(true);
     void resolveConversationParticipants({
@@ -298,7 +385,14 @@ export function ChatThreadView({
     return () => {
       cancelled = true;
     };
-  }, [clubId, conversation, user]);
+  }, [
+    clubId,
+    conversation,
+    user,
+    chat?.previewSenderByKey,
+    chat?.userDisplayNameByUid,
+    inboxPeerName,
+  ]);
 
   const messages = useMemo(() => {
     const byId = new Map<string, ChatMessage>();
@@ -312,7 +406,14 @@ export function ChatThreadView({
   const threadRows = useMemo(() => {
     const rows: ThreadRow[] = [];
     let previousDay: Date | null = null;
-    for (const message of messages) {
+    const anchor = unreadSeparatorAnchorRef.current;
+    const firstUnreadByCount =
+      anchor?.kind === "count" && anchor.count > 0 && messages.length > 0
+        ? Math.max(0, messages.length - anchor.count)
+        : null;
+    let unreadInserted = false;
+    for (let index = 0; index < messages.length; index++) {
+      const message = messages[index]!;
       if (
         !previousDay ||
         !isSameCalendarDay(previousDay, message.createdAt)
@@ -324,18 +425,83 @@ export function ChatThreadView({
         });
         previousDay = message.createdAt;
       }
+      const showUnreadHere =
+        !unreadInserted &&
+        ((firstUnreadByCount !== null && index === firstUnreadByCount) ||
+          (anchor?.kind === "after" &&
+            message.createdAt.getTime() > anchor.afterMs &&
+            message.senderUid !== user?.uid));
+      if (showUnreadHere) {
+        rows.push({ kind: "unread", id: "unread-separator" });
+        unreadInserted = true;
+      }
       rows.push({ kind: "message", id: message.id, message });
     }
     return rows;
-  }, [messages]);
+  }, [messages, user?.uid]);
+
+  const lastMessageId = messages.length > 0 ? messages[messages.length - 1]!.id : null;
+  const autoScrollConversationKey = `${clubId}:${conversationId}`;
+
+  /** True si le viewport est proche du bas du fil. */
+  function isNearBottom(): boolean {
+    const viewport = messagesRef.current;
+    if (!viewport) return true;
+    return (
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <=
+      NEAR_BOTTOM_PX
+    );
+  }
+
+  /** Scroll le fil jusqu’aux derniers messages. */
+  function scrollMessagesToBottom(smooth: boolean) {
+    const viewport = messagesRef.current;
+    if (viewport) {
+      if (smooth) {
+        viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+      } else {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+      nearBottomRef.current = true;
+      return;
+    }
+    bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+    nearBottomRef.current = true;
+  }
+
+  useEffect(() => {
+    const viewport = messagesRef.current;
+    if (!viewport) return;
+    const onScroll = () => {
+      nearBottomRef.current = isNearBottom();
+    };
+    viewport.addEventListener("scroll", onScroll, { passive: true });
+    return () => viewport.removeEventListener("scroll", onScroll);
+  }, [clubId, conversationId]);
 
   useEffect(() => {
     if (skipAutoScrollRef.current) {
       skipAutoScrollRef.current = false;
       return;
     }
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    if (messages.length === 0) return;
+    const isOpeningThread =
+      lastAutoScrolledKeyRef.current !== autoScrollConversationKey;
+    const forceAfterSend = forceScrollAfterSendRef.current;
+    if (forceAfterSend) forceScrollAfterSendRef.current = false;
+    if (!isOpeningThread && !nearBottomRef.current && !forceAfterSend) {
+      return;
+    }
+    lastAutoScrolledKeyRef.current = autoScrollConversationKey;
+    const smooth = !isOpeningThread;
+    // Double passe : layout flex / images peuvent encore grandir après le paint.
+    const run = () => scrollMessagesToBottom(smooth);
+    run();
+    requestAnimationFrame(() => {
+      run();
+      requestAnimationFrame(run);
+    });
+  }, [autoScrollConversationKey, messages.length, lastMessageId]);
 
   useEffect(() => {
     if (!user || messages.length === 0) return;
@@ -365,11 +531,18 @@ export function ChatThreadView({
     "";
   const senderRole = clubRole || PortalUiRoles.parent;
   const title = conversation
-    ? chatDisplayTitle(conversation)
+    ? chatDisplayTitle(conversation, {
+        peerDisplayName:
+          (!isGroup && participants.length > 0
+            ? participants[0]?.displayName
+            : null) || inboxPeerName,
+      })
     : "Discussion";
   const titleShort =
     title.length > 25 ? `${title.slice(0, 25).trimEnd()}…` : title;
   const membersPreview = formatParticipantPreview(participants);
+  const showMembersPreviewSlot =
+    (conversation?.participantUids.length ?? 0) > 0;
   const roleByUid = useMemo(() => {
     const map = new Map<string, string>();
     for (const participant of allParticipants) {
@@ -428,6 +601,7 @@ export function ChatThreadView({
     if (!user || !canWrite || busy) return;
     setBusy(true);
     setError(null);
+    forceScrollAfterSendRef.current = true;
     try {
       const bytes = await file.arrayBuffer();
       await sendImageMessage({
@@ -442,6 +616,7 @@ export function ChatThreadView({
       });
       setReplyTarget(null);
     } catch {
+      forceScrollAfterSendRef.current = false;
       setError("Envoi de la photo impossible.");
     } finally {
       setBusy(false);
@@ -511,6 +686,7 @@ export function ChatThreadView({
     if (!text) return;
     setBusy(true);
     setError(null);
+    forceScrollAfterSendRef.current = true;
     try {
       await sendTextMessage({
         clubId,
@@ -524,6 +700,7 @@ export function ChatThreadView({
       setDraft("");
       setReplyTarget(null);
     } catch (err) {
+      forceScrollAfterSendRef.current = false;
       console.error("[chat] sendTextMessage failed", err);
       const detail =
         err instanceof Error && err.message.trim()
@@ -825,8 +1002,10 @@ export function ChatThreadView({
                 <span className={styles.headerClubSlot}>{headerExtra}</span>
               ) : null}
             </span>
-            {membersPreview ? (
-              <span className={styles.membersPreview}>{membersPreview}</span>
+            {showMembersPreviewSlot ? (
+              <span className={styles.membersPreview}>
+                {membersPreview || "\u00A0"}
+              </span>
             ) : null}
           </span>
         </button>
@@ -972,15 +1151,29 @@ export function ChatThreadView({
                 </div>
               );
             }
+            if (row.kind === "unread") {
+              return (
+                <div key={row.id} className={styles.unreadSeparator}>
+                  <span className={styles.unreadSeparatorLine} aria-hidden />
+                  <span className={styles.unreadSeparatorLabel}>nouveau</span>
+                  <span className={styles.unreadSeparatorLine} aria-hidden />
+                </div>
+              );
+            }
 
             const message = row.message;
             const mine = user?.uid === message.senderUid;
             const deleted = isChatMessageDeleted(message);
             const roleTone = senderRoleTone(roleByUid.get(message.senderUid));
-            const senderLabel =
-              isGroup && !mine
-                ? replyAuthorLabel(message.senderUid)
-                : null;
+            const showSenderMeta = isGroup && !mine;
+            const senderPerson = showSenderMeta
+              ? peopleByUid.get(message.senderUid)
+              : undefined;
+            const senderLabel = showSenderMeta
+              ? senderPerson?.displayName?.trim() ||
+                senderPerson?.label ||
+                "Quelqu’un"
+              : null;
             const isMatch =
               searchOpen &&
               searchQuery.trim() &&
@@ -992,27 +1185,43 @@ export function ChatThreadView({
             const hasReply =
               !deleted &&
               Boolean(message.replyToMessageId && message.replyToText);
+            const hasReactions =
+              !deleted &&
+              Object.values(message.reactions).some((uids) => uids.length > 0);
             return (
               <div
                 key={message.id}
                 ref={(node) => {
                   messageRefs.current[message.id] = node;
                 }}
-                className={`${styles.bubbleRow}${mine ? ` ${styles.bubbleRowMine}` : ""}${isMatch ? ` ${styles.bubbleRowMatch}` : ""}`}
+                className={`${styles.bubbleRow}${mine ? ` ${styles.bubbleRowMine}` : ""}${showSenderMeta ? ` ${styles.bubbleRowWithAvatar}` : ""}${isMatch ? ` ${styles.bubbleRowMatch}` : ""}`}
               >
+                {showSenderMeta ? (
+                  <span
+                    className={`${styles.senderAvatar}${
+                      hasReactions ? ` ${styles.senderAvatarWithReactions}` : ""
+                    }`}
+                  >
+                    <MemberAvatar
+                      displayName={
+                        senderPerson?.displayName ||
+                        senderPerson?.label ||
+                        "Membre"
+                      }
+                      avatarUrl={senderPerson?.avatarUrl}
+                      hasLinkedAccount={
+                        senderPerson?.hasLinkedAccount ?? false
+                      }
+                      size="xs"
+                      enableZoom={false}
+                    />
+                  </span>
+                ) : null}
                 <div
                   className={`${styles.bubbleShell}${
-                    !deleted &&
-                    Object.values(message.reactions).some(
-                      (uids) => uids.length > 0,
-                    )
-                      ? ` ${styles.bubbleShellWithReactions}`
-                      : ""
+                    hasReactions ? ` ${styles.bubbleShellWithReactions}` : ""
                   }`}
                 >
-                  {senderLabel ? (
-                    <p className={styles.senderName}>{senderLabel}</p>
-                  ) : null}
                   <div
                     className={`${styles.bubble}${mine ? ` ${styles.bubbleMine}` : ""}`}
                     data-msg-bubble=""
@@ -1028,6 +1237,9 @@ export function ChatThreadView({
                     onPointerLeave={clearLongPressTimer}
                     onPointerCancel={clearLongPressTimer}
                   >
+                  {senderLabel ? (
+                    <p className={styles.senderName}>{senderLabel}</p>
+                  ) : null}
                   {hasReply ? (
                     <button
                       type="button"
@@ -1296,6 +1508,7 @@ export function ChatThreadView({
           onClose={() => setPollOpen(false)}
           onSubmit={async (payload) => {
             if (!user) return;
+            forceScrollAfterSendRef.current = true;
             await sendPollMessage({
               clubId,
               conversationId,

@@ -36,6 +36,43 @@ class ChatDaySeparator extends StatelessWidget {
   }
 }
 
+/// Séparateur one-shot « — nouveau — » à l’ouverture d’un fil avec non-lus.
+class ChatUnreadSeparator extends StatelessWidget {
+  const ChatUnreadSeparator({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final line = Expanded(
+      child: Container(
+        height: 1,
+        color: ViroColors.primary200.withValues(alpha: 0.7),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: ViroSpacing.sm),
+      child: Row(
+        children: [
+          line,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.sm),
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: ViroColors.primary600,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
+            ),
+          ),
+          line,
+        ],
+      ),
+    );
+  }
+}
+
 /// Overlay plein écran pour une photo chat (pinch/zoom).
 Future<void> showChatImageLightbox(
   BuildContext context, {

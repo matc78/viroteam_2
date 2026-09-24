@@ -43,6 +43,7 @@ export function MessagesPageClient({
     isAdminSomewhere,
     roleForClub,
     setDockOpen,
+    dmPeerNameByKey,
   } = useChat();
 
   const queryClubId = searchParams.get("clubId");
@@ -74,8 +75,10 @@ export function MessagesPageClient({
     const q = query.trim().toLowerCase();
     if (!q) return sorted;
     return sorted.filter((conversation) => {
+      const id = chatStateDocId(conversation.clubId, conversation.id);
       const title = (
         conversation.titleOverride ||
+        dmPeerNameByKey[id] ||
         conversation.title ||
         ""
       ).toLowerCase();
@@ -86,7 +89,7 @@ export function MessagesPageClient({
         conversation.lastMessagePreview.toLowerCase().includes(q)
       );
     });
-  }, [conversations, chatStates, query, clubNameById]);
+  }, [conversations, chatStates, query, clubNameById, dmPeerNameByKey]);
 
   function selectConversation(clubId: string, conversationId: string) {
     setSelectedClubId(clubId);
@@ -164,6 +167,7 @@ export function MessagesPageClient({
                     clubColor={clubColorById[conversation.clubId]}
                     clubRole={roleForClub(conversation.clubId)}
                     previewSenderByKey={previewSenderByKey}
+                    peerDisplayName={dmPeerNameByKey[id]}
                     selected={selected}
                     onSelect={() =>
                       selectConversation(conversation.clubId, conversation.id)
@@ -178,6 +182,7 @@ export function MessagesPageClient({
         <section className={styles.threadPane}>
           {hasSelection && selectedClubId && selectedConversationId ? (
             <ChatThreadView
+              key={`${selectedClubId}-${selectedConversationId}`}
               clubId={selectedClubId}
               conversationId={selectedConversationId}
               clubRole={roleForClub(selectedClubId)}

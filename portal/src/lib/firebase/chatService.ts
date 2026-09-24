@@ -32,6 +32,7 @@ import {
   MemberRoles,
 } from "./constants";
 import { prepareChatImageUpload } from "@/lib/chat/createImageThumbnail";
+import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
 import { isAllowedReactionEmoji } from "@/components/chat/emojiCatalog";
 import { uploadImageAtPath } from "./storage";
 import {
@@ -434,14 +435,31 @@ export function watchChatStates(params: {
   );
 }
 
-/** Somme des non-lus hors conversations mutées. */
+/**
+ * Somme des non-lus hors conversations mutées.
+ * Avec [conversations] + [viewerUid], applique le même fallback inbox
+ * (`lastMessageAt > lastReadAt`) que les tuiles.
+ */
 export function totalUnreadCount(
   states: Record<string, ChatUserState>,
+  conversations?: ChatConversation[],
+  viewerUid?: string | null,
 ): number {
+  if (!conversations?.length) {
+    let total = 0;
+    for (const state of Object.values(states)) {
+      if (state.muted) continue;
+      total += Math.max(0, state.unreadCount);
+    }
+    return total;
+  }
   let total = 0;
-  for (const state of Object.values(states)) {
-    if (state.muted) continue;
-    total += Math.max(0, state.unreadCount);
+  for (const conversation of conversations) {
+    total += effectiveUnreadCount({
+      conversation,
+      chatState: states[chatStateDocId(conversation.clubId, conversation.id)],
+      viewerUid,
+    });
   }
   return total;
 }

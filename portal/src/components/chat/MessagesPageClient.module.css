@@ -35,7 +35,7 @@
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(16rem, 22rem) 1fr;
+  grid-template-columns: minmax(20rem, 30rem) 1fr;
   gap: 0;
   min-height: 0;
   flex: 1;

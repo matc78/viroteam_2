@@ -1,7 +1,7 @@
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { requireString, requireUid, stringArray, uniq } from "../common";
 import { db, defineDualCallable } from "../db";
-import { resolveAuthUids, upsertSystemConversation } from "./sync";
+import { resolveAuthUid, resolveAuthUids, upsertSystemConversation } from "./sync";
 
 /**
  * Crée (ou réutilise) une DM / coach_group entre l’appelant et des coaches/admins.
@@ -46,10 +46,30 @@ async function handleCreateCoachDm(request: CallableRequest): Promise<{
       ? uid
       : "";
   const userSnap = await firestore.collection("users").doc(uid).get();
-  const parentClubIds = stringArray(userSnap.data()?.parentClubIds);
-  const parentTeamIds = new Set(stringArray(userSnap.data()?.parentTeamIds));
+  const userData = userSnap.data() ?? {};
+  const parentClubIds = stringArray(userData.parentClubIds);
+  const parentTeamIds = new Set(stringArray(userData.parentTeamIds));
+  const parentLinksRaw = Array.isArray(userData.parentLinks)
+    ? (userData.parentLinks as unknown[])
+    : [];
+  const activeParentLinksInClub = parentLinksRaw
+    .filter((item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === "object")
+    .map((item) => ({
+      clubId: String(item.clubId ?? ""),
+      memberId: String(item.memberId ?? ""),
+      status: String(item.status ?? ""),
+    }))
+    .filter(
+      (link) =>
+        link.clubId === clubId &&
+        link.memberId.length > 0 &&
+        link.status === "active",
+    );
   const isMember = callerAccount.exists || directMember.exists;
-  const isParent = parentClubIds.includes(clubId);
+  // parentClubIds peut être stale : les liens actifs font foi (comme l’app).
+  const isParent =
+    parentClubIds.includes(clubId) || activeParentLinksInClub.length > 0;
   if (!isMember && !isParent) {
     throw new HttpsError("permission-denied", "Tu n’es pas dans ce club");
   }
@@ -68,6 +88,16 @@ async function handleCreateCoachDm(request: CallableRequest): Promise<{
         coaches.includes(uid));
     if (rosterHit || parentTeamIds.has(teamDoc.id)) {
       callerTeamIds.add(teamDoc.id);
+    }
+  }
+  // parentTeamIds parfois vide : équipes des enfants via parentLinks.
+  if (isParent && callerTeamIds.size === 0) {
+    for (const link of activeParentLinksInClub) {
+      const childSnap = await clubRef.collection("members").doc(link.memberId).get();
+      if (!childSnap.exists) continue;
+      for (const tid of stringArray(childSnap.data()?.teamIds)) {
+        if (tid) callerTeamIds.add(tid);
+      }
     }
   }
 
@@ -89,7 +119,23 @@ async function handleCreateCoachDm(request: CallableRequest): Promise<{
     );
     for (const coachUid of coachUids) allowedCoachUids.add(coachUid);
   }
-  for (const adminId of adminIds) allowedCoachUids.add(adminId);
+  // adminIds peut être memberId ou Auth uid — toujours résoudre.
+  for (const adminUid of await resolveAuthUids(
+    firestore,
+    clubId,
+    [...adminIds],
+  )) {
+    allowedCoachUids.add(adminUid);
+  }
+  // Filet : admins déclarés par rôle fiche (adminIds parfois incomplet).
+  const adminMembersSnap = await clubRef
+    .collection("members")
+    .where("role", "==", "admin")
+    .get();
+  for (const adminDoc of adminMembersSnap.docs) {
+    const adminUid = await resolveAuthUid(firestore, clubId, adminDoc.id);
+    if (adminUid) allowedCoachUids.add(adminUid);
+  }
 
   for (const target of targetUids) {
     if (!allowedCoachUids.has(target)) {

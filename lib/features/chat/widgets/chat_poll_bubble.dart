@@ -1,11 +1,20 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_bubble_timestamp.dart';
+import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
+import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+
+/// Nombre max d’avatars empilés par option de sondage.
+const int _kMaxPollAvatars = 3;
+const double _kPollAvatarSize = 22;
+const double _kPollAvatarOverlap = 14;
 
 /// Bulle de sondage avec barres de votes (style WhatsApp).
 class ChatPollBubble extends StatelessWidget {
@@ -16,8 +25,10 @@ class ChatPollBubble extends StatelessWidget {
     required this.viewerUid,
     required this.onVote,
     required this.onLongPress,
+    this.memberByUid = const {},
     this.onViewVotes,
     this.borderColor,
+    this.senderLabel = '',
   });
 
   final ChatMessage message;
@@ -25,8 +36,11 @@ class ChatPollBubble extends StatelessWidget {
   final String? viewerUid;
   final ValueChanged<String> onVote;
   final VoidCallback onLongPress;
+  final Map<String, ClubMember> memberByUid;
   final VoidCallback? onViewVotes;
   final Color? borderColor;
+  /// Prénom + nom en haut de bulle (groupes, messages des autres).
+  final String senderLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +72,17 @@ class ChatPollBubble extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (senderLabel.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    senderLabel,
+                    style: theme.labelSmall?.copyWith(
+                      color: borderColor ?? ViroColors.primary600,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               Row(
                 children: [
                   ViroIcon(
@@ -96,7 +121,8 @@ class ChatPollBubble extends StatelessWidget {
               for (final option in message.pollOptions)
                 _PollOptionRow(
                   option: option,
-                  voteCount: message.pollVotes[option.id]?.length ?? 0,
+                  voterUids: message.pollVotes[option.id] ?? const <String>[],
+                  memberByUid: memberByUid,
                   totalVotes: total,
                   allowMultiple: message.pollAllowMultiple,
                   selected: viewerUid != null &&
@@ -152,7 +178,8 @@ class ChatPollBubble extends StatelessWidget {
 class _PollOptionRow extends StatelessWidget {
   const _PollOptionRow({
     required this.option,
-    required this.voteCount,
+    required this.voterUids,
+    required this.memberByUid,
     required this.totalVotes,
     required this.allowMultiple,
     required this.selected,
@@ -160,7 +187,8 @@ class _PollOptionRow extends StatelessWidget {
   });
 
   final ChatPollOption option;
-  final int voteCount;
+  final List<String> voterUids;
+  final Map<String, ClubMember> memberByUid;
   final int totalVotes;
   final bool allowMultiple;
   final bool selected;
@@ -169,8 +197,8 @@ class _PollOptionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final voteCount = voterUids.length;
     final ratio = totalVotes <= 0 ? 0.0 : voteCount / totalVotes;
-    final percent = totalVotes <= 0 ? 0 : (ratio * 100).round();
     final marker = allowMultiple
         ? (selected ? ViroIcons.checkboxOn : ViroIcons.checkboxOff)
         : (selected ? ViroIcons.radioOn : ViroIcons.radioOff);
@@ -228,8 +256,17 @@ class _PollOptionRow extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (voteCount > 0) ...[
+                        const SizedBox(width: ViroSpacing.xs),
+                        _PollVoterAvatarStack(
+                          optionId: option.id,
+                          voterUids: voterUids,
+                          memberByUid: memberByUid,
+                        ),
+                        const SizedBox(width: ViroSpacing.xs),
+                      ],
                       Text(
-                        '$percent%',
+                        '$voteCount',
                         style: theme.labelSmall?.copyWith(
                           color: ViroColors.gray600,
                           fontWeight: FontWeight.w600,
@@ -243,6 +280,84 @@ class _PollOptionRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Empile jusqu’à [_kMaxPollAvatars] avatars dans un ordre aléatoire stable.
+class _PollVoterAvatarStack extends StatelessWidget {
+  const _PollVoterAvatarStack({
+    required this.optionId,
+    required this.voterUids,
+    required this.memberByUid,
+  });
+
+  final String optionId;
+  final List<String> voterUids;
+  final Map<String, ClubMember> memberByUid;
+
+  @override
+  Widget build(BuildContext context) {
+    final shuffled = List<String>.from(voterUids)
+      ..shuffle(Random(optionId.hashCode));
+    final visible = shuffled.take(_kMaxPollAvatars).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    final stackWidth = _kPollAvatarSize +
+        (visible.length - 1) * _kPollAvatarOverlap;
+
+    return SizedBox(
+      width: stackWidth,
+      height: _kPollAvatarSize,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (var index = 0; index < visible.length; index++)
+            Positioned(
+              left: index * _kPollAvatarOverlap,
+              child: _PollVoterAvatarBubble(
+                member: memberByUid[visible[index]],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bulle avatar compacte (sans zoom) pour une pile de votants.
+class _PollVoterAvatarBubble extends StatelessWidget {
+  const _PollVoterAvatarBubble({this.member});
+
+  final ClubMember? member;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = member != null
+        ? IgnorePointer(
+            child: MemberAvatar(
+              member: member!,
+              size: _kPollAvatarSize,
+            ),
+          )
+        : Container(
+            width: _kPollAvatarSize,
+            height: _kPollAvatarSize,
+            alignment: Alignment.center,
+            color: ViroColors.primary100,
+            child: ViroIcon(
+              ViroIcons.user,
+              size: _kPollAvatarSize * 0.45,
+              color: ViroColors.primary600,
+            ),
+          );
+
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: ViroColors.white, width: 1.5),
+      ),
+      child: ClipOval(child: avatar),
     );
   }
 }

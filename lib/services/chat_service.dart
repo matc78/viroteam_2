@@ -21,7 +21,8 @@ class ChatService {
     FirebaseFunctions? functions,
   })  : _db = firestore ?? appFirestore,
         _storage = storage ?? FirebaseStorage.instance,
-        _functions = functions ?? FirebaseFunctions.instance;
+        _functions = functions ??
+            FirebaseFunctions.instanceFor(region: 'europe-west1');
 
   final FirebaseFirestore _db;
   final FirebaseStorage _storage;
@@ -157,7 +158,7 @@ class ChatService {
     });
   }
 
-  /// Envoie un message texte et met à jour le preview conversation.
+  /// Envoie un message texte (espaces / sauts de ligne en fin retirés) et met à jour le preview conversation.
   Future<void> sendTextMessage({
     required String clubId,
     required String conversationId,
@@ -169,8 +170,8 @@ class ChatService {
     String? replyToText,
     String? replyToSenderUid,
   }) async {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) return;
+    final trimmed = text.trimRight();
+    if (trimmed.trim().isEmpty) return;
     final ref = _messages(clubId, conversationId).doc();
     final batch = _db.batch();
     final replyId = replyToMessageId?.trim();

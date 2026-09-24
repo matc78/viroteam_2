@@ -31,6 +31,7 @@ export function MessagingDock() {
     openThread,
     roleForClub,
     isMobileLayout,
+    dmPeerNameByKey,
   } = useChat();
   const [query, setQuery] = useState("");
   const [phase, setPhase] = useState<DockPhase>(dockOpen ? "open" : "closed");
@@ -40,8 +41,10 @@ export function MessagingDock() {
     const q = query.trim().toLowerCase();
     if (!q) return sorted;
     return sorted.filter((conversation) => {
+      const stateId = chatStateDocId(conversation.clubId, conversation.id);
       const title = (
         conversation.titleOverride ||
+        dmPeerNameByKey[stateId] ||
         conversation.title ||
         ""
       ).toLowerCase();
@@ -49,7 +52,7 @@ export function MessagingDock() {
       const preview = conversation.lastMessagePreview.toLowerCase();
       return title.includes(q) || club.includes(q) || preview.includes(q);
     });
-  }, [conversations, chatStates, query, clubNameById]);
+  }, [conversations, chatStates, query, clubNameById, dmPeerNameByKey]);
 
   useEffect(() => {
     if (dockOpen) {
@@ -203,6 +206,7 @@ export function MessagingDock() {
                 clubColor={clubColorById[conversation.clubId]}
                 clubRole={roleForClub(conversation.clubId)}
                 previewSenderByKey={previewSenderByKey}
+                peerDisplayName={dmPeerNameByKey[stateId]}
                 selected={selected}
                 onSelect={() =>
                   openThread({

@@ -73,13 +73,6 @@ export type ChatThreadKey = {
   conversationId: string;
 };
 
-/** Titre affiché (override si présent). */
-export function chatDisplayTitle(conversation: ChatConversation): string {
-  const override = conversation.titleOverride?.trim();
-  if (override) return override;
-  return conversation.title || "Discussion";
-}
-
 /**
  * True si la conversation est un groupe (pas un DM 1:1).
  * Les DM coach multi-cibles (`coach_group`) et canaux système comptent comme groupe.
@@ -89,6 +82,37 @@ export function isGroupConversation(conversation: ChatConversation): boolean {
     return conversation.participantUids.length > 2;
   }
   return true;
+}
+
+/**
+ * UID de l’autre participant d’un DM 1:1 pour le viewer courant.
+ * Null pour les groupes / si le viewer n’est pas dans la conversation.
+ */
+export function dmPeerUid(
+  conversation: ChatConversation,
+  viewerUid: string | null | undefined,
+): string | null {
+  if (!viewerUid || isGroupConversation(conversation)) return null;
+  const peer = conversation.participantUids.find(
+    (uid) => uid && uid !== viewerUid,
+  );
+  return peer ?? null;
+}
+
+/**
+ * Titre affiché.
+ * Override manuel prioritaire ; pour un DM 1:1, préférer le nom du pair
+ * (`peerDisplayName`) sinon le `title` figé à la création (asymétrique).
+ */
+export function chatDisplayTitle(
+  conversation: ChatConversation,
+  options?: { peerDisplayName?: string | null },
+): string {
+  const override = conversation.titleOverride?.trim();
+  if (override) return override;
+  const peerName = options?.peerDisplayName?.trim();
+  if (peerName && !isGroupConversation(conversation)) return peerName;
+  return conversation.title || "Discussion";
 }
 
 /** Id doc chatState. */

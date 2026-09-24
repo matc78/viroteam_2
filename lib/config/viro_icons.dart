@@ -27,6 +27,7 @@ abstract final class ViroIcons {
   static IconData get users => PhosphorIconsRegular.users;
   static IconData get whistle => PhosphorIconsRegular.megaphoneSimple;
   static IconData get chat => PhosphorIconsRegular.chatCircle;
+  static IconData get chatFill => PhosphorIconsFill.chatCircle;
   static IconData get whatsapp => PhosphorIconsRegular.whatsappLogo;
   static IconData get send => PhosphorIconsRegular.paperPlaneTilt;
   static IconData get megaphone => PhosphorIconsRegular.megaphone;
@@ -55,6 +56,7 @@ abstract final class ViroIcons {
   static IconData get bell => PhosphorIconsRegular.bell;
   static IconData get payments => PhosphorIconsRegular.currencyEur;
   static IconData get image => PhosphorIconsRegular.image;
+  static IconData get camera => PhosphorIconsRegular.camera;
   static IconData get poll => PhosphorIconsRegular.chartBar;
   static IconData get smiley => PhosphorIconsRegular.smiley;
   static IconData get selectAll => PhosphorIconsRegular.selectionAll;
@@ -118,6 +120,7 @@ abstract final class ViroIcons {
             ('users', users),
             ('whistle', whistle),
             ('chat', chat),
+            ('chatFill', chatFill),
             ('whatsapp', whatsapp),
             ('send', send),
             ('megaphone', megaphone),
@@ -161,6 +164,7 @@ abstract final class ViroIcons {
             ('logout', logout),
             ('bell', bell),
             ('image', image),
+            ('camera', camera),
             ('selectAll', selectAll),
             ('note', note),
           ],

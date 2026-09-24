@@ -257,7 +257,7 @@ export function ComposeConversationDialog() {
             disabled={busy || selected.size === 0}
             onClick={() => void handleStart()}
           >
-            Démarrer
+            {busy ? "Ouverture…" : "Démarrer"}
           </button>
         </div>
       </div>

@@ -88,8 +88,10 @@ function defineMessageCreatedTrigger(databaseId: FirestoreDatabaseId) {
         );
         if (participants.length === 0) return;
 
-        // Filtre muted + lecture active (thread ouvert récemment).
-        const ACTIVE_READ_MS = 120_000;
+        // Filtre muted + lecture active (thread encore ouvert / markRead en vol).
+        // Court : le client markRead dès que le fil est ouvert ; une fenêtre
+        // trop longue masque les non-lus après avoir quitté la discussion.
+        const ACTIVE_READ_MS = 15_000;
         const unmuted: string[] = [];
         for (const uid of participants) {
           const stateId = `${clubId}_${conversationId}`;
@@ -128,7 +130,22 @@ function defineMessageCreatedTrigger(databaseId: FirestoreDatabaseId) {
             : data.type === "poll"
               ? `📊 ${String(data.pollQuestion ?? data.text ?? "Sondage").trim().slice(0, 100)}`
               : String(data.text ?? "").trim().slice(0, 120);
-        const title = String(conv.titleOverride || conv.title || "Message").trim();
+
+        // DM 1:1 : titre = nom de l’expéditeur (pas le title figé = cible).
+        const isDm =
+          String(conv.type ?? "") === "dm" &&
+          stringArray(conv.participantUids).length <= 2;
+        let title = String(conv.titleOverride || "").trim();
+        if (!title && isDm && senderUid) {
+          const senderSnap = await firestore.collection("users").doc(senderUid).get();
+          const senderData = senderSnap.data() ?? {};
+          title =
+            String(senderData.displayName ?? "").trim() ||
+            `${String(senderData.firstName ?? "").trim()} ${String(senderData.lastName ?? "").trim()}`.trim();
+        }
+        if (!title) {
+          title = String(conv.title || "Message").trim() || "Message";
+        }
 
         await sendPushToUids({
           firestore,

@@ -22,20 +22,22 @@ import {
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   ensureClubsChatSynced,
-  markRead,
   messagesPagePath,
   totalUnreadCount,
   watchChatStates,
   watchInbox,
 } from "@/lib/firebase/chatService";
-import type {
-  ChatConversation,
-  ChatThreadKey,
-  ChatUserState,
+import {
+  chatStateDocId,
+  dmPeerUid,
+  type ChatConversation,
+  type ChatThreadKey,
+  type ChatUserState,
 } from "@/lib/firebase/chatTypes";
 import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
 import { listClubMembers } from "@/lib/firebase/memberService";
 import { membershipRoleForClub, splitDisplayName } from "@/lib/firebase/types";
+import { getUserProfile } from "@/lib/firebase/userService";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 
 type ChatContextValue = {
@@ -53,6 +55,13 @@ type ChatContextValue = {
   clubColorById: Record<string, string | null>;
   /** Annuaire `clubId:uid` → prénom + rôle (fallback preview). */
   previewSenderByKey: Record<string, ChatPreviewSender>;
+  /**
+   * Titres DM résolus pour le viewer : `clubId_convId` → nom du pair.
+   * Évite d’afficher son propre nom (titre figé à la création).
+   */
+  dmPeerNameByKey: Record<string, string>;
+  /** Display names profils (`uid` → nom), ex. parents hors fiche membre. */
+  userDisplayNameByUid: Record<string, string>;
   messagesHref: string;
   isMobileLayout: boolean;
   toggleDock: () => void;
@@ -136,6 +145,17 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [previewSenderByKey, setPreviewSenderByKey] = useState<
     Record<string, ChatPreviewSender>
+  >({});
+  /** Annuaire `clubId:uid` → displayName (membres club). */
+  const [memberDisplayNameByKey, setMemberDisplayNameByKey] = useState<
+    Record<string, string>
+  >({});
+  const [dmPeerNameByKey, setDmPeerNameByKey] = useState<
+    Record<string, string>
+  >({});
+  /** Noms profils résolus (parents hors membres) : `uid` → displayName. */
+  const [userDisplayNameByUid, setUserDisplayNameByUid] = useState<
+    Record<string, string>
   >({});
 
   const syncedClubsRef = useRef<string>("");
@@ -226,22 +246,27 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status !== "signedIn" || clubIds.length === 0) {
       setPreviewSenderByKey({});
+      setMemberDisplayNameByKey({});
       return;
     }
     let cancelled = false;
     void (async () => {
       const directory: Record<string, ChatPreviewSender> = {};
+      const displayNames: Record<string, string> = {};
       await Promise.all(
         clubIds.map(async (clubId) => {
           try {
             const members = await listClubMembers(clubId);
             for (const member of members) {
               if (!member.accountUid) continue;
+              const key = previewSenderKey(clubId, member.accountUid);
+              const displayName = member.displayName.trim();
+              if (displayName) displayNames[key] = displayName;
               const firstName =
                 member.firstName.trim() ||
                 splitDisplayName(member.displayName).firstName;
               if (!firstName) continue;
-              directory[previewSenderKey(clubId, member.accountUid)] = {
+              directory[key] = {
                 firstName,
                 role: member.role,
               };
@@ -251,16 +276,88 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
           }
         }),
       );
-      if (!cancelled) setPreviewSenderByKey(directory);
+      if (!cancelled) {
+        setPreviewSenderByKey(directory);
+        setMemberDisplayNameByKey(displayNames);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [status, clubIds]);
 
+  useEffect(() => {
+    if (!user || conversations.length === 0) {
+      setDmPeerNameByKey({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const next: Record<string, string> = {};
+      const missingUids = new Set<string>();
+
+      for (const conversation of conversations) {
+        const peerUid = dmPeerUid(conversation, user.uid);
+        if (!peerUid) continue;
+        const memberKey = previewSenderKey(conversation.clubId, peerUid);
+        const fromMember = memberDisplayNameByKey[memberKey]?.trim();
+        if (fromMember) {
+          next[chatStateDocId(conversation.clubId, conversation.id)] =
+            fromMember;
+        } else {
+          missingUids.add(peerUid);
+        }
+      }
+
+      const profileNameByUid = new Map<string, string>();
+      await Promise.all(
+        [...missingUids].map(async (uid) => {
+          try {
+            const profile = await getUserProfile(uid);
+            if (!profile) return;
+            const name =
+              profile.displayName.trim() ||
+              [profile.firstName, profile.lastName]
+                .filter(Boolean)
+                .join(" ")
+                .trim();
+            if (name) profileNameByUid.set(uid, name);
+          } catch {
+            // Best-effort.
+          }
+        }),
+      );
+
+      for (const conversation of conversations) {
+        const peerUid = dmPeerUid(conversation, user.uid);
+        if (!peerUid) continue;
+        const convKey = chatStateDocId(conversation.clubId, conversation.id);
+        if (next[convKey]) continue;
+        const fromProfile = profileNameByUid.get(peerUid);
+        if (fromProfile) next[convKey] = fromProfile;
+      }
+
+      if (!cancelled) {
+        setDmPeerNameByKey(next);
+        if (profileNameByUid.size > 0) {
+          setUserDisplayNameByUid((previous) => {
+            const merged = { ...previous };
+            for (const [uid, name] of profileNameByUid) {
+              merged[uid] = name;
+            }
+            return merged;
+          });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, conversations, memberDisplayNameByKey]);
+
   const totalUnread = useMemo(
-    () => totalUnreadCount(chatStates),
-    [chatStates],
+    () => totalUnreadCount(chatStates, conversations, user?.uid),
+    [chatStates, conversations, user?.uid],
   );
 
   const familyClubIdSet = useMemo(
@@ -310,13 +407,6 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
       setActiveThread(thread);
       setDockOpen(true);
       setDockExpanded(true);
-      if (user) {
-        void markRead({
-          uid: user.uid,
-          clubId: thread.clubId,
-          conversationId: thread.conversationId,
-        });
-      }
       if (isMobileLayout || onMessagesPage) {
         router.push(
           messagesPagePath(
@@ -327,7 +417,7 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
         setActiveThread(null);
       }
     },
-    [user, isMobileLayout, onMessagesPage, router, activeSpace],
+    [isMobileLayout, onMessagesPage, router, activeSpace],
   );
 
   const closeFloatingThread = useCallback(() => {
@@ -363,6 +453,8 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
       clubNameById,
       clubColorById,
       previewSenderByKey,
+      dmPeerNameByKey,
+      userDisplayNameByUid,
       messagesHref,
       isMobileLayout,
       toggleDock,
@@ -391,6 +483,8 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
       clubNameById,
       clubColorById,
       previewSenderByKey,
+      dmPeerNameByKey,
+      userDisplayNameByUid,
       messagesHref,
       isMobileLayout,
       toggleDock,

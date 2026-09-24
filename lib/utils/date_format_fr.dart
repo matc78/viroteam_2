@@ -84,6 +84,19 @@ String formatEventTime(String? startTime) {
 String formatChatMessageTime(DateTime date) =>
     _chatMessageTimeFormat.format(date);
 
+/// Horodatage inbox (ex. « 14:25 », « Hier », « lun. », « 12/03 »).
+String formatChatInboxTimestamp(DateTime date) {
+  final dayOnly = _dateOnly(date);
+  final today = _dateOnly(DateTime.now());
+  final yesterday = today.subtract(const Duration(days: 1));
+  if (dayOnly == today) return formatChatMessageTime(date);
+  if (dayOnly == yesterday) return 'Hier';
+  if (today.difference(dayOnly).inDays < 7) {
+    return _capitalizeFr(DateFormat('EEE', 'fr_FR').format(date));
+  }
+  return formatDayMonth(date);
+}
+
 /// Libellé séparateur de jour dans un thread chat.
 String formatChatDaySeparator(DateTime date) {
   final dayOnly = _dateOnly(date);

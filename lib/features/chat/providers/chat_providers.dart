@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
@@ -56,6 +57,8 @@ final chatPreviewSendersProvider =
   final out = <String, ({String firstName, String role})>{};
   await Future.wait(
     clubIds.map((clubId) async {
+      // Parent : `list` members refusé — skip (previews restent sans prénom).
+      if (ref.read(isGuardianOnlyInClubProvider(clubId))) return;
       try {
         final members =
             await memberService.watchClubMembers(clubId).first;
@@ -78,6 +81,87 @@ final chatPreviewSendersProvider =
       }
     }),
   );
+  return out;
+});
+
+/// Noms des pairs DM pour le viewer : `clubId|convId` → displayName.
+///
+/// Le `title` Firestore est figé au nom de la cible à la création ; sans
+/// résolution côté viewer, le destinataire voit son propre nom.
+final chatDmPeerTitlesProvider =
+    FutureProvider<Map<String, String>>((ref) async {
+  final uid = _uidOf(ref);
+  if (uid == null || uid.isEmpty) return const {};
+  final conversations = ref.watch(chatInboxProvider).value ?? const [];
+  if (conversations.isEmpty) return const {};
+
+  final memberService = ref.read(memberServiceProvider);
+  final userService = ref.read(userServiceProvider);
+  final displayByClubUid = <String, String>{};
+
+  final clubIds = {
+    for (final conversation in conversations) conversation.clubId,
+  };
+  await Future.wait(
+    clubIds.map((clubId) async {
+      if (ref.read(isGuardianOnlyInClubProvider(clubId))) return;
+      try {
+        final members = await memberService.watchClubMembers(clubId).first;
+        for (final member in members) {
+          final accountUid = member.accountUid;
+          if (accountUid == null || accountUid.isEmpty) continue;
+          final name = (member.displayName ?? '').trim();
+          if (name.isEmpty) continue;
+          displayByClubUid['$clubId|$accountUid'] = name;
+        }
+      } catch (_) {
+        // Best-effort.
+      }
+    }),
+  );
+
+  final out = <String, String>{};
+  final missingUids = <String>{};
+  for (final conversation in conversations) {
+    final peerUid = conversation.peerUidFor(uid);
+    if (peerUid == null) continue;
+    final fromMember = displayByClubUid['${conversation.clubId}|$peerUid'];
+    if (fromMember != null && fromMember.isNotEmpty) {
+      out['${conversation.clubId}|${conversation.id}'] = fromMember;
+    } else {
+      missingUids.add(peerUid);
+    }
+  }
+
+  final profileNameByUid = <String, String>{};
+  await Future.wait(
+    missingUids.map((peerUid) async {
+      try {
+        final user = await userService.getUser(peerUid);
+        if (user == null) return;
+        final name = user.displayName.trim().isNotEmpty
+            ? user.displayName.trim()
+            : [user.firstName, user.lastName]
+                .where((part) => part.trim().isNotEmpty)
+                .join(' ')
+                .trim();
+        if (name.isNotEmpty) profileNameByUid[peerUid] = name;
+      } catch (_) {
+        // Best-effort.
+      }
+    }),
+  );
+
+  for (final conversation in conversations) {
+    final key = '${conversation.clubId}|${conversation.id}';
+    if (out.containsKey(key)) continue;
+    final peerUid = conversation.peerUidFor(uid);
+    if (peerUid == null) continue;
+    final fromProfile = profileNameByUid[peerUid];
+    if (fromProfile != null && fromProfile.isNotEmpty) {
+      out[key] = fromProfile;
+    }
+  }
   return out;
 });
 

@@ -60,7 +60,9 @@
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
 	<string>ViroTeam ajoute vos entraînements et matchs à votre calendrier.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>ViroTeam utilise vos photos pour le logo du club.</string>
+	<string>ViroTeam utilise tes photos pour le logo du club et les messages.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ViroTeam utilise l’appareil photo pour envoyer des photos dans le chat.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

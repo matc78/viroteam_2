@@ -13,6 +13,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/features/chat/screens/poll_votes_screen.dart';
+import 'package:viro_team_v2/features/chat/widgets/chat_attach_menu.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_bubble_timestamp.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_day_separator.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_poll_bubble.dart';
@@ -20,6 +21,7 @@ import 'package:viro_team_v2/features/chat/widgets/conversation_info_sheet.dart'
 import 'package:viro_team_v2/features/chat/widgets/create_poll_sheet.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
@@ -31,6 +33,7 @@ import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 const _reactionEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+const _heartReactionEmoji = '❤️';
 
 const _extendedReactionEmojis = [
   ..._reactionEmojis,
@@ -129,6 +132,24 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   String? _reactorsMessageId;
   String? _reactorsViewerUid;
   Map<String, String> _reactorsNameByUid = const {};
+  Map<String, ClubMember> _reactorsMemberByUid = const {};
+
+  /// Après un envoi : recentrer le fil en bas quand le message arrive.
+  bool _scrollToBottomAfterSend = false;
+
+  /// À l’ouverture du fil : placer la vue sur les derniers messages.
+  bool _needsInitialScrollToBottom = true;
+
+  /// True si le bas du fil est visible (seuil [_kNearBottomThreshold]).
+  bool _isNearBottom = true;
+
+  /// Compteur non-lus figé à l’open (null = pas de séparateur « nouveau »).
+  int? _unreadSeparatorCount;
+
+  /// Ancre temporelle figée à l’open (fallback si unreadCount = 0).
+  DateTime? _unreadSeparatorAfter;
+
+  static const double _kNearBottomThreshold = 100;
 
   ({String clubId, String conversationId}) get _key => (
         clubId: widget.clubId,
@@ -146,11 +167,45 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     _searchController.addListener(() {
       setState(() => _searchQuery = _searchController.text.trim());
     });
+    final states = ref.read(chatStatesProvider).value ?? const {};
+    final stateId = ChatUserState.docId(widget.clubId, widget.conversationId);
+    final state = states[stateId];
+    final uid = ref.read(authStateProvider).value?.uid;
+    // Conversation inbox pour le fallback lastReadAt (peut être absente).
+    final inbox = ref.read(chatInboxProvider).value ?? const [];
+    ChatConversation? conv;
+    for (final entry in inbox) {
+      if (entry.clubId == widget.clubId && entry.id == widget.conversationId) {
+        conv = entry;
+        break;
+      }
+    }
+    final effective = _threadEffectiveUnread(
+      conversation: conv,
+      state: state,
+      viewerUid: uid,
+    );
+    if (effective > 0) {
+      if (state != null && state.unreadCount > 0) {
+        _unreadSeparatorCount = state.unreadCount;
+      } else if (state?.lastReadAt != null) {
+        _unreadSeparatorAfter = state!.lastReadAt;
+      } else {
+        _unreadSeparatorCount = effective;
+      }
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _markRead());
   }
 
-  /// Repositionne le popup de réactions pendant le scroll.
+  /// Repositionne le popup de réactions et suit la proximité du bas.
   void _onThreadScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final distance = position.maxScrollExtent - position.pixels;
+    final nearBottom = distance <= _kNearBottomThreshold;
+    if (nearBottom != _isNearBottom) {
+      _isNearBottom = nearBottom;
+    }
     if (_reactorsMessageId != null && mounted) setState(() {});
   }
 
@@ -161,6 +216,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       _reactorsMessageId = null;
       _reactorsViewerUid = null;
       _reactorsNameByUid = const {};
+      _reactorsMemberByUid = const {};
     });
   }
 
@@ -223,6 +279,18 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     return '';
   }
 
+  /// Prénom + nom pour l’en-tête de bulle en groupe.
+  String _senderFullName(String senderUid, List<ClubMember> members) {
+    for (final member in members) {
+      if (member.accountUid != senderUid) continue;
+      final full = member.fullName.trim();
+      if (full.isNotEmpty) return full;
+      final display = member.displayName?.trim() ?? '';
+      if (display.isNotEmpty) return display;
+    }
+    return '';
+  }
+
   void _setReplyTo(ChatMessage message) {
     setState(() => _replyTo = message);
   }
@@ -255,6 +323,78 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         );
   }
 
+  /// Non-lus effectifs à l’open (compteur Firestore ou fallback lastReadAt).
+  int _threadEffectiveUnread({
+    required ChatConversation? conversation,
+    required ChatUserState? state,
+    required String? viewerUid,
+  }) {
+    if (state?.muted == true) return 0;
+    if (state != null && state.unreadCount > 0) return state.unreadCount;
+    if (conversation == null) return 0;
+    final lastAt = conversation.lastMessageAt;
+    final lastSender = conversation.lastSenderUid?.trim() ?? '';
+    if (lastAt == null || lastSender.isEmpty) return 0;
+    if (viewerUid != null && lastSender == viewerUid) return 0;
+    final readAt = state?.lastReadAt;
+    if (readAt == null) return 1;
+    if (lastAt.isAfter(readAt)) return 1;
+    return 0;
+  }
+
+  /// Demande un scroll bas après envoi (immédiat + quand le stream pousse).
+  void _requestScrollToBottomAfterSend() {
+    _scrollToBottomAfterSend = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _animateScrollToBottom();
+    });
+  }
+
+  /// Place le fil en bas sans animation (ouverture du thread).
+  void _jumpScrollToBottom() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final target = _scrollController.position.maxScrollExtent;
+    _scrollController.jumpTo(target);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final maxAfter = _scrollController.position.maxScrollExtent;
+      if ((_scrollController.offset - maxAfter).abs() > 1) {
+        _scrollController.jumpTo(maxAfter);
+      }
+    });
+  }
+
+  /// Au premier chargement du fil, saute vers les derniers messages.
+  void _scheduleInitialScrollToBottomIfNeeded(List<ChatMessage> messages) {
+    if (!_needsInitialScrollToBottom || messages.isEmpty) return;
+    _needsInitialScrollToBottom = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _jumpScrollToBottom();
+    });
+  }
+
+  /// Anime le fil jusqu’au dernier message.
+  Future<void> _animateScrollToBottom() async {
+    if (!mounted || !_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final target = position.maxScrollExtent;
+    if ((position.pixels - target).abs() < 1) return;
+    await _scrollController.animateTo(
+      target,
+      duration: ViroMotion.modal,
+      curve: ViroMotion.enter,
+    );
+    if (!mounted || !_scrollController.hasClients) return;
+    final maxAfter = _scrollController.position.maxScrollExtent;
+    if ((_scrollController.offset - maxAfter).abs() > 4) {
+      await _scrollController.animateTo(
+        maxAfter,
+        duration: ViroMotion.fast,
+        curve: ViroMotion.enter,
+      );
+    }
+  }
+
   @override
   void dispose() {
     _scrollController.removeListener(_onThreadScroll);
@@ -266,7 +406,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
   Future<void> _sendText() async {
     final uid = ref.read(authStateProvider).value?.uid;
-    final text = _controller.text;
+    final text = _controller.text.trimRight();
     if (uid == null || text.trim().isEmpty || _sending) return;
     final user = ref.read(viroUserProvider).value;
     final clubs = ref.read(userClubsProvider).value ?? const [];
@@ -295,6 +435,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             replyToSenderUid: reply?.senderUid,
           );
       await _markRead();
+      if (mounted) _requestScrollToBottomAfterSend();
     } catch (_) {
       if (mounted) ViroSnackBar.show(context, AppCopy.chat.sendFailed);
     } finally {
@@ -302,7 +443,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     }
   }
 
-  Future<void> _sendPhoto() async {
+  Future<void> _sendPhoto({required ImageSource source}) async {
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid == null || _sending) return;
     final user = ref.read(viroUserProvider).value;
@@ -317,7 +458,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final senderRole = membership?.role ?? 'parent';
     final picker = ImagePicker();
     final file = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: source,
       imageQuality: 75,
       maxWidth: 1600,
     );
@@ -339,6 +480,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             replyToSenderUid: reply?.senderUid,
           );
       await _markRead();
+      if (mounted) _requestScrollToBottomAfterSend();
     } catch (_) {
       if (mounted) ViroSnackBar.show(context, AppCopy.chat.photoFailed);
     } finally {
@@ -347,12 +489,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   }
 
   Future<void> _openPollSheet() async {
-    await showCreatePollSheet(
+    final sent = await showCreatePollSheet(
       context,
       ref: ref,
       clubId: widget.clubId,
       conversationId: widget.conversationId,
     );
+    if (sent && mounted) _requestScrollToBottomAfterSend();
   }
 
   Future<void> _votePoll(ChatMessage message, String optionId) async {
@@ -398,7 +541,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   }
 
   Future<void> _rename(ChatConversation conv) async {
-    final controller = TextEditingController(text: conv.displayTitle);
+    final peerTitles =
+        ref.read(chatDmPeerTitlesProvider).value ?? const <String, String>{};
+    final peerName = peerTitles['${conv.clubId}|${conv.id}'];
+    final controller = TextEditingController(
+      text: conv.displayTitle(peerDisplayName: peerName),
+    );
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -730,6 +878,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     required ChatMessage message,
     required String? viewerUid,
     required Map<String, String> nameByUid,
+    required Map<String, ClubMember> memberByUid,
   }) {
     final entries = message.reactions.entries
         .where((e) => e.value.isNotEmpty)
@@ -739,18 +888,22 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       _reactorsMessageId = message.id;
       _reactorsViewerUid = viewerUid;
       _reactorsNameByUid = Map<String, String>.from(nameByUid);
+      _reactorsMemberByUid = Map<String, ClubMember>.from(memberByUid);
     });
   }
 
   /// Prénom affiché pour un uid participant.
   String _reactorNameFor(String uid, List<ClubMember> members) {
     for (final member in members) {
-      if (member.accountUid == uid) {
-        final first = member.preferredFirstName.trim();
-        if (first.isNotEmpty && first != 'Enfant') return first;
-        final display = member.fullName.trim();
-        if (display.isNotEmpty) return display.split(RegExp(r'\s+')).first;
+      if (member.accountUid != uid &&
+          member.effectiveUid != uid &&
+          member.memberId != uid) {
+        continue;
       }
+      final first = member.preferredFirstName.trim();
+      if (first.isNotEmpty && first != 'Enfant') return first;
+      final display = member.fullName.trim();
+      if (display.isNotEmpty) return display.split(RegExp(r'\s+')).first;
     }
     return 'Parent';
   }
@@ -789,6 +942,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     ref.listen(chatMessagesProvider(_key), (previous, next) {
       final messages = next.asData?.value;
       if (messages == null) return;
+      _scheduleInitialScrollToBottomIfNeeded(messages);
       final prevMessages = previous?.asData?.value;
       final prevLastId = (prevMessages == null || prevMessages.isEmpty)
           ? null
@@ -796,6 +950,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       final lastId = messages.isEmpty ? null : messages.last.id;
       if (lastId == null || lastId == prevLastId) return;
       _markRead();
+      final shouldScroll = _scrollToBottomAfterSend || _isNearBottom;
+      if (!shouldScroll) return;
+      _scrollToBottomAfterSend = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _animateScrollToBottom();
+      });
     });
     final clubs = ref.watch(userClubsProvider).value ?? const [];
     final membership = clubs
@@ -805,16 +965,41 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final role = membership?.role;
     final convAsync = ref.watch(chatConversationProvider(_key));
     final messagesAsync = ref.watch(chatMessagesProvider(_key));
+    // Cache déjà dispo à l’open : ref.listen ne rejoue pas la valeur courante.
+    final cachedLive = messagesAsync.asData?.value;
+    if (cachedLive != null) {
+      _scheduleInitialScrollToBottomIfNeeded(cachedLive);
+    }
     final states = ref.watch(chatStatesProvider).value ?? const {};
     final stateId = ChatUserState.docId(widget.clubId, widget.conversationId);
     final state = states[stateId];
     final conv = convAsync.value;
-    final title = conv?.displayTitle ?? AppCopy.chat.conversationsTitle;
+    final members =
+        ref.watch(clubMembersProvider(widget.clubId)).value ?? const [];
+    final dmPeerTitles =
+        ref.watch(chatDmPeerTitlesProvider).value ?? const {};
+    final peerFromInbox =
+        dmPeerTitles['${widget.clubId}|${widget.conversationId}'];
+    String? peerDisplayName = peerFromInbox;
+    if (peerDisplayName == null && conv != null && uid != null) {
+      final peerUid = conv.peerUidFor(uid);
+      if (peerUid != null) {
+        for (final member in members) {
+          if (member.accountUid == peerUid) {
+            final name = (member.displayName ?? '').trim();
+            if (name.isNotEmpty) {
+              peerDisplayName = name;
+              break;
+            }
+          }
+        }
+      }
+    }
+    final title = conv?.displayTitle(peerDisplayName: peerDisplayName) ??
+        AppCopy.chat.conversationsTitle;
     final isAdminOnly = conv?.writePolicy == ChatWritePolicies.adminsOnly;
     final canWrite = _canWrite(conv, uid, role);
     final canPoll = canWrite && (conv?.allowsPolls ?? false);
-    final members =
-        ref.watch(clubMembersProvider(widget.clubId)).value ?? const [];
 
     return ViroScaffold(
       appBar: ViroAppBar(
@@ -1054,6 +1239,31 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                       }
                     }
                     final showLoadMore = _hasMoreOlder && messages.isNotEmpty;
+                    final unreadSepCount = _unreadSeparatorCount;
+                    final unreadAfter = _unreadSeparatorAfter;
+                    int? firstUnreadIndex;
+                    if (unreadSepCount != null &&
+                        unreadSepCount > 0 &&
+                        messages.isNotEmpty) {
+                      final byCount = (messages.length - unreadSepCount)
+                          .clamp(0, messages.length - 1);
+                      // Ignore les messages du viewer (pas de séparateur sur ses envois).
+                      for (var i = byCount; i < messages.length; i++) {
+                        if (messages[i].senderUid != uid) {
+                          firstUnreadIndex = i;
+                          break;
+                        }
+                      }
+                    } else if (unreadAfter != null && messages.isNotEmpty) {
+                      for (var i = 0; i < messages.length; i++) {
+                        final message = messages[i];
+                        if (message.createdAt.isAfter(unreadAfter) &&
+                            message.senderUid != uid) {
+                          firstUnreadIndex = i;
+                          break;
+                        }
+                      }
+                    }
                     return Stack(
                       key: _messagesStackKey,
                       fit: StackFit.expand,
@@ -1108,12 +1318,45 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                       members,
                                     ),
                               };
+                              final memberByUid = <String, ClubMember>{
+                                for (final member in members)
+                                  if (member.accountUid != null)
+                                    member.accountUid!: member,
+                              };
+                              // Garantit le viewer même si la fiche est
+                              // résolue via effectiveUid / retard provider.
+                              if (uid != null) {
+                                for (final member in members) {
+                                  if (member.accountUid == uid ||
+                                      member.effectiveUid == uid ||
+                                      member.memberId == uid) {
+                                    memberByUid[uid] = member;
+                                    nameByUid[uid] =
+                                        _reactorNameFor(uid, members);
+                                    if (member.accountUid != null &&
+                                        member.accountUid != uid) {
+                                      memberByUid[member.accountUid!] =
+                                          member;
+                                      nameByUid[member.accountUid!] =
+                                          nameByUid[uid]!;
+                                    }
+                                    break;
+                                  }
+                                }
+                                if (!nameByUid.containsKey(uid)) {
+                                  nameByUid[uid] =
+                                      _reactorNameFor(uid, members);
+                                }
+                              }
                               final anchorKey = _anchorKeyFor(message.id);
                               final showDaySeparator = messageIndex == 0 ||
                                   !_sameCalendarDay(
                                     messages[messageIndex - 1].createdAt,
                                     message.createdAt,
                                   );
+                              final showUnreadSeparator =
+                                  firstUnreadIndex != null &&
+                                      messageIndex == firstUnreadIndex;
                               final matchesSearch = query.isEmpty ||
                                   (message.text ?? '')
                                       .toLowerCase()
@@ -1121,12 +1364,17 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                   (message.pollQuestion ?? '')
                                       .toLowerCase()
                                       .contains(query);
-                              final senderLabel = (!mine && isGroup)
-                                  ? _senderFirstName(
+                              final showSenderMeta = !mine && isGroup;
+                              final senderLabel = showSenderMeta
+                                  ? _senderFullName(
                                       message.senderUid,
                                       members,
                                     )
                                   : '';
+                              final senderMember =
+                                  showSenderMeta
+                                      ? memberByUid[message.senderUid]
+                                      : null;
                               final replySenderLabel =
                                   message.replyToSenderUid == null
                                       ? ''
@@ -1134,16 +1382,27 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                           message.replyToSenderUid!,
                                           members,
                                         );
+                              final isPollBubble =
+                                  message.isPoll && !message.isDeleted;
+                              final hasReactionChips = !isPollBubble &&
+                                  !message.isDeleted &&
+                                  message.reactions.values
+                                      .any((uids) => uids.isNotEmpty);
+                              const senderAvatarSize = 28.0;
+                              final avatarBottomPad =
+                                  hasReactionChips ? 20.0 : 4.0;
 
                               Widget bubble;
-                              if (message.isPoll && !message.isDeleted) {
+                              if (isPollBubble) {
                                 bubble = KeyedSubtree(
                                   key: anchorKey,
                                   child: ChatPollBubble(
                                     message: message,
                                     mine: mine,
                                     viewerUid: uid,
+                                    memberByUid: memberByUid,
                                     borderColor: borderColor,
+                                    senderLabel: senderLabel,
                                     onVote: (optionId) =>
                                         _votePoll(message, optionId),
                                     onLongPress: () => _showMessageActions(
@@ -1167,6 +1426,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                   mine: mine,
                                   viewerUid: uid,
                                   borderColor: borderColor,
+                                  senderLabel: senderLabel,
                                   replySenderLabel: replySenderLabel,
                                   highlightQuery:
                                       query.isEmpty ? null : _searchQuery,
@@ -1175,6 +1435,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                       matchesSearch,
                                   onLongPress: () =>
                                       _showMessageActions(message, mine: mine),
+                                  onDoubleTap: () =>
+                                      _react(message, _heartReactionEmoji),
                                   onOpenReactors: () {
                                     if (_reactorsMessageId == message.id) {
                                       _dismissReactorsPopup();
@@ -1184,6 +1446,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                       message: message,
                                       viewerUid: uid,
                                       nameByUid: nameByUid,
+                                      memberByUid: memberByUid,
                                     );
                                   },
                                   onImageTap: () {
@@ -1215,6 +1478,31 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                 );
                               }
 
+                              final messageRow = showSenderMeta
+                                  ? Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Padding(
+                                          padding: EdgeInsets.only(
+                                            right: ViroSpacing.xs,
+                                            bottom: avatarBottomPad,
+                                          ),
+                                          child: senderMember != null
+                                              ? MemberAvatar(
+                                                  member: senderMember,
+                                                  size: senderAvatarSize,
+                                                )
+                                              : SizedBox(
+                                                  width: senderAvatarSize,
+                                                  height: senderAvatarSize,
+                                                ),
+                                        ),
+                                        Flexible(child: bubble),
+                                      ],
+                                    )
+                                  : bubble;
+
                               return KeyedSubtree(
                                 key: ValueKey(message.id),
                                 child: Opacity(
@@ -1233,30 +1521,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                             message.createdAt,
                                           ),
                                         ),
-                                      if (senderLabel.isNotEmpty)
-                                        Padding(
-                                          padding: EdgeInsets.only(
-                                            left: mine ? 0 : 4,
-                                            right: mine ? 4 : 0,
-                                            bottom: 2,
-                                          ),
-                                          child: Align(
-                                            alignment: mine
-                                                ? Alignment.centerRight
-                                                : Alignment.centerLeft,
-                                            child: Text(
-                                              senderLabel,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .labelSmall
-                                                  ?.copyWith(
-                                                    color: borderColor,
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                            ),
-                                          ),
+                                      if (showUnreadSeparator)
+                                        ChatUnreadSeparator(
+                                          label:
+                                              AppCopy.chat.unreadSeparatorLabel,
                                         ),
-                                      bubble,
+                                      messageRow,
                                     ],
                                   ),
                                 ),
@@ -1274,6 +1544,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                             mine: reactorsMessage.senderUid == uid,
                             viewerUid: _reactorsViewerUid,
                             nameByUid: _reactorsNameByUid,
+                            memberByUid: _reactorsMemberByUid,
                             onDismiss: _dismissReactorsPopup,
                             onAddReaction: () {
                               final message = reactorsMessage!;
@@ -1357,22 +1628,16 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 ),
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: _sending ? null : _sendPhoto,
-                      icon: ViroIcon(
-                        ViroIcons.image,
-                        color: ViroColors.primary600,
-                      ),
+                    ChatAttachMenu(
+                      enabled: !_sending,
+                      showPoll: canPoll,
+                      onCamera: () =>
+                          _sendPhoto(source: ImageSource.camera),
+                      onGallery: () =>
+                          _sendPhoto(source: ImageSource.gallery),
+                      onPoll: canPoll ? _openPollSheet : null,
                     ),
-                    if (canPoll)
-                      IconButton(
-                        tooltip: AppCopy.chat.createPoll,
-                        onPressed: _sending ? null : _openPollSheet,
-                        icon: ViroIcon(
-                          ViroIcons.poll,
-                          color: ViroColors.primary600,
-                        ),
-                      ),
+                    const SizedBox(width: ViroSpacing.xs),
                     Expanded(
                       child: Focus(
                         onKeyEvent: (node, event) {
@@ -1436,7 +1701,9 @@ class _MessageBubble extends StatelessWidget {
     required this.viewerUid,
     required this.borderColor,
     required this.onLongPress,
+    required this.onDoubleTap,
     required this.onOpenReactors,
+    this.senderLabel = '',
     this.replySenderLabel = '',
     this.highlightQuery,
     this.isSearchMatch = false,
@@ -1451,7 +1718,10 @@ class _MessageBubble extends StatelessWidget {
   final String? viewerUid;
   final Color borderColor;
   final VoidCallback onLongPress;
+  final VoidCallback onDoubleTap;
   final VoidCallback onOpenReactors;
+  /// Prénom + nom en haut de bulle (groupes, messages des autres).
+  final String senderLabel;
   final String replySenderLabel;
   final String? highlightQuery;
   final bool isSearchMatch;
@@ -1488,20 +1758,20 @@ class _MessageBubble extends StatelessWidget {
     return Align(
       alignment: align,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        // Espace bas pour les chips qui débordent sur la bordure.
+        padding: EdgeInsets.only(
+          top: 4,
+          bottom: hasReactions ? 20 : 4,
+        ),
         child: Stack(
           key: anchorKey,
           clipBehavior: Clip.none,
           children: [
             GestureDetector(
               onLongPress: onLongPress,
+              onDoubleTap: onDoubleTap,
               child: Container(
-                padding: EdgeInsets.fromLTRB(
-                  12,
-                  8,
-                  12,
-                  hasReactions ? 22 : 8,
-                ),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                 constraints: BoxConstraints(
                   maxWidth: MediaQuery.sizeOf(context).width * 0.78,
                 ),
@@ -1515,6 +1785,17 @@ class _MessageBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (senderLabel.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          senderLabel,
+                          style: theme.labelSmall?.copyWith(
+                            color: borderColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     if (message.hasReply)
                       GestureDetector(
                         onTap: onReplyTap,
@@ -1600,8 +1881,10 @@ class _MessageBubble extends StatelessWidget {
             ),
             if (hasReactions)
               Positioned(
-                left: 8,
-                bottom: 6,
+                // Messages à gauche → chips à droite ; messages à toi → à gauche.
+                left: mine ? 8 : null,
+                right: mine ? null : 8,
+                bottom: -16,
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -1639,6 +1922,7 @@ class _AnchoredReactorsPopup extends StatefulWidget {
     required this.mine,
     required this.viewerUid,
     required this.nameByUid,
+    required this.memberByUid,
     required this.onDismiss,
     required this.onAddReaction,
     required this.onToggleReaction,
@@ -1650,6 +1934,7 @@ class _AnchoredReactorsPopup extends StatefulWidget {
   final bool mine;
   final String? viewerUid;
   final Map<String, String> nameByUid;
+  final Map<String, ClubMember> memberByUid;
   final VoidCallback onDismiss;
   final VoidCallback onAddReaction;
   final ValueChanged<String> onToggleReaction;
@@ -1667,7 +1952,6 @@ class _AnchoredReactorsPopupState extends State<_AnchoredReactorsPopup> {
   static const double _edge = 8;
   static const double _maxPopupHeight = 280;
   static const double _preferBelowMin = 120;
-  static const double _headerBlockHeight = 108;
 
   @override
   Widget build(BuildContext context) {
@@ -1705,9 +1989,6 @@ class _AnchoredReactorsPopupState extends State<_AnchoredReactorsPopup> {
 
     // Pas de barrière plein écran : elle bloquait le scroll du fil.
     if (layout == null) return const SizedBox.shrink();
-
-    final listMaxHeight =
-        (layout.maxHeight - _headerBlockHeight).clamp(48.0, layout.maxHeight);
 
     return Positioned(
       left: layout.left,
@@ -1782,8 +2063,8 @@ class _AnchoredReactorsPopupState extends State<_AnchoredReactorsPopup> {
               ),
               const SizedBox(height: ViroSpacing.sm),
               const Divider(height: 1),
-              ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: listMaxHeight),
+              // Flexible : la liste cède si le header + rows dépassent maxHeight.
+              Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
                   padding: EdgeInsets.zero,
@@ -1792,23 +2073,20 @@ class _AnchoredReactorsPopupState extends State<_AnchoredReactorsPopup> {
                     final row = rows[index];
                     final mine = widget.viewerUid != null &&
                         row.uid == widget.viewerUid;
-                    final name = mine
+                    final firstName = widget.nameByUid[row.uid]?.trim() ?? '';
+                    final displayName = mine
                         ? AppCopy.chat.you
-                        : (widget.nameByUid[row.uid] ?? 'Membre');
+                        : (firstName.isNotEmpty
+                            ? firstName
+                            : AppCopy.common.memberFallback);
                     return ListTile(
                       dense: true,
-                      leading: CircleAvatar(
-                        backgroundColor: ViroColors.primary100,
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                            color: ViroColors.primary800,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                      leading: _reactorAvatar(
+                        uid: row.uid,
+                        firstName: firstName,
                       ),
                       title: Text(
-                        name,
+                        displayName,
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       subtitle: mine
@@ -1827,6 +2105,45 @@ class _AnchoredReactorsPopupState extends State<_AnchoredReactorsPopup> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Avatar : photo si dispo, sinon initiale du prénom (jamais celle de « Vous »).
+  Widget _reactorAvatar({
+    required String uid,
+    required String firstName,
+  }) {
+    final member = widget.memberByUid[uid];
+    final photoUrl = member?.avatarUrl?.trim();
+    final hasPhoto = member != null &&
+        member.hasLinkedAccount &&
+        photoUrl != null &&
+        photoUrl.isNotEmpty;
+
+    if (hasPhoto) {
+      return MemberAvatar(member: member, size: 36);
+    }
+
+    final preferred = member?.preferredFirstName.trim() ?? '';
+    final fromMember = preferred.isNotEmpty && preferred != 'Enfant'
+        ? preferred
+        : (member?.fullName.trim() ?? '');
+    final initialSource =
+        firstName.isNotEmpty ? firstName : fromMember;
+    final initial = initialSource.isNotEmpty
+        ? initialSource[0].toUpperCase()
+        : '?';
+
+    return CircleAvatar(
+      radius: 18,
+      backgroundColor: ViroColors.primary100,
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: ViroColors.primary800,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

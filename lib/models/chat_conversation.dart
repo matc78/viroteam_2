@@ -42,10 +42,24 @@ class ChatConversation {
   final DateTime? updatedAt;
 
   /// Titre affiché (override si présent).
-  String get displayTitle {
+  ///
+  /// Pour un DM 1:1, préférer [peerDisplayName] (nom de l’autre) pour éviter
+  /// d’afficher le titre figé à la création (= nom de la cible).
+  String displayTitle({String? peerDisplayName}) {
     final override = titleOverride?.trim();
     if (override != null && override.isNotEmpty) return override;
+    final peer = peerDisplayName?.trim();
+    if (peer != null && peer.isNotEmpty && !isGroup) return peer;
     return title;
+  }
+
+  /// UID de l’autre participant d’un DM 1:1 pour [viewerUid], sinon null.
+  String? peerUidFor(String? viewerUid) {
+    if (viewerUid == null || viewerUid.isEmpty || isGroup) return null;
+    for (final uid in participantUids) {
+      if (uid.isNotEmpty && uid != viewerUid) return uid;
+    }
+    return null;
   }
 
   bool get isReadonlyForMembers =>

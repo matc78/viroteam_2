@@ -19,6 +19,8 @@ import {
   type ChatConversation,
   type ChatUserState,
 } from "@/lib/firebase/chatTypes";
+import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
+import { useAuth } from "@/lib/firebase/AuthProvider";
 import styles from "./ConversationListItem.module.css";
 
 type ConversationListItemProps = {
@@ -30,6 +32,8 @@ type ConversationListItemProps = {
   clubRole?: string | null;
   /** Annuaire fallback `clubId:uid` → prénom + rôle. */
   previewSenderByKey?: Record<string, ChatPreviewSender>;
+  /** Nom du pair résolu pour un DM (évite d’afficher son propre nom). */
+  peerDisplayName?: string | null;
   selected?: boolean;
   onSelect: () => void;
 };
@@ -62,13 +66,19 @@ export function ConversationListItem({
   clubColor,
   clubRole,
   previewSenderByKey,
+  peerDisplayName,
   selected = false,
   onSelect,
 }: ConversationListItemProps) {
-  const unread = chatState && !chatState.muted ? chatState.unreadCount : 0;
+  const { user } = useAuth();
+  const unread = effectiveUnreadCount({
+    conversation,
+    chatState,
+    viewerUid: user?.uid,
+  });
   const muted = chatState?.muted ?? false;
   const favorite = chatState?.favorite ?? false;
-  const title = chatDisplayTitle(conversation);
+  const title = chatDisplayTitle(conversation, { peerDisplayName });
   const initial = title.trim().slice(0, 1).toUpperCase() || "?";
   const brand = splitBrandColorHex(
     clubColor ?? ClubSetupDefaults.brandColorHex,
@@ -80,6 +90,8 @@ export function ConversationListItem({
   );
   const previewText = conversation.lastMessagePreview.trim();
   const arrowRole = previewSenderRoleTone(previewSender?.role);
+  const unreadPreviewLabel =
+    unread <= 1 ? `${unread} nouveau message` : `${unread} nouveaux messages`;
 
   return (
     <button
@@ -137,7 +149,9 @@ export function ConversationListItem({
           ) : null}
         </span>
         <span className={styles.preview}>
-          {previewText ? (
+          {unread > 0 ? (
+            unreadPreviewLabel
+          ) : previewText ? (
             previewSender ? (
               <>
                 <span className={styles.previewName}>
@@ -161,7 +175,10 @@ export function ConversationListItem({
         </span>
       </span>
       {unread > 0 ? (
-        <span className={styles.unreadBadge} aria-label={`${unread} non lus`}>
+        <span
+          className={styles.unreadBadge}
+          aria-label={unreadPreviewLabel}
+        >
           {unread > 99 ? "99+" : unread}
         </span>
       ) : null}

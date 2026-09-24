@@ -25,6 +25,7 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
   return (
     <div className={styles.window} role="dialog" aria-label="Conversation">
       <ChatThreadView
+        key={`${thread.clubId}-${thread.conversationId}`}
         clubId={thread.clubId}
         conversationId={thread.conversationId}
         clubRole={roleForClub(thread.clubId)}

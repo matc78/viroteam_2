@@ -104,7 +104,7 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
           disabled={busy}
           onClick={() => void handleSubmit()}
         >
-          Envoyer le sondage
+          {busy ? "Envoi…" : "Envoyer le sondage"}
         </button>
       </div>
     </aside>

@@ -142,7 +142,7 @@ export function CreateCategoryChannelDialog() {
             disabled={busy || !categoryKey.trim()}
             onClick={() => void handleSubmit()}
           >
-            Créer le canal
+            {busy ? "Création…" : "Créer le canal"}
           </button>
         </div>
       </div>

@@ -22,8 +22,30 @@
   box-shadow: inset 3px 0 0 var(--color-primary-500);
 }
 
+.itemUnread {
+  background: color-mix(in srgb, var(--color-primary-500) 12%, white);
+}
+
+.itemUnread:hover {
+  background: color-mix(in srgb, var(--color-primary-500) 16%, white);
+}
+
+.itemUnread.itemSelected {
+  background: color-mix(in srgb, var(--color-primary-500) 16%, white);
+}
+
 .itemUnread .title {
   font-weight: 800;
+}
+
+.itemUnread .date {
+  font-weight: 700;
+  color: var(--color-primary-600);
+}
+
+.itemUnread .preview {
+  font-weight: 700;
+  color: var(--color-primary-800);
 }
 
 .avatar {

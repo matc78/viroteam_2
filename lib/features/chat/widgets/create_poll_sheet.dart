@@ -10,13 +10,15 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 
 /// Sheet de création d’un sondage (groupes / canaux).
-Future<void> showCreatePollSheet(
+///
+/// Retourne `true` si le sondage a bien été envoyé.
+Future<bool> showCreatePollSheet(
   BuildContext context, {
   required WidgetRef ref,
   required String clubId,
   required String conversationId,
 }) async {
-  await showModalBottomSheet<void>(
+  final sent = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: ViroColors.scaffold,
@@ -28,6 +30,7 @@ Future<void> showCreatePollSheet(
       conversationId: conversationId,
     ),
   );
+  return sent == true;
 }
 
 class _CreatePollSheet extends ConsumerStatefulWidget {
@@ -107,7 +110,7 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
             senderFirstName: firstName,
             senderRole: senderRole,
           );
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted) {
         ViroSnackBar.show(context, AppCopy.chat.pollFailed);

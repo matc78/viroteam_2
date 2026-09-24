@@ -1,4 +1,5 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
@@ -41,6 +42,7 @@ import 'package:viro_team_v2/features/clubs/screens/club_selector_screen.dart';
 import 'package:viro_team_v2/features/home/screens/home_member_screen.dart';
 import 'package:viro_team_v2/features/chat/screens/conversations_screen.dart';
 import 'package:viro_team_v2/features/chat/screens/chat_thread_screen.dart';
+import 'package:viro_team_v2/widgets/common/viro_bubble_expand_page.dart';
 
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
 
@@ -454,7 +456,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.conversations,
         redirect: (context, state) =>
             FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
-        builder: (context, state) => const ConversationsScreen(),
+        pageBuilder: (context, state) {
+          final origin = state.extra is Offset ? state.extra as Offset : null;
+          return ViroBubbleExpandPage<void>(
+            key: state.pageKey,
+            origin: origin,
+            child: const ConversationsScreen(),
+          );
+        },
       ),
 
       GoRoute(

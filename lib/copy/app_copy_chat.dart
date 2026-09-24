@@ -8,6 +8,15 @@ final class AppCopyChat {
   String get emptyInbox => 'Aucune discussion pour l’instant.';
   String get emptyInboxHint =>
       'Les chats d’équipe et parents apparaissent dès que ton club est prêt.';
+  /// Preview inbox quand la conversation n’a encore aucun message.
+  String get emptyPreview => 'Aucun message';
+
+  /// Remplace la preview quand il y a des messages non lus.
+  String unreadPreview(int count) =>
+      count <= 1 ? '$count nouveau message' : '$count nouveaux messages';
+
+  /// Libellé du séparateur one-shot à l’ouverture d’un fil avec non-lus.
+  String get unreadSeparatorLabel => 'nouveau';
   String get newConversation => 'Nouvelle discussion';
   String get newConversationHint =>
       'Tu peux écrire à tes coaches ou à un admin du club.';
@@ -64,6 +73,9 @@ final class AppCopyChat {
   String get you => 'Vous';
   String get loadError => 'Impossible de charger les discussions.';
 
+  String get attachAdd => 'Ajouter';
+  String get attachCamera => 'Appareil photo';
+  String get attachPhotos => 'Photos';
   String get createPoll => 'Faire un sondage';
   String get pollLabel => 'Sondage';
   String get pollQuestionLabel => 'Question';

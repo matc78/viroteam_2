@@ -3,11 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/chat/chat_thread_open_seed.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_anchored_reactors_popup.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_message_actions.dart';
@@ -26,6 +28,8 @@ import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 /// Thread d’une conversation.
@@ -34,10 +38,14 @@ class ChatThreadScreen extends ConsumerStatefulWidget {
     super.key,
     required this.clubId,
     required this.conversationId,
+    this.openSeed,
   });
 
   final String clubId;
   final String conversationId;
+
+  /// Chrome immédiat (titre / couleur) passé depuis l’inbox.
+  final ChatThreadOpenSeed? openSeed;
 
   @override
   ConsumerState<ChatThreadScreen> createState() => _ChatThreadScreenState();
@@ -45,16 +53,25 @@ class ChatThreadScreen extends ConsumerStatefulWidget {
 
 class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   final _controller = TextEditingController();
+  final _composerFocusNode = FocusNode();
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   final _messagesStackKey = GlobalKey();
   final Map<String, GlobalKey> _messageAnchorKeys = {};
+
+  /// Recherche isolée (pas de setState plein écran à chaque frappe).
+  final ValueNotifier<String> _searchQueryNotifier = ValueNotifier('');
+  final ValueNotifier<bool> _searchOpenNotifier = ValueNotifier(false);
+
+  /// Proximité du bas + msgs hors viewport (FAB).
+  final ValueNotifier<bool> _isNearBottomNotifier = ValueNotifier(true);
+  final ValueNotifier<int> _newBelowCountNotifier = ValueNotifier(0);
+
   bool _sending = false;
-  bool _searchOpen = false;
-  String _searchQuery = '';
   bool _loadingOlder = false;
   bool _hasMoreOlder = true;
   List<ChatMessage> _olderMessages = const [];
+  List<ChatMessage> _pendingMessages = const [];
   ChatMessage? _replyTo;
 
   /// Popup « qui a réagi » ancré au message (null = fermé).
@@ -66,17 +83,17 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   /// Après un envoi : recentrer le fil en bas quand le message arrive.
   bool _scrollToBottomAfterSend = false;
 
-  /// À l’ouverture du fil : placer la vue sur les derniers messages.
-  bool _needsInitialScrollToBottom = true;
-
-  /// True si le bas du fil est visible (seuil [_kNearBottomThreshold]).
-  bool _isNearBottom = true;
-
   /// Compteur non-lus figé à l’open (null = pas de séparateur « nouveau »).
   int? _unreadSeparatorCount;
 
   /// Ancre temporelle figée à l’open (fallback si unreadCount = 0).
   DateTime? _unreadSeparatorAfter;
+
+  /// Liste peinte seulement après le slide (évite jank pendant drill-in).
+  ///
+  /// GoRouter + [CustomTransitionPage] : `ModalRoute.animation` est déjà
+  /// `completed` au 1er build — on s’appuie donc sur [ViroMotion.drillIn].
+  bool _routeTransitionSettled = false;
 
   static const double _kNearBottomThreshold = 100;
 
@@ -89,18 +106,23 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   GlobalKey _anchorKeyFor(String messageId) =>
       _messageAnchorKeys.putIfAbsent(messageId, GlobalKey.new);
 
+  /// Retire les GlobalKey hors de la fenêtre de messages actuelle.
+  void _pruneAnchorKeys(Iterable<String> liveIds) {
+    final keep = liveIds.toSet();
+    _messageAnchorKeys.removeWhere((id, _) => !keep.contains(id));
+  }
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onThreadScroll);
     _searchController.addListener(() {
-      setState(() => _searchQuery = _searchController.text.trim());
+      _searchQueryNotifier.value = _searchController.text.trim();
     });
     final states = ref.read(chatStatesProvider).value ?? const {};
     final stateId = ChatUserState.docId(widget.clubId, widget.conversationId);
     final state = states[stateId];
     final uid = ref.read(authStateProvider).value?.uid;
-    // Conversation inbox pour le fallback lastReadAt (peut être absente).
     final inbox = ref.read(chatInboxProvider).value ?? const [];
     ChatConversation? conv;
     for (final entry in inbox) {
@@ -123,19 +145,25 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         _unreadSeparatorCount = effective;
       }
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _markRead());
+    Future<void>.delayed(ViroMotion.drillIn, _revealMessagesAfterTransition);
   }
 
-  /// Repositionne le popup de réactions et suit la proximité du bas.
+  /// Affiche la liste + markRead une fois le slide terminé.
+  void _revealMessagesAfterTransition() {
+    if (!mounted || _routeTransitionSettled) return;
+    setState(() => _routeTransitionSettled = true);
+    _markRead();
+  }
+
+  /// Suit la proximité du bas (FAB) sans setState plein écran.
   void _onThreadScroll() {
     if (!_scrollController.hasClients) return;
     final position = _scrollController.position;
-    final distance = position.maxScrollExtent - position.pixels;
-    final nearBottom = distance <= _kNearBottomThreshold;
-    if (nearBottom != _isNearBottom) {
-      _isNearBottom = nearBottom;
+    final nearBottom = position.pixels <= _kNearBottomThreshold;
+    if (nearBottom != _isNearBottomNotifier.value) {
+      _isNearBottomNotifier.value = nearBottom;
+      if (nearBottom) _newBelowCountNotifier.value = 0;
     }
-    if (_reactorsMessageId != null && mounted) setState(() {});
   }
 
   /// Ferme le détail des réactions.
@@ -149,7 +177,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     });
   }
 
-  /// Fusionne l’historique chargé + la fenêtre live (live prioritaire).
+  /// Fusionne historique + live + envois optimistes (live prioritaire).
   List<ChatMessage> _mergedMessages(List<ChatMessage> live) {
     final byId = <String, ChatMessage>{};
     for (final message in _olderMessages) {
@@ -158,14 +186,41 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     for (final message in live) {
       byId[message.id] = message;
     }
+    for (final pending in _pendingMessages) {
+      if (!byId.containsKey(pending.id)) {
+        byId[pending.id] = pending;
+      }
+    }
+    if (_pendingMessages.isNotEmpty) {
+      final liveIds = {for (final m in live) m.id};
+      final remaining = _pendingMessages
+          .where((p) => !liveIds.contains(p.id))
+          .toList(growable: false);
+      if (remaining.length != _pendingMessages.length) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (_pendingMessages.length != remaining.length) {
+            setState(() => _pendingMessages = remaining);
+          }
+        });
+      }
+    }
     final merged = byId.values.toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final ids = merged.map((m) => m.id).toList(growable: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _pruneAnchorKeys(ids);
+    });
     return merged;
   }
 
   Future<void> _loadOlderMessages(List<ChatMessage> merged) async {
     if (_loadingOlder || !_hasMoreOlder || merged.isEmpty) return;
     setState(() => _loadingOlder = true);
+    final position =
+        _scrollController.hasClients ? _scrollController.position : null;
+    final extentBefore = position?.maxScrollExtent ?? 0;
+    final pixelsBefore = position?.pixels ?? 0;
     try {
       final older = await ref.read(chatServiceProvider).fetchOlderMessages(
             clubId: widget.clubId,
@@ -188,6 +243,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         }
         _loadingOlder = false;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients) return;
+        final after = _scrollController.position;
+        final delta = after.maxScrollExtent - extentBefore;
+        if (delta > 0) after.jumpTo(pixelsBefore + delta);
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _loadingOlder = false);
@@ -197,6 +258,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
   void _setReplyTo(ChatMessage message) {
     setState(() => _replyTo = message);
+    _composerFocusNode.requestFocus();
   }
 
   void _clearReply() {
@@ -217,69 +279,38 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   /// Demande un scroll bas après envoi (immédiat + quand le stream pousse).
   void _requestScrollToBottomAfterSend() {
     _scrollToBottomAfterSend = true;
+    _isNearBottomNotifier.value = true;
+    _newBelowCountNotifier.value = 0;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _animateScrollToBottom();
     });
   }
 
-  /// Place le fil en bas sans animation (ouverture du thread).
-  void _jumpScrollToBottom() {
-    if (!mounted || !_scrollController.hasClients) return;
-    final target = _scrollController.position.maxScrollExtent;
-    _scrollController.jumpTo(target);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      final maxAfter = _scrollController.position.maxScrollExtent;
-      if ((_scrollController.offset - maxAfter).abs() > 1) {
-        _scrollController.jumpTo(maxAfter);
-      }
-    });
-  }
-
-  /// Au premier chargement du fil, saute vers les derniers messages.
-  void _scheduleInitialScrollToBottomIfNeeded(List<ChatMessage> messages) {
-    if (!_needsInitialScrollToBottom || messages.isEmpty) return;
-    _needsInitialScrollToBottom = false;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _jumpScrollToBottom();
-    });
-  }
-
-  /// Anime le fil jusqu’au dernier message.
+  /// Anime le fil jusqu’au dernier message (offset 0 en reverse).
   Future<void> _animateScrollToBottom() async {
     if (!mounted || !_scrollController.hasClients) return;
     final position = _scrollController.position;
-    final target = position.maxScrollExtent;
-    if ((position.pixels - target).abs() < 1) return;
+    if (position.pixels <= 1) return;
     await _scrollController.animateTo(
-      target,
+      0,
       duration: ViroMotion.modal,
       curve: ViroMotion.enter,
     );
-    if (!mounted || !_scrollController.hasClients) return;
-    final maxAfter = _scrollController.position.maxScrollExtent;
-    if ((_scrollController.offset - maxAfter).abs() > 4) {
-      await _scrollController.animateTo(
-        maxAfter,
-        duration: ViroMotion.fast,
-        curve: ViroMotion.enter,
-      );
+  }
+
+  /// Conversation live, ou fallback inbox pour peindre titre / composer tout de suite.
+  ChatConversation? _resolveConversation(ChatConversation? live) {
+    if (live != null) return live;
+    final inbox = ref.read(chatInboxProvider).value ?? const [];
+    for (final entry in inbox) {
+      if (entry.clubId == widget.clubId && entry.id == widget.conversationId) {
+        return entry;
+      }
     }
+    return null;
   }
 
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onThreadScroll);
-    _controller.dispose();
-    _searchController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _sendText() async {
-    final uid = ref.read(authStateProvider).value?.uid;
-    final text = _controller.text.trimRight();
-    if (uid == null || text.trim().isEmpty || _sending) return;
+  ({String firstName, String senderRole}) _senderMeta() {
     final user = ref.read(viroUserProvider).value;
     final clubs = ref.read(userClubsProvider).value ?? const [];
     final membership = clubs
@@ -289,28 +320,85 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final firstName = (user?.firstName.trim().isNotEmpty == true)
         ? user!.firstName.trim()
         : (user?.displayName.trim().split(RegExp(r'\s+')).firstOrNull ?? '');
-    final senderRole = membership?.role ?? 'parent';
-    setState(() => _sending = true);
-    _controller.clear();
+    return (
+      firstName: firstName,
+      senderRole: membership?.role ?? 'parent',
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onThreadScroll);
+    _controller.dispose();
+    _composerFocusNode.dispose();
+    _searchController.dispose();
+    _scrollController.dispose();
+    _searchQueryNotifier.dispose();
+    _searchOpenNotifier.dispose();
+    _isNearBottomNotifier.dispose();
+    _newBelowCountNotifier.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendText() async {
+    final uid = ref.read(authStateProvider).value?.uid;
+    final text = _controller.text.trimRight();
+    if (uid == null || text.trim().isEmpty || _sending) return;
+    final meta = _senderMeta();
     final reply = _replyTo;
-    _clearReply();
+    final clientId = ref.read(chatServiceProvider).allocateMessageId(
+          clubId: widget.clubId,
+          conversationId: widget.conversationId,
+        );
+    final optimistic = ChatMessage(
+      id: clientId,
+      clubId: widget.clubId,
+      conversationId: widget.conversationId,
+      type: ChatMessageTypes.text,
+      text: text,
+      senderUid: uid,
+      createdAt: DateTime.now(),
+      replyToMessageId: reply?.id,
+      replyToText: reply == null ? null : chatThreadReplyPreviewText(reply),
+      replyToSenderUid: reply?.senderUid,
+      localStatus: ChatMessageLocalStatus.sending,
+    );
+    setState(() {
+      _sending = true;
+      _pendingMessages = [..._pendingMessages, optimistic];
+      _replyTo = null;
+    });
+    _controller.clear();
+    _composerFocusNode.requestFocus();
+    _requestScrollToBottomAfterSend();
     try {
       await ref.read(chatServiceProvider).sendTextMessage(
             clubId: widget.clubId,
             conversationId: widget.conversationId,
             senderUid: uid,
             text: text,
-            senderFirstName: firstName,
-            senderRole: senderRole,
+            senderFirstName: meta.firstName,
+            senderRole: meta.senderRole,
             replyToMessageId: reply?.id,
             replyToText:
                 reply == null ? null : chatThreadReplyPreviewText(reply),
             replyToSenderUid: reply?.senderUid,
+            clientMessageId: clientId,
           );
       await _markRead();
-      if (mounted) _requestScrollToBottomAfterSend();
     } catch (_) {
-      if (mounted) ViroSnackBar.show(context, AppCopy.chat.sendFailed);
+      if (mounted) {
+        setState(() {
+          _pendingMessages = _pendingMessages
+              .map(
+                (m) => m.id == clientId
+                    ? m.copyWith(localStatus: ChatMessageLocalStatus.failed)
+                    : m,
+              )
+              .toList(growable: false);
+        });
+        ViroSnackBar.show(context, AppCopy.chat.sendFailed);
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -319,16 +407,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Future<void> _sendPhoto({required ImageSource source}) async {
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid == null || _sending) return;
-    final user = ref.read(viroUserProvider).value;
-    final clubs = ref.read(userClubsProvider).value ?? const [];
-    final membership = clubs
-        .where((e) => e.club.id == widget.clubId)
-        .map((e) => e.membership)
-        .firstOrNull;
-    final firstName = (user?.firstName.trim().isNotEmpty == true)
-        ? user!.firstName.trim()
-        : (user?.displayName.trim().split(RegExp(r'\s+')).firstOrNull ?? '');
-    final senderRole = membership?.role ?? 'parent';
     final picker = ImagePicker();
     final file = await picker.pickImage(
       source: source,
@@ -336,27 +414,131 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       maxWidth: 1600,
     );
     if (file == null) return;
-    setState(() => _sending = true);
+    final meta = _senderMeta();
     final reply = _replyTo;
-    _clearReply();
+    final bytes = Uint8List.fromList(await file.readAsBytes());
+    final clientId = ref.read(chatServiceProvider).allocateMessageId(
+          clubId: widget.clubId,
+          conversationId: widget.conversationId,
+        );
+    final optimistic = ChatMessage(
+      id: clientId,
+      clubId: widget.clubId,
+      conversationId: widget.conversationId,
+      type: ChatMessageTypes.image,
+      senderUid: uid,
+      createdAt: DateTime.now(),
+      replyToMessageId: reply?.id,
+      replyToText: reply == null ? null : chatThreadReplyPreviewText(reply),
+      replyToSenderUid: reply?.senderUid,
+      localStatus: ChatMessageLocalStatus.sending,
+      localImageBytes: bytes,
+    );
+    setState(() {
+      _sending = true;
+      _pendingMessages = [..._pendingMessages, optimistic];
+      _replyTo = null;
+    });
+    _composerFocusNode.requestFocus();
+    _requestScrollToBottomAfterSend();
     try {
-      final bytes = await file.readAsBytes();
       await ref.read(chatServiceProvider).sendImageMessage(
             clubId: widget.clubId,
             conversationId: widget.conversationId,
             senderUid: uid,
-            bytes: Uint8List.fromList(bytes),
-            senderFirstName: firstName,
-            senderRole: senderRole,
+            bytes: bytes,
+            senderFirstName: meta.firstName,
+            senderRole: meta.senderRole,
             replyToMessageId: reply?.id,
             replyToText:
                 reply == null ? null : chatThreadReplyPreviewText(reply),
             replyToSenderUid: reply?.senderUid,
+            clientMessageId: clientId,
           );
       await _markRead();
-      if (mounted) _requestScrollToBottomAfterSend();
     } catch (_) {
-      if (mounted) ViroSnackBar.show(context, AppCopy.chat.photoFailed);
+      if (mounted) {
+        setState(() {
+          _pendingMessages = _pendingMessages
+              .map(
+                (m) => m.id == clientId
+                    ? m.copyWith(localStatus: ChatMessageLocalStatus.failed)
+                    : m,
+              )
+              .toList(growable: false);
+        });
+        ViroSnackBar.show(context, AppCopy.chat.photoFailed);
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Relance un message optimiste en échec.
+  Future<void> _retryFailedMessage(ChatMessage failed) async {
+    if (!failed.isSendFailed || _sending) return;
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) return;
+    final meta = _senderMeta();
+    setState(() {
+      _sending = true;
+      _pendingMessages = _pendingMessages
+          .map(
+            (m) => m.id == failed.id
+                ? m.copyWith(localStatus: ChatMessageLocalStatus.sending)
+                : m,
+          )
+          .toList(growable: false);
+    });
+    try {
+      if (failed.type == ChatMessageTypes.image) {
+        final bytes = failed.localImageBytes;
+        if (bytes == null) throw StateError('no local bytes');
+        await ref.read(chatServiceProvider).sendImageMessage(
+              clubId: widget.clubId,
+              conversationId: widget.conversationId,
+              senderUid: uid,
+              bytes: bytes,
+              senderFirstName: meta.firstName,
+              senderRole: meta.senderRole,
+              replyToMessageId: failed.replyToMessageId,
+              replyToText: failed.replyToText,
+              replyToSenderUid: failed.replyToSenderUid,
+              clientMessageId: failed.id,
+            );
+      } else {
+        await ref.read(chatServiceProvider).sendTextMessage(
+              clubId: widget.clubId,
+              conversationId: widget.conversationId,
+              senderUid: uid,
+              text: failed.text ?? '',
+              senderFirstName: meta.firstName,
+              senderRole: meta.senderRole,
+              replyToMessageId: failed.replyToMessageId,
+              replyToText: failed.replyToText,
+              replyToSenderUid: failed.replyToSenderUid,
+              clientMessageId: failed.id,
+            );
+      }
+      await _markRead();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _pendingMessages = _pendingMessages
+              .map(
+                (m) => m.id == failed.id
+                    ? m.copyWith(localStatus: ChatMessageLocalStatus.failed)
+                    : m,
+              )
+              .toList(growable: false);
+        });
+        ViroSnackBar.show(
+          context,
+          failed.type == ChatMessageTypes.image
+              ? AppCopy.chat.photoFailed
+              : AppCopy.chat.sendFailed,
+        );
+      }
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -415,8 +597,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   }
 
   Future<void> _rename(ChatConversation conv) async {
-    final peerTitles =
-        ref.read(chatDmPeerTitlesProvider).value ?? const <String, String>{};
+    final peerTitles = ref.read(chatDmPeerTitlesProvider);
     final peerName = peerTitles['${conv.clubId}|${conv.id}'];
     final next = await showChatRenameConversationDialog(
       context: context,
@@ -428,6 +609,82 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           conversationId: widget.conversationId,
           titleOverride: next,
         );
+  }
+
+  /// Choisit une source puis upload l’avatar du groupe.
+  Future<void> _changeGroupAvatar(ChatConversation conv) async {
+    if (!conv.canEditGroupAvatar) return;
+    final uid = ref.read(authStateProvider).value?.uid;
+    if (uid == null) return;
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: ViroIcon(
+                  ViroIcons.camera,
+                  color: ViroColors.primary600,
+                ),
+                title: Text(AppCopy.chat.changeGroupAvatarCamera),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: ViroIcon(
+                  ViroIcons.image,
+                  color: ViroColors.primary600,
+                ),
+                title: Text(AppCopy.chat.changeGroupAvatarGallery),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (source == null || !mounted) return;
+
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: source,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (file == null || !mounted) return;
+
+    try {
+      final bytes = await file.readAsBytes();
+      final lower = file.path.toLowerCase();
+      final contentType = lower.endsWith('.png')
+          ? 'image/png'
+          : lower.endsWith('.webp')
+              ? 'image/webp'
+              : 'image/jpeg';
+      final avatarUrl =
+          await ref.read(conversationAvatarStorageProvider).uploadAvatar(
+                clubId: widget.clubId,
+                conversationId: widget.conversationId,
+                uid: uid,
+                bytes: bytes,
+                contentType: contentType,
+              );
+      await ref.read(chatServiceProvider).updateConversationAvatar(
+            clubId: widget.clubId,
+            conversationId: widget.conversationId,
+            avatarUrl: avatarUrl,
+          );
+      if (mounted) {
+        ViroSnackBar.show(context, AppCopy.chat.groupAvatarUpdated);
+      }
+    } catch (_) {
+      if (mounted) {
+        ViroSnackBar.show(context, AppCopy.chat.groupAvatarUploadFailed);
+      }
+    }
   }
 
   Future<void> _deleteMessage(ChatMessage message) async {
@@ -536,7 +793,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     ref.listen(chatMessagesProvider(_key), (previous, next) {
       final messages = next.asData?.value;
       if (messages == null) return;
-      _scheduleInitialScrollToBottomIfNeeded(messages);
       final prevMessages = previous?.asData?.value;
       final prevLastId = (prevMessages == null || prevMessages.isEmpty)
           ? null
@@ -544,8 +800,15 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       final lastId = messages.isEmpty ? null : messages.last.id;
       if (lastId == null || lastId == prevLastId) return;
       _markRead();
-      final shouldScroll = _scrollToBottomAfterSend || _isNearBottom;
-      if (!shouldScroll) return;
+      final nearBottom = _isNearBottomNotifier.value;
+      final shouldScroll = _scrollToBottomAfterSend || nearBottom;
+      if (!shouldScroll) {
+        final last = messages.last;
+        if (uid == null || last.senderUid != uid) {
+          _newBelowCountNotifier.value = _newBelowCountNotifier.value + 1;
+        }
+        return;
+      }
       _scrollToBottomAfterSend = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _animateScrollToBottom();
@@ -559,22 +822,17 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final role = membership?.role;
     final convAsync = ref.watch(chatConversationProvider(_key));
     final messagesAsync = ref.watch(chatMessagesProvider(_key));
-    // Cache déjà dispo à l’open : ref.listen ne rejoue pas la valeur courante.
-    final cachedLive = messagesAsync.asData?.value;
-    if (cachedLive != null) {
-      _scheduleInitialScrollToBottomIfNeeded(cachedLive);
-    }
     final states = ref.watch(chatStatesProvider).value ?? const {};
     final stateId = ChatUserState.docId(widget.clubId, widget.conversationId);
     final state = states[stateId];
-    final conv = convAsync.value;
+    final conv = _resolveConversation(convAsync.value);
     final members =
         ref.watch(clubMembersProvider(widget.clubId)).value ?? const [];
-    final dmPeerTitles =
-        ref.watch(chatDmPeerTitlesProvider).value ?? const {};
-    final peerFromInbox =
-        dmPeerTitles['${widget.clubId}|${widget.conversationId}'];
-    String? peerDisplayName = peerFromInbox;
+    final dmPeers = ref.watch(chatDmPeersProvider).value ?? const {};
+    final peerFromInbox = dmPeers['${widget.clubId}|${widget.conversationId}'];
+    String? peerDisplayName = peerFromInbox?.displayName;
+    String? peerAvatarUrl =
+        peerFromInbox?.avatarUrl ?? widget.openSeed?.avatarUrl;
     if (peerDisplayName == null && conv != null && uid != null) {
       final peerUid = conv.peerUidFor(uid);
       if (peerUid != null) {
@@ -583,14 +841,42 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             final name = (member.displayName ?? '').trim();
             if (name.isNotEmpty) {
               peerDisplayName = name;
-              break;
             }
+            final photo = member.avatarUrl?.trim();
+            if (peerAvatarUrl == null &&
+                photo != null &&
+                photo.isNotEmpty) {
+              peerAvatarUrl = photo;
+            }
+            break;
           }
         }
       }
     }
     final title = conv?.displayTitle(peerDisplayName: peerDisplayName) ??
+        widget.openSeed?.title ??
         AppCopy.chat.conversationsTitle;
+    final avatarColor =
+        widget.openSeed?.clubColor ?? ViroColors.primary600;
+    final avatarInitial =
+        widget.openSeed?.initial ?? avatarInitialFromTitle(title);
+    final isGroup = conv?.isGroup ?? widget.openSeed?.isGroup ?? false;
+    final isChannel =
+        conv?.isReadonlyForMembers ?? widget.openSeed?.isChannel ?? false;
+    final groupAvatar = conv?.avatarUrl?.trim();
+    final seedAvatar = widget.openSeed?.avatarUrl?.trim();
+    final String? headerAvatarUrl;
+    if (isGroup) {
+      if (groupAvatar != null && groupAvatar.isNotEmpty) {
+        headerAvatarUrl = groupAvatar;
+      } else if (seedAvatar != null && seedAvatar.isNotEmpty) {
+        headerAvatarUrl = seedAvatar;
+      } else {
+        headerAvatarUrl = null;
+      }
+    } else {
+      headerAvatarUrl = peerAvatarUrl;
+    }
     final isAdminOnly = conv?.writePolicy == ChatWritePolicies.adminsOnly;
     final canWrite = chatThreadCanWrite(conv, uid, role);
     final canPoll = canWrite && (conv?.allowsPolls ?? false);
@@ -600,20 +886,32 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     return ViroScaffold(
       appBar: ChatThreadAppBar(
         title: title,
-        searchOpen: _searchOpen,
+        avatarInitial: avatarInitial,
+        avatarColor: avatarColor,
+        avatarUrl: headerAvatarUrl,
+        isGroup: isGroup,
+        isChannel: isChannel,
+        avatarHeroTag: ChatThreadOpenSeed.avatarHeroTag(
+          widget.clubId,
+          widget.conversationId,
+        ),
+        searchOpen: _searchOpenNotifier.value,
         searchController: _searchController,
         isAdminOnly: isAdminOnly,
         clubId: widget.clubId,
         conversation: conv,
         state: state,
         members: members,
-        mergedMessages: _mergedMessages(liveForBar),
+        mergedMessages: _routeTransitionSettled
+            ? _mergedMessages(liveForBar)
+            : const <ChatMessage>[],
         onToggleSearch: () {
           setState(() {
-            _searchOpen = !_searchOpen;
-            if (!_searchOpen) {
+            final next = !_searchOpenNotifier.value;
+            _searchOpenNotifier.value = next;
+            if (!next) {
               _searchController.clear();
-              _searchQuery = '';
+              _searchQueryNotifier.value = '';
             }
           });
         },
@@ -622,6 +920,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         onRename: () {
           if (conv != null) _rename(conv);
         },
+        onChangeAvatar: conv != null && conv.canEditGroupAvatar
+            ? () => _changeGroupAvatar(conv)
+            : null,
       ),
       body: Column(
         children: [
@@ -659,17 +960,23 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 ),
                 const ColoredBox(color: Color(0x9EFFFFFF)),
                 messagesAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
+                  loading: () => const SizedBox.expand(),
                   error: (_, _) =>
                       Center(child: Text(AppCopy.chat.loadError)),
                   data: (liveMessages) {
-                    final messages = _mergedMessages(liveMessages);
-                    if (messages.isEmpty && liveMessages.isEmpty) {
+                    // Pendant le slide : chrome seul (fond + app bar), pas de ListView.
+                    if (!_routeTransitionSettled) {
                       return const SizedBox.expand();
                     }
-                    final isGroup = conv?.isGroup ?? false;
-                    // Ferme le popup si le message a disparu / plus de réactions.
+                    final messages = _mergedMessages(liveMessages);
+                    if (messages.isEmpty) {
+                      return ViroEmptyState(
+                        message: AppCopy.chat.emptyThread,
+                        icon: ViroIcons.chat,
+                      );
+                    }
+                    final isGroup =
+                        conv?.isGroup ?? widget.openSeed?.isGroup ?? false;
                     final reactorsId = _reactorsMessageId;
                     ChatMessage? reactorsMessage;
                     if (reactorsId != null) {
@@ -697,7 +1004,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                         messages.isNotEmpty) {
                       final byCount = (messages.length - unreadSepCount)
                           .clamp(0, messages.length - 1);
-                      // Ignore les messages du viewer (pas de séparateur sur ses envois).
                       for (var i = byCount; i < messages.length; i++) {
                         if (messages[i].senderUid != uid) {
                           firstUnreadIndex = i;
@@ -722,75 +1028,102 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                       key: _messagesStackKey,
                       fit: StackFit.expand,
                       children: [
-                        GestureDetector(
-                          behavior: HitTestBehavior.deferToChild,
-                          onTap: _dismissReactorsPopup,
-                          child: ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: ViroSpacing.screenHorizontal,
-                              vertical: ViroSpacing.sm,
-                            ),
-                            itemCount: messages.length + (showLoadMore ? 1 : 0),
-                            itemBuilder: (context, index) {
-                              if (showLoadMore && index == 0) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(
-                                    bottom: ViroSpacing.sm,
-                                  ),
-                                  child: Center(
-                                    child: _loadingOlder
-                                        ? const SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          )
-                                        : TextButton(
-                                            onPressed: () =>
-                                                _loadOlderMessages(messages),
-                                            child: Text(
-                                              AppCopy.chat.loadOlderMessages,
-                                            ),
+                        ValueListenableBuilder<bool>(
+                          valueListenable: _searchOpenNotifier,
+                          builder: (context, searchOpen, _) {
+                            return ValueListenableBuilder<String>(
+                              valueListenable: _searchQueryNotifier,
+                              builder: (context, searchQuery, _) {
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.deferToChild,
+                                  onTap: _dismissReactorsPopup,
+                                  child: ListView.builder(
+                                    controller: _scrollController,
+                                    keyboardDismissBehavior:
+                                        ScrollViewKeyboardDismissBehavior
+                                            .onDrag,
+                                    reverse: true,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: ViroSpacing.screenHorizontal,
+                                      vertical: ViroSpacing.sm,
+                                    ),
+                                    itemCount: messages.length +
+                                        (showLoadMore ? 1 : 0),
+                                    itemBuilder: (context, index) {
+                                      if (showLoadMore &&
+                                          index == messages.length) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: ViroSpacing.sm,
                                           ),
+                                          child: Center(
+                                            child: _loadingOlder
+                                                ? const SizedBox(
+                                                    width: 24,
+                                                    height: 24,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  )
+                                                : TextButton(
+                                                    onPressed: () =>
+                                                        _loadOlderMessages(
+                                                      messages,
+                                                    ),
+                                                    child: Text(
+                                                      AppCopy
+                                                          .chat.loadOlderMessages,
+                                                    ),
+                                                  ),
+                                          ),
+                                        );
+                                      }
+                                      final messageIndex =
+                                          messages.length - 1 - index;
+                                      final message = messages[messageIndex];
+                                      return ChatThreadMessageTile(
+                                        message: message,
+                                        previousCreatedAt: messageIndex == 0
+                                            ? null
+                                            : messages[messageIndex - 1]
+                                                .createdAt,
+                                        mine: message.senderUid == uid,
+                                        viewerUid: uid,
+                                        isGroup: isGroup,
+                                        members: members,
+                                        nameByUid: lookup.nameByUid,
+                                        memberByUid: lookup.memberByUid,
+                                        anchorKey: _anchorKeyFor(message.id),
+                                        messageAnchorKeys: _messageAnchorKeys,
+                                        showUnreadSeparator:
+                                            firstUnreadIndex != null &&
+                                                messageIndex ==
+                                                    firstUnreadIndex,
+                                        searchOpen: searchOpen,
+                                        searchQuery: searchQuery,
+                                        clubId: widget.clubId,
+                                        conversationId: widget.conversationId,
+                                        participantCount:
+                                            conv?.participantUids.length ?? 0,
+                                        reactorsMessageId: _reactorsMessageId,
+                                        onShowActions: _showMessageActions,
+                                        onReact: _react,
+                                        onOpenReactors: _showReactionReactors,
+                                        onDismissReactors:
+                                            _dismissReactorsPopup,
+                                        onVotePoll: _votePoll,
+                                        onRetrySend: message.isSendFailed
+                                            ? () =>
+                                                _retryFailedMessage(message)
+                                            : null,
+                                      );
+                                    },
                                   ),
                                 );
-                              }
-                              final messageIndex =
-                                  showLoadMore ? index - 1 : index;
-                              final message = messages[messageIndex];
-                              return ChatThreadMessageTile(
-                                message: message,
-                                previousCreatedAt: messageIndex == 0
-                                    ? null
-                                    : messages[messageIndex - 1].createdAt,
-                                mine: message.senderUid == uid,
-                                viewerUid: uid,
-                                isGroup: isGroup,
-                                members: members,
-                                nameByUid: lookup.nameByUid,
-                                memberByUid: lookup.memberByUid,
-                                anchorKey: _anchorKeyFor(message.id),
-                                messageAnchorKeys: _messageAnchorKeys,
-                                showUnreadSeparator:
-                                    firstUnreadIndex != null &&
-                                        messageIndex == firstUnreadIndex,
-                                searchOpen: _searchOpen,
-                                searchQuery: _searchQuery,
-                                clubId: widget.clubId,
-                                conversationId: widget.conversationId,
-                                participantCount:
-                                    conv?.participantUids.length ?? 0,
-                                reactorsMessageId: _reactorsMessageId,
-                                onShowActions: _showMessageActions,
-                                onReact: _react,
-                                onOpenReactors: _showReactionReactors,
-                                onDismissReactors: _dismissReactorsPopup,
-                                onVotePoll: _votePoll,
-                              );
-                            },
-                          ),
+                              },
+                            );
+                          },
                         ),
                         if (reactorsMessage != null &&
                             reactorsMessage.reactions.values
@@ -803,6 +1136,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                             viewerUid: _reactorsViewerUid,
                             nameByUid: _reactorsNameByUid,
                             memberByUid: _reactorsMemberByUid,
+                            scrollController: _scrollController,
                             onDismiss: _dismissReactorsPopup,
                             onAddReaction: () {
                               final message = reactorsMessage!;
@@ -822,6 +1156,47 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                               _react(message, emoji);
                             },
                           ),
+                        Positioned(
+                          right: ViroSpacing.screenHorizontal,
+                          bottom: ViroSpacing.md,
+                          child: ValueListenableBuilder<bool>(
+                            valueListenable: _isNearBottomNotifier,
+                            builder: (context, nearBottom, _) {
+                              if (nearBottom) {
+                                return const SizedBox.shrink();
+                              }
+                              return ValueListenableBuilder<int>(
+                                valueListenable: _newBelowCountNotifier,
+                                builder: (context, newCount, _) {
+                                  final label = newCount > 0
+                                      ? AppCopy.chat
+                                          .newMessagesBelow(newCount)
+                                      : AppCopy.chat.jumpToLatest;
+                                  return Material(
+                                    color: Colors.transparent,
+                                    child: Tooltip(
+                                      message: label,
+                                      child: Badge(
+                                        isLabelVisible: newCount > 0,
+                                        label: Text('$newCount'),
+                                        child: ViroFloatingIconButton(
+                                          icon: ViroIcons.arrowDown,
+                                          tooltip: label,
+                                          circular: true,
+                                          onPressed: () {
+                                            _newBelowCountNotifier.value = 0;
+                                            _isNearBottomNotifier.value = true;
+                                            _animateScrollToBottom();
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -832,6 +1207,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           if (canWrite)
             ChatThreadComposer(
               controller: _controller,
+              focusNode: _composerFocusNode,
               sending: _sending,
               canPoll: canPoll,
               showReplyBar: _replyTo != null,

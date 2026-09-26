@@ -24,6 +24,7 @@ class ChatMessageBubble extends StatelessWidget {
     this.isSearchMatch = false,
     this.onImageTap,
     this.onReplyTap,
+    this.onRetry,
   });
 
   /// Ancre visuelle de la bulle (pas le Align pleine largeur).
@@ -43,6 +44,9 @@ class ChatMessageBubble extends StatelessWidget {
   final bool isSearchMatch;
   final VoidCallback? onImageTap;
   final VoidCallback? onReplyTap;
+
+  /// Réessaie un envoi optimiste en échec.
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -156,18 +160,25 @@ class ChatMessageBubble extends StatelessWidget {
                         ),
                       ),
                     if (message.type == ChatMessageTypes.image &&
-                        imageUrl.isNotEmpty)
+                        (imageUrl.isNotEmpty ||
+                            message.localImageBytes != null))
                       GestureDetector(
                         onTap: onImageTap,
                         child: Stack(
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                imageUrl,
-                                fit: BoxFit.cover,
-                                width: 220,
-                              ),
+                              child: message.localImageBytes != null
+                                  ? Image.memory(
+                                      message.localImageBytes!,
+                                      fit: BoxFit.cover,
+                                      width: 220,
+                                    )
+                                  : Image.network(
+                                      imageUrl,
+                                      fit: BoxFit.cover,
+                                      width: 220,
+                                    ),
                             ),
                             Positioned(
                               right: 6,
@@ -176,6 +187,7 @@ class ChatMessageBubble extends StatelessWidget {
                                 sentAt: message.createdAt,
                                 edited: message.editedAt != null,
                                 onImage: true,
+                                localStatus: message.localStatus,
                               ),
                             ),
                           ],
@@ -187,8 +199,28 @@ class ChatMessageBubble extends StatelessWidget {
                         sentAt: message.createdAt,
                         edited: message.editedAt != null,
                         highlightQuery: highlightQuery,
+                        localStatus: message.localStatus,
                         style: theme.bodyMedium?.copyWith(
                           color: ViroColors.primary800,
+                        ),
+                      ),
+                    if (message.isSendFailed && onRetry != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: TextButton(
+                          onPressed: onRetry,
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            AppCopy.chat.retrySend,
+                            style: theme.labelSmall?.copyWith(
+                              color: ViroColors.error,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
                   ],

@@ -20,7 +20,9 @@ import 'package:viro_team_v2/services/push_notification_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
+import 'package:viro_team_v2/services/chat_messages_local_cache.dart';
 import 'package:viro_team_v2/services/user_avatar_storage.dart';
+import 'package:viro_team_v2/services/conversation_avatar_storage.dart';
 import 'package:viro_team_v2/services/user_service.dart';
 
 final analyticsServiceProvider = Provider<AnalyticsService>(
@@ -38,6 +40,9 @@ final accountServiceProvider =
 
 final userAvatarStorageProvider =
     Provider<UserAvatarStorage>((ref) => UserAvatarStorage());
+
+final conversationAvatarStorageProvider =
+    Provider<ConversationAvatarStorage>((ref) => ConversationAvatarStorage());
 
 final userServiceProvider = Provider<UserService>((ref) => UserService());
 
@@ -74,6 +79,10 @@ final memberInviteServiceProvider = Provider<MemberInviteService>(
 final teamServiceProvider = Provider<TeamService>((ref) => TeamService());
 
 final chatServiceProvider = Provider<ChatService>((ref) => ChatService());
+
+final chatMessagesLocalCacheProvider = Provider<ChatMessagesLocalCache>(
+  (ref) => ChatMessagesLocalCache(),
+);
 
 final announcementServiceProvider = Provider<AnnouncementService>(
   (ref) => AnnouncementService(),

@@ -22,6 +22,7 @@ class ChatAnchoredReactorsPopup extends StatefulWidget {
     required this.onDismiss,
     required this.onAddReaction,
     required this.onToggleReaction,
+    this.scrollController,
   });
 
   final GlobalKey stackKey;
@@ -34,6 +35,9 @@ class ChatAnchoredReactorsPopup extends StatefulWidget {
   final VoidCallback onDismiss;
   final VoidCallback onAddReaction;
   final ValueChanged<String> onToggleReaction;
+
+  /// Repositionne le popup au scroll sans rebuild du fil parent.
+  final ScrollController? scrollController;
 
   @override
   State<ChatAnchoredReactorsPopup> createState() =>
@@ -49,6 +53,31 @@ class _ChatAnchoredReactorsPopupState extends State<ChatAnchoredReactorsPopup> {
   static const double _edge = 8;
   static const double _maxPopupHeight = 280;
   static const double _preferBelowMin = 120;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.scrollController?.addListener(_onScroll);
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatAnchoredReactorsPopup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scrollController != widget.scrollController) {
+      oldWidget.scrollController?.removeListener(_onScroll);
+      widget.scrollController?.addListener(_onScroll);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.scrollController?.removeListener(_onScroll);
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {

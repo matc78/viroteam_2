@@ -5,6 +5,8 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 abstract final class ViroMotion {
   static const Duration fast = Duration(milliseconds: 150);
   static const Duration standard = Duration(milliseconds: 220);
+  /// Drill-in messagerie (inbox → fil), ~feeling WhatsApp.
+  static const Duration drillIn = Duration(milliseconds: 280);
   static const Duration modal = Duration(milliseconds: 320);
 
   static const Curve enter = Curves.easeOutCubic;

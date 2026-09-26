@@ -11,6 +11,7 @@ abstract final class ViroIcons {
   static IconData get settings => PhosphorIconsRegular.gear;
   static IconData get add => PhosphorIconsBold.plus;
   static IconData get arrowUp => PhosphorIconsRegular.arrowUp;
+  static IconData get arrowDown => PhosphorIconsRegular.arrowDown;
   static IconData get chevronRight => PhosphorIconsRegular.caretRight;
   static IconData get chevronLeft => PhosphorIconsRegular.caretLeft;
   static IconData get close => PhosphorIconsRegular.x;

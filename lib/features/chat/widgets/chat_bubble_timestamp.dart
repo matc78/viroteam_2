@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/linkify_message_text.dart';
 
@@ -12,6 +13,7 @@ class ChatBubbleTimestamp extends StatelessWidget {
     required this.sentAt,
     this.edited = false,
     this.onImage = false,
+    this.localStatus,
   });
 
   final DateTime sentAt;
@@ -20,18 +22,32 @@ class ChatBubbleTimestamp extends StatelessWidget {
   /// Sur une image : contraste renforcé (fond semi-transparent).
   final bool onImage;
 
+  /// Statut d’envoi optimiste (horloge / échec).
+  final ChatMessageLocalStatus? localStatus;
+
   @override
   Widget build(BuildContext context) {
-    final time = formatChatMessageTime(sentAt);
-    final label = edited ? '${AppCopy.chat.messageEdited} $time' : time;
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
           color: onImage ? ViroColors.white : ViroColors.gray400,
           fontWeight: FontWeight.w500,
           height: 1.1,
         );
 
-    final text = Text(label, style: style);
-    if (!onImage) return text;
+    final Widget label;
+    if (localStatus == ChatMessageLocalStatus.sending) {
+      label = Text(AppCopy.chat.messageSending, style: style);
+    } else if (localStatus == ChatMessageLocalStatus.failed) {
+      label = Text(
+        AppCopy.chat.messageSendFailed,
+        style: style?.copyWith(color: ViroColors.error),
+      );
+    } else {
+      final time = formatChatMessageTime(sentAt);
+      final text = edited ? '${AppCopy.chat.messageEdited} $time' : time;
+      label = Text(text, style: style);
+    }
+
+    if (!onImage) return label;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -39,7 +55,7 @@ class ChatBubbleTimestamp extends StatelessWidget {
         color: ViroColors.primary900.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: text,
+      child: label,
     );
   }
 }
@@ -53,6 +69,7 @@ class ChatBubbleTextWithTime extends StatefulWidget {
     required this.style,
     this.edited = false,
     this.highlightQuery,
+    this.localStatus,
   });
 
   final String text;
@@ -62,6 +79,8 @@ class ChatBubbleTextWithTime extends StatefulWidget {
 
   /// Sous-chaîne à surligner (recherche thread).
   final String? highlightQuery;
+
+  final ChatMessageLocalStatus? localStatus;
 
   @override
   State<ChatBubbleTextWithTime> createState() => _ChatBubbleTextWithTimeState();
@@ -158,6 +177,7 @@ class _ChatBubbleTextWithTimeState extends State<ChatBubbleTextWithTime> {
     final timestamp = ChatBubbleTimestamp(
       sentAt: widget.sentAt,
       edited: widget.edited,
+      localStatus: widget.localStatus,
     );
 
     return Stack(

@@ -11,13 +11,23 @@ import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+
+/// Diamètre avatar AppBar (Hero depuis la tuile inbox 44 → 36).
+const double _kAppBarAvatarSize = 36;
 
 /// AppBar du fil : titre / recherche + actions (info, annonces, menu).
 class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ChatThreadAppBar({
     super.key,
     required this.title,
+    required this.avatarInitial,
+    required this.avatarColor,
+    required this.avatarHeroTag,
+    this.avatarUrl,
+    this.isGroup = false,
+    this.isChannel = false,
     required this.searchOpen,
     required this.searchController,
     required this.isAdminOnly,
@@ -30,9 +40,20 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onToggleMute,
     required this.onToggleFavorite,
     required this.onRename,
+    this.onChangeAvatar,
   });
 
   final String title;
+  final String avatarInitial;
+  final Color avatarColor;
+  final String avatarHeroTag;
+
+  /// Photo (pair DM ou avatar groupe) — sinon pastille / icône type.
+  final String? avatarUrl;
+
+  /// Même chrome que la tuile inbox (icône groupe vert / canal violet).
+  final bool isGroup;
+  final bool isChannel;
   final bool searchOpen;
   final TextEditingController searchController;
   final bool isAdminOnly;
@@ -45,6 +66,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onToggleMute;
   final VoidCallback onToggleFavorite;
   final VoidCallback onRename;
+  final VoidCallback? onChangeAvatar;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -61,6 +83,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
       onToggleMute: onToggleMute,
       onToggleFavorite: onToggleFavorite,
       onRename: onRename,
+      onChangeAvatar: onChangeAvatar,
       onOpenImage: (url) => showChatImageLightbox(context, imageUrl: url),
     );
   }
@@ -83,7 +106,38 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                     color: ViroColors.primary800,
                   ),
             )
-          : Text(title),
+          : Row(
+              children: [
+                Hero(
+                  tag: avatarHeroTag,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: _ThreadAvatar(
+                      initial: avatarInitial,
+                      color: avatarColor,
+                      size: _kAppBarAvatarSize,
+                      photoUrl: avatarUrl,
+                      isGroup: isGroup,
+                      isChannel: isChannel,
+                      onEdit: isGroup &&
+                              !isChannel &&
+                              onChangeAvatar != null &&
+                              (conversation?.canEditGroupAvatar ?? false)
+                          ? onChangeAvatar
+                          : null,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: ViroSpacing.sm),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
       actions: [
         IconButton(
           tooltip: searchOpen
@@ -119,6 +173,8 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
               switch (value) {
                 case 'rename':
                   onRename();
+                case 'changeAvatar':
+                  onChangeAvatar?.call();
                 case 'mute':
                   onToggleMute();
                 case 'favorite':
@@ -130,6 +186,8 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
             itemBuilder: (_) {
               final isMuted = state?.muted ?? false;
               final isFavorite = state?.favorite ?? false;
+              final canChangeAvatar = onChangeAvatar != null &&
+                  (conversation?.canEditGroupAvatar ?? false);
               return [
                 PopupMenuItem(
                   value: 'info',
@@ -159,6 +217,21 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ],
                   ),
                 ),
+                if (canChangeAvatar)
+                  PopupMenuItem(
+                    value: 'changeAvatar',
+                    child: Row(
+                      children: [
+                        ViroIcon(
+                          ViroIcons.camera,
+                          size: 20,
+                          color: ViroColors.primary600,
+                        ),
+                        const SizedBox(width: ViroSpacing.sm),
+                        Text(AppCopy.chat.changeGroupAvatar),
+                      ],
+                    ),
+                  ),
                 PopupMenuItem(
                   value: 'favorite',
                   child: Row(
@@ -199,6 +272,167 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
             },
           ),
       ],
+    );
+  }
+}
+
+/// Pastille avatar AppBar (même look que la tuile inbox).
+class _ThreadAvatar extends StatelessWidget {
+  const _ThreadAvatar({
+    required this.initial,
+    required this.color,
+    required this.size,
+    this.photoUrl,
+    this.isGroup = false,
+    this.isChannel = false,
+    this.onEdit,
+  });
+
+  final String initial;
+  final Color color;
+  final double size;
+  final String? photoUrl;
+  final bool isGroup;
+  final bool isChannel;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmedPhoto = photoUrl?.trim();
+    final hasPhoto = trimmedPhoto != null && trimmedPhoto.isNotEmpty;
+    final iconSize = size * (20 / 44);
+
+    Widget avatar;
+    if (isChannel) {
+      avatar = _ThreadIconAvatar(
+        size: size,
+        background: ViroColors.adminBadgeEnd,
+        icon: ViroIcons.megaphone,
+        iconSize: iconSize,
+      );
+    } else if (isGroup && hasPhoto) {
+      avatar = ClipOval(
+        child: Image.network(
+          trimmedPhoto,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _ThreadIconAvatar(
+            size: size,
+            background: ViroColors.sportGreen,
+            icon: ViroIcons.groups,
+            iconSize: iconSize,
+          ),
+        ),
+      );
+    } else if (isGroup) {
+      avatar = _ThreadIconAvatar(
+        size: size,
+        background: ViroColors.sportGreen,
+        icon: ViroIcons.groups,
+        iconSize: iconSize,
+      );
+    } else if (hasPhoto) {
+      avatar = ClipOval(
+        child: Image.network(
+          trimmedPhoto,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _ThreadInitialAvatar(
+            initial: initial,
+            color: color,
+            size: size,
+          ),
+        ),
+      );
+    } else {
+      avatar = _ThreadInitialAvatar(
+        initial: initial,
+        color: color,
+        size: size,
+      );
+    }
+
+    if (!hasPhoto) {
+      if (onEdit == null) return avatar;
+      return GestureDetector(onTap: onEdit, child: avatar);
+    }
+
+    return GestureDetector(
+      onTap: () {
+        showViroImageLightbox(
+          context,
+          imageUrl: trimmedPhoto,
+          onEdit: onEdit,
+          shape: ViroImageLightboxShape.circle,
+        );
+      },
+      child: avatar,
+    );
+  }
+}
+
+/// Avatar AppBar avec icône (groupe / canal).
+class _ThreadIconAvatar extends StatelessWidget {
+  const _ThreadIconAvatar({
+    required this.size,
+    required this.background,
+    required this.icon,
+    required this.iconSize,
+  });
+
+  final double size;
+  final Color background;
+  final IconData icon;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        shape: BoxShape.circle,
+      ),
+      child: ViroIcon(icon, size: iconSize, color: ViroColors.white),
+    );
+  }
+}
+
+/// Initiale circulaire AppBar (fallback DM sans photo).
+class _ThreadInitialAvatar extends StatelessWidget {
+  const _ThreadInitialAvatar({
+    required this.initial,
+    required this.color,
+    required this.size,
+  });
+
+  final String initial;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = Color.lerp(Colors.white, color, 0.35)!;
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: tint,
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        initial,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: size * 0.4,
+            ),
+      ),
     );
   }
 }

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/chat/open_chat_thread.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
@@ -15,6 +15,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
@@ -257,6 +258,13 @@ class _NewConversationSheetState extends ConsumerState<_NewConversationSheet> {
     setState(() => _busy = true);
     // Capturer avant pop : le context de la sheet est invalidé ensuite.
     final router = GoRouter.of(context);
+    final selectedLabels = _targets
+        .where((t) => _selected.contains(t.uid))
+        .map((t) => t.label)
+        .toList();
+    final seedTitle = selectedLabels.length == 1
+        ? selectedLabels.first
+        : selectedLabels.join(', ');
     try {
       // createCoachDm est idempotent (systemKey dm:…) — ouvre la DM existante.
       final conversationId =
@@ -266,7 +274,24 @@ class _NewConversationSheetState extends ConsumerState<_NewConversationSheet> {
               );
       if (!mounted) return;
       Navigator.of(context).pop();
-      router.push(AppRoutes.conversationPath(clubId, conversationId));
+      final clubs = ref.read(userClubsProvider).value ?? const [];
+      final club =
+          clubs.where((e) => e.club.id == clubId).map((e) => e.club).firstOrNull;
+      openChatThread(
+        context,
+        ref,
+        clubId: clubId,
+        conversationId: conversationId,
+        title: seedTitle.isNotEmpty
+            ? seedTitle
+            : AppCopy.chat.conversationsTitle,
+        clubColor: clubAccentColor(
+          brandColorHex: club?.brandColorHex,
+          clubId: clubId,
+        ),
+        isGroup: _selected.length > 1,
+        router: router,
+      );
     } catch (error) {
       if (mounted) {
         ViroSnackBar.show(

@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/chat/open_chat_thread.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -27,6 +26,7 @@ class TeamMessagingLinksSection extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref, {
     required String systemKey,
+    required String title,
   }) async {
     try {
       final id = await ref.read(chatServiceProvider).ensureAndFindConversationId(
@@ -38,7 +38,15 @@ class TeamMessagingLinksSection extends ConsumerWidget {
         ViroSnackBar.show(context, AppCopy.chat.loadError);
         return;
       }
-      context.push(AppRoutes.conversationPath(team.clubId, id));
+      openChatThread(
+        context,
+        ref,
+        clubId: team.clubId,
+        conversationId: id,
+        title: title,
+        clubColor: accent,
+        isGroup: true,
+      );
     } catch (_) {
       if (context.mounted) {
         ViroSnackBar.show(context, AppCopy.chat.loadError);
@@ -75,6 +83,7 @@ class TeamMessagingLinksSection extends ConsumerWidget {
                 context,
                 ref,
                 systemKey: 'team:${team.id}',
+                title: team.name,
               ),
             ),
           _MessagingLinkTile(
@@ -85,6 +94,7 @@ class TeamMessagingLinksSection extends ConsumerWidget {
               context,
               ref,
               systemKey: 'parents:${team.id}',
+              title: AppCopy.chat.parentsOfTeamLabel(team.name),
             ),
           ),
         ],

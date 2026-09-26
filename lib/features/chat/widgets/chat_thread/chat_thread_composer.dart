@@ -21,9 +21,11 @@ class ChatThreadComposer extends StatelessWidget {
     required this.onCamera,
     required this.onGallery,
     this.onPoll,
+    this.focusNode,
   });
 
   final TextEditingController controller;
+  final FocusNode? focusNode;
   final bool sending;
   final bool canPoll;
   final String replyToSenderName;
@@ -120,6 +122,7 @@ class ChatThreadComposer extends StatelessWidget {
                     },
                     child: TextField(
                       controller: controller,
+                      focusNode: focusNode,
                       minLines: 1,
                       maxLines: 6,
                       keyboardType: TextInputType.multiline,

@@ -40,6 +40,7 @@ class ChatThreadMessageTile extends StatelessWidget {
     required this.onOpenReactors,
     required this.onDismissReactors,
     required this.onVotePoll,
+    this.onRetrySend,
   });
 
   final ChatMessage message;
@@ -69,6 +70,7 @@ class ChatThreadMessageTile extends StatelessWidget {
   }) onOpenReactors;
   final VoidCallback onDismissReactors;
   final void Function(ChatMessage message, String optionId) onVotePoll;
+  final VoidCallback? onRetrySend;
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +122,7 @@ class ChatThreadMessageTile extends StatelessWidget {
         ),
       );
     } else {
-      bubble = ChatMessageBubble(
+      final contentBubble = ChatMessageBubble(
         anchorKey: anchorKey,
         message: message,
         mine: mine,
@@ -164,7 +166,11 @@ class ChatThreadMessageTile extends StatelessWidget {
                 }
               }
             : null,
+        onRetry: message.isSendFailed ? onRetrySend : null,
       );
+      bubble = message.isLocalPending
+          ? _OptimisticAppear(child: contentBubble)
+          : contentBubble;
     }
 
     final messageRow = showSenderMeta
@@ -210,6 +216,33 @@ class ChatThreadMessageTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Apparition douce des bulles optimistes (fade + léger scale).
+class _OptimisticAppear extends StatelessWidget {
+  const _OptimisticAppear({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.92, end: 1),
+      duration: ViroMotion.fast,
+      curve: ViroMotion.enter,
+      builder: (context, scale, animatedChild) {
+        return Opacity(
+          opacity: ((scale - 0.92) / 0.08).clamp(0.0, 1.0),
+          child: Transform.scale(
+            scale: scale,
+            alignment: Alignment.bottomRight,
+            child: animatedChild,
+          ),
+        );
+      },
+      child: child,
     );
   }
 }

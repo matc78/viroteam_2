@@ -9,6 +9,7 @@ import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/widgets/common/viro_slide_page.dart';
 import 'package:viro_team_v2/widgets/lists/poll_voter_list_tile.dart';
 
 /// Ouvre l’écran détails des votes d’un sondage (layout type infos groupe).
@@ -20,7 +21,7 @@ Future<void> openPollVotesScreen({
   required int participantCount,
 }) {
   return Navigator.of(context).push<void>(
-    MaterialPageRoute<void>(
+    ViroSlideRoute<void>(
       builder: (_) => PollVotesScreen(
         clubId: clubId,
         conversationId: conversationId,

@@ -36,6 +36,11 @@ final class AppCopyChat {
   String get messageCopied => 'Message copié';
   String get renameConversation => 'Renommer';
   String get renameHint => 'Nouveau nom';
+  String get changeGroupAvatar => 'Changer la photo';
+  String get changeGroupAvatarCamera => 'Appareil photo';
+  String get changeGroupAvatarGallery => 'Galerie';
+  String get groupAvatarUpdated => 'Photo du groupe mise à jour.';
+  String get groupAvatarUploadFailed => 'Impossible de changer la photo.';
   String get mute => 'Couper les notifs';
   String get unmute => 'Réactiver les notifs';
   String get addFavorite => 'Ajouter aux favoris';
@@ -115,4 +120,18 @@ final class AppCopyChat {
   String get pollNoVotesYet => 'Personne n’a encore voté.';
   String get pollUnavailable => 'Ce sondage n’est plus dispo.';
   String get pollUnknownVoter => 'Membre';
+
+  /// Fil sans aucun message (après chargement).
+  String get emptyThread => 'Aucun message pour l’instant.';
+  String get emptyThreadHint => 'Envoie le premier message pour lancer la discussion.';
+
+  /// FAB quand on a scrollé dans l’historique.
+  String get jumpToLatest => 'Derniers messages';
+  String newMessagesBelow(int count) =>
+      count <= 1 ? '1 nouveau message' : '$count nouveaux messages';
+
+  /// Statut d’envoi optimiste sur la bulle.
+  String get messageSending => 'Envoi…';
+  String get messageSendFailed => 'Échec';
+  String get retrySend => 'Réessayer';
 }

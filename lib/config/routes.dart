@@ -42,7 +42,9 @@ import 'package:viro_team_v2/features/clubs/screens/club_selector_screen.dart';
 import 'package:viro_team_v2/features/home/screens/home_member_screen.dart';
 import 'package:viro_team_v2/features/chat/screens/conversations_screen.dart';
 import 'package:viro_team_v2/features/chat/screens/chat_thread_screen.dart';
+import 'package:viro_team_v2/features/chat/chat_thread_open_seed.dart';
 import 'package:viro_team_v2/widgets/common/viro_bubble_expand_page.dart';
+import 'package:viro_team_v2/widgets/common/viro_slide_page.dart';
 
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
 
@@ -176,6 +178,13 @@ abstract final class AppRoutes {
   static String conversationPath(String clubId, String conversationId) =>
       '/conversations/$clubId/$conversationId';
 
+}
+
+/// Extra go_router : messagerie ouverte après swipe interactif home.
+///
+/// La révélation est déjà terminée → transition push à durée zéro.
+class ConversationsSwipeCommit {
+  const ConversationsSwipeCommit();
 }
 
 
@@ -455,6 +464,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) =>
             FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
         pageBuilder: (context, state) {
+          if (state.extra is ConversationsSwipeCommit) {
+            return ViroSlidePage<void>(
+              key: state.pageKey,
+              transitionDuration: Duration.zero,
+              child: const ConversationsScreen(),
+            );
+          }
           final origin = state.extra is Offset ? state.extra as Offset : null;
           return ViroBubbleExpandPage<void>(
             key: state.pageKey,
@@ -468,12 +484,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.conversation,
         redirect: (context, state) =>
             FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final clubId = state.pathParameters['clubId']!;
           final conversationId = state.pathParameters['conversationId']!;
-          return ChatThreadScreen(
-            clubId: clubId,
-            conversationId: conversationId,
+          final openSeed = state.extra is ChatThreadOpenSeed
+              ? state.extra as ChatThreadOpenSeed
+              : null;
+          return ViroSlidePage<void>(
+            key: state.pageKey,
+            child: ChatThreadScreen(
+              clubId: clubId,
+              conversationId: conversationId,
+              openSeed: openSeed,
+            ),
           );
         },
       ),

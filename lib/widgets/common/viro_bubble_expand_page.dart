@@ -21,10 +21,23 @@ class ViroBubbleExpandPage<T> extends CustomTransitionPage<T> {
           transitionDuration: ViroMotion.modal,
           reverseTransitionDuration: ViroMotion.standard,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return _BubbleExpandTransition(
-              animation: animation,
-              origin: origin,
-              child: child,
+            // Parallaxe quand un drill-in (ex. fil) s’ouvre par-dessus.
+            final under = CurvedAnimation(
+              parent: secondaryAnimation,
+              curve: ViroMotion.enter,
+              reverseCurve: ViroMotion.exit,
+            );
+            final slideUnder = Tween<Offset>(
+              begin: Offset.zero,
+              end: const Offset(-0.06, 0),
+            ).animate(under);
+            return SlideTransition(
+              position: slideUnder,
+              child: _BubbleExpandTransition(
+                animation: animation,
+                origin: origin,
+                child: child,
+              ),
             );
           },
         );

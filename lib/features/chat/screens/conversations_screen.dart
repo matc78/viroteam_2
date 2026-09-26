@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/chat/open_chat_thread.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/features/chat/widgets/create_channel_dialog.dart';
 import 'package:viro_team_v2/features/chat/widgets/new_conversation_sheet.dart';
@@ -40,35 +39,49 @@ class ConversationsScreen extends ConsumerStatefulWidget {
 
 class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
   final _searchController = TextEditingController();
-  String _query = '';
+  final ValueNotifier<String> _queryNotifier = ValueNotifier('');
+  bool _didPrecacheThreadBg = false;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      setState(() => _query = _searchController.text.trim().toLowerCase());
+      _queryNotifier.value = _searchController.text.trim().toLowerCase();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didPrecacheThreadBg) return;
+    _didPrecacheThreadBg = true;
+    precacheImage(
+      const AssetImage('assets/images/chat/thread_bg.png'),
+      context,
+    );
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _queryNotifier.dispose();
     super.dispose();
   }
 
   bool _matchesQuery(
     ChatConversation conv, {
     required String clubName,
+    required String query,
     String? peerDisplayName,
   }) {
-    if (_query.isEmpty) return true;
+    if (query.isEmpty) return true;
     final haystack = [
       conv.displayTitle(peerDisplayName: peerDisplayName),
       clubName,
       conv.lastMessagePreview,
       conv.lastSenderFirstName ?? '',
     ].join(' ').toLowerCase();
-    return haystack.contains(_query);
+    return haystack.contains(query);
   }
 
   /// Relance les streams inbox / états pour le pull-to-refresh.
@@ -76,7 +89,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     ref.invalidate(chatInboxProvider);
     ref.invalidate(chatStatesProvider);
     ref.invalidate(chatPreviewSendersProvider);
-    ref.invalidate(chatDmPeerTitlesProvider);
+    ref.invalidate(chatDmPeersProvider);
     await ref.read(chatInboxProvider.future);
   }
 
@@ -97,8 +110,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     }
     final previewSenders =
         ref.watch(chatPreviewSendersProvider).value ?? const {};
-    final dmPeerTitles =
-        ref.watch(chatDmPeerTitlesProvider).value ?? const {};
+    final dmPeers = ref.watch(chatDmPeersProvider).value ?? const {};
     final isAdminSomewhere = clubs.any(
       (e) => e.membership?.role == MemberRoles.admin,
     );
@@ -160,17 +172,22 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                 conversations,
                 states,
               );
-              final filtered = sorted.where((conv) {
-                final club = clubById[conv.clubId];
-                final peerName = dmPeerTitles['${conv.clubId}|${conv.id}'];
-                return _matchesQuery(
-                  conv,
-                  clubName: club?.name ?? conv.clubId,
-                  peerDisplayName: peerName,
-                );
-              }).toList();
 
-              return ViroRefreshIndicator(
+              return ValueListenableBuilder<String>(
+                valueListenable: _queryNotifier,
+                builder: (context, query, _) {
+                  final filtered = sorted.where((conv) {
+                    final club = clubById[conv.clubId];
+                    final peer = dmPeers['${conv.clubId}|${conv.id}'];
+                    return _matchesQuery(
+                      conv,
+                      clubName: club?.name ?? conv.clubId,
+                      query: query,
+                      peerDisplayName: peer?.displayName,
+                    );
+                  }).toList();
+
+                  return ViroRefreshIndicator(
                 onRefresh: _refreshInbox,
                 child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -233,26 +250,40 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                             final resolved = senderUid == null
                                 ? null
                                 : previewSenders['${conv.clubId}|$senderUid'];
+                            final clubColor = clubAccentColor(
+                              brandColorHex: club?.brandColorHex,
+                              clubId: conv.clubId,
+                            );
+                            final peer = dmPeers['${conv.clubId}|${conv.id}'];
                             return ConversationListTile(
                               conversation: conv,
                               clubName: club?.name ?? conv.clubId,
-                              clubColor: clubAccentColor(
-                                brandColorHex: club?.brandColorHex,
-                                clubId: conv.clubId,
-                              ),
+                              clubColor: clubColor,
                               clubRole: clubRoleById[conv.clubId],
                               state: states[stateId],
                               viewerUid: uid,
                               previewFirstName: resolved?.firstName,
                               previewSenderRole: resolved?.role,
-                              peerDisplayName:
-                                  dmPeerTitles['${conv.clubId}|${conv.id}'],
-                              onTap: () => context.push(
-                                AppRoutes.conversationPath(
-                                  conv.clubId,
-                                  conv.id,
-                                ),
-                              ),
+                              peerDisplayName: peer?.displayName,
+                              peerAvatarUrl: peer?.avatarUrl,
+                              showDivider: index < filtered.length - 1,
+                              onTap: () {
+                                openChatThread(
+                                  context,
+                                  ref,
+                                  clubId: conv.clubId,
+                                  conversationId: conv.id,
+                                  title: conv.displayTitle(
+                                    peerDisplayName: peer?.displayName,
+                                  ),
+                                  clubColor: clubColor,
+                                  avatarUrl: conv.isGroup
+                                      ? conv.avatarUrl
+                                      : peer?.avatarUrl,
+                                  isGroup: conv.isGroup,
+                                  isChannel: conv.isReadonlyForMembers,
+                                );
+                              },
                             );
                           },
                           childCount: filtered.length,
@@ -266,6 +297,8 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                     ),
                   ],
                 ),
+              );
+                },
               );
             },
           ),
@@ -325,7 +358,22 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
           );
       if (!context.mounted) return;
       ViroSnackBar.show(context, AppCopy.chat.channelCreated);
-      context.push(AppRoutes.conversationPath(result.clubId, id));
+      final club = adminClubs
+          .where((c) => c.id == result.clubId)
+          .firstOrNull;
+      openChatThread(
+        context,
+        ref,
+        clubId: result.clubId,
+        conversationId: id,
+        title: result.title,
+        clubColor: clubAccentColor(
+          brandColorHex: club?.brandColorHex,
+          clubId: result.clubId,
+        ),
+        isGroup: true,
+        isChannel: true,
+      );
     } catch (_) {
       if (context.mounted) {
         ViroSnackBar.show(context, AppCopy.chat.sendFailed);

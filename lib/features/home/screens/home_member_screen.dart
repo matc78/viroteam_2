@@ -36,6 +36,8 @@ import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/widgets/common/viro_swipe_to_reveal.dart';
+import 'package:viro_team_v2/features/chat/screens/conversations_screen.dart';
 
 class HomeMemberScreen extends ConsumerStatefulWidget {
   const HomeMemberScreen({super.key});
@@ -46,6 +48,7 @@ class HomeMemberScreen extends ConsumerStatefulWidget {
 
 class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
   final _scrollController = ScrollController();
+  final _swipeToMessagingKey = GlobalKey<ViroSwipeToRevealState>();
 
   @override
   void dispose() {
@@ -153,6 +156,22 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
     }
   }
 
+  /// Ouvre la messagerie via la bulle chat (expand circulaire).
+  void _openMessagingFromBubble(Offset bubbleOrigin) {
+    if (!FeatureFlags.chatMessagingLive) return;
+    _swipeToMessagingKey.currentState?.reset();
+    context.push(AppRoutes.conversations, extra: bubbleOrigin);
+  }
+
+  /// Finalise le swipe interactif → route messagerie sans rejouer le slide.
+  void _commitMessagingFromSwipe() {
+    if (!FeatureFlags.chatMessagingLive) return;
+    context.push(
+      AppRoutes.conversations,
+      extra: const ConversationsSwipeCommit(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final clubsAsync = ref.watch(userClubsProvider);
@@ -162,44 +181,49 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
     final pendingCounts = ref.watch(pendingCountByClubProvider);
     final userAsync = ref.watch(viroUserProvider);
 
-    return ViroScaffold(
-      appBar: ViroAppBar(
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ViroLogoMark(height: 28),
-            SizedBox(width: ViroSpacing.sm),
-            Text(ProjectConfig.appName),
+    return ViroSwipeToReveal(
+      key: _swipeToMessagingKey,
+      enabled: FeatureFlags.chatMessagingLive,
+      reveal: const ConversationsScreen(),
+      onCommit: _commitMessagingFromSwipe,
+      child: ViroScaffold(
+        appBar: ViroAppBar(
+          title: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ViroLogoMark(height: 28),
+              SizedBox(width: ViroSpacing.sm),
+              Text(ProjectConfig.appName),
+            ],
+          ),
+          onTitleTap: _scrollToTop,
+          actions: [
+            IconButton(
+              icon: ViroIcon(ViroIcons.settings),
+              onPressed: () => context.push(AppRoutes.userSettings),
+            ),
           ],
         ),
-        onTitleTap: _scrollToTop,
-        actions: [
-          IconButton(
-            icon: ViroIcon(ViroIcons.settings),
-            onPressed: () => context.push(AppRoutes.userSettings),
+        body: clubsAsync.when(
+          loading: () => const Center(child: ViroLogoLoader()),
+          error: (e, _) => ViroErrorState(
+            message: AppCopy.home.loadClubsError,
+            onRetry: () => ref.invalidate(userClubsProvider),
           ),
-        ],
-      ),
-      body: clubsAsync.when(
-        loading: () => const Center(child: ViroLogoLoader()),
-        error: (e, _) => ViroErrorState(
-          message: AppCopy.home.loadClubsError,
-          onRetry: () => ref.invalidate(userClubsProvider),
-        ),
-        data: (clubs) {
-          if (clubs.isEmpty) {
-            return _EmptyClubsBody(
-              onJoin: () => showAddClubSheet(context, ref),
-            );
-          }
+          data: (clubs) {
+            if (clubs.isEmpty) {
+              return _EmptyClubsBody(
+                onJoin: () => showAddClubSheet(context, ref),
+              );
+            }
 
-          final names = _clubNames(clubs);
-          final colors = _clubColors(clubs);
-          final secondaryColors = _clubSecondaryColors(clubs);
+            final names = _clubNames(clubs);
+            final colors = _clubColors(clubs);
+            final secondaryColors = _clubSecondaryColors(clubs);
 
-          return Stack(
-            children: [
-              eventsAsync.when(
+            return Stack(
+              children: [
+                eventsAsync.when(
                   loading: () => const _HomeLoadingBody(),
                   error: (e, _) => ViroErrorState(
                     message: AppCopy.home.loadPlanningError,
@@ -276,25 +300,23 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                     );
                   },
                 ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: ClubSelectorBar(
-                  clubs: clubs,
-                  pendingByClub: pendingCounts,
-                  onAddClub: () => showAddClubSheet(context, ref),
-                  onOpenChat: FeatureFlags.chatMessagingLive
-                      ? (origin) => context.push(
-                            AppRoutes.conversations,
-                            extra: origin,
-                          )
-                      : null,
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: ClubSelectorBar(
+                    clubs: clubs,
+                    pendingByClub: pendingCounts,
+                    onAddClub: () => showAddClubSheet(context, ref),
+                    onOpenChat: FeatureFlags.chatMessagingLive
+                        ? _openMessagingFromBubble
+                        : null,
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

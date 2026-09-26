@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
 
 /// Chip séparateur de jour dans un thread chat.
 class ChatDaySeparator extends StatelessWidget {
@@ -78,23 +79,9 @@ Future<void> showChatImageLightbox(
   BuildContext context, {
   required String imageUrl,
 }) {
-  return showDialog<void>(
-    context: context,
-    barrierColor: ViroColors.primary900.withValues(alpha: 0.92),
-    builder: (ctx) {
-      return GestureDetector(
-        onTap: () => Navigator.pop(ctx),
-        child: InteractiveViewer(
-          minScale: 1,
-          maxScale: 4,
-          child: Center(
-            child: Image.network(
-              imageUrl,
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
-      );
-    },
+  return showViroImageLightbox(
+    context,
+    imageUrl: imageUrl,
+    shape: ViroImageLightboxShape.free,
   );
 }

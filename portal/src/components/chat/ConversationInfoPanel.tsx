@@ -1,7 +1,15 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type FormEvent,
+} from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
+import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import { extractConversationMedia } from "@/lib/chat/extractConversationMedia";
@@ -15,6 +23,7 @@ import {
 } from "@/lib/clubSetup/clubBrandColors";
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import {
+  canEditGroupAvatar,
   chatDisplayTitle,
   isGroupConversation,
   type ChatConversation,
@@ -36,6 +45,8 @@ type ConversationInfoPanelProps = {
   onToggleMute: () => void;
   onToggleFavorite: () => void;
   onRename: (title: string) => Promise<void>;
+  /** Upload avatar groupe (fichier image). */
+  onChangeAvatar?: (file: File) => Promise<void>;
   /** Ouvre directement le dialog renommer. */
   initialRenameOpen?: boolean;
 };
@@ -57,9 +68,14 @@ export function ConversationInfoPanel({
   onToggleMute,
   onToggleFavorite,
   onRename,
+  onChangeAvatar,
   initialRenameOpen = false,
 }: ConversationInfoPanelProps) {
   const isGroup = isGroupConversation(conversation);
+  const canEditAvatar = canEditGroupAvatar(conversation) && !!onChangeAvatar;
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [renameOpen, setRenameOpen] = useState(initialRenameOpen);
   const dmOther =
@@ -84,6 +100,7 @@ export function ConversationInfoPanel({
   const mediaCount = media.images.length + media.links.length;
   const memberCount = participants.length;
   const memberLabel = `${memberCount} membre${memberCount > 1 ? "s" : ""}`;
+  const groupAvatarUrl = conversation.avatarUrl?.trim() || null;
 
   const selected = selectedUid
     ? participants.find((participant) => participant.uid === selectedUid) ??
@@ -106,6 +123,18 @@ export function ConversationInfoPanel({
   function openRename() {
     setRenameDraft(title);
     setRenameOpen(true);
+  }
+
+  async function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    if (!file || !onChangeAvatar || avatarBusy) return;
+    setAvatarBusy(true);
+    try {
+      await onChangeAvatar(file);
+    } finally {
+      setAvatarBusy(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
   }
 
   if (selected) {
@@ -136,6 +165,20 @@ export function ConversationInfoPanel({
     );
   }
 
+  const heroFallbackStyle = groupAvatarUrl
+    ? undefined
+    : ({
+        background: `color-mix(in srgb, ${brand} 28%, white)`,
+        color: brand,
+      } as CSSProperties);
+
+  const heroAvatarInner = groupAvatarUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={groupAvatarUrl} alt="" className={styles.heroAvatarImg} />
+  ) : (
+    title.trim().slice(0, 1).toUpperCase() || "?"
+  );
+
   return (
     <aside className={styles.panel} aria-label="Infos de la discussion">
       <header className={styles.header}>
@@ -154,18 +197,72 @@ export function ConversationInfoPanel({
 
       <div className={styles.scrollBody}>
         <div className={styles.hero}>
-          <span
-            className={styles.heroAvatar}
-            style={
-              {
-                background: `color-mix(in srgb, ${brand} 28%, white)`,
-                color: brand,
-              } as CSSProperties
-            }
-            aria-hidden
-          >
-            {title.trim().slice(0, 1).toUpperCase() || "?"}
-          </span>
+          {groupAvatarUrl ? (
+            <button
+              type="button"
+              className={styles.heroAvatarBtn}
+              aria-label={
+                canEditAvatar
+                  ? "Agrandir la photo du groupe"
+                  : "Agrandir la photo"
+              }
+              disabled={avatarBusy}
+              onClick={() => setAvatarLightboxOpen(true)}
+            >
+              <span className={styles.heroAvatar} style={heroFallbackStyle}>
+                {heroAvatarInner}
+              </span>
+              {canEditAvatar ? (
+                <span className={styles.heroAvatarBadge} aria-hidden>
+                  <ChatIcon name="image" size={14} />
+                </span>
+              ) : null}
+            </button>
+          ) : canEditAvatar ? (
+            <button
+              type="button"
+              className={styles.heroAvatarBtn}
+              aria-label="Changer la photo du groupe"
+              disabled={avatarBusy}
+              onClick={() => avatarInputRef.current?.click()}
+            >
+              <span className={styles.heroAvatar} style={heroFallbackStyle}>
+                {heroAvatarInner}
+              </span>
+              <span className={styles.heroAvatarBadge} aria-hidden>
+                <ChatIcon name="image" size={14} />
+              </span>
+            </button>
+          ) : (
+            <span
+              className={styles.heroAvatar}
+              style={heroFallbackStyle}
+              aria-hidden
+            >
+              {heroAvatarInner}
+            </span>
+          )}
+          {canEditAvatar ? (
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className={styles.fileInput}
+              onChange={(event) => void handleAvatarFileChange(event)}
+            />
+          ) : null}
+          {avatarLightboxOpen && groupAvatarUrl ? (
+            <AvatarLightbox
+              src={groupAvatarUrl}
+              alt={`Photo de ${title}`}
+              onClose={() => setAvatarLightboxOpen(false)}
+              onEdit={
+                canEditAvatar
+                  ? () => avatarInputRef.current?.click()
+                  : undefined
+              }
+            />
+          ) : null}
 
           <div className={styles.heroTitleRow}>
             <h3 className={styles.heroTitle}>{title}</h3>

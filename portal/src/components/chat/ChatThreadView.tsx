@@ -58,6 +58,7 @@ import {
   sendPollMessage,
   sendTextMessage,
   setFavorite,
+  uploadAndSetConversationAvatar,
   setMuted,
   softDeleteMessage,
   toggleReaction,
@@ -73,6 +74,7 @@ import {
 import {
   chatDisplayTitle,
   chatStateDocId,
+  canEditGroupAvatar,
   hasVotedFor,
   isChatMessageDeleted,
   isGroupConversation,
@@ -192,6 +194,7 @@ export function ChatThreadView({
   const [editDraft, setEditDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const avatarMenuInputRef = useRef<HTMLInputElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const attachWrapRef = useRef<HTMLDivElement | null>(null);
   const lastMarkedIdRef = useRef<string | null>(null);
@@ -523,6 +526,9 @@ export function ChatThreadView({
   const canPoll =
     canWrite && conversation != null && isGroupConversation(conversation);
   const isGroup = conversation ? isGroupConversation(conversation) : false;
+  const canChangeGroupAvatar = conversation
+    ? canEditGroupAvatar(conversation)
+    : false;
   const muted = chatState?.muted ?? false;
   const favorite = chatState?.favorite ?? false;
   const senderFirstName =
@@ -783,6 +789,40 @@ export function ChatThreadView({
       conversationId,
       titleOverride: nextTitle,
     });
+  }
+
+  async function handleChangeAvatar(file: File) {
+    if (!user) return;
+    const bytes = await file.arrayBuffer();
+    const contentType = file.type.startsWith("image/")
+      ? file.type
+      : "image/jpeg";
+    await uploadAndSetConversationAvatar({
+      clubId,
+      conversationId,
+      uid: user.uid,
+      bytes,
+      contentType,
+    });
+  }
+
+  function openChangeAvatarFromMenu() {
+    setMenuOpen(false);
+    avatarMenuInputRef.current?.click();
+  }
+
+  async function handleAvatarMenuFileChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) return;
+    try {
+      await handleChangeAvatar(file);
+    } catch {
+      setError("Impossible de changer la photo.");
+    } finally {
+      if (avatarMenuInputRef.current) avatarMenuInputRef.current.value = "";
+    }
   }
 
   function openSearch() {
@@ -1050,6 +1090,15 @@ export function ChatThreadView({
                   >
                     <ChatIcon name="edit" size={18} />
                     Renommer
+                  </button>
+                ) : null}
+                {canChangeGroupAvatar ? (
+                  <button
+                    type="button"
+                    onClick={openChangeAvatarFromMenu}
+                  >
+                    <ChatIcon name="image" size={18} />
+                    Changer la photo
                   </button>
                 ) : null}
                 {canPoll ? (
@@ -1418,6 +1467,13 @@ export function ChatThreadView({
             hidden
             onChange={(e) => void handleImage(e)}
           />
+          <input
+            ref={avatarMenuInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => void handleAvatarMenuFileChange(e)}
+          />
           <div className={styles.composerRow}>
           <div className={styles.attachWrap} ref={attachWrapRef}>
             <button
@@ -1550,6 +1606,7 @@ export function ChatThreadView({
           onToggleMute={() => void handleToggleMute()}
           onToggleFavorite={() => void handleToggleFavorite()}
           onRename={handleRename}
+          onChangeAvatar={handleChangeAvatar}
           initialRenameOpen={infoRenameOpen}
         />
       ) : null}

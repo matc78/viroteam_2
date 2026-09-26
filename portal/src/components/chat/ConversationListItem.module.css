@@ -2,36 +2,45 @@
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;
-  width: 100%;
-  padding: 0.7rem 0.85rem;
+  width: calc(100% - 0.5rem);
+  margin: 0.05rem 0.25rem;
+  padding: 0.7rem 0.7rem;
   border: none;
-  border-bottom: 1px solid var(--color-gray-100);
+  border-radius: 0.55rem;
   background: transparent;
   text-align: left;
   cursor: pointer;
   font: inherit;
   color: inherit;
+  transition: background-color 0.12s ease;
 }
 
 .item:hover {
-  background: color-mix(in srgb, var(--color-primary-500) 6%, white);
+  background: var(--color-gray-100);
 }
 
 .itemSelected {
-  background: color-mix(in srgb, var(--color-primary-500) 10%, white);
-  box-shadow: inset 3px 0 0 var(--color-primary-500);
+  background: var(--color-gray-100);
+}
+
+.itemSelected:hover {
+  background: color-mix(in srgb, var(--color-gray-200) 70%, var(--color-gray-100));
 }
 
 .itemUnread {
-  background: color-mix(in srgb, var(--color-primary-500) 12%, white);
+  background: transparent;
 }
 
 .itemUnread:hover {
-  background: color-mix(in srgb, var(--color-primary-500) 16%, white);
+  background: var(--color-gray-100);
 }
 
 .itemUnread.itemSelected {
-  background: color-mix(in srgb, var(--color-primary-500) 16%, white);
+  background: var(--color-gray-100);
+}
+
+.itemUnread.itemSelected:hover {
+  background: color-mix(in srgb, var(--color-gray-200) 70%, var(--color-gray-100));
 }
 
 .itemUnread .title {
@@ -39,13 +48,12 @@
 }
 
 .itemUnread .date {
-  font-weight: 700;
-  color: var(--color-primary-600);
+  font-weight: 600;
+  color: var(--color-gray-500);
 }
 
 .itemUnread .preview {
-  font-weight: 700;
-  color: var(--color-primary-800);
+  color: var(--color-gray-600);
 }
 
 .avatar {
@@ -62,6 +70,33 @@
   font-size: 0.95rem;
 }
 
+.avatarGroup {
+  background: var(--color-sport-green);
+  color: #fff;
+}
+
+.avatarPhoto {
+  padding: 0;
+  overflow: hidden;
+  background: var(--color-gray-100);
+}
+
+.avatarZoomable {
+  cursor: zoom-in;
+}
+
+.avatarPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatarChannel {
+  background: var(--color-role-admin);
+  color: #fff;
+}
+
 .body {
   display: flex;
   flex-direction: column;
@@ -72,13 +107,15 @@
 
 .topRow {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .title {
-  font-size: 0.9rem;
+  min-width: 0;
+  flex-shrink: 1;
+  font-size: 0.98rem;
   font-weight: 700;
   color: var(--color-primary-900);
   overflow: hidden;
@@ -96,20 +133,16 @@
 
 .date {
   flex-shrink: 0;
+  margin-left: auto;
   font-size: 0.72rem;
-  color: var(--color-gray-500);
-}
-
-.metaRow {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
+  color: var(--color-gray-400);
 }
 
 .clubBadge {
   display: inline-block;
-  max-width: 10rem;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 8rem;
   padding: 0.08rem 0.45rem;
   border-radius: 999px;
   background: var(--club-brand, var(--color-primary-500));
@@ -124,10 +157,14 @@
 .muteMark {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   color: var(--color-primary-600);
 }
 
 .preview {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
   font-size: 0.78rem;
   color: var(--color-gray-500);
   overflow: hidden;
@@ -147,33 +184,40 @@
 }
 
 .previewName {
-  color: var(--color-gray-600);
+  flex-shrink: 0;
   font-weight: 600;
+  color: var(--color-gray-400);
 }
 
 .previewArrow {
-  font-weight: 700;
-  color: var(--color-role-player);
-}
-
-.previewArrow[data-role="player"] {
-  color: var(--color-role-player);
-}
-
-.previewArrow[data-role="coach"] {
-  color: var(--color-role-coach);
-}
-
-.previewArrow[data-role="admin"] {
-  color: var(--color-role-admin);
-}
-
-.previewArrow[data-role="parent"] {
-  color: var(--color-role-parent);
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: var(--color-gray-100);
+  color: var(--color-gray-400);
 }
 
 .previewMessage {
-  color: inherit;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--color-gray-400);
+}
+
+.previewEmpty {
+  font-style: italic;
+  color: var(--color-gray-400);
+}
+
+.itemUnread .previewMessage {
+  font-weight: 600;
+  color: var(--color-gray-600);
 }
 
 .unreadBadge {

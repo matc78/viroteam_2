@@ -9,6 +9,7 @@ import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/utils/linkify_message_text.dart';
+import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
 import 'package:viro_team_v2/widgets/lists/poll_voter_list_tile.dart';
 
 /// Médias extraits d’un thread (photos + liens).
@@ -51,6 +52,7 @@ Future<void> showConversationInfoSheet({
   required VoidCallback onToggleMute,
   required VoidCallback onToggleFavorite,
   required VoidCallback onRename,
+  VoidCallback? onChangeAvatar,
   void Function(String imageUrl)? onOpenImage,
 }) {
   final participantMembers = <ClubMember>[];
@@ -66,6 +68,11 @@ Future<void> showConversationInfoSheet({
   final media = extractConversationMedia(messages);
   final muted = state?.muted ?? false;
   final favorite = state?.favorite ?? false;
+  final canEditAvatar =
+      conversation.canEditGroupAvatar && onChangeAvatar != null;
+  final groupPhoto = conversation.avatarUrl?.trim();
+  final hasGroupPhoto =
+      groupPhoto != null && groupPhoto.isNotEmpty && conversation.isGroup;
 
   return showModalBottomSheet<void>(
     context: context,
@@ -96,6 +103,37 @@ Future<void> showConversationInfoSheet({
                         ),
                   ),
                 ),
+                if (conversation.isGroup)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: ViroSpacing.md),
+                    child: Center(
+                      child: _GroupInfoAvatar(
+                        photoUrl: hasGroupPhoto ? groupPhoto : null,
+                        isChannel: conversation.isReadonlyForMembers,
+                        canEdit: canEditAvatar,
+                        onTap: hasGroupPhoto || canEditAvatar
+                            ? () {
+                                if (hasGroupPhoto) {
+                                  showViroImageLightbox(
+                                    ctx,
+                                    imageUrl: groupPhoto,
+                                    onEdit: canEditAvatar
+                                        ? () {
+                                            Navigator.pop(ctx);
+                                            onChangeAvatar();
+                                          }
+                                        : null,
+                                    shape: ViroImageLightboxShape.circle,
+                                  );
+                                } else {
+                                  Navigator.pop(ctx);
+                                  onChangeAvatar?.call();
+                                }
+                              }
+                            : null,
+                      ),
+                    ),
+                  ),
                 ListTile(
                   leading: ViroIcon(
                     favorite ? ViroIcons.favoriteFill : ViroIcons.favorite,
@@ -135,6 +173,18 @@ Future<void> showConversationInfoSheet({
                     onRename();
                   },
                 ),
+                if (canEditAvatar)
+                  ListTile(
+                    leading: ViroIcon(
+                      ViroIcons.camera,
+                      color: ViroColors.primary600,
+                    ),
+                    title: Text(AppCopy.chat.changeGroupAvatar),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      onChangeAvatar();
+                    },
+                  ),
                 const Divider(height: 1),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -256,6 +306,98 @@ Future<void> showConversationInfoSheet({
       );
     },
   );
+}
+
+/// Avatar hero du sheet infos (groupe / canal).
+class _GroupInfoAvatar extends StatelessWidget {
+  const _GroupInfoAvatar({
+    required this.isChannel,
+    required this.canEdit,
+    this.photoUrl,
+    this.onTap,
+  });
+
+  final String? photoUrl;
+  final bool isChannel;
+  final bool canEdit;
+  final VoidCallback? onTap;
+
+  static const double _size = 88;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = photoUrl?.trim();
+    final hasPhoto = trimmed != null && trimmed.isNotEmpty;
+    final Widget child;
+    if (hasPhoto) {
+      child = ClipOval(
+        child: Image.network(
+          trimmed,
+          width: _size,
+          height: _size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _fallbackIcon(),
+        ),
+      );
+    } else {
+      child = _fallbackIcon();
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap ??
+            (hasPhoto
+                ? () {
+                    showViroImageLightbox(
+                      context,
+                      imageUrl: trimmed,
+                      shape: ViroImageLightboxShape.circle,
+                    );
+                  }
+                : null),
+        customBorder: const CircleBorder(),
+        child: Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            child,
+            if (canEdit)
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: ViroColors.primary600,
+                  shape: BoxShape.circle,
+                ),
+                child: ViroIcon(
+                  ViroIcons.camera,
+                  size: 14,
+                  color: ViroColors.white,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fallbackIcon() {
+    return Container(
+      width: _size,
+      height: _size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: isChannel ? ViroColors.adminBadgeEnd : ViroColors.sportGreen,
+        shape: BoxShape.circle,
+      ),
+      child: ViroIcon(
+        isChannel ? ViroIcons.megaphone : ViroIcons.groups,
+        size: 36,
+        color: ViroColors.white,
+      ),
+    );
+  }
 }
 
 String _memberDisplayName(ClubMember member) {

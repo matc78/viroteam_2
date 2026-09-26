@@ -1,10 +1,10 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
+import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import {
-  previewSenderRoleTone,
   resolveConversationPreviewSender,
   type ChatPreviewSender,
 } from "@/lib/chat/conversationPreview";
@@ -16,6 +16,8 @@ import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import {
   chatDisplayTitle,
   chatStateDocId,
+  isChannelConversation,
+  isGroupConversation,
   type ChatConversation,
   type ChatUserState,
 } from "@/lib/firebase/chatTypes";
@@ -84,33 +86,81 @@ export function ConversationListItem({
     clubColor ?? ClubSetupDefaults.brandColorHex,
   ).primary;
   const brandText = readableTextOnBrand(brand);
+  const isGroup = isGroupConversation(conversation);
+  const isChannel = isChannelConversation(conversation);
+  const groupAvatarUrl =
+    isGroup && !isChannel ? conversation.avatarUrl?.trim() || null : null;
+  const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
   const previewSender = resolveConversationPreviewSender(
     conversation,
     previewSenderByKey,
   );
   const previewText = conversation.lastMessagePreview.trim();
-  const arrowRole = previewSenderRoleTone(previewSender?.role);
   const unreadPreviewLabel =
     unread <= 1 ? `${unread} nouveau message` : `${unread} nouveaux messages`;
 
+  let previewContent: ReactNode;
+  if (unread > 0) {
+    previewContent = unreadPreviewLabel;
+  } else if (!previewText) {
+    previewContent = <span className={styles.previewEmpty}>Aucun message</span>;
+  } else if (isGroup && previewSender) {
+    previewContent = (
+      <>
+        <span className={styles.previewName}>{previewSender.firstName}</span>
+        <span className={styles.previewArrow} aria-hidden>
+          <ChatIcon name="previewArrow" size={11} />
+        </span>
+        <span className={styles.previewMessage}>{previewText}</span>
+      </>
+    );
+  } else {
+    previewContent = (
+      <span className={styles.previewMessage}>{previewText}</span>
+    );
+  }
+
   return (
+    <>
     <button
       type="button"
       className={`${styles.item}${selected ? ` ${styles.itemSelected}` : ""}${unread > 0 ? ` ${styles.itemUnread}` : ""}`}
       onClick={onSelect}
     >
-      <span
-        className={styles.avatar}
-        style={
-          {
-            background: `color-mix(in srgb, ${brand} 35%, white)`,
-            color: brand,
-          } as CSSProperties
-        }
-        aria-hidden
-      >
-        {initial}
-      </span>
+      {isChannel ? (
+        <span className={`${styles.avatar} ${styles.avatarChannel}`} aria-hidden>
+          <ChatIcon name="megaphone" size={18} />
+        </span>
+      ) : isGroup && groupAvatarUrl ? (
+        <span
+          className={`${styles.avatar} ${styles.avatarPhoto} ${styles.avatarZoomable}`}
+          aria-hidden
+          onClick={(event) => {
+            event.stopPropagation();
+            setPhotoLightboxOpen(true);
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={groupAvatarUrl} alt="" />
+        </span>
+      ) : isGroup ? (
+        <span className={`${styles.avatar} ${styles.avatarGroup}`} aria-hidden>
+          <ChatIcon name="usersThree" size={18} />
+        </span>
+      ) : (
+        <span
+          className={styles.avatar}
+          style={
+            {
+              background: `color-mix(in srgb, ${brand} 35%, white)`,
+              color: brand,
+            } as CSSProperties
+          }
+          aria-hidden
+        >
+          {initial}
+        </span>
+      )}
       <span className={styles.body}>
         <span className={styles.topRow}>
           <span className={styles.title}>
@@ -121,11 +171,6 @@ export function ConversationListItem({
             ) : null}
             {title}
           </span>
-          <span className={styles.date}>
-            {formatListDate(conversation.lastMessageAt)}
-          </span>
-        </span>
-        <span className={styles.metaRow}>
           {clubName ? (
             <span
               className={styles.clubBadge}
@@ -147,32 +192,11 @@ export function ConversationListItem({
               <ChatIcon name="mute" size={12} />
             </span>
           ) : null}
+          <span className={styles.date}>
+            {formatListDate(conversation.lastMessageAt)}
+          </span>
         </span>
-        <span className={styles.preview}>
-          {unread > 0 ? (
-            unreadPreviewLabel
-          ) : previewText ? (
-            previewSender ? (
-              <>
-                <span className={styles.previewName}>
-                  {previewSender.firstName}
-                </span>{" "}
-                <span
-                  className={styles.previewArrow}
-                  data-role={arrowRole}
-                  aria-hidden
-                >
-                  →
-                </span>{" "}
-                <span className={styles.previewMessage}>{previewText}</span>
-              </>
-            ) : (
-              previewText
-            )
-          ) : (
-            "Aucun message"
-          )}
-        </span>
+        <span className={styles.preview}>{previewContent}</span>
       </span>
       {unread > 0 ? (
         <span
@@ -183,6 +207,14 @@ export function ConversationListItem({
         </span>
       ) : null}
     </button>
+    {photoLightboxOpen && groupAvatarUrl ? (
+      <AvatarLightbox
+        src={groupAvatarUrl}
+        alt={`Photo de ${title}`}
+        onClose={() => setPhotoLightboxOpen(false)}
+      />
+    ) : null}
+    </>
   );
 }
 

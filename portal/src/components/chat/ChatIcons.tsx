@@ -26,7 +26,10 @@ export type ChatIconName =
   | "chevronUp"
   | "chevronLeft"
   | "chevronRight"
-  | "reply";
+  | "reply"
+  | "usersThree"
+  | "megaphone"
+  | "previewArrow";
 
 type ChatIconProps = {
   name: ChatIconName;
@@ -201,6 +204,32 @@ const ICON_PATHS: Record<ChatIconName, ReactNode> = {
     <>
       <path d="M88 168l-40 40V128h40z" />
       <path d="M72 128a56 56 0 0 1 96-40 56 56 0 0 1 0 80" />
+    </>
+  ),
+  /** Trois silhouettes — avatar groupe multi-users. */
+  usersThree: (
+    <>
+      <circle cx="128" cy="80" r="24" />
+      <path d="M80 176c0-26.5 21.5-48 48-48s48 21.5 48 48" />
+      <circle cx="52" cy="100" r="18" />
+      <path d="M16 184c0-20 16-36 36-36" />
+      <circle cx="204" cy="100" r="18" />
+      <path d="M240 184c0-20-16-36-36-36" />
+    </>
+  ),
+  /** Mégaphone — avatar canal (écriture restreinte). */
+  megaphone: (
+    <>
+      <path d="M40 108h36l104-44v128L76 148H40a8 8 0 0 1-8-8v-24a8 8 0 0 1 8-8z" />
+      <path d="M76 148l14 36a8 8 0 0 0 14.6-6.4L92 148" />
+      <path d="M196 104a24 24 0 0 1 0 48" />
+    </>
+  ),
+  /** Flèche courte moderne pour la preview inbox. */
+  previewArrow: (
+    <>
+      <path d="M40 128h128" />
+      <path d="M128 80l80 48-80 48" />
     </>
   ),
 };

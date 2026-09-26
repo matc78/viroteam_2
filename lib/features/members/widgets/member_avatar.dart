@@ -3,6 +3,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
 
 /// Avatar membre : photo / initiales / icône ; tap pour zoomer si photo.
 class MemberAvatar extends StatelessWidget {
@@ -12,6 +13,7 @@ class MemberAvatar extends StatelessWidget {
     this.size = 44,
     this.accentColor,
     this.showAccentBorder = false,
+    this.onEdit,
   });
 
   final ClubMember member;
@@ -20,6 +22,9 @@ class MemberAvatar extends StatelessWidget {
 
   /// Bordure couleur club (ex. avatar contextuel parent dans un sélecteur).
   final bool showAccentBorder;
+
+  /// Si fourni, le lightbox affiche un bouton « Modifier ».
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -88,68 +93,20 @@ class MemberAvatar extends StatelessWidget {
     if (!hasPhoto) return avatar;
 
     return GestureDetector(
-      onTap: () => _showZoom(context, photoUrl),
+      onTap: () {
+        showViroImageLightbox(
+          context,
+          imageUrl: photoUrl,
+          semanticLabel: AppCopy.members.enlargePhoto(member.fullName),
+          onEdit: onEdit,
+          shape: ViroImageLightboxShape.circle,
+        );
+      },
       child: Semantics(
         button: true,
         label: AppCopy.members.enlargePhoto(member.fullName),
         child: avatar,
       ),
-    );
-  }
-
-  void _showZoom(BuildContext context, String photoUrl) {
-    showDialog<void>(
-      context: context,
-      barrierColor: ViroColors.primary900.withValues(alpha: 0.72),
-      builder: (dialogContext) {
-        return GestureDetector(
-          onTap: () => Navigator.of(dialogContext).pop(),
-          behavior: HitTestBehavior.opaque,
-          child: Stack(
-            children: [
-              Center(
-                child: GestureDetector(
-                  onTap: () {},
-                  child: ClipOval(
-                    child: Image.network(
-                      photoUrl,
-                      width: 280,
-                      height: 280,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 280,
-                        height: 280,
-                        color: ViroColors.gray200,
-                        alignment: Alignment.center,
-                        child: ViroIcon(
-                          ViroIcons.user,
-                          size: 64,
-                          color: ViroColors.gray600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: MediaQuery.paddingOf(dialogContext).top + 12,
-                right: 16,
-                child: IconButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  icon: ViroIcon(
-                    ViroIcons.close,
-                    color: ViroColors.white,
-                    size: 22,
-                  ),
-                  style: IconButton.styleFrom(
-                    backgroundColor: ViroColors.white.withValues(alpha: 0.18),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

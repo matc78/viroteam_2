@@ -143,33 +143,43 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                   ),
                   const SizedBox(height: ViroSpacing.sm),
                   Center(
-                    child: ViroPressable(
-                      onTap: _pickLogo,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Column(
-                        children: [
-                          ClubContextAvatar(
-                            club: club,
-                            accentColor: brandColors.primary,
-                            logoPreviewBytes: _logoPreviewBytes,
-                            size: 88,
-                            borderRadius: 20,
+                    child: Column(
+                      children: [
+                        ClubContextAvatar(
+                          club: club,
+                          accentColor: brandColors.primary,
+                          logoPreviewBytes: _logoPreviewBytes,
+                          size: 88,
+                          borderRadius: 20,
+                          onEdit: _pickLogo,
+                        ),
+                        const SizedBox(height: ViroSpacing.xs),
+                        ViroPressable(
+                          onTap: _pickLogo,
+                          borderRadius: BorderRadius.circular(
+                            ViroSpacing.buttonRadius,
                           ),
-                          const SizedBox(height: ViroSpacing.xs),
-                          Text(
-                            _logoPreviewBytes != null
-                                ? AppCopy.club.editLogo
-                                : AppCopy.club.changeLogo,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
-                                ?.copyWith(
-                                  color: brandColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: ViroSpacing.sm,
+                              vertical: ViroSpacing.xs,
+                            ),
+                            child: Text(
+                              _logoPreviewBytes != null ||
+                                      (club.logoUrl?.trim().isNotEmpty ?? false)
+                                  ? AppCopy.club.editLogo
+                                  : AppCopy.club.changeLogo,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge
+                                  ?.copyWith(
+                                    color: brandColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: ViroSpacing.lg),

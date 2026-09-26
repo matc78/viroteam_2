@@ -212,6 +212,34 @@
   flex-shrink: 0;
 }
 
+.avatarPreviewBtn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+  line-height: 0;
+}
+
+.avatarPreviewBtn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.logoPreviewBtn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  line-height: 0;
+}
+
+.logoPreviewBtn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .avatarFallback {
   display: inline-flex;
   align-items: center;

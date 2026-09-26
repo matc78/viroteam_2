@@ -129,6 +129,10 @@
   background: color-mix(in srgb, white 35%, transparent);
 }
 
+.clubMarkZoomable {
+  cursor: zoom-in;
+}
+
 .clubMarkEmoji {
   display: inline-flex;
   align-items: center;

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
+import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { SettingsAccordion } from "@/components/settings/SettingsAccordion";
 import { useToast } from "@/components/ToastProvider";
 import { validatePassword, PASSWORD_POLICY_HINT } from "@/lib/auth/passwordPolicy";
@@ -36,6 +37,7 @@ export function AccountSettingsSection() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
 
   useEffect(() => {
     setEmailDraft(profile?.email ?? "");
@@ -210,12 +212,28 @@ export function AccountSettingsSection() {
         >
           <div className={shared.mediaRow}>
             {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt="" className={shared.avatarPreview} />
+              <button
+                type="button"
+                className={shared.avatarPreviewBtn}
+                onClick={() => setAvatarLightboxOpen(true)}
+                aria-label="Agrandir l’avatar"
+                disabled={busy !== null}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={avatarUrl} alt="" className={shared.avatarPreview} />
+              </button>
             ) : (
-              <span className={shared.avatarFallback} aria-hidden="true">
-                {initials}
-              </span>
+              <button
+                type="button"
+                className={shared.avatarPreviewBtn}
+                onClick={() => avatarInputRef.current?.click()}
+                aria-label="Changer l’avatar"
+                disabled={busy !== null}
+              >
+                <span className={shared.avatarFallback} aria-hidden="true">
+                  {initials}
+                </span>
+              </button>
             )}
             <input
               ref={avatarInputRef}
@@ -238,6 +256,14 @@ export function AccountSettingsSection() {
               {busy === "avatar" ? "Upload…" : "Changer l’avatar"}
             </button>
           </div>
+          {avatarLightboxOpen && avatarUrl ? (
+            <AvatarLightbox
+              src={avatarUrl}
+              alt="Ton avatar"
+              onClose={() => setAvatarLightboxOpen(false)}
+              onEdit={() => avatarInputRef.current?.click()}
+            />
+          ) : null}
         </SettingsAccordion>
 
         <SettingsAccordion

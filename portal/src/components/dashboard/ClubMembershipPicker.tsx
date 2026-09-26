@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import type {
   ClubMembershipTile,
   PortalSpace,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/clubSetup/clubBrandColors";
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { sportEmoji } from "@/lib/sports/sportEmoji";
+import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import styles from "./ClubMembershipPicker.module.css";
 
@@ -57,6 +58,11 @@ export function ClubMembershipPicker({
   formatSecondaryLabel,
   onClubChange,
 }: ClubMembershipPickerProps) {
+  const [logoLightbox, setLogoLightbox] = useState<{
+    src: string;
+    alt: string;
+  } | null>(null);
+
   if (clubs.length === 0 && !showCreateClub) return null;
 
   return (
@@ -79,6 +85,7 @@ export function ClubMembershipPicker({
           const textColor = readableTextOnBrand(brand);
           const clubName = club.name.trim() || "Club";
           const secondaryLabel = formatSecondaryLabel?.(club) ?? null;
+          const logoUrl = club.logoUrl?.trim() || null;
 
           return (
             <button
@@ -97,12 +104,19 @@ export function ClubMembershipPicker({
                 if (!isActive) onClubChange(club.id, club.space);
               }}
             >
-              {club.logoUrl ? (
+              {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={club.logoUrl}
+                  src={logoUrl}
                   alt=""
-                  className={styles.clubMark}
+                  className={`${styles.clubMark} ${styles.clubMarkZoomable}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setLogoLightbox({
+                      src: logoUrl,
+                      alt: `Logo de ${clubName}`,
+                    });
+                  }}
                 />
               ) : (
                 <span className={styles.clubMarkEmoji} aria-hidden>
@@ -139,6 +153,14 @@ export function ClubMembershipPicker({
             +
           </span>
         </Link>
+      ) : null}
+      {logoLightbox ? (
+        <AvatarLightbox
+          src={logoLightbox.src}
+          alt={logoLightbox.alt}
+          onClose={() => setLogoLightbox(null)}
+          shape="rounded"
+        />
       ) : null}
     </div>
   );

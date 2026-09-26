@@ -6,6 +6,7 @@ import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/sport_emoji.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
 class ClubListTile extends StatelessWidget {
@@ -99,7 +100,7 @@ class _ClubAvatar extends StatelessWidget {
     final trimmedLogo = logoUrl?.trim();
     final hasLogo = trimmedLogo != null && trimmedLogo.isNotEmpty;
 
-    return Container(
+    final avatar = Container(
       width: 52,
       height: 52,
       decoration: BoxDecoration(
@@ -120,6 +121,19 @@ class _ClubAvatar extends StatelessWidget {
               sportEmoji(sport),
               style: const TextStyle(fontSize: 24),
             ),
+    );
+
+    if (!hasLogo) return avatar;
+
+    return GestureDetector(
+      onTap: () {
+        showViroImageLightbox(
+          context,
+          imageUrl: trimmedLogo,
+          shape: ViroImageLightboxShape.rounded,
+        );
+      },
+      child: avatar,
     );
   }
 }

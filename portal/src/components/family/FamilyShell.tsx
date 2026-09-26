@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { FamilyRouteGuard } from "@/components/auth/FamilyRouteGuard";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
+import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { PersonalPlanningTile } from "@/components/dashboard/PersonalPlanningTile";
 import { MessagingTile } from "@/components/chat/MessagingTile";
@@ -79,6 +80,8 @@ function FamilyShellChrome() {
   const feeDeadlineUrgent = useFamilyFeeDeadlineUrgency(
     selectedTarget?.memberId ?? null,
   );
+  const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
+  const profileAvatarUrl = profile?.avatarUrl?.trim() || null;
 
   const clubsWithRoles = useMemo(
     () => buildClubMembershipTiles(bureauClubs, familyClubs, profile),
@@ -160,41 +163,68 @@ function FamilyShellChrome() {
           <div className={styles.actions}>
             <PersonalPlanningTile href="/family/my-planning" />
             <MessagingTile />
-            <Link
-              href="/family/settings"
-              className={styles.userBlockLink}
-              aria-label="Ouvrir les paramètres"
-              onClick={() => {
-                if (pathname !== "/family/settings") {
-                  beginPageLoad("/family/settings");
-                }
-              }}
-            >
-              {profile?.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.avatarUrl}
-                  alt=""
-                  className={styles.avatarImage}
-                />
-              ) : (
-                <span
-                  className={`${styles.avatar} ${styles.avatarToneParent}`}
-                  aria-hidden="true"
+            <div className={styles.userBlock}>
+              {profileAvatarUrl ? (
+                <button
+                  type="button"
+                  className={styles.avatarZoomBtn}
+                  aria-label="Agrandir ta photo"
+                  onClick={() => setAvatarLightboxOpen(true)}
                 >
-                  {userInitials(resolvedName)}
-                </span>
-              )}
-              <div className={styles.userMeta}>
-                <span className={styles.userName}>{resolvedName}</span>
-                {!onCrossClub ? (
-                  <RoleBadge
-                    role={PortalUiRoles.parent}
-                    className={styles.roleChip}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={profileAvatarUrl}
+                    alt=""
+                    className={styles.avatarImage}
                   />
-                ) : null}
-              </div>
-            </Link>
+                </button>
+              ) : (
+                <Link
+                  href="/family/settings"
+                  className={styles.avatarLink}
+                  aria-label="Ouvrir les paramètres"
+                  onClick={() => {
+                    if (pathname !== "/family/settings") {
+                      beginPageLoad("/family/settings");
+                    }
+                  }}
+                >
+                  <span
+                    className={`${styles.avatar} ${styles.avatarToneParent}`}
+                    aria-hidden="true"
+                  >
+                    {userInitials(resolvedName)}
+                  </span>
+                </Link>
+              )}
+              <Link
+                href="/family/settings"
+                className={styles.userBlockLink}
+                aria-label="Ouvrir les paramètres"
+                onClick={() => {
+                  if (pathname !== "/family/settings") {
+                    beginPageLoad("/family/settings");
+                  }
+                }}
+              >
+                <div className={styles.userMeta}>
+                  <span className={styles.userName}>{resolvedName}</span>
+                  {!onCrossClub ? (
+                    <RoleBadge
+                      role={PortalUiRoles.parent}
+                      className={styles.roleChip}
+                    />
+                  ) : null}
+                </div>
+              </Link>
+            </div>
+            {avatarLightboxOpen && profileAvatarUrl ? (
+              <AvatarLightbox
+                src={profileAvatarUrl}
+                alt="Ta photo de profil"
+                onClose={() => setAvatarLightboxOpen(false)}
+              />
+            ) : null}
           </div>
         </div>
 

@@ -25,6 +25,7 @@ import {
   isSeasonEndAfterMax,
   maxSeasonEndDate,
 } from "@/lib/planning/seasonEnd";
+import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import shared from "@/components/settings/settingsShared.module.css";
@@ -76,6 +77,7 @@ export function SettingsPageClient() {
 
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
+  const [logoLightboxOpen, setLogoLightboxOpen] = useState(false);
 
   const maxSeason = useMemo(() => maxSeasonEndDate(), []);
   const maxSeasonInput = toDateInputValue(maxSeason);
@@ -272,16 +274,32 @@ export function SettingsPageClient() {
             >
               <div className={shared.mediaRow}>
                 {activeClub?.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={activeClub.logoUrl}
-                    alt=""
-                    className={shared.logoPreview}
-                  />
+                  <button
+                    type="button"
+                    className={shared.logoPreviewBtn}
+                    onClick={() => setLogoLightboxOpen(true)}
+                    aria-label="Agrandir le logo"
+                    disabled={logoBusy}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={activeClub.logoUrl}
+                      alt=""
+                      className={shared.logoPreview}
+                    />
+                  </button>
                 ) : (
-                  <span className={shared.logoFallback} aria-hidden="true">
-                    {clubInitial}
-                  </span>
+                  <button
+                    type="button"
+                    className={shared.logoPreviewBtn}
+                    onClick={() => logoInputRef.current?.click()}
+                    aria-label="Changer le logo"
+                    disabled={logoBusy}
+                  >
+                    <span className={shared.logoFallback} aria-hidden="true">
+                      {clubInitial}
+                    </span>
+                  </button>
                 )}
                 <input
                   ref={logoInputRef}
@@ -309,6 +327,15 @@ export function SettingsPageClient() {
                   {logoBusy ? "Upload…" : "Changer le logo"}
                 </button>
               </div>
+              {logoLightboxOpen && activeClub?.logoUrl ? (
+                <AvatarLightbox
+                  src={activeClub.logoUrl}
+                  alt={`Logo de ${activeClub.name}`}
+                  onClose={() => setLogoLightboxOpen(false)}
+                  onEdit={() => logoInputRef.current?.click()}
+                  shape="rounded"
+                />
+              ) : null}
             </SettingsAccordion>
 
             <SettingsAccordion

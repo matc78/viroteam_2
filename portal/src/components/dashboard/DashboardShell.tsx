@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { BureauRouteGuard } from "@/components/auth/BureauRouteGuard";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
+import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
 import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePanels";
 import { PersonalPlanningTile } from "@/components/dashboard/PersonalPlanningTile";
@@ -100,6 +101,8 @@ export function DashboardShell() {
   } = useAuth();
   const { pendingHref, beginPageLoad } = usePageLoad();
   const feeDeadlineUrgent = usePlayerFeeDeadlineUrgency();
+  const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
+  const profileAvatarUrl = profile?.avatarUrl?.trim() || null;
 
   const clubsWithRoles = useMemo(
     () => buildClubMembershipTiles(bureauClubs, familyClubs, profile),
@@ -191,38 +194,66 @@ export function DashboardShell() {
           <div className={styles.actions}>
             <PersonalPlanningTile href="/my-planning" />
             <MessagingTile />
-            <Link
-              href="/settings"
-              className={styles.userBlockLink}
-              aria-label="Ouvrir les paramètres"
-              onClick={() => {
-                if (pathname !== "/settings") beginPageLoad("/settings");
-              }}
-            >
-              {profile?.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.avatarUrl}
-                  alt=""
-                  className={styles.avatarImage}
-                />
-              ) : (
-                <span
-                  className={[styles.avatar, avatarToneClass(activeClubRole)]
-                    .filter(Boolean)
-                    .join(" ")}
-                  aria-hidden="true"
+            <div className={styles.userBlock}>
+              {profileAvatarUrl ? (
+                <button
+                  type="button"
+                  className={styles.avatarZoomBtn}
+                  aria-label="Agrandir ta photo"
+                  onClick={() => setAvatarLightboxOpen(true)}
                 >
-                  {userInitials(resolvedUserName)}
-                </span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={profileAvatarUrl}
+                    alt=""
+                    className={styles.avatarImage}
+                  />
+                </button>
+              ) : (
+                <Link
+                  href="/settings"
+                  className={styles.avatarLink}
+                  aria-label="Ouvrir les paramètres"
+                  onClick={() => {
+                    if (pathname !== "/settings") beginPageLoad("/settings");
+                  }}
+                >
+                  <span
+                    className={[styles.avatar, avatarToneClass(activeClubRole)]
+                      .filter(Boolean)
+                      .join(" ")}
+                    aria-hidden="true"
+                  >
+                    {userInitials(resolvedUserName)}
+                  </span>
+                </Link>
               )}
-              <div className={styles.userMeta}>
-                <span className={styles.userName}>{resolvedUserName}</span>
-                {!onCrossClub ? (
-                  <RoleBadge role={activeClubRole} className={styles.roleChip} />
-                ) : null}
-              </div>
-            </Link>
+              <Link
+                href="/settings"
+                className={styles.userBlockLink}
+                aria-label="Ouvrir les paramètres"
+                onClick={() => {
+                  if (pathname !== "/settings") beginPageLoad("/settings");
+                }}
+              >
+                <div className={styles.userMeta}>
+                  <span className={styles.userName}>{resolvedUserName}</span>
+                  {!onCrossClub ? (
+                    <RoleBadge
+                      role={activeClubRole}
+                      className={styles.roleChip}
+                    />
+                  ) : null}
+                </div>
+              </Link>
+            </div>
+            {avatarLightboxOpen && profileAvatarUrl ? (
+              <AvatarLightbox
+                src={profileAvatarUrl}
+                alt="Ta photo de profil"
+                onClose={() => setAvatarLightboxOpen(false)}
+              />
+            ) : null}
           </div>
         </div>
 

@@ -16,6 +16,8 @@ type MemberAvatarProps = {
    * dans un bouton parent — ex. ligne réaction).
    */
   enableZoom?: boolean;
+  /** Si fourni, le lightbox affiche un bouton « Modifier ». */
+  onEdit?: () => void;
 };
 
 /** Avatar membre (photo / initiales / icône), zoom au clic si photo. */
@@ -26,6 +28,7 @@ export function MemberAvatar({
   size = "md",
   tone = "default",
   enableZoom = true,
+  onEdit,
 }: MemberAvatarProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const photoUrl = avatarUrl?.trim() || null;
@@ -79,6 +82,7 @@ export function MemberAvatar({
           src={photoUrl}
           alt={`Photo de ${displayName}`}
           onClose={() => setLightboxOpen(false)}
+          onEdit={onEdit}
         />
       ) : null}
     </>

@@ -187,6 +187,26 @@
   transition: background 140ms ease;
 }
 
+.avatarZoomBtn,
+.avatarLink {
+  display: inline-flex;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+  line-height: 0;
+  flex-shrink: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.avatarZoomBtn:focus-visible,
+.avatarLink:focus-visible {
+  outline: 2px solid var(--color-primary-400);
+  outline-offset: 2px;
+}
+
 .userBlockLink:hover {
   background: color-mix(in srgb, var(--color-primary-400) 12%, transparent);
 }

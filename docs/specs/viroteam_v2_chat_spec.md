@@ -7,7 +7,7 @@ Messagerie club pour remplacer les liens WhatsApp équipe / parents.
 - Texte + photos + sondages (groupes > 2, style WhatsApp).
 - Conversations système : `team`, `parents`, `staff`, `club`, `category`.
 - DM / groupe coaches : joueurs et parents uniquement vers coaches de leurs équipes ou admins (callable `createCoachDm`).
-- Réactions emoji, soft-delete, mute, rename (`titleOverride`), favoris (`chatState.favorite`).
+- Réactions emoji, soft-delete, mute, rename (`titleOverride`), avatar groupe (`avatarUrl`), favoris (`chatState.favorite`).
 - Reply / citation (`replyToMessageId`, `replyToText`, `replyToSenderUid`).
 - Pagination historique (fenêtre live + « charger plus »).
 - Push 1 notif / message + préférence `chat`.
@@ -24,6 +24,9 @@ users/{uid}/chatState/{clubId}_{convId}
 Storage médias : `clubs/{clubId}/chat/{convId}/{uid}/{messageId}.jpg` (+ `{messageId}_thumb.png`)
 (uid = uploader ; règles Storage owner-only ; affichage via `downloadUrl` / `thumbUrl` tokenisés)
 
+Avatar groupe (non-canal) : `clubs/{clubId}/chat/{convId}/{uid}/avatar.jpg` → champ `avatarUrl` sur la conversation.
+Tout participant peut changer la photo (même règle que `titleOverride`). Canaux (`admins_only` / `coaches_and_admins`) : pas d’avatar custom.
+
 ## Conversation
 
 | Champ | Type | Notes |
@@ -34,6 +37,7 @@ Storage médias : `clubs/{clubId}/chat/{convId}/{uid}/{messageId}.jpg` (+ `{mess
 | `categoryKey` | string? | |
 | `title` | string | Titre généré |
 | `titleOverride` | string? | Renommage user |
+| `avatarUrl` | string? | Photo du groupe (groupes ouverts uniquement) |
 | `participantUids` | string[] | Auth uids (rules + queries) |
 | `writePolicy` | string | `open` \| `admins_only` \| `coaches_and_admins` |
 | `lastMessageAt` | timestamp | |

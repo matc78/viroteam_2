@@ -33,7 +33,7 @@ UI web style LinkedIn, même backend que l’app (`docs/specs/viroteam_v2_chat_s
 
 ## Parité MVP
 
-Texte, photos, sondages, réactions, soft-delete, mute, favoris, rename, reply/citation ;
+Texte, photos, sondages, réactions, soft-delete, mute, favoris, rename, avatar groupe (non-canal), reply/citation ;
 pagination historique ; canal catégorie (admin) ; paste/drop image composer ;
 callables chat inchangés.
 

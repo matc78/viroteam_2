@@ -158,8 +158,17 @@ class ChatService {
     });
   }
 
+  /// Alloue un id Firestore pour un envoi optimiste (même id côté UI / serveur).
+  String allocateMessageId({
+    required String clubId,
+    required String conversationId,
+  }) =>
+      _messages(clubId, conversationId).doc().id;
+
   /// Envoie un message texte (espaces / sauts de ligne en fin retirés) et met à jour le preview conversation.
-  Future<void> sendTextMessage({
+  ///
+  /// Retourne l’id du document créé. Passe [clientMessageId] pour unifier l’optimistic UI.
+  Future<String> sendTextMessage({
     required String clubId,
     required String conversationId,
     required String senderUid,
@@ -169,10 +178,16 @@ class ChatService {
     String? replyToMessageId,
     String? replyToText,
     String? replyToSenderUid,
+    String? clientMessageId,
   }) async {
     final trimmed = text.trimRight();
-    if (trimmed.trim().isEmpty) return;
-    final ref = _messages(clubId, conversationId).doc();
+    if (trimmed.trim().isEmpty) {
+      throw ArgumentError('text empty');
+    }
+    final clientId = clientMessageId?.trim();
+    final ref = (clientId != null && clientId.isNotEmpty)
+        ? _messages(clubId, conversationId).doc(clientId)
+        : _messages(clubId, conversationId).doc();
     final batch = _db.batch();
     final replyId = replyToMessageId?.trim();
     final replyPreview = replyToText?.trim();
@@ -208,10 +223,13 @@ class ChatService {
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     });
     await batch.commit();
+    return ref.id;
   }
 
   /// Upload photo puis crée le message image (full + thumb).
-  Future<void> sendImageMessage({
+  ///
+  /// Retourne l’id du document. Passe [clientMessageId] pour l’optimistic UI.
+  Future<String> sendImageMessage({
     required String clubId,
     required String conversationId,
     required String senderUid,
@@ -222,9 +240,13 @@ class ChatService {
     String? replyToMessageId,
     String? replyToText,
     String? replyToSenderUid,
+    String? clientMessageId,
   }) async {
     final prepared = await prepareChatImageUpload(bytes);
-    final ref = _messages(clubId, conversationId).doc();
+    final clientId = clientMessageId?.trim();
+    final ref = (clientId != null && clientId.isNotEmpty)
+        ? _messages(clubId, conversationId).doc(clientId)
+        : _messages(clubId, conversationId).doc();
     // Segment uid : Storage rules ne peuvent pas lire v2-dev/v2-prod.
     final path =
         'clubs/$clubId/chat/$conversationId/$senderUid/${ref.id}.jpg';
@@ -279,6 +301,7 @@ class ChatService {
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     });
     await batch.commit();
+    return ref.id;
   }
 
   /// Charge une page de messages plus anciens que [beforeMessageId].
@@ -611,6 +634,54 @@ class ChatService {
       FirestoreFields.titleOverride: titleOverride.trim(),
       FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Met à jour l’avatar d’une discussion de groupe (`avatarUrl`).
+  ///
+  /// [avatarUrl] doit être une URL download Storage du path
+  /// `clubs/{clubId}/chat/{conversationId}/{uid}/avatar.jpg`.
+  Future<void> updateConversationAvatar({
+    required String clubId,
+    required String conversationId,
+    required String avatarUrl,
+  }) async {
+    final trimmed = avatarUrl.trim();
+    if (!_isConversationAvatarDownloadUrl(
+      clubId: clubId,
+      conversationId: conversationId,
+      url: trimmed,
+    )) {
+      throw ArgumentError(
+        'avatarUrl must be a Firebase Storage download URL '
+        'for clubs/$clubId/chat/$conversationId/*/avatar.jpg',
+      );
+    }
+    await _conversations(clubId).doc(conversationId).update({
+      FirestoreFields.avatarUrl: trimmed,
+      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// True si [url] est une URL download Storage du projet pour cet avatar.
+  static bool _isConversationAvatarDownloadUrl({
+    required String clubId,
+    required String conversationId,
+    required String url,
+  }) {
+    if (url.isEmpty || url.length > 2048) return false;
+    final idPattern = RegExp(r'^[A-Za-z0-9_-]+$');
+    if (!idPattern.hasMatch(clubId) || !idPattern.hasMatch(conversationId)) {
+      return false;
+    }
+    final encodedPath =
+        'clubs%2F$clubId%2Fchat%2F$conversationId%2F';
+    final pattern = RegExp(
+      r'^https://firebasestorage\.googleapis\.com/v0/b/viroteam-75303\.'
+      r'(appspot\.com|firebasestorage\.app)/o/'
+      '${RegExp.escape(encodedPath)}'
+      r'[A-Za-z0-9_-]+%2Favatar\.jpg(\?.*)?$',
+    );
+    return pattern.hasMatch(url);
   }
 
   /// Callable : démarre une DM avec coaches/admins.

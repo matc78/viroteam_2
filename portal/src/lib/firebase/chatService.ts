@@ -34,7 +34,7 @@ import {
 import { prepareChatImageUpload } from "@/lib/chat/createImageThumbnail";
 import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
 import { isAllowedReactionEmoji } from "@/components/chat/emojiCatalog";
-import { uploadImageAtPath } from "./storage";
+import { uploadImageAtPath, conversationAvatarStoragePath } from "./storage";
 import {
   type ChatConversation,
   type ChatMessage,
@@ -141,6 +141,8 @@ export function parseChatConversation(
       typeof data[Fields.titleOverride] === "string"
         ? data[Fields.titleOverride]
         : null,
+    avatarUrl:
+      typeof data[Fields.avatarUrl] === "string" ? data[Fields.avatarUrl] : null,
     systemKey:
       typeof data[Fields.systemKey] === "string" ? data[Fields.systemKey] : null,
     teamId: typeof data[Fields.teamId] === "string" ? data[Fields.teamId] : null,
@@ -861,6 +863,81 @@ export async function renameConversation(params: {
     [Fields.titleOverride]: params.titleOverride.trim(),
     [Fields.updatedAt]: serverTimestamp(),
   });
+}
+
+/** True si l’URL est un download Storage du projet pour cet avatar de conv. */
+function isConversationAvatarDownloadUrl(params: {
+  clubId: string;
+  conversationId: string;
+  url: string;
+}): boolean {
+  const { clubId, conversationId, url } = params;
+  if (!url || url.length > 2048) return false;
+  const idPattern = /^[A-Za-z0-9_-]+$/;
+  if (!idPattern.test(clubId) || !idPattern.test(conversationId)) {
+    return false;
+  }
+  const encodedPath = `clubs%2F${clubId}%2Fchat%2F${conversationId}%2F`;
+  const pattern = new RegExp(
+    `^https://firebasestorage\\.googleapis\\.com/v0/b/viroteam-75303\\.` +
+      `(appspot\\.com|firebasestorage\\.app)/o/` +
+      `${encodedPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}` +
+      `[A-Za-z0-9_-]+%2Favatar\\.jpg(\\?.*)?$`,
+  );
+  return pattern.test(url);
+}
+
+/** Met à jour l’avatar d’une discussion de groupe (`avatarUrl`). */
+export async function updateConversationAvatar(params: {
+  clubId: string;
+  conversationId: string;
+  avatarUrl: string;
+}): Promise<void> {
+  const trimmed = params.avatarUrl.trim();
+  if (
+    !isConversationAvatarDownloadUrl({
+      clubId: params.clubId,
+      conversationId: params.conversationId,
+      url: trimmed,
+    })
+  ) {
+    throw new Error(
+      `avatarUrl must be a Firebase Storage download URL for clubs/${params.clubId}/chat/${params.conversationId}/*/avatar.jpg`,
+    );
+  }
+  await updateDoc(doc(conversationsCol(params.clubId), params.conversationId), {
+    [Fields.avatarUrl]: trimmed,
+    [Fields.updatedAt]: serverTimestamp(),
+  });
+}
+
+/**
+ * Upload une image puis met à jour `avatarUrl` sur la conversation.
+ * Path : `clubs/{clubId}/chat/{convId}/{uid}/avatar.jpg`.
+ */
+export async function uploadAndSetConversationAvatar(params: {
+  clubId: string;
+  conversationId: string;
+  uid: string;
+  bytes: ArrayBuffer;
+  contentType: string;
+}): Promise<string> {
+  const path = conversationAvatarStoragePath({
+    clubId: params.clubId,
+    conversationId: params.conversationId,
+    uid: params.uid,
+  });
+  const avatarUrl = await uploadImageAtPath({
+    path,
+    bytes: params.bytes,
+    contentType: params.contentType,
+  });
+  await updateConversationAvatar({
+    clubId: params.clubId,
+    conversationId: params.conversationId,
+    avatarUrl,
+  });
+  return avatarUrl;
 }
 
 /** Callable : DM avec coaches / admins. */

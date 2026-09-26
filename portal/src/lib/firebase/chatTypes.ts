@@ -17,6 +17,8 @@ export type ChatConversation = {
   type: string;
   title: string;
   titleOverride: string | null;
+  /** Photo de la discussion (groupes ouverts uniquement). */
+  avatarUrl: string | null;
   systemKey: string | null;
   teamId: string | null;
   categoryKey: string | null;
@@ -82,6 +84,25 @@ export function isGroupConversation(conversation: ChatConversation): boolean {
     return conversation.participantUids.length > 2;
   }
   return true;
+}
+
+/**
+ * True si le groupe est un canal (écriture réservée staff).
+ * Distinct des groupes ouverts (avatar custom autorisé).
+ */
+export function isChannelConversation(
+  conversation: ChatConversation,
+): boolean {
+  if (!isGroupConversation(conversation)) return false;
+  return (
+    conversation.writePolicy === ChatWritePolicies.adminsOnly ||
+    conversation.writePolicy === ChatWritePolicies.coachesAndAdmins
+  );
+}
+
+/** Groupe multi-users non-canal : les participants peuvent changer l’avatar. */
+export function canEditGroupAvatar(conversation: ChatConversation): boolean {
+  return isGroupConversation(conversation) && !isChannelConversation(conversation);
 }
 
 /**

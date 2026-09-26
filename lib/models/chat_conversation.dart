@@ -14,6 +14,7 @@ class ChatConversation {
     this.teamId,
     this.categoryKey,
     this.titleOverride,
+    this.avatarUrl,
     this.lastMessageAt,
     this.lastMessagePreview = '',
     this.lastSenderUid,
@@ -28,6 +29,9 @@ class ChatConversation {
   final String type;
   final String title;
   final String? titleOverride;
+
+  /// Photo de la discussion (groupes ouverts uniquement).
+  final String? avatarUrl;
   final String? systemKey;
   final String? teamId;
   final String? categoryKey;
@@ -74,6 +78,9 @@ class ChatConversation {
     return true;
   }
 
+  /// Groupe multi-users non-canal : les participants peuvent changer l’avatar.
+  bool get canEditGroupAvatar => isGroup && !isReadonlyForMembers;
+
   /// Sondages autorisés uniquement si plus de 2 participants (règles Firestore).
   bool get allowsPolls => participantUids.length > 2;
 
@@ -88,6 +95,7 @@ class ChatConversation {
       type: data[FirestoreFields.type] as String? ?? ChatConversationTypes.team,
       title: data[FirestoreFields.title] as String? ?? '',
       titleOverride: data[FirestoreFields.titleOverride] as String?,
+      avatarUrl: data[FirestoreFields.avatarUrl] as String?,
       systemKey: data[FirestoreFields.systemKey] as String?,
       teamId: data[FirestoreFields.teamId] as String?,
       categoryKey: data[FirestoreFields.categoryKey] as String?,

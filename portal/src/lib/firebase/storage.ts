@@ -36,3 +36,15 @@ export function clubLogoStoragePath(clubId: string): string {
 export function userAvatarStoragePath(uid: string): string {
   return `users/${uid}/avatar.jpg`;
 }
+
+/**
+ * Chemin Storage de l’avatar d’une discussion de groupe.
+ * Aligné médias chat (règles owner-only ; affichage via URL tokenisée).
+ */
+export function conversationAvatarStoragePath(params: {
+  clubId: string;
+  conversationId: string;
+  uid: string;
+}): string {
+  return `clubs/${params.clubId}/chat/${params.conversationId}/${params.uid}/avatar.jpg`;
+}

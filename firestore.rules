@@ -352,11 +352,55 @@ service cloud.firestore {
           );
         }
 
+        /// Groupe multi-users (pas un DM 1:1).
+        function isGroupConversation(data) {
+          let uids = data.get('participantUids', []);
+          return data.get('type', '') != 'dm'
+            || (uids is list && uids.size() > 2);
+        }
+
+        /// Avatar custom : groupes ouverts uniquement (pas les canaux).
+        function canEditConvAvatar(data) {
+          return isGroupConversation(data)
+            && data.get('writePolicy', 'open') == 'open';
+        }
+
+        /// URL download Storage du projet pour `…/chat/{convId}/{uid}/avatar.jpg`.
+        function isConversationAvatarDownloadUrl(url) {
+          return url is string
+            && url.size() > 32
+            && url.size() < 2048
+            && clubId.matches('^[A-Za-z0-9_-]+$')
+            && conversationId.matches('^[A-Za-z0-9_-]+$')
+            && url.matches(
+              'https://firebasestorage\\.googleapis\\.com/v0/b/viroteam-75303\\.(appspot\\.com|firebasestorage\\.app)/o/clubs%2F'
+              + clubId
+              + '%2Fchat%2F'
+              + conversationId
+              + '%2F[A-Za-z0-9_-]+%2Favatar\\.jpg(\\?.*)?$'
+            );
+        }
+
         allow read: if isConvParticipantFrom(resource.data);
         allow create: if false;
-        // Rename : tout participant. Preview inbox : seulement si canWriteMessagesOn.
+        // Rename : tout participant. Avatar : groupe open + URL Storage.
+        // Preview inbox : canWriteMessagesOn.
         allow update: if isConvParticipantFrom(resource.data) && (
           affectedKeys().hasOnly(['titleOverride', 'updatedAt'])
+          || (
+            canEditConvAvatar(resource.data)
+            && affectedKeys().hasOnly(['avatarUrl', 'updatedAt'])
+            && isConversationAvatarDownloadUrl(
+              request.resource.data.get('avatarUrl', '')
+            )
+          )
+          || (
+            canEditConvAvatar(resource.data)
+            && affectedKeys().hasOnly(['titleOverride', 'avatarUrl', 'updatedAt'])
+            && isConversationAvatarDownloadUrl(
+              request.resource.data.get('avatarUrl', '')
+            )
+          )
           || (
             canWriteMessagesOn(resource.data)
             && affectedKeys().hasOnly([

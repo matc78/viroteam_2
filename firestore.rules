@@ -11,6 +11,17 @@ rules_version = '2';
 //   La recherche par code passe par la callable `lookupInvitationByCode`.
 // - Un parent (guardian) ne voit que les équipes de ses enfants et ce qui les concerne
 //   (`users/{uid}.parentTeamIds`, maintenu côté serveur).
+//
+// Lot 2 (revue chat / parents, 28 sept. 2026) :
+// - Un parent ne lit une fiche membre que si c'est son enfant, un membre des
+//   équipes de ses enfants (coach, coéquipier) ou un admin (cible de DM).
+//   `member_accounts` : `get` seul pour un parent (résolution uid → fiche), pas de `list`.
+// - Conversation : rename réservé aux participants qui ont le droit d'écrire,
+//   `titleOverride` string ≤ 80 (ou null pour effacer) ; preview inbox bornée.
+// - Message : liste fermée de champs à la création, `createdAt` = horodatage
+//   serveur, `reactions` / `pollVotes` vides, texte ≤ 4000, médias image
+//   obligatoirement dans le bucket du projet sous `…/chat/{conv}/{auth.uid}/`.
+// - `activity_events` : `type` parmi la liste connue, `summary` ≤ 200.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -135,6 +146,16 @@ service cloud.firestore {
       return isClubGuardian(clubId) && teamIds.hasAny(parentTeamIds());
     }
 
+    /// Fiche membre visible d'un parent (hors ses propres enfants, couverts par
+    /// `isActiveGuardianOf`) : membre d'une équipe de ses enfants (coach,
+    /// coéquipier du roster) ou admin du club (cible possible d'un DM).
+    function guardianCanSeeMember(clubId) {
+      return isClubGuardian(clubId) && (
+        resource.data.get('teamIds', []).hasAny(parentTeamIds())
+        || resource.data.get('role', '') == 'admin'
+      );
+    }
+
     /// Annonce visible d'un parent : tout le club, ou une équipe de ses enfants.
     function guardianCanSeeAnnouncement(clubId) {
       return isClubGuardian(clubId) && (
@@ -238,11 +259,12 @@ service cloud.firestore {
 
       // ——— Fiches membres ———
       match /members/{memberId} {
-        // get : membres du club, parent de la fiche, ou parent du club
-        // (roster équipes enfants via IDs lus sur `teams` — pas de list).
+        // get : membres du club, parent de la fiche, ou parent du club limité
+        // aux équipes de ses enfants / aux admins (roster via IDs lus sur
+        // `teams` — pas de list). Avant : n'importe quelle fiche du club.
         allow get: if isClubMember(clubId)
           || isActiveGuardianOf(clubId, memberId)
-          || isClubGuardian(clubId);
+          || guardianCanSeeMember(clubId);
         allow list: if isClubMember(clubId);
         // Création : coach/admin (fiche pré-créée + invitation) ou fondateur.
         // L'arrivée d'un invité passe par la callable `acceptInvitation`.
@@ -271,10 +293,14 @@ service cloud.firestore {
 
       // ——— Index compte → fiche (Cloud Functions uniquement) ———
       match /member_accounts/{accountUid} {
-        // Parent : résout accountUid → memberId pour afficher le roster enfant.
-        allow read: if isClubMember(clubId)
+        // Parent : `get` seul — résout un uid Auth (adminIds / coachIds) vers
+        // la fiche pour ses cibles de DM (new_conversation_sheet). Pas de
+        // `list` : le doc ne contient que `memberId`, mais on ne donne pas
+        // l'annuaire complet du club.
+        allow get: if isClubMember(clubId)
           || isOwner(accountUid)
           || isClubGuardian(clubId);
+        allow list: if isClubMember(clubId);
         allow write: if false;
       }
 
@@ -381,12 +407,53 @@ service cloud.firestore {
             );
         }
 
+        /// `titleOverride` : string ≤ 80, ou null / absent pour effacer.
+        function isValidTitleOverride() {
+          return !('titleOverride' in request.resource.data)
+            || request.resource.data.titleOverride == null
+            || (
+              request.resource.data.titleOverride is string
+              && request.resource.data.titleOverride.size() <= 80
+            );
+        }
+
+        /// Preview inbox : expéditeur = appelant, rôle connu, prénom ≤ 60, aperçu ≤ 200.
+        function isValidPreviewUpdate() {
+          return (
+              !affectedKeys().hasAny(['lastSenderUid'])
+              || request.resource.data.lastSenderUid == request.auth.uid
+            )
+            && (
+              !affectedKeys().hasAny(['lastSenderRole'])
+              || request.resource.data.lastSenderRole in ['player', 'coach', 'admin', 'parent']
+            )
+            && (
+              !affectedKeys().hasAny(['lastSenderFirstName'])
+              || (
+                request.resource.data.lastSenderFirstName is string
+                && request.resource.data.lastSenderFirstName.size() <= 60
+              )
+            )
+            && (
+              !affectedKeys().hasAny(['lastMessagePreview'])
+              || (
+                request.resource.data.lastMessagePreview is string
+                && request.resource.data.lastMessagePreview.size() <= 200
+              )
+            );
+        }
+
         allow read: if isConvParticipantFrom(resource.data);
         allow create: if false;
-        // Rename : tout participant. Avatar : groupe open + URL Storage.
-        // Preview inbox : canWriteMessagesOn.
+        // Rename : participants autorisés à écrire (pas un lecteur d'un canal
+        // admins_only). Avatar : groupe open + URL Storage. Preview inbox :
+        // canWriteMessagesOn + valeurs bornées.
         allow update: if isConvParticipantFrom(resource.data) && (
-          affectedKeys().hasOnly(['titleOverride', 'updatedAt'])
+          (
+            canWriteMessagesOn(resource.data)
+            && affectedKeys().hasOnly(['titleOverride', 'updatedAt'])
+            && isValidTitleOverride()
+          )
           || (
             canEditConvAvatar(resource.data)
             && affectedKeys().hasOnly(['avatarUrl', 'updatedAt'])
@@ -395,8 +462,10 @@ service cloud.firestore {
             )
           )
           || (
-            canEditConvAvatar(resource.data)
+            canWriteMessagesOn(resource.data)
+            && canEditConvAvatar(resource.data)
             && affectedKeys().hasOnly(['titleOverride', 'avatarUrl', 'updatedAt'])
+            && isValidTitleOverride()
             && isConversationAvatarDownloadUrl(
               request.resource.data.get('avatarUrl', '')
             )
@@ -407,10 +476,7 @@ service cloud.firestore {
               'lastMessageAt', 'lastMessagePreview', 'lastSenderUid',
               'lastSenderFirstName', 'lastSenderRole', 'updatedAt'
             ])
-            && (
-              !affectedKeys().hasAny(['lastSenderUid'])
-              || request.resource.data.lastSenderUid == request.auth.uid
-            )
+            && isValidPreviewUpdate()
           )
         );
         allow delete: if false;
@@ -427,14 +493,22 @@ service cloud.firestore {
               );
           }
 
+          function listOrEmpty(raw) {
+            return raw is list ? raw : [];
+          }
+
           /// Pour une clé map (option / emoji), seuls les uids de l’appelant peuvent bouger.
-          function mapEntryListOnlyOwn(oldMap, newMap, entryKey) {
-            let oldRaw = oldMap.get(entryKey, []);
-            let newRaw = newMap.get(entryKey, []);
-            return uidListDiffersOnlyByMe(
-              oldRaw is list ? oldRaw : [],
-              newRaw is list ? newRaw : []
-            );
+          /// Court-circuit si la clé n'a pas changé (pas de `let` : ils seraient
+          /// évalués avant le `||`). Sans ces économies, les emojis × la
+          /// comparaison d'ensembles dépassaient la limite de 1000 expressions
+          /// des rules et **toute** réaction était refusée (bug constaté le
+          /// 28 sept. 2026 par le test « un participant réagit à un message »).
+          function mapEntryListOnlyOwn(oldMap, newMap, changed, entryKey) {
+            return !changed.hasAny([entryKey])
+              || uidListDiffersOnlyByMe(
+                listOrEmpty(oldMap.get(entryKey, [])),
+                listOrEmpty(newMap.get(entryKey, []))
+              );
           }
 
           /// `pollVotes` : clés o0–o11 uniquement, et chaque liste ≠ que par mon uid.
@@ -447,18 +521,18 @@ service cloud.firestore {
                 'o0', 'o1', 'o2', 'o3', 'o4', 'o5',
                 'o6', 'o7', 'o8', 'o9', 'o10', 'o11'
               ])
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o0')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o1')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o2')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o3')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o4')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o5')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o6')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o7')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o8')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o9')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o10')
-              && mapEntryListOnlyOwn(oldVotes, newVotes, 'o11');
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o0')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o1')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o2')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o3')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o4')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o5')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o6')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o7')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o8')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o9')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o10')
+              && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o11');
           }
 
           /// Réactions autorisées (aligné picker app). Chaque liste ≠ que par mon uid.
@@ -476,92 +550,236 @@ service cloud.firestore {
             ];
           }
 
+          /// Emojis par groupes de 8 : un seul `hasAny` par groupe non touché.
           function onlyOwnReactionsUpdate() {
             let oldReactions = resource.data.get('reactions', {});
             let newReactions = request.resource.data.get('reactions', {});
             let changed = newReactions.diff(oldReactions).affectedKeys();
             return oldReactions is map && newReactions is map
               && changed.hasOnly(allowedReactionEmojis())
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '👍')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '❤️')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😂')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😮')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😢')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🙏')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🔥')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '👏')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🙌')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '💪')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤝')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '✌️')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤞')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '👋')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🫡')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😊')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😁')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤣')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😅')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😉')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😍')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🥰')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😘')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😎')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤔')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤨')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😐')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😴')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤯')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😱')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😤')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😡')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🥺')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '😭')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤗')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤩')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🥳')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '💯')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '✨')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '⭐')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🎉')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '✅')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '❌')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '⚠️')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '💙')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '💚')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '💛')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🧡')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '💜')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🖤')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🤍')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '💔')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '⚽')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🏀')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🏐')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🏉')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🎾')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🥇')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🏆')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '🎯')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '⚡')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '💡')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '📌')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '👀')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '💬')
-              && mapEntryListOnlyOwn(oldReactions, newReactions, '📣');
+              && (
+                !changed.hasAny(['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '👏'])
+                || (
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '👍') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '❤️') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😂') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😮') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😢') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🙏') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🔥') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '👏')
+                )
+              )
+              && (
+                !changed.hasAny(['🙌', '💪', '🤝', '✌️', '🤞', '👋', '🫡', '😊'])
+                || (
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🙌') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '💪') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🤝') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '✌️') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🤞') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '👋') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🫡') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😊')
+                )
+              )
+              && (
+                !changed.hasAny(['😁', '🤣', '😅', '😉', '😍', '🥰', '😘', '😎'])
+                || (
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😁') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🤣') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😅') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😉') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😍') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🥰') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😘') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😎')
+                )
+              )
+              && (
+                !changed.hasAny(['🤔', '🤨', '😐', '😴', '🤯', '😱', '😤', '😡'])
+                || (
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🤔') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🤨') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😐') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😴') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🤯') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😱') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😤') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😡')
+                )
+              )
+              && (
+                !changed.hasAny(['🥺', '😭', '🤗', '🤩', '🥳', '💯', '✨', '⭐'])
+                || (
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🥺') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '😭') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🤗') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🤩') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🥳') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '💯') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '✨') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '⭐')
+                )
+              )
+              && (
+                !changed.hasAny(['🎉', '✅', '❌', '⚠️', '💙', '💚', '💛', '🧡'])
+                || (
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🎉') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '✅') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '❌') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '⚠️') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '💙') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '💚') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '💛') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🧡')
+                )
+              )
+              && (
+                !changed.hasAny(['💜', '🖤', '🤍', '💔', '⚽', '🏀', '🏐', '🏉'])
+                || (
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '💜') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🖤') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🤍') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '💔') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '⚽') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🏀') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🏐') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🏉')
+                )
+              )
+              && (
+                !changed.hasAny(['🎾', '🥇', '🏆', '🎯', '⚡', '💡', '📌', '👀'])
+                || (
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🎾') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🥇') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🏆') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '🎯') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '⚡') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '💡') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '📌') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '👀')
+                )
+              )
+              && (
+                !changed.hasAny(['💬', '📣'])
+                || (
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '💬') &&
+                  mapEntryListOnlyOwn(oldReactions, newReactions, changed, '📣')
+                )
+              );
+          }
+
+          /// Champs qu'un client peut écrire à la création (liste fermée,
+          /// alignée `lib/services/chat_service.dart` et `portal …/chatService.ts`).
+          /// `deletedAt`, `deletedByUid`, `editedAt` n'arrivent que par update.
+          function messageCreateKeys() {
+            return [
+              'type', 'text', 'senderUid', 'createdAt', 'reactions',
+              'replyToMessageId', 'replyToText', 'replyToSenderUid',
+              'storagePath', 'downloadUrl', 'thumbUrl', 'width', 'height',
+              'pollQuestion', 'pollOptions', 'pollVotes', 'pollAllowMultiple'
+            ];
+          }
+
+          /// Chemin Storage `clubs/{clubId}/chat/{conversationId}/{auth.uid}/<fichier>`
+          /// (segment uid = celui que les Storage rules vérifient à l'upload).
+          function isOwnChatMediaStoragePath(path) {
+            return path is string
+              && path.size() < 512
+              && clubId.matches('^[A-Za-z0-9_-]+$')
+              && conversationId.matches('^[A-Za-z0-9_-]+$')
+              && path.matches(
+                '^clubs/' + clubId + '/chat/' + conversationId + '/'
+                + request.auth.uid + '/[A-Za-z0-9_-]+\\.(jpg|jpeg|png|webp)$'
+              );
+          }
+
+          /// URL download Storage du projet pour un média chat de l'appelant
+          /// (même bucket / même préfixe que `isConversationAvatarDownloadUrl`).
+          function isOwnChatMediaDownloadUrl(url) {
+            return url is string
+              && url.size() > 32
+              && url.size() < 2048
+              && clubId.matches('^[A-Za-z0-9_-]+$')
+              && conversationId.matches('^[A-Za-z0-9_-]+$')
+              && url.matches(
+                'https://firebasestorage\\.googleapis\\.com/v0/b/viroteam-75303\\.(appspot\\.com|firebasestorage\\.app)/o/clubs%2F'
+                + clubId
+                + '%2Fchat%2F'
+                + conversationId
+                + '%2F' + request.auth.uid
+                + '%2F[A-Za-z0-9_-]+\\.(jpg|jpeg|png|webp)(\\?.*)?$'
+              );
+          }
+
+          /// Dimension image optionnelle : entier 1..20000.
+          function isOptionalImageDimension(key) {
+            return !(key in request.resource.data)
+              || (
+                request.resource.data[key] is int
+                && request.resource.data[key] > 0
+                && request.resource.data[key] <= 20000
+              );
+          }
+
+          /// `pollVotes` à la création : uniquement des options o0–o11 sans aucun vote.
+          function isEmptyPollVotes(votes) {
+            return votes is map
+              && votes.keys().hasOnly([
+                'o0', 'o1', 'o2', 'o3', 'o4', 'o5',
+                'o6', 'o7', 'o8', 'o9', 'o10', 'o11'
+              ])
+              && votes.get('o0', []) == [] && votes.get('o1', []) == []
+              && votes.get('o2', []) == [] && votes.get('o3', []) == []
+              && votes.get('o4', []) == [] && votes.get('o5', []) == []
+              && votes.get('o6', []) == [] && votes.get('o7', []) == []
+              && votes.get('o8', []) == [] && votes.get('o9', []) == []
+              && votes.get('o10', []) == [] && votes.get('o11', []) == [];
+          }
+
+          /// Socle commun à tout message créé par un client.
+          function isValidMessageCreateBase() {
+            return request.resource.data.keys().hasOnly(messageCreateKeys())
+              && request.resource.data.senderUid == request.auth.uid
+              && request.resource.data.createdAt == request.time
+              && request.resource.data.get('reactions', {}) == {}
+              && (
+                !('text' in request.resource.data)
+                || (
+                  request.resource.data.text is string
+                  && request.resource.data.text.size() <= 4000
+                )
+              );
           }
 
           allow read: if isConvParticipantFrom(conversationDoc());
           allow create: if canWriteMessagesOn(conversationDoc())
-            && request.resource.data.senderUid == request.auth.uid
+            && isValidMessageCreateBase()
             && (
-              request.resource.data.get('type', '') == 'text'
+              (
+                request.resource.data.get('type', '') == 'text'
+                && request.resource.data.get('text', '') is string
+                && request.resource.data.text.size() > 0
+                && !request.resource.data.keys().hasAny([
+                  'storagePath', 'downloadUrl', 'thumbUrl', 'width', 'height',
+                  'pollQuestion', 'pollOptions', 'pollVotes', 'pollAllowMultiple'
+                ])
+              )
               || (
                 request.resource.data.get('type', '') == 'image'
                 && request.resource.data.keys().hasAll(['storagePath', 'downloadUrl'])
-                && request.resource.data.storagePath is string
-                && request.resource.data.storagePath.size() > 0
-                && request.resource.data.downloadUrl is string
-                && request.resource.data.downloadUrl.size() > 0
+                && isOwnChatMediaStoragePath(request.resource.data.storagePath)
+                && isOwnChatMediaDownloadUrl(request.resource.data.downloadUrl)
+                && (
+                  !('thumbUrl' in request.resource.data)
+                  || isOwnChatMediaDownloadUrl(request.resource.data.thumbUrl)
+                )
+                && isOptionalImageDimension('width')
+                && isOptionalImageDimension('height')
+                && !request.resource.data.keys().hasAny([
+                  'pollQuestion', 'pollOptions', 'pollVotes', 'pollAllowMultiple'
+                ])
               )
               || (
                 request.resource.data.get('type', '') == 'poll'
@@ -572,8 +790,11 @@ service cloud.firestore {
                 && request.resource.data.get('pollOptions', []) is list
                 && request.resource.data.pollOptions.size() >= 2
                 && request.resource.data.pollOptions.size() <= 12
-                && request.resource.data.get('pollVotes', {}) is map
+                && isEmptyPollVotes(request.resource.data.get('pollVotes', {}))
                 && request.resource.data.get('pollAllowMultiple', false) is bool
+                && !request.resource.data.keys().hasAny([
+                  'storagePath', 'downloadUrl', 'thumbUrl', 'width', 'height'
+                ])
               )
             )
             && (
@@ -630,10 +851,20 @@ service cloud.firestore {
       }
 
       // ——— Journal d’activité club (append-only) ———
+      // Écrit par les clients (app + portail, `club_activity_service` /
+      // `activityService`) et par les Cloud Functions (`logClubActivity`) :
+      // on garde la création client mais on borne le contenu.
       match /activity_events/{eventId} {
         allow read: if isClubCoachOrAdmin(clubId);
         allow create: if isClubCoachOrAdmin(clubId)
-          && request.resource.data.actorUid == request.auth.uid;
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.get('type', '') in [
+            'members_added', 'members_removed', 'invitations_sent',
+            'events_created', 'event_cancelled', 'team_created',
+            'announcement_published'
+          ]
+          && request.resource.data.get('summary', '') is string
+          && request.resource.data.get('summary', '').size() <= 200;
         allow update, delete: if false;
       }
 

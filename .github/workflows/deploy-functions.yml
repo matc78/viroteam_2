@@ -97,6 +97,8 @@ jobs:
           BREVO_SENDER_NAME=Guy · ViroTeam
           INVITE_JOIN_BASE_URL=https://www.viroteam.com
           PLAY_STORE_URL=https://play.google.com/store/apps/details?id=com.viroteam.viro_team
+          # Messagerie cachée en prod : aucun push chat tant que false.
+          CHAT_MESSAGING_LIVE=false
           EOF
 
       - name: Deploy all functions (dual Dev + Prod)

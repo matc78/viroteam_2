@@ -37,16 +37,27 @@ service firebase.storage {
       allow read, write: if false;
     }
 
-    // Médias chat : chemin `…/{uid}/{messageId}.jpg`.
-    // Les Storage rules ne peuvent pas lire les bases Firestore nommées
-    // (v2-dev / v2-prod) → pas de check participantUids ici.
-    // Lecture/écriture limitées au propriétaire du segment uid ; les autres
-    // participants affichent via `downloadUrl` tokenisé (Firestore).
+    // Médias chat : chemin `…/{uid}/{messageId}.jpg` (+ `_thumb`, `avatar.jpg`).
+    // Décision (revue 28 sept. 2026) : `firestore.get()` / `firestore.exists()`
+    // des Storage rules ne lisent que la base `(default)`, or ViroTeam n'utilise
+    // que les bases nommées v2-dev / v2-prod → impossible de vérifier ici
+    // l'appartenance au club ou aux `participantUids`. Ce qui est vérifié :
+    // - le segment uid est celui de l'appelant (un compte ne peut écrire que
+    //   sous son propre préfixe, et Firestore n'accepte un message image que
+    //   si `downloadUrl` pointe sous `…/chat/{conv}/{auth.uid}/`) ;
+    // - identifiants et nom de fichier au format attendu (pas de traversée,
+    //   pas de SVG — vecteur XSS quand servi inline) ;
+    // - 5 Mo max, MIME image.
+    // Les autres participants affichent via `downloadUrl` tokenisé (Firestore).
     match /clubs/{clubId}/chat/{conversationId}/{userId}/{fileName} {
       allow read: if isOwner(userId);
       allow write: if isOwner(userId)
+        && clubId.matches('^[A-Za-z0-9_-]+$')
+        && conversationId.matches('^[A-Za-z0-9_-]+$')
+        && fileName.matches('^[A-Za-z0-9_-]+\\.(jpg|jpeg|png|webp)$')
         && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/.*')
+        && !request.resource.contentType.matches('image/svg.*');
     }
   }
 }

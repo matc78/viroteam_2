@@ -78,7 +78,38 @@ firebase functions:secrets:set BREVO_API_KEY
 # BREVO_SENDER_EMAIL=noreply@viroteam.com
 # BREVO_SENDER_NAME=Guy · ViroTeam
 # INVITE_JOIN_BASE_URL=https://www.viroteam.com
+# CHAT_MESSAGING_LIVE=false   # push chat coupés tant que la messagerie est cachée
 ```
+
+**`CHAT_MESSAGING_LIVE`** (param public `defineBoolean`, défaut `false`) : tant qu'il vaut
+`false`, `onChatMessageCreatedForPush` maintient les compteurs non-lus mais n'envoie
+**aucun** push `chat_message`. Le workflow CI l'écrit à `false` dans
+`functions/.env.viroteam-75303` ; le jour où la messagerie est ouverte aux clubs, passer
+la ligne à `true` dans [`deploy-functions.yml`](../.github/workflows/deploy-functions.yml)
+(ou dans le `.env` local) et redéployer.
+
+## Décisions sécurité (lot 2, 28 sept. 2026)
+
+- **Checkout Stripe** (`createStripeCheckout`) : le montant et la devise du client ne font
+  plus foi. Devise forcée à `eur` (toute autre valeur → `invalid-argument`) ; reste dû
+  recalculé depuis `member_fees` (palier dû − `amountPaidCents` − aides `validated`) ;
+  montant encaissé = `min(montant client, reste dû)`, donc un paiement partiel reste
+  possible mais jamais un dépassement. Aides déclarées : 10 max, montants bornés au reste
+  dû, et fusionnées sans doublon par session (`mergeFeeAids`). Le webhook ignore (et
+  logge) tout `payment_intent.succeeded` dont la devise n'est pas `eur`. Helpers purs et
+  testés dans `src/stripeCheckoutUtils.ts`. HelloAsso (dormant) n'a pas été touché.
+- **Chats système** : `onMemberWrittenForChat` ne relance `syncClubWideConversations`
+  que si `role` / `status` / `accountUid` / `userId` / `teamIds` changent
+  (`memberChatFieldsChanged`), et `upsertSystemConversation` ne réécrit pas une
+  conversation dont participants (triés), titre, politique et cibles sont identiques.
+- **`createCategoryChannel`** : `writePolicy` ∈ {`open`, `admins_only`,
+  `coaches_and_admins`}, `title` ≤ 80, admin résolu via `assertClubAdmin` (adminIds,
+  index `member_accounts` ou fiche directe).
+- Les règles Firestore / Storage correspondantes (fiches lisibles par un parent, rename,
+  création de message bornée, médias image dans le bucket du projet) sont commentées en
+  tête de `firestore.rules` et de `storage.rules`. Les Storage rules ne peuvent pas lire
+  les bases nommées v2-dev / v2-prod (`firestore.get` ne voit que `(default)`) : pas de
+  contrôle d'appartenance au club possible à l'upload, seulement le segment uid.
 
 Brevo : domaine `viroteam.com` authentifié + expéditeur `noreply@viroteam.com` (nom affiché Guy · ViroTeam).
 

@@ -3,7 +3,64 @@
 Guide pour publier ViroTeam sur TestFlight puis l’App Store.  
 Complète le travail automatisé déjà en place dans le repo (`Info.plist`, `PrivacyInfo.xcprivacy`, suppression de compte, liens légaux).
 
-**Prérequis Mac** : Xcode récent, Flutter via FVM (`fvm flutter`), compte [Apple Developer](https://developer.apple.com) (99 €/an).
+**Prérequis** : compte [Apple Developer](https://developer.apple.com) (99 €/an).  
+**Build** : Mac + Xcode **ou** [Codemagic](https://codemagic.io) (recommandé sous Windows) — voir § Codemagic ci-dessous. Config repo : [`codemagic.yaml`](../codemagic.yaml).
+
+---
+
+## Codemagic (Windows → TestFlight)
+
+Parcours pour publier sans Mac local. Les builds TestFlight existants (pote / Mac) restent valides ; Codemagic envoie les suivants.
+
+### A. Une fois — Apple + Codemagic UI
+
+1. **App Store Connect API key** (si pas déjà faite)  
+   Users and Access → Integrations → App Store Connect API → générer (rôle *App Manager*).  
+   Noter Issuer ID, Key ID, télécharger le `.p8` **une seule fois**.  
+   Ne jamais committer le `.p8` (déjà dans `.gitignore`).
+
+2. Compte [Codemagic](https://codemagic.io) → **Add application** → lier le repo GitHub → type Flutter.
+
+3. **Team settings → Team integrations → Developer Portal → Manage keys**  
+   - Nom de la clé : `ViroTeam` (doit matcher `integrations.app_store_connect` dans `codemagic.yaml`)  
+   - Issuer ID + Key ID + upload du `.p8`
+
+4. **Code signing identities** (team settings)  
+   - iOS certificates → **Generate certificate** → *Apple Distribution* (avec la clé `ViroTeam`)  
+     *ou* Fetch si un cert Codemagic existe déjà  
+   - iOS provisioning profiles → **Fetch profiles** → profil **App Store** pour `com.viroteam.viroTeam`
+
+5. **Application → Environment variables** → groupe `ios_secrets` :  
+   | Variable | Valeur |
+   |----------|--------|
+   | `APP_STORE_APPLE_ID` | App Store Connect → Général → Infos sur l’app → **Apple ID** (nombre) |
+   | `GOOGLE_SERVICE_INFO_PLIST` | Contenu de `ios/Runner/GoogleService-Info.plist` encodé en **base64** (secret) |
+
+   Sous Windows (PowerShell), depuis la racine du repo si le plist est en local :
+
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("ios\Runner\GoogleService-Info.plist"))
+   ```
+
+6. Dans Codemagic → app → **Check for configuration file** sur la branche qui contient `codemagic.yaml`.
+
+### B. À chaque release bêta
+
+1. Pousser la branche (ou tag) avec le code à publier.  
+2. Codemagic → workflow **iOS TestFlight** → Start build.  
+3. Attendre le build vert → le `.ipa` part sur App Store Connect.  
+4. Onglet **TestFlight** → build « Terminé » → disponible pour le groupe **Interne**.
+
+Le workflow incrémente automatiquement le **build number** (plus haut que le dernier TestFlight). Le **version name** vient de `pubspec.yaml` (ex. `2.2.2`).
+
+### C. App Store (prod) — après TestFlight OK
+
+Le workflow **n’envoie pas** en review App Store (`submit_to_app_store: false`).  
+Dans App Store Connect → Distribution :
+
+- Créer / finaliser une version dont le numéro = `pubspec` (ex. `2.2.2`, pas rester bloqué sur une fiche `1.0` vide)
+- Captures d’écran (obligatoires pour la review publique ; pas pour TestFlight interne)
+- « Ajouter pour vérification » une fois le build TestFlight sélectionné
 
 ---
 
@@ -139,7 +196,7 @@ Guideline **5.1.1** : suppression de compte **in-app** (déjà dans Profil mobil
 - [ ] Mettre `appStoreUrl` dans [`portal/src/lib/site.ts`](../portal/src/lib/site.ts)
 - [ ] Retirer le badge « Bientôt » dans [`portal/src/components/StoreBadges.tsx`](../portal/src/components/StoreBadges.tsx) et copy landing
 - [ ] Tag `portal-v*` pour déployer le portail mis à jour
-- [ ] (Optionnel) Workflow CI iOS — nécessite certificats Apple en secrets GitHub
+- [ ] CI iOS : [`codemagic.yaml`](../codemagic.yaml) (TestFlight) — setup UI § Codemagic
 
 ---
 

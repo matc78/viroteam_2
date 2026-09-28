@@ -53,6 +53,9 @@ app.*.map.json
 **/*.keystore.*
 **/*.jks
 **/GoogleService-Info.plist
+# Clés Apple Auth Key (APNs / Sign in with Apple)
+**/*.p8
+**/AuthKey_*.p8
 
 # FVM — garder .fvmrc / fvm_config.json, ignorer le symlink SDK
 .fvm/flutter_sdk

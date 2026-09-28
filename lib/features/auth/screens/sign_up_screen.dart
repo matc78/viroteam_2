@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -46,6 +47,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   bool _googleLoading = false;
+  bool _appleLoading = false;
   bool _acceptedTerms = false;
   String? _error;
   bool _prefillApplied = false;
@@ -252,7 +254,28 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
   }
 
-  Future<void> _signUpWithGoogle() async {
+  Future<void> _signUpWithGoogle() => _signUpWithProvider(
+        signIn: () => ref.read(authServiceProvider).signInWithGoogle(),
+        userMissingMessage: AppCopy.auth.firebaseUserMissingAfterGoogle,
+        failureMessage: AppCopy.auth.googleSignUpFailed,
+        setLoading: (value) => _googleLoading = value,
+      );
+
+  Future<void> _signUpWithApple() => _signUpWithProvider(
+        signIn: () => ref.read(authServiceProvider).signInWithApple(),
+        userMissingMessage: AppCopy.auth.firebaseUserMissingAfterApple,
+        failureMessage: AppCopy.auth.appleSignUpFailed,
+        setLoading: (value) => _appleLoading = value,
+      );
+
+  /// Inscription via un fournisseur social (Google / Apple) : même parcours,
+  /// seuls le flux de connexion et les messages changent.
+  Future<void> _signUpWithProvider({
+    required Future<UserCredential> Function() signIn,
+    required String userMissingMessage,
+    required String failureMessage,
+    required void Function(bool value) setLoading,
+  }) async {
     if (!_acceptedTerms) {
       setState(() {
         _error = AppCopy.auth.acceptTermsRequired;
@@ -260,22 +283,24 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       return;
     }
     setState(() {
-      _googleLoading = true;
+      setLoading(true);
       _error = null;
     });
 
     try {
-      final auth = ref.read(authServiceProvider);
-      final cred = await auth.signInWithGoogle();
+      final cred = await signIn();
       final firebaseUser = cred.user;
       if (firebaseUser == null) {
-        throw StateError(AppCopy.auth.firebaseUserMissingAfterGoogle);
+        throw StateError(userMissingMessage);
       }
 
       final userService = ref.read(userServiceProvider);
       final existingProfile = await userService.getUser(firebaseUser.uid);
 
       if (existingProfile == null) {
+        // Apple ne renvoie parfois ni nom ni e-mail (2e autorisation, relais
+        // masqué) : le formulaire puis le `displayName` Firebase prennent le
+        // relais, et le profil reste à compléter si tout est vide.
         await userService.ensureUserProfileFromAuth(
           firebaseUser,
           firstName: _firstNameController.text.trim().isNotEmpty
@@ -300,12 +325,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       }
     } on AuthCanceledException {
       // Annulation volontaire.
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        setState(() => _error = AppCopy.auth.googleSignUpFailed);
+        setState(() => _error = failureMessage);
       }
     } finally {
-      if (mounted) setState(() => _googleLoading = false);
+      if (mounted) setState(() => setLoading(false));
     }
   }
 
@@ -318,7 +343,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Widget build(BuildContext context) {
     final intent = ref.watch(signUpIntentProvider);
     final isJoin = intent == SignUpIntent.join;
-    final isBusy = _loading || _googleLoading;
+    final isBusy = _loading || _googleLoading || _appleLoading;
     final isCompleteProfile = _isCompleteProfileMode;
 
     ref.listen(pendingInvitationProvider, (_, next) {
@@ -490,6 +515,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     isLoading: _googleLoading,
                     onPressed: isBusy ? null : _signUpWithGoogle,
                   ),
+                  if (AppleSignInButton.isSupported) ...[
+                    const SizedBox(height: ViroSpacing.sm),
+                    AppleSignInButton(
+                      isLoading: _appleLoading,
+                      onPressed: isBusy ? null : _signUpWithApple,
+                    ),
+                  ],
                 ],
                 if (isCompleteProfile) ...[
                   const SizedBox(height: ViroSpacing.md),

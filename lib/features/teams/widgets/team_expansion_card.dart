@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -142,10 +143,12 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                 ),
               )
             else ...[
-              TeamMessagingLinksSection(
-                team: team,
-                accent: widget.accent,
-              ),
+              // Messagerie cachée en release tant que la feature n’est pas live.
+              if (FeatureFlags.chatMessagingLive)
+                TeamMessagingLinksSection(
+                  team: team,
+                  accent: widget.accent,
+                ),
               ..._buildMemberSection(
                 context,
                 title: AppCopy.teams.staffCoachesSection,

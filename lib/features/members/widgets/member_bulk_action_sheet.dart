@@ -91,45 +91,36 @@ Future<bool?> showMemberBulkActionSheet(
           ? null
           : (team) async {
               try {
-                var added = 0;
-                var skipped = 0;
-                for (final member in playersToAdd) {
-                  final alreadyOnTeam = member.hasLinkedAccount
-                      ? team.isOnPlayerRoster(member)
-                      : team.pendingPlayerIds.contains(member.memberId);
-                  if (alreadyOnTeam) {
-                    skipped += 1;
-                    continue;
-                  }
-                  if (member.hasLinkedAccount) {
-                    await teamService.addPlayerToTeam(
-                      clubId: clubId,
-                      teamId: team.id,
-                      uid: member.effectiveUid,
-                    );
-                  } else {
-                    await teamService.addPendingPlayerToTeam(
-                      clubId: clubId,
-                      teamId: team.id,
-                      pendingId: member.memberId,
-                    );
-                  }
-                  added += 1;
-                }
+                // Un seul batch par lot : le compteur reflète ce qui est
+                // vraiment écrit, même si un lot échoue.
+                final result = await teamService.addPlayersToTeam(
+                  clubId: clubId,
+                  team: team,
+                  members: playersToAdd,
+                );
                 if (!sheetContext.mounted) return;
                 Navigator.of(sheetContext).pop(true);
+                final added = result.added;
                 ViroStatusToast.show(
                   context,
                   message: added > 0
                       ? AppCopy.members.playersAddedToTeam(
                           added: added,
                           teamName: team.name,
-                          skipped: skipped,
+                          skipped: result.skipped,
                         )
-                      : AppCopy.members.noPlayerAddedDetail(skipped: skipped),
+                      : AppCopy.members.noPlayerAddedDetail(
+                          skipped: result.skipped,
+                        ),
                   success: added > 0,
                   duration: const Duration(seconds: 3),
                 );
+                if (result.failed > 0 && context.mounted) {
+                  ViroSnackBar.show(
+                    context,
+                    AppCopy.members.playersAddToTeamFailed(result.failed),
+                  );
+                }
               } catch (error) {
                 if (!sheetContext.mounted) return;
                 Navigator.of(sheetContext).pop(false);

@@ -25,6 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   bool _googleLoading = false;
+  bool _appleLoading = false;
   bool _obscurePassword = true;
   String? _error;
 
@@ -97,9 +98,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Connexion via Sign in with Apple (navigation déléguée au routeur).
+  Future<void> _signInWithApple() async {
+    setState(() {
+      _appleLoading = true;
+      _error = null;
+    });
+
+    try {
+      final credential = await ref.read(authServiceProvider).signInWithApple();
+      if (credential.user == null) {
+        _showError(AppCopy.auth.appleLoginFailed);
+      }
+    } on EmailUsedWithPasswordException catch (error) {
+      final email = error.email?.trim();
+      if (email != null && email.isNotEmpty && mounted) {
+        _emailController.text = email;
+      }
+      _showError(AppCopy.auth.authErrorAccountExistsDifferentCredential);
+    } on AuthCanceledException {
+      // Annulation volontaire.
+    } catch (_) {
+      _showError(AppCopy.auth.appleLoginFailed);
+    } finally {
+      if (mounted) setState(() => _appleLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isBusy = _loading || _googleLoading;
+    final isBusy = _loading || _googleLoading || _appleLoading;
     final errorMessage = _error;
 
     return ViroScaffold(
@@ -182,6 +210,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   isLoading: _googleLoading,
                   onPressed: isBusy ? null : _signInWithGoogle,
                 ),
+                if (AppleSignInButton.isSupported) ...[
+                  const SizedBox(height: ViroSpacing.sm),
+                  AppleSignInButton(
+                    isLoading: _appleLoading,
+                    onPressed: isBusy ? null : _signInWithApple,
+                  ),
+                ],
               ],
             ),
           ),

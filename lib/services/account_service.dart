@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/services/apple_sign_in.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
@@ -28,16 +29,19 @@ class AccountService {
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     GoogleSignIn? googleSignIn,
+    AppleSignInHelper? appleSignIn,
     FirebaseFunctions? functions,
   })  : _auth = auth ?? FirebaseAuth.instance,
         _db = firestore ?? appFirestore,
         _googleSignIn = googleSignIn ?? GoogleSignIn(),
+        _appleSignIn = appleSignIn ?? const AppleSignInHelper(),
         _functions =
             functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1');
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
   final GoogleSignIn _googleSignIn;
+  final AppleSignInHelper _appleSignIn;
   final FirebaseFunctions _functions;
 
   /// Indique si le compte a le provider email / mot de passe.
@@ -48,6 +52,18 @@ class AccountService {
   static bool userHasGoogleProvider(User user) =>
       user.providerData.any((p) => p.providerId == 'google.com');
 
+  /// Indique si le compte a le provider Apple.
+  static bool userHasAppleProvider(User user) =>
+      user.providerData.any((p) => p.providerId == appleProviderId);
+
+  /// `true` si la réauth passe par la feuille Apple (ni mot de passe, ni Google).
+  ///
+  /// Même ordre de priorité que [reauthenticate].
+  static bool reauthUsesApple(User user) =>
+      !userHasPasswordProvider(user) &&
+      !userHasGoogleProvider(user) &&
+      userHasAppleProvider(user);
+
   /// Libellés FR des providers Auth liés au compte.
   static List<String> authProviderLabels(User user) {
     final labels = <String>[];
@@ -56,6 +72,9 @@ class AccountService {
     }
     if (userHasGoogleProvider(user)) {
       labels.add(AppCopy.settings.providerGoogle);
+    }
+    if (userHasAppleProvider(user)) {
+      labels.add('Apple');
     }
     if (labels.isEmpty) labels.add(AppCopy.settings.providerUnknown);
     return labels;
@@ -112,7 +131,7 @@ class AccountService {
     await user.updatePassword(newPassword.trim());
   }
 
-  /// Réauthentifie l’utilisateur (mot de passe et/ou Google).
+  /// Réauthentifie l’utilisateur (mot de passe, Google ou Apple).
   Future<void> reauthenticate({
     required User user,
     String? password,
@@ -145,6 +164,12 @@ class AccountService {
         idToken: googleAuth.idToken,
       );
       await user.reauthenticateWithCredential(credential);
+      return;
+    }
+
+    if (userHasAppleProvider(user)) {
+      final apple = await _appleSignIn.authorize();
+      await user.reauthenticateWithCredential(apple.credential);
       return;
     }
 

@@ -5,8 +5,6 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 
 /// Initialise FCM, enregistre le token, route les taps vers les deep links.
@@ -18,14 +16,17 @@ class PushNotificationService {
   final FirebaseFunctions _functions;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
-  GoRouter? _router;
+  void Function(Uri uri)? _onDeepLink;
   String? _lastRegisteredToken;
   bool _listenersBound = false;
   bool _initialMessageHandled = false;
 
-  /// Attache le router pour la navigation au tap.
-  void bindRouter(GoRouter router) {
-    _router = router;
+  /// Attache le gestionnaire de deep link appelé au tap sur une notif.
+  ///
+  /// Le gestionnaire décide seul de la session club et du différé si la
+  /// session n’est pas prête (cf. `handleDeepLinkUri`).
+  void bindDeepLinkHandler(void Function(Uri uri) handler) {
+    _onDeepLink = handler;
   }
 
   /// Demande la permission, enregistre le token, écoute les messages.
@@ -46,6 +47,23 @@ class PushNotificationService {
         stack: stack,
         reason: 'fcm_request_permission_failed',
       );
+    }
+
+    // iOS n’affiche pas les notifs quand l’app est au premier plan sans ça.
+    if (Platform.isIOS || Platform.isMacOS) {
+      try {
+        await _messaging.setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      } catch (error, stack) {
+        _recordSoftFcmFailure(
+          error: error,
+          stack: stack,
+          reason: 'fcm_foreground_presentation_failed',
+        );
+      }
     }
 
     _bindListenersOnce();
@@ -105,6 +123,10 @@ class PushNotificationService {
     if (_listenersBound) return;
     _listenersBound = true;
 
+    // Premier plan : iOS affiche la bannière système grâce à
+    // `setForegroundNotificationPresentationOptions`. Android ne montre rien
+    // sans `flutter_local_notifications` (canal + config native) — hors
+    // périmètre de cette version : la notif arrive quand même en arrière-plan.
     FirebaseMessaging.onMessage.listen((message) {
       debugPrint(
         'FCM foreground: ${message.notification?.title} — ${message.notification?.body}',
@@ -181,18 +203,13 @@ class PushNotificationService {
     );
   }
 
+  /// Tap sur une notif : délègue au gestionnaire de deep link (session club
+  /// + différé à froid inclus).
   void _handleMessageNavigation(RemoteMessage message) {
-    final data = message.data;
-    final deepLink = data['deepLink']?.toString();
-    if (deepLink != null && deepLink.isNotEmpty) {
-      final uri = Uri.tryParse(deepLink);
-      if (uri != null) {
-        final route = deepLinkRouteFromUri(uri);
-        if (route != null) {
-          _router?.go(route);
-          return;
-        }
-      }
-    }
+    final deepLink = message.data['deepLink']?.toString();
+    if (deepLink == null || deepLink.isEmpty) return;
+    final uri = Uri.tryParse(deepLink);
+    if (uri == null) return;
+    _onDeepLink?.call(uri);
   }
 }

@@ -19,6 +19,7 @@ import {
 } from "@/lib/dashboard/useClubRealtimeReload";
 import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import {
+  CARD_FEE_NOTICE,
   cardFeeCentsFromNet,
   cardGrossCentsFromNet,
 } from "@/lib/stripe/cardGrossFromNet";
@@ -262,7 +263,7 @@ function PlayerFeesSelfView() {
                       {" "}
                       (dont{" "}
                       {formatEuros(cardFeeCentsFromNet(data!.remaining))} de
-                      frais)
+                      frais — {CARD_FEE_NOTICE})
                     </span>
                   ) : null}
                 </dd>

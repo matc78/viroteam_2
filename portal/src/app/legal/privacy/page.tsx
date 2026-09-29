@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/legal/privacy" },
 };
 
-/** Page confidentialité (template à valider avec l’identité réelle de l’éditeur). */
+/** Page confidentialité — lue depuis l’app (review Apple) et le portail. */
 export default function PrivacyPage() {
   const contactDomain = site.url.replace(/^https?:\/\/(www\.)?/, "");
 
@@ -28,14 +28,16 @@ export default function PrivacyPage() {
 
       <article className={styles.article}>
         <h1>Politique de confidentialité</h1>
-        <p className={styles.meta}>Dernière mise à jour : août 2026</p>
+        <p className={styles.meta}>
+          Dernière mise à jour : 28 septembre 2026
+        </p>
 
         <section>
           <h2>1. Responsable du traitement</h2>
           <p>
             Les données personnelles collectées via {site.name} sont traitées
-            par l’éditeur du Service, un{" "}
-            <strong>projet personnel non commercial</strong> (voir{" "}
+            par l’éditeur du Service, une <strong>personne physique</strong>{" "}
+            éditant un projet personnel (voir{" "}
             <Link href="/legal/mentions">mentions légales</Link>), pour fournir
             la gestion de club (compte, planning, cotisations, invitations,
             espace famille).
@@ -45,10 +47,14 @@ export default function PrivacyPage() {
         <section>
           <h2>2. Données collectées</h2>
           <p>
-            Selon votre usage : identité (nom, prénom, e-mail), données de
-            club (rôle, équipes, licence), planning et RSVP, cotisations et
-            aides déclarées, liens parent–enfant (espace famille), et données
-            techniques de connexion (logs, analytics, crash reports).
+            Selon votre usage : identité (nom, prénom, e-mail, identifiant de
+            connexion Google ou Apple), données de club (rôle, équipes,
+            licence), planning et RSVP, cotisations et aides déclarées, liens
+            parent–enfant (espace famille), jeton d’appareil pour les
+            notifications push, données de paiement en ligne (montant, statut,
+            reçu — jamais les numéros de carte, saisis directement chez Stripe)
+            et données techniques de connexion (logs, analytics, crash
+            reports).
           </p>
         </section>
 
@@ -69,6 +75,11 @@ export default function PrivacyPage() {
             <li>Authentification et gestion du compte</li>
             <li>Fonctionnement du club (membres, planning, cotisations)</li>
             <li>Invitations et rattachements parents</li>
+            <li>
+              Paiement en ligne des cotisations, lorsque le club l’active
+              (optionnel)
+            </li>
+            <li>Notifications push (convocations, rappels, messages du club)</li>
             <li>Sécurité, support et amélioration du Service</li>
             <li>Mesure d’audience (sous réserve de consentement cookies)</li>
           </ul>
@@ -89,11 +100,38 @@ export default function PrivacyPage() {
             Le Service s’appuie notamment sur :
           </p>
           <ul>
-            <li>Google Firebase / Google Cloud (Auth, Firestore, Storage, Functions, Hosting)</li>
-            <li>PostHog (analytics produit, UE)</li>
-            <li>Sentry (monitoring d’erreurs du portail)</li>
+            <li>
+              Google Firebase / Google Cloud (Google Ireland Limited) : Auth,
+              Firestore, Storage, Functions, Hosting et Cloud Messaging pour les
+              notifications push (jeton d’appareil).
+            </li>
+            <li>
+              Google Sign-In (Google Ireland Limited) : connexion avec un compte
+              Google — identifiant, nom, e-mail.
+            </li>
+            <li>
+              Sign in with Apple (Apple Distribution International Ltd, Irlande)
+              : connexion avec un identifiant Apple — identifiant, nom et e-mail,
+              éventuellement masqué par le relais Apple.
+            </li>
+            <li>
+              Stripe Payments Europe Ltd (Irlande) : paiement en ligne des
+              cotisations lorsque le club l’active. Données : nom, e-mail,
+              montant, club ; les données de carte sont saisies et traitées
+              directement par Stripe et ne transitent jamais par nos serveurs.
+              Voir la{" "}
+              <a
+                href="https://stripe.com/fr/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                politique de confidentialité de Stripe
+              </a>
+              .
+            </li>
+            <li>PostHog (analytics produit, hébergé en UE)</li>
+            <li>Sentry (monitoring d’erreurs de l’app et du portail)</li>
             <li>Brevo (e-mails transactionnels d’invitation)</li>
-            <li>HelloAsso (paiements en ligne, lorsque activés pour un club)</li>
           </ul>
         </section>
 

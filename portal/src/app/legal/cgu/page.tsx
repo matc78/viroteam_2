@@ -26,7 +26,9 @@ export default function CguPage() {
 
       <article className={styles.article}>
         <h1>Conditions générales d’utilisation</h1>
-        <p className={styles.meta}>Dernière mise à jour : août 2026</p>
+        <p className={styles.meta}>
+          Dernière mise à jour : 28 septembre 2026
+        </p>
 
         <section>
           <h2>1. Objet</h2>
@@ -78,7 +80,33 @@ export default function CguPage() {
         </section>
 
         <section>
-          <h2>6. Contact</h2>
+          <h2>6. Paiement des cotisations</h2>
+          <p>
+            Le paiement en ligne des cotisations est <strong>optionnel</strong>{" "}
+            : il n’est proposé que lorsque le club l’a activé, et le club peut
+            toujours accepter d’autres moyens de paiement. Il est opéré par
+            Stripe (Stripe Payments Europe Ltd), qui collecte les données de
+            carte directement.
+          </p>
+          <p>
+            Pour chaque paiement par carte, une{" "}
+            <strong>commission de service de 1 € TTC</strong> est prélevée par
+            l’éditeur du Service, en plus des frais de l’établissement de
+            paiement. Le <strong>montant total</strong> à régler (cotisation +
+            frais) est affiché avant validation ; en validant le paiement, vous
+            l’acceptez. Un reçu est envoyé à l’adresse e-mail du payeur.
+          </p>
+          <p>
+            La cotisation relève du contrat entre le membre (ou son parent) et
+            son club : l’éditeur du Service n’y est pas partie. Les demandes de
+            remboursement, d’annulation ou de contestation d’une cotisation sont
+            gérées par le club, seul décisionnaire ; le Service lui fournit les
+            outils techniques nécessaires.
+          </p>
+        </section>
+
+        <section>
+          <h2>7. Contact</h2>
           <p>
             Pour toute question relative aux présentes CGU :{" "}
             <a href={`mailto:contact@${site.url.replace(/^https?:\/\/(www\.)?/, "")}`}>

@@ -4,6 +4,13 @@ export const STRIPE_PERCENT = 0.015;
 export const STRIPE_FIXED_CENTS = 25;
 /** Marge plateforme fixe en centimes (sécurité + revenu). */
 export const PLATFORM_FLAT_CENTS = 100;
+/** Commission plateforme telle qu’affichée au payeur (« 1 € »). */
+export const PLATFORM_FLAT_LABEL = `${PLATFORM_FLAT_CENTS / 100} €`;
+/**
+ * Précision affichée à côté des frais CB, pour que le payeur sache ce qu’ils
+ * couvrent (frais Stripe + commission ViroTeam). Mêmes mots partout.
+ */
+export const CARD_FEE_NOTICE = `paiement sécurisé + ${PLATFORM_FLAT_LABEL} pour ViroTeam`;
 
 /**
  * Convertit un montant net club (centimes) en montant brut CB membre.

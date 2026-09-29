@@ -5,8 +5,9 @@ type StoreBadgesProps = {
   className?: string;
 };
 
-/** Badges Play Store (actif) et App Store (bientôt). */
+/** Badges Play Store (actif) et App Store (actif dès que `site.appStoreUrl` est renseigné, « bientôt » sinon). */
 export function StoreBadges({ className }: StoreBadgesProps) {
+  const appStoreUrl = site.appStoreUrl;
   return (
     <div className={[styles.badges, className].filter(Boolean).join(" ")}>
       <a
@@ -23,19 +24,35 @@ export function StoreBadges({ className }: StoreBadgesProps) {
         </span>
       </a>
 
-      <span
-        className={styles.badgeDisabled}
-        role="status"
-        aria-label="App Store — bientôt disponible"
-      >
-        <AppleIcon />
-        <span className={styles.copy}>
-          <span className={styles.eyebrow}>Bientôt sur</span>
-          <span className={styles.label}>
-            App Store <span className={styles.soon}>· bientôt</span>
+      {appStoreUrl ? (
+        <a
+          className={styles.badge}
+          href={appStoreUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Télécharger ViroTeam sur l’App Store"
+        >
+          <AppleIcon />
+          <span className={styles.copy}>
+            <span className={styles.eyebrow}>Disponible sur</span>
+            <span className={styles.label}>App Store</span>
+          </span>
+        </a>
+      ) : (
+        <span
+          className={styles.badgeDisabled}
+          role="status"
+          aria-label="App Store — bientôt disponible"
+        >
+          <AppleIcon />
+          <span className={styles.copy}>
+            <span className={styles.eyebrow}>Bientôt sur</span>
+            <span className={styles.label}>
+              App Store <span className={styles.soon}>· bientôt</span>
+            </span>
           </span>
         </span>
-      </span>
+      )}
     </div>
   );
 }

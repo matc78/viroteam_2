@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/legal/mentions" },
 };
 
-/** Mentions légales — projet personnel non commercial. */
+/** Mentions légales — projet personnel édité par une personne physique. */
 export default function MentionsLegalesPage() {
   const contactDomain = site.url.replace(/^https?:\/\/(www\.)?/, "");
 
@@ -28,15 +28,25 @@ export default function MentionsLegalesPage() {
 
       <article className={styles.article}>
         <h1>Mentions légales</h1>
-        <p className={styles.meta}>Dernière mise à jour : août 2026</p>
+        <p className={styles.meta}>
+          Dernière mise à jour : 28 septembre 2026
+        </p>
 
         <section>
           <h2>1. Éditeur du Service</h2>
           <p>
             {site.name} (application mobile et portail web) est un{" "}
-            <strong>projet personnel</strong>, édité à titre non professionnel
-            et <strong>sans activité commerciale</strong> (pas de vente de
-            produits ou d’abonnements via le Service).
+            <strong>projet personnel</strong>, édité à titre non professionnel.
+            Le Service est <strong>gratuit</strong> pour les clubs et leurs
+            membres : aucun abonnement, aucune vente de produits.
+          </p>
+          <p>
+            Le paiement en ligne des cotisations est <strong>optionnel</strong>{" "}
+            : lorsqu’un club l’active, il est opéré par Stripe (Stripe Payments
+            Europe Ltd, établissement de paiement agréé). Une{" "}
+            <strong>commission de service de 1 € TTC par paiement par carte</strong>{" "}
+            est prélevée par l’éditeur, en plus des frais de l’établissement de
+            paiement. Le montant total est affiché au payeur avant validation.
           </p>
           <p>
             L’éditeur est une <strong>personne physique</strong> (pas de

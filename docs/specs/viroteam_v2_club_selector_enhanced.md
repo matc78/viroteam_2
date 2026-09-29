@@ -137,7 +137,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
-import 'package:viro_team_v2/features/invitations/providers/pending_invitations_provider.dart';
+import 'package:viro_team_v2/features/join/providers/pending_invitations_provider.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';

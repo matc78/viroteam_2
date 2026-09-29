@@ -8,7 +8,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
-import 'package:viro_team_v2/features/invitations/providers/pending_invitations_provider.dart';
+import 'package:viro_team_v2/features/join/providers/pending_invitations_provider.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';

@@ -13,7 +13,7 @@ abstract final class ProjectConfig {
   static const String appVersionName = '2.2.3';
 
   /// Build number local (`+N` du pubspec). La CI release peut le surcharger.
-  static const int appVersionCode = 7;
+  static const int appVersionCode = 8;
 
   // —— Firestore ——
   static const String firestoreDevDatabaseId = 'v2-dev';

@@ -5,6 +5,7 @@ import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/utils/member_fee_status.dart';
 import 'package:viro_team_v2/services/fee/fee_paths.dart';
+import 'package:viro_team_v2/features/fees/models/fee_payment_event.dart';
 
 /// Mutations admin des fiches cotisation membres.
 class FeeMemberOperations {

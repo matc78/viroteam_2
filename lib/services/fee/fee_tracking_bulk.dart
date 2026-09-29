@@ -8,6 +8,7 @@ import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/services/fee/fee_member_operations.dart';
 import 'package:viro_team_v2/services/fee/fee_paths.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/announcements/utils/announcement_filter.dart';
 
 /// Initialisation et actions bulk du suivi cotisations.
 class FeeTrackingBulk {

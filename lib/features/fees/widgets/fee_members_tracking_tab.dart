@@ -9,7 +9,6 @@ import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
-import 'package:viro_team_v2/features/fees/widgets/member_fee_list_tile.dart';
 import 'package:viro_team_v2/features/fees/widgets/offline_payment_dialog.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_payment_history_list.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -21,6 +20,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/lists/member_fee_list_tile.dart';
 
 /// Membres du club sans fiche `member_fees` pour la saison en cours.
 int pendingFeeInitCount({

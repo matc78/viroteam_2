@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_status_chip.dart';
-import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Tuile suivi cotisations — vue terrain (reste dû en priorité).
 class MemberFeeListTile extends StatelessWidget {

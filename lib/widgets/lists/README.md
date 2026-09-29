@@ -3,6 +3,8 @@
 Chaque type de ligne affiché dans un `ListView` vit ici :
 
 - `event_list_tile.dart`
+- `member_fee_list_tile.dart`
+- `member_list_tile.dart`
 - `roster_list_tile.dart`
 - `invite_list_tile.dart`
 - etc.

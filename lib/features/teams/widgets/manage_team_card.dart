@@ -5,7 +5,6 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
-import 'package:viro_team_v2/features/members/widgets/member_list_tile.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
@@ -17,6 +16,7 @@ import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
 
 class ManageTeamCard extends ConsumerStatefulWidget {
   const ManageTeamCard({
@@ -148,7 +148,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                   ),
                   _buildRosterSection(
                     title: AppCopy.teams.coachesSection,
-                    titleColor: const Color(0xFFEA580C),
+                    titleColor: ViroColors.coachBadgeEnd,
                     canAdd: canAddCoach,
                     onAdd: canAddCoach
                         ? () => _openAddSheet(TeamRosterSlot.coach)

@@ -6,7 +6,6 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
-import 'package:viro_team_v2/features/members/widgets/member_list_tile.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_messaging_links_section.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -15,6 +14,7 @@ import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
 
 class TeamExpansionCard extends ConsumerStatefulWidget {
   const TeamExpansionCard({
@@ -201,9 +201,8 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
   }) {
     if (uids.isEmpty) return [];
 
-    final titleColor = title.contains('Coach')
-        ? const Color(0xFFEA580C)
-        : widget.accent;
+    final titleColor =
+        title.contains('Coach') ? ViroColors.coachBadgeEnd : widget.accent;
 
     return [
       _sectionHeader(context, title, titleColor),

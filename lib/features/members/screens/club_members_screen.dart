@@ -20,7 +20,6 @@ import 'package:viro_team_v2/features/members/widgets/change_role_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_bulk_action_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_invite_progress_overlay.dart';
-import 'package:viro_team_v2/features/members/widgets/member_list_tile.dart';
 import 'package:viro_team_v2/services/member_invite_service.dart';
 import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/pending_member_sheet.dart';
@@ -38,6 +37,7 @@ import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
+import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
 
 class ClubMembersScreen extends ConsumerStatefulWidget {
   const ClubMembersScreen({super.key, required this.clubId});

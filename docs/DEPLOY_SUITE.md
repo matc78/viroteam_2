@@ -95,8 +95,9 @@ git tag portal-v1.1.0 && git push origin portal-v1.1.0
 # 4 — Android Play internal + GitHub Release
 git tag v1.1.0 && git push origin v1.1.0
 
-# 5 — Android Play production (quand internal OK)
+# 5 — Android Play production en brouillon (quand internal OK)
 git tag release-v1.1.0 && git push origin release-v1.1.0
+# Puis : Play Console → production → valider le brouillon et publier
 ```
 
 Alternatives : **Actions → workflow_dispatch** (cible `dev` / `prod`) pour Functions / Firestore / portal ; Release Android manuel = artifacts seuls.
@@ -119,7 +120,7 @@ Package : `com.viroteam.viro_team` (même que v1).
 - [ ] URL confidentialité : `https://www.viroteam.com/legal/privacy`
 - [ ] Captures, description courte / longue, icône / feature graphic
 - [ ] Questionnaire contenu / public cible
-- [ ] Track **internal** via tag `v*` puis **production** via `release-v*`
+- [ ] Track **internal** via tag `v*` puis brouillon **production** via `release-v*` (publication manuelle dans Play Console)
 - [ ] Vérifier que le manifeste release n’a pas les permissions interdites (déjà checké en CI Release)
 
 ---

@@ -95,7 +95,8 @@ Le workflow release restaure ainsi avant `flutter build apk --release` :
 git tag v1.0.0
 git push origin v1.0.0
 
-# Track Play production (pas de GitHub Release)
+# Track Play production en brouillon (pas de GitHub Release ;
+# publication manuelle dans Play Console)
 git tag release-v1.0.0
 git push origin release-v1.0.0
 ```

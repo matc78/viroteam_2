@@ -90,7 +90,7 @@ La CI (job Flutter) et Release Android refusent un tag dont la version ≠ `pubs
 |-------------|----------|--------|
 | Push `main` / PR | [`ci.yml`](.github/workflows/ci.yml) | Flutter analyze+test · portal lint+build · functions build (path filters sur PR ; full matrix sur `main`) |
 | Tag `v1.2.3` | [`release-android.yml`](.github/workflows/release-android.yml) | APK/AAB signés → GitHub Release + Play Store **internal** |
-| Tag `release-v1.2.3` | idem | APK/AAB → Play Store **production** (pas de GitHub Release) |
+| Tag `release-v1.2.3` | idem | APK/AAB → Play Store **production en brouillon** (pas de mise en ligne auto, pas de GitHub Release) |
 | Tag `portal-v1.2.3` | [`deploy-portal.yml`](.github/workflows/deploy-portal.yml) | Rollout Firebase App Hosting (`v2-prod`) |
 | Tag `functions-dev-v*` / `functions-v*` | [`deploy-functions.yml`](.github/workflows/deploy-functions.yml) | Deploy Cloud Functions (dual `*Dev` + prod) |
 | Tag `firestore-dev-v*` / `firestore-v*` | [`deploy-firestore.yml`](.github/workflows/deploy-firestore.yml) | Rules + indexes sur `v2-dev` ou `v2-prod` |
@@ -99,7 +99,7 @@ La CI (job Flutter) et Release Android refusent un tag dont la version ≠ `pubs
 # Android — track internal + GitHub Release
 git tag v1.0.0 && git push origin v1.0.0
 
-# Android — track production
+# Android — track production en brouillon (publication manuelle dans Play Console)
 git tag release-v1.0.0 && git push origin release-v1.0.0
 
 # Portail App Hosting

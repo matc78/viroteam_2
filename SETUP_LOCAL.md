@@ -118,6 +118,14 @@ flutterfire configure --project=viroteam-75303
 | `ios/Runner/GoogleService-Info.plist` (si tu l’as en local) | `ios/Runner/GoogleService-Info.plist` |
 | idem macOS si besoin | `macos/Runner/GoogleService-Info.plist` |
 
+### Clé Apple Auth Key (`.p8`)
+
+Ne **jamais** laisser `AuthKey_*.p8` à la racine du repo (même gitignorée).  
+Stockage local recommandé hors projet, par ex. `%USERPROFILE%\.viroteam-secrets\`.
+
+Pour Codemagic / TestFlight : la clé API App Store Connect vit dans **Team integrations → Developer Portal** (intégration « ViroTeam »), pas dans le working tree.  
+Si tu as besoin d’une `.p8` en local (outils ASC / APNs), re-télécharge-la depuis [App Store Connect → Users and Access → Integrations → Keys](https://appstoreconnect.apple.com/access/integrations/api) et place-la uniquement hors du repo.
+
 Note : `lib/firebase_options.dart` pointe encore le bundle iOS `com.viroteam.viroTeam` (app Firebase beta). Le bundle Xcode local est `com.viroteam.viroTeamV2`. À aligner avec `flutterfire configure` avant TestFlight — checklist complète : [`docs/DEPLOY_IOS.md`](docs/DEPLOY_IOS.md). Suite manuelle (secrets, DNS, stores) : [`docs/DEPLOY_SUITE.md`](docs/DEPLOY_SUITE.md).
 
 ## Portail web (Next.js)

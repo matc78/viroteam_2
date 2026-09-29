@@ -7,8 +7,9 @@ import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/services/club_activity_service.dart';
+import 'package:viro_team_v2/services/member/member_account_operations.dart';
+import 'package:viro_team_v2/services/member/member_invitation_operations.dart';
 import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
-import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
@@ -92,14 +93,24 @@ class MemberService {
     FirebaseFunctions? functions,
     ClubActivityService? activityService,
   })  : _db = firestore ?? appFirestore,
-        _functions =
-            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1'),
-        _activity = activityService ??
-            ClubActivityService(firestore: firestore);
+        _activity =
+            activityService ?? ClubActivityService(firestore: firestore) {
+    final cloudFunctions =
+        functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1');
+    _invitationOperations = MemberInvitationOperations(
+      firestore: _db,
+      normalizeEmail: requireNormalizedEmail,
+    );
+    _accountOperations = MemberAccountOperations(
+      firestore: _db,
+      functions: cloudFunctions,
+    );
+  }
 
   final FirebaseFirestore _db;
-  final FirebaseFunctions _functions;
   final ClubActivityService _activity;
+  late final MemberInvitationOperations _invitationOperations;
+  late final MemberAccountOperations _accountOperations;
 
   /// Valide et normalise l'e-mail obligatoire d'une invitation membre
   /// (trim + minuscules). Lève [ArgumentError] si vide ou mal formé.
@@ -400,63 +411,13 @@ class MemberService {
     required String firstName,
     required String lastName,
     required String email,
-  }) async {
-    final trimmedFirst = formatFirstName(firstName);
-    final trimmedLast = formatLastName(lastName);
-    final normalizedEmail = requireNormalizedEmail(email);
-
-    final memberRef = _members(clubId).doc(memberId);
-
-    await _db.runTransaction((tx) async {
-      final memberSnap = await tx.get(memberRef);
-      if (!memberSnap.exists) {
-        throw StateError('Membre introuvable.');
-      }
-
-      final data = memberSnap.data()!;
-      final accountUid =
-          (data[FirestoreFields.accountUid] as String?)?.trim() ?? '';
-      final legacyUserId =
-          (data[FirestoreFields.userId] as String?)?.trim() ?? '';
-      if (accountUid.isNotEmpty || legacyUserId.isNotEmpty) {
-        throw StateError(
-          'Impossible de modifier l\'identité d\'un membre déjà inscrit.',
-        );
-      }
-
-      final activeInvitationId =
-          (data[FirestoreFields.activeInvitationId] as String?)?.trim() ?? '';
-      DocumentReference<Map<String, dynamic>>? inviteRef;
-      DocumentSnapshot<Map<String, dynamic>>? inviteSnap;
-      if (activeInvitationId.isNotEmpty) {
-        inviteRef = _invitations(clubId).doc(activeInvitationId);
-        inviteSnap = await tx.get(inviteRef);
-      }
-
-      final existingSnapshot = data[FirestoreFields.snapshot];
-      final nextSnapshot = <String, dynamic>{
-        if (existingSnapshot is Map<String, dynamic>) ...existingSnapshot,
-        FirestoreFields.displayName: '$trimmedFirst $trimmedLast',
-        FirestoreFields.email: normalizedEmail,
-      };
-
-      tx.update(memberRef, {
-        FirestoreFields.firstName: trimmedFirst,
-        FirestoreFields.lastName: trimmedLast,
-        FirestoreFields.snapshot: nextSnapshot,
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      });
-
-      if (inviteRef != null && inviteSnap?.exists == true) {
-        tx.update(inviteRef, {
-          FirestoreFields.firstName: trimmedFirst,
-          FirestoreFields.lastName: trimmedLast,
-          FirestoreFields.email: normalizedEmail,
-          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-        });
-      }
-    });
-  }
+  }) => _invitationOperations.updatePendingMemberProfile(
+    clubId: clubId,
+    memberId: memberId,
+    firstName: firstName,
+    lastName: lastName,
+    email: email,
+  );
 
   /// Change le rôle d'un membre via la callable `setMemberRole`
   /// (vérifications admin, dernier admin, `club.adminIds` et
@@ -465,21 +426,11 @@ class MemberService {
     required String clubId,
     required String memberId,
     required String newRole,
-  }) async {
-    if (!MemberRoleHierarchy.isAdmin(newRole) &&
-        newRole != MemberRoles.coach &&
-        newRole != MemberRoles.player) {
-      throw ArgumentError('Rôle invalide.');
-    }
-
-    final callable =
-        _functions.httpsCallable(cloudCallableName('setMemberRole'));
-    await callable.call(<String, dynamic>{
-      FirestoreFields.clubId: clubId,
-      FirestoreFields.memberId: memberId,
-      FirestoreFields.role: newRole,
-    });
-  }
+  }) => _accountOperations.updateMemberRole(
+    clubId: clubId,
+    memberId: memberId,
+    newRole: newRole,
+  );
 
   /// Retire un membre du club via la callable `removeMember`
   /// (fiche, index `member_accounts`, équipes, invitation et
@@ -487,14 +438,10 @@ class MemberService {
   Future<void> removeMember({
     required String clubId,
     required String memberId,
-  }) async {
-    final callable =
-        _functions.httpsCallable(cloudCallableName('removeMember'));
-    await callable.call(<String, dynamic>{
-      FirestoreFields.clubId: clubId,
-      FirestoreFields.memberId: memberId,
-    });
-  }
+  }) => _accountOperations.removeMember(
+    clubId: clubId,
+    memberId: memberId,
+  );
 
   /// Parents liés aux fiches du club via `members/{memberId}/guardians`
   /// et invitations `type: guardian` pending. Une entrée = un parent (uid/email).
@@ -745,91 +692,13 @@ class MemberService {
     required ClubMember member,
     required String sentByUid,
     required String email,
-  }) async {
-    final normalizedEmail = requireNormalizedEmail(email);
-    final memberRef = _members(clubId).doc(member.memberId);
-    final newInviteRef = _invitations(clubId).doc();
-    final code = generateInviteCode();
-    final expiresAt = DateTime.now().add(const Duration(days: 7));
-
-    await _db.runTransaction((tx) async {
-      final memberSnap = await tx.get(memberRef);
-      if (!memberSnap.exists) {
-        throw StateError('Membre introuvable.');
-      }
-      final data = memberSnap.data()!;
-      final accountUid =
-          (data[FirestoreFields.accountUid] as String?)?.trim() ?? '';
-      if (accountUid.isNotEmpty) {
-        throw StateError('Ce membre a déjà un compte lié.');
-      }
-
-      final existingSnapshot = data[FirestoreFields.snapshot];
-      final nextSnapshot = <String, dynamic>{
-        if (existingSnapshot is Map<String, dynamic>) ...existingSnapshot,
-        FirestoreFields.email: normalizedEmail,
-      };
-
-      final previousInviteId =
-          (data[FirestoreFields.activeInvitationId] as String?)?.trim() ?? '';
-      if (previousInviteId.isNotEmpty) {
-        final previousInviteRef = _invitations(clubId).doc(previousInviteId);
-        final previousInviteSnap = await tx.get(previousInviteRef);
-        if (previousInviteSnap.exists) {
-          final previous = ClubInvitation.fromDocument(previousInviteSnap);
-          if (previous.isPending &&
-              previous.code.trim().isNotEmpty &&
-              !previous.isExpired) {
-            tx.update(previousInviteRef, {
-              FirestoreFields.email: normalizedEmail,
-              FirestoreFields.expiresAt: Timestamp.fromDate(expiresAt),
-              FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-            });
-            tx.update(memberRef, {
-              FirestoreFields.snapshot: nextSnapshot,
-              FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-            });
-            return;
-          }
-          if (previous.status == InvitationStatus.pending) {
-            tx.update(previousInviteRef, {
-              FirestoreFields.status: InvitationStatus.expired,
-              FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-            });
-          }
-        }
-      }
-
-      final role = data[FirestoreFields.role] as String? ?? MemberRoles.player;
-      final firstName = (data[FirestoreFields.firstName] as String?)?.trim() ??
-          member.firstName?.trim() ??
-          '';
-      final lastName = (data[FirestoreFields.lastName] as String?)?.trim() ??
-          member.lastName?.trim() ??
-          '';
-
-      tx.set(newInviteRef, {
-        FirestoreFields.code: code,
-        FirestoreFields.type: InvitationTypes.member,
-        FirestoreFields.role: role,
-        FirestoreFields.status: InvitationStatus.pending,
-        FirestoreFields.email: normalizedEmail,
-        FirestoreFields.memberId: member.memberId,
-        FirestoreFields.sentBy: sentByUid,
-        FirestoreFields.sentAt: FieldValue.serverTimestamp(),
-        FirestoreFields.expiresAt: Timestamp.fromDate(expiresAt),
-        FirestoreFields.clubName: club.name,
-        FirestoreFields.clubSport: club.sport,
-        FirestoreFields.firstName: firstName,
-        FirestoreFields.lastName: lastName,
-      });
-      tx.update(memberRef, {
-        FirestoreFields.activeInvitationId: newInviteRef.id,
-        FirestoreFields.snapshot: nextSnapshot,
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      });
-    });
-  }
+  }) => _invitationOperations.ensureMemberInvitation(
+    clubId: clubId,
+    club: club,
+    member: member,
+    sentByUid: sentByUid,
+    email: email,
+  );
 
   /// Prépare les invitations de plusieurs membres non inscrits (parallèle).
   Future<void> ensureMemberInvitations({
@@ -837,39 +706,21 @@ class MemberService {
     required Club club,
     required List<ClubMember> members,
     required String sentByUid,
-  }) async {
-    const chunkSize = 10;
-    for (var i = 0; i < members.length; i += chunkSize) {
-      final end =
-          (i + chunkSize > members.length) ? members.length : i + chunkSize;
-      final chunk = members.sublist(i, end);
-      await Future.wait(
-        chunk.map(
-          (member) => ensureMemberInvitation(
-            clubId: clubId,
-            club: club,
-            member: member,
-            sentByUid: sentByUid,
-            email: member.email ?? '',
-          ),
-        ),
-      );
-    }
-  }
+  }) => _invitationOperations.ensureMemberInvitations(
+    clubId: clubId,
+    club: club,
+    members: members,
+    sentByUid: sentByUid,
+  );
 
   /// Numéro de licence (`playerInfo.license`) d’une fiche membre.
   Future<String> getMemberLicense({
     required String clubId,
     required String memberId,
-  }) async {
-    final memberSnap = await _members(clubId).doc(memberId).get();
-    if (!memberSnap.exists) return '';
-    final data = memberSnap.data() ?? {};
-    final playerInfo =
-        data[FirestoreFields.playerInfo] as Map<String, dynamic>?;
-    if (playerInfo == null) return '';
-    return (playerInfo[FirestoreFields.license] as String?)?.trim() ?? '';
-  }
+  }) => _accountOperations.getMemberLicense(
+    clubId: clubId,
+    memberId: memberId,
+  );
 
   /// Met à jour le numéro de licence (`playerInfo.license`) d'un membre.
   ///
@@ -879,36 +730,19 @@ class MemberService {
     required String clubId,
     required String memberId,
     required String rawLicense,
-  }) async {
-    final formattedLicense = formatLicense(rawLicense);
-    final memberRef = _members(clubId).doc(memberId);
-    final memberSnap = await memberRef.get();
-    if (!memberSnap.exists) {
-      throw StateError('Membre introuvable.');
-    }
-
-    final data = memberSnap.data() ?? {};
-    final existingInfo =
-        data[FirestoreFields.playerInfo] is Map<String, dynamic>
-            ? Map<String, dynamic>.from(
-                data[FirestoreFields.playerInfo] as Map<String, dynamic>,
-              )
-            : <String, dynamic>{};
-
-    await memberRef.update({
-      FirestoreFields.playerInfo: {
-        ...existingInfo,
-        FirestoreFields.license: formattedLicense,
-      },
-      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-    });
-  }
+  }) => _accountOperations.updateMemberLicense(
+    clubId: clubId,
+    memberId: memberId,
+    rawLicense: rawLicense,
+  );
 
   String inviteMessageFor({
     required Club club,
     required ClubInvitation invitation,
-  }) =>
-      buildInviteMessage(club: club, invitation: invitation);
+  }) => _invitationOperations.inviteMessageFor(
+    club: club,
+    invitation: invitation,
+  );
 }
 
 class _ParentAccumulator {

@@ -89,6 +89,21 @@ final class AppCopyFees {
       'Le paiement en ligne via Stripe arrive bientôt. '
       'En attendant, utilise les moyens de paiement indiqués '
       'par ton club.';
+  String get onlineSoonUnavailable =>
+      'Le paiement en ligne sera bientôt disponible. '
+      'Utilise les consignes du club en attendant.';
+  String get providerNotConfigured => 'Prestataire de paiement non configuré';
+  String get invalidAmount => 'Montant invalide';
+  String get aidsPendingProof =>
+      'Aides enregistrées — en attente de justificatif';
+  String get missingClientSecret => 'Stripe n\'a pas renvoyé de client_secret';
+  String get paymentSubmittedPending =>
+      'Paiement envoyé. Le statut se mettra à jour après confirmation '
+      'serveur (pas immédiatement).';
+  String get paymentCancelled => 'Paiement annulé';
+  String get stripeError => 'Erreur Stripe';
+  String stripeErrorWithCode(String code) => 'Erreur Stripe ($code)';
+  String paymentError(String detail) => 'Erreur paiement : $detail';
 
   String get overdueBanner =>
       'Cotisation en retard. Merci de régulariser selon les consignes ci-dessous.';
@@ -175,6 +190,11 @@ final class AppCopyFees {
   String get amountEuros => 'Montant (€)';
   String get validate => 'Valider';
   String remainingLabel(String amount) => 'Reste : $amount';
+  String get unknownOfflineMethod => 'Moyen hors-ligne inconnu';
+  String get feeSheetNotFound => 'Fiche cotisation introuvable';
+  String get exemptAdjustImpossible => 'Membre exonéré — ajustement impossible';
+  String get noFeeAssigned => 'Aucune cotisation assignée pour ce membre';
+  String get invalidAidStatus => 'Statut aide invalide';
 
   String get checkoutTitle => 'Payer ma cotisation';
   String totalDue(String amount) => 'Total dû : $amount';
@@ -285,8 +305,7 @@ final class AppCopyFees {
 
   String get paymentHistoryTitle => 'Historique des paiements';
   String get paymentHistoryEmpty => 'Aucune transaction pour l’instant.';
-  String get paymentHistoryLoadError =>
-      'Impossible de charger l’historique.';
+  String get paymentHistoryLoadError => 'Impossible de charger l’historique.';
   String get fieldPaymentHistory => 'Voir l’historique';
 
   String paymentEventTitle(String type) => switch (type) {

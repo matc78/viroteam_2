@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
@@ -35,16 +36,11 @@ class InvitationService {
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
   })  : _db = firestore ?? appFirestore,
-        _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'europe-west1');
+        _functions =
+            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1');
 
   final FirebaseFirestore _db;
   final FirebaseFunctions _functions;
-
-  /// Message affiché quand la callable refuse l'acceptation (`permission-denied`).
-  static const String reservedForOtherEmailMessage =
-      'Cette invitation est réservée à un autre e-mail. '
-      'Demande à l\'administrateur du club de renvoyer un code à ton adresse.';
 
   /// Recherche une invitation par code via la callable `lookupInvitationByCode`
   /// (la lecture directe en collection group n'est plus autorisée).
@@ -95,9 +91,7 @@ class InvitationService {
     required ViroUser user,
   }) async {
     if (invitation.isGuardian) {
-      throw StateError(
-        'Utiliser GuardianService.linkGuardian pour une invitation parent.',
-      );
+      throw StateError(AppCopy.join.useGuardianService);
     }
 
     final callable =
@@ -109,12 +103,12 @@ class InvitationService {
       });
     } on FirebaseFunctionsException catch (error) {
       if (error.code == 'permission-denied') {
-        throw const InvitationAcceptException(reservedForOtherEmailMessage);
+        throw InvitationAcceptException(AppCopy.join.reservedForOtherEmail);
       }
       throw InvitationAcceptException(
         callableErrorMessage(
           error,
-          fallback: 'Impossible d\'accepter l\'invitation.',
+          fallback: AppCopy.join.inviteAcceptFailed,
         ),
       );
     }

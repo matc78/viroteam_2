@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
@@ -31,8 +32,8 @@ class AccountService {
   })  : _auth = auth ?? FirebaseAuth.instance,
         _db = firestore ?? appFirestore,
         _googleSignIn = googleSignIn ?? GoogleSignIn(),
-        _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'europe-west1');
+        _functions =
+            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1');
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
@@ -51,12 +52,12 @@ class AccountService {
   static List<String> authProviderLabels(User user) {
     final labels = <String>[];
     if (userHasPasswordProvider(user)) {
-      labels.add('Email / mot de passe');
+      labels.add(AppCopy.settings.providerEmailPassword);
     }
     if (userHasGoogleProvider(user)) {
-      labels.add('Google');
+      labels.add(AppCopy.settings.providerGoogle);
     }
-    if (labels.isEmpty) labels.add('Inconnu');
+    if (labels.isEmpty) labels.add(AppCopy.settings.providerUnknown);
     return labels;
   }
 
@@ -67,7 +68,7 @@ class AccountService {
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
-      throw StateError('Aucun utilisateur connecté.');
+      throw StateError(AppCopy.settings.notConnected);
     }
 
     final normalizedEmail = normalizeEmail(newEmail);
@@ -97,10 +98,10 @@ class AccountService {
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
-      throw StateError('Aucun utilisateur connecté.');
+      throw StateError(AppCopy.settings.notConnected);
     }
     if (!userHasPasswordProvider(user)) {
-      throw StateError('Ce compte n’utilise pas de mot de passe.');
+      throw StateError(AppCopy.settings.accountNoPassword);
     }
     final policyError = PasswordPolicy.validate(newPassword);
     if (policyError != null) {
@@ -119,11 +120,11 @@ class AccountService {
     if (userHasPasswordProvider(user)) {
       final email = user.email?.trim();
       if (email == null || email.isEmpty) {
-        throw StateError('E-mail manquant pour la réauthentification.');
+        throw StateError(AppCopy.settings.emailMissingForReauth);
       }
       final trimmedPassword = password?.trim() ?? '';
       if (trimmedPassword.isEmpty) {
-        throw StateError('Mot de passe actuel requis.');
+        throw StateError(AppCopy.settings.currentPasswordRequired);
       }
       final credential = EmailAuthProvider.credential(
         email: email,
@@ -147,7 +148,7 @@ class AccountService {
       return;
     }
 
-    throw StateError('Aucun moyen de réauthentification disponible.');
+    throw StateError(AppCopy.settings.noReauthMethod);
   }
 
   /// Supprime le compte : réauth, callable `deleteMyAccount` (anonymisation
@@ -157,7 +158,7 @@ class AccountService {
   Future<void> deleteAccount({String? currentPassword}) async {
     final user = _auth.currentUser;
     if (user == null) {
-      throw StateError('Aucun utilisateur connecté.');
+      throw StateError(AppCopy.settings.notConnected);
     }
 
     await reauthenticate(user: user, password: currentPassword);
@@ -170,7 +171,7 @@ class AccountService {
       throw AccountDeletionException(
         callableErrorMessage(
           error,
-          fallback: 'Suppression du compte impossible. Réessaie plus tard.',
+          fallback: AppCopy.settings.deleteAccountFailed,
         ),
       );
     }

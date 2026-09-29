@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/fees/models/fee_aid.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/services/fee_payment_analytics.dart';
@@ -83,9 +84,7 @@ class PaymentCheckoutResult {
   static PaymentCheckoutResult unavailable([String? message]) =>
       PaymentCheckoutResult(
         status: PaymentCheckoutStatus.unavailable,
-        message: message ??
-            'Le paiement en ligne sera bientôt disponible. '
-                'Utilisez les consignes du club en attendant.',
+        message: message ?? AppCopy.fees.onlineSoonUnavailable,
       );
 }
 
@@ -118,8 +117,7 @@ class NoopPaymentService implements PaymentService {
       return PaymentCheckoutResult.unavailable();
     }
     return PaymentCheckoutResult.unavailable(
-      'Prestataire de paiement non configuré',
-    );
+        AppCopy.fees.providerNotConfigured);
   }
 }
 
@@ -128,8 +126,8 @@ class StripePaymentService implements PaymentService {
   StripePaymentService({
     FirebaseFunctions? functions,
     FeePaymentAnalytics? analytics,
-  })  : _functions = functions ??
-            FirebaseFunctions.instanceFor(region: 'europe-west1'),
+  })  : _functions =
+            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1'),
         _analytics = analytics;
 
   final FirebaseFunctions _functions;
@@ -157,9 +155,9 @@ class StripePaymentService implements PaymentService {
     }
     if (amountCents <= 0 && aids.isEmpty) {
       _trackFailed(stage: 'callable', errorCode: 'invalid_amount');
-      return const PaymentCheckoutResult(
+      return PaymentCheckoutResult(
         status: PaymentCheckoutStatus.failed,
-        message: 'Montant invalide',
+        message: AppCopy.fees.invalidAmount,
       );
     }
 
@@ -198,15 +196,15 @@ class StripePaymentService implements PaymentService {
           return PaymentCheckoutResult(
             status: PaymentCheckoutStatus.started,
             sessionId: sessionId,
-            message: data['message'] as String? ??
-                'Aides enregistrées — en attente de justificatif',
+            message:
+                data['message'] as String? ?? AppCopy.fees.aidsPendingProof,
           );
         }
         _trackFailed(stage: 'callable', errorCode: 'missing_client_secret');
         return PaymentCheckoutResult(
           status: PaymentCheckoutStatus.failed,
-          message: data['message'] as String? ??
-              'Stripe n\'a pas renvoyé de client_secret',
+          message:
+              data['message'] as String? ?? AppCopy.fees.missingClientSecret,
         );
       }
 
@@ -236,9 +234,7 @@ class StripePaymentService implements PaymentService {
         status: PaymentCheckoutStatus.started,
         externalPaymentId: paymentIntentId,
         sessionId: sessionId,
-        message:
-            'Paiement envoyé. Le statut se mettra à jour après confirmation '
-            'serveur (pas immédiatement).',
+        message: AppCopy.fees.paymentSubmittedPending,
       );
     } on StripeException catch (e) {
       if (e.error.code == FailureCode.Canceled) {
@@ -246,22 +242,22 @@ class StripePaymentService implements PaymentService {
           surface: FeePaymentAnalytics.surfaceApp,
           stage: 'sheet',
         );
-        return const PaymentCheckoutResult(
+        return PaymentCheckoutResult(
           status: PaymentCheckoutStatus.cancelled,
-          message: 'Paiement annulé',
+          message: AppCopy.fees.paymentCancelled,
         );
       }
       final errorCode = e.error.code.toString();
       _trackFailed(stage: 'sheet', errorCode: errorCode, error: e);
       return PaymentCheckoutResult(
         status: PaymentCheckoutStatus.failed,
-        message: e.error.localizedMessage ?? 'Erreur Stripe',
+        message: e.error.localizedMessage ?? AppCopy.fees.stripeError,
       );
     } on FirebaseFunctionsException catch (e) {
       _trackFailed(stage: 'callable', errorCode: e.code, error: e);
       return PaymentCheckoutResult(
         status: PaymentCheckoutStatus.failed,
-        message: e.message ?? 'Erreur Stripe (${e.code})',
+        message: e.message ?? AppCopy.fees.stripeErrorWithCode(e.code),
       );
     } catch (e, stack) {
       _trackFailed(
@@ -272,7 +268,7 @@ class StripePaymentService implements PaymentService {
       );
       return PaymentCheckoutResult(
         status: PaymentCheckoutStatus.failed,
-        message: 'Erreur paiement : $e',
+        message: AppCopy.fees.paymentError('$e'),
       );
     }
   }

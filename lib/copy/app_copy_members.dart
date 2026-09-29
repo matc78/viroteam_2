@@ -20,8 +20,7 @@ final class AppCopyMembers {
   String get unnamed => 'Sans nom';
 
   String get deleteMemberTitle => 'Supprimer ce membre ?';
-  String deleteMemberBody(String name) =>
-      '$name sera retiré(e) du club. '
+  String deleteMemberBody(String name) => '$name sera retiré(e) du club. '
       'Accès au chat et historique de discussion seront perdus.';
   String get deleteMemberAction => 'Supprimer';
   String get deleteMemberConfirm => 'Confirmer la suppression';
@@ -57,8 +56,7 @@ final class AppCopyMembers {
 
   String get pleaseWait => 'Patiente un instant…';
   String get preparing => 'Préparation…';
-  String get stayOnScreenDuringSend =>
-      'Reste sur cet écran pendant l’envoi.';
+  String get stayOnScreenDuringSend => 'Reste sur cet écran pendant l’envoi.';
 
   String get sendInvite => 'Envoyer l\'invitation';
   String get inviteSentShort => 'Envoyée';
@@ -76,8 +74,7 @@ final class AppCopyMembers {
   String get notRegisteredYet => 'Pas encore inscrit';
   String get pendingIdentityHint =>
       'Pas encore inscrit — modifie l’identité ou partage le code.';
-  String get parentsEmpty =>
-      'Aucun parent pour l’instant — invite le premier.';
+  String get parentsEmpty => 'Aucun parent pour l’instant — invite le premier.';
   String get loadParentsError => 'Impossible de charger les parents';
   String get searchParentHint => 'Chercher un parent…';
   String get filterPending => 'En attente';
@@ -89,6 +86,8 @@ final class AppCopyMembers {
   String get noPlayerAdded => 'Aucun joueur ajouté';
   String get identityLocked =>
       'Impossible de modifier l\'identité d\'un membre déjà inscrit.';
+  String get memberNotFound => 'Membre introuvable.';
+  String get memberAlreadyLinked => 'Ce membre a déjà un compte lié.';
 
   String get roleChangeImpossible => 'Changement de rôle impossible.';
   String get roleUpdated => 'Rôle mis à jour — c’est bon.';
@@ -107,8 +106,7 @@ final class AppCopyMembers {
   String get firstNameRequired => 'Prénom *';
   String get lastNameRequired => 'Nom *';
   String get emailRequired => 'E-mail *';
-  String get emailInviteHint =>
-      'seul ce compte pourra accepter l\'invitation';
+  String get emailInviteHint => 'seul ce compte pourra accepter l\'invitation';
   String get emailInviteHintCurly =>
       'seul ce compte pourra accepter l’invitation';
   String get creating => 'Création…';
@@ -135,11 +133,9 @@ final class AppCopyMembers {
   String get parentInvited => 'Parent invité';
   String get inviteExpiredLower => 'invitation expirée';
   String get pendingLower => 'en attente';
-  String parentWithInviteExpired(String name) =>
-      '$name · invitation expirée';
+  String parentWithInviteExpired(String name) => '$name · invitation expirée';
   String parentWithPending(String name) => '$name · en attente';
-  String enlargePhoto(String fullName) =>
-      'Agrandir la photo de $fullName';
+  String enlargePhoto(String fullName) => 'Agrandir la photo de $fullName';
 
   String get statusConnected => 'Connecté';
   String get statusPending => 'En attente';

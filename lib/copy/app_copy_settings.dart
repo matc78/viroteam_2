@@ -38,8 +38,7 @@ final class AppCopySettings {
   String get notifChatSubtitle => 'Nouveaux messages des discussions';
   String get disableNotificationsTitle => 'Désactiver les notifications';
   String get disableAction => 'Désactiver';
-  String get notifPrefSaveFailed =>
-      'Impossible d’enregistrer la préférence';
+  String get notifPrefSaveFailed => 'Impossible d’enregistrer la préférence';
   String get notifOffWarningEvents =>
       'Tu ne recevras plus les rappels d’événements (J-7, J-2) ni les notifications envoyées par les coaches.';
   String get notifOffWarningAnnouncements =>
@@ -58,8 +57,7 @@ final class AppCopySettings {
       'Actions sensibles — une confirmation te sera demandée.';
   String get signOut => 'Se déconnecter';
   String get signOutSubtitle => 'Quitter la session sur cet appareil';
-  String get signOutDialogBody =>
-      'Tu quittes la session sur cet appareil. '
+  String get signOutDialogBody => 'Tu quittes la session sur cet appareil. '
       'Tu pourras te reconnecter à tout moment avec le même compte.';
   String get signOutFailed => 'Déconnexion impossible';
   String get deleteAccountTitle => 'Supprimer le compte';
@@ -77,6 +75,16 @@ final class AppCopySettings {
   String get wrongPassword => 'Mot de passe incorrect';
   String get deleteFailed => 'Suppression impossible';
   String get notConnected => 'Aucun utilisateur connecté';
+  String get providerEmailPassword => 'Email / mot de passe';
+  String get providerGoogle => 'Google';
+  String get providerUnknown => 'Inconnu';
+  String get accountNoPassword => 'Ce compte n’utilise pas de mot de passe.';
+  String get emailMissingForReauth =>
+      'E-mail manquant pour la réauthentification.';
+  String get currentPasswordRequired => 'Mot de passe actuel requis.';
+  String get noReauthMethod => 'Aucun moyen de réauthentification disponible.';
+  String get deleteAccountFailed =>
+      'Suppression du compte impossible. Réessaie plus tard.';
 
   String get changeEmailTitle => 'Changer l’e-mail';
   String get newEmail => 'Nouvel e-mail';
@@ -88,8 +96,7 @@ final class AppCopySettings {
   String get changePasswordTitle => 'Changer le mot de passe';
   String get newPassword => 'Nouveau mot de passe';
   String get confirmPassword => 'Confirmer';
-  String get passwordsMismatch =>
-      'Les mots de passe ne correspondent pas.';
+  String get passwordsMismatch => 'Les mots de passe ne correspondent pas.';
   String get passwordUpdated => 'Mot de passe mis à jour';
 
   String get editProfileTitle => 'Modifier le profil';

@@ -7,8 +7,12 @@ part of 'app_copy.dart';
 final class AppCopyJoin {
   const AppCopyJoin();
 
-  String get inviteAcceptFailed =>
-      'Impossible d\'accepter l\'invitation.';
+  String get inviteAcceptFailed => 'Impossible d\'accepter l\'invitation.';
+  String get reservedForOtherEmail =>
+      'Cette invitation est réservée à un autre e-mail. '
+      'Demande à l\'administrateur du club de renvoyer un code à ton adresse.';
+  String get useGuardianService =>
+      'Utiliser GuardianService.linkGuardian pour une invitation parent.';
 
   String get joinClubTitle => 'Rejoindre un club';
   String get enterCodeTitle => 'Entre ton code';

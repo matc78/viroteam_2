@@ -23,7 +23,6 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
-- Version app alignée sur les tags Play : `pubspec.yaml` / `ProjectConfig` en `2.2.2+6`
 - Textes landing (hero, sections, FAQ, CTA) pour refléter planning, membres, cotisations et app club
 - Reverse proxy PostHog et DSN Sentry EU
 - Badge / logo Play Store aux couleurs officielles
@@ -33,6 +32,12 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 ### Corrigé
 
 - Validations sondage / réactions et MIME vignette chat
+
+## [2.2.3] - 2026-09-29
+
+### Modifié
+
+- Version app : `pubspec.yaml` / `ProjectConfig` en `2.2.3+7`
 
 ## [2.2.2] - 2026-09-12
 

@@ -35,6 +35,14 @@ class PushNotificationService {
   Future<void> start() async {
     if (kIsWeb) return;
 
+    // `--dart-define=SKIP_PUSH_PERMISSION=true` : pas de demande de
+    // permission iOS (captures d'écran store sur simulateur). Défaut : false.
+    const skipPermission = bool.fromEnvironment('SKIP_PUSH_PERMISSION');
+    if (skipPermission) {
+      _bindListenersOnce();
+      return;
+    }
+
     try {
       await _messaging.requestPermission(
         alert: true,

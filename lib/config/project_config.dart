@@ -19,8 +19,18 @@ abstract final class ProjectConfig {
   static const String firestoreDevDatabaseId = 'v2-dev';
   static const String firestoreProdDatabaseId = 'v2-prod';
 
+  /// `--dart-define=FORCE_PROD_BACKEND=true` : force le backend de release
+  /// (base `v2-prod`, callables sans suffixe Dev, portail prod) même en
+  /// debug / profile. Usage : captures d'écran store sur simulateur.
+  /// Sans le define, rien ne change (`false` par défaut).
+  static const bool forceProdBackend =
+      bool.fromEnvironment('FORCE_PROD_BACKEND');
+
+  /// Backend de production actif (release, ou [forceProdBackend]).
+  static bool get useProdBackend => kReleaseMode || forceProdBackend;
+
   static String get firestoreDatabaseId =>
-      kReleaseMode ? firestoreProdDatabaseId : firestoreDevDatabaseId;
+      useProdBackend ? firestoreProdDatabaseId : firestoreDevDatabaseId;
 
   static const String firebaseProjectId = 'viroteam-75303';
 
@@ -34,7 +44,7 @@ abstract final class ProjectConfig {
   static String get portalBaseUrl {
     const fromDefine = String.fromEnvironment('PORTAL_BASE_URL');
     if (fromDefine.isNotEmpty) return fromDefine;
-    return kReleaseMode
+    return useProdBackend
         ? 'https://www.viroteam.com'
         : 'http://localhost:3000';
   }

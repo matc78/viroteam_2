@@ -5,9 +5,16 @@ import {
 } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import { defineBoolean } from "firebase-functions/params";
 import { requireString, requireUid, stringArray, uniq } from "../common";
 import { db, defineDualCallable, runWithDatabase, type FirestoreDatabaseId } from "../db";
+import { assertClubAdmin } from "../guardians";
 import { buildPushData, sendPushToUids } from "../notifications/send";
+import {
+  CHANNEL_WRITE_POLICIES,
+  CONVERSATION_TITLE_MAX,
+  memberChatFieldsChanged,
+} from "./memberChatDiff";
 import {
   createScopedChannelConversation,
   resolveScopedChannelParticipants,
@@ -16,6 +23,16 @@ import {
 } from "./sync";
 
 const REGION = "europe-west1";
+
+/**
+ * Messagerie cachée en prod tant que ce param est `false` (défaut) : aucun
+ * push `chat_message` ne part. Param public dotenv (`functions/.env.<projet>`,
+ * écrit par le workflow deploy-functions) — passer à `true` le jour où la
+ * messagerie est ouverte aux clubs.
+ */
+const chatMessagingLive = defineBoolean("CHAT_MESSAGING_LIVE", {
+  default: false,
+});
 
 function defineMemberWrittenTrigger(databaseId: FirestoreDatabaseId) {
   return onDocumentWritten(
@@ -27,6 +44,16 @@ function defineMemberWrittenTrigger(databaseId: FirestoreDatabaseId) {
     async (event) =>
       runWithDatabase(databaseId, async () => {
         const clubId = event.params.clubId;
+        // Resync uniquement si un champ qui compte pour les chats a changé
+        // (même logique de diff que `onClubWrittenForChat` sur `adminIds`).
+        if (
+          !memberChatFieldsChanged(
+            event.data?.before?.data(),
+            event.data?.after?.data(),
+          )
+        ) {
+          return;
+        }
         try {
           await syncClubWideConversations({ firestore: db(), clubId });
         } catch (error) {
@@ -174,6 +201,10 @@ function defineMessageCreatedTrigger(databaseId: FirestoreDatabaseId) {
             ? `${senderFirstName} : ${messageBody}`
             : messageBody;
 
+        // Garde : pas de push tant que la messagerie n'est pas ouverte
+        // (les compteurs non-lus ci-dessus restent maintenus).
+        if (!chatMessagingLive.value()) return;
+
         await sendPushToUids({
           firestore,
           uids: unmuted,
@@ -283,6 +314,12 @@ async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
   const uid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const title = requireString(request.data?.title, "title");
+  if (title.length > CONVERSATION_TITLE_MAX) {
+    throw new HttpsError(
+      "invalid-argument",
+      `title : ${CONVERSATION_TITLE_MAX} caractères max`,
+    );
+  }
   const { scopeType, scopeIds } = parseChannelScope(
     request.data as Record<string, unknown> | undefined,
   );
@@ -291,31 +328,14 @@ async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
     request.data.writePolicy.trim()
       ? String(request.data.writePolicy).trim()
       : "admins_only";
+  if (!CHANNEL_WRITE_POLICIES.has(writePolicy)) {
+    throw new HttpsError("invalid-argument", "writePolicy inconnue");
+  }
 
+  // Admin via `adminIds`, index `member_accounts` ou fiche directe à son uid
+  // (même résolution que les autres callables admin).
+  await assertClubAdmin(clubId, uid);
   const firestore = db();
-  const clubSnap = await firestore.collection("clubs").doc(clubId).get();
-  if (!clubSnap.exists) throw new HttpsError("not-found", "Club introuvable");
-  const adminIds = stringArray(clubSnap.data()?.adminIds);
-  const memberAccount = await firestore
-    .collection("clubs")
-    .doc(clubId)
-    .collection("member_accounts")
-    .doc(uid)
-    .get();
-  let isAdmin = adminIds.includes(uid);
-  if (!isAdmin && memberAccount.exists) {
-    const memberId = String(memberAccount.data()?.memberId ?? "").trim();
-    const memberSnap = await firestore
-      .collection("clubs")
-      .doc(clubId)
-      .collection("members")
-      .doc(memberId)
-      .get();
-    isAdmin = String(memberSnap.data()?.role ?? "") === "admin";
-  }
-  if (!isAdmin) {
-    throw new HttpsError("permission-denied", "Réservé aux admins");
-  }
 
   const participantUids = await resolveScopedChannelParticipants({
     firestore,

@@ -19,6 +19,13 @@ import {
   cardGrossCentsFromNet,
 } from "./stripeFees";
 import { requireString, requireUid } from "./common";
+import {
+  boundedNetCents,
+  CHECKOUT_CURRENCY,
+  mergeFeeAids,
+  normalizeAidInputs,
+  remainingDueCents,
+} from "./stripeCheckoutUtils";
 
 const stripeSecretKeyTest = defineSecret("STRIPE_SECRET_KEY_TEST");
 const stripeSecretKeyLive = defineSecret("STRIPE_SECRET_KEY_LIVE");
@@ -43,13 +50,6 @@ const STRIPE_API_VERSION = "2025-02-24.acacia" as const;
  * Le SDK stripe@17 n'expose pas encore `v2.core.accounts` — appels HTTP directs.
  */
 const STRIPE_ACCOUNTS_V2_VERSION = "2026-01-28.clover";
-
-type AidInput = {
-  type: string;
-  amountCents: number;
-  promoCode?: string;
-  label?: string;
-};
 
 type StripeConnectStatus =
   | "not_connected"
@@ -397,10 +397,16 @@ export const {
     const clubId = requireString(request.data?.clubId, "clubId");
     const seasonId = requireString(request.data?.seasonId, "seasonId");
     const memberId = requireString(request.data?.memberId, "memberId");
-    const amountCents = Number(request.data?.amountCents ?? 0);
-    const aids = (request.data?.aids as AidInput[] | undefined) ?? [];
-    const currencyRaw = String(request.data?.currency ?? "eur").toLowerCase();
-    const currency = currencyRaw === "eur" ? "eur" : currencyRaw;
+    const clientAmountCents = Number(request.data?.amountCents ?? 0);
+    // Devise : `eur` imposée côté serveur. Toute autre valeur est refusée
+    // (le webhook re-vérifie la devise du PaymentIntent avant de créditer).
+    const currencyRaw = String(request.data?.currency ?? CHECKOUT_CURRENCY)
+      .trim()
+      .toLowerCase();
+    if (currencyRaw && currencyRaw !== CHECKOUT_CURRENCY) {
+      throw new HttpsError("invalid-argument", "Devise non supportée (EUR uniquement)");
+    }
+    const currency = CHECKOUT_CURRENCY;
 
     await assertCanActForMember({
       clubId,
@@ -409,7 +415,7 @@ export const {
       permission: "canPay",
     });
 
-    if (amountCents < 0) {
+    if (!Number.isFinite(clientAmountCents) || clientAmountCents < 0) {
       throw new HttpsError("invalid-argument", "Montant invalide");
     }
 
@@ -448,6 +454,36 @@ export const {
     if (!feeSnap.exists) {
       throw new HttpsError("not-found", "Cotisation introuvable");
     }
+    const fee = feeSnap.data()!;
+
+    // Reste dû recalculé côté serveur : le client ne choisit pas le montant,
+    // il peut seulement payer une partie (min(clientNet, resteDû)).
+    const seasonSnap = await db()
+      .collection("clubs")
+      .doc(clubId)
+      .collection("fee_seasons")
+      .doc(seasonId)
+      .get();
+    const tiers =
+      (seasonSnap.data()?.tiers as { tierId?: unknown; amountCents?: unknown }[] | undefined) ?? [];
+    const tier = tiers.find((t) => String(t.tierId ?? "") === String(fee.tierId ?? ""));
+    const remainingCents = remainingDueCents({
+      tierAmountCents: Number(tier?.amountCents ?? 0),
+      feeStatus: typeof fee.status === "string" ? fee.status : undefined,
+      amountPaidCents: fee.amountPaidCents,
+      aids: fee.aids,
+    });
+    const netCents = boundedNetCents(clientAmountCents, remainingCents);
+    const aids = normalizeAidInputs(request.data?.aids, remainingCents);
+
+    if (netCents <= 0 && aids.length === 0) {
+      throw new HttpsError(
+        "failed-precondition",
+        remainingCents <= 0
+          ? "Cotisation déjà réglée"
+          : "Montant invalide",
+      );
+    }
 
     const sessionRef = db()
       .collection("clubs")
@@ -458,25 +494,20 @@ export const {
       .doc();
 
     const now = admin.firestore.Timestamp.now();
-    const aidDocs = aids
-      .filter((a) => a.amountCents > 0)
-      .map((a, index) => ({
-        id: `${sessionRef.id}_${index}`,
-        type: a.type || "other",
-        label: a.label || aidLabel(a.type || "other"),
-        amountCents: Math.round(a.amountCents),
-        status: "pending_proof",
-        promoCode: a.promoCode ?? null,
-        createdAt: now,
-      }));
+    const aidDocs = aids.map((a, index) => ({
+      id: `${sessionRef.id}_${index}`,
+      type: a.type,
+      label: a.label ?? aidLabel(a.type),
+      amountCents: a.amountCents,
+      status: "pending_proof",
+      promoCode: a.promoCode,
+      createdAt: now,
+    }));
 
-    const netCents = Math.round(amountCents);
     if (netCents <= 0) {
-      const existingAids =
-        (feeSnap.data()?.aids as Record<string, unknown>[] | undefined) ?? [];
       await feeRef.set(
         {
-          aids: [...existingAids, ...aidDocs],
+          aids: mergeFeeAids(fee.aids, aidDocs, sessionRef.id),
           status: "partiel",
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
@@ -553,11 +584,9 @@ export const {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    const existingAids =
-      (feeSnap.data()?.aids as Record<string, unknown>[] | undefined) ?? [];
     await feeRef.set(
       {
-        aids: aidDocs.length > 0 ? [...existingAids, ...aidDocs] : existingAids,
+        aids: mergeFeeAids(fee.aids, aidDocs, sessionRef.id),
         paymentIntentId: paymentIntent.id,
         installmentCount: 1,
         paymentProvider: "stripe",
@@ -690,6 +719,20 @@ async function handlePaymentIntentSucceeded(
 
   if (!clubId || !seasonId || !memberId) {
     console.warn("payment_intent.succeeded metadata incomplete", paymentIntent.id);
+    return;
+  }
+
+  // Devise : seul l'EUR est crédité (le checkout ne crée que des PI en EUR ;
+  // tout autre cas est une anomalie à investiguer, pas un paiement à créditer).
+  const currency = String(paymentIntent.currency ?? "").toLowerCase();
+  if (currency !== CHECKOUT_CURRENCY) {
+    console.error("payment_intent.succeeded ignored: unexpected currency", {
+      paymentIntentId: paymentIntent.id,
+      currency,
+      clubId,
+      seasonId,
+      memberId,
+    });
     return;
   }
 

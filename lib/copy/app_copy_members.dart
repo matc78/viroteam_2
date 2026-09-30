@@ -189,6 +189,9 @@ final class AppCopyMembers {
       '$count membre${count > 1 ? 's' : ''} sélectionné${count > 1 ? 's' : ''}';
   String get chooseTeam => 'Choisir une équipe';
   String get addToTeamImpossible => 'Ajout à l’équipe impossible.';
+  String playersAddToTeamFailed(int failed) =>
+      '$failed joueur${failed > 1 ? 's' : ''} n’${failed > 1 ? 'ont' : 'a'} '
+      'pas pu être ajouté${failed > 1 ? 's' : ''}. Réessaie.';
   String playersAddedToTeam({
     required int added,
     required String teamName,

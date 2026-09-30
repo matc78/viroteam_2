@@ -1,8 +1,9 @@
 // Tests des règles Firestore ViroTeam v2 (émulateur).
 // Lancer : `cd rules-tests && npm test` (firebase-tools + Java requis).
 //
-// Chaque test rejoue une faille corrigée dans le lot 1 sécurité (2 sept. 2026)
-// ou un parcours nominal qui doit continuer à fonctionner.
+// Chaque test rejoue une faille corrigée dans le lot 1 sécurité (2 sept. 2026),
+// le lot 2 chat / parents (28 sept. 2026), ou un parcours nominal qui doit
+// continuer à fonctionner.
 
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
@@ -24,6 +25,8 @@ import {
   query,
   where,
   writeBatch,
+  serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 
 const PROJECT_ID = "viroteam-rules-test";
@@ -37,6 +40,31 @@ const PLAYER = { uid: "player1", email: "player@club.fr" };
 const PARENT = { uid: "parent1", email: "parent@club.fr" };
 const STRANGER = { uid: "stranger1", email: "stranger@else.fr" };
 const INVITEE = { uid: "invitee1", email: "invitee@club.fr" };
+/** Joueur d'une autre équipe (teamB) : invisible pour le parent de teamA. */
+const OTHER_PLAYER = { uid: "player2", email: "player2@club.fr" };
+
+/** Conversations chat (créées par les Cloud Functions en réel). */
+const CONV_TEAM = "convTeam"; // équipe A, open : admin + coach + joueur
+const CONV_CLUB = "convClub"; // club, admins_only : tout le monde
+const CONV_DM = "convDm"; // DM coach ↔ joueur
+
+const BUCKET = "https://firebasestorage.googleapis.com/v0/b/viroteam-75303.appspot.com/o";
+function chatMediaUrl(conversationId, uid, fileName) {
+  return `${BUCKET}/clubs%2F${CLUB}%2Fchat%2F${conversationId}%2F${uid}%2F${fileName}?alt=media&token=abc`;
+}
+function chatMediaPath(conversationId, uid, fileName) {
+  return `clubs/${CLUB}/chat/${conversationId}/${uid}/${fileName}`;
+}
+function textMessage(sender, extra = {}) {
+  return {
+    type: "text",
+    text: "Bonjour",
+    senderUid: sender.uid,
+    createdAt: serverTimestamp(),
+    reactions: {},
+    ...extra,
+  };
+}
 
 let env;
 
@@ -131,9 +159,49 @@ beforeEach(async () => {
       parentTeamIds: ["teamA"],
       parentLinks: [{ clubId: CLUB, memberId: PLAYER.uid, status: "active" }],
     });
-    for (const u of [ADMIN, COACH, PLAYER, STRANGER, INVITEE]) {
+    await setDoc(doc(db, `clubs/${CLUB}/members/${OTHER_PLAYER.uid}`), {
+      memberId: OTHER_PLAYER.uid,
+      accountUid: OTHER_PLAYER.uid,
+      role: "player",
+      status: "active",
+      teamIds: ["teamB"],
+      firstName: "Léa",
+      lastName: "Autre",
+    });
+    for (const u of [ADMIN, COACH, PLAYER, OTHER_PLAYER, STRANGER, INVITEE]) {
       await setDoc(doc(db, `users/${u.uid}`), { email: u.email, emailNorm: u.email });
     }
+    for (const u of [ADMIN, COACH, PLAYER, OTHER_PLAYER]) {
+      await setDoc(doc(db, `clubs/${CLUB}/member_accounts/${u.uid}`), { memberId: u.uid });
+    }
+    // Conversations système (participants maintenus par les Cloud Functions).
+    await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_TEAM}`), {
+      type: "team",
+      systemKey: "team:teamA",
+      title: "Équipe A",
+      participantUids: [ADMIN.uid, COACH.uid, PLAYER.uid],
+      writePolicy: "open",
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_CLUB}`), {
+      type: "club",
+      systemKey: "club",
+      title: "Club 1",
+      participantUids: [ADMIN.uid, COACH.uid, PLAYER.uid, OTHER_PLAYER.uid],
+      writePolicy: "admins_only",
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_DM}`), {
+      type: "dm",
+      title: "Coach",
+      participantUids: [COACH.uid, PLAYER.uid],
+      writePolicy: "open",
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/msgOld`), {
+      type: "text",
+      text: "Ancien",
+      senderUid: COACH.uid,
+      createdAt: Timestamp.now(),
+      reactions: {},
+    });
     // Équipes et contenus.
     await setDoc(doc(db, `clubs/${CLUB}/teams/teamA`), { name: "Équipe A", playerIds: [PLAYER.uid] });
     await setDoc(doc(db, `clubs/${CLUB}/teams/teamB`), { name: "Équipe B", playerIds: [] });
@@ -526,9 +594,9 @@ test("un parent liste les annonces par requête ciblée", async () => {
   await assertSucceeds(getDocs(team));
 });
 
-test("un parent lit la fiche de son enfant, pas celle d'un autre membre", async () => {
+test("un parent lit la fiche de son enfant, pas celle d'un membre hors de ses équipes", async () => {
   await assertSucceeds(getDoc(doc(as(PARENT), `clubs/${CLUB}/members/${PLAYER.uid}`)));
-  await assertFails(getDoc(doc(as(PARENT), `clubs/${CLUB}/members/${COACH.uid}`)));
+  await assertFails(getDoc(doc(as(PARENT), `clubs/${CLUB}/members/${OTHER_PLAYER.uid}`)));
 });
 
 
@@ -596,5 +664,269 @@ test("un coach crée un événement, un joueur non", async () => {
   );
   await assertFails(
     setDoc(doc(as(PLAYER), `clubs/${CLUB}/events/evNew2`), { title: "Pirate", teamIds: [] }),
+  );
+});
+
+// ————————————————————————————————————————————————————————————————
+// Lot 2 — parents : lecture des fiches limitée au strict nécessaire
+// ————————————————————————————————————————————————————————————————
+
+test("un parent lit la fiche de son enfant, celle du coach de l'équipe et celle d'un admin", async () => {
+  await assertSucceeds(getDoc(doc(as(PARENT), `clubs/${CLUB}/members/${PLAYER.uid}`)));
+  await assertSucceeds(getDoc(doc(as(PARENT), `clubs/${CLUB}/members/${COACH.uid}`)));
+  await assertSucceeds(getDoc(doc(as(PARENT), `clubs/${CLUB}/members/${ADMIN.uid}`)));
+});
+
+test("un parent ne lit pas la fiche d'un joueur d'une autre équipe", async () => {
+  await assertFails(getDoc(doc(as(PARENT), `clubs/${CLUB}/members/${OTHER_PLAYER.uid}`)));
+  await assertFails(getDocs(collection(as(PARENT), `clubs/${CLUB}/members`)));
+});
+
+test("un parent résout un uid via member_accounts (get) mais ne liste pas l'index", async () => {
+  await assertSucceeds(getDoc(doc(as(PARENT), `clubs/${CLUB}/member_accounts/${COACH.uid}`)));
+  await assertFails(getDocs(collection(as(PARENT), `clubs/${CLUB}/member_accounts`)));
+  await assertSucceeds(getDocs(collection(as(PLAYER), `clubs/${CLUB}/member_accounts`)));
+});
+
+// ————————————————————————————————————————————————————————————————
+// Lot 2 — conversations : participant vs non-participant, rename
+// ————————————————————————————————————————————————————————————————
+
+test("un participant lit sa conversation et ses messages, un non-participant non", async () => {
+  await assertSucceeds(getDoc(doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}`)));
+  await assertSucceeds(
+    getDocs(collection(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages`)),
+  );
+  await assertFails(getDoc(doc(as(OTHER_PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}`)));
+  await assertFails(
+    getDocs(collection(as(OTHER_PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages`)),
+  );
+  await assertFails(getDoc(doc(as(PARENT), `clubs/${CLUB}/conversations/${CONV_TEAM}`)));
+  await assertFails(getDoc(doc(as(STRANGER), `clubs/${CLUB}/conversations/${CONV_TEAM}`)));
+});
+
+test("un participant qui peut écrire renomme la conversation (≤ 80 caractères, ou null)", async () => {
+  const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}`);
+  await assertSucceeds(updateDoc(ref, { titleOverride: "Les Bleus", updatedAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(ref, { titleOverride: null, updatedAt: serverTimestamp() }));
+  await assertFails(
+    updateDoc(ref, { titleOverride: "x".repeat(81), updatedAt: serverTimestamp() }),
+  );
+  await assertFails(updateDoc(ref, { titleOverride: 42, updatedAt: serverTimestamp() }));
+});
+
+test("un simple lecteur d'un canal admins_only ne le renomme pas, un admin oui", async () => {
+  await assertFails(
+    updateDoc(doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_CLUB}`), {
+      titleOverride: "Pirate",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/conversations/${CONV_CLUB}`), {
+      titleOverride: "Toute l'asso",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(as(STRANGER), `clubs/${CLUB}/conversations/${CONV_TEAM}`), {
+      titleOverride: "Pirate",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("le preview inbox n'accepte qu'un rôle connu et un prénom court", async () => {
+  const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}`);
+  await assertSucceeds(
+    updateDoc(ref, {
+      lastMessageAt: serverTimestamp(),
+      lastMessagePreview: "Salut",
+      lastSenderUid: PLAYER.uid,
+      lastSenderFirstName: "Paul",
+      lastSenderRole: "player",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(ref, {
+      lastMessageAt: serverTimestamp(),
+      lastSenderUid: PLAYER.uid,
+      lastSenderRole: "superadmin",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(ref, {
+      lastMessageAt: serverTimestamp(),
+      lastSenderUid: PLAYER.uid,
+      lastSenderFirstName: "x".repeat(61),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+// ————————————————————————————————————————————————————————————————
+// Lot 2 — messages : création bornée
+// ————————————————————————————————————————————————————————————————
+
+test("un participant envoie un texte ; un non-participant ou un usurpateur non", async () => {
+  await assertSucceeds(
+    setDoc(doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/m1`), textMessage(PLAYER)),
+  );
+  await assertFails(
+    setDoc(doc(as(OTHER_PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/m2`), textMessage(OTHER_PLAYER)),
+  );
+  // senderUid d'un autre.
+  await assertFails(
+    setDoc(doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/m3`), textMessage(COACH)),
+  );
+  // Lecteur d'un canal admins_only.
+  await assertFails(
+    setDoc(doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_CLUB}/messages/m4`), textMessage(PLAYER)),
+  );
+});
+
+test("un message créé avec des réactions préremplies, un horodatage client ou des champs inconnus est refusé", async () => {
+  const col = `clubs/${CLUB}/conversations/${CONV_TEAM}/messages`;
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/r1`), textMessage(PLAYER, { reactions: { "👍": [COACH.uid] } })),
+  );
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/r2`), textMessage(PLAYER, { createdAt: Timestamp.fromDate(new Date(2020, 0, 1)) })),
+  );
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/r3`), textMessage(PLAYER, { editedAt: serverTimestamp() })),
+  );
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/r4`), textMessage(PLAYER, { deletedAt: serverTimestamp() })),
+  );
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/r5`), textMessage(PLAYER, { pinned: true })),
+  );
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/r6`), textMessage(PLAYER, { text: "x".repeat(4001) })),
+  );
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/r7`), textMessage(PLAYER, { text: "" })),
+  );
+});
+
+test("un message image doit pointer sur le bucket du projet sous le préfixe de l'expéditeur", async () => {
+  const col = `clubs/${CLUB}/conversations/${CONV_TEAM}/messages`;
+  const ok = {
+    type: "image",
+    storagePath: chatMediaPath(CONV_TEAM, PLAYER.uid, "img1.jpg"),
+    downloadUrl: chatMediaUrl(CONV_TEAM, PLAYER.uid, "img1.jpg"),
+    thumbUrl: chatMediaUrl(CONV_TEAM, PLAYER.uid, "img1_thumb.png"),
+    width: 1200,
+    height: 800,
+    senderUid: PLAYER.uid,
+    createdAt: serverTimestamp(),
+    reactions: {},
+  };
+  await assertSucceeds(setDoc(doc(as(PLAYER), `${col}/i1`), ok));
+  // Préfixe d'un autre utilisateur.
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/i2`), {
+      ...ok,
+      storagePath: chatMediaPath(CONV_TEAM, COACH.uid, "img1.jpg"),
+      downloadUrl: chatMediaUrl(CONV_TEAM, COACH.uid, "img1.jpg"),
+      thumbUrl: chatMediaUrl(CONV_TEAM, COACH.uid, "img1_thumb.png"),
+    }),
+  );
+  // Autre conversation.
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/i3`), {
+      ...ok,
+      storagePath: chatMediaPath(CONV_DM, PLAYER.uid, "img1.jpg"),
+      downloadUrl: chatMediaUrl(CONV_DM, PLAYER.uid, "img1.jpg"),
+      thumbUrl: chatMediaUrl(CONV_DM, PLAYER.uid, "img1_thumb.png"),
+    }),
+  );
+  // Hébergeur externe.
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/i4`), { ...ok, downloadUrl: "https://evil.example/x.jpg" }),
+  );
+  await assertFails(
+    setDoc(doc(as(PLAYER), `${col}/i5`), { ...ok, thumbUrl: "https://evil.example/x.jpg" }),
+  );
+  // Dimensions farfelues.
+  await assertFails(setDoc(doc(as(PLAYER), `${col}/i6`), { ...ok, width: -1 }));
+  await assertFails(setDoc(doc(as(PLAYER), `${col}/i7`), { ...ok, height: "800" }));
+});
+
+test("un sondage démarre sans aucun vote", async () => {
+  const col = `clubs/${CLUB}/conversations/${CONV_TEAM}/messages`;
+  const poll = {
+    type: "poll",
+    text: "Match samedi ?",
+    pollQuestion: "Match samedi ?",
+    pollOptions: [{ id: "o0", text: "Oui" }, { id: "o1", text: "Non" }],
+    pollVotes: { o0: [], o1: [] },
+    pollAllowMultiple: false,
+    senderUid: COACH.uid,
+    createdAt: serverTimestamp(),
+    reactions: {},
+  };
+  await assertSucceeds(setDoc(doc(as(COACH), `${col}/p1`), poll));
+  await assertFails(
+    setDoc(doc(as(COACH), `${col}/p2`), { ...poll, pollVotes: { o0: [PLAYER.uid], o1: [] } }),
+  );
+  // Pas de sondage en DM (≤ 2 participants).
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/conversations/${CONV_DM}/messages/p3`), poll),
+  );
+});
+
+test("un participant réagit à un message existant, uniquement avec son uid", async () => {
+  const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/msgOld`);
+  await assertSucceeds(updateDoc(ref, { reactions: { "👍": [PLAYER.uid] } }));
+  await assertSucceeds(updateDoc(ref, { reactions: { "👍": [PLAYER.uid], "🔥": [PLAYER.uid] } }));
+  await assertFails(updateDoc(ref, { reactions: { "👍": [PLAYER.uid, COACH.uid], "🔥": [PLAYER.uid] } }));
+  await assertFails(updateDoc(ref, { reactions: { "👍": [PLAYER.uid], "🔥": [PLAYER.uid], "🍕": [PLAYER.uid] } }));
+});
+
+test("un participant vote sur un sondage, uniquement avec son uid", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/pollOld`), {
+      type: "poll",
+      text: "Q ?",
+      pollQuestion: "Q ?",
+      pollOptions: [{ id: "o0", text: "A" }, { id: "o1", text: "B" }],
+      pollVotes: { o0: [], o1: [] },
+      pollAllowMultiple: false,
+      senderUid: COACH.uid,
+      createdAt: Timestamp.now(),
+      reactions: {},
+    });
+  });
+  const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/pollOld`);
+  await assertSucceeds(updateDoc(ref, { pollVotes: { o0: [PLAYER.uid], o1: [] } }));
+  await assertFails(updateDoc(ref, { pollVotes: { o0: [PLAYER.uid], o1: [COACH.uid] } }));
+});
+
+// ————————————————————————————————————————————————————————————————
+// Lot 2 — journal d'activité borné
+// ————————————————————————————————————————————————————————————————
+
+test("un coach journalise un type connu ; type inconnu ou résumé trop long refusés", async () => {
+  const base = {
+    type: "events_created",
+    actorUid: COACH.uid,
+    actorDisplayName: "Coach",
+    count: 1,
+    summary: "Entraînement ajouté",
+    createdAt: serverTimestamp(),
+  };
+  await assertSucceeds(setDoc(doc(as(COACH), `clubs/${CLUB}/activity_events/a1`), base));
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/activity_events/a2`), { ...base, type: "hacked" }),
+  );
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/activity_events/a3`), { ...base, summary: "x".repeat(201) }),
+  );
+  await assertFails(
+    setDoc(doc(as(PLAYER), `clubs/${CLUB}/activity_events/a4`), { ...base, actorUid: PLAYER.uid }),
   );
 });

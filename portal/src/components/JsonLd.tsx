@@ -3,6 +3,15 @@ import { site } from "@/lib/site";
 
 const keywordsCsv = site.seoKeywords.join(", ");
 
+/** Plateformes déduites des URLs store renseignées (iOS apparaît dès que `site.appStoreUrl` existe). */
+const operatingSystem = [
+  site.playStoreUrl ? "Android" : null,
+  site.appStoreUrl ? "iOS" : null,
+  "Web",
+]
+  .filter(Boolean)
+  .join(", ");
+
 const softwareApplicationJsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -11,7 +20,7 @@ const softwareApplicationJsonLd = {
   url: site.url,
   applicationCategory: "SportsApplication",
   applicationSubCategory: "Club management",
-  operatingSystem: "Android, Web",
+  operatingSystem,
   inLanguage: "fr-FR",
   description: site.seoDescription,
   keywords: keywordsCsv,

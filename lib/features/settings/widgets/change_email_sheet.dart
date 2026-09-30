@@ -16,6 +16,7 @@ Future<bool?> showChangeEmailSheet(
   BuildContext context, {
   required ViroUser user,
   required bool passwordAccount,
+  bool reauthWithApple = false,
 }) {
   return showModalBottomSheet<bool>(
     context: context,
@@ -33,6 +34,7 @@ Future<bool?> showChangeEmailSheet(
       child: _ChangeEmailSheet(
         user: user,
         passwordAccount: passwordAccount,
+        reauthWithApple: reauthWithApple,
       ),
     ),
   );
@@ -42,10 +44,14 @@ class _ChangeEmailSheet extends ConsumerStatefulWidget {
   const _ChangeEmailSheet({
     required this.user,
     required this.passwordAccount,
+    required this.reauthWithApple,
   });
 
   final ViroUser user;
   final bool passwordAccount;
+
+  /// Compte social sans Google : la confirmation passe par la feuille Apple.
+  final bool reauthWithApple;
 
   @override
   ConsumerState<_ChangeEmailSheet> createState() => _ChangeEmailSheetState();
@@ -168,7 +174,9 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: ViroSpacing.sm),
                 child: Text(
-                  AppCopy.settings.googleConfirmEmailChange,
+                  widget.reauthWithApple
+                      ? AppCopy.settings.appleConfirmEmailChange
+                      : AppCopy.settings.googleConfirmEmailChange,
                   style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
                 ),
               ),

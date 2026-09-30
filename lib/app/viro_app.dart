@@ -24,7 +24,9 @@ class _ViroAppState extends ConsumerState<ViroApp> {
       final router = ref.read(goRouterProvider);
       bindAppDeepLinks(ref: ref, router: router);
       final push = ref.read(pushNotificationServiceProvider);
-      push.bindRouter(router);
+      push.bindDeepLinkHandler(
+        (uri) => handleDeepLinkUri(ref: ref, router: router, uri: uri),
+      );
       push.start();
     });
   }
@@ -40,6 +42,14 @@ class _ViroAppState extends ConsumerState<ViroApp> {
       if (user != null && user.uid != previousUid) {
         ref.read(pushNotificationServiceProvider).syncTokenAfterAuth();
       }
+    });
+
+    // Lien / push reçu à froid : la session club est posée dès que le profil
+    // arrive, avant que le routeur ne consomme la destination en attente.
+    ref.listen(viroUserProvider, (previous, next) {
+      final user = next.value;
+      if (user == null) return;
+      prepareSessionForPendingDeepLink(ref: ref, user: user);
     });
 
     return MaterialApp.router(

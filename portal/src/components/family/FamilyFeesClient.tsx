@@ -12,6 +12,7 @@ import transitionStyles from "@/components/dashboard/DashboardPageTransition.mod
 import { useToast } from "@/components/ToastProvider";
 import { STRIPE_PAYMENTS_LIVE } from "@/lib/featureFlags";
 import {
+  CARD_FEE_NOTICE,
   cardFeeCentsFromNet,
   cardGrossCentsFromNet,
 } from "@/lib/stripe/cardGrossFromNet";
@@ -225,7 +226,7 @@ export function FamilyFeesClient() {
                     <span className={styles.empty}>
                       {" "}
                       (dont {formatEuros(cardFeeCentsFromNet(data.remaining))}{" "}
-                      de frais)
+                      de frais — {CARD_FEE_NOTICE})
                     </span>
                   ) : null}
                 </dd>

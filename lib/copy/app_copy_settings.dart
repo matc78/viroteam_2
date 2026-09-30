@@ -71,6 +71,8 @@ final class AppCopySettings {
       'Je confirme vouloir supprimer mon compte';
   String get googleConfirmWindow =>
       'Une fenêtre Google s’ouvrira pour confirmer.';
+  String get appleConfirmWindow =>
+      'Une fenêtre Apple s’ouvrira pour confirmer.';
   String get currentPassword => 'Mot de passe actuel';
   String get wrongPassword => 'Mot de passe incorrect';
   String get deleteFailed => 'Suppression impossible';
@@ -90,6 +92,8 @@ final class AppCopySettings {
   String get newEmail => 'Nouvel e-mail';
   String get googleConfirmEmailChange =>
       'Une fenêtre Google s’ouvrira pour confirmer le changement.';
+  String get appleConfirmEmailChange =>
+      'Une fenêtre Apple s’ouvrira pour confirmer le changement.';
   String get emailVerificationSent =>
       'E-mail de vérification envoyé. Profil mis à jour.';
 

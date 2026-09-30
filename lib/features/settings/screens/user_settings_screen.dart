@@ -57,6 +57,8 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
     final firebaseUser = ref.watch(authStateProvider).value;
     final passwordAccount = firebaseUser != null &&
         AccountService.userHasPasswordProvider(firebaseUser);
+    final reauthWithApple = firebaseUser != null &&
+        AccountService.reauthUsesApple(firebaseUser);
     final providerLabels = firebaseUser != null
         ? AccountService.authProviderLabels(firebaseUser)
         : const <String>[];
@@ -178,6 +180,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                           context,
                           user: user,
                           passwordAccount: passwordAccount,
+                          reauthWithApple: reauthWithApple,
                         ),
                       ),
                       if (passwordAccount)

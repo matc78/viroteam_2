@@ -60,6 +60,11 @@ export async function upsertSystemConversation(
 
   if (!existing.empty) {
     const ref = existing.docs[0]!.ref;
+    // Pas de réécriture si rien ne change (participants triés, titre,
+    // politique, cibles) : évite un `updatedAt` et un fan-out inutiles.
+    if (systemConversationUnchanged(existing.docs[0]!.data(), payload)) {
+      return ref.id;
+    }
     await ref.set(payload, { merge: true });
     return ref.id;
   }
@@ -78,6 +83,21 @@ export async function upsertSystemConversation(
     await ref.set(payload, { merge: true });
   }
   return ref.id;
+}
+
+/** Vrai si la conversation existante porte déjà exactement ce payload. */
+function systemConversationUnchanged(
+  current: DocumentData,
+  payload: Record<string, unknown>,
+): boolean {
+  const sortedJoin = (raw: unknown) => uniq(stringArray(raw)).sort().join(",");
+  if (sortedJoin(current.participantUids) !== sortedJoin(payload.participantUids)) {
+    return false;
+  }
+  for (const key of ["type", "title", "writePolicy", "teamId", "categoryKey"]) {
+    if (String(current[key] ?? "") !== String(payload[key] ?? "")) return false;
+  }
+  return true;
 }
 
 /** Résout un id roster → Auth uid (accountUid / userId). */

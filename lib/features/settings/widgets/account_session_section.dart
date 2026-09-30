@@ -78,6 +78,7 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
 
     final needsPassword =
         AccountService.userHasPasswordProvider(firebaseUser);
+    final reauthWithApple = AccountService.reauthUsesApple(firebaseUser);
     final passwordController = TextEditingController();
     var confirmed = false;
 
@@ -117,7 +118,9 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
                     ),
                   ] else
                     Text(
-                      AppCopy.settings.googleConfirmWindow,
+                      reauthWithApple
+                          ? AppCopy.settings.appleConfirmWindow
+                          : AppCopy.settings.googleConfirmWindow,
                       style: const TextStyle(fontSize: 13),
                     ),
                 ],

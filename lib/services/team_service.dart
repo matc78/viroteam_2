@@ -11,6 +11,24 @@ import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
 
+/// Bilan d’un ajout en masse au roster.
+class BulkTeamAddResult {
+  const BulkTeamAddResult({
+    required this.added,
+    required this.skipped,
+    required this.failed,
+  });
+
+  /// Joueurs effectivement ajoutés (lots validés).
+  final int added;
+
+  /// Joueurs déjà dans l’équipe, laissés tels quels.
+  final int skipped;
+
+  /// Joueurs d’un lot dont l’écriture a échoué.
+  final int failed;
+}
+
 class TeamService {
   TeamService({
     FirebaseFirestore? firestore,
@@ -268,6 +286,96 @@ class TeamService {
       add: true,
     );
   }
+
+  /// Ajout en masse de joueurs au roster, par lots atomiques (`WriteBatch`).
+  ///
+  /// Fiches liées → `playerIds` + `members.teamIds` ; fiches sans compte →
+  /// `pendingPlayerIds`. Un lot passe entièrement ou pas du tout : le
+  /// compteur [BulkTeamAddResult.added] ne compte que les lots validés,
+  /// [BulkTeamAddResult.failed] ceux qui ont échoué. Les convocations aux
+  /// événements à venir sont synchronisées ensuite, en best-effort.
+  Future<BulkTeamAddResult> addPlayersToTeam({
+    required String clubId,
+    required ClubTeam team,
+    required List<ClubMember> members,
+  }) async {
+    final toAdd = <ClubMember>[];
+    var skipped = 0;
+    for (final member in members) {
+      final alreadyOnTeam = member.hasLinkedAccount
+          ? team.isOnPlayerRoster(member)
+          : team.pendingPlayerIds.contains(member.memberId);
+      if (alreadyOnTeam) {
+        skipped += 1;
+      } else {
+        toAdd.add(member);
+      }
+    }
+    if (toAdd.isEmpty) {
+      return BulkTeamAddResult(added: 0, skipped: skipped, failed: 0);
+    }
+
+    final teamRef = _teams(clubId).doc(team.id);
+    var added = 0;
+    var failed = 0;
+    final synced = <ClubMember>[];
+
+    for (var start = 0; start < toAdd.length; start += _bulkBatchSize) {
+      final chunk = toAdd.sublist(
+        start,
+        (start + _bulkBatchSize).clamp(0, toAdd.length),
+      );
+      final linked = chunk.where((m) => m.hasLinkedAccount).toList();
+      final pending = chunk.where((m) => !m.hasLinkedAccount).toList();
+
+      final batch = _db.batch();
+      batch.update(teamRef, {
+        if (linked.isNotEmpty)
+          FirestoreFields.playerIds: FieldValue.arrayUnion(
+            linked.map((m) => m.effectiveUid).toList(),
+          ),
+        if (pending.isNotEmpty)
+          FirestoreFields.pendingPlayerIds: FieldValue.arrayUnion(
+            pending.map((m) => m.memberId).toList(),
+          ),
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+      for (final member in linked) {
+        batch.update(_members(clubId).doc(member.memberId), {
+          FirestoreFields.teamIds: FieldValue.arrayUnion([team.id]),
+          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+
+      try {
+        await batch.commit();
+        added += chunk.length;
+        synced.addAll(linked);
+      } catch (_) {
+        failed += chunk.length;
+      }
+    }
+
+    for (final member in synced) {
+      try {
+        await _syncUpcomingAudienceForPlayer(
+          clubId: clubId,
+          teamId: team.id,
+          rosterUid: member.effectiveUid,
+          add: true,
+        );
+      } catch (_) {
+        // Le roster est à jour ; la convocation se rattrape à la prochaine
+        // synchro (`reconcileRosterIds`) ou à l’ouverture de l’événement.
+      }
+    }
+
+    return BulkTeamAddResult(added: added, skipped: skipped, failed: failed);
+  }
+
+  /// Taille d’un lot : 1 écriture équipe + 1 par membre lié, sous la limite
+  /// Firestore de 500 écritures par batch.
+  static const int _bulkBatchSize = 400;
 
   Future<void> addPendingPlayerToTeam({
     required String clubId,

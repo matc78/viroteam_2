@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/services/apple_sign_in.dart';
 
 /// Séparateur « ou » entre auth classique et fournisseur social.
 class AuthDivider extends StatelessWidget {
@@ -74,6 +75,69 @@ class GoogleSignInButton extends StatelessWidget {
                     AppCopy.auth.continueWithGoogle,
                     style: theme.labelLarge?.copyWith(
                       color: ViroColors.gray900,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+/// Bouton noir « Continuer avec Apple » (HIG Apple), iOS / macOS seulement.
+///
+/// Rendu `SizedBox.shrink` ailleurs : Apple n’exige le bouton que sur ses
+/// plateformes (guideline 4.8) et le flux natif n’existe pas sur Android.
+class AppleSignInButton extends StatelessWidget {
+  const AppleSignInButton({
+    super.key,
+    required this.onPressed,
+    this.isLoading = false,
+  });
+
+  final VoidCallback? onPressed;
+  final bool isLoading;
+
+  /// Affiche le bouton uniquement là où le flux Apple est disponible.
+  static bool get isSupported => AppleSignInHelper.isSupportedPlatform;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isSupported) return const SizedBox.shrink();
+    final theme = Theme.of(context).textTheme;
+
+    return SizedBox(
+      width: double.infinity,
+      height: ViroSpacing.buttonHeightLarge,
+      child: FilledButton(
+        onPressed: isLoading ? null : onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: ViroColors.gray900,
+          disabledBackgroundColor: ViroColors.gray900,
+          foregroundColor: ViroColors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
+          ),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: ViroColors.white,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.apple, size: 24, color: ViroColors.white),
+                  const SizedBox(width: ViroSpacing.sm),
+                  Text(
+                    AppCopy.auth.continueWithApple,
+                    style: theme.labelLarge?.copyWith(
+                      color: ViroColors.white,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

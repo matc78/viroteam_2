@@ -1,13 +1,12 @@
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/fee_tier.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
-import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
-import 'package:viro_team_v2/features/fees/utils/member_fee_status.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/services/fee/fee_member_operations.dart';
 import 'package:viro_team_v2/services/fee/fee_paths.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/announcements/utils/announcement_filter.dart';
 
 /// Initialisation et actions bulk du suivi cotisations.
 class FeeTrackingBulk {

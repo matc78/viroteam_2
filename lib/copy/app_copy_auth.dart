@@ -32,6 +32,7 @@ final class AppCopyAuth {
   String get signInAction => 'Se connecter';
   String get orDivider => 'ou';
   String get continueWithGoogle => 'Continuer avec Google';
+  String get continueWithApple => 'Continuer avec Apple';
 
   String get firstName => 'Prénom';
   String get lastName => 'Nom';
@@ -62,12 +63,18 @@ final class AppCopyAuth {
       'Connexion Google impossible. Réessaie.';
   String get googleSignUpFailed =>
       'Inscription Google impossible. Réessaie.';
+  String get appleLoginFailed =>
+      'Connexion Apple impossible. Réessaie.';
+  String get appleSignUpFailed =>
+      'Inscription Apple impossible. Réessaie.';
   String get accountCreateFailed =>
       'Création du compte impossible. Réessaie.';
   String get acceptTermsRequired =>
       'Tu dois accepter les CGU et la politique de confidentialité.';
   String get firebaseUserMissingAfterGoogle =>
       'Utilisateur Firebase absent après Google Sign-In';
+  String get firebaseUserMissingAfterApple =>
+      'Utilisateur Firebase absent après Sign in with Apple';
 
   String get passwordHint =>
       '8 caractères minimum, avec une majuscule, une minuscule et un chiffre.';

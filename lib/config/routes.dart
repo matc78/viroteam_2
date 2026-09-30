@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
 
+import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/config/router_refresh.dart';
 
 import 'package:viro_team_v2/config/feature_flags.dart';
@@ -352,8 +353,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           path == AppRoutes.loading) {
 
         if (user.hasClubs) {
-
-          return AppRoutes.home;
+          // Push / lien reçu avant que la session soit prête : on y va
+          // directement au lieu de l’accueil (session club déjà posée par
+          // `prepareSessionForPendingDeepLink`).
+          final pendingLink =
+              ref.read(pendingDeepLinkProvider.notifier).consume();
+          return pendingLink?.route ?? AppRoutes.home;
 
         }
 

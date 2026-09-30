@@ -193,7 +193,6 @@ jobs:
           releaseFiles: viro-team-v2-${{ needs.build.outputs.version }}.aab
           tracks: internal
           status: completed
-          changesNotSentForReview: true
 
   play-production-draft:
     name: Upload Play Store (production draft)
@@ -218,4 +217,3 @@ jobs:
           releaseFiles: viro-team-v2-${{ needs.build.outputs.version }}.aab
           tracks: production
           status: draft
-          changesNotSentForReview: true

@@ -123,7 +123,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
                 ).future,
               ),
               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: ViroRefreshIndicator.scrollPhysics,
                 children: [
                   SizedBox(
                     height: 280,
@@ -146,7 +146,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
                 ).future,
               ),
               child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: ViroRefreshIndicator.scrollPhysics,
                 children: [
                   SizedBox(
                     height: 280,
@@ -266,7 +266,7 @@ class _FeeContent extends ConsumerWidget {
         display == MemberFeeDisplayStatus.partiel;
 
     return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
+      physics: ViroRefreshIndicator.scrollPhysics,
       padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
       children: [
         if (season.seasonLabel.isNotEmpty)

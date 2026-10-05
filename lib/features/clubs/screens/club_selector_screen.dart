@@ -82,7 +82,7 @@ class _ClubSelectorBody extends ConsumerWidget {
 
     if (!hasClubs && !hasInvitations) {
       return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: ViroRefreshIndicator.scrollPhysics,
         children: [
           _EmptyStateWidget(
             onAdd: () => showAddClubSheet(context, ref),
@@ -92,7 +92,7 @@ class _ClubSelectorBody extends ConsumerWidget {
     }
 
     return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
+      physics: ViroRefreshIndicator.scrollPhysics,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

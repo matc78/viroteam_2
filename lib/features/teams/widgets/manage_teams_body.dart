@@ -92,7 +92,7 @@ class ManageTeamsBody extends ConsumerWidget {
               },
               child: teams.isEmpty
                   ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
+                      physics: ViroRefreshIndicator.scrollPhysics,
                       padding: const EdgeInsets.all(ViroSpacing.xl),
                       children: [
                         SizedBox(
@@ -114,7 +114,7 @@ class ManageTeamsBody extends ConsumerWidget {
                       ],
                     )
                   : ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
+                      physics: ViroRefreshIndicator.scrollPhysics,
                       padding: const EdgeInsets.fromLTRB(
                         ViroSpacing.screenHorizontal,
                         ViroSpacing.md,

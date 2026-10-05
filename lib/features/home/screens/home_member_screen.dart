@@ -236,7 +236,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                     return ViroRefreshIndicator(
                       onRefresh: () => _refreshHome(ref),
                       child: CustomScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
+                        physics: ViroRefreshIndicator.scrollPhysics,
                         controller: _scrollController,
                         slivers: [
                           const SliverToBoxAdapter(

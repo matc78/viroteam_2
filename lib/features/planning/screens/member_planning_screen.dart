@@ -19,6 +19,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
@@ -135,10 +136,10 @@ class MemberPlanningScreen extends ConsumerWidget {
               }
 
               if (state.upcoming.isEmpty) {
-                return RefreshIndicator(
+                return ViroRefreshIndicator(
                   onRefresh: refreshPlanning,
                   child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                    physics: ViroRefreshIndicator.scrollPhysics,
                     children: [
                       SizedBox(
                         height: MediaQuery.sizeOf(context).height * 0.4,
@@ -161,10 +162,10 @@ class MemberPlanningScreen extends ConsumerWidget {
                 );
               }
 
-              return RefreshIndicator(
+              return ViroRefreshIndicator(
                 onRefresh: refreshPlanning,
                 child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  physics: ViroRefreshIndicator.scrollPhysics,
                   padding: const EdgeInsets.fromLTRB(
                     ViroSpacing.screenHorizontal,
                     ViroSpacing.md,

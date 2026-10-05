@@ -95,7 +95,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
           return ViroRefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
+              physics: ViroRefreshIndicator.scrollPhysics,
               padding: const EdgeInsets.all(ViroSpacing.lg),
               children: [
                 ViroCard(

@@ -76,7 +76,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
             ]);
           },
           child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: ViroRefreshIndicator.scrollPhysics,
             padding: const EdgeInsets.all(ViroSpacing.lg),
             children: [
               ViroCard(

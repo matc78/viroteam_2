@@ -635,7 +635,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                           ]);
                         },
                         child: CustomScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
+                          physics: ViroRefreshIndicator.scrollPhysics,
                           slivers: [
                             if (_isAdmin)
                               SliverToBoxAdapter(

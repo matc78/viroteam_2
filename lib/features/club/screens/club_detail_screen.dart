@@ -200,7 +200,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           return ViroRefreshIndicator(
             onRefresh: _refreshClub,
             child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: ViroRefreshIndicator.scrollPhysics,
             slivers: [
               SliverToBoxAdapter(
                 child: _ClubHeader(

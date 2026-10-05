@@ -77,7 +77,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
             },
             child: announcements.isEmpty
                 ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                    physics: ViroRefreshIndicator.scrollPhysics,
                     padding: const EdgeInsets.all(ViroSpacing.xl),
                     children: [
                       SizedBox(
@@ -105,7 +105,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
                     ],
                   )
                 : ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                    physics: ViroRefreshIndicator.scrollPhysics,
                     padding:
                         const EdgeInsets.all(ViroSpacing.screenHorizontal),
                     itemCount: announcements.length,

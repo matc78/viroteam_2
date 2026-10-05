@@ -572,7 +572,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                     },
                     child: !hasAnyList
                         ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
+                            physics: ViroRefreshIndicator.scrollPhysics,
                             children: [
                               SizedBox(
                                 height: 240,
@@ -583,7 +583,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             ],
                           )
                         : ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
+                            physics: ViroRefreshIndicator.scrollPhysics,
                             children: [
                               if (lists.unpaid.isNotEmpty) ...[
                                 _sectionTitle(

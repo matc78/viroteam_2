@@ -190,7 +190,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                   return ViroRefreshIndicator(
                 onRefresh: _refreshInbox,
                 child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  physics: ViroRefreshIndicator.scrollPhysics,
                   slivers: [
                     SliverToBoxAdapter(
                       child: Padding(

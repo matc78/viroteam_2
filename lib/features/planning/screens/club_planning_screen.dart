@@ -299,7 +299,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
               onRefresh: () => _refreshPlanning(canManage: canManage),
               child: eventsAsync.when(
                 loading: () => ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  physics: ViroRefreshIndicator.scrollPhysics,
                   children: const [
                     SizedBox(
                       height: 240,
@@ -308,7 +308,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                   ],
                 ),
                 error: (error, stackTrace) => ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  physics: ViroRefreshIndicator.scrollPhysics,
                   children: const [
                     SizedBox(height: 240, child: ViroErrorState()),
                   ],
@@ -316,7 +316,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                 data: (events) {
                   if (events.isEmpty) {
                     return ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
+                      physics: ViroRefreshIndicator.scrollPhysics,
                       padding: const EdgeInsets.all(ViroSpacing.xl),
                       children: [
                         SizedBox(
@@ -339,7 +339,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                   }
 
                   return ListView.separated(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                    physics: ViroRefreshIndicator.scrollPhysics,
                     padding: const EdgeInsets.fromLTRB(
                       ViroSpacing.screenHorizontal,
                       ViroSpacing.md,

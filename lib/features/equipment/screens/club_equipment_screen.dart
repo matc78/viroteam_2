@@ -237,7 +237,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                 await ref.read(clubEquipmentProvider(clubId).future);
               },
               child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: ViroRefreshIndicator.scrollPhysics,
                 slivers: [
                   SliverToBoxAdapter(
                     child: Padding(

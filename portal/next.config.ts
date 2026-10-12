@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   },
   // PostHog API utilise des trailing slashes (/e/) — ne pas les retirer.
   skipTrailingSlashRedirect: true,
+  // Fallback local / hors App Hosting. En prod FAH, le Host client n’atteint
+  // pas toujours next.config — voir aussi `src/middleware.ts` (X-Forwarded-Host).
   async redirects() {
     return [
       {

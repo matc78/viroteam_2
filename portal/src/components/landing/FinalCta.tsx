@@ -35,9 +35,9 @@ export function FinalCta() {
                 L’app et le portail pour gérer votre club sportif
               </h2>
               <p className={styles.lead}>
-                Téléchargez ViroTeam sur Android — l’App Store arrive bientôt.
-                Planning, convocations et cotisations : organisez un ou plusieurs
-                clubs depuis le web et l’app.
+                Téléchargez ViroTeam sur Android et iPhone. Planning, convocations
+                et cotisations : organisez un ou plusieurs clubs depuis le web et
+                l’app.
               </p>
               <div className={styles.actions}>
                 <StoreBadges />

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
-import { site } from "@/lib/site";
+import { absoluteUrl, site } from "@/lib/site";
 import styles from "../legal.module.css";
 
 export const metadata: Metadata = {
   title: "Conditions générales d’utilisation — ViroTeam",
   description: "Conditions générales d’utilisation de ViroTeam.",
-  alternates: { canonical: "/legal/cgu" },
+  alternates: { canonical: absoluteUrl("/legal/cgu") },
 };
 
 /** Page CGU (contenu minimal sérieux). */

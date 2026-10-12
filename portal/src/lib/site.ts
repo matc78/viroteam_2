@@ -57,14 +57,26 @@ export const site = {
     "application volleyball club",
     "gestion club volleyball",
     "app club amateur Android",
+    "app club amateur iOS",
   ],
   playStoreUrl:
     "https://play.google.com/store/apps/details?id=com.viroteam.viro_team",
-  /** App Store pas encore publié. */
-  appStoreUrl: null as string | null,
+  appStoreUrl: "https://apps.apple.com/fr/app/viroteam/id6807822265",
   /** Schéma deep link app mobile. */
   appScheme: "viroteam",
 } as const;
+
+/**
+ * URL absolue sur l’hôte canonique (`site.url`), pour `rel=canonical` / OG.
+ * `path` peut être `"/"` ou un chemin type `"/legal/privacy"`.
+ */
+export function absoluteUrl(path = "/"): string {
+  if (path === "/" || path === "") {
+    return site.url;
+  }
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${site.url}${normalized}`;
+}
 
 /** Deep link pour rejoindre un club dans l’app (`viroteam://join?code=…`). */
 export function appJoinDeepLink(code: string): string {

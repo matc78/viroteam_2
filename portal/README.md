@@ -72,7 +72,7 @@ Le mot de passe saisi n’est **pas vérifié** en mode dev bypass — seul l’
 Configurés dans [`src/lib/site.ts`](src/lib/site.ts) :
 
 - **Google Play** : actif (`com.viroteam.viro_team`)
-- **App Store** : « Bientôt » jusqu’à publication
+- **App Store** : actif (`id6807822265`)
 
 ## Scripts
 
@@ -115,6 +115,8 @@ Redeploy manuel : **Actions → Deploy portal → Run workflow**.
 
 URL live : [https://www.viroteam.com](https://www.viroteam.com)  
 (fallback App Hosting : console → backend `portal`, sous-domaine `*.hosted.app`).
+
+Hôte canonique : **`www.viroteam.com`**. L’apex est redirigé en 301 par le middleware (`src/middleware.ts`). Idéalement, cocher aussi la redirection domaine dans Firebase Console → App Hosting → Domaines (CDN avant Cloud Run).
 
 ## Thème
 

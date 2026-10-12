@@ -9,6 +9,20 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-12
+
+### Ajouté
+
+- Lien App Store actif (`site.appStoreUrl`) : badge iOS, CTA landing, FAQ SEO et mentions légales
+
+### Corrigé
+
+- Indexation Search Console : redirect 301 apex (`viroteam.com`) → `www` via middleware (`X-Forwarded-Host`), canonicals absolues sur landing et pages légales — les URL `http://` restent exclues (redirection HTTPS normale)
+
+### Note
+
+- Messagerie toujours masquée en prod (`CHAT_MESSAGING_LIVE`)
+
 ## [1.5.0] - 2026-09-29
 
 ### Ajouté

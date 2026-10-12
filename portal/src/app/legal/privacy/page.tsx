@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
-import { site } from "@/lib/site";
+import { absoluteUrl, site } from "@/lib/site";
 import styles from "../legal.module.css";
 
 export const metadata: Metadata = {
   title: "Politique de confidentialité — ViroTeam",
   description: "Politique de confidentialité et protection des données ViroTeam.",
-  alternates: { canonical: "/legal/privacy" },
+  alternates: { canonical: absoluteUrl("/legal/privacy") },
 };
 
 /** Page confidentialité — lue depuis l’app (review Apple) et le portail. */

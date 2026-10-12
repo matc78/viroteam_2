@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
-import { site } from "@/lib/site";
+import { absoluteUrl, site } from "@/lib/site";
 import styles from "../legal.module.css";
 
 export const metadata: Metadata = {
   title: "Mentions légales — ViroTeam",
   description: "Mentions légales du service ViroTeam.",
-  alternates: { canonical: "/legal/mentions" },
+  alternates: { canonical: absoluteUrl("/legal/mentions") },
 };
 
 /** Mentions légales — projet personnel édité par une personne physique. */
@@ -66,7 +66,7 @@ export default function MentionsLegalesPage() {
             Le portail web et les services backend sont hébergés via Google
             Cloud / Firebase (Google Ireland Limited / Google LLC), projet{" "}
             <code>viroteam-75303</code>. L’application mobile est distribuée
-            via Google Play et, le cas échéant, l’App Store Apple.
+            via Google Play et l’App Store Apple.
           </p>
         </section>
 

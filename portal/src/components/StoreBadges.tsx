@@ -19,7 +19,6 @@ export function StoreBadges({ className }: StoreBadgesProps) {
       >
         <PlayIcon />
         <span className={styles.copy}>
-          <span className={styles.eyebrow}>Disponible sur</span>
           <span className={styles.label}>Google Play</span>
         </span>
       </a>
@@ -34,7 +33,6 @@ export function StoreBadges({ className }: StoreBadgesProps) {
         >
           <AppleIcon />
           <span className={styles.copy}>
-            <span className={styles.eyebrow}>Disponible sur</span>
             <span className={styles.label}>App Store</span>
           </span>
         </a>

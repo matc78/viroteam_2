@@ -8,9 +8,10 @@ import { Roles } from "@/components/landing/Roles";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { JsonLd } from "@/components/JsonLd";
+import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  alternates: { canonical: "/" },
+  alternates: { canonical: absoluteUrl("/") },
 };
 
 /** Landing marketing publique ViroTeam. */

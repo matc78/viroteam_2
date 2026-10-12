@@ -39,7 +39,7 @@ export const landingFaq = [
   },
   {
     question: "Sur quels appareils fonctionne ViroTeam ?",
-    answer: `L’app Android est disponible sur Google Play. L’espace club (bureau) s’utilise sur le web via ${site.url.replace("https://", "")}. L’App Store arrive bientôt.`,
+    answer: `L’app est disponible sur Google Play et l’App Store. L’espace club (bureau) s’utilise sur le web via ${site.url.replace("https://", "")}.`,
   },
 ] as const;
 

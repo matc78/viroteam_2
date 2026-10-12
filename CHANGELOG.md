@@ -33,6 +33,21 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 - Validations sondage / réactions et MIME vignette chat
 
+## [2.2.4] - 2026-10-12
+
+### Modifié
+
+- Pull-to-refresh natif simplifié et `scrollPhysics` unifiés (`ViroRefreshIndicator`)
+- Outillage captures store : `--dart-define=FORCE_PROD_BACKEND` / `SKIP_PUSH_PERMISSION` + test d’intégration
+
+### Corrigé
+
+- Podfile iOS : cibles pods forcées ≥ 15.0 (compat Xcode 27)
+
+### Note
+
+- Messagerie toujours masquée en release (`FeatureFlags.chatMessagingLive`)
+
 ## [2.2.3] - 2026-09-29
 
 ### Modifié

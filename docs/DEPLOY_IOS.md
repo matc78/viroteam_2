@@ -4,7 +4,38 @@ Guide pour publier ViroTeam sur TestFlight puis l’App Store.
 Complète le travail automatisé déjà en place dans le repo (`Info.plist`, `PrivacyInfo.xcprivacy`, suppression de compte, liens légaux).
 
 **Prérequis** : compte [Apple Developer](https://developer.apple.com) (99 €/an).  
-**Build** : Mac + Xcode **ou** [Codemagic](https://codemagic.io) (recommandé sous Windows) — voir § Codemagic ci-dessous. Config repo : [`codemagic.yaml`](../codemagic.yaml).
+**Build** : GitHub Actions (recommandé, voir ci-dessous), Mac + Xcode, ou Codemagic (ancienne piste, ses builds sont marquées « TestFlight interne seulement » et ne peuvent pas partir en vente).
+
+---
+
+## GitHub Actions (tag → TestFlight) — recommandé
+
+Workflow [`.github/workflows/release-ios.yml`](../.github/workflows/release-ios.yml) : sur un tag `v*` ou `release-v*` (ou à la demande dans l'onglet Actions), un runner macOS construit l'IPA, le signe avec la clé API App Store Connect (signature « cloud », aucun certificat ni profil à exporter) et l'envoie sur App Store Connect. La build apparaît dans TestFlight une fois traitée par Apple.
+
+### Une fois — secrets du dépôt
+
+Settings → Secrets and variables → Actions → New repository secret :
+
+| Secret | Valeur |
+|--------|--------|
+| `ASC_KEY_ID` | ID de la clé API (ex. `29DPBG3FGV`) |
+| `ASC_ISSUER_ID` | Issuer ID (UUID affiché en haut de la page Intégrations → App Store Connect API) |
+| `ASC_API_KEY_P8` | Contenu complet du fichier `AuthKey_<KEY_ID>.p8`, lignes `BEGIN`/`END` comprises |
+
+La clé doit avoir le rôle **App Manager** ou **Admin**. Le Team ID (`7W9T8GP8NG`) et le bundle (`com.viroteam.viroTeam`) sont dans le workflow.
+
+### À chaque release
+
+1. `main` vert, version alignée (`node tool/check_app_version.mjs --tag=v2.2.4`).
+2. `git tag v2.2.4 && git push origin v2.2.4` — déclenche Release Android **et** Release iOS.
+3. Actions → **Release iOS** → attendre le vert ; l'IPA et les logs sont en artefacts du run.
+4. App Store Connect → TestFlight : la build est traitée en 10 à 20 min, puis sélectionnable dans la version.
+
+Build number = `100 + numéro du run` (toujours croissant, jamais en conflit avec les builds envoyés à la main). Version = `pubspec.yaml`.
+
+### Si la signature cloud échoue
+
+Message du type « No signing certificate » ou « Provisioning profile … doesn't include » dans `xcodebuild-archive.log` : vérifier le rôle de la clé API, puis que l'App ID `com.viroteam.viroTeam` a bien les capacités Push Notifications et Sign in with Apple (Certificates, IDs & Profiles → Identifiers). En dernier recours, passer en signature manuelle : exporter un certificat Apple Distribution en `.p12` et un profil App Store depuis un Mac, les mettre en secrets, et remplacer l'étape Archive par un import dans le trousseau du runner.
 
 ---
 

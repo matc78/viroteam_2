@@ -1,0 +1,145 @@
+name: Release iOS
+
+# Construit l'IPA iOS et l'envoie sur App Store Connect (TestFlight) sur un tag
+# `v*` / `release-v*`, ou à la demande. Signature « cloud » par la clé API
+# App Store Connect : aucun certificat ni profil à exporter depuis un Mac.
+#
+# Secrets requis (Settings → Secrets and variables → Actions) :
+#   ASC_KEY_ID      — ID de la clé API App Store Connect (ex. 29DPBG3FGV)
+#   ASC_ISSUER_ID   — Issuer ID (UUID, page Intégrations)
+#   ASC_API_KEY_P8  — contenu du fichier AuthKey_<KEY_ID>.p8 (texte, avec BEGIN/END)
+#
+# Le build number = 100 + numéro du run GitHub : toujours croissant, jamais en
+# conflit avec les builds envoyés à la main (≤ 20). Le version name vient du
+# pubspec, contrôlé par tool/check_app_version.mjs comme pour Android.
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "release-v*"
+  workflow_dispatch:
+    inputs:
+      build_name:
+        description: "Version (vide = pubspec)"
+        required: false
+        default: ""
+
+concurrency:
+  group: release-ios
+  cancel-in-progress: false
+
+env:
+  BUNDLE_ID: com.viroteam.viroTeam
+  TEAM_ID: 7W9T8GP8NG
+  SCHEME: Runner
+
+jobs:
+  build-upload:
+    name: Build IPA & upload to App Store Connect
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifie l'alignement de version (tag ↔ pubspec ↔ ProjectConfig)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: node tool/check_app_version.mjs --tag="${GITHUB_REF_NAME}"
+
+      - name: Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1 || echo /Applications/Xcode.app)"
+          xcodebuild -version
+
+      - name: Flutter (version épinglée par .fvmrc)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: .fvmrc
+          channel: stable
+          cache: true
+
+      - name: Clé API App Store Connect
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          set -e
+          test -n "$ASC_API_KEY_P8" || { echo "Secret ASC_API_KEY_P8 manquant"; exit 1; }
+          test -n "$ASC_KEY_ID" || { echo "Secret ASC_KEY_ID manquant"; exit 1; }
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s\n' "$ASC_API_KEY_P8" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+      - name: Dépendances
+        run: |
+          flutter pub get
+          cd ios && pod install
+
+      - name: Version et build number
+        id: ver
+        run: |
+          NAME="${{ github.event.inputs.build_name }}"
+          if [ -z "$NAME" ]; then NAME=$(sed -nE 's/^version: *([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' pubspec.yaml); fi
+          NUM=$((100 + GITHUB_RUN_NUMBER))
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "number=$NUM" >> "$GITHUB_OUTPUT"
+          echo "ViroTeam $NAME ($NUM)"
+
+      - name: Config Flutter (release, sans signature)
+        run: flutter build ios --config-only --release --build-name="${{ steps.ver.outputs.name }}" --build-number="${{ steps.ver.outputs.number }}"
+
+      - name: Archive (signature automatique via la clé API)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/ios/archive/Runner.xcarchive archive \
+            -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM_ID" \
+            | tee build/xcodebuild-archive.log | grep -E 'ARCHIVE|error:|warning: .*(signing|provision)' || true
+          test -d build/ios/archive/Runner.xcarchive || { echo "Archive absente, voir le log"; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' -c 'Print :CFBundleVersion' \
+            build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Info.plist
+
+      - name: Export IPA (App Store Connect)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/ipa -exportOptionsPlist ios/ExportOptions-appstore.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            | tee build/xcodebuild-export.log | grep -E 'EXPORT|error:' || true
+          ls -la build/ios/ipa/*.ipa
+
+      - name: Upload vers App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          # Pas de « | head » ici : couper la sortie tue l'upload en cours.
+          xcrun altool --upload-app -f build/ios/ipa/*.ipa -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" > build/altool.log 2>&1 || true
+          grep -iE 'UPLOAD (SUCCEEDED|FAILED)|Delivery UUID|ERROR' build/altool.log
+          grep -q 'UPLOAD SUCCEEDED' build/altool.log
+
+      - name: Logs et IPA en artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.number }}
+          path: |
+            build/ios/ipa/*.ipa
+            build/xcodebuild-archive.log
+            build/xcodebuild-export.log
+            build/altool.log
+          if-no-files-found: ignore
+          retention-days: 14

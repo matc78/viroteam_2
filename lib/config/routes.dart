@@ -306,15 +306,36 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       if (user == null) {
         const allowedWithoutProfile = {
           AppRoutes.entry,
-          AppRoutes.clubSetup,
           AppRoutes.join,
           AppRoutes.joinPreview,
           AppRoutes.joinRequestRole,
           AppRoutes.signup,
         };
 
-        if (path == AppRoutes.login) {
-          return '${AppRoutes.signup}?complete=1';
+        String completeProfileLocation() {
+          final intentFromQuery = state.uri.queryParameters['intent'];
+          final intentParam = intentFromQuery == 'join' || intentFromQuery == 'founder'
+              ? intentFromQuery!
+              : (ref.read(signUpIntentProvider) == SignUpIntent.join
+                  ? 'join'
+                  : 'founder');
+          final params = <String, String>{
+            'complete': '1',
+            'intent': intentParam,
+          };
+          final code = state.uri.queryParameters['code'];
+          if (code != null && code.isNotEmpty) params['code'] = code;
+          return Uri(
+            path: AppRoutes.signup,
+            queryParameters: params,
+          ).toString();
+        }
+
+        // Auth sans fiche : login / clubSetup → complete=1 (persistant).
+        // Pas de redirect auto depuis /signup brut : ça casserait le submit
+        // email (Auth créé avant la fiche Firestore).
+        if (path == AppRoutes.login || path == AppRoutes.clubSetup) {
+          return completeProfileLocation();
         }
 
         if (allowedWithoutProfile.contains(path)) {
@@ -328,18 +349,31 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       final inSetup = path == AppRoutes.clubSetup;
 
-      final needsClubSetup = !user.hasClubs &&
+      final nameIncomplete = user.firstName.trim().isEmpty ||
+          user.lastName.trim().isEmpty;
 
+      final needsNameConfirmation = !user.hasClubs &&
           !user.profileCompleted &&
+          nameIncomplete;
 
-          ref.read(signUpIntentProvider) == SignUpIntent.founder;
+      if (needsNameConfirmation) {
+        final completingProfile = path == AppRoutes.signup &&
+            state.uri.queryParameters['complete'] == '1';
+        if (!completingProfile) {
+          final intentParam =
+              ref.read(signUpIntentProvider) == SignUpIntent.join
+                  ? 'join'
+                  : 'founder';
+          return '${AppRoutes.signup}?complete=1&intent=$intentParam';
+        }
+      } else {
+        final needsClubSetup = !user.hasClubs &&
+            !user.profileCompleted &&
+            ref.read(signUpIntentProvider) == SignUpIntent.founder;
 
-
-
-      if (needsClubSetup && !inSetup) {
-
-        return AppRoutes.clubSetup;
-
+        if (needsClubSetup && !inSetup) {
+          return AppRoutes.clubSetup;
+        }
       }
 
 
@@ -360,6 +394,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               ref.read(pendingDeepLinkProvider.notifier).consume();
           return pendingLink?.route ?? AppRoutes.home;
 
+        }
+
+        // Noms à confirmer : rester sur signup?complete=1.
+        if (path == AppRoutes.signup &&
+            state.uri.queryParameters['complete'] == '1' &&
+            needsNameConfirmation) {
+          return null;
         }
 
         if (pending.hasInvitation) {

@@ -127,8 +127,8 @@ export const PracticeLocationCategories = {
       case "Handball":
       case "Volleyball":
         return withOther([
-          PracticeLocationCategories.cityStade,
           PracticeLocationCategories.gymnasium,
+          PracticeLocationCategories.cityStade,
           PracticeLocationCategories.stadium,
           PracticeLocationCategories.forest,
           PracticeLocationCategories.healthTrail,

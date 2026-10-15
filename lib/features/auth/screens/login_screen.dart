@@ -79,8 +79,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final credential = await ref.read(authServiceProvider).signInWithGoogle();
-      if (credential.user == null) {
+      final result = await ref.read(authServiceProvider).signInWithGoogle();
+      if (result.user == null) {
         _showError(AppCopy.auth.googleLoginFailed);
       }
     } on EmailUsedWithPasswordException catch (error) {
@@ -106,8 +106,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final credential = await ref.read(authServiceProvider).signInWithApple();
-      if (credential.user == null) {
+      final result = await ref.read(authServiceProvider).signInWithApple();
+      if (result.user == null) {
         _showError(AppCopy.auth.appleLoginFailed);
       }
     } on EmailUsedWithPasswordException catch (error) {

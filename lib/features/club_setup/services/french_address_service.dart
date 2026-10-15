@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:viro_team_v2/config/project_config.dart';
 
@@ -84,6 +85,9 @@ class FrenchAddressService {
     required String city,
     required String postalCode,
   }) async {
+    final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (idToken == null || idToken.isEmpty) return [];
+
     final params = <String, String>{
       'q': query,
       'city': city,
@@ -95,7 +99,10 @@ class FrenchAddressService {
     ).replace(queryParameters: params);
 
     try {
-      final response = await _client.get(uri);
+      final response = await _client.get(
+        uri,
+        headers: {'Authorization': 'Bearer $idToken'},
+      );
       if (response.statusCode != 200) return [];
 
       final body = jsonDecode(response.body);

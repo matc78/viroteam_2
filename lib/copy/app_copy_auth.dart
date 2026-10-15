@@ -50,6 +50,11 @@ final class AppCopyAuth {
       'ViroTeam sur cet environnement. Complète ton profil pour '
       'continuer.';
 
+  String get confirmSocialProfileHint =>
+      'Confirme ton prénom et ton nom pour finaliser ton compte.';
+
+  String get confirmSocialProfileTitle => 'Confirme ton profil';
+
   String get showPassword => 'Afficher le mot de passe';
   String get hidePassword => 'Masquer le mot de passe';
   String get invalidEmail => 'Email invalide';

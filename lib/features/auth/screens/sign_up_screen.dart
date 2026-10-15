@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,7 +11,9 @@ import 'package:viro_team_v2/features/auth/widgets/auth_social_buttons.dart';
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/apple_sign_in.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
+import 'package:viro_team_v2/services/auth_service.dart';
 import 'package:viro_team_v2/utils/auth_error_message.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/password_policy.dart';
@@ -53,6 +54,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _prefillApplied = false;
 
   bool get _isCompleteProfileMode => widget.completeParam == '1';
+
+  /// `true` si le compte Auth courant vient de Google ou Apple.
+  bool _hasSocialAuthProvider() {
+    final authUser = ref.read(authStateProvider).value;
+    if (authUser == null) return false;
+    return authUser.providerData.any(
+      (provider) =>
+          provider.providerId == 'google.com' ||
+          provider.providerId == appleProviderId,
+    );
+  }
 
   void _applyAuthPrefill() {
     final authUser = ref.read(authStateProvider).value;
@@ -110,6 +122,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           return;
         }
         _applyAuthPrefill();
+        // CGU déjà acceptées avant le bouton social : ne pas redemander.
+        if (_hasSocialAuthProvider() && mounted) {
+          setState(() => _acceptedTerms = true);
+        }
       }
 
       final intent = widget.intentParam == 'join'
@@ -159,15 +175,25 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     try {
       final userService = ref.read(userServiceProvider);
+      final first = formatFirstName(_firstNameController.text);
+      final last = formatLastName(_lastNameController.text);
       final existingProfile = await userService.getUser(authUser.uid);
+
       if (existingProfile != null) {
+        final needsNameUpdate = existingProfile.firstName.trim().isEmpty ||
+            existingProfile.lastName.trim().isEmpty;
+        if (needsNameUpdate) {
+          await userService.updateProfile(
+            uid: authUser.uid,
+            firstName: first,
+            lastName: last,
+          );
+        }
         await _navigateAfterSignUp();
         return;
       }
 
       final email = authUser.email?.trim() ?? _emailController.text.trim();
-      final first = formatFirstName(_firstNameController.text);
-      final last = formatLastName(_lastNameController.text);
       final normalizedEmail = normalizeEmail(email);
 
       final profile = ViroUser(
@@ -268,10 +294,46 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         setLoading: (value) => _appleLoading = value,
       );
 
-  /// Inscription via un fournisseur social (Google / Apple) : même parcours,
-  /// seuls le flux de connexion et les messages changent.
+  /// Pousse prénom/nom provider dans Firebase Auth pour survivre au
+  /// remontage `signup?complete=1` (préremplissage via displayName).
+  Future<void> _persistSocialNamesToAuth(SocialSignInResult result) async {
+    final firebaseUser = result.user;
+    if (firebaseUser == null) return;
+
+    final first = result.firstName?.trim() ?? '';
+    final last = result.lastName?.trim() ?? '';
+    final composed = [first, last].where((part) => part.isNotEmpty).join(' ');
+    if (composed.isEmpty) return;
+    if (firebaseUser.displayName?.trim().isNotEmpty ?? false) return;
+
+    try {
+      await firebaseUser.updateDisplayName(composed);
+      await firebaseUser.reload();
+    } catch (_) {
+      // Le formulaire complete=1 demandera la saisie manuelle.
+    }
+  }
+
+  /// Location `signup?complete=1` en conservant intent / code.
+  String _completeProfileLocation() {
+    final intent = ref.read(signUpIntentProvider) == SignUpIntent.join
+        ? 'join'
+        : 'founder';
+    final params = <String, String>{
+      'complete': '1',
+      'intent': widget.intentParam == 'join' || widget.intentParam == 'founder'
+          ? widget.intentParam!
+          : intent,
+    };
+    final code = widget.codeParam?.trim();
+    if (code != null && code.isNotEmpty) params['code'] = code;
+    return Uri(path: AppRoutes.signup, queryParameters: params).toString();
+  }
+
+  /// Inscription via un fournisseur social (Google / Apple) : auth puis
+  /// confirmation obligatoire du prénom / nom via `signup?complete=1`.
   Future<void> _signUpWithProvider({
-    required Future<UserCredential> Function() signIn,
+    required Future<SocialSignInResult> Function() signIn,
     required String userMissingMessage,
     required String failureMessage,
     required void Function(bool value) setLoading,
@@ -288,8 +350,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     });
 
     try {
-      final cred = await signIn();
-      final firebaseUser = cred.user;
+      final result = await signIn();
+      final firebaseUser = result.user;
       if (firebaseUser == null) {
         throw StateError(userMissingMessage);
       }
@@ -297,22 +359,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       final userService = ref.read(userServiceProvider);
       final existingProfile = await userService.getUser(firebaseUser.uid);
 
-      if (existingProfile == null) {
-        // Apple ne renvoie parfois ni nom ni e-mail (2e autorisation, relais
-        // masqué) : le formulaire puis le `displayName` Firebase prennent le
-        // relais, et le profil reste à compléter si tout est vide.
-        await userService.ensureUserProfileFromAuth(
-          firebaseUser,
-          firstName: _firstNameController.text.trim().isNotEmpty
-              ? _firstNameController.text
-              : null,
-          lastName: _lastNameController.text.trim().isNotEmpty
-              ? _lastNameController.text
-              : null,
-        );
+      // Compte déjà finalisé : on enchaîne (login social via l’écran signup).
+      if (existingProfile != null &&
+          existingProfile.firstName.trim().isNotEmpty &&
+          existingProfile.lastName.trim().isNotEmpty) {
+        await _navigateAfterSignUp();
+        return;
       }
 
-      await _navigateAfterSignUp();
+      await _persistSocialNamesToAuth(result);
+      if (!mounted) return;
+      context.go(_completeProfileLocation());
     } on EmailUsedWithPasswordException catch (error) {
       final email = error.email?.trim();
       if (email != null && email.isNotEmpty && mounted) {
@@ -345,6 +402,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     final isJoin = intent == SignUpIntent.join;
     final isBusy = _loading || _googleLoading || _appleLoading;
     final isCompleteProfile = _isCompleteProfileMode;
+    final isSocialCompleteProfile =
+        isCompleteProfile && _hasSocialAuthProvider();
 
     ref.listen(pendingInvitationProvider, (_, next) {
       if (isJoin) _applyInvitationPrefill(next);
@@ -357,11 +416,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          isCompleteProfile
-              ? AppCopy.auth.completeProfileTitle
-              : (isJoin
-                  ? AppCopy.auth.signUpTitle
-                  : AppCopy.auth.founderAccountTitle),
+          isSocialCompleteProfile
+              ? AppCopy.auth.confirmSocialProfileTitle
+              : isCompleteProfile
+                  ? AppCopy.auth.completeProfileTitle
+                  : (isJoin
+                      ? AppCopy.auth.signUpTitle
+                      : AppCopy.auth.founderAccountTitle),
         ),
       ),
       body: SafeArea(
@@ -397,7 +458,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       ),
                     ),
                     child: Text(
-                      AppCopy.auth.completeProfileHint,
+                      isSocialCompleteProfile
+                          ? AppCopy.auth.confirmSocialProfileHint
+                          : AppCopy.auth.completeProfileHint,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: ViroColors.gray600,
                           ),

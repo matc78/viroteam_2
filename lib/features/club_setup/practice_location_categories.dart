@@ -59,7 +59,7 @@ abstract final class PracticeLocationCategories {
       case 'Basketball':
       case 'Handball':
       case 'Volleyball':
-        return withOther([cityStade, gymnasium, stadium, forest, healthTrail]);
+        return withOther([gymnasium, cityStade, stadium, forest, healthTrail]);
       case 'Athlétisme':
         return withOther([athleticsTrack, stadium, healthTrail, forest]);
       case 'Natation':

@@ -40,28 +40,9 @@ export const ClubSetupFormat = {
   },
 
   venueTypeForSport(sport: string): string {
-    switch (sport) {
-      case "Football":
-      case "Rugby":
-      case "Athlétisme":
-        return "Stade";
-      case "Basketball":
-      case "Volleyball":
-      case "Handball":
-        return "Gymnase";
-      case "Tennis":
-        return "Court";
-      case "Natation":
-        return "Piscine";
-      case "Judo":
-        return "Dojo";
-      case "Escrime":
-        return "Salle d'armes";
-      case "Aviron":
-        return "Base nautique";
-      default:
-        return "Gymnase";
-    }
+    return PracticeLocationCategories.label(
+      PracticeLocationCategories.defaultForSport(sport),
+    );
   },
 
   headquartersPracticeName(params: { sport: string; city: string }): string {

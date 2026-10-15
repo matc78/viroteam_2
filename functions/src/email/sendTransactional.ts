@@ -21,6 +21,9 @@ export const playStoreUrl = defineString("PLAY_STORE_URL", {
   default:
     "https://play.google.com/store/apps/details?id=com.viroteam.viro_team",
 });
+export const appStoreUrl = defineString("APP_STORE_URL", {
+  default: "https://apps.apple.com/fr/app/viroteam/id6807822265",
+});
 
 /** Options callables qui envoient via Brevo. */
 export const brevoCallableSecrets = [brevoApiKey] as const;
@@ -38,6 +41,14 @@ export function buildJoinUrl(code: string): string {
  */
 export function configuredPlayStoreUrl(): string | undefined {
   const value = playStoreUrl.value().trim();
+  return value || undefined;
+}
+
+/**
+ * App Store URL paramétrée (chaîne vide si désactivée).
+ */
+export function configuredAppStoreUrl(): string | undefined {
+  const value = appStoreUrl.value().trim();
   return value || undefined;
 }
 

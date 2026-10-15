@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
@@ -15,7 +16,7 @@ void main() {
   });
 
   group('buildInviteMessage', () {
-    test('inclut le nom du club et le code', () {
+    test('inclut club, code, stores et espace club', () {
       const club = Club(
         id: 'club1',
         name: 'ASM Volley',
@@ -34,6 +35,35 @@ void main() {
       expect(message, contains('ASM Volley'));
       expect(message, contains('ABC123'));
       expect(message, contains('7 jours'));
+      expect(message, contains(ProjectConfig.appStoreUrl));
+      expect(message, contains(ProjectConfig.playStoreUrl));
+      expect(message, contains(ProjectConfig.siteUrl));
+      expect(message, contains('Espace club :'));
+      expect(message, contains('join?code=ABC123'));
+      expect(message, isNot(contains('Lien :')));
+    });
+  });
+
+  group('buildGuardianInviteMessage', () {
+    test('inclut stores et espace club', () {
+      const club = Club(
+        id: 'club1',
+        name: 'ASM Volley',
+        sport: 'Volleyball',
+      );
+
+      final message = buildGuardianInviteMessage(
+        club: club,
+        code: 'PAR001',
+        childFirstName: 'Tom',
+      );
+
+      expect(message, contains('Tom'));
+      expect(message, contains('ASM Volley'));
+      expect(message, contains(ProjectConfig.appStoreUrl));
+      expect(message, contains(ProjectConfig.playStoreUrl));
+      expect(message, contains('Espace club :'));
+      expect(message, contains('join?code=PAR001'));
     });
   });
 }

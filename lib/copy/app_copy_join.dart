@@ -52,7 +52,9 @@ final class AppCopyJoin {
     required String clubName,
     required String code,
     required String joinUrl,
-    required String storeLine,
+    required String appStoreUrl,
+    required String playStoreUrl,
+    required String siteUrl,
   }) =>
       '''Salut !
 
@@ -60,9 +62,14 @@ On t'attend. Voilà ton code pour rejoindre $clubName sur ViroTeam.
 
 Ton code : $code
 Valable 7 jours.
-Lien : $joinUrl$storeLine
+App Store : $appStoreUrl
+Google Play : $playStoreUrl
 
 Ou ouvre l'app → « J'ai un code d'invitation » et tape ce code.
+
+Aussi sur le web :
+Site : $siteUrl
+Espace club : $joinUrl
 
 — Guy''';
 
@@ -70,6 +77,10 @@ Ou ouvre l'app → « J'ai un code d'invitation » et tape ce code.
     required String childFirstName,
     required String clubName,
     required String code,
+    required String joinUrl,
+    required String appStoreUrl,
+    required String playStoreUrl,
+    required String siteUrl,
   }) =>
       '''Salut !
 
@@ -77,8 +88,14 @@ Tu pourras voir le planning de $childFirstName, répondre aux convocations et pa
 
 Ton code : $code
 Valable 7 jours.
+App Store : $appStoreUrl
+Google Play : $playStoreUrl
 
-Ouvre l'app → « J'ai un code d'invitation » et tape ce code.
+Ou ouvre l'app → « J'ai un code d'invitation » et tape ce code.
+
+Aussi sur le web :
+Site : $siteUrl
+Espace club : $joinUrl
 
 — Guy''';
 }

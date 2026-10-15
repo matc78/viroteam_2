@@ -20,12 +20,13 @@ String buildInviteMessage({
   required ClubInvitation invitation,
 }) {
   final joinUrl = inviteJoinUrl(invitation.code).toString();
-  const storeLine = '\nApp Android : ${ProjectConfig.playStoreUrl}';
   return AppCopy.join.clubInviteMessage(
     clubName: club.name,
     code: invitation.code,
     joinUrl: joinUrl,
-    storeLine: storeLine,
+    appStoreUrl: ProjectConfig.appStoreUrl,
+    playStoreUrl: ProjectConfig.playStoreUrl,
+    siteUrl: ProjectConfig.siteUrl,
   );
 }
 
@@ -39,9 +40,14 @@ String buildGuardianInviteMessage({
       childFirstName.trim().isEmpty
           ? AppCopy.join.defaultChildName
           : childFirstName.trim();
+  final joinUrl = inviteJoinUrl(code).toString();
   return AppCopy.join.guardianInviteShareMessage(
     childFirstName: name,
     clubName: club.name,
     code: code,
+    joinUrl: joinUrl,
+    appStoreUrl: ProjectConfig.appStoreUrl,
+    playStoreUrl: ProjectConfig.playStoreUrl,
+    siteUrl: ProjectConfig.siteUrl,
   );
 }

@@ -53,6 +53,13 @@ abstract final class ProjectConfig {
   static const String playStoreUrl =
       'https://play.google.com/store/apps/details?id=com.viroteam.viro_team';
 
+  /// URL App Store (alignée portail `site.appStoreUrl`).
+  static const String appStoreUrl =
+      'https://apps.apple.com/fr/app/viroteam/id6807822265';
+
+  /// Site marketing / portail public (liens secondaires invitations).
+  static const String siteUrl = 'https://www.viroteam.com';
+
   // —— Docs ——
   static const String roadmapDoc = 'docs/ROADMAP.md';
 

@@ -1,8 +1,8 @@
 import { escapeHtml } from "../brevo";
 import { emailCopy } from "./emailCopy";
 import {
-  emailCtaButton,
   emailInviteCodeBlock,
+  emailStoreCtaButtons,
   wrapGuyEmailLayout,
 } from "./layout";
 import type {
@@ -39,14 +39,40 @@ function roleLabelFr(role: MemberInviteRole): string {
   return emailCopy.common.rolePlayer;
 }
 
-function storeLines(playStoreUrl?: string): { text: string; html: string } {
-  const url = playStoreUrl?.trim();
-  if (!url) return { text: "", html: "" };
-  const { playStoreLabel, playStoreDownload } = emailCopy.common;
+/**
+ * Lignes stores (texte) + boutons HTML pour App Store / Google Play.
+ */
+function storeBlocks(params: {
+  appStoreUrl?: string;
+  playStoreUrl?: string;
+}): { text: string; html: string } {
+  const c = emailCopy.common;
+  const ios = params.appStoreUrl?.trim();
+  const android = params.playStoreUrl?.trim();
+  const textLines: string[] = [];
+  if (ios) textLines.push(`${c.appStoreLabel} ${ios}`);
+  if (android) textLines.push(`${c.playStoreLabel} ${android}`);
   return {
-    text: `\n${playStoreLabel} ${url}`,
-    html: `<p style="margin:16px 0 0;font-size:14px;color:#4a5568;">${escapeHtml(playStoreLabel)} <a href="${escapeHtml(url)}" style="color:#1769b0;">${escapeHtml(playStoreDownload)}</a></p>`,
+    text: textLines.length ? `\n${textLines.join("\n")}` : "",
+    html: emailStoreCtaButtons(ios, android),
   };
+}
+
+/**
+ * Liens secondaires site + espace club (bas du message).
+ */
+function webLinksBlock(joinUrl: string): { text: string; html: string } {
+  const c = emailCopy.common;
+  const text = `
+${c.webLinksIntro}
+${c.siteLabel} ${c.siteUrl}
+${c.clubSpaceLabel} ${joinUrl}`;
+  const html = `<p style="margin:20px 0 0;font-size:13px;color:#4a5568;line-height:1.45;">${escapeHtml(c.webLinksIntro)}</p>
+<p style="margin:6px 0 0;font-size:13px;color:#4a5568;line-height:1.45;">
+  ${escapeHtml(c.siteLabel)} <a href="${escapeHtml(c.siteUrl)}" style="color:#1769b0;">${escapeHtml(c.siteHost)}</a><br />
+  ${escapeHtml(c.clubSpaceLabel)} <a href="${escapeHtml(joinUrl)}" style="color:#1769b0;">${escapeHtml(joinUrl)}</a>
+</p>`;
+  return { text, html };
 }
 
 function strongClubLead(parts: { before: string; after: string }, clubName: string): string {
@@ -61,7 +87,11 @@ function buildMemberInvite(
   const subject = variant.subject(params.clubName);
   const textLead = variant.lead(params.clubName);
   const htmlLead = strongClubLead(variant.leadAroundClub, params.clubName);
-  const store = storeLines(params.playStoreUrl);
+  const store = storeBlocks({
+    appStoreUrl: params.appStoreUrl,
+    playStoreUrl: params.playStoreUrl,
+  });
+  const web = webLinksBlock(params.joinUrl);
   const fallback = emailCopy.common.fallbackAppCode;
   const c = emailCopy.common;
 
@@ -70,10 +100,10 @@ function buildMemberInvite(
 ${textLead}
 
 ${c.codeLabel} : ${params.code}
-${c.codeValidDays}
-${c.linkPrefix} ${params.joinUrl}${store.text}
+${c.codeValidDays}${store.text}
 
 ${fallback}
+${web.text}
 
 ${c.signOff}`;
 
@@ -81,9 +111,9 @@ ${c.signOff}`;
 <p style="margin:0 0 14px;">${hello.html}</p>
 <p style="margin:0 0 18px;">${htmlLead}</p>
 ${emailInviteCodeBlock(params.code)}
-${emailCtaButton(params.joinUrl, c.ctaOpenInvite)}
-<p style="margin:12px 0 0;font-size:13px;color:#4a5568;line-height:1.45;">${escapeHtml(fallback)}</p>
 ${store.html}
+<p style="margin:12px 0 0;font-size:13px;color:#4a5568;line-height:1.45;">${escapeHtml(fallback)}</p>
+${web.html}
 `;
 
   return {
@@ -107,7 +137,11 @@ function buildGuardianInvite(
   const child = params.childFirstName.trim() || c.defaultChildName;
   const subject = g.subject(child, params.clubName);
   const leadText = g.lead(child, params.clubName);
-  const store = storeLines(params.playStoreUrl);
+  const store = storeBlocks({
+    appStoreUrl: params.appStoreUrl,
+    playStoreUrl: params.playStoreUrl,
+  });
+  const web = webLinksBlock(params.joinUrl);
   const fallback = c.fallbackAppCode;
 
   const textContent = `${c.greetingAnonymous}
@@ -115,10 +149,10 @@ function buildGuardianInvite(
 ${leadText}
 
 ${c.codeLabel} : ${params.code}
-${c.codeValidDays}
-${c.linkPrefix} ${params.joinUrl}${store.text}
+${c.codeValidDays}${store.text}
 
 ${fallback}
+${web.text}
 
 ${c.signOff}`;
 
@@ -128,9 +162,9 @@ ${c.signOff}`;
   ${escapeHtml(g.leadBeforeChild)}<strong>${escapeHtml(child)}</strong>${escapeHtml(g.leadBetweenChildAndClub)}<strong>${escapeHtml(params.clubName)}</strong>${escapeHtml(g.leadAfterClub)}
 </p>
 ${emailInviteCodeBlock(params.code)}
-${emailCtaButton(params.joinUrl, c.ctaOpenInvite)}
-<p style="margin:12px 0 0;font-size:13px;color:#4a5568;line-height:1.45;">${escapeHtml(fallback)}</p>
 ${store.html}
+<p style="margin:12px 0 0;font-size:13px;color:#4a5568;line-height:1.45;">${escapeHtml(fallback)}</p>
+${web.html}
 `;
 
   return {

@@ -10,8 +10,9 @@ import { getAppFirestore } from "@/lib/firebase/app";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { toDate } from "@/lib/firebase/types";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
-import { listClubMembers } from "@/lib/firebase/memberService";
+import { inviteJoinUrl, listClubMembers } from "@/lib/firebase/memberService";
 import { joinCopy } from "@/lib/copy/joinCopy";
+import { site } from "@/lib/site";
 
 /** Enfant lié à une ligne parent (vue admin). */
 export type ParentChildRef = {
@@ -394,6 +395,10 @@ export function buildGuardianInviteMessage(params: {
     childFirstName: name,
     clubName: params.clubName,
     code: params.code,
+    joinUrl: inviteJoinUrl(params.code),
+    appStoreUrl: site.appStoreUrl,
+    playStoreUrl: site.playStoreUrl,
+    siteUrl: site.url,
   });
 }
 

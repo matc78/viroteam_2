@@ -14,10 +14,15 @@ const COLOR_FOOTER = "#8b95a5";
 /**
  * Bouton CTA table-safe pour clients mail.
  */
-export function emailCtaButton(href: string, label: string): string {
+export function emailCtaButton(
+  href: string,
+  label: string,
+  options?: { marginTopPx?: number },
+): string {
   const safeHref = escapeHtml(href);
   const safeLabel = escapeHtml(label);
-  return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:24px 0 8px;">
+  const marginTop = options?.marginTopPx ?? 24;
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:${marginTop}px 0 8px;">
   <tr>
     <td style="border-radius:8px;background:${COLOR_PRIMARY};">
       <a href="${safeHref}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
@@ -26,6 +31,30 @@ export function emailCtaButton(href: string, label: string): string {
     </td>
   </tr>
 </table>`;
+}
+
+/**
+ * Deux boutons stores empilés (App Store puis Google Play).
+ */
+export function emailStoreCtaButtons(
+  appStoreUrl?: string,
+  playStoreUrl?: string,
+): string {
+  const c = emailCopy.common;
+  const ios = appStoreUrl?.trim();
+  const android = playStoreUrl?.trim();
+  const parts: string[] = [];
+  if (ios) {
+    parts.push(emailCtaButton(ios, c.ctaAppStore, { marginTopPx: 24 }));
+  }
+  if (android) {
+    parts.push(
+      emailCtaButton(android, c.ctaPlayStore, {
+        marginTopPx: ios ? 8 : 24,
+      }),
+    );
+  }
+  return parts.join("\n");
 }
 
 /**

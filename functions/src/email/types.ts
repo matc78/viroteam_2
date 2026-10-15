@@ -23,6 +23,7 @@ export type MemberInviteEmailParams = GuyEmailClub & {
   firstName: string;
   code: string;
   joinUrl: string;
+  appStoreUrl?: string;
   playStoreUrl?: string;
 };
 
@@ -31,6 +32,7 @@ export type GuardianInviteEmailParams = GuyEmailClub & {
   childFirstName: string;
   code: string;
   joinUrl: string;
+  appStoreUrl?: string;
   playStoreUrl?: string;
 };
 

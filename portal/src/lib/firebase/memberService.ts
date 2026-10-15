@@ -164,15 +164,13 @@ export function buildInviteMessage(params: {
   clubName: string;
   code: string;
 }): string {
-  const joinUrl = inviteJoinUrl(params.code);
-  const storeLine = site.playStoreUrl
-    ? `\n${joinCopy.playStoreLabel} ${site.playStoreUrl}`
-    : "";
   return joinCopy.clubInviteMessage({
     clubName: params.clubName,
     code: params.code,
-    joinUrl,
-    storeLine,
+    joinUrl: inviteJoinUrl(params.code),
+    appStoreUrl: site.appStoreUrl,
+    playStoreUrl: site.playStoreUrl,
+    siteUrl: site.url,
   });
 }
 

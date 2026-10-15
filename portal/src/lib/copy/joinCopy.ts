@@ -7,12 +7,13 @@
 /** Messages WhatsApp / SMS / presse-papiers. */
 export const joinCopy = {
   defaultChildName: "ton enfant",
-  playStoreLabel: "App Android :",
   clubInviteMessage: (params: {
     clubName: string;
     code: string;
     joinUrl: string;
-    storeLine: string;
+    appStoreUrl: string;
+    playStoreUrl: string;
+    siteUrl: string;
   }) =>
     `Salut !
 
@@ -20,15 +21,24 @@ On t'attend. Voilà ton code pour rejoindre ${params.clubName} sur ViroTeam.
 
 Ton code : ${params.code}
 Valable 7 jours.
-Lien : ${params.joinUrl}${params.storeLine}
+App Store : ${params.appStoreUrl}
+Google Play : ${params.playStoreUrl}
 
 Ou ouvre l'app → « J'ai un code d'invitation » et tape ce code.
+
+Aussi sur le web :
+Site : ${params.siteUrl}
+Espace club : ${params.joinUrl}
 
 — Guy`,
   guardianInviteShareMessage: (params: {
     childFirstName: string;
     clubName: string;
     code: string;
+    joinUrl: string;
+    appStoreUrl: string;
+    playStoreUrl: string;
+    siteUrl: string;
   }) =>
     `Salut !
 
@@ -36,8 +46,14 @@ Tu pourras voir le planning de ${params.childFirstName}, répondre aux convocati
 
 Ton code : ${params.code}
 Valable 7 jours.
+App Store : ${params.appStoreUrl}
+Google Play : ${params.playStoreUrl}
 
-Ouvre l'app → « J'ai un code d'invitation » et tape ce code.
+Ou ouvre l'app → « J'ai un code d'invitation » et tape ce code.
+
+Aussi sur le web :
+Site : ${params.siteUrl}
+Espace club : ${params.joinUrl}
 
 — Guy`,
 } as const;

@@ -4,6 +4,11 @@ import { escapeHtml } from "../brevo";
 import { buildGuyEmail, normalizeMemberInviteRole } from "./guyCopy";
 import { APP_LOGO_URL, wrapGuyEmailLayout } from "./layout";
 
+const APP_STORE =
+  "https://apps.apple.com/fr/app/viroteam/id6807822265";
+const PLAY_STORE =
+  "https://play.google.com/store/apps/details?id=com.viroteam.viro_team";
+
 test("normalizeMemberInviteRole mappe coach/admin/player", () => {
   assert.equal(normalizeMemberInviteRole("coach"), "coach");
   assert.equal(normalizeMemberInviteRole("ADMIN"), "admin");
@@ -11,7 +16,7 @@ test("normalizeMemberInviteRole mappe coach/admin/player", () => {
   assert.equal(normalizeMemberInviteRole("autre"), "player");
 });
 
-test("memberInvite player : sujet Guy + code + CTA + logos", () => {
+test("memberInvite player : sujet Guy + code + CTA stores + liens web", () => {
   const mail = buildGuyEmail({
     kind: "memberInvite",
     clubId: "club1",
@@ -21,15 +26,27 @@ test("memberInvite player : sujet Guy + code + CTA + logos", () => {
     firstName: "Léa",
     code: "AB12CD",
     joinUrl: "https://www.viroteam.com/join?code=AB12CD",
-    playStoreUrl: "https://play.google.com/store/apps/details?id=com.viroteam.viro_team",
+    appStoreUrl: APP_STORE,
+    playStoreUrl: PLAY_STORE,
   });
 
   assert.match(mail.subject, /Allez, rejoins AS Volley/);
   assert.match(mail.subject, /Guy/);
   assert.match(mail.textContent, /AB12CD/);
   assert.match(mail.textContent, /Léa/);
+  assert.match(mail.textContent, /App Store :/);
+  assert.match(mail.textContent, /Google Play :/);
+  assert.match(mail.textContent, /Aussi sur le web/);
+  assert.match(mail.textContent, /Espace club :/);
+  assert.match(mail.textContent, /join\?code=AB12CD/);
   assert.match(mail.htmlContent, /AB12CD/);
-  assert.match(mail.htmlContent, /Ouvrir l'invitation/);
+  assert.match(mail.htmlContent, /App Store/);
+  assert.match(mail.htmlContent, /Google Play/);
+  assert.match(mail.htmlContent, /apps\.apple\.com/);
+  assert.match(mail.htmlContent, /play\.google\.com/);
+  assert.match(mail.htmlContent, /Espace club/);
+  assert.match(mail.htmlContent, /join\?code=AB12CD/);
+  assert.equal(mail.htmlContent.includes("Ouvrir l'invitation"), false);
   assert.match(mail.htmlContent, /cdn\.example\.com\/club\.png/);
   assert.ok(mail.htmlContent.includes(APP_LOGO_URL));
   assert.match(mail.htmlContent, /Guy, du club via ViroTeam/);
@@ -88,7 +105,7 @@ test("noms de club sans préposition (USMV / association)", () => {
   assert.equal(guardian.subject.includes("au USMV"), false);
 });
 
-test("guardianInvite mentionne l’enfant et le club", () => {
+test("guardianInvite mentionne l’enfant, stores et espace club", () => {
   const mail = buildGuyEmail({
     kind: "guardianInvite",
     clubId: "club1",
@@ -96,11 +113,16 @@ test("guardianInvite mentionne l’enfant et le club", () => {
     childFirstName: "Tom",
     code: "PARENT1",
     joinUrl: "https://www.viroteam.com/join?code=PARENT1",
+    appStoreUrl: APP_STORE,
+    playStoreUrl: PLAY_STORE,
   });
   assert.match(mail.subject, /Tom/);
   assert.match(mail.subject, /AS Volley/);
   assert.match(mail.htmlContent, /Tom/);
   assert.match(mail.htmlContent, /PARENT1/);
+  assert.match(mail.htmlContent, /App Store/);
+  assert.match(mail.htmlContent, /Google Play/);
+  assert.match(mail.htmlContent, /Espace club/);
   assert.ok(mail.tags.includes("guardian-invite"));
 });
 

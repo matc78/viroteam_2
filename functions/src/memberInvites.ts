@@ -4,6 +4,7 @@ import {
   buildGuyEmail,
   buildJoinUrl,
   clubLogoUrlFromData,
+  configuredAppStoreUrl,
   configuredPlayStoreUrl,
   brevoApiKey,
   brevoCallableSecrets,
@@ -351,6 +352,7 @@ export const {
           firstName,
           code: ensured.code,
           joinUrl,
+          appStoreUrl: configuredAppStoreUrl(),
           playStoreUrl: configuredPlayStoreUrl(),
         });
 

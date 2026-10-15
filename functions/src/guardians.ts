@@ -7,6 +7,7 @@ import {
   buildJoinUrl,
   brevoCallableSecrets,
   clubLogoUrlFromData,
+  configuredAppStoreUrl,
   configuredPlayStoreUrl,
   resolveAuthEmail,
   trySendGuyTransactionalEmail,
@@ -440,6 +441,7 @@ async function sendGuardianInviteEmail(params: {
     childFirstName,
     code: params.code,
     joinUrl,
+    appStoreUrl: configuredAppStoreUrl(),
     playStoreUrl: configuredPlayStoreUrl(),
   });
 

@@ -33,6 +33,17 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 - Validations sondage / réactions et MIME vignette chat
 
+## [2.2.5] - 2026-10-15
+
+### Corrigé
+
+- Onboarding fondateur : connexion sociale, Places et gymnase par défaut
+- Sync du nom de profil vers les fiches membres du club
+
+### Note
+
+- Messagerie toujours masquée en release (`FeatureFlags.chatMessagingLive`)
+
 ## [2.2.4] - 2026-10-12
 
 ### Modifié

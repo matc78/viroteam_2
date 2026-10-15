@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type {
   ClubEventView,
   PlanningGuestDirectoryEntry,
@@ -24,6 +24,7 @@ import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import { useToast } from "@/components/ToastProvider";
 import { sendEventPush } from "@/lib/firebase/callableService";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningEventDetailPanel.module.css";
 
@@ -121,7 +122,7 @@ export function PlanningEventDetailPanel({
 }: PlanningEventDetailPanelProps) {
   const { showToast } = useToast();
   const [sendingPush, setSendingPush] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useDialogA11y({ onClose });
   const [resolvedAnchor, setResolvedAnchor] = useState<PopoverAnchorRect | null>(
     anchor,
   );
@@ -253,9 +254,6 @@ export function PlanningEventDetailPanel({
       data-anchored={anchored ? "true" : "false"}
       role="presentation"
       onClick={onClose}
-      onKeyDown={(keyboardEvent) => {
-        if (keyboardEvent.key === "Escape") onClose();
-      }}
     >
       <div
         ref={panelRef}

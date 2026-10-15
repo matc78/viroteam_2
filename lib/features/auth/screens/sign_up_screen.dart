@@ -412,6 +412,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     return ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
+          tooltip: AppCopy.common.back,
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),

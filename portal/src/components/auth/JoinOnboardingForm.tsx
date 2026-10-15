@@ -200,9 +200,13 @@ export function JoinOnboardingForm() {
           placeholder="Tristan"
           value={firstName}
           onChange={(event) => setFirstName(event.target.value)}
+          aria-invalid={Boolean(errors.firstName)}
+          aria-describedby={
+            errors.firstName ? "join-first-name-error" : undefined
+          }
         />
         {errors.firstName ? (
-          <p className={formStyles.error} role="alert">
+          <p id="join-first-name-error" className={formStyles.error} role="alert">
             {errors.firstName}
           </p>
         ) : null}
@@ -221,9 +225,13 @@ export function JoinOnboardingForm() {
           placeholder="Heraud"
           value={lastName}
           onChange={(event) => setLastName(event.target.value)}
+          aria-invalid={Boolean(errors.lastName)}
+          aria-describedby={
+            errors.lastName ? "join-last-name-error" : undefined
+          }
         />
         {errors.lastName ? (
-          <p className={formStyles.error} role="alert">
+          <p id="join-last-name-error" className={formStyles.error} role="alert">
             {errors.lastName}
           </p>
         ) : null}
@@ -243,9 +251,11 @@ export function JoinOnboardingForm() {
           value={code}
           onChange={(event) => setCode(event.target.value.toUpperCase())}
           onBlur={() => void handleCodeBlur()}
+          aria-invalid={Boolean(errors.code)}
+          aria-describedby={errors.code ? "join-code-error" : undefined}
         />
         {errors.code ? (
-          <p className={formStyles.error} role="alert">
+          <p id="join-code-error" className={formStyles.error} role="alert">
             {errors.code}
           </p>
         ) : null}

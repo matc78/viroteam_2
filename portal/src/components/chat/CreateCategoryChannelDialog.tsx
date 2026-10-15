@@ -18,6 +18,7 @@ import {
   type TeamOption,
 } from "@/lib/firebase/eventService";
 import { sortTeamCategories } from "@/lib/teams/compareTeamCategories";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./CreateCategoryChannelDialog.module.css";
 
 const EMPTY_SCOPE: ChannelAudienceScope = {
@@ -153,6 +154,8 @@ export function CreateCategoryChannelDialog() {
     }
   }
 
+  const dialogRef = useDialogA11y({ onClose: closeCategoryChannel });
+
   if (adminClubs.length === 0) return null;
 
   return (
@@ -162,9 +165,11 @@ export function CreateCategoryChannelDialog() {
       role="presentation"
     >
       <div
+        ref={dialogRef}
         className={styles.panel}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
+        aria-modal="true"
         aria-label="Créer canal"
       >
         <div className={styles.header}>

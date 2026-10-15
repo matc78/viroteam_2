@@ -62,6 +62,9 @@ final class AppCopyChat {
   String get openTeamChat => 'Ouvrir le chat d’équipe';
   String get openParentsChat => 'Ouvrir le chat parents';
   String get chatEntry => 'Discussions';
+  String chatEntryWithUnread(int count) =>
+      count <= 0 ? chatEntry : '$chatEntry, $count non lus';
+  String get sendMessage => 'Envoyer le message';
   String get photoPreview => 'Photo';
   String get reactions => 'Réagir';
   String get moreEmojis => 'Plus d’émojis';

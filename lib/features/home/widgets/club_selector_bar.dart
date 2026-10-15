@@ -211,36 +211,35 @@ class _ChatBarItem extends StatelessWidget {
     final theme = Theme.of(context).textTheme;
     final hasBadge = badgeCount != null;
 
-    return Semantics(
-      button: true,
-      label: AppCopy.chat.chatEntry,
-      child: ViroPressable(
-        onTap: () => _handleTap(context),
-        borderRadius: BorderRadius.circular(_size / 2),
-        floating: false,
-        minSize: _size,
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: _size,
-              height: _size,
-              child: CustomPaint(
-                painter: const _ChatCirclePainter(),
-                child: Center(
-                  child: ViroIcon(
-                    ViroIcons.chatFill,
-                    size: 22,
-                    color: ViroColors.primary600,
-                  ),
+    return ViroPressable(
+      onTap: () => _handleTap(context),
+      borderRadius: BorderRadius.circular(_size / 2),
+      floating: false,
+      minSize: _size,
+      label: AppCopy.chat.chatEntryWithUnread(badgeCount ?? 0),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: _size,
+            height: _size,
+            child: CustomPaint(
+              painter: const _ChatCirclePainter(),
+              child: Center(
+                child: ViroIcon(
+                  ViroIcons.chatFill,
+                  size: 22,
+                  color: ViroColors.primary600,
                 ),
               ),
             ),
-            if (hasBadge)
-              Positioned(
-                top: -2,
-                right: -2,
+          ),
+          if (hasBadge)
+            Positioned(
+              top: -2,
+              right: -2,
+              child: ExcludeSemantics(
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -267,8 +266,8 @@ class _ChatBarItem extends StatelessWidget {
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -347,83 +346,97 @@ class _ClubBarItem extends StatelessWidget {
     final theme = Theme.of(context).textTheme;
     final color = accentColor ?? ViroColors.primary600;
 
+    final semanticParts = <String>[
+      club.name,
+      if (badgeCount != null && badgeCount! > 0)
+        '$badgeCount ${AppCopy.common.pending}',
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.sm / 2),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: ViroMotion.floatingShadow(
-                      opacity: 0.16,
-                      blur: 12,
-                      y: 4,
+      child: Semantics(
+        button: true,
+        label: semanticParts.join(', '),
+        child: GestureDetector(
+          onTap: onTap,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: ViroMotion.floatingShadow(
+                        opacity: 0.16,
+                        blur: 12,
+                        y: 4,
+                      ),
+                    ),
+                    child: ClubContextAvatar(
+                      club: club,
+                      accentColor: color,
+                      size: _logoSize,
+                      borderRadius: _logoSize / 2,
                     ),
                   ),
-                  child: ClubContextAvatar(
-                    club: club,
-                    accentColor: color,
-                    size: _logoSize,
-                    borderRadius: _logoSize / 2,
-                  ),
-                ),
-                if (badgeCount != null)
-                  Positioned(
-                    top: -2,
-                    right: -2,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: ViroColors.error,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      child: Text(
-                        '$badgeCount',
-                        textAlign: TextAlign.center,
-                        style: theme.labelSmall?.copyWith(
-                          color: ViroColors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                  if (badgeCount != null)
+                    Positioned(
+                      top: -2,
+                      right: -2,
+                      child: ExcludeSemantics(
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: ViroColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            '$badgeCount',
+                            textAlign: TextAlign.center,
+                            style: theme.labelSmall?.copyWith(
+                              color: ViroColors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
                     ),
+                  if (role != null)
+                    Positioned(
+                      bottom: -2,
+                      right: -2,
+                      child: ViroRoleSatelliteBadge(role: role!),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              ExcludeSemantics(
+                child: SizedBox(
+                  width: 52,
+                  height: 14,
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.labelSmall?.copyWith(
+                      fontSize: 10,
+                      height: 1.1,
+                      color: ViroColors.gray600,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
-                if (role != null)
-                  Positioned(
-                    bottom: -2,
-                    right: -2,
-                    child: ViroRoleSatelliteBadge(role: role!),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            SizedBox(
-              width: 52,
-              height: 14,
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.labelSmall?.copyWith(
-                  fontSize: 10,
-                  height: 1.1,
-                  color: ViroColors.gray600,
-                  fontWeight: FontWeight.w400,
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

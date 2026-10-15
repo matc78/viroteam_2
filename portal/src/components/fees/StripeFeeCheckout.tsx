@@ -14,6 +14,7 @@ import {
   FeePaymentAnalytics,
   feePaymentErrorCode,
 } from "@/lib/fees/feePaymentAnalytics";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./StripeFeeCheckout.module.css";
 
 type StripeFeeCheckoutProps = {
@@ -167,9 +168,12 @@ export function StripeFeeCheckout({
     onClose();
   }
 
+  const dialogRef = useDialogA11y({ onClose: handleClose });
+
   return (
     <div className={styles.backdrop} role="presentation" onClick={handleClose}>
       <div
+        ref={dialogRef}
         className={styles.panel}
         role="dialog"
         aria-modal="true"

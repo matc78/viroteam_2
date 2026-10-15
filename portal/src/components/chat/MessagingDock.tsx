@@ -86,6 +86,7 @@ export function MessagingDock() {
       <button
         type="button"
         className={styles.collapsedBar}
+        aria-label="Ouvrir la messagerie"
         onClick={openFromEdge}
       >
         <span className={styles.chevron} aria-hidden>
@@ -166,6 +167,7 @@ export function MessagingDock() {
           className={styles.search}
           type="search"
           placeholder="Rechercher dans les messages"
+          aria-label="Rechercher dans les messages"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />

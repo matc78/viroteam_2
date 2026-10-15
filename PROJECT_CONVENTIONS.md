@@ -88,6 +88,16 @@ Scaffold(
 - [Phosphor](https://phosphoricons.com) via `ViroIcons` + `ViroIcon`.
 - Pas de `Icons.*` Material dans les écrans.
 - Nouvelle icône → l’ajouter dans `ViroIcons` (+ `ViroIcons.catalog` si pertinent).
+- `ViroIcon` décorative (texte voisin) → pas de `semanticLabel` ; informative seule → `semanticLabel` obligatoire.
+
+### Accessibilité (pragmatique)
+
+- Interactif **icon-only** → libellé accessible (`tooltip` / `ViroPressable.label` / `aria-label` côté portail).
+- `ViroFloatingIconButton` exige toujours un `tooltip` (Tooltip + Semantics).
+- Tuiles / cartes tappables → `semanticLabel` (ou texte enfant clairement annoncé), pas de double lecture.
+- Cibles tactiles ≥ `ViroSpacing.minTouchTarget` (44).
+- Portail : dialogs via `useDialogA11y` (focus + Escape) ; formulaires sur le modèle Login (`label`, `aria-invalid`, `role="alert"`).
+- Smoke manuel : [`docs/A11Y_SMOKE.md`](docs/A11Y_SMOKE.md).
 
 ---
 
@@ -222,3 +232,4 @@ Exemples de cible :
 | 2026-07 | Specs produit dans `docs/specs/` ; typos `viroheam` corrigées |
 | 2026-08 | Parents = relation (pas rôle) ; spec `viroteam_v2_parents_spec.md` ; V1 = 1 adulte / enfant |
 | 2026-09 | Copy UI centralisé dans `AppCopy` (`lib/copy/`) ; voix « pote de vestiaire » (tutoiement) |
+| 2026-10 | A11y pragmatique : Semantics sur primitives app + `useDialogA11y` portail ; smoke `docs/A11Y_SMOKE.md` |

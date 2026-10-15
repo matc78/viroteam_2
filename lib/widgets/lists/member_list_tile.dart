@@ -87,6 +87,10 @@ class MemberListTile extends StatelessWidget {
     final theme = Theme.of(context).textTheme;
     final accent = accentColor ?? ViroColors.primary600;
 
+    final memberName = member.fullName.isNotEmpty
+        ? member.fullName
+        : AppCopy.members.unnamed;
+
     return ViroCard(
       margin: const EdgeInsets.only(bottom: ViroSpacing.sm),
       padding: const EdgeInsets.symmetric(
@@ -96,6 +100,7 @@ class MemberListTile extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       borderColor: selected ? accent : null,
+      semanticLabel: memberName,
       child: Row(
         children: [
           MemberAvatar(member: member, accentColor: accent),

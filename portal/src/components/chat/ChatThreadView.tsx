@@ -83,6 +83,7 @@ import {
   type ChatMessage,
   type ChatUserState,
 } from "@/lib/firebase/chatTypes";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./ChatThreadView.module.css";
 
 const LONG_PRESS_MS = 450;
@@ -211,6 +212,19 @@ export function ChatThreadView({
   const unreadSnapshotKeyRef = useRef<string | null>(null);
   const nearBottomRef = useRef(true);
   const forceScrollAfterSendRef = useRef(false);
+
+  const actionOverlayRef = useDialogA11y({
+    onClose: () => setActionMessage(null),
+    enabled: Boolean(actionMessage && actionLayout),
+  });
+  const editOverlayRef = useDialogA11y({
+    onClose: () => setEditingMessage(null),
+    enabled: Boolean(editingMessage),
+  });
+  const lightboxRef = useDialogA11y({
+    onClose: () => setLightboxUrl(null),
+    enabled: Boolean(lightboxUrl),
+  });
 
   const threadKey = `${clubId}:${conversationId}`;
   if (unreadSnapshotKeyRef.current !== threadKey) {
@@ -1164,6 +1178,10 @@ export function ChatThreadView({
       <div
         className={`${styles.messages}${dragOver ? ` ${styles.messagesDragOver}` : ""}`}
         ref={messagesRef}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label="Messages"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={(event) => void handleDrop(event)}
@@ -1614,9 +1632,12 @@ export function ChatThreadView({
       {actionMessage
         ? createPortal(
             <div
+              ref={actionOverlayRef}
               className={styles.actionOverlay}
               onClick={() => setActionMessage(null)}
-              role="presentation"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Actions du message"
             >
               {actionLayout ? (
                 <div
@@ -1644,11 +1665,7 @@ export function ChatThreadView({
                       void handleReaction(actionMessage, emoji)
                     }
                   />
-                  <div
-                    className={styles.actionSheet}
-                    role="dialog"
-                    aria-label="Actions du message"
-                  >
+                  <div className={styles.actionSheet}>
                     {canWrite ? (
                       <button
                         type="button"
@@ -1701,9 +1718,12 @@ export function ChatThreadView({
 
       {lightboxUrl ? (
         <div
+          ref={lightboxRef}
           className={styles.lightbox}
           onClick={() => setLightboxUrl(null)}
-          role="presentation"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo en plein écran"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -1725,15 +1745,16 @@ export function ChatThreadView({
 
       {editingMessage ? (
         <div
+          ref={editOverlayRef}
           className={styles.editOverlay}
           onClick={() => setEditingMessage(null)}
-          role="presentation"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Modifier le message"
         >
           <div
             className={styles.actionSheet}
             onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-label="Modifier le message"
           >
             <div className={styles.editFieldWrap}>
               <textarea

@@ -187,6 +187,7 @@ void showChatEmojiPickerSheet({
                       ),
                     ),
                     IconButton(
+                      tooltip: AppCopy.common.close,
                       onPressed: () => Navigator.pop(ctx),
                       icon: ViroIcon(ViroIcons.close),
                     ),

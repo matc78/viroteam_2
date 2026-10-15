@@ -18,6 +18,8 @@ final class AppCopyPlanning {
   String get notRegisteredYet => 'Pas encore inscrit';
   String get addToCalendarTooltip =>
       'Ajouter le calendrier dynamique à mon agenda';
+  String get goToTodayTooltip => 'Aller à aujourd’hui';
+  String get addEventTooltip => 'Créer un événement';
   String get noUpcomingClub => 'Rien à venir au planning';
   String get noUpcomingForSheet =>
       'Rien à venir pour cette fiche.';
@@ -49,6 +51,10 @@ final class AppCopyPlanning {
   String get rsvpPresent => 'Présent';
   String get rsvpAbsent => 'Absent';
   String get rsvpPending => 'En attente';
+
+  /// Libellé lecteur d’écran pour un compteur RSVP (résumé).
+  String rsvpCountLabel(String statusLabel, int count) =>
+      '$count $statusLabel';
 
   String get newEventTitle => 'Nouvel événement';
   String get reservedToCoachesAdmins =>

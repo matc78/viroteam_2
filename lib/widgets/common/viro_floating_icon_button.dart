@@ -6,12 +6,15 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
 /// Bouton icône flottant (menus, actions header, FAB secondaires).
+///
+/// [tooltip] est obligatoire : affiché au long-press et annoncé au lecteur
+/// d’écran via [ViroPressable.label].
 class ViroFloatingIconButton extends StatelessWidget {
   const ViroFloatingIconButton({
     super.key,
     required this.icon,
+    required this.tooltip,
     this.onPressed,
-    this.tooltip,
     this.backgroundColor,
     this.foregroundColor,
     this.circular = false,
@@ -19,7 +22,9 @@ class ViroFloatingIconButton extends StatelessWidget {
 
   final IconData icon;
   final VoidCallback? onPressed;
-  final String? tooltip;
+
+  /// Libellé accessible (tooltip + Semantics).
+  final String tooltip;
   final Color? backgroundColor;
   final Color? foregroundColor;
 
@@ -32,27 +37,26 @@ class ViroFloatingIconButton extends StatelessWidget {
     final fg = foregroundColor ?? ViroColors.primary800;
     final radius = BorderRadius.circular(circular ? 999 : 14);
 
-    final button = ViroPressable(
-      onTap: onPressed,
-      enabled: onPressed != null,
-      borderRadius: radius,
-      child: Container(
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: radius,
-          boxShadow: ViroMotion.floatingShadow(opacity: 0.16, blur: 18, y: 5),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(circular ? 10 : 11),
-          child: ViroIcon(icon, size: circular ? 20 : 22, color: fg),
+    return Tooltip(
+      message: tooltip,
+      child: ViroPressable(
+        onTap: onPressed,
+        enabled: onPressed != null,
+        borderRadius: radius,
+        label: tooltip,
+        child: Container(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: radius,
+            boxShadow: ViroMotion.floatingShadow(opacity: 0.16, blur: 18, y: 5),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(circular ? 10 : 11),
+            child: ViroIcon(icon, size: circular ? 20 : 22, color: fg),
+          ),
         ),
       ),
     );
-
-    if (tooltip != null) {
-      return Tooltip(message: tooltip!, child: button);
-    }
-    return button;
   }
 }
 
@@ -63,12 +67,18 @@ class ViroFloatingActionButton extends StatelessWidget {
     required this.icon,
     required this.onPressed,
     this.label,
+    this.semanticLabel,
     this.accentColor,
   });
 
   final IconData icon;
   final VoidCallback onPressed;
+
+  /// Texte visible à côté de l’icône (optionnel).
   final String? label;
+
+  /// Libellé lecteur d’écran (défaut : [label]).
+  final String? semanticLabel;
   final Color? accentColor;
 
   @override
@@ -80,6 +90,7 @@ class ViroFloatingActionButton extends StatelessWidget {
     return ViroPressable(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(16),
+      label: semanticLabel ?? label,
       child: Material(
         color: accent,
         elevation: 0,

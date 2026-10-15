@@ -194,6 +194,11 @@ class ViroIconCatalogGroup {
 }
 
 /// Rendu standard des icônes Phosphor dans l'app.
+///
+/// - Icône **décorative** (à côté d’un texte déjà lisible) : laisser
+///   [semanticLabel] à `null` (exclue du bruit lecteur d’écran via Semantics).
+/// - Icône **informative** seule (statut, badge sans texte) : fournir
+///   [semanticLabel].
 class ViroIcon extends StatelessWidget {
   const ViroIcon(
     this.icon, {
@@ -206,6 +211,8 @@ class ViroIcon extends StatelessWidget {
   final IconData icon;
   final double size;
   final Color? color;
+
+  /// Libellé si l’icône porte une info non redondante avec un texte voisin.
   final String? semanticLabel;
 
   @override
@@ -213,13 +220,14 @@ class ViroIcon extends StatelessWidget {
     final resolvedColor =
         color ?? IconTheme.of(context).color ?? const Color(0xFF0B3358);
 
-    return Semantics(
-      label: semanticLabel,
-      child: PhosphorIcon(
-        icon,
-        size: size,
-        color: resolvedColor,
-      ),
+    final iconWidget = PhosphorIcon(
+      icon,
+      size: size,
+      color: resolvedColor,
     );
+    if (semanticLabel == null) {
+      return ExcludeSemantics(child: iconWidget);
+    }
+    return Semantics(label: semanticLabel, child: iconWidget);
   }
 }

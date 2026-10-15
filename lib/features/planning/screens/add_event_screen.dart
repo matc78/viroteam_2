@@ -150,6 +150,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
       child: ViroScaffold(
         appBar: ViroAppBar(
           leading: IconButton(
+            tooltip: AppCopy.common.back,
             icon: ViroIcon(ViroIcons.chevronLeft),
             onPressed: _form.saving ? null : () => context.pop(),
           ),

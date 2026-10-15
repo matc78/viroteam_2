@@ -11,6 +11,7 @@ import {
   memberRoleLabel,
 } from "@/lib/firebase/memberService";
 import { rosterContains, viewerMatchIds } from "@/lib/teams/viewerTeamScope";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./ComposeConversationDialog.module.css";
 
 type TargetOption = {
@@ -180,13 +181,23 @@ export function ComposeConversationDialog() {
     }
   }
 
+  const dialogRef = useDialogA11y({ onClose: closeCompose });
+
   return (
-    <div className={styles.backdrop} role="dialog" aria-modal="true">
+    <div
+      ref={dialogRef}
+      className={styles.backdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="compose-conversation-title"
+    >
       <div className={styles.panel}>
         <header className={styles.header}>
           <div>
             <p className={styles.eyebrow}>Messagerie</p>
-            <h3 className={styles.title}>Nouvelle discussion</h3>
+            <h3 id="compose-conversation-title" className={styles.title}>
+              Nouvelle discussion
+            </h3>
             <p className={styles.hint}>
               Tu peux écrire à tes coaches ou à un admin du club.
             </p>

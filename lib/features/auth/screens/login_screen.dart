@@ -177,11 +177,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   decoration: InputDecoration(
                     labelText: AppCopy.auth.password,
                     suffixIcon: IconButton(
+                      tooltip: _obscurePassword
+                          ? AppCopy.auth.showPassword
+                          : AppCopy.auth.hidePassword,
                       icon: ViroIcon(
                         _obscurePassword ? ViroIcons.eye : ViroIcons.eyeSlash,
-                        semanticLabel: _obscurePassword
-                            ? AppCopy.auth.showPassword
-                            : AppCopy.auth.hidePassword,
                       ),
                       onPressed: () => setState(
                         () => _obscurePassword = !_obscurePassword,

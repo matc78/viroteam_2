@@ -3,6 +3,7 @@
 import { ChatThreadView } from "@/components/chat/ChatThreadView";
 import { useChat } from "@/lib/chat/ChatProvider";
 import { chatStateDocId, type ChatThreadKey } from "@/lib/firebase/chatTypes";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./FloatingThread.module.css";
 
 type FloatingThreadProps = {
@@ -19,11 +20,18 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
     closeFloatingThread,
     maximizeThread,
   } = useChat();
+  const dialogRef = useDialogA11y({ onClose: closeFloatingThread });
   const stateId = chatStateDocId(thread.clubId, thread.conversationId);
   const clubName = clubNameById[thread.clubId];
 
   return (
-    <div className={styles.window} role="dialog" aria-label="Conversation">
+    <div
+      ref={dialogRef}
+      className={styles.window}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Conversation"
+    >
       <ChatThreadView
         key={`${thread.clubId}-${thread.conversationId}`}
         clubId={thread.clubId}

@@ -46,6 +46,7 @@ class ClubListTile extends StatelessWidget {
         onTap: onTap,
         accentColor: accent,
         borderColor: ClubAccentStyle(accent).border,
+        semanticLabel: [club.name, if (subtitle.isNotEmpty) subtitle].join(', '),
         child: Row(
           children: [
             _ClubAvatar(

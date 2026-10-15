@@ -17,6 +17,7 @@ import {
 } from "@/lib/members/membersExcel";
 import { teamCategoriesForSport } from "@/lib/teams/teamCategories";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import styles from "./ImportMembersDialog.module.css";
@@ -323,6 +324,8 @@ export function ImportMembersDialog({
     onClose();
   }
 
+  const dialogRef = useDialogA11y({ onClose: requestClose });
+
   function handleCsvFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -388,12 +391,10 @@ export function ImportMembersDialog({
       className={dialogStyles.backdrop}
       role="presentation"
       onClick={requestClose}
-      onKeyDown={(keyboardEvent) => {
-        if (keyboardEvent.key === "Escape") requestClose();
-      }}
     >
       <div className={styles.dialogShell}>
         <FadeScrollArea
+          wrapRef={dialogRef}
           className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.panel}`}
           viewportClassName={dialogStyles.body}
           data-tone="amber"

@@ -8,6 +8,7 @@ import {
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
 import type { TeamRosterRole } from "@/lib/firebase/teamService";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import styles from "./TeamFormDialog.module.css";
@@ -115,6 +116,8 @@ export function AddTeamMemberDialog({
     onClose();
   }
 
+  const dialogRef = useDialogA11y({ onClose: requestClose });
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!memberId) return;
@@ -191,11 +194,9 @@ export function AddTeamMemberDialog({
       className={dialogStyles.backdrop}
       role="presentation"
       onClick={requestClose}
-      onKeyDown={(keyboardEvent) => {
-        if (keyboardEvent.key === "Escape") requestClose();
-      }}
     >
       <FadeScrollArea
+        wrapRef={dialogRef}
         className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.panel}`}
         viewportClassName={`${dialogStyles.body} ${styles.panelContent}`}
         data-tone="green"

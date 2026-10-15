@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useLayoutEffect, useMemo, useState } from "react";
 import {
   createClubEvent,
   eventTypeLabel,
@@ -23,6 +23,7 @@ import {
   type PlanningGuestSelection,
 } from "@/lib/planning/resolveGuestAudience";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import { PlanningGuestPicker } from "./PlanningGuestPicker";
 import { PlanningSelect } from "./PlanningSelect";
 import { PlanningTimeSelect } from "./PlanningTimeSelect";
@@ -152,7 +153,7 @@ export function PlanningNewEventDialog({
       recurrenceEndForEventDay(day, resolveSeasonEndDate(seasonEndDate, day)),
     [day, seasonEndDate],
   );
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useDialogA11y({ onClose });
   const [position, setPosition] = useState<{
     left: number;
     top: number;
@@ -421,9 +422,6 @@ export function PlanningNewEventDialog({
       data-anchored={anchored ? "true" : "false"}
       role="presentation"
       onClick={onClose}
-      onKeyDown={(keyboardEvent) => {
-        if (keyboardEvent.key === "Escape") onClose();
-      }}
     >
       <FadeScrollArea
         wrapRef={panelRef}

@@ -5,7 +5,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
-/// Badge icône + compteur (résumé).
+/// Badge icône + compteur (résumé ou choix RSVP).
 class PlanningRsvpCountBadge extends StatelessWidget {
   const PlanningRsvpCountBadge({
     super.key,
@@ -28,6 +28,7 @@ class PlanningRsvpCountBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final badge = Stack(
       clipBehavior: Clip.none,
+      alignment: Alignment.center,
       children: [
         Container(
           width: 32,
@@ -70,7 +71,18 @@ class PlanningRsvpCountBadge extends StatelessWidget {
       ],
     );
 
-    if (onTap == null) return badge;
+    final hitTarget = ConstrainedBox(
+      constraints: const BoxConstraints(
+        minWidth: ViroSpacing.minTouchTarget,
+        minHeight: ViroSpacing.minTouchTarget,
+      ),
+      child: Center(child: badge),
+    );
+
+    if (onTap == null) {
+      if (semanticLabel == null) return hitTarget;
+      return Semantics(label: semanticLabel, child: hitTarget);
+    }
 
     return Semantics(
       button: true,
@@ -79,7 +91,7 @@ class PlanningRsvpCountBadge extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: badge,
+        child: hitTarget,
       ),
     );
   }
@@ -91,25 +103,49 @@ class PlanningRsvpStatusBadge extends StatelessWidget {
 
   final RsvpStatus status;
 
-  (IconData icon, Color color) get _style => switch (status) {
-        RsvpStatus.yes => (ViroIcons.check, ViroColors.success),
-        RsvpStatus.maybe => (ViroIcons.clock, ViroColors.warning),
-        RsvpStatus.no => (ViroIcons.close, ViroColors.error),
-        RsvpStatus.none => (ViroIcons.clock, ViroColors.warning),
+  (IconData icon, Color color, String label) get _style => switch (status) {
+        RsvpStatus.yes => (
+            ViroIcons.check,
+            ViroColors.success,
+            AppCopy.planning.rsvpPresent,
+          ),
+        RsvpStatus.maybe => (
+            ViroIcons.clock,
+            ViroColors.warning,
+            AppCopy.planning.rsvpPending,
+          ),
+        RsvpStatus.no => (
+            ViroIcons.close,
+            ViroColors.error,
+            AppCopy.planning.rsvpAbsent,
+          ),
+        RsvpStatus.none => (
+            ViroIcons.clock,
+            ViroColors.warning,
+            AppCopy.planning.rsvpPending,
+          ),
       };
 
   @override
   Widget build(BuildContext context) {
-    final (icon, color) = _style;
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
+    final (icon, color, label) = _style;
+    return Semantics(
+      label: label,
+      child: Container(
+        width: ViroSpacing.minTouchTarget,
+        height: ViroSpacing.minTouchTarget,
+        alignment: Alignment.center,
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          alignment: Alignment.center,
+          child: ViroIcon(icon, size: 18, color: color),
+        ),
       ),
-      alignment: Alignment.center,
-      child: ViroIcon(icon, size: 18, color: color),
     );
   }
 }
@@ -137,7 +173,10 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
           count: counts.yes,
           color: ViroColors.success,
           selected: status == RsvpStatus.yes,
-          semanticLabel: AppCopy.planning.rsvpPresent,
+          semanticLabel: AppCopy.planning.rsvpCountLabel(
+            AppCopy.planning.rsvpPresent,
+            counts.yes,
+          ),
           onTap: () => onSelected(RsvpStatus.yes),
         ),
         const SizedBox(width: ViroSpacing.sm),
@@ -146,7 +185,10 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
           count: counts.no,
           color: ViroColors.error,
           selected: status == RsvpStatus.no,
-          semanticLabel: AppCopy.planning.rsvpAbsent,
+          semanticLabel: AppCopy.planning.rsvpCountLabel(
+            AppCopy.planning.rsvpAbsent,
+            counts.no,
+          ),
           onTap: () => onSelected(RsvpStatus.no),
         ),
         const SizedBox(width: ViroSpacing.sm),
@@ -155,7 +197,10 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
           count: counts.none,
           color: ViroColors.warning,
           selected: status == RsvpStatus.none || status == RsvpStatus.maybe,
-          semanticLabel: AppCopy.planning.rsvpPending,
+          semanticLabel: AppCopy.planning.rsvpCountLabel(
+            AppCopy.planning.rsvpPending,
+            counts.none,
+          ),
           onTap: () => onSelected(RsvpStatus.none),
         ),
       ],
@@ -163,6 +208,7 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
   }
 }
 
+/// Rangée résumé des compteurs RSVP (lecture seule, labels accessibles).
 class PlanningRsvpSummaryRow extends StatelessWidget {
   const PlanningRsvpSummaryRow({super.key, required this.counts});
 
@@ -178,12 +224,20 @@ class PlanningRsvpSummaryRow extends StatelessWidget {
           icon: ViroIcons.check,
           count: counts.yes,
           color: ViroColors.success,
+          semanticLabel: AppCopy.planning.rsvpCountLabel(
+            AppCopy.planning.rsvpPresent,
+            counts.yes,
+          ),
         ),
         const SizedBox(width: ViroSpacing.sm),
         PlanningRsvpCountBadge(
           icon: ViroIcons.close,
           count: counts.no,
           color: ViroColors.error,
+          semanticLabel: AppCopy.planning.rsvpCountLabel(
+            AppCopy.planning.rsvpAbsent,
+            counts.no,
+          ),
         ),
         if (counts.none > 0) ...[
           const SizedBox(width: ViroSpacing.sm),
@@ -191,6 +245,10 @@ class PlanningRsvpSummaryRow extends StatelessWidget {
             icon: ViroIcons.clock,
             count: counts.none,
             color: ViroColors.warning,
+            semanticLabel: AppCopy.planning.rsvpCountLabel(
+              AppCopy.planning.rsvpPending,
+              counts.none,
+            ),
           ),
         ],
       ],

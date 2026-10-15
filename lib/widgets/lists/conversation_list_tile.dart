@@ -105,6 +105,11 @@ class ConversationListTile extends StatelessWidget {
         ViroPressable(
           onTap: onTap,
           floating: false,
+          label: [
+            title,
+            if (hasUnread) AppCopy.chat.unreadPreview(unread),
+            if (preview.isNotEmpty) preview,
+          ].join('. '),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
               ViroSpacing.screenHorizontal,

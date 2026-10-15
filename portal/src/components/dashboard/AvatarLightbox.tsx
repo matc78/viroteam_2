@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./AvatarLightbox.module.css";
 
 type AvatarLightboxProps = {
@@ -22,13 +22,7 @@ export function AvatarLightbox({
   editLabel = "Modifier",
   shape = "circle",
 }: AvatarLightboxProps) {
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
+  const dialogRef = useDialogA11y({ onClose });
 
   const imageClass =
     shape === "rounded"
@@ -37,14 +31,12 @@ export function AvatarLightbox({
 
   return (
     <div
+      ref={dialogRef}
       className={styles.backdrop}
       role="dialog"
       aria-modal="true"
       aria-label={alt}
       onClick={onClose}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") onClose();
-      }}
     >
       <button
         type="button"

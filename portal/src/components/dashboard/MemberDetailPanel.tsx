@@ -21,6 +21,7 @@ import {
 } from "@/lib/firebase/memberService";
 import type { MemberRow } from "@/lib/members/membersView";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import { PlanningSelect } from "./PlanningSelect";
@@ -137,6 +138,8 @@ export function MemberDetailPanel({
     if (busy || guardianBusy) return;
     onClose();
   }
+
+  const dialogRef = useDialogA11y({ onClose: requestClose });
 
   function startEditingName() {
     if (busy || guardianBusy || member.hasLinkedAccount || !canEditMember) return;
@@ -318,11 +321,9 @@ export function MemberDetailPanel({
       className={dialogStyles.backdrop}
       role="presentation"
       onClick={requestClose}
-      onKeyDown={(keyboardEvent) => {
-        if (keyboardEvent.key === "Escape") requestClose();
-      }}
     >
       <FadeScrollArea
+        wrapRef={dialogRef}
         className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.panel}`}
         viewportClassName={`${dialogStyles.body} ${styles.panelContent}`}
         data-tone="blue"

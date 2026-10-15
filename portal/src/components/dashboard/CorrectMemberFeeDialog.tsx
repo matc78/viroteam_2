@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useId, useRef, useState } from "react";
 import type { FeeTrackingRow } from "@/lib/dashboard/feesTracking";
 import { MemberFeeStatuses } from "@/lib/firebase/constants";
 import type { FeeTier } from "@/lib/firebase/feeService";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import { PlanningSelect } from "./PlanningSelect";
 import { FeePaymentHistory } from "@/components/fees/FeePaymentHistory";
 import panelStyles from "./DashboardPanel.module.css";
@@ -116,15 +117,23 @@ export function CorrectMemberFeeDialog({
   const currentTierLabel =
     tiers.find((tier) => tier.tierId === row.tierId)?.label ?? "Non assignée";
 
+  function requestClose() {
+    if (busy) return;
+    onClose();
+  }
+
+  const dialogRef = useDialogA11y({ onClose: requestClose });
+
   return (
     <div
       className={dialogStyles.backdrop}
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !busy) onClose();
+        if (event.target === event.currentTarget) requestClose();
       }}
     >
       <div
+        ref={dialogRef}
         className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.panel}`}
         data-tone="amber"
         role="dialog"

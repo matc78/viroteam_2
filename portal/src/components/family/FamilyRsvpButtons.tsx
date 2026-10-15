@@ -133,6 +133,7 @@ export function FamilyRsvpButtons({
               type="button"
               className={`${styles.button}${selected ? ` ${styles.buttonActive}` : ""}`}
               data-value={option.value}
+              aria-pressed={selected}
               disabled={busy}
               onClick={() => void handleSelect(option.value)}
             >

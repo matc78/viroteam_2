@@ -264,6 +264,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(
+          tooltip: AppCopy.common.back,
           icon: ViroIcon(ViroIcons.chevronLeft),
           onPressed: () => context.pop(),
         ),
@@ -285,6 +286,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
               child: ViroPressable(
+                label: AppCopy.planning.goToTodayTooltip,
                 onTap: () => _selectDay(
                   DateTime(DateTime.now().year, DateTime.now().month,
                       DateTime.now().day),
@@ -312,6 +314,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           if (canManage)
             ViroFloatingActionButton(
               icon: ViroIcons.add,
+              semanticLabel: AppCopy.planning.addEventTooltip,
               onPressed: () {
                 final iso = _selectedDay.toIso8601String().split('T').first;
                 context.push(AppRoutes.clubAddEventPath(clubId, date: iso));

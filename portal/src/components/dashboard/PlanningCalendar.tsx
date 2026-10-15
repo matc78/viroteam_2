@@ -717,16 +717,29 @@ function TimeGridView({
               const weekday = new Intl.DateTimeFormat("fr-FR", {
                 weekday: "short",
               }).format(day);
+              const dayLabel = new Intl.DateTimeFormat("fr-FR", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              }).format(day);
               return (
                 <button
                   key={formatDateId(day)}
                   type="button"
                   className={styles.dayHeader}
                   data-today={isToday ? "true" : "false"}
+                  aria-label={
+                    isToday ? `${dayLabel}, aujourd’hui` : dayLabel
+                  }
+                  aria-current={isToday ? "date" : undefined}
                   onClick={() => onSelectDay(day)}
                 >
-                  <span className={styles.dayHeaderWeekday}>{weekday}</span>
-                  <span className={styles.dayHeaderNumber}>{day.getDate()}</span>
+                  <span className={styles.dayHeaderWeekday} aria-hidden>
+                    {weekday}
+                  </span>
+                  <span className={styles.dayHeaderNumber} aria-hidden>
+                    {day.getDate()}
+                  </span>
                 </button>
               );
             })}

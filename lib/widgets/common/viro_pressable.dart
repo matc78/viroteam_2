@@ -6,6 +6,9 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 ///
 /// À utiliser pour boutons icône, tuiles, entrées de menu — pas pour les
 /// [ElevatedButton] pleine largeur (déjà animés via le thème).
+///
+/// [label] / [hint] alimentent le lecteur d’écran (obligatoire si le contenu
+/// est icon-only ou non textuel).
 class ViroPressable extends StatefulWidget {
   const ViroPressable({
     super.key,
@@ -16,6 +19,8 @@ class ViroPressable extends StatefulWidget {
     this.borderRadius,
     this.floating = true,
     this.minSize = ViroSpacing.minTouchTarget,
+    this.label,
+    this.hint,
   });
 
   final Widget child;
@@ -25,6 +30,12 @@ class ViroPressable extends StatefulWidget {
   final BorderRadius? borderRadius;
   final bool floating;
   final double minSize;
+
+  /// Libellé annoncé par le lecteur d’écran (ex. tooltip d’un bouton icône).
+  final String? label;
+
+  /// Indication complémentaire (ex. « double tap pour ouvrir »).
+  final String? hint;
 
   @override
   State<ViroPressable> createState() => _ViroPressableState();
@@ -74,6 +85,8 @@ class _ViroPressableState extends State<ViroPressable>
     return Semantics(
       button: widget.onTap != null,
       enabled: widget.enabled,
+      label: widget.label,
+      hint: widget.hint,
       child: GestureDetector(
         onTapDown: widget.enabled ? _onTapDown : null,
         onTapUp: widget.enabled ? _onTapUp : null,

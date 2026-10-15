@@ -64,6 +64,11 @@ class PlanningEventTile extends StatelessWidget {
       onTap: onTap,
       accentColor: clubColor,
       accentColorSecondary: clubColorSecondary,
+      semanticLabel: [
+        headline,
+        if (startStr.isNotEmpty) startStr,
+        if (subtitle != null && subtitle.isNotEmpty) subtitle,
+      ].join(', '),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

@@ -144,6 +144,7 @@ class ChatThreadComposer extends StatelessWidget {
                   ),
                 ),
                 IconButton(
+                  tooltip: AppCopy.chat.sendMessage,
                   onPressed: sending ? null : onSend,
                   icon: ViroIcon(
                     ViroIcons.send,

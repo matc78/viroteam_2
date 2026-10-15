@@ -9,6 +9,7 @@ import {
   firstNameError,
   lastNameError,
 } from "@/lib/format/personDataFormat";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
 import { PlanningSelect } from "./PlanningSelect";
@@ -58,6 +59,8 @@ export function AddMemberDialog({
     onClose();
   }
 
+  const dialogRef = useDialogA11y({ onClose: requestClose });
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const firstError = firstNameError(firstName);
@@ -82,11 +85,9 @@ export function AddMemberDialog({
       className={dialogStyles.backdrop}
       role="presentation"
       onClick={requestClose}
-      onKeyDown={(keyboardEvent) => {
-        if (keyboardEvent.key === "Escape") requestClose();
-      }}
     >
       <FadeScrollArea
+        wrapRef={dialogRef}
         className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.panel}`}
         viewportClassName={`${dialogStyles.body} ${styles.panelContent}`}
         data-tone="green"

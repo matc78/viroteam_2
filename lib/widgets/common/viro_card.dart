@@ -18,6 +18,7 @@ class ViroCard extends StatelessWidget {
     this.accentColorSecondary,
     this.borderColor,
     this.elevated = true,
+    this.semanticLabel,
   });
 
   final Widget child;
@@ -29,6 +30,9 @@ class ViroCard extends StatelessWidget {
   final Color? accentColorSecondary;
   final Color? borderColor;
   final bool elevated;
+
+  /// Libellé lecteur d’écran quand la carte est interactive.
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +87,7 @@ class ViroCard extends StatelessWidget {
       onLongPress: onLongPress,
       floating: elevated,
       borderRadius: radius,
+      label: semanticLabel,
       child: content,
     );
   }

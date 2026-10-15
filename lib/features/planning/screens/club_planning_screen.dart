@@ -20,12 +20,14 @@ import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
+import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_day_picker.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_tile.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
+import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
@@ -171,6 +173,46 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     );
   }
 
+  /// Met à jour le RSVP de l'utilisateur courant sur [event], puis recharge le jour.
+  Future<void> _setRsvp(
+    ClubEvent event,
+    RsvpStatus status, {
+    required bool canManage,
+  }) async {
+    final authUid = ref.read(authStateProvider).value?.uid;
+    if (authUid == null) return;
+
+    final eventService = ref.read(eventServiceProvider);
+    final audienceId = await eventService.resolveAudienceId(
+      clubId: event.clubId,
+      authUid: authUid,
+    );
+    final dayParams = (clubId: widget.clubId, day: _selectedDay);
+
+    void invalidateDay() {
+      if (canManage) {
+        ref.invalidate(clubPlanningEventsProvider(dayParams));
+      } else {
+        ref.invalidate(memberClubPlanningEventsProvider(dayParams));
+      }
+    }
+
+    try {
+      await eventService.updateRsvp(
+        clubId: event.clubId,
+        eventId: event.id,
+        uid: audienceId,
+        status: status,
+      );
+      invalidateDay();
+    } catch (_) {
+      invalidateDay();
+      if (mounted) {
+        ViroSnackBar.show(context, AppCopy.planning.rsvpFailed);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
@@ -194,6 +236,11 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         : null;
     final membersByUid =
         clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
+    final authUid = ref.watch(authStateProvider).value?.uid;
+    final audienceId =
+        ref.watch(memberEventAudienceIdProvider(clubId)).asData?.value;
+    final audienceKeys =
+        member != null ? eventAudienceKeys(member) : null;
 
     final clubBrandColors = club != null
         ? resolveClubBrandColors(
@@ -359,6 +406,23 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                         teamsById,
                         membersByUid: membersByUid,
                       );
+                      final canRsvp = authUid != null &&
+                          audienceId != null &&
+                          PlanningEventDisplay.canRsvpOnEvent(
+                            event,
+                            authUid,
+                            teamsById,
+                            clubAudienceId: audienceId,
+                            member: member,
+                            membersByUid: membersByUid,
+                          );
+                      final rsvpStatus = canRsvp
+                          ? event.rsvpStatusForUser(
+                              authUid,
+                              clubAudienceId: audienceId,
+                              memberAudienceKeys: audienceKeys,
+                            )
+                          : null;
                       return PlanningEventTile(
                         event: event,
                         teamLabel: label,
@@ -370,6 +434,14 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                           teamsById,
                           canManage: canManage,
                         ),
+                        rsvpStatus: rsvpStatus,
+                        onRsvpSelected: canRsvp
+                            ? (next) => _setRsvp(
+                                  event,
+                                  next,
+                                  canManage: canManage,
+                                )
+                            : null,
                       );
                     },
                   );

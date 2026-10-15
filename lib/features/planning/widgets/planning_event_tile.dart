@@ -19,6 +19,8 @@ class PlanningEventTile extends StatelessWidget {
     this.clubColor,
     this.clubColorSecondary,
     this.onTap,
+    this.rsvpStatus,
+    this.onRsvpSelected,
   });
 
   final ClubEvent event;
@@ -30,6 +32,12 @@ class PlanningEventTile extends StatelessWidget {
   final Color? clubColor;
   final Color? clubColorSecondary;
   final VoidCallback? onTap;
+
+  /// Statut RSVP de l'utilisateur courant (null = résumé non interactif).
+  final RsvpStatus? rsvpStatus;
+
+  /// Callback de sélection RSVP ; si non null, affiche les pastilles cliquables.
+  final ValueChanged<RsvpStatus>? onRsvpSelected;
 
   IconData get _typeIcon => switch (event.type) {
         EventTypes.training => ViroIcons.whistle,
@@ -148,7 +156,15 @@ class PlanningEventTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: ViroSpacing.sm),
-          Center(child: PlanningRsvpSummaryRow(counts: counts)),
+          Center(
+            child: onRsvpSelected != null
+                ? PlanningRsvpCountChoiceRow(
+                    counts: counts,
+                    status: rsvpStatus ?? RsvpStatus.none,
+                    onSelected: onRsvpSelected!,
+                  )
+                : PlanningRsvpSummaryRow(counts: counts),
+          ),
         ],
       ),
     );

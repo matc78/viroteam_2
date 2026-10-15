@@ -14,7 +14,7 @@ Workflow [`.github/workflows/release-ios.yml`](../.github/workflows/release-ios.
 
 ### Une fois — secrets du dépôt
 
-Settings → Secrets and variables → Actions → New repository secret :
+**OK** — `ASC_KEY_ID`, `ASC_ISSUER_ID` et `ASC_API_KEY_P8` sont renseignés dans Settings → Secrets and variables → Actions.
 
 | Secret | Valeur |
 |--------|--------|

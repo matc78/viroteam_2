@@ -179,6 +179,15 @@ class MemberService {
     return member.fullName.toLowerCase();
   }
 
+  /// Préfère [primary] s’il est non vide, sinon [fallback] non vide.
+  static String? _preferNonEmpty(String? primary, String? fallback) {
+    final primaryTrimmed = primary?.trim() ?? '';
+    if (primaryTrimmed.isNotEmpty) return primaryTrimmed;
+    final fallbackTrimmed = fallback?.trim() ?? '';
+    if (fallbackTrimmed.isNotEmpty) return fallbackTrimmed;
+    return null;
+  }
+
   ClubMember _enrichMemberFromPrefetchedData({
     required ClubMember member,
     required Map<String, Map<String, dynamic>> membersByAccountUid,
@@ -195,8 +204,18 @@ class MemberService {
       if (userData != null) {
         enriched = enriched.copyWith(
           hasLinkedAccount: true,
-          displayName: enriched.displayName ??
-              userData[FirestoreFields.displayName] as String?,
+          firstName: _preferNonEmpty(
+            enriched.firstName,
+            userData[FirestoreFields.firstName] as String?,
+          ),
+          lastName: _preferNonEmpty(
+            enriched.lastName,
+            userData[FirestoreFields.lastName] as String?,
+          ),
+          displayName: _preferNonEmpty(
+            enriched.displayName,
+            userData[FirestoreFields.displayName] as String?,
+          ),
           avatarUrl: enriched.avatarUrl ??
               userData[FirestoreFields.avatarUrl] as String?,
           email: enriched.email ?? userData[FirestoreFields.email] as String?,

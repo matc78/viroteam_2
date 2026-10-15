@@ -252,6 +252,15 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     ViroSnackBar.show(context, AppCopy.members.messageCopied);
   }
 
+  /// Copie uniquement le code d’invitation dans le presse-papiers.
+  Future<void> _copyCode() async {
+    final code = _member.pendingInviteCode;
+    if (code == null || code.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!mounted) return;
+    ViroSnackBar.show(context, AppCopy.members.codeCopied);
+  }
+
   Future<void> _loadGuardian() async {
     if (!_isAdmin || widget.member.role != MemberRoles.player) return;
 
@@ -439,13 +448,19 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
                 ),
               ),
               const SizedBox(height: ViroSpacing.sm),
-              Text(
-                _member.pendingInviteCode!,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 3,
-                  color: accent,
+              Center(
+                child: ViroPressable(
+                  floating: false,
+                  onTap: _copyCode,
+                  child: Text(
+                    _member.pendingInviteCode!,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 3,
+                      color: accent,
+                    ),
+                  ),
                 ),
               ),
             ],

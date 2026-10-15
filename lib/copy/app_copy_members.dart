@@ -97,6 +97,7 @@ final class AppCopyMembers {
 
   String get messageCopied => 'Message copié — prêt à coller.';
   String get inviteMessageCopied => 'Message d’invitation copié';
+  String get codeCopied => 'Code copié.';
   String get copyInviteCodeTooltip => 'Copier le code d\'invitation';
   String get copyMessage => 'Copier le message';
 

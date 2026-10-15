@@ -34,7 +34,32 @@ export function emailCtaButton(
 }
 
 /**
- * Deux boutons stores empilés (App Store puis Google Play).
+ * Cellule bouton store (texte seul) pour une ligne côte à côte.
+ */
+function emailStoreCtaCell(
+  href: string,
+  label: string,
+  options?: { paddingLeftPx?: number; paddingRightPx?: number },
+): string {
+  const safeHref = escapeHtml(href);
+  const safeLabel = escapeHtml(label);
+  const padL = options?.paddingLeftPx ?? 0;
+  const padR = options?.paddingRightPx ?? 0;
+  return `<td align="center" style="padding:0 ${padR}px 0 ${padL}px;">
+  <table role="presentation" cellspacing="0" cellpadding="0">
+    <tr>
+      <td style="border-radius:8px;background:${COLOR_PRIMARY};">
+        <a href="${safeHref}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
+          ${safeLabel}
+        </a>
+      </td>
+    </tr>
+  </table>
+</td>`;
+}
+
+/**
+ * Boutons stores centrés sur une même ligne (App Store puis Google Play).
  */
 export function emailStoreCtaButtons(
   appStoreUrl?: string,
@@ -43,29 +68,44 @@ export function emailStoreCtaButtons(
   const c = emailCopy.common;
   const ios = appStoreUrl?.trim();
   const android = playStoreUrl?.trim();
-  const parts: string[] = [];
+  const cells: string[] = [];
   if (ios) {
-    parts.push(emailCtaButton(ios, c.ctaAppStore, { marginTopPx: 24 }));
-  }
-  if (android) {
-    parts.push(
-      emailCtaButton(android, c.ctaPlayStore, {
-        marginTopPx: ios ? 8 : 24,
+    cells.push(
+      emailStoreCtaCell(ios, c.ctaAppStore, {
+        paddingRightPx: android ? 6 : 0,
       }),
     );
   }
-  return parts.join("\n");
+  if (android) {
+    cells.push(
+      emailStoreCtaCell(android, c.ctaPlayStore, {
+        paddingLeftPx: ios ? 6 : 0,
+      }),
+    );
+  }
+  if (!cells.length) return "";
+  return `<table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin:24px auto 8px;">
+  <tr>
+    ${cells.join("\n    ")}
+  </tr>
+</table>`;
 }
 
 /**
- * Bloc code d’invitation mis en avant.
+ * Bloc code d’invitation mis en avant (centré).
  */
 export function emailInviteCodeBlock(code: string): string {
   const safeCode = escapeHtml(code);
   const { codeLabel, codeValidDays } = emailCopy.common;
-  return `<p style="margin:0 0 6px;font-size:13px;color:${COLOR_MUTED};">${escapeHtml(codeLabel)}</p>
-<p style="margin:0 0 8px;font-size:28px;letter-spacing:0.14em;font-weight:700;color:${COLOR_TEXT};font-family:Consolas,Monaco,monospace;">${safeCode}</p>
-<p style="margin:0 0 4px;font-size:13px;color:${COLOR_MUTED};">${escapeHtml(codeValidDays)}</p>`;
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 4px;">
+  <tr>
+    <td align="center" style="text-align:center;">
+      <p style="margin:0 0 6px;font-size:13px;color:${COLOR_MUTED};">${escapeHtml(codeLabel)}</p>
+      <p style="margin:0 0 8px;font-size:28px;letter-spacing:0.14em;font-weight:700;color:${COLOR_TEXT};font-family:Consolas,Monaco,monospace;">${safeCode}</p>
+      <p style="margin:0;font-size:13px;color:${COLOR_MUTED};">${escapeHtml(codeValidDays)}</p>
+    </td>
+  </tr>
+</table>`;
 }
 
 /**

@@ -19,6 +19,7 @@ import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 /// Ouvre la feuille d’ajout membre (joueur / coach) avec écran succès.
@@ -162,6 +163,13 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
     await Clipboard.setData(ClipboardData(text: message));
     if (!mounted) return;
     ViroSnackBar.show(context, AppCopy.members.messageCopied);
+  }
+
+  /// Copie uniquement le code d’invitation dans le presse-papiers.
+  Future<void> _copyCode() async {
+    await Clipboard.setData(ClipboardData(text: _invitation.code));
+    if (!mounted) return;
+    ViroSnackBar.show(context, AppCopy.members.codeCopied);
   }
 
   Widget _buildForm(ThemeData theme, Color titleColor) {
@@ -328,13 +336,19 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           ),
         ),
         const SizedBox(height: ViroSpacing.md),
-        Text(
-          _invitation.code,
-          textAlign: TextAlign.center,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            letterSpacing: 4,
-            color: accent,
+        Center(
+          child: ViroPressable(
+            floating: false,
+            onTap: _copyCode,
+            child: Text(
+              _invitation.code,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 4,
+                color: accent,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: ViroSpacing.lg),

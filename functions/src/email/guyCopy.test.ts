@@ -44,6 +44,9 @@ test("memberInvite player : sujet Guy + code + CTA stores + liens web", () => {
   assert.match(mail.htmlContent, /Google Play/);
   assert.match(mail.htmlContent, /apps\.apple\.com/);
   assert.match(mail.htmlContent, /play\.google\.com/);
+  assert.match(mail.htmlContent, /align="center"/);
+  assert.match(mail.htmlContent, /Ton code/);
+  assert.match(mail.htmlContent, /text-align:center/);
   assert.match(mail.htmlContent, /Espace club/);
   assert.match(mail.htmlContent, /join\?code=AB12CD/);
   assert.equal(mail.htmlContent.includes("Ouvrir l'invitation"), false);

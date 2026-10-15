@@ -14,6 +14,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 /// Ouvre la feuille d’invitation / révocation du parent (V1, plafond 1).
@@ -133,6 +134,15 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
     }
   }
 
+  /// Copie uniquement le code d’invitation dans le presse-papiers.
+  Future<void> _copyCode() async {
+    final code = _guardian?.invitationCode;
+    if (code == null || code.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!mounted) return;
+    ViroSnackBar.show(context, AppCopy.members.codeCopied);
+  }
+
   Future<void> _revoke() async {
     setState(() {
       _busy = true;
@@ -204,9 +214,13 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
             if (_guardian!.invitationCode != null &&
                 _guardian!.invitationCode!.isNotEmpty) ...[
               const SizedBox(height: ViroSpacing.xs),
-              Text(
-                AppCopy.members.inviteCodeLabel(_guardian!.invitationCode!),
-                style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+              ViroPressable(
+                floating: false,
+                onTap: _copyCode,
+                child: Text(
+                  AppCopy.members.inviteCodeLabel(_guardian!.invitationCode!),
+                  style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                ),
               ),
             ],
             const SizedBox(height: ViroSpacing.lg),

@@ -247,3 +247,4 @@ Plus tard :
 | 2026-10 | A11y pragmatique : Semantics sur primitives app + `useDialogA11y` portail ; smoke `docs/A11Y_SMOKE.md` |
 | 2026-10 | Paiement CB via Stripe Connect ; HelloAsso dormant mais conservé (réactivation envisagée) |
 | 2026-10 | `CLAUDE.md` ajouté pour Claude Code (résumé de ce fichier + architecture dev/prod) |
+| 2026-10 | Push au premier plan affichées par l’app (`LocalNotificationService` + `ForegroundPushPolicy`), Android et iOS ; un canal Android par clé de préférence (`PushChannel` ↔ `ANDROID_CHANNEL_IDS`) ; permission demandée via pré-demande, jamais au lancement |

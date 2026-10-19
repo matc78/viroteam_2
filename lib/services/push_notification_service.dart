@@ -5,18 +5,29 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:viro_team_v2/services/foreground_push_policy.dart';
+import 'package:viro_team_v2/services/local_notification_service.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 
-/// Initialise FCM, enregistre le token, route les taps vers les deep links.
+/// Initialise FCM, enregistre le token, affiche les push au premier plan et
+/// route les taps vers les deep links.
+///
+/// La permission système n'est pas demandée ici : voir
+/// `NotificationPermissionService` (pré-demande au bon moment).
 class PushNotificationService {
-  PushNotificationService({FirebaseFunctions? functions})
-      : _functions =
-            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1');
+  PushNotificationService({
+    FirebaseFunctions? functions,
+    LocalNotificationService? localNotifications,
+  }) : _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1'),
+       _localNotifications = localNotifications ?? LocalNotificationService();
 
   final FirebaseFunctions _functions;
+  final LocalNotificationService _localNotifications;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   void Function(Uri uri)? _onDeepLink;
+  String? Function()? _currentPath;
   String? _lastRegisteredToken;
   bool _listenersBound = false;
   bool _initialMessageHandled = false;
@@ -29,41 +40,27 @@ class PushNotificationService {
     _onDeepLink = handler;
   }
 
-  /// Demande la permission, enregistre le token, écoute les messages.
+  /// Attache la lecture du chemin go_router courant, utilisée pour ne pas
+  /// afficher une bannière redondante avec l'écran ouvert.
+  void bindCurrentPathResolver(String? Function() resolver) {
+    _currentPath = resolver;
+  }
+
+  /// Prépare l'affichage, écoute les messages, enregistre le token.
   ///
   /// Idempotent : les listeners ne sont branchés qu'une fois.
   Future<void> start() async {
     if (kIsWeb) return;
 
-    // `--dart-define=SKIP_PUSH_PERMISSION=true` : pas de demande de
-    // permission iOS (captures d'écran store sur simulateur). Défaut : false.
-    const skipPermission = bool.fromEnvironment('SKIP_PUSH_PERMISSION');
-    if (skipPermission) {
-      _bindListenersOnce();
-      return;
-    }
-
-    try {
-      await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-    } catch (error, stack) {
-      _recordSoftFcmFailure(
-        error: error,
-        stack: stack,
-        reason: 'fcm_request_permission_failed',
-      );
-    }
-
-    // iOS n’affiche pas les notifs quand l’app est au premier plan sans ça.
+    // Premier plan : c'est l'app qui affiche la bannière (Android comme iOS)
+    // via LocalNotificationService, pour pouvoir filtrer. On coupe donc
+    // l'alerte système iOS au premier plan (le badge reste géré par l'OS).
     if (Platform.isIOS || Platform.isMacOS) {
       try {
         await _messaging.setForegroundNotificationPresentationOptions(
-          alert: true,
+          alert: false,
           badge: true,
-          sound: true,
+          sound: false,
         );
       } catch (error, stack) {
         _recordSoftFcmFailure(
@@ -72,6 +69,16 @@ class PushNotificationService {
           reason: 'fcm_foreground_presentation_failed',
         );
       }
+    }
+
+    try {
+      await _localNotifications.initialize(onTap: _handleDeepLinkString);
+    } catch (error, stack) {
+      _recordSoftFcmFailure(
+        error: error,
+        stack: stack,
+        reason: 'local_notifications_init_failed',
+      );
     }
 
     _bindListenersOnce();
@@ -131,15 +138,7 @@ class PushNotificationService {
     if (_listenersBound) return;
     _listenersBound = true;
 
-    // Premier plan : iOS affiche la bannière système grâce à
-    // `setForegroundNotificationPresentationOptions`. Android ne montre rien
-    // sans `flutter_local_notifications` (canal + config native) — hors
-    // périmètre de cette version : la notif arrive quand même en arrière-plan.
-    FirebaseMessaging.onMessage.listen((message) {
-      debugPrint(
-        'FCM foreground: ${message.notification?.title} — ${message.notification?.body}',
-      );
-    });
+    FirebaseMessaging.onMessage.listen(_presentForegroundMessage);
 
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageNavigation);
 
@@ -158,21 +157,46 @@ class PushNotificationService {
     }
   }
 
+  /// Push reçue app ouverte : bannière locale, sauf si redondante.
+  Future<void> _presentForegroundMessage(RemoteMessage message) async {
+    final title = message.notification?.title ?? message.data['title'];
+    final body = message.notification?.body ?? message.data['body'];
+    final shouldPresent = ForegroundPushPolicy.shouldPresent(
+      data: message.data,
+      title: title?.toString(),
+      body: body?.toString(),
+      currentPath: _currentPath?.call(),
+    );
+    if (!shouldPresent) return;
+    try {
+      await _localNotifications.showPush(
+        title: title?.toString() ?? '',
+        body: body?.toString() ?? '',
+        preferenceKey: message.data['preferenceKey']?.toString(),
+        tag: message.data['tag']?.toString(),
+        deepLink: message.data['deepLink']?.toString(),
+      );
+    } catch (error, stack) {
+      _recordSoftFcmFailure(
+        error: error,
+        stack: stack,
+        reason: 'foreground_push_display_failed',
+      );
+    }
+  }
+
   /// Envoie le token courant aux Cloud Functions.
   Future<void> registerToken(String token) async {
     if (token.isEmpty || token == _lastRegisteredToken) return;
     final platform = Platform.isIOS
         ? 'ios'
         : Platform.isAndroid
-            ? 'android'
-            : 'web';
+        ? 'android'
+        : 'web';
     try {
       await _functions
           .httpsCallable(cloudCallableName('registerFcmToken'))
-          .call(<String, dynamic>{
-        'token': token,
-        'platform': platform,
-      });
+          .call(<String, dynamic>{'token': token, 'platform': platform});
       _lastRegisteredToken = token;
     } catch (error) {
       debugPrint('registerFcmToken failed: $error');
@@ -200,10 +224,7 @@ class PushNotificationService {
   }) async {
     final result = await _functions
         .httpsCallable(cloudCallableName('sendEventPush'))
-        .call(<String, dynamic>{
-      'clubId': clubId,
-      'eventId': eventId,
-    });
+        .call(<String, dynamic>{'clubId': clubId, 'eventId': eventId});
     final data = Map<String, dynamic>.from(result.data as Map? ?? {});
     return (
       recipientCount: (data['recipientCount'] as num?)?.toInt() ?? 0,
@@ -211,10 +232,14 @@ class PushNotificationService {
     );
   }
 
-  /// Tap sur une notif : délègue au gestionnaire de deep link (session club
-  /// + différé à froid inclus).
+  /// Tap sur une notif FCM : délègue au gestionnaire de deep link (session
+  /// club + différé à froid inclus).
   void _handleMessageNavigation(RemoteMessage message) {
-    final deepLink = message.data['deepLink']?.toString();
+    _handleDeepLinkString(message.data['deepLink']?.toString());
+  }
+
+  /// Tap sur une notif (FCM ou locale) portant un deep link.
+  void _handleDeepLinkString(String? deepLink) {
     if (deepLink == null || deepLink.isEmpty) return;
     final uri = Uri.tryParse(deepLink);
     if (uri == null) return;

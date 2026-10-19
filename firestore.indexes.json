@@ -64,6 +64,14 @@
         { "fieldPath": "parentUid", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "guardians",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "clubId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -78,6 +86,14 @@
     {
       "collectionGroup": "members",
       "fieldPath": "userId",
+      "indexes": [
+        { "queryScope": "COLLECTION", "order": "ASCENDING" },
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "guardians",
+      "fieldPath": "parentUid",
       "indexes": [
         { "queryScope": "COLLECTION", "order": "ASCENDING" },
         { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }

@@ -25,6 +25,7 @@ import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/features/announcements/widgets/home_announcement_banner.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_reminder_banner.dart';
 import 'package:viro_team_v2/features/home/widgets/home_quiet_content.dart';
+import 'package:viro_team_v2/features/home/widgets/notification_soft_ask_sheet.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -49,6 +50,26 @@ class HomeMemberScreen extends ConsumerStatefulWidget {
 class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
   final _scrollController = ScrollController();
   final _swipeToMessagingKey = GlobalKey<ViroSwipeToRevealState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _offerNotifications());
+  }
+
+  /// Pré-demande notifs : seulement avec au moins un club (sinon rien à
+  /// notifier), après un court délai pour laisser la home s'afficher.
+  Future<void> _offerNotifications() async {
+    try {
+      final clubs = await ref.read(userClubsProvider.future);
+      if (clubs.isEmpty) return;
+    } catch (_) {
+      return;
+    }
+    await Future<void>.delayed(ProjectConfig.notificationSoftAskDelay);
+    if (!mounted) return;
+    await maybeShowNotificationSoftAsk(context, ref);
+  }
 
   @override
   void dispose() {

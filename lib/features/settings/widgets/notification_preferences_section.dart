@@ -4,9 +4,12 @@ import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/settings/providers/notification_permission_provider.dart';
+import 'package:viro_team_v2/features/settings/widgets/notification_permission_banner.dart';
 import 'package:viro_team_v2/models/notification_preferences.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/notification_permission_service.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 
@@ -69,6 +72,11 @@ class NotificationPreferencesSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
     final prefs = user.notificationPreferences;
+    // Statut inconnu (chargement / erreur) : on ne grise rien.
+    final permission = ref.watch(notificationPermissionProvider).value;
+    final systemAllowed =
+        permission == null ||
+        permission == NotificationPermissionStatus.granted;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,6 +94,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
           style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
         ),
         const SizedBox(height: ViroSpacing.sm),
+        if (!systemAllowed) ...[
+          NotificationPermissionBanner(
+            onAllow: () => ref
+                .read(notificationPermissionProvider.notifier)
+                .requestOrOpenSettings(),
+          ),
+          const SizedBox(height: ViroSpacing.sm),
+        ],
         ViroCard(
           padding: const EdgeInsets.symmetric(
             horizontal: ViroSpacing.md,
@@ -98,12 +114,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
                 title: Text(AppCopy.settings.notifEvents),
                 subtitle: Text(AppCopy.settings.notifEventsSubtitle),
                 value: prefs.events,
-                onChanged: (value) => _setPreference(
-                  context: context,
-                  ref: ref,
-                  key: 'events',
-                  enabled: value,
-                ),
+                onChanged: !systemAllowed
+                    ? null
+                    : (value) => _setPreference(
+                        context: context,
+                        ref: ref,
+                        key: 'events',
+                        enabled: value,
+                      ),
               ),
               const Divider(height: 1),
               SwitchListTile.adaptive(
@@ -111,12 +129,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
                 title: Text(AppCopy.settings.notifRsvp),
                 subtitle: Text(AppCopy.settings.notifRsvpSubtitle),
                 value: prefs.rsvp,
-                onChanged: (value) => _setPreference(
-                  context: context,
-                  ref: ref,
-                  key: 'rsvp',
-                  enabled: value,
-                ),
+                onChanged: !systemAllowed
+                    ? null
+                    : (value) => _setPreference(
+                        context: context,
+                        ref: ref,
+                        key: 'rsvp',
+                        enabled: value,
+                      ),
               ),
               const Divider(height: 1),
               SwitchListTile.adaptive(
@@ -124,12 +144,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
                 title: Text(AppCopy.settings.notifAnnouncements),
                 subtitle: Text(AppCopy.settings.notifAnnouncementsSubtitle),
                 value: prefs.announcements,
-                onChanged: (value) => _setPreference(
-                  context: context,
-                  ref: ref,
-                  key: 'announcements',
-                  enabled: value,
-                ),
+                onChanged: !systemAllowed
+                    ? null
+                    : (value) => _setPreference(
+                        context: context,
+                        ref: ref,
+                        key: 'announcements',
+                        enabled: value,
+                      ),
               ),
               const Divider(height: 1),
               SwitchListTile.adaptive(
@@ -137,12 +159,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
                 title: Text(AppCopy.settings.notifFees),
                 subtitle: Text(AppCopy.settings.notifFeesSubtitle),
                 value: prefs.fees,
-                onChanged: (value) => _setPreference(
-                  context: context,
-                  ref: ref,
-                  key: 'fees',
-                  enabled: value,
-                ),
+                onChanged: !systemAllowed
+                    ? null
+                    : (value) => _setPreference(
+                        context: context,
+                        ref: ref,
+                        key: 'fees',
+                        enabled: value,
+                      ),
               ),
               if (FeatureFlags.chatMessagingLive) ...[
                 const Divider(height: 1),
@@ -151,12 +175,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
                   title: Text(AppCopy.settings.notifChat),
                   subtitle: Text(AppCopy.settings.notifChatSubtitle),
                   value: prefs.chat,
-                  onChanged: (value) => _setPreference(
-                    context: context,
-                    ref: ref,
-                    key: 'chat',
-                    enabled: value,
-                  ),
+                  onChanged: !systemAllowed
+                      ? null
+                      : (value) => _setPreference(
+                          context: context,
+                          ref: ref,
+                          key: 'chat',
+                          enabled: value,
+                        ),
                 ),
               ],
             ],

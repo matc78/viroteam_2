@@ -17,10 +17,20 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - SEO landing : sitemap XML (route handler), `robots.txt` élargi, JSON-LD enrichi, mots-clés ciblés, FAQ marketing élargie, redirect `viroteam.com` → `www.viroteam.com`
 - Contrôle d’alignement de version `pubspec.yaml` ↔ `ProjectConfig` ↔ tags (`tool/check_app_version.mjs`) branché en CI et Release Android
 - `CLAUDE.md` pour Claude Code (commandes, architecture dev/prod, conventions) ; `PROJECT_CONVENTIONS.md` et README réalignés sur le code (fond `ViroScaffold`, états vides, paiements Stripe / HelloAsso dormant, release iOS)
+- Notifications push affichées même avec l’app ouverte, sur Android comme sur iOS (`flutter_local_notifications`), sauf si l’écran affiche déjà le contenu (conversation ouverte)
+- Canaux de notification Android par catégorie (événements, annonces, messages, cotisations, réponses de présence), icône de notification monochrome (placeholder) et teinte de marque
+- Regroupement des push : une push d’un même événement / d’une même annonce remplace la précédente (tag Android, `apns-collapse-id`), messages groupés par conversation sur iOS (`thread-id`)
+- Pré-demande de permission notifications sur la home (club actif requis, 3 fois max, espacées de 7 jours, seulement tant que la popup système peut encore s’afficher) au lieu de la popup système au premier lancement
+- Paramètres > Notifications : bandeau quand les notifs sont coupées sur le téléphone, avec accès direct aux réglages système ; interrupteurs grisés tant que c’est le cas
+- Log structuré `push sent` (destinataires, tokens, succès / échecs) à chaque envoi de push ; un token rejeté par FCM est purgé avec son entrée `fcmTokenIndex`
+- Checklist de test manuel des push : `docs/PUSH_SMOKE.md`
 
 ### Corrigé
 
+- Push d’annonce « Tous les membres » jamais envoyée en prod : la requête des parents actifs exigeait un index Firestore absent (`FAILED_PRECONDITION`). Elle filtre désormais par `clubId` (index composite `guardians (clubId, status)`) au lieu de lire les liens parent de tous les clubs
+- Index de portée collection group sur `guardians.parentUid` (requête de suppression de compte)
 - Dates décalées autour des changements d’heure (ajout de `Duration(days: n)` sur des dates locales) : jours en double / décalés dans le sélecteur du planning, séances récurrentes hebdo créées la veille après le passage à l’heure d’hiver, « Demain » / « Hier » faux le jour du changement, fenêtre « à venir » et écart en jours décalés au printemps. Nouveau helper `addCalendarDays` / `calendarDaysBetween` (`lib/utils/calendar_days.dart`)
+- `functions/README.md` : encodage réparé (accents et tirets remplacés par `?` / `�`)
 
 ### Sécurité
 

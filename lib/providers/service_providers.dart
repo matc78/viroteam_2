@@ -16,6 +16,8 @@ import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
 import 'package:viro_team_v2/features/fees/services/fee_payment_analytics.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
+import 'package:viro_team_v2/services/notification_permission_service.dart';
+import 'package:viro_team_v2/services/notification_soft_ask_service.dart';
 import 'package:viro_team_v2/services/push_notification_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
@@ -48,6 +50,15 @@ final userServiceProvider = Provider<UserService>((ref) => UserService());
 
 final pushNotificationServiceProvider = Provider<PushNotificationService>(
   (ref) => PushNotificationService(),
+);
+
+final notificationPermissionServiceProvider =
+    Provider<NotificationPermissionService>(
+  (ref) => NotificationPermissionService(),
+);
+
+final notificationSoftAskServiceProvider = Provider<NotificationSoftAskService>(
+  (ref) => NotificationSoftAskService(),
 );
 
 

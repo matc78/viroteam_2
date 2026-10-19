@@ -138,6 +138,10 @@ abstract final class ProjectConfig {
   /// Durée max des SnackBar (messages d'action, copie, erreurs légères).
   static const Duration snackBarDuration = Duration(milliseconds: 1500);
 
+  /// Délai avant la pré-demande de permission notifs sur la home (laisse
+  /// l'écran se poser avant d'ouvrir la sheet).
+  static const Duration notificationSoftAskDelay = Duration(milliseconds: 1200);
+
   // —— Rôles & permissions ——
   //
   // Hiérarchie club (héritage cumulatif) :

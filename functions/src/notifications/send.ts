@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import type { Firestore } from "firebase-admin/firestore";
 import { uniq } from "../common";
+import { buildMulticastMessage } from "./fcmMessage";
 import { filterUidsByPreference, parseNotificationPreferences } from "./prefs";
 import type {
   FcmPlatform,
@@ -129,39 +130,29 @@ export async function sendPushToUids(params: {
 
   const tokenRows = await loadTokens(params.firestore, allowedUids);
   if (tokenRows.length === 0) {
+    logPushSummary(params.payload, {
+      targetedUids: uniqueUids.length,
+      allowedUids: allowedUids.length,
+      tokens: 0,
+      success: 0,
+      failure: 0,
+    });
     return { recipientCount: allowedUids.length, tokenCount: 0 };
   }
 
   const messaging = admin.messaging();
+  let successCount = 0;
+  let failureCount = 0;
   for (let index = 0; index < tokenRows.length; index += BATCH_SIZE) {
     const chunk = tokenRows.slice(index, index + BATCH_SIZE);
-    const response = await messaging.sendEachForMulticast({
-      tokens: chunk.map((row) => row.token),
-      notification: {
-        title: params.payload.title,
-        body: params.payload.body,
-      },
-      data: {
-        ...params.payload.data,
-        title: params.payload.title,
-        body: params.payload.body,
-      },
-      android: {
-        priority: "high",
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: "default",
-          },
-        },
-      },
-      webpush: {
-        fcmOptions: {
-          link: params.payload.data.webPath || "/",
-        },
-      },
-    });
+    const response = await messaging.sendEachForMulticast(
+      buildMulticastMessage({
+        tokens: chunk.map((row) => row.token),
+        payload: params.payload,
+      }),
+    );
+    successCount += response.successCount;
+    failureCount += response.failureCount;
 
     const deletions: Promise<unknown>[] = [];
     response.responses.forEach((result, responseIndex) => {
@@ -172,15 +163,38 @@ export async function sendPushToUids(params: {
         code === "messaging/invalid-registration-token"
       ) {
         const row = chunk[responseIndex]!;
-        deletions.push(
-          params.firestore.doc(row.docPath).delete().catch(() => undefined),
-        );
+        deletions.push(purgeInvalidToken(params.firestore, row));
       }
     });
     await Promise.all(deletions);
   }
 
+  logPushSummary(params.payload, {
+    targetedUids: uniqueUids.length,
+    allowedUids: allowedUids.length,
+    tokens: tokenRows.length,
+    success: successCount,
+    failure: failureCount,
+  });
   return { recipientCount: allowedUids.length, tokenCount: tokenRows.length };
+}
+
+/** Une ligne de log structurée par envoi : diagnostic « personne n'a reçu ». */
+function logPushSummary(
+  payload: PushPayload,
+  counts: {
+    targetedUids: number;
+    allowedUids: number;
+    tokens: number;
+    success: number;
+    failure: number;
+  },
+): void {
+  console.info("push sent", {
+    type: payload.data.type,
+    clubId: payload.data.clubId,
+    ...counts,
+  });
 }
 
 async function loadPreferences(
@@ -206,6 +220,24 @@ async function loadPreferences(
     });
   }
   return map;
+}
+
+/**
+ * Supprime un token rejeté par FCM (par son chemin réel) et son entrée
+ * `fcmTokenIndex/{hash}` si elle pointe encore vers ce compte.
+ */
+async function purgeInvalidToken(
+  firestore: Firestore,
+  row: TokenRow,
+): Promise<void> {
+  await firestore.doc(row.docPath).delete().catch(() => undefined);
+  const indexRef = firestore
+    .collection(TOKEN_INDEX_COLLECTION)
+    .doc(fcmTokenDocId(row.token));
+  const indexSnap = await indexRef.get().catch(() => null);
+  if (indexSnap?.exists && String(indexSnap.data()?.uid ?? "") === row.uid) {
+    await indexRef.delete().catch(() => undefined);
+  }
 }
 
 async function loadTokens(

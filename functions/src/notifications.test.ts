@@ -36,6 +36,12 @@ import {
   filterUidsByPreference,
   parseNotificationPreferences,
 } from "./notifications/prefs";
+import {
+  ANDROID_CHANNEL_IDS,
+  androidChannelId,
+  buildMulticastMessage,
+  pushGrouping,
+} from "./notifications/fcmMessage";
 import { MANUAL_PUSH_COOLDOWN_MS, RSVP_NOTIFY_DEBOUNCE_MS } from "./notifications/types";
 
 test("truncatePushBody tronque avec ellipse", () => {
@@ -267,4 +273,73 @@ test("prefs : défaut opt-in + filtre + rate limit", () => {
     }),
     true,
   );
+});
+
+test("pushGrouping : tag de remplacement par entité, thread sans tag pour le chat", () => {
+  assert.deepEqual(
+    pushGrouping({ type: "event_modified", eventId: "e1" }),
+    { tag: "event_e1", threadId: "event_e1" },
+  );
+  assert.deepEqual(
+    pushGrouping({ type: "event_rsvp_changed", eventId: "e1", memberId: "m1" }),
+    { tag: "rsvp_e1_m1", threadId: "event_e1" },
+  );
+  assert.deepEqual(
+    pushGrouping({ type: "announcement_published", announcementId: "a1" }),
+    { tag: "announcement_a1", threadId: "announcements" },
+  );
+  assert.deepEqual(
+    pushGrouping({ type: "fee_reminder", seasonId: "s1" }),
+    { tag: "fees_s1", threadId: "fees_s1" },
+  );
+  assert.deepEqual(
+    pushGrouping({ type: "chat_message", conversationId: "c1" }),
+    { threadId: "chat_c1" },
+  );
+  assert.deepEqual(pushGrouping({ type: "inconnu" }), {});
+});
+
+test("buildMulticastMessage : canal Android, tag, collapse-id et data.tag", () => {
+  const message = buildMulticastMessage({
+    tokens: ["t1"],
+    payload: {
+      title: "Titre",
+      body: "Corps",
+      preferenceKey: "announcements",
+      data: {
+        type: "announcement_published",
+        announcementId: "a1",
+        webPath: "/home",
+      },
+    },
+  });
+  assert.equal(message.android?.notification?.channelId, "viro_announcements");
+  assert.equal(message.android?.notification?.tag, "announcement_a1");
+  assert.equal(message.apns?.headers?.["apns-collapse-id"], "announcement_a1");
+  assert.equal(message.apns?.payload?.aps.threadId, "announcements");
+  assert.equal(message.data?.tag, "announcement_a1");
+  assert.equal(message.data?.title, "Titre");
+  assert.equal(message.webpush?.fcmOptions?.link, "/home");
+
+  const chat = buildMulticastMessage({
+    tokens: ["t1"],
+    payload: {
+      title: "T",
+      body: "B",
+      preferenceKey: "chat",
+      data: { type: "chat_message", conversationId: "c1" },
+    },
+  });
+  assert.equal(chat.android?.notification?.channelId, "viro_chat");
+  assert.equal(chat.android?.notification?.tag, undefined);
+  assert.equal(chat.apns?.headers, undefined);
+  assert.equal(chat.data?.tag, undefined);
+});
+
+test("androidChannelId couvre chaque clé de préférence", () => {
+  const keys = ["events", "announcements", "chat", "fees", "rsvp"] as const;
+  for (const key of keys) {
+    assert.match(androidChannelId(key), /^viro_/);
+  }
+  assert.equal(new Set(Object.values(ANDROID_CHANNEL_IDS)).size, keys.length);
 });

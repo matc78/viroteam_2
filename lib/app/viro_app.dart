@@ -27,6 +27,9 @@ class _ViroAppState extends ConsumerState<ViroApp> {
       push.bindDeepLinkHandler(
         (uri) => handleDeepLinkUri(ref: ref, router: router, uri: uri),
       );
+      push.bindCurrentPathResolver(
+        () => router.routerDelegate.currentConfiguration.uri.path,
+      );
       push.start();
     });
   }

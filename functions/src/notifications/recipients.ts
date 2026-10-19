@@ -282,20 +282,22 @@ async function allMemberAccountUids(
   return uniq(uids);
 }
 
+/**
+ * Guardians actifs du club. `clubId` est dénormalisé sur chaque doc guardian
+ * (écrit par `writeGuardianAndParentLinks`) ; index composite
+ * `guardians (clubId, status)` en portée COLLECTION_GROUP.
+ */
 async function allActiveGuardianUidsInClub(
   firestore: Firestore,
   clubId: string,
 ): Promise<string[]> {
   const snap = await firestore
     .collectionGroup("guardians")
+    .where("clubId", "==", clubId)
     .where("status", "==", GUARDIAN_STATUS_ACTIVE)
     .get();
   const uids: string[] = [];
   for (const doc of snap.docs) {
-    const memberRef = doc.ref.parent.parent;
-    if (!memberRef) continue;
-    const clubRef = memberRef.parent.parent;
-    if (!clubRef || clubRef.id !== clubId) continue;
     const parentUid = String(doc.data().parentUid ?? doc.id).trim();
     if (parentUid) uids.push(parentUid);
   }

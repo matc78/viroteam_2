@@ -20,6 +20,11 @@ import { getClub } from "./clubService";
 import { toDate } from "./types";
 import { resolveSeasonEndDate } from "@/lib/planning/seasonEnd";
 import {
+  buildCanonicalByAnyId,
+  planAudienceSync,
+  type AudienceAliasPair,
+} from "@/lib/planning/audienceAliasSync";
+import {
   appendClubActivityToBatch,
   ClubActivityTypes,
 } from "./activityService";
@@ -535,9 +540,31 @@ export async function removeAudienceFromUpcomingTeamEvents(params: {
   if (pending > 0) await batch.commit();
 }
 
+/** Charge les paires memberId / canonicalId pour la sync audience. */
+async function loadAudienceAliasPairs(
+  clubId: string,
+): Promise<AudienceAliasPair[]> {
+  const membersCol = collection(
+    getAppFirestore(),
+    Collections.clubs,
+    clubId,
+    Collections.members,
+  );
+  const snap = await getDocs(query(membersCol, limit(300)));
+  return snap.docs.map((docSnap) => {
+    const data = docSnap.data() as Record<string, unknown>;
+    const accountUid = String(data[Fields.accountUid] ?? "").trim();
+    return {
+      memberId: docSnap.id,
+      canonicalId: accountUid || docSnap.id,
+    };
+  });
+}
+
 /**
  * Aligne `teamMemberIds` des événements à venir sur les rosters joueurs actuels.
- * N’ajoute que les manquants (ne retire pas les invités manuels).
+ * Ajoute les manquants, migre les alias legacy → uid Auth, ne retire pas les
+ * invités manuels hors alias.
  * @returns nombre d’événements mis à jour.
  */
 export async function syncUpcomingEventsAudienceFromTeams(
@@ -547,6 +574,9 @@ export async function syncUpcomingEventsAudienceFromTeams(
   const teamById = new Map(teams.map((team) => [team.id, team]));
   const today = dateOnly(new Date());
   const eventsCol = eventsCollection(clubId);
+  const canonicalByAnyId = buildCanonicalByAnyId(
+    await loadAudienceAliasPairs(clubId),
+  );
 
   let raw: Array<{ id: string; data: Record<string, unknown> }>;
   try {
@@ -580,27 +610,49 @@ export async function syncUpcomingEventsAudienceFromTeams(
       : [];
     if (eventTeamIds.length === 0) continue;
 
-    const expected = new Set<string>();
+    const expected: string[] = [];
     for (const teamId of eventTeamIds) {
       const team = teamById.get(teamId);
       if (!team) continue;
       for (const playerId of team.playerIds) {
-        if (playerId) expected.add(playerId);
+        if (playerId) expected.push(playerId);
       }
     }
-    if (expected.size === 0) continue;
+    if (expected.length === 0) continue;
 
-    const current = new Set(
-      Array.isArray(data[Fields.teamMemberIds])
-        ? (data[Fields.teamMemberIds] as unknown[]).map(String)
-        : [],
-    );
-    const missing = [...expected].filter((memberId) => !current.has(memberId));
-    if (missing.length === 0) continue;
-
-    batch.update(doc(eventsCol, id), {
-      [Fields.teamMemberIds]: arrayUnion(...missing),
+    const currentMemberIds = Array.isArray(data[Fields.teamMemberIds])
+      ? (data[Fields.teamMemberIds] as unknown[]).map(String)
+      : [];
+    const rsvp =
+      data[Fields.rsvp] && typeof data[Fields.rsvp] === "object"
+        ? (data[Fields.rsvp] as Record<string, unknown>)
+        : {};
+    const plan = planAudienceSync({
+      currentMemberIds,
+      expectedCanonicalIds: expected,
+      canonicalByAnyId,
+      rsvpKeys: Object.keys(rsvp),
     });
+    if (!plan.changed) continue;
+
+    const patch: Record<string, unknown> = {
+      [Fields.teamMemberIds]: plan.nextMemberIds,
+    };
+    for (const legacyKey of plan.rsvpDeletes) {
+      const move = plan.rsvpMoves.find((entry) => entry.from === legacyKey);
+      const legacyValue = rsvp[legacyKey];
+      const hasCanonical =
+        move &&
+        rsvp[move.to] !== undefined &&
+        rsvp[move.to] !== null &&
+        String(rsvp[move.to]).trim() !== "";
+      if (move && !hasCanonical && legacyValue != null) {
+        patch[`${Fields.rsvp}.${move.to}`] = legacyValue;
+      }
+      patch[`${Fields.rsvp}.${legacyKey}`] = deleteField();
+    }
+
+    batch.update(doc(eventsCol, id), patch);
     pending += 1;
     updated += 1;
     if (pending >= 400) {

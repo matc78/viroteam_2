@@ -80,27 +80,10 @@ export async function resolveEventRecipientUids(params: {
     }
   }
 
-  for (const memberId of teamMemberIds) {
-    const memberSnap = await firestore
-      .collection("clubs")
-      .doc(clubId)
-      .collection("members")
-      .doc(memberId)
-      .get();
-    if (memberSnap.exists) {
-      const accountUid = memberAccountUid(memberSnap.data()!, memberId);
-      if (accountUid) uids.add(accountUid);
-    } else {
-      // Souvent teamMemberIds contient déjà l'uid Auth.
-      uids.add(memberId);
-    }
-    for (const guardianUid of await activeGuardianUids(
-      firestore,
-      clubId,
-      memberId,
-    )) {
-      uids.add(guardianUid);
-    }
+  // Résout memberId / accountUid via member_accounts (évite destinataire fantôme
+  // quand teamMemberIds contient encore les deux alias).
+  for (const rosterId of teamMemberIds) {
+    await addMemberAndGuardians(firestore, clubId, rosterId, uids);
   }
 
   return [...uids];

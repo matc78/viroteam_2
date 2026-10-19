@@ -5,6 +5,7 @@ import type {
 } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
+import { buildEventAudienceMigrationPatch } from "./eventAudienceMigrate";
 import {
   buildGuyEmail,
   brevoCallableSecrets,
@@ -16,6 +17,11 @@ import {
 import { db, defineDualCallable } from "./db";
 
 export { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
+export {
+  migrateTeamMemberIds,
+  planRsvpMigration,
+  buildEventAudienceMigrationPatch,
+} from "./eventAudienceMigrate";
 
 const INVITATION_TYPE_GUARDIAN = "guardian";
 const INVITATION_TYPE_TEAM = "team";
@@ -61,6 +67,16 @@ function memberProfilePatch(params: {
   };
 }
 
+/** Début du jour local (fenêtre events à venir, aligné portail / Flutter). */
+function startOfTodayLocal(): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+/**
+ * Remplace `legacyMemberId` par `authUid` dans les rosters d’équipe et les
+ * convocations / RSVP des events à venir (évite memberId + accountUid empilés).
+ */
 async function reconcileRosterIds(params: {
   clubId: string;
   legacyMemberId: string;
@@ -69,11 +85,17 @@ async function reconcileRosterIds(params: {
   const { clubId, legacyMemberId, authUid } = params;
   if (!legacyMemberId || !authUid || legacyMemberId === authUid) return;
 
-  const teams = db().collection("clubs").doc(clubId).collection("teams");
-  const [playerSnap, coachSnap, pendingSnap] = await Promise.all([
+  const clubRef = db().collection("clubs").doc(clubId);
+  const teams = clubRef.collection("teams");
+  const [playerSnap, coachSnap, pendingSnap, eventsSnap] = await Promise.all([
     teams.where("playerIds", "array-contains", legacyMemberId).get(),
     teams.where("coachIds", "array-contains", legacyMemberId).get(),
     teams.where("pendingPlayerIds", "array-contains", legacyMemberId).get(),
+    clubRef
+      .collection("events")
+      .where("date", ">=", admin.firestore.Timestamp.fromDate(startOfTodayLocal()))
+      .limit(200)
+      .get(),
   ]);
 
   type Patch = Record<string, unknown>;
@@ -122,12 +144,41 @@ async function reconcileRosterIds(params: {
     patchTeam(doc, "pendingPlayerIds", true);
   }
 
+  for (const eventDoc of eventsSnap.docs) {
+    const data = eventDoc.data();
+    if (data.canceled === true) continue;
+    const teamMemberIds = Array.isArray(data.teamMemberIds)
+      ? (data.teamMemberIds as unknown[]).filter(
+          (id): id is string => typeof id === "string",
+        )
+      : [];
+    const rsvp =
+      data.rsvp && typeof data.rsvp === "object"
+        ? (data.rsvp as Record<string, unknown>)
+        : null;
+    const patch = buildEventAudienceMigrationPatch({
+      teamMemberIds,
+      rsvp,
+      legacyId: legacyMemberId,
+      canonicalId: authUid,
+      deleteField: admin.firestore.FieldValue.delete(),
+    });
+    if (patch) mergePatch(eventDoc.ref, patch);
+  }
+
   if (updates.size === 0) return;
-  const batch = db().batch();
+  let batch = db().batch();
+  let pending = 0;
   for (const [ref, patch] of updates) {
     batch.update(ref, patch);
+    pending += 1;
+    if (pending >= 400) {
+      await batch.commit();
+      batch = db().batch();
+      pending = 0;
+    }
   }
-  await batch.commit();
+  if (pending > 0) await batch.commit();
 }
 
 async function deleteOrphanPendingMembers(params: {

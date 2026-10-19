@@ -7,6 +7,8 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/services/club_activity_service.dart';
+import 'package:viro_team_v2/services/event/event_audience_migrate.dart';
+import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
@@ -479,7 +481,8 @@ class TeamService {
         .toList();
   }
 
-  /// Remplace [legacyMemberId] par [authUid] dans les rosters d'équipe (après liaison compte).
+  /// Remplace [legacyMemberId] par [authUid] dans les rosters d'équipe et les
+  /// convocations / RSVP des events à venir (après liaison compte).
   Future<void> reconcileRosterIds({
     required String clubId,
     required String legacyMemberId,
@@ -497,6 +500,17 @@ class TeamService {
         .get();
     final pendingSnap = await _teams(clubId)
         .where(FirestoreFields.pendingPlayerIds, arrayContains: legacyMemberId)
+        .get();
+    final eventsSnap = await _db
+        .collection(ProjectConfig.clubsCollection)
+        .doc(clubId)
+        .collection(ProjectConfig.eventsSubcollection)
+        .where(
+          FirestoreFields.date,
+          isGreaterThanOrEqualTo:
+              Timestamp.fromDate(EventDateHelpers.startOfToday()),
+        )
+        .limit(200)
         .get();
 
     final updates = <DocumentReference<Map<String, dynamic>>, Map<String, dynamic>>{};
@@ -552,13 +566,41 @@ class TeamService {
       );
     }
 
+    for (final eventDoc in eventsSnap.docs) {
+      final data = eventDoc.data();
+      if (data[FirestoreFields.canceled] == true) continue;
+      final teamMemberIds =
+          (data[FirestoreFields.teamMemberIds] as List<dynamic>?)
+                  ?.whereType<String>()
+                  .toList() ??
+              [];
+      final rsvpRaw = data[FirestoreFields.rsvp];
+      final rsvp = rsvpRaw is Map
+          ? Map<String, dynamic>.from(rsvpRaw)
+          : null;
+      final patch = buildEventAudienceMigrationPatch(
+        teamMemberIds: teamMemberIds,
+        rsvp: rsvp,
+        legacyId: legacyMemberId,
+        canonicalId: authUid,
+      );
+      if (patch != null) mergePatch(eventDoc.reference, patch);
+    }
+
     if (updates.isEmpty) return;
 
-    final batch = _db.batch();
+    var batch = _db.batch();
+    var pendingWrites = 0;
     for (final entry in updates.entries) {
       batch.update(entry.key, entry.value);
+      pendingWrites++;
+      if (pendingWrites >= 400) {
+        await batch.commit();
+        batch = _db.batch();
+        pendingWrites = 0;
+      }
     }
-    await batch.commit();
+    if (pendingWrites > 0) await batch.commit();
   }
 
   /// Corrige les rosters où un memberId pré-créé n'a pas été remplacé par l'UID Auth.
@@ -727,32 +769,56 @@ class TeamService {
   }
 
   /// Synchronise `teamMemberIds` / RSVP des events à venir après un changement
-  /// de roster joueur ou coach (toutes les clés audience possibles du membre).
+  /// de roster joueur ou coach.
+  ///
+  /// À l’ajout : un seul id canonique (`effectiveUid`) pour éviter d’empiler
+  /// memberId + accountUid. Au retrait : toutes les clés alias.
   Future<void> _syncUpcomingAudienceForPlayer({
     required String clubId,
     required String teamId,
     required String rosterUid,
     required bool add,
   }) async {
+    if (add) {
+      final canonicalId = await _canonicalAudienceIdForRosterUid(
+        clubId: clubId,
+        rosterUid: rosterUid,
+      );
+      await _eventService.addAudienceToUpcomingTeamEvents(
+        clubId: clubId,
+        teamId: teamId,
+        audienceId: canonicalId,
+      );
+      return;
+    }
+
     final audienceIds = await _audienceIdsForRosterUid(
       clubId: clubId,
       rosterUid: rosterUid,
     );
     for (final audienceId in audienceIds) {
-      if (add) {
-        await _eventService.addAudienceToUpcomingTeamEvents(
-          clubId: clubId,
-          teamId: teamId,
-          audienceId: audienceId,
-        );
-      } else {
-        await _eventService.removeAudienceFromUpcomingTeamEvents(
-          clubId: clubId,
-          teamId: teamId,
-          audienceId: audienceId,
-        );
-      }
+      await _eventService.removeAudienceFromUpcomingTeamEvents(
+        clubId: clubId,
+        teamId: teamId,
+        audienceId: audienceId,
+      );
     }
+  }
+
+  /// Id roster canonique pour les convocations (`accountUid` si lié).
+  Future<String> _canonicalAudienceIdForRosterUid({
+    required String clubId,
+    required String rosterUid,
+  }) async {
+    final memberRef = await _memberRefForRosterUid(
+      clubId: clubId,
+      rosterUid: rosterUid,
+    );
+    if (memberRef == null) return rosterUid;
+    final snap = await memberRef.get();
+    if (!snap.exists) return rosterUid;
+    final member = ClubMember.fromFirestore(snap);
+    return member.effectiveUid;
   }
 
   /// Clés RSVP / convocation pour un uid roster (memberId, accountUid, etc.).

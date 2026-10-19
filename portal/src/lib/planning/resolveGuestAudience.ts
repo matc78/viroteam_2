@@ -47,9 +47,12 @@ export function resolveGuestAudience(
     }
     const person = personById.get(selection.id);
     if (!person) continue;
-    for (const matchId of person.matchIds) {
-      if (matchId) memberIds.add(matchId);
-    }
+    // Un seul id canonique (accountUid si lié, sinon memberId) — évite
+    // d’écrire memberId + uid dans teamMemberIds dès la création.
+    const accountUid = person.matchIds.find(
+      (matchId) => matchId && matchId !== person.id,
+    );
+    memberIds.add(accountUid || person.id);
   }
 
   return {

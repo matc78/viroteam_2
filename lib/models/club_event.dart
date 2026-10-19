@@ -198,6 +198,9 @@ class ClubEvent {
   ({int yes, int no, int none}) get rsvpCounts => rsvpCountsExcluding({});
 
   /// Compteurs RSVP en excluant les coachs (et autres UIDs à ignorer).
+  ///
+  /// Sans map membres : un id = une entrée. Avec alias memberId/accountUid,
+  /// préférer `PlanningEventDisplay.rsvpCountsIncludingCoaches`.
   ({int yes, int no, int none}) rsvpCountsExcluding(Set<String> excludeUids) {
     var yes = 0;
     var no = 0;

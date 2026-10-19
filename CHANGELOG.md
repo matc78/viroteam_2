@@ -19,6 +19,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Doublons de convocations (memberId + accountUid) après acceptation d’invitation : migration des events à la reconcilation roster, sync audience sans empiler les alias, liste / compteurs portail dédupliqués
 - Push d’annonce « Tous les membres » jamais envoyée en prod : la requête des parents actifs exigeait un index Firestore absent (`FAILED_PRECONDITION`). Elle filtre désormais par `clubId` (index composite `guardians (clubId, status)`) au lieu de lire les liens parent de tous les clubs
 - Index de portée collection group sur `guardians.parentUid` (requête de suppression de compte)
 - `functions/README.md` : encodage réparé (accents et tirets remplacés par `?` / `�`)

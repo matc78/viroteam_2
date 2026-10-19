@@ -312,7 +312,11 @@ function startOfTodayUtc(): Date {
 
 /**
  * Ajoute / retire les convocations des events à venir d'une équipe quand le
- * roster (joueurs / coachs) change. Idempotent. Nettoie aussi les RSVP orphelins.
+ * roster (joueurs / coachs) change. Idempotent.
+ *
+ * À l’ajout : seulement l’id roster posé sur l’équipe (évite d’empiler
+ * memberId + accountUid). Au retrait : toutes les variantes. Les alias
+ * non-canoniques d’un id ajouté sont aussi retirés (avec migration RSVP).
  */
 async function syncUpcomingEventAudienceForRosterChange(params: {
   firestore: Firestore;
@@ -324,19 +328,24 @@ async function syncUpcomingEventAudienceForRosterChange(params: {
   const { firestore, clubId, teamId, added, removed } = params;
   if (added.length === 0 && removed.length === 0) return;
 
-  const keysToAdd = new Set<string>();
+  // Id réellement écrit sur le roster — un seul par ajout.
+  const keysToAdd = new Set<string>(added.filter(Boolean));
+  const keysToRemove = new Set<string>();
+  // Alias legacy → id canonique (pour migrer le RSVP).
+  const rsvpMigrateTo = new Map<string, string>();
+
   for (const rosterId of added) {
     for (const key of await audienceKeysForRosterId(firestore, clubId, rosterId)) {
-      keysToAdd.add(key);
+      if (key === rosterId) continue;
+      keysToRemove.add(key);
+      rsvpMigrateTo.set(key, rosterId);
     }
   }
-  const keysToRemove = new Set<string>();
   for (const rosterId of removed) {
     for (const key of await audienceKeysForRosterId(firestore, clubId, rosterId)) {
       keysToRemove.add(key);
     }
   }
-  // Un id encore présent via une autre variante (add) ne doit pas être retiré.
   for (const key of keysToAdd) keysToRemove.delete(key);
 
   if (keysToAdd.size === 0 && keysToRemove.size === 0) return;
@@ -364,51 +373,32 @@ async function syncUpcomingEventAudienceForRosterChange(params: {
         ? (data.rsvp as Record<string, unknown>)
         : {};
 
-    const patch: Record<string, unknown> = {};
-    const toUnion = [...keysToAdd].filter((key) => !members.has(key));
-    const toRemove = [...keysToRemove].filter((key) => members.has(key));
+    const nextMembers = new Set(members);
+    for (const key of keysToAdd) nextMembers.add(key);
+    for (const key of keysToRemove) nextMembers.delete(key);
 
-    if (toUnion.length > 0) {
-      patch.teamMemberIds = admin.firestore.FieldValue.arrayUnion(...toUnion);
-    }
-    if (toRemove.length > 0) {
-      // arrayUnion + arrayRemove sur le même champ : Firestore les applique
-      // séparément ; on ne combine que si un seul opérateur est nécessaire.
-      if (toUnion.length > 0) {
-        // Deux updates pour éviter un conflit d'opérateurs sur teamMemberIds.
-        batch.update(eventDoc.ref, {
-          teamMemberIds: admin.firestore.FieldValue.arrayUnion(...toUnion),
-        });
-        pending += 1;
-        if (pending >= 400) {
-          await batch.commit();
-          batch = firestore.batch();
-          pending = 0;
-        }
-        const rsvpPatch: Record<string, unknown> = {
-          teamMemberIds: admin.firestore.FieldValue.arrayRemove(...toRemove),
-        };
-        for (const key of keysToRemove) {
-          if (key in rsvp) {
-            rsvpPatch[`rsvp.${key}`] = admin.firestore.FieldValue.delete();
-          }
-        }
-        batch.update(eventDoc.ref, rsvpPatch);
-        pending += 1;
-        if (pending >= 400) {
-          await batch.commit();
-          batch = firestore.batch();
-          pending = 0;
-        }
-        continue;
-      }
-      patch.teamMemberIds = admin.firestore.FieldValue.arrayRemove(...toRemove);
+    const membersChanged =
+      nextMembers.size !== members.size ||
+      [...nextMembers].some((id) => !members.has(id));
+
+    const patch: Record<string, unknown> = {};
+    if (membersChanged) {
+      patch.teamMemberIds = [...nextMembers];
     }
 
     for (const key of keysToRemove) {
-      if (key in rsvp) {
-        patch[`rsvp.${key}`] = admin.firestore.FieldValue.delete();
+      if (!(key in rsvp)) continue;
+      const target = rsvpMigrateTo.get(key);
+      const legacyValue = rsvp[key];
+      const hasTarget =
+        target &&
+        rsvp[target] !== undefined &&
+        rsvp[target] !== null &&
+        String(rsvp[target]).trim() !== "";
+      if (target && !hasTarget && legacyValue != null) {
+        patch[`rsvp.${target}`] = legacyValue;
       }
+      patch[`rsvp.${key}`] = admin.firestore.FieldValue.delete();
     }
 
     if (Object.keys(patch).length === 0) continue;

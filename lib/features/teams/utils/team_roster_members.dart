@@ -1,3 +1,4 @@
+import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 
@@ -8,6 +9,30 @@ String rosterAudienceId(ClubMember member) {
     return member.memberId;
   }
   return member.effectiveUid;
+}
+
+/// Ids joueurs convoqués dédupliqués (memberId + accountUid = une personne).
+List<String> dedupedPlayerMemberIds({
+  required ClubEvent event,
+  required Set<String> excludeCoachUids,
+  required Map<String, ClubMember> membersByUid,
+}) {
+  final seenKeys = <String>{};
+  final ids = <String>[];
+  for (final id in event.playerMemberIds(excludeCoachUids)) {
+    final member = clubMemberForTeamUid(membersByUid, id);
+    if (member != null) {
+      final keys = eventAudienceKeys(member);
+      if (keys.any(seenKeys.contains)) continue;
+      seenKeys.addAll(keys);
+      ids.add(rosterAudienceId(member));
+    } else {
+      if (seenKeys.contains(id)) continue;
+      seenKeys.add(id);
+      ids.add(id);
+    }
+  }
+  return ids;
 }
 
 /// Tous les identifiants possibles d'un membre sur un événement.

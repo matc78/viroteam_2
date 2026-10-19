@@ -213,9 +213,14 @@ export function PlanningEventDetailPanel({
   }, [resolvedAnchor, event.id, guestRows.length, showRsvpFooter]);
 
   const anchored = Boolean(resolvedAnchor && position);
+  // Total / oui / non / attente alignés sur la liste dédupliquée (alias memberId/uid).
+  const guestYes = guestRows.filter((row) => row.status === "yes").length;
+  const guestNo = guestRows.filter((row) => row.status === "no").length;
+  const guestPending = guestRows.filter((row) => row.status === "pending").length;
+  const guestTotal = guestRows.length;
   const guestSummary =
-    displayEvent.rsvpTotal > 0
-      ? `${displayEvent.rsvpTotal} convoqué${displayEvent.rsvpTotal > 1 ? "s" : ""} · ${displayEvent.rsvpYes} oui · ${displayEvent.rsvpNo} non · ${displayEvent.rsvpPending} en attente`
+    guestTotal > 0
+      ? `${guestTotal} convoqué${guestTotal > 1 ? "s" : ""} · ${guestYes} oui · ${guestNo} non · ${guestPending} en attente`
       : "Aucune convocation enregistrée";
 
   function handleRsvpOptimistic(value: RsvpValue | null) {

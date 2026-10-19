@@ -114,45 +114,44 @@ export function buildEventGuestRows(params: {
   const coachRows: EventGuestRow[] = [];
   const seenKeys = new Set<string>();
 
+  function markSeen(ids: string[]) {
+    for (const id of ids) seenKeys.add(id);
+  }
+
   for (const coachId of coachIds) {
+    const aliases = aliasIdsForGuest(coachId, directory);
+    if (aliases.some((id) => seenKeys.has(id))) continue;
     const guest = lookupGuest(directory, coachId);
-    const key = guest.name + "::coach::" + coachId;
-    if (seenKeys.has(coachId) || seenKeys.has(guest.name + "::coach")) continue;
-    seenKeys.add(coachId);
+    if (seenKeys.has(guest.name + "::coach")) continue;
+    markSeen(aliases);
     seenKeys.add(guest.name + "::coach");
     coachRows.push({
-      key,
+      key: guest.name + "::coach::" + coachId,
       name: guest.name,
       avatarUrl: guest.avatarUrl,
       isCoach: true,
-      status: resolveRsvpForIds(
-        aliasIdsForGuest(coachId, directory),
-        event.rsvpByMemberId,
-      ),
+      status: resolveRsvpForIds(aliases, event.rsvpByMemberId),
     });
   }
   coachRows.sort((left, right) => left.name.localeCompare(right.name, "fr"));
 
   const playerRows: EventGuestRow[] = [];
   for (const memberId of event.teamMemberIds) {
-    if (coachIds.has(memberId)) continue;
-    // Évite de doubler un coach déjà listé sous un autre id (accountUid).
+    const aliases = aliasIdsForGuest(memberId, directory);
+    if (aliases.some((id) => seenKeys.has(id) || coachIds.has(id))) continue;
     const guest = lookupGuest(directory, memberId);
+    // Évite de doubler un coach déjà listé sous un autre id (accountUid / nom).
     const alreadyCoach = coachRows.some(
       (row) => row.name === guest.name && row.isCoach,
     );
     if (alreadyCoach) continue;
-    if (seenKeys.has(memberId)) continue;
-    seenKeys.add(memberId);
+    markSeen(aliases);
     playerRows.push({
       key: memberId,
       name: guest.name,
       avatarUrl: guest.avatarUrl,
       isCoach: false,
-      status: resolveRsvpForIds(
-        aliasIdsForGuest(memberId, directory),
-        event.rsvpByMemberId,
-      ),
+      status: resolveRsvpForIds(aliases, event.rsvpByMemberId),
     });
   }
   playerRows.sort((left, right) => left.name.localeCompare(right.name, "fr"));

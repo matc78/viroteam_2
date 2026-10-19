@@ -127,14 +127,20 @@ class _PlanningRollCallSheetState extends ConsumerState<PlanningRollCallSheet> {
       error: (_, __) => const ViroErrorState(),
       data: (members) {
         final byUid = indexClubMembersByUid(members);
-        final playerIds =
-            widget.event.playerMemberIds(widget.excludeCoachUids);
+        final playerIds = dedupedPlayerMemberIds(
+          event: widget.event,
+          excludeCoachUids: widget.excludeCoachUids,
+          membersByUid: byUid,
+        );
         _seedFromEvent(playerIds);
 
         final entries = <({String id, ClubMember member})>[];
+        final seenMembers = <String>{};
         for (final id in playerIds) {
-          final member = byUid[id];
+          final member = clubMemberForTeamUid(byUid, id);
           if (member == null) continue;
+          if (seenMembers.contains(member.memberId)) continue;
+          seenMembers.add(member.memberId);
           entries.add((id: id, member: member));
         }
         entries.sort((a, b) {

@@ -33,6 +33,26 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 - Validations sondage / réactions et MIME vignette chat
 
+## [2.2.6] - 2026-10-19
+
+### Ajouté
+
+- Codes d’invitation d’équipe multi-usage
+- Acceptation CGU à la création de compte
+- RSVP cliquable sur les tuiles du planning club
+
+### Modifié
+
+- Lieux de pratique sans auto-lien au siège
+- Mails d’invitation : CTA stores et liens web
+- Accessibilité pragmatique app et portail
+- Icônes de status bar en sombre sur fond clair
+
+### Note
+
+- Version app : `pubspec.yaml` / `ProjectConfig` en `2.2.6+12`
+- Messagerie toujours masquée en release (`FeatureFlags.chatMessagingLive`)
+
 ## [2.2.5] - 2026-10-15
 
 ### Corrigé

@@ -5,15 +5,17 @@ import { useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { JoinGuardianAccept } from "@/components/auth/JoinGuardianAccept";
 import { JoinMemberAccept } from "@/components/auth/JoinMemberAccept";
+import { JoinTeamAccept } from "@/components/auth/JoinTeamAccept";
 import {
   findInvitationByCode,
   isGuardianInvitation,
   isMemberInvitation,
+  isTeamInvitation,
   type InvitationLookupResult,
 } from "@/lib/firebase/invitationService";
 import styles from "@/components/auth/JoinOnboardingForm.module.css";
 
-/** Accepte une invitation parent ou membre (joueur / coach) sur le portail. */
+/** Accepte une invitation parent, membre ou code d’équipe sur le portail. */
 export function JoinRedirectClient() {
   const searchParams = useSearchParams();
   const invitationCode = (searchParams.get("code") ?? "").trim().toUpperCase();
@@ -93,6 +95,10 @@ export function JoinRedirectClient() {
 
   if (isGuardianInvitation(invitation)) {
     return <JoinGuardianAccept invitation={invitation} />;
+  }
+
+  if (isTeamInvitation(invitation)) {
+    return <JoinTeamAccept invitation={invitation} />;
   }
 
   if (isMemberInvitation(invitation)) {

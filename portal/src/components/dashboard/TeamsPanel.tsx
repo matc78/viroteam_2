@@ -7,6 +7,7 @@ import {
   EditTeamDialog,
   type TeamFormValues,
 } from "@/components/dashboard/CreateTeamDialog";
+import { InviteTeamDialog } from "@/components/dashboard/InviteTeamDialog";
 import { TeamCard } from "@/components/dashboard/TeamCard";
 import type { TeamOption } from "@/lib/firebase/eventService";
 import { MemberRoles } from "@/lib/firebase/constants";
@@ -21,6 +22,8 @@ import styles from "./TeamsPanel.module.css";
 
 type TeamsPanelProps = {
   clubId: string;
+  /** Nom du club (message de partage du code d’équipe). */
+  clubName?: string;
   teams: TeamOption[];
   members: ClubMemberRecord[];
   sport: string;
@@ -34,6 +37,8 @@ type TeamsPanelProps = {
   canRemovePlayers?: boolean;
   /** True si le viewer peut ajouter un joueur à cette équipe. */
   canAddPlayerToTeam?: (team: TeamOption) => boolean;
+  /** True si le viewer peut partager le code d’équipe. */
+  canShareTeamInvite?: (team: TeamOption) => boolean;
   /**
    * Vue joueur / parent : barre d’outils et tuiles centrées
    * (comme l’accueil joueur).
@@ -62,6 +67,7 @@ type TeamsPanelProps = {
 /** Panneau gestion des équipes (liste par catégorie + dialogs). */
 export function TeamsPanel({
   clubId,
+  clubName = "",
   teams,
   members,
   sport,
@@ -74,6 +80,7 @@ export function TeamsPanel({
   canManageCoaches = true,
   canRemovePlayers = true,
   canAddPlayerToTeam,
+  canShareTeamInvite,
   centered = false,
   onClearError,
   onCreateTeam,
@@ -86,6 +93,7 @@ export function TeamsPanel({
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamOption | null>(null);
+  const [invitingTeam, setInvitingTeam] = useState<TeamOption | null>(null);
   const [addingToTeam, setAddingToTeam] = useState<{
     team: TeamOption;
     role: TeamRosterRole;
@@ -252,6 +260,9 @@ export function TeamsPanel({
                         : true
                     }
                     canRemovePlayer={canRemovePlayers}
+                    canShareTeamInvite={
+                      canShareTeamInvite ? canShareTeamInvite(team) : false
+                    }
                     onEdit={() => {
                       onClearError?.();
                       setEditingTeam(team);
@@ -265,6 +276,10 @@ export function TeamsPanel({
                         return;
                       }
                       void onDeleteTeam(team.id);
+                    }}
+                    onInviteTeam={() => {
+                      onClearError?.();
+                      setInvitingTeam(team);
                     }}
                     onAddMember={(role) => {
                       onClearError?.();
@@ -340,6 +355,16 @@ export function TeamsPanel({
             });
             setAddingToTeam(null);
           }}
+        />
+      ) : null}
+
+      {invitingTeam ? (
+        <InviteTeamDialog
+          clubId={clubId}
+          clubName={clubName}
+          teamId={invitingTeam.id}
+          teamName={invitingTeam.name}
+          onClose={() => setInvitingTeam(null)}
         />
       ) : null}
     </div>

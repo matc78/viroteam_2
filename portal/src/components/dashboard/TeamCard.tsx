@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { joinCopy } from "@/lib/copy/joinCopy";
 import type { TeamOption } from "@/lib/firebase/eventService";
 import { MemberRoles } from "@/lib/firebase/constants";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
@@ -32,10 +33,12 @@ type TeamCardProps = {
   canAddCoach?: boolean;
   canRemovePlayer?: boolean;
   canRemoveCoach?: boolean;
+  canShareTeamInvite?: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onAddMember: (role: TeamRosterRole) => void;
   onRemoveMember: (member: RosterPerson, role: TeamRosterRole) => void;
+  onInviteTeam?: () => void;
 };
 
 /**
@@ -158,10 +161,12 @@ export function TeamCard({
   canAddCoach = true,
   canRemovePlayer = true,
   canRemoveCoach = true,
+  canShareTeamInvite = false,
   onEdit,
   onDelete,
   onAddMember,
   onRemoveMember,
+  onInviteTeam,
 }: TeamCardProps) {
   const [expanded, setExpanded] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -301,6 +306,19 @@ export function TeamCard({
           </div>
         ) : null}
       </div>
+
+      {canShareTeamInvite && onInviteTeam ? (
+        <div className={styles.inviteRow}>
+          <button
+            type="button"
+            className={styles.inviteButton}
+            disabled={busy}
+            onClick={onInviteTeam}
+          >
+            {joinCopy.inviteTeamTitle}
+          </button>
+        </div>
+      ) : null}
 
       <div className={styles.coachBlock}>
         <div className={styles.sectionHeader}>

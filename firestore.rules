@@ -308,9 +308,10 @@ service cloud.firestore {
       // ——— Invitations ———
       match /invitations/{inviteId} {
         allow get, list: if isClubCoachOrAdmin(clubId) || isInvitee();
-        // E-mail obligatoire ; un coach n'invite pas d'admin ; parents via Cloud Functions.
+        // E-mail obligatoire pour member ; team/guardian uniquement via Cloud Functions.
         allow create: if isClubCoachOrAdmin(clubId)
           && request.resource.data.get('type', 'member') != 'guardian'
+          && request.resource.data.get('type', 'member') != 'team'
           && request.resource.data.get('email', '') is string
           && request.resource.data.get('email', '').size() > 0
           && request.resource.data.get('status', '') == 'pending'
@@ -319,6 +320,8 @@ service cloud.firestore {
             || (isClubAdmin(clubId) && request.resource.data.get('role', '') == 'admin')
           );
         allow update: if (isClubCoachOrAdmin(clubId)
+            && resource.data.get('type', 'member') != 'team'
+            && request.resource.data.get('type', 'member') != 'team'
             && request.resource.data.get('status', '') != 'accepted'
             && !affectedKeys().hasAny(['memberId', 'type']))
           || isInviteeDeclining();

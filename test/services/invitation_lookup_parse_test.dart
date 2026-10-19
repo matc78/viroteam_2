@@ -79,12 +79,19 @@ void main() {
       expect(result.invitation.code, 'ABC123');
     });
 
-    test('retourne null quand found == false (introuvable ou expirée)', () {
+    test('retourne null quand found == false (introuvable, expirée, épuisée)', () {
       expect(InvitationService.parseLookupResponse({'found': false}), isNull);
       expect(
         InvitationService.parseLookupResponse({
           'found': false,
           'reason': 'expired',
+        }),
+        isNull,
+      );
+      expect(
+        InvitationService.parseLookupResponse({
+          'found': false,
+          'reason': 'exhausted',
         }),
         isNull,
       );
@@ -120,6 +127,47 @@ void main() {
         foundResponse(overrides: {'type': 'guardian'}),
       );
       expect(result!.invitation.isGuardian, isTrue);
+    });
+
+    test('accepte un code d’équipe multi-usage (type team)', () {
+      final result = InvitationService.parseLookupResponse(
+        foundResponse(
+          overrides: {
+            'type': 'team',
+            'role': 'player',
+            'teamId': 'team1',
+            'teamName': 'U15 Filles',
+            'useCount': 3,
+            'maxUses': TeamInviteLimits.maxUses,
+            'emailHint': null,
+            'memberId': null,
+          },
+        ),
+      );
+      expect(result, isNotNull);
+      expect(result!.invitation.isTeamInvite, isTrue);
+      expect(result.invitation.teamId, 'team1');
+      expect(result.invitation.teamName, 'U15 Filles');
+      expect(result.invitation.useCount, 3);
+      expect(result.invitation.maxUses, TeamInviteLimits.maxUses);
+    });
+
+    test('retourne null si le code d’équipe a atteint maxUses', () {
+      final result = InvitationService.parseLookupResponse(
+        foundResponse(
+          overrides: {
+            'type': 'team',
+            'role': 'player',
+            'teamId': 'team1',
+            'teamName': 'U15 Filles',
+            'useCount': TeamInviteLimits.maxUses,
+            'maxUses': TeamInviteLimits.maxUses,
+            'emailHint': null,
+            'memberId': null,
+          },
+        ),
+      );
+      expect(result, isNull);
     });
   });
 }

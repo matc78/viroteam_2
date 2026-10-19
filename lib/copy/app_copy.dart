@@ -4,6 +4,8 @@
 /// Usage : `Text(AppCopy.home.quietSubtitle)` — pas de littéraux dans les widgets.
 library;
 
+import 'package:viro_team_v2/constants/firestore_fields.dart';
+
 part 'app_copy_common.dart';
 part 'app_copy_auth.dart';
 part 'app_copy_home.dart';

@@ -1,4 +1,8 @@
-import { lookupInvitationByCode } from "./callableService";
+import {
+  acceptInvitation,
+  acceptTeamInvitation,
+  lookupInvitationByCode,
+} from "./callableService";
 import { InvitationTypes, MemberRoles } from "./constants";
 
 /** Type d’invitation renvoyé par le lookup. */
@@ -24,13 +28,17 @@ export type InvitationLookupResult = {
   /** E-mail masqué renvoyé par le serveur — affichage uniquement. */
   emailHint?: string;
   expiresAt?: Date;
+  teamId?: string;
+  teamName?: string;
+  useCount?: number;
+  maxUses?: number;
 };
 
 /** Normalise le type d’invitation (défaut : membre). */
 function normalizeInvitationType(raw: string): InvitationType {
-  return raw === InvitationTypes.guardian
-    ? InvitationTypes.guardian
-    : InvitationTypes.member;
+  if (raw === InvitationTypes.guardian) return InvitationTypes.guardian;
+  if (raw === InvitationTypes.team) return InvitationTypes.team;
+  return InvitationTypes.member;
 }
 
 /** Normalise le rôle d’invitation membre (défaut : joueur). */
@@ -56,6 +64,15 @@ export function isMemberInvitation(
   type: typeof InvitationTypes.member;
 } {
   return invitation.type === InvitationTypes.member;
+}
+
+/** True si l’invitation est un code d’équipe multi-usage. */
+export function isTeamInvitation(
+  invitation: InvitationLookupResult,
+): invitation is InvitationLookupResult & {
+  type: typeof InvitationTypes.team;
+} {
+  return invitation.type === InvitationTypes.team;
 }
 
 /**
@@ -89,8 +106,33 @@ export async function findInvitationByCode(
     clubName: invitation.clubName,
     firstName: invitation.firstName.trim() || undefined,
     lastName: invitation.lastName.trim() || undefined,
-    emailHint: invitation.emailHint.trim() || undefined,
+    emailHint: invitation.emailHint?.trim() || undefined,
     expiresAt:
       expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : undefined,
+    teamId: invitation.teamId?.trim() || undefined,
+    teamName: invitation.teamName?.trim() || undefined,
+    useCount:
+      typeof invitation.useCount === "number" ? invitation.useCount : undefined,
+    maxUses:
+      typeof invitation.maxUses === "number" ? invitation.maxUses : undefined,
   };
+}
+
+/**
+ * Accepte l’invitation selon son type (membre nominatif ou code d’équipe).
+ */
+export async function acceptLookupInvitation(
+  invitation: InvitationLookupResult,
+): Promise<void> {
+  if (isTeamInvitation(invitation)) {
+    await acceptTeamInvitation({
+      clubId: invitation.clubId,
+      invitationId: invitation.invitationId,
+    });
+    return;
+  }
+  await acceptInvitation({
+    clubId: invitation.clubId,
+    invitationId: invitation.invitationId,
+  });
 }

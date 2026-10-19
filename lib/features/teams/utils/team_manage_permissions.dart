@@ -47,4 +47,15 @@ class TeamManagePermissions {
   /// Admin ou coach de l'équipe : éditer les liens de discussion (WhatsApp…).
   bool canEditMessagingLinks(ClubTeam team) =>
       isAdmin || isCoachOfTeam(team);
+
+  /// Admin ou coach de l’équipe avec droit d’inviter : partage du code multi-usage.
+  bool canShareTeamInvite(ClubTeam team) {
+    if (!coachPermissions.allowsInvitePlayers(
+      isAdmin: isAdmin,
+      isCoach: isCoach,
+    )) {
+      return false;
+    }
+    return isAdmin || isCoachOfTeam(team);
+  }
 }

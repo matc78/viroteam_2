@@ -30,6 +30,29 @@ String buildInviteMessage({
   );
 }
 
+/// Message FR pour un code d’équipe multi-usage (WhatsApp / SMS).
+///
+/// [joinUrl] : URL renvoyée par la callable si dispo, sinon reconstruite.
+String buildTeamInviteMessage({
+  required Club club,
+  required String teamName,
+  required String code,
+  String? joinUrl,
+}) {
+  final resolvedJoinUrl = (joinUrl != null && joinUrl.trim().isNotEmpty)
+      ? joinUrl.trim()
+      : inviteJoinUrl(code).toString();
+  return AppCopy.join.teamInviteShareMessage(
+    clubName: club.name,
+    teamName: teamName,
+    code: code,
+    joinUrl: resolvedJoinUrl,
+    appStoreUrl: ProjectConfig.appStoreUrl,
+    playStoreUrl: ProjectConfig.playStoreUrl,
+    siteUrl: ProjectConfig.siteUrl,
+  );
+}
+
 /// Message FR pour une invitation parent (pas un rôle club).
 String buildGuardianInviteMessage({
   required Club club,

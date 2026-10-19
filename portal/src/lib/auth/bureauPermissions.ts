@@ -148,6 +148,25 @@ export function canAddPlayerToTeam(params: {
   return rosterContains(params.team.coachIds, matchIds);
 }
 
+/** True si le viewer peut partager le code d’équipe multi-usage. */
+export function canShareTeamInvite(params: {
+  role: string | null;
+  uid: string | null;
+  linkedMemberId?: string | null;
+  team: TeamOption;
+  coachPermissions?: CoachPermissions;
+}): boolean {
+  if (params.role === MemberRoles.admin) return true;
+  if (params.role !== MemberRoles.coach) return false;
+  const permissions = params.coachPermissions ?? DEFAULT_COACH_PERMISSIONS;
+  if (!permissions.canInvitePlayers) return false;
+  const matchIds = viewerMatchIds({
+    uid: params.uid,
+    memberId: params.linkedMemberId,
+  });
+  return rosterContains(params.team.coachIds, matchIds);
+}
+
 /** True si le viewer peut retirer un joueur de l’équipe. */
 export function canRemovePlayerFromTeam(role: string | null): boolean {
   return role === MemberRoles.admin;

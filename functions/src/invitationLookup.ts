@@ -6,6 +6,10 @@ import {
   parseLookupCodeArgs,
   toIsoOrNull,
 } from "./invitationLookupUtils";
+import {
+  INVITATION_TYPE_TEAM,
+  TEAM_INVITE_MAX_USES,
+} from "./teamInviteUtils";
 
 export { maskEmail, parseLookupCodeArgs } from "./invitationLookupUtils";
 
@@ -18,7 +22,7 @@ type LookupInvitationPayload = {
   invitationId: string;
   code: string;
   role: string;
-  type: "member" | "guardian";
+  type: "member" | "guardian" | "team";
   status: "pending";
   firstName: string;
   lastName: string;
@@ -27,10 +31,14 @@ type LookupInvitationPayload = {
   clubSport: string;
   memberId: string | null;
   expiresAt: string | null;
+  teamId: string | null;
+  teamName: string | null;
+  useCount: number | null;
+  maxUses: number | null;
 };
 
 type LookupInvitationResponse =
-  | { found: false; reason?: "expired" }
+  | { found: false; reason?: "expired" | "exhausted" }
   | { found: true; invitation: LookupInvitationPayload };
 
 function str(value: unknown): string {
@@ -94,10 +102,43 @@ async function handleLookupInvitationByCode(
     }
   }
 
+  const rawType = str(invite.type);
   const type =
-    str(invite.type) === INVITATION_TYPE_GUARDIAN
+    rawType === INVITATION_TYPE_GUARDIAN
       ? INVITATION_TYPE_GUARDIAN
-      : INVITATION_TYPE_MEMBER;
+      : rawType === INVITATION_TYPE_TEAM
+        ? INVITATION_TYPE_TEAM
+        : INVITATION_TYPE_MEMBER;
+
+  let teamId = str(invite.teamId) || null;
+  let teamName = str(invite.teamName) || null;
+  if (type === INVITATION_TYPE_TEAM && teamId && !teamName) {
+    const teamSnap = await clubRef.collection("teams").doc(teamId).get();
+    if (teamSnap.exists) {
+      teamName = str(teamSnap.data()?.name) || null;
+    }
+  }
+
+  const useCountRaw = invite.useCount;
+  const maxUsesRaw = invite.maxUses;
+  const useCount =
+    type === INVITATION_TYPE_TEAM && typeof useCountRaw === "number"
+      ? useCountRaw
+      : type === INVITATION_TYPE_TEAM
+        ? 0
+        : null;
+  const maxUses =
+    type === INVITATION_TYPE_TEAM && typeof maxUsesRaw === "number"
+      ? maxUsesRaw
+      : type === INVITATION_TYPE_TEAM
+        ? TEAM_INVITE_MAX_USES
+        : null;
+
+  if (type === INVITATION_TYPE_TEAM && useCount != null && maxUses != null) {
+    if (useCount >= maxUses) {
+      return { found: false, reason: "exhausted" };
+    }
+  }
 
   return {
     found: true,
@@ -115,6 +156,10 @@ async function handleLookupInvitationByCode(
       clubSport,
       memberId,
       expiresAt: toIsoOrNull(invite.expiresAt),
+      teamId,
+      teamName,
+      useCount,
+      maxUses,
     },
   };
 }

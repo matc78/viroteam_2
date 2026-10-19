@@ -39,6 +39,15 @@ export {
   lookupInvitationByCodeDev,
 } from "./invitationLookup";
 
+export {
+  createOrRefreshTeamInvite,
+  createOrRefreshTeamInviteDev,
+  revokeTeamInvite,
+  revokeTeamInviteDev,
+  acceptTeamInvitation,
+  acceptTeamInvitationDev,
+} from "./teamInvites";
+
 export { deleteMyAccount, deleteMyAccountDev } from "./deleteAccount";
 
 export {

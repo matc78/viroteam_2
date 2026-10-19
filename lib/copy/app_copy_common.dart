@@ -35,6 +35,7 @@ final class AppCopyCommon {
   String get clubNotFound => 'Club introuvable';
   String get memberFallback => 'Membre';
   String get childFallback => 'Enfant';
+  String get teamFallback => 'l\'équipe';
   String get pending => 'En attente';
   String get pendingAccount => 'Compte en attente';
   String get mail => 'Mail';

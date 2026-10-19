@@ -13,6 +13,8 @@ final class AppCopyJoin {
       'Demande à l\'administrateur du club de renvoyer un code à ton adresse.';
   String get useGuardianService =>
       'Utiliser GuardianService.linkGuardian pour une invitation parent.';
+  String get useTeamInviteService =>
+      'Utiliser InvitationService.acceptTeamInvitation pour un code d\'équipe.';
 
   String get joinClubTitle => 'Rejoindre un club';
   String get enterCodeTitle => 'Entre ton code';
@@ -22,6 +24,54 @@ final class AppCopyJoin {
   String get validateCode => 'Valider le code';
   String get askYourCoach => 'Demande à ton coach';
   String get codeNotFoundOrExpired => 'Code introuvable ou expiré.';
+  String get teamInviteCreateFailed =>
+      'Impossible de créer le code d\'équipe.';
+  String get teamInviteRevokeFailed =>
+      'Impossible de révoquer le code d\'équipe.';
+  String get inviteTeamTitle => 'Inviter l\'équipe';
+  String get inviteTeamSubtitle =>
+      'Partage ce code : tes joueurs rejoignent le club et l\'équipe directement.';
+  String get shareTeamCode => 'Partager le lien';
+  String get copyTeamCode => 'Copier le code';
+  String get regenerateTeamCode => 'Régénérer';
+  String get revokeTeamCode => 'Révoquer';
+  String get teamCodeCopied => 'Code copié.';
+  String get teamLinkCopied => 'Lien copié.';
+  String get teamCodeRevoked => 'Code révoqué.';
+  String teamInviteUses(int useCount, int maxUses) =>
+      '$useCount / $maxUses utilisations';
+  String teamInviteExpires(String dateLabel) => 'Valable jusqu\'au $dateLabel';
+  String teamInviteHeadline(String teamName, String clubName) =>
+      'Tu rejoins $teamName — $clubName';
+  String get teamInviteBody =>
+      'Tu seras ajouté à l\'équipe tout de suite, sans validation.';
+  String get acceptTeamInvitation => 'Rejoindre l\'équipe';
+
+  String teamInviteShareMessage({
+    required String clubName,
+    required String teamName,
+    required String code,
+    required String joinUrl,
+    required String appStoreUrl,
+    required String playStoreUrl,
+    required String siteUrl,
+  }) =>
+      '''Salut !
+
+Rejoins $teamName ($clubName) sur ViroTeam pour les convocations.
+
+Ton code : $code
+Valable ${TeamInviteLimits.ttlDays} jours (max ${TeamInviteLimits.maxUses} joueurs via ce lien).
+App Store : $appStoreUrl
+Google Play : $playStoreUrl
+
+Ou ouvre l'app → « J'ai un code d'invitation » et tape ce code.
+
+Aussi sur le web :
+Site : $siteUrl
+Espace club : $joinUrl
+
+— Guy''';
 
   String get requestRoleTitle => 'Demander un rôle';
   String get requestRoleSubtitle =>

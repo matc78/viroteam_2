@@ -66,7 +66,9 @@ class _InvitationPreviewScreenState
             );
         ref.read(sessionProvider.notifier).setActiveClub(
               pending.club!.id,
-              role: invitation.role,
+              role: invitation.isTeamInvite
+                  ? MemberRoles.player
+                  : invitation.role,
             );
       }
       ref.invalidate(userClubsProvider);
@@ -85,10 +87,10 @@ class _InvitationPreviewScreenState
 
   Future<void> _decline() async {
     final pending = ref.read(pendingInvitationProvider);
-    if (pending.invitation != null) {
-      await ref.read(invitationServiceProvider).declineInvitation(
-            pending.invitation!,
-          );
+    final invitation = pending.invitation;
+    // Codes d’équipe multi-usage : pas de decline serveur (reste utilisable).
+    if (invitation != null && !invitation.isTeamInvite) {
+      await ref.read(invitationServiceProvider).declineInvitation(invitation);
     }
     ref.read(pendingInvitationProvider.notifier).clear();
     if (mounted) context.go(AppRoutes.entry);
@@ -131,53 +133,80 @@ class _InvitationPreviewScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                invite.isGuardian
-                    ? AppCopy.join.guardianInviteHeadline
-                    : AppCopy.join.invitedToJoin,
-                style: theme.bodyLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: ViroSpacing.md),
-              Text(
-                club.name,
-                style: theme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              Text(
-                club.sport,
-                textAlign: TextAlign.center,
-                style: theme.bodyMedium,
-              ),
-              const SizedBox(height: ViroSpacing.lg),
-              if (invite.isGuardian) ...[
+              if (invite.isTeamInvite) ...[
                 Text(
-                  AppCopy.join.guardianInviteBody(childFirst),
+                  AppCopy.join.teamInviteHeadline(
+                    invite.teamName?.trim().isNotEmpty == true
+                        ? invite.teamName!.trim()
+                        : AppCopy.common.teamFallback,
+                    club.name,
+                  ),
+                  style: theme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                Text(
+                  club.sport,
+                  textAlign: TextAlign.center,
+                  style: theme.bodyMedium,
+                ),
+                const SizedBox(height: ViroSpacing.lg),
+                Text(
+                  AppCopy.join.teamInviteBody,
                   style: theme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               ] else ...[
-                Center(child: ViroRoleBadge(role: _badge(invite.role))),
-                const SizedBox(height: ViroSpacing.sm),
                 Text(
-                  AppCopy.join.proposedRole(_roleLabel(invite.role)),
+                  invite.isGuardian
+                      ? AppCopy.join.guardianInviteHeadline
+                      : AppCopy.join.invitedToJoin,
+                  style: theme.bodyLarge,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: ViroSpacing.sm),
+                const SizedBox(height: ViroSpacing.md),
                 Text(
-                  AppCopy.join.memberAlsoPlayerAccess,
-                  style: theme.bodySmall,
+                  club.name,
+                  style: theme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                   textAlign: TextAlign.center,
                 ),
-                if (invite.emailHint?.trim().isNotEmpty ?? false) ...[
+                Text(
+                  club.sport,
+                  textAlign: TextAlign.center,
+                  style: theme.bodyMedium,
+                ),
+                const SizedBox(height: ViroSpacing.lg),
+                if (invite.isGuardian) ...[
+                  Text(
+                    AppCopy.join.guardianInviteBody(childFirst),
+                    style: theme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                ] else ...[
+                  Center(child: ViroRoleBadge(role: _badge(invite.role))),
                   const SizedBox(height: ViroSpacing.sm),
                   Text(
-                    AppCopy.join.reservedForAccount(invite.emailHint!.trim()),
+                    AppCopy.join.proposedRole(_roleLabel(invite.role)),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: ViroSpacing.sm),
+                  Text(
+                    AppCopy.join.memberAlsoPlayerAccess,
                     style: theme.bodySmall,
                     textAlign: TextAlign.center,
                   ),
+                  if (invite.emailHint?.trim().isNotEmpty ?? false) ...[
+                    const SizedBox(height: ViroSpacing.sm),
+                    Text(
+                      AppCopy.join.reservedForAccount(invite.emailHint!.trim()),
+                      style: theme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ],
               if (_error != null) ...[
@@ -186,13 +215,17 @@ class _InvitationPreviewScreenState
               ],
               const Spacer(),
               ViroPrimaryButton(
-                label: AppCopy.join.acceptInvitation,
+                label: invite.isTeamInvite
+                    ? AppCopy.join.acceptTeamInvitation
+                    : AppCopy.join.acceptInvitation,
                 isLoading: _loading,
                 onPressed: _accept,
               ),
               const SizedBox(height: ViroSpacing.sm),
               ViroPrimaryButton(
-                label: AppCopy.join.declineInvitation,
+                label: invite.isTeamInvite
+                    ? AppCopy.common.cancel
+                    : AppCopy.join.declineInvitation,
                 outlined: true,
                 onPressed: _decline,
               ),

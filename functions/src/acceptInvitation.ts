@@ -18,6 +18,7 @@ import { db, defineDualCallable } from "./db";
 export { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
 
 const INVITATION_TYPE_GUARDIAN = "guardian";
+const INVITATION_TYPE_TEAM = "team";
 const INVITATION_STATUS_PENDING = "pending";
 const INVITATION_STATUS_ACCEPTED = "accepted";
 const ROLE_ADMIN = "admin";
@@ -195,6 +196,12 @@ async function handleAcceptInvitation(
       throw new HttpsError(
         "failed-precondition",
         "Invitation parent : utilise linkGuardian",
+      );
+    }
+    if (String(invite.type ?? "member") === INVITATION_TYPE_TEAM) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Invitation d’équipe : utilise acceptTeamInvitation",
       );
     }
 

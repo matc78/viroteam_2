@@ -121,6 +121,9 @@ abstract final class FirestoreFields {
 
   // teams/{teamId} (+ practiceLocations.category)
   static const String teamId = 'teamId';
+  static const String teamName = 'teamName';
+  static const String maxUses = 'maxUses';
+  static const String useCount = 'useCount';
   static const String category = 'category';
   static const String categoryCustom = 'categoryCustom';
   static const String playerIds = 'playerIds';
@@ -321,10 +324,17 @@ abstract final class InvitationStatus {
   static const String expired = 'expired';
 }
 
-/// `invitations.type` — membre du roster vs rattachement parent.
+/// `invitations.type` — membre, parent, ou code d’équipe multi-usage.
 abstract final class InvitationTypes {
   static const String member = 'member';
   static const String guardian = 'guardian';
+  static const String team = 'team';
+}
+
+/// Limites code d’équipe multi-usage (aligné `TEAM_INVITE_*` Functions).
+abstract final class TeamInviteLimits {
+  static const int maxUses = 30;
+  static const int ttlDays = 7;
 }
 
 /// `guardians.relation` / `parentLinks.relation`. V1 : uniquement [parent].

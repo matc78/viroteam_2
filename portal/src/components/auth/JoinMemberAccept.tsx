@@ -7,12 +7,12 @@ import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { isInvitationAlreadyProcessed } from "@/lib/auth/invitationAcceptErrors";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { acceptInvitation } from "@/lib/firebase/callableService";
 import { MemberRoles, InvitationTypes } from "@/lib/firebase/constants";
 import type {
   InvitationLookupResult,
   InvitationMemberRole,
 } from "@/lib/firebase/invitationService";
+import { acceptLookupInvitation } from "@/lib/firebase/invitationService";
 import { splitDisplayName } from "@/lib/firebase/types";
 import { updateUserProfileForJoin } from "@/lib/firebase/userService";
 import {
@@ -83,10 +83,7 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
           }
         }
 
-        await acceptInvitation({
-          clubId: invitation.clubId,
-          invitationId: invitation.invitationId,
-        });
+        await acceptLookupInvitation(invitation);
         await refreshProfile();
         if (!cancelled) router.replace("/home");
       } catch (err: unknown) {

@@ -21,6 +21,10 @@ class ClubInvitation {
     this.firstName,
     this.lastName,
     this.relation,
+    this.teamId,
+    this.teamName,
+    this.maxUses,
+    this.useCount,
   });
 
   final String id;
@@ -45,17 +49,32 @@ class ClubInvitation {
   final String? firstName;
   final String? lastName;
   final String? relation;
+  final String? teamId;
+  final String? teamName;
+  final int? maxUses;
+  final int? useCount;
 
   bool get isExpired {
     if (expiresAt == null) return false;
     return DateTime.now().isAfter(expiresAt!);
   }
 
-  bool get isPending =>
-      status == InvitationStatus.pending && !isExpired;
+  bool get isPending {
+    if (status != InvitationStatus.pending || isExpired) return false;
+    if (isTeamInvite &&
+        maxUses != null &&
+        useCount != null &&
+        useCount! >= maxUses!) {
+      return false;
+    }
+    return true;
+  }
 
   /// Invitation parent (pas un rôle club).
   bool get isGuardian => type == InvitationTypes.guardian;
+
+  /// Code d’équipe multi-usage (pas d’e-mail nominatif).
+  bool get isTeamInvite => type == InvitationTypes.team;
 
   ClubInvitation copyWith({
     String? clubName,
@@ -67,6 +86,10 @@ class ClubInvitation {
     String? memberId,
     String? type,
     String? relation,
+    String? teamId,
+    String? teamName,
+    int? maxUses,
+    int? useCount,
   }) {
     return ClubInvitation(
       id: id,
@@ -87,6 +110,10 @@ class ClubInvitation {
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       relation: relation ?? this.relation,
+      teamId: teamId ?? this.teamId,
+      teamName: teamName ?? this.teamName,
+      maxUses: maxUses ?? this.maxUses,
+      useCount: useCount ?? this.useCount,
     );
   }
 
@@ -123,6 +150,9 @@ class ClubInvitation {
     final memberId = memberIdRaw is String && memberIdRaw.isNotEmpty
         ? memberIdRaw
         : null;
+    final teamIdRaw = lookup[FirestoreFields.teamId];
+    final teamId =
+        teamIdRaw is String && teamIdRaw.isNotEmpty ? teamIdRaw : null;
     return ClubInvitation(
       id: lookup['invitationId'] as String? ?? '',
       clubId: lookup[FirestoreFields.clubId] as String? ?? '',
@@ -138,6 +168,10 @@ class ClubInvitation {
       clubSport: lookup[FirestoreFields.clubSport] as String?,
       firstName: lookup[FirestoreFields.firstName] as String?,
       lastName: lookup[FirestoreFields.lastName] as String?,
+      teamId: teamId,
+      teamName: lookup[FirestoreFields.teamName] as String?,
+      maxUses: (lookup[FirestoreFields.maxUses] as num?)?.toInt(),
+      useCount: (lookup[FirestoreFields.useCount] as num?)?.toInt(),
     );
   }
 
@@ -165,6 +199,10 @@ class ClubInvitation {
       firstName: data[FirestoreFields.firstName] as String?,
       lastName: data[FirestoreFields.lastName] as String?,
       relation: data[FirestoreFields.relation] as String?,
+      teamId: data[FirestoreFields.teamId] as String?,
+      teamName: data[FirestoreFields.teamName] as String?,
+      maxUses: (data[FirestoreFields.maxUses] as num?)?.toInt(),
+      useCount: (data[FirestoreFields.useCount] as num?)?.toInt(),
     );
   }
 }

@@ -21,6 +21,56 @@ class InvitationLookupResult {
   final Club club;
 }
 
+/// Résultat de `createOrRefreshTeamInvite`.
+class TeamInviteResult {
+  const TeamInviteResult({
+    required this.clubId,
+    required this.teamId,
+    required this.invitationId,
+    required this.code,
+    required this.expiresAt,
+    required this.useCount,
+    required this.maxUses,
+    required this.joinUrl,
+    required this.teamName,
+  });
+
+  final String clubId;
+  final String teamId;
+  final String invitationId;
+  final String code;
+  final DateTime expiresAt;
+  final int useCount;
+  final int maxUses;
+  final String joinUrl;
+  final String teamName;
+
+  /// Parse la réponse callable ; lève [FormatException] si `expiresAt` invalide.
+  factory TeamInviteResult.fromMap(Map<String, dynamic> map) {
+    final expiresRaw = map['expiresAt'];
+    final expiresAt = expiresRaw is String && expiresRaw.isNotEmpty
+        ? DateTime.tryParse(expiresRaw)
+        : null;
+    if (expiresAt == null) {
+      throw const FormatException(
+        'Réponse createOrRefreshTeamInvite : expiresAt invalide',
+      );
+    }
+    return TeamInviteResult(
+      clubId: map['clubId'] as String? ?? '',
+      teamId: map['teamId'] as String? ?? '',
+      invitationId: map['invitationId'] as String? ?? '',
+      code: map['code'] as String? ?? '',
+      expiresAt: expiresAt,
+      useCount: (map['useCount'] as num?)?.toInt() ?? 0,
+      maxUses:
+          (map['maxUses'] as num?)?.toInt() ?? TeamInviteLimits.maxUses,
+      joinUrl: map['joinUrl'] as String? ?? '',
+      teamName: map['teamName'] as String? ?? '',
+    );
+  }
+}
+
 /// Erreur métier lisible lors de l'acceptation d'une invitation.
 class InvitationAcceptException implements Exception {
   const InvitationAcceptException(this.message);
@@ -86,12 +136,17 @@ class InvitationService {
   ///
   /// Le contrôle « invitation réservée à l'e-mail invité » est fait côté
   /// serveur ; un refus `permission-denied` est traduit en message clair.
+  /// Les codes d’équipe passent par [acceptTeamInvitation].
   Future<void> acceptInvitation({
     required ClubInvitation invitation,
     required ViroUser user,
   }) async {
     if (invitation.isGuardian) {
       throw StateError(AppCopy.join.useGuardianService);
+    }
+    if (invitation.isTeamInvite) {
+      await acceptTeamInvitation(invitation: invitation);
+      return;
     }
 
     final callable =
@@ -109,6 +164,80 @@ class InvitationService {
         callableErrorMessage(
           error,
           fallback: AppCopy.join.inviteAcceptFailed,
+        ),
+      );
+    }
+  }
+
+  /// Accepte un code d’équipe multi-usage (claim/create + roster).
+  Future<void> acceptTeamInvitation({
+    required ClubInvitation invitation,
+  }) async {
+    if (!invitation.isTeamInvite) {
+      throw StateError(AppCopy.join.useTeamInviteService);
+    }
+
+    final callable =
+        _functions.httpsCallable(cloudCallableName('acceptTeamInvitation'));
+    try {
+      await callable.call(<String, dynamic>{
+        'clubId': invitation.clubId,
+        'invitationId': invitation.id,
+      });
+    } on FirebaseFunctionsException catch (error) {
+      throw InvitationAcceptException(
+        callableErrorMessage(
+          error,
+          fallback: AppCopy.join.inviteAcceptFailed,
+        ),
+      );
+    }
+  }
+
+  /// Crée ou renvoie le code d’équipe actif (`forceRefresh` régénère).
+  Future<TeamInviteResult> createOrRefreshTeamInvite({
+    required String clubId,
+    required String teamId,
+    bool forceRefresh = false,
+  }) async {
+    final callable = _functions
+        .httpsCallable(cloudCallableName('createOrRefreshTeamInvite'));
+    try {
+      final response = await callable.call(<String, dynamic>{
+        'clubId': clubId,
+        'teamId': teamId,
+        'forceRefresh': forceRefresh,
+      });
+      return TeamInviteResult.fromMap(
+        Map<String, dynamic>.from(response.data as Map),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      throw InvitationAcceptException(
+        callableErrorMessage(
+          error,
+          fallback: AppCopy.join.teamInviteCreateFailed,
+        ),
+      );
+    }
+  }
+
+  /// Révoque (expire) le code d’équipe [invitationId].
+  Future<void> revokeTeamInvite({
+    required String clubId,
+    required String invitationId,
+  }) async {
+    final callable =
+        _functions.httpsCallable(cloudCallableName('revokeTeamInvite'));
+    try {
+      await callable.call(<String, dynamic>{
+        'clubId': clubId,
+        'invitationId': invitationId,
+      });
+    } on FirebaseFunctionsException catch (error) {
+      throw InvitationAcceptException(
+        callableErrorMessage(
+          error,
+          fallback: AppCopy.join.teamInviteRevokeFailed,
         ),
       );
     }

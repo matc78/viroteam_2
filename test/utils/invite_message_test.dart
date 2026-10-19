@@ -66,4 +66,26 @@ void main() {
       expect(message, contains('join?code=PAR001'));
     });
   });
+
+  group('buildTeamInviteMessage', () {
+    test('inclut équipe, club, code et plafond 30', () {
+      const club = Club(
+        id: 'club1',
+        name: 'ASM Volley',
+        sport: 'Volleyball',
+      );
+
+      final message = buildTeamInviteMessage(
+        club: club,
+        teamName: 'U15 Filles',
+        code: 'TEAM01',
+      );
+
+      expect(message, contains('U15 Filles'));
+      expect(message, contains('ASM Volley'));
+      expect(message, contains('TEAM01'));
+      expect(message, contains('max ${TeamInviteLimits.maxUses}'));
+      expect(message, contains('join?code=TEAM01'));
+    });
+  });
 }

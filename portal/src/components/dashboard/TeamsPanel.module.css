@@ -757,6 +757,32 @@
   }
 }
 
+.inviteRow {
+  display: flex;
+  justify-content: flex-start;
+  padding: 0.35rem 0.85rem 0.15rem;
+}
+
+.inviteButton {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #0f766e;
+  font-weight: 650;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+}
+
+.inviteButton:hover:not(:disabled) {
+  background: #f0fdfa;
+}
+
+.inviteButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .toolbar {
     flex-direction: column;

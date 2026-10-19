@@ -78,21 +78,25 @@ export type LookupInvitationPayload = {
   invitationId: string;
   code: string;
   role: string;
-  type: "member" | "guardian";
+  type: "member" | "guardian" | "team";
   status: "pending";
   firstName: string;
   lastName: string;
   /** E-mail masqué, ex. « m•••@gmail.com ». */
-  emailHint: string;
+  emailHint: string | null;
   clubName: string;
   clubSport: string;
   memberId: string | null;
   /** ISO 8601 ou null. */
   expiresAt: string | null;
+  teamId: string | null;
+  teamName: string | null;
+  useCount: number | null;
+  maxUses: number | null;
 };
 
 export type LookupInvitationResult =
-  | { found: false; reason?: "expired" }
+  | { found: false; reason?: "expired" | "exhausted" }
   | { found: true; invitation: LookupInvitationPayload };
 
 /**
@@ -173,6 +177,49 @@ export async function acceptInvitation(params: {
   invitationId: string;
 }): Promise<{ ok: true; memberId: string }> {
   return callFunction("acceptInvitation", params);
+}
+
+/** Résultat create/refresh du code d’équipe multi-usage. */
+export type TeamInviteResult = {
+  ok: true;
+  clubId: string;
+  teamId: string;
+  invitationId: string;
+  code: string;
+  expiresAt: string;
+  useCount: number;
+  maxUses: number;
+  joinUrl: string;
+  teamName: string;
+};
+
+/**
+ * Crée ou renvoie le code d’équipe (`forceRefresh` régénère).
+ */
+export async function createOrRefreshTeamInvite(params: {
+  clubId: string;
+  teamId: string;
+  forceRefresh?: boolean;
+}): Promise<TeamInviteResult> {
+  return callFunction("createOrRefreshTeamInvite", params);
+}
+
+/** Révoque (expire) le code d’équipe actif. */
+export async function revokeTeamInvite(params: {
+  clubId: string;
+  invitationId: string;
+}): Promise<{ ok: true }> {
+  return callFunction("revokeTeamInvite", params);
+}
+
+/**
+ * Accepte un code d’équipe multi-usage (claim/create + roster immédiat).
+ */
+export async function acceptTeamInvitation(params: {
+  clubId: string;
+  invitationId: string;
+}): Promise<{ ok: true; memberId: string; alreadyInTeam: boolean }> {
+  return callFunction("acceptTeamInvitation", params);
 }
 
 /** Révoque le lien parent (admin ou titulaire). */

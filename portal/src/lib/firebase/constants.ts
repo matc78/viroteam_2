@@ -328,10 +328,17 @@ export const InvitationStatus = {
   expired: "expired",
 } as const;
 
-/** `invitations.type` — membre du roster vs rattachement parent. */
+/** `invitations.type` — membre, parent, ou code d’équipe multi-usage. */
 export const InvitationTypes = {
   member: "member",
   guardian: "guardian",
+  team: "team",
+} as const;
+
+/** Limites code d’équipe multi-usage (aligné `TEAM_INVITE_*` Functions). */
+export const TeamInviteLimits = {
+  maxUses: 30,
+  ttlDays: 7,
 } as const;
 
 /** `guardians.relation` / `parentLinks.relation`. V1 : uniquement parent. */

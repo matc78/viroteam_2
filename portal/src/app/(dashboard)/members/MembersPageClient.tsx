@@ -20,6 +20,7 @@ import { useToast } from "@/components/ToastProvider";
 import {
   bureauCapabilities,
   canAddPlayerToTeam,
+  canShareTeamInvite,
   canSeeMemberContact,
   membersVisibleToViewer,
   teamsVisibleToViewer,
@@ -1595,6 +1596,7 @@ function MembersPageContent() {
         {data && membersTab === "teams" && activeClub ? (
           <TeamsPanel
             clubId={activeClub.id}
+            clubName={activeClub.name}
             teams={scopedTeams}
             members={membersVisibleToViewer({
               role: activeClubRole,
@@ -1614,6 +1616,15 @@ function MembersPageContent() {
             canRemovePlayers={caps.isAdmin}
             canAddPlayerToTeam={(team) =>
               canAddPlayerToTeam({
+                role: activeClubRole,
+                uid: user?.uid ?? null,
+                linkedMemberId,
+                team,
+                coachPermissions: activeClub?.coachPermissions,
+              })
+            }
+            canShareTeamInvite={(team) =>
+              canShareTeamInvite({
                 role: activeClubRole,
                 uid: user?.uid ?? null,
                 linkedMemberId,

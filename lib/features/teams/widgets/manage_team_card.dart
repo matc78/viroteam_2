@@ -10,6 +10,7 @@ import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/teams/widgets/add_team_member_sheet.dart';
+import 'package:viro_team_v2/features/teams/widgets/invite_team_sheet.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_messaging_links_section.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -84,6 +85,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     final canRemovePlayer = perms.canRemovePlayer(team);
     final canRemoveCoach = perms.canRemoveCoach(team);
     final canRemovePending = perms.canRemovePendingPlayer(team);
+    final canShareTeamInvite = perms.canShareTeamInvite(team);
 
     final membersAsync = ref.watch(clubMembersProvider(team.clubId));
     final membersByUid = membersAsync.value != null
@@ -149,6 +151,23 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                       team: team,
                       accent: widget.accent,
                     ),
+                  if (canShareTeamInvite) ...[
+                    const SizedBox(height: ViroSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => showInviteTeamSheet(
+                                  context,
+                                  club: widget.club,
+                                  team: team,
+                                ),
+                        icon: ViroIcon(ViroIcons.users, size: 18),
+                        label: Text(AppCopy.join.inviteTeamTitle),
+                      ),
+                    ),
+                  ],
                   _buildRosterSection(
                     title: AppCopy.teams.coachesSection,
                     titleColor: ViroColors.coachBadgeEnd,

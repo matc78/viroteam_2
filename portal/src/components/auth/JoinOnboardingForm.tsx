@@ -4,8 +4,10 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isInvitationAlreadyProcessed } from "@/lib/auth/invitationAcceptErrors";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { acceptInvitation } from "@/lib/firebase/callableService";
-import { findInvitationByCode } from "@/lib/firebase/invitationService";
+import {
+  acceptLookupInvitation,
+  findInvitationByCode,
+} from "@/lib/firebase/invitationService";
 import type { InvitationLookupResult } from "@/lib/firebase/invitationService";
 import { InvitationTypes } from "@/lib/firebase/constants";
 import { splitDisplayName } from "@/lib/firebase/types";
@@ -138,10 +140,7 @@ export function JoinOnboardingForm() {
       });
 
       try {
-        await acceptInvitation({
-          clubId: invitation.clubId,
-          invitationId: invitation.invitationId,
-        });
+        await acceptLookupInvitation(invitation);
       } catch (acceptError) {
         const message =
           acceptError instanceof Error

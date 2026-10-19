@@ -24,6 +24,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Paramètres > Notifications : bandeau quand les notifs sont coupées sur le téléphone, avec accès direct aux réglages système ; interrupteurs grisés tant que c’est le cas
 - Log structuré `push sent` (destinataires, tokens, succès / échecs) à chaque envoi de push ; un token rejeté par FCM est purgé avec son entrée `fcmTokenIndex`
 - Checklist de test manuel des push : `docs/PUSH_SMOKE.md`
+- Mise à jour obligatoire : écran bloquant « Va télécharger l’update ! » avec lien vers le store quand la version installée est sous la version minimale de `app_config/mobile` (`minVersionAndroid` / `minVersionIos`, lisible sans connexion, écrit à la console uniquement)
 
 ### Corrigé
 

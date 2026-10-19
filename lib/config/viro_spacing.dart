@@ -23,4 +23,10 @@ abstract final class ViroSpacing {
 
   static const double inputHeight = 44;
   static const double topBarHeight = 56;
+
+  /// Logo empilé des écrans plein cadre (chargement, accueil, mise à jour).
+  static const double logoHeightHero = 128;
+
+  /// Icône accolée au libellé d’un bouton pleine largeur.
+  static const double buttonIconSize = 20;
 }

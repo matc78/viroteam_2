@@ -113,6 +113,21 @@ git tag functions-v1.0.0 && git push origin functions-v1.0.0
 git tag firestore-v1.0.0 && git push origin firestore-v1.0.0
 ```
 
+### Mise à jour obligatoire
+
+Prérequis : la règle `app_config` doit être déployée (`firestore-dev-v*` / `firestore-v*`) **avant** le premier tag app qui embarque la fonctionnalité ; sinon la lecture est refusée et le blocage ne s'applique jamais (l'app ne bloque pas sur une erreur, elle la logue dans Crashlytics).
+
+Pour forcer les utilisateurs à passer sur une nouvelle version, **une fois la version réellement en ligne sur le store** (pas au tag : `release-v*` part en brouillon, et l'App Store a sa review), renseigner dans la console Firestore, base `v2-prod`, le doc `app_config/mobile` :
+
+| Champ | Exemple |
+|-------|---------|
+| `minVersionAndroid` | `2.2.7` (après publication Play Store) |
+| `minVersionIos` | `2.2.7` (après publication App Store) |
+
+Format : `X.Y.Z` ; un `v` en tête, un build `+N` ou un suffixe `-xxx` sont ignorés. Une valeur illisible ne bloque personne.
+
+Toute app dont `ProjectConfig.appVersionName` est inférieure affiche aussitôt l'écran bloquant « Va télécharger l'update ! » (même ouverte, même déconnectée). Monter le seuil trop tôt bloquerait les utilisateurs sans version disponible. Pour tester en debug, faire de même sur la base `v2-dev`, puis vider le champ.
+
 Build Android manuel (artifacts seuls) : **Actions → Release Android → Run workflow**.  
 Deploys Firebase aussi via **workflow_dispatch** (cible `dev` / `prod`).
 

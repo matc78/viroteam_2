@@ -10,6 +10,10 @@ import 'package:viro_team_v2/config/router_refresh.dart';
 
 import 'package:viro_team_v2/config/feature_flags.dart';
 
+import 'package:viro_team_v2/features/app_update/providers/app_update_providers.dart';
+
+import 'package:viro_team_v2/features/app_update/screens/app_update_required_screen.dart';
+
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 
 import 'package:viro_team_v2/features/auth/screens/auth_loading_screen.dart';
@@ -68,6 +72,8 @@ abstract final class AppRoutes {
   static const entry = '/';
 
   static const loading = '/loading';
+
+  static const updateRequired = '/update-required';
 
   static const login = '/login';
 
@@ -179,6 +185,25 @@ abstract final class AppRoutes {
   static String conversationPath(String clubId, String conversationId) =>
       '/conversations/$clubId/$conversationId';
 
+  /// Écran de mise à jour obligatoire, en mémorisant la route demandée
+  /// [from] (`?from=`) pour y revenir si l'exigence est levée.
+  static String updateRequiredPath({required Uri from}) {
+    if (from.path == loading) return updateRequired;
+    return Uri(
+      path: updateRequired,
+      queryParameters: {'from': from.toString()},
+    ).toString();
+  }
+
+  /// Destination une fois l'exigence levée : la route mémorisée par
+  /// [updateRequiredPath] si elle est interne, sinon le chargement.
+  static String afterUpdateRequired(Uri location) {
+    final from = location.queryParameters['from'];
+    final isInternal =
+        from != null && from.startsWith('/') && !from.startsWith('//');
+    return isInternal ? from : loading;
+  }
+
 }
 
 /// Extra go_router : messagerie ouverte après swipe interactif home.
@@ -205,6 +230,8 @@ final routerRefreshProvider = Provider<RouterRefreshNotifier>((ref) {
   ref.listen(pendingInvitationProvider, (previous, next) => notifier.notify());
 
   ref.listen(signUpIntentProvider, (previous, next) => notifier.notify());
+
+  ref.listen(appUpdateRequiredProvider, (previous, next) => notifier.notify());
 
   ref.onDispose(notifier.dispose);
 
@@ -244,11 +271,28 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       final path = state.matchedLocation;
 
+      // Mise à jour obligatoire : prioritaire sur tout le reste (auth comprise).
+      final updateCheck = ref.read(appUpdateRequiredProvider);
+
+      if (updateCheck.value ?? false) {
+        return path == AppRoutes.updateRequired
+            ? null
+            : AppRoutes.updateRequiredPath(from: state.uri);
+      }
+
+      if (path == AppRoutes.updateRequired) {
+        return AppRoutes.afterUpdateRequired(state.uri);
+      }
+
       final isAuth = auth.maybeWhen(data: (u) => u != null, orElse: () => false);
 
       final user = profile.maybeWhen(data: (u) => u, orElse: () => null);
 
-      final sessionResolving = auth.isLoading ||
+      // Tant que la version minimale n'est pas connue (au plus
+      // `appUpdateCheckTimeout`), on reste sur le chargement : un utilisateur
+      // à bloquer ne doit pas entrevoir l'accueil.
+      final sessionResolving = !updateCheck.hasValue ||
+          auth.isLoading ||
           (isAuth && (firestoreAuth.isLoading || profile.isLoading));
 
 
@@ -426,6 +470,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.loading,
 
         builder: (context, state) => const AuthLoadingScreen(),
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.updateRequired,
+
+        builder: (context, state) => const AppUpdateRequiredScreen(),
 
       ),
 

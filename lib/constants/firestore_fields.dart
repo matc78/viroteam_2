@@ -261,6 +261,10 @@ abstract final class FirestoreFields {
   static const String favorite = 'favorite';
   static const String lastReadAt = 'lastReadAt';
   static const String unreadCount = 'unreadCount';
+
+  // app_config/mobile — version minimale exigée (mise à jour obligatoire)
+  static const String minVersionAndroid = 'minVersionAndroid';
+  static const String minVersionIos = 'minVersionIos';
 }
 
 /// Types de conversation chat MVP.

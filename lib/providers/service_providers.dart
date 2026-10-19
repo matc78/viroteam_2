@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/services/analytics_service.dart';
 import 'package:viro_team_v2/services/account_service.dart';
 import 'package:viro_team_v2/services/announcement_service.dart';
+import 'package:viro_team_v2/services/app_update_service.dart';
 import 'package:viro_team_v2/services/auth_service.dart';
 import 'package:viro_team_v2/services/club_service.dart';
 import 'package:viro_team_v2/services/club_activity_service.dart';
@@ -79,6 +80,10 @@ final joinRequestServiceProvider = Provider<JoinRequestService>(
 
 final retourUserServiceProvider = Provider<RetourUserService>(
   (ref) => RetourUserService(),
+);
+
+final appUpdateServiceProvider = Provider<AppUpdateService>(
+  (ref) => AppUpdateService(),
 );
 
 final memberServiceProvider = Provider<MemberService>((ref) => MemberService());

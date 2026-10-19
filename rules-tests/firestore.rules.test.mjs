@@ -938,3 +938,24 @@ test("un coach journalise un type connu ; type inconnu ou résumé trop long ref
     setDoc(doc(as(PLAYER), `clubs/${CLUB}/activity_events/a4`), { ...base, actorUid: PLAYER.uid }),
   );
 });
+
+// ————————————————————————————————————————————————————————————————
+// Mise à jour obligatoire — app_config lisible par tous, écrit par personne
+// ————————————————————————————————————————————————————————————————
+
+test("app_config/mobile est lisible sans connexion mais jamais modifiable par un client", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "app_config/mobile"), {
+      minVersionAndroid: "2.2.6",
+      minVersionIos: "2.2.6",
+    });
+  });
+  await assertSucceeds(getDoc(doc(anonymous(), "app_config/mobile")));
+  await assertSucceeds(getDoc(doc(as(PLAYER), "app_config/mobile")));
+  await assertFails(
+    setDoc(doc(anonymous(), "app_config/mobile"), { minVersionAndroid: "0.0.1" }),
+  );
+  await assertFails(
+    updateDoc(doc(as(ADMIN), "app_config/mobile"), { minVersionIos: "0.0.1" }),
+  );
+});

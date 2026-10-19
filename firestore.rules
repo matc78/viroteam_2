@@ -906,6 +906,14 @@ service cloud.firestore {
     // Collections racine
     // ————————————————————————————————————————————————————————————
 
+    // Config globale de l'app (ex. `mobile` : version minimale exigée).
+    // Lue avant connexion (écran de mise à jour obligatoire) ; écrite à la
+    // console uniquement.
+    match /app_config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /retour_user/{docId} {
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid;

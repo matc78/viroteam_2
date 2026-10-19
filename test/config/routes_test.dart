@@ -26,6 +26,37 @@ void main() {
     });
   });
 
+  group('AppRoutes mise à jour obligatoire', () {
+    test('mémorise la route demandée puis y revient', () {
+      final requested = Uri.parse('/join?code=ABC');
+      final blocked = AppRoutes.updateRequiredPath(from: requested);
+      expect(Uri.parse(blocked).path, AppRoutes.updateRequired);
+      expect(
+        AppRoutes.afterUpdateRequired(Uri.parse(blocked)),
+        '/join?code=ABC',
+      );
+    });
+
+    test('depuis le chargement, pas de route à mémoriser', () {
+      expect(
+        AppRoutes.updateRequiredPath(from: Uri.parse(AppRoutes.loading)),
+        AppRoutes.updateRequired,
+      );
+      expect(
+        AppRoutes.afterUpdateRequired(Uri.parse(AppRoutes.updateRequired)),
+        AppRoutes.loading,
+      );
+    });
+
+    test('ignore une route mémorisée externe', () {
+      final location = Uri(
+        path: AppRoutes.updateRequired,
+        queryParameters: {'from': '//evil.example/x'},
+      );
+      expect(AppRoutes.afterUpdateRequired(location), AppRoutes.loading);
+    });
+  });
+
   group('AccountService.authProviderLabels', () {
     test('retourne email et google quand les deux providers sont présents', () {
       final user = _FakeUser(

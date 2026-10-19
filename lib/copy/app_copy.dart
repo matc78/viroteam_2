@@ -23,6 +23,7 @@ part 'app_copy_calendar.dart';
 part 'app_copy_club_setup.dart';
 part 'app_copy_chat.dart';
 part 'app_copy_notifications.dart';
+part 'app_copy_app_update.dart';
 
 /// Point d’entrée des libellés UI.
 abstract final class AppCopy {
@@ -43,4 +44,5 @@ abstract final class AppCopy {
   static const clubSetup = AppCopyClubSetup();
   static const chat = AppCopyChat();
   static const notifications = AppCopyNotifications();
+  static const appUpdate = AppCopyAppUpdate();
 }

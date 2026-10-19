@@ -15,6 +15,7 @@ abstract final class ViroIcons {
   static IconData get chevronRight => PhosphorIconsRegular.caretRight;
   static IconData get chevronLeft => PhosphorIconsRegular.caretLeft;
   static IconData get close => PhosphorIconsRegular.x;
+  static IconData get appUpdate => PhosphorIconsRegular.downloadSimple;
 
   // Lieux & planning
   static IconData get place => PhosphorIconsRegular.mapPin;
@@ -102,6 +103,7 @@ abstract final class ViroIcons {
             ('arrowUp', arrowUp),
             ('chevronRight', chevronRight),
             ('close', close),
+            ('appUpdate', appUpdate),
           ],
         ),
         ViroIconCatalogGroup(

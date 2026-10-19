@@ -301,6 +301,18 @@ structure: {
 
 ---
 
+### `app_config/mobile` (collection racine)
+> Version minimale exigée de l'app mobile (mise à jour obligatoire). Lecture publique (avant connexion), écriture console uniquement. Un doc par base (`v2-dev`, `v2-prod`).
+
+| Champ | Type | Description |
+|---|---|---|
+| `minVersionAndroid` | string? | Ex. `2.2.7` — en dessous, l'app Android affiche l'écran « Va télécharger l'update ! » |
+| `minVersionIos` | string? | Idem iOS |
+
+> Champ absent, vide ou illisible → aucun blocage.
+
+---
+
 ### `join_requests/{requestId}` (collection racine)
 > Demandes d'adhésion à un club.
 

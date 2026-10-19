@@ -85,6 +85,18 @@ abstract final class ProjectConfig {
   static const String invitationsSubcollection = 'invitations';
   static const String joinRequestsCollection = 'join_requests';
   static const String retourUserCollection = 'retour_user';
+
+  /// Config globale app, lisible sans être connecté (écriture console only).
+  static const String appConfigCollection = 'app_config';
+
+  /// Doc `app_config/mobile` : versions minimales Android / iOS.
+  static const String mobileAppConfigDoc = 'mobile';
+
+  /// Attente max de `app_config/mobile` au démarrage : au-delà, l'app
+  /// démarre sans exigence de version (le blocage s'applique dès que
+  /// Firestore répond).
+  static const Duration appUpdateCheckTimeout = Duration(seconds: 3);
+
   static const String eventsSubcollection = 'events';
   static const String announcementsSubcollection = 'announcements';
   static const String teamsSubcollection = 'teams';

@@ -56,6 +56,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 ### Corrigé
 
 - Dates décalées autour des changements d’heure (ajout de `Duration(days: n)` sur des dates locales) : jours en double / décalés dans le sélecteur du planning, séances récurrentes hebdo créées la veille après le passage à l’heure d’hiver, « Demain » / « Hier » faux le jour du changement, fenêtre « à venir » et écart en jours décalés au printemps. Nouveau helper `addCalendarDays` / `calendarDaysBetween` (`lib/utils/calendar_days.dart`)
+- Release iOS : `pod update` si `Podfile.lock` pinne un Firebase SDK trop ancien pour FlutterFire (blocage CocoaPods sur `Firebase/Functions`)
 
 ### Note
 

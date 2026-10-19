@@ -73,7 +73,16 @@ jobs:
       - name: Dépendances
         run: |
           flutter pub get
-          cd ios && pod install
+          # `pod install` échoue si Podfile.lock pinne un Firebase SDK
+          # plus ancien que celui exigé par FlutterFire (ex. 12.13 vs 12.19).
+          cd ios && (pod install --repo-update || pod update)
+
+      - name: Archive Podfile.lock (resync repo si mis à jour)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-Podfile.lock
+          path: ios/Podfile.lock
+          if-no-files-found: ignore
 
       - name: Version et build number
         id: ver

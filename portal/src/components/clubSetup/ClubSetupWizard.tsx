@@ -17,13 +17,11 @@ import { clearSignupIntent } from "@/lib/auth/signupIntent";
 import { ClubSetupAnalytics } from "@/lib/clubSetup/clubSetupAnalytics";
 import { createClubFromDraft } from "@/lib/clubSetup/clubSetupService";
 import { ClubSetupSteps } from "@/lib/clubSetup/constants";
-import { ClubSetupFormat } from "@/lib/clubSetup/clubSetupFormat";
 import {
   canProceedIdentity,
   canProceedInfo,
   canProceedObjectives,
   hasSavedProgress,
-  type PracticeLocation,
 } from "@/lib/clubSetup/clubSetupDraft";
 import {
   addressLineError,
@@ -48,13 +46,7 @@ export function ClubSetupWizard() {
   const pendingOverlay = usePendingOverlay("Création du club…");
 
   const draftApi = useClubSetupDraft(userId);
-  const {
-    draft,
-    isReady,
-    hadPersistedDraft,
-    setPracticeLocations,
-    setUseClubAddressAsFirstLocation,
-  } = draftApi;
+  const { draft, isReady, hadPersistedDraft } = draftApi;
 
   const [currentStep, setCurrentStep] = useState<number>(
     ClubSetupSteps.prerequisites,
@@ -82,133 +74,9 @@ export function ClubSetupWizard() {
     ClubSetupAnalytics.trackStepViewed(draft.currentStep);
   }, [draft.currentStep, hadPersistedDraft, isReady]);
 
-  const buildHeadquartersLocation = useCallback(() => {
-    if (!draft.city.trim() && !draft.address.trim()) return null;
-    return ClubSetupFormat.headquartersPracticeLocation({
-      sport: draft.sport,
-      address: draft.address,
-      postalCode: draft.postalCode,
-      city: draft.city,
-    });
-  }, [draft.address, draft.city, draft.postalCode, draft.sport]);
-
-  const withoutHeadquartersLocations = useCallback(
-    (locations: PracticeLocation[]) =>
-      locations.filter((location) => !location.linkedToHeadquarters),
-    [],
-  );
-
-  const resolvePracticeLocations = useCallback(() => {
-    const locations = withoutHeadquartersLocations(draft.practiceLocations);
-    if (!draft.useClubAddressAsFirstLocation) return locations;
-
-    const clubAddressLocation = buildHeadquartersLocation();
-    if (!clubAddressLocation) return locations;
-    return [clubAddressLocation, ...locations];
-  }, [
-    buildHeadquartersLocation,
-    draft.practiceLocations,
-    draft.useClubAddressAsFirstLocation,
-    withoutHeadquartersLocations,
-  ]);
-
   const canProceedLocation = useCallback(() => {
-    const locations = resolvePracticeLocations();
-    if (cityError(draft.city, { required: true })) return false;
-    if (postalCodeError(draft.postalCode)) return false;
-    if (addressLineError(draft.address)) return false;
-    if (locations.length === 0) return false;
-    for (const location of locations) {
-      if (location.city && cityError(location.city)) return false;
-      if (location.address && addressLineError(location.address)) return false;
-    }
-    return true;
-  }, [
-    draft.address,
-    draft.city,
-    draft.postalCode,
-    resolvePracticeLocations,
-  ]);
-
-  const upsertClubHeadquartersLocation = useCallback(
-    (showErrorIfEmpty: boolean) => {
-      const clubAddressLocation = buildHeadquartersLocation();
-      if (!clubAddressLocation) {
-        if (showErrorIfEmpty) {
-          setErrorMessage("Renseignez d'abord la ville du club.");
-        }
-        return false;
-      }
-
-      const otherLocations = withoutHeadquartersLocations(
-        draft.practiceLocations,
-      );
-      const nextLocations = [clubAddressLocation, ...otherLocations];
-      if (
-        ClubSetupFormat.areSameLocations(
-          draft.practiceLocations,
-          nextLocations,
-        )
-      ) {
-        return true;
-      }
-
-      setPracticeLocations(nextLocations);
-      return true;
-    },
-    [
-      buildHeadquartersLocation,
-      draft.practiceLocations,
-      setPracticeLocations,
-      withoutHeadquartersLocations,
-    ],
-  );
-
-  const removeClubHeadquartersAsLocation = useCallback(() => {
-    const nextLocations = withoutHeadquartersLocations(
-      draft.practiceLocations,
-    );
-    if (
-      ClubSetupFormat.areSameLocations(
-        draft.practiceLocations,
-        nextLocations,
-      )
-    ) {
-      return;
-    }
-    setPracticeLocations(nextLocations);
-  }, [
-    draft.practiceLocations,
-    setPracticeLocations,
-    withoutHeadquartersLocations,
-  ]);
-
-  useEffect(() => {
-    if (!isReady || !draft.useClubAddressAsFirstLocation) return;
-    const updated = upsertClubHeadquartersLocation(false);
-    if (!updated) {
-      removeClubHeadquartersAsLocation();
-    }
-  }, [
-    draft.address,
-    draft.city,
-    draft.postalCode,
-    draft.sport,
-    draft.useClubAddressAsFirstLocation,
-    isReady,
-    removeClubHeadquartersAsLocation,
-    upsertClubHeadquartersLocation,
-  ]);
-
-  function handleUseClubAddressChanged(useClubAddress: boolean) {
-    if (useClubAddress) {
-      const added = upsertClubHeadquartersLocation(true);
-      setUseClubAddressAsFirstLocation(added);
-      return;
-    }
-    removeClubHeadquartersAsLocation();
-    setUseClubAddressAsFirstLocation(false);
-  }
+    return canProceedInfo(draft);
+  }, [draft]);
 
   function validateCurrentStep(): boolean {
     setErrorMessage(null);
@@ -231,11 +99,10 @@ export function ClubSetupWizard() {
             cityError(draft.city, { required: true }) ??
               postalCodeError(draft.postalCode) ??
               addressLineError(draft.address) ??
-              "Ville et au moins un lieu de pratique requis.",
+              "Ville et au moins un lieu de pratique nommé requis.",
           );
           return false;
         }
-        upsertClubHeadquartersLocation(false);
         return true;
       default:
         return true;
@@ -278,10 +145,6 @@ export function ClubSetupWizard() {
       return;
     }
 
-    if (draft.useClubAddressAsFirstLocation) {
-      upsertClubHeadquartersLocation(false);
-    }
-
     if (!canProceedIdentity(draft)) {
       setErrorMessage("Nom du club et sport requis.");
       return;
@@ -290,17 +153,12 @@ export function ClubSetupWizard() {
       setErrorMessage("Sélectionnez au moins un objectif.");
       return;
     }
-    if (
-      !canProceedInfo({
-        ...draft,
-        practiceLocations: resolvePracticeLocations(),
-      })
-    ) {
+    if (!canProceedInfo(draft)) {
       setErrorMessage(
         cityError(draft.city, { required: true }) ??
           postalCodeError(draft.postalCode) ??
           addressLineError(draft.address) ??
-          "Ville et au moins un lieu de pratique requis.",
+          "Ville et au moins un lieu de pratique nommé requis.",
       );
       return;
     }
@@ -317,10 +175,7 @@ export function ClubSetupWizard() {
       const clubId = await createClubFromDraft({
         founderUid: userId,
         founder: profile,
-        draft: {
-          ...draft,
-          practiceLocations: resolvePracticeLocations(),
-        },
+        draft,
       });
       ClubSetupAnalytics.trackCompleted({
         sport: draft.sport,
@@ -408,19 +263,11 @@ export function ClubSetupWizard() {
             address={draft.address}
             sport={draft.sport}
             locations={draft.practiceLocations}
-            useClubAddressAsFirstLocation={draft.useClubAddressAsFirstLocation}
             onCityChange={draftApi.setCity}
             onPostalCodeChange={draftApi.setPostalCode}
             onAddressChange={draftApi.setAddress}
-            onUseClubAddressChanged={handleUseClubAddressChanged}
             onAddLocation={draftApi.addPracticeLocation}
-            onRemoveLocation={(index) => {
-              const removed = draft.practiceLocations[index];
-              if (removed?.linkedToHeadquarters) {
-                setUseClubAddressAsFirstLocation(false);
-              }
-              draftApi.removePracticeLocation(index);
-            }}
+            onRemoveLocation={draftApi.removePracticeLocation}
           />
         );
       case ClubSetupSteps.recap:

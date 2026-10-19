@@ -92,7 +92,6 @@ class ClubSetupDraft {
     this.currentStep = 0,
     this.memberCountRange,
     this.brandColorHex = ClubSetupDefaults.brandColorHex,
-    this.useClubAddressAsFirstLocation = true,
   })  : sport = sport ?? ClubSports.all.first,
         objectives = objectives ?? <String>{},
         practiceLocations = practiceLocations ?? [];
@@ -110,7 +109,6 @@ class ClubSetupDraft {
   int currentStep;
   String? memberCountRange;
   String brandColorHex;
-  bool useClubAddressAsFirstLocation;
 
   /// Indique si le brouillon contient des données saisies (hors étape courante).
   bool get hasSavedProgress =>
@@ -123,8 +121,7 @@ class ClubSetupDraft {
       memberCountRange != null ||
       logoFilePath != null ||
       currentStep > 0 ||
-      brandColorHex != ClubSetupDefaults.brandColorHex ||
-      !useClubAddressAsFirstLocation;
+      brandColorHex != ClubSetupDefaults.brandColorHex;
 
   bool get canProceedIdentity => name.trim().length >= 2 && sport.isNotEmpty;
 
@@ -142,7 +139,25 @@ class ClubSetupDraft {
     return true;
   }
 
-  bool get canProceedPracticeLocations => practiceLocations.isNotEmpty;
+  bool get canProceedPracticeLocations {
+    if (practiceLocations.isEmpty) return false;
+    for (final location in practiceLocations) {
+      if (location.name.trim().isEmpty) return false;
+      final city = location.city;
+      if (city != null &&
+          city.trim().isNotEmpty &&
+          cityError(city) != null) {
+        return false;
+      }
+      final address = location.address;
+      if (address != null &&
+          address.trim().isNotEmpty &&
+          addressLineError(address) != null) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   bool get canProceedInfo =>
       canProceedHeadquarters && canProceedPracticeLocations;
@@ -162,7 +177,6 @@ class ClubSetupDraft {
       currentStep: currentStep,
       memberCountRange: memberCountRange,
       brandColorHex: brandColorHex,
-      useClubAddressAsFirstLocation: useClubAddressAsFirstLocation,
     );
   }
 
@@ -174,13 +188,13 @@ class ClubSetupDraft {
         'city': city,
         'postalCode': postalCode,
         'address': address,
-        'practiceLocations':
-            practiceLocations.map((location) => location.toMap()).toList(),
+        'practiceLocations': ClubSetupFormat.withoutLinkedHeadquarters(
+          practiceLocations,
+        ).map((location) => location.toFirestoreMap()).toList(),
         'description': description,
         'currentStep': currentStep,
         'memberCountRange': memberCountRange,
         'brandColorHex': brandColorHex,
-        'useClubAddressAsFirstLocation': useClubAddressAsFirstLocation,
         'wizardVersion': ClubSetupSteps.wizardVersion,
       };
 
@@ -192,19 +206,12 @@ class ClubSetupDraft {
     final postalCode = json['postalCode'] as String? ?? '';
     final address = json['address'] as String? ?? '';
 
-    final locations = ClubSetupFormat.migrateLinkedHeadquarters(
-      address: address,
-      postalCode: postalCode,
-      city: city,
-      sport: sport,
-      locations: locationsRaw
+    final locations = ClubSetupFormat.withoutLinkedHeadquarters(
+      locationsRaw
           .whereType<Map<String, dynamic>>()
           .map(PracticeLocation.fromMap)
           .toList(),
     );
-
-    final useClubAddress = json['useClubAddressAsFirstLocation'] as bool? ??
-        ClubSetupFormat.linkedHeadquartersIndex(locations) >= 0;
 
     return ClubSetupDraft(
       name: json['name'] as String? ?? '',
@@ -225,7 +232,6 @@ class ClubSetupDraft {
       ),
       brandColorHex: json['brandColorHex'] as String? ??
           ClubSetupDefaults.brandColorHex,
-      useClubAddressAsFirstLocation: useClubAddress,
     );
   }
 }

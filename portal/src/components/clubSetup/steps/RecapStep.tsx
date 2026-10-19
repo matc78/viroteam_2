@@ -95,8 +95,11 @@ export function RecapStep({ draft }: RecapStepProps) {
                           </span>
                         ) : null}
                         <span className={styles.locationPlace}>
-                          {place || location.name}
+                          {location.name.trim() || place || "Lieu"}
                         </span>
+                        {place ? (
+                          <span className={styles.locationAddress}>{place}</span>
+                        ) : null}
                       </article>
                     );
                   })}

@@ -5,8 +5,10 @@ import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/practice_location_categories.dart';
+import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
+import 'package:viro_team_v2/features/club_setup/widgets/french_address_fields.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/setup_step_shell.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
@@ -14,15 +16,13 @@ import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
-/// Étape lieux d'entraînement/match — formulaire, option siège, puis récap.
+/// Étape lieux d'entraînement/match — formulaire puis récap.
 class PracticeLocationsStep extends StatefulWidget {
   const PracticeLocationsStep({
     super.key,
     required this.sport,
     required this.fallbackCity,
-    required this.hasClubStreetAddress,
-    required this.useClubAddressAsFirstLocation,
-    required this.onUseClubAddressChanged,
+    required this.addressService,
     required this.locations,
     required this.onAdd,
     required this.onRemove,
@@ -31,9 +31,7 @@ class PracticeLocationsStep extends StatefulWidget {
 
   final String sport;
   final String fallbackCity;
-  final bool hasClubStreetAddress;
-  final bool useClubAddressAsFirstLocation;
-  final void Function(bool value) onUseClubAddressChanged;
+  final FrenchAddressService addressService;
   final List<PracticeLocation> locations;
   final void Function(PracticeLocation location) onAdd;
   final void Function(int index) onRemove;
@@ -45,7 +43,9 @@ class PracticeLocationsStep extends StatefulWidget {
 
 class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
   late String _category;
+  late final TextEditingController _nameController;
   late final TextEditingController _cityController;
+  late final TextEditingController _postalController;
   late final TextEditingController _customCategoryController;
   late final TextEditingController _addressController;
 
@@ -53,7 +53,9 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
   void initState() {
     super.initState();
     _category = PracticeLocationCategories.defaultForSport(widget.sport);
+    _nameController = TextEditingController();
     _cityController = TextEditingController(text: widget.fallbackCity);
+    _postalController = TextEditingController();
     _customCategoryController = TextEditingController();
     _addressController = TextEditingController();
   }
@@ -77,7 +79,9 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _cityController.dispose();
+    _postalController.dispose();
     _customCategoryController.dispose();
     _addressController.dispose();
     super.dispose();
@@ -85,12 +89,15 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
 
   /// Indique si le formulaire manuel est prêt à être soumis.
   bool get _canSubmit {
+    final name = _nameController.text.trim();
     final city = _cityController.text.trim().isEmpty
         ? widget.fallbackCity.trim()
         : _cityController.text.trim();
+    final postal = _postalController.text.trim();
     final address = _addressController.text.trim();
-    if (city.isEmpty || address.isEmpty) return false;
+    if (name.isEmpty || city.isEmpty || address.isEmpty) return false;
     if (cityError(city) != null) return false;
+    if (postal.isNotEmpty && postalCodeError(postal) != null) return false;
     if (addressLineError(address) != null) return false;
     if (_category == PracticeLocationCategories.other &&
         _customCategoryController.text.trim().isEmpty) {
@@ -110,12 +117,7 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
     final formattedAddress = formatAddressLine(_addressController.text);
 
     final location = PracticeLocation(
-      name: ClubSetupFormat.practiceLocationName(
-        category: _category,
-        city: formattedCity,
-        categoryCustom:
-            _category == PracticeLocationCategories.other ? custom : null,
-      ),
+      name: _nameController.text.trim(),
       city: formattedCity,
       address: formattedAddress,
       category: _category,
@@ -123,7 +125,9 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
           _category == PracticeLocationCategories.other ? custom : null,
     );
     widget.onAdd(location);
+    _nameController.clear();
     _addressController.clear();
+    _postalController.clear();
     if (_category == PracticeLocationCategories.other) {
       _customCategoryController.clear();
     }
@@ -135,15 +139,12 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
     final theme = Theme.of(context).textTheme;
     final accent = ClubSetupUi.stepAccent(ClubSetupSteps.practiceLocations);
     final categories = PracticeLocationCategories.forSport(widget.sport);
-    final hasManualLocations =
-        widget.locations.any((location) => !location.linkedToHeadquarters);
-    final hasHeadquarters =
-        widget.locations.any((location) => location.linkedToHeadquarters);
+    final hasLocations = widget.locations.isNotEmpty;
     final canSubmit = _canSubmit;
 
     return SetupStepShell(
       centerBody: false,
-      subtitle: hasHeadquarters
+      subtitle: hasLocations
           ? AppCopy.clubSetup.practiceSubtitleOther
           : AppCopy.clubSetup.practiceSubtitleFirst,
       child: SingleChildScrollView(
@@ -164,6 +165,17 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                     fontWeight: FontWeight.w700,
                     color: ViroColors.primary800,
                   ),
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: AppCopy.clubSetup.locationNameLabel,
+                    hintText: AppCopy.clubSetup.locationNameHint,
+                    isDense: true,
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
                 Text(
@@ -230,22 +242,15 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                   ),
                 ],
                 const SizedBox(height: ViroSpacing.sm),
-                TextFormField(
-                  controller: _cityController,
-                  decoration: InputDecoration(
-                    labelText: AppCopy.clubSetup.cityLabel,
-                    isDense: true,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: ViroSpacing.xs),
-                TextFormField(
-                  controller: _addressController,
-                  decoration: InputDecoration(
-                    labelText: AppCopy.clubSetup.addressLabel,
-                    isDense: true,
-                  ),
-                  onChanged: (_) => setState(() {}),
+                FrenchAddressFields(
+                  cityController: _cityController,
+                  postalController: _postalController,
+                  addressController: _addressController,
+                  addressService: widget.addressService,
+                  accent: accent,
+                  addressLabel: AppCopy.clubSetup.addressLabel,
+                  addressHint: AppCopy.clubSetup.addressHint,
+                  onFieldChanged: () => setState(() {}),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
                 Align(
@@ -273,7 +278,7 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                         color: ViroColors.white,
                       ),
                       label: Text(
-                        hasManualLocations || hasHeadquarters
+                        hasLocations
                             ? AppCopy.clubSetup.addAnotherLocation
                             : AppCopy.clubSetup.addThisLocation,
                       ),
@@ -282,12 +287,6 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: ViroSpacing.sm),
-          _UseClubAddressOption(
-            selected: widget.useClubAddressAsFirstLocation,
-            hasStreetAddress: widget.hasClubStreetAddress,
-            onChanged: widget.onUseClubAddressChanged,
           ),
           if (widget.locations.isNotEmpty) ...[
             const SizedBox(height: ViroSpacing.md),
@@ -307,90 +306,13 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                   _LocationChip(
                     location: widget.locations[index],
                     accent: accent,
-                    onRemove: widget.locations[index].linkedToHeadquarters
-                        ? () => widget.onUseClubAddressChanged(false)
-                        : () => widget.onRemove(index),
+                    onRemove: () => widget.onRemove(index),
                   ),
                 ],
               ],
             ),
           ],
         ],
-        ),
-      ),
-    );
-  }
-}
-
-class _UseClubAddressOption extends StatelessWidget {
-  const _UseClubAddressOption({
-    required this.selected,
-    required this.hasStreetAddress,
-    required this.onChanged,
-  });
-
-  final bool selected;
-  final bool hasStreetAddress;
-  final void Function(bool value) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context).textTheme;
-    final accent = ClubSetupUi.stepAccent(ClubSetupSteps.practiceLocations);
-
-    return ViroCard(
-      onTap: () => onChanged(!selected),
-      elevated: false,
-      margin: EdgeInsets.zero,
-      padding: EdgeInsets.zero,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  ViroSpacing.sm,
-                  ViroSpacing.sm,
-                  ViroSpacing.xs,
-                  ViroSpacing.sm,
-                ),
-                child: Text(
-                  hasStreetAddress
-                      ? AppCopy.clubSetup.useHeadquartersAddress
-                      : AppCopy.clubSetup.useHeadquartersCity,
-                  style: theme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: ViroColors.primary800,
-                    height: 1.25,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(
-              width: 40,
-              child: AnimatedContainer(
-                duration: ViroMotion.fast,
-                curve: ViroMotion.enter,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: selected ? accent : ViroColors.white,
-                  border: Border(
-                    left: BorderSide(
-                      color: selected ? accent : ViroColors.gray200,
-                    ),
-                  ),
-                ),
-                child: selected
-                    ? ViroIcon(
-                        ViroIcons.check,
-                        color: ViroColors.white,
-                        size: 18,
-                      )
-                    : null,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -425,7 +347,8 @@ class _LocationChip extends StatelessWidget {
     final details = [cityLabel, addressLabel]
         .where((part) => part.isNotEmpty)
         .join(' · ');
-    final detailsLabel = details.isNotEmpty ? details : location.name;
+    final nameLabel =
+        location.name.trim().isNotEmpty ? location.name.trim() : details;
 
     return Container(
       padding: EdgeInsets.zero,
@@ -470,14 +393,25 @@ class _LocationChip extends StatelessWidget {
                               ),
                             ),
                           Text(
-                            detailsLabel,
+                            nameLabel,
                             softWrap: true,
                             style: theme.labelSmall?.copyWith(
                               color: ViroColors.primary800,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w700,
                               height: 1.25,
                             ),
                           ),
+                          if (details.isNotEmpty &&
+                              details != nameLabel)
+                            Text(
+                              details,
+                              softWrap: true,
+                              style: theme.labelSmall?.copyWith(
+                                color: ViroColors.gray600,
+                                fontWeight: FontWeight.w500,
+                                height: 1.25,
+                              ),
+                            ),
                         ],
                       ),
                     ),

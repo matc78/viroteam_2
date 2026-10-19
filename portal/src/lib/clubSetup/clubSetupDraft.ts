@@ -6,7 +6,6 @@ import {
   ClubSetupSteps,
   ClubSports,
 } from "./constants";
-import { ClubSetupFormat } from "./clubSetupFormat";
 import {
   addressLineError,
   cityError,
@@ -23,7 +22,7 @@ export type PracticeLocation = {
   category?: string;
   /** Libellé libre si catégorie = Autre. */
   categoryCustom?: string;
-  /** Lieu dérivé du siège (mis à jour tant que la case est cochée). */
+  /** Legacy brouillon — écarté à la restauration. */
   linkedToHeadquarters?: boolean;
 };
 
@@ -43,8 +42,6 @@ export type ClubSetupDraft = {
   maxReachedStep: number;
   memberCountRange: string | null;
   brandColorHex: string;
-  /** Case « siège = lieu de pratique » (persistée pour reprise de brouillon). */
-  useClubAddressAsFirstLocation: boolean;
 };
 
 export function createEmptyClubSetupDraft(): ClubSetupDraft {
@@ -62,7 +59,6 @@ export function createEmptyClubSetupDraft(): ClubSetupDraft {
     maxReachedStep: ClubSetupSteps.prerequisites,
     memberCountRange: null,
     brandColorHex: ClubSetupDefaults.brandColorHex,
-    useClubAddressAsFirstLocation: true,
   };
 }
 
@@ -80,6 +76,7 @@ export function canProceedInfo(draft: ClubSetupDraft): boolean {
   if (addressLineError(draft.address)) return false;
   if (draft.practiceLocations.length === 0) return false;
   for (const location of draft.practiceLocations) {
+    if (!location.name.trim()) return false;
     if (location.city && cityError(location.city)) return false;
     if (location.address && addressLineError(location.address)) return false;
   }
@@ -97,8 +94,7 @@ export function hasSavedProgress(draft: ClubSetupDraft): boolean {
     draft.memberCountRange !== null ||
     draft.logoDataUrl !== null ||
     draft.currentStep > 0 ||
-    draft.brandColorHex !== ClubSetupDefaults.brandColorHex ||
-    !draft.useClubAddressAsFirstLocation
+    draft.brandColorHex !== ClubSetupDefaults.brandColorHex
   );
 }
 
@@ -116,9 +112,34 @@ type SerializedDraft = {
   maxReachedStep?: number;
   memberCountRange: string | null;
   brandColorHex: string;
+  /** Legacy — ignoré à la lecture. */
   useClubAddressAsFirstLocation?: boolean;
   wizardVersion: number;
 };
+
+/** Normalise un lieu pour persistance (sans flag siège legacy). */
+function serializePracticeLocation(location: PracticeLocation): PracticeLocation {
+  return {
+    name: location.name,
+    ...(location.city ? { city: location.city } : {}),
+    ...(location.address ? { address: location.address } : {}),
+    ...(location.category ? { category: location.category } : {}),
+    ...(location.categoryCustom
+      ? { categoryCustom: location.categoryCustom }
+      : {}),
+  };
+}
+
+/**
+ * Restaure les lieux : écarte ceux liés au siège (auto-ajout legacy).
+ */
+function sanitizePracticeLocations(
+  locations: PracticeLocation[],
+): PracticeLocation[] {
+  return locations
+    .filter((location) => !location.linkedToHeadquarters)
+    .map(serializePracticeLocation);
+}
 
 export function serializeClubSetupDraft(draft: ClubSetupDraft): SerializedDraft {
   return {
@@ -129,22 +150,12 @@ export function serializeClubSetupDraft(draft: ClubSetupDraft): SerializedDraft 
     city: draft.city,
     postalCode: draft.postalCode,
     address: draft.address,
-    practiceLocations: draft.practiceLocations.map((location) => ({
-      name: location.name,
-      ...(location.city ? { city: location.city } : {}),
-      address: location.address,
-      ...(location.category ? { category: location.category } : {}),
-      ...(location.categoryCustom
-        ? { categoryCustom: location.categoryCustom }
-        : {}),
-      ...(location.linkedToHeadquarters ? { linkedToHeadquarters: true } : {}),
-    })),
+    practiceLocations: sanitizePracticeLocations(draft.practiceLocations),
     description: draft.description,
     currentStep: draft.currentStep,
     maxReachedStep: draft.maxReachedStep,
     memberCountRange: draft.memberCountRange,
     brandColorHex: draft.brandColorHex,
-    useClubAddressAsFirstLocation: draft.useClubAddressAsFirstLocation,
     wizardVersion: ClubSetupSteps.wizardVersion,
   };
 }
@@ -165,17 +176,8 @@ export function deserializeClubSetupDraft(
       : ClubSetupSteps.normalizePersistedStep(json.maxReachedStep, wizardVersion),
   );
 
-  const sport = json.sport ?? ClubSports.all[0];
-  const city = json.city ?? "";
-  const postalCode = json.postalCode ?? "";
-  const address = json.address ?? "";
-
-  const practiceLocations = ClubSetupFormat.migrateLinkedHeadquarters({
-    sport,
-    city,
-    postalCode,
-    address,
-    locations: (json.practiceLocations ?? []).map((location) => ({
+  const practiceLocations = sanitizePracticeLocations(
+    (json.practiceLocations ?? []).map((location) => ({
       name: location.name ?? "",
       ...(location.city ? { city: location.city } : {}),
       address: location.address,
@@ -185,21 +187,16 @@ export function deserializeClubSetupDraft(
         : {}),
       ...(location.linkedToHeadquarters ? { linkedToHeadquarters: true } : {}),
     })),
-  });
-
-  const useClubAddressAsFirstLocation =
-    typeof json.useClubAddressAsFirstLocation === "boolean"
-      ? json.useClubAddressAsFirstLocation
-      : ClubSetupFormat.linkedHeadquartersIndex(practiceLocations) >= 0;
+  );
 
   return {
     name: json.name ?? "",
-    sport,
+    sport: json.sport ?? ClubSports.all[0],
     logoDataUrl: json.hasLogo ? logoDataUrl : null,
     objectives: new Set(json.objectives ?? []),
-    city,
-    postalCode,
-    address,
+    city: json.city ?? "",
+    postalCode: json.postalCode ?? "",
+    address: json.address ?? "",
     practiceLocations,
     description: json.description ?? "",
     currentStep,
@@ -208,7 +205,6 @@ export function deserializeClubSetupDraft(
       json.memberCountRange,
     ),
     brandColorHex: json.brandColorHex ?? ClubSetupDefaults.brandColorHex,
-    useClubAddressAsFirstLocation,
   };
 }
 

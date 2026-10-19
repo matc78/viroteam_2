@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -37,21 +36,9 @@ String addEventPracticeLocationLabel(PracticeLocation location) {
   return location.name;
 }
 
-/// Index du siège s’il existe, sinon le premier lieu, sinon `-1`.
+/// Index du premier lieu de pratique, ou `-1` s’il n’y en a pas.
 int addEventDefaultLocationIndex(Club club) {
-  final locations = club.practiceLocations;
-  if (locations.isEmpty) return -1;
-  final linked = ClubSetupFormat.linkedHeadquartersIndex(locations);
-  if (linked >= 0) return linked;
-  final headquarters = ClubSetupFormat.headquartersLocationIndex(
-    address: club.address ?? '',
-    postalCode: club.postalCode ?? '',
-    city: club.city ?? '',
-    sport: club.sport,
-    locations: locations,
-  );
-  if (headquarters >= 0) return headquarters;
-  return 0;
+  return club.practiceLocations.isEmpty ? -1 : 0;
 }
 
 /// RDV = début − 30 min (borné à 00:00).

@@ -31,12 +31,23 @@ describe("clubSetupDraft validation", () => {
     expect(canProceedObjectives(draft)).toBe(true);
   });
 
-  it("exige ville et lieu de pratique", () => {
+  it("exige ville et lieu de pratique nommé", () => {
     const draft = createEmptyClubSetupDraft();
     draft.city = "Paris";
     expect(canProceedInfo(draft)).toBe(false);
     draft.practiceLocations.push({ name: "Gymnase municipal" });
     expect(canProceedInfo(draft)).toBe(true);
+  });
+
+  it("refuse un lieu sans nom", () => {
+    const draft = createEmptyClubSetupDraft();
+    draft.city = "Paris";
+    draft.practiceLocations.push({
+      name: "   ",
+      city: "Paris",
+      address: "1 rue Test",
+    });
+    expect(canProceedInfo(draft)).toBe(false);
   });
 });
 
@@ -47,7 +58,6 @@ describe("clubSetupDraft serialization", () => {
     draft.objectives.add(ClubObjectives.fees);
     draft.currentStep = ClubSetupSteps.objectives;
     draft.memberCountRange = "50";
-    draft.useClubAddressAsFirstLocation = false;
 
     const serialized = serializeClubSetupDraft(draft);
     const restored = deserializeClubSetupDraft(serialized, null);
@@ -57,37 +67,44 @@ describe("clubSetupDraft serialization", () => {
     expect(restored.currentStep).toBe(ClubSetupSteps.objectives);
     expect(restored.maxReachedStep).toBe(ClubSetupSteps.objectives);
     expect(restored.memberCountRange).toBe("50");
-    expect(restored.useClubAddressAsFirstLocation).toBe(false);
   });
 
-  it("round-trip PracticeLocation avec linkedToHeadquarters", () => {
-    const draft = createEmptyClubSetupDraft();
-    draft.practiceLocations = [
-      {
-        name: "Stade — Lyon",
-        city: "Lyon",
-        address: "1 rue du Stade, 69000 Lyon",
-        category: PracticeLocationCategories.stadium,
-        linkedToHeadquarters: true,
-      },
-      {
-        name: "Forêt — Lyon",
-        city: "Lyon",
-        address: "Bois de la Croix",
-        category: PracticeLocationCategories.forest,
-      },
-    ];
-
+  it("écarte les lieux linkedToHeadquarters à la restauration", () => {
     const restored = deserializeClubSetupDraft(
-      serializeClubSetupDraft(draft),
+      {
+        name: "Club",
+        sport: "Football",
+        hasLogo: false,
+        objectives: [],
+        city: "Lyon",
+        postalCode: "69003",
+        address: "12 rue des Lilas",
+        practiceLocations: [
+          {
+            name: "Siège auto",
+            city: "Lyon",
+            address: "1 rue du Stade",
+            category: PracticeLocationCategories.stadium,
+            linkedToHeadquarters: true,
+          },
+          {
+            name: "Forêt de Fourvière",
+            city: "Lyon",
+            address: "Bois de la Croix",
+            category: PracticeLocationCategories.forest,
+          },
+        ],
+        description: "",
+        currentStep: ClubSetupSteps.location,
+        memberCountRange: null,
+        brandColorHex: "#134A7D",
+        wizardVersion: 2,
+      },
       null,
     );
-    expect(restored.practiceLocations).toHaveLength(2);
-    expect(restored.practiceLocations[0]?.linkedToHeadquarters).toBe(true);
-    expect(restored.practiceLocations[1]?.linkedToHeadquarters).toBeUndefined();
-    expect(restored.practiceLocations[1]?.category).toBe(
-      PracticeLocationCategories.forest,
-    );
+    expect(restored.practiceLocations).toHaveLength(1);
+    expect(restored.practiceLocations[0]?.name).toBe("Forêt de Fourvière");
+    expect(restored.practiceLocations[0]?.linkedToHeadquarters).toBeUndefined();
   });
 
   it("conserve maxReachedStep au-delà de currentStep", () => {
@@ -123,47 +140,9 @@ describe("clubSetupDraft serialization", () => {
       null,
     );
     expect(restored.maxReachedStep).toBe(ClubSetupSteps.objectives);
-    expect(restored.useClubAddressAsFirstLocation).toBe(false);
   });
 
-  it("dérive useClubAddressAsFirstLocation depuis un HQ legacy", () => {
-    const hqAddress = ClubSetupFormat.headquartersPracticeAddress({
-      address: "12 rue des Lilas",
-      postalCode: "69003",
-      city: "Lyon",
-    });
-    const restored = deserializeClubSetupDraft(
-      {
-        name: "FC Legacy",
-        sport: "Football",
-        hasLogo: false,
-        objectives: [],
-        city: "Lyon",
-        postalCode: "69003",
-        address: "12 rue des Lilas",
-        practiceLocations: [
-          {
-            name: ClubSetupFormat.headquartersPracticeName({
-              sport: "Football",
-              city: "Lyon",
-            }),
-            address: hqAddress,
-          },
-        ],
-        description: "",
-        currentStep: ClubSetupSteps.location,
-        memberCountRange: ClubMemberCountRanges.range30to100,
-        brandColorHex: "#134A7D",
-        wizardVersion: 2,
-      },
-      null,
-    );
-    expect(restored.practiceLocations[0]?.linkedToHeadquarters).toBe(true);
-    expect(restored.useClubAddressAsFirstLocation).toBe(true);
-    expect(restored.memberCountRange).toBe("50");
-  });
-
-  it("ne force pas la case siège si absente du brouillon legacy", () => {
+  it("ignore le flag siège legacy sans bloquer la restauration", () => {
     const restored = deserializeClubSetupDraft(
       {
         name: "Club Manuel",
@@ -175,7 +154,7 @@ describe("clubSetupDraft serialization", () => {
         address: "12 rue des Lilas",
         practiceLocations: [
           {
-            name: "Stade — Lyon",
+            name: "Gerland",
             city: "Lyon",
             address: "Stade de Gerland",
             category: PracticeLocationCategories.stadium,
@@ -185,12 +164,13 @@ describe("clubSetupDraft serialization", () => {
         currentStep: ClubSetupSteps.location,
         memberCountRange: null,
         brandColorHex: "#134A7D",
+        useClubAddressAsFirstLocation: true,
         wizardVersion: 2,
       },
       null,
     );
-    expect(restored.practiceLocations[0]?.linkedToHeadquarters).toBeUndefined();
-    expect(restored.useClubAddressAsFirstLocation).toBe(false);
+    expect(restored.practiceLocations).toHaveLength(1);
+    expect(restored.practiceLocations[0]?.name).toBe("Gerland");
   });
 
   it("normalise les anciennes étapes wizard v1", () => {
@@ -216,50 +196,7 @@ describe("clubSetupDraft serialization", () => {
   });
 });
 
-describe("ClubSetupFormat headquarters", () => {
-  it("ne confond pas un lieu manuel Stade — Ville avec le siège", () => {
-    const manual = {
-      name: ClubSetupFormat.practiceLocationName({
-        category: PracticeLocationCategories.stadium,
-        city: "Lyon",
-      }),
-      city: "Lyon",
-      address: "Stade de Gerland",
-      category: PracticeLocationCategories.stadium,
-    };
-    expect(
-      ClubSetupFormat.isHeadquartersLocation({
-        sport: "Football",
-        city: "Lyon",
-        postalCode: "69003",
-        address: "12 rue des Lilas",
-        location: manual,
-      }),
-    ).toBe(false);
-  });
-
-  it("détecte le siège via linkedToHeadquarters uniquement pour le filtrage", () => {
-    const locations = [
-      {
-        name: "Stade — Lyon",
-        city: "Lyon",
-        address: "Siège",
-        linkedToHeadquarters: true,
-      },
-      {
-        name: "Stade — Lyon",
-        city: "Lyon",
-        address: "Manuel",
-        category: PracticeLocationCategories.stadium,
-      },
-    ];
-    const withoutHq = locations.filter(
-      (location) => !location.linkedToHeadquarters,
-    );
-    expect(withoutHq).toHaveLength(1);
-    expect(withoutHq[0]?.address).toBe("Manuel");
-  });
-
+describe("ClubSetupFormat", () => {
   it("résume les lieux avec pluriels", () => {
     expect(
       ClubSetupFormat.practiceLocationsSummary({

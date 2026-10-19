@@ -175,6 +175,13 @@
   line-height: 1.3;
 }
 
+.locationAddress {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--color-gray-600);
+  line-height: 1.3;
+}
+
 .locationSummary {
   margin: 0;
   font-size: 0.6875rem;

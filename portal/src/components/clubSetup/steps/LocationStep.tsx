@@ -26,11 +26,9 @@ type LocationStepProps = {
   address: string;
   sport: string;
   locations: PracticeLocation[];
-  useClubAddressAsFirstLocation: boolean;
   onCityChange: (city: string) => void;
   onPostalCodeChange: (postalCode: string) => void;
   onAddressChange: (address: string) => void;
-  onUseClubAddressChanged: (value: boolean) => void;
   onAddLocation: (location: PracticeLocation) => void;
   onRemoveLocation: (index: number) => void;
 };
@@ -62,11 +60,9 @@ export function LocationStep({
   address,
   sport,
   locations,
-  useClubAddressAsFirstLocation,
   onCityChange,
   onPostalCodeChange,
   onAddressChange,
-  onUseClubAddressChanged,
   onAddLocation,
   onRemoveLocation,
 }: LocationStepProps) {
@@ -78,6 +74,7 @@ export function LocationStep({
   const [practiceStreetSuggestions, setPracticeStreetSuggestions] = useState<
     FrenchAddressSuggestion[]
   >([]);
+  const [locationName, setLocationName] = useState("");
   const [locationCity, setLocationCity] = useState(city);
   const [locationAddress, setLocationAddress] = useState("");
   const [locationCategory, setLocationCategory] = useState(
@@ -222,31 +219,32 @@ export function LocationStep({
   }
 
   function handleAddLocation() {
+    const practiceName = locationName.trim();
     const practiceCity = locationCity.trim();
     const practiceAddress = locationAddress.trim();
     const customCategory = locationCategoryCustom.trim();
-    if (!practiceCity || !practiceAddress || !locationCategory) return;
+    if (!practiceName || !practiceCity || !practiceAddress || !locationCategory) {
+      return;
+    }
     if (isOtherCategory && !customCategory) return;
     if (cityError(practiceCity) || addressLineError(practiceAddress)) return;
     const formattedCity = formatCity(practiceCity);
     const formattedAddress = formatAddressLine(practiceAddress);
     onAddLocation({
-      name: ClubSetupFormat.practiceLocationName({
-        category: locationCategory,
-        city: formattedCity,
-        categoryCustom: isOtherCategory ? customCategory : undefined,
-      }),
+      name: practiceName,
       city: formattedCity,
       address: formattedAddress,
       category: locationCategory,
       ...(isOtherCategory ? { categoryCustom: customCategory } : {}),
     });
+    setLocationName("");
     setLocationAddress("");
     setLocationCategoryCustom("");
     setLocationCategory(PracticeLocationCategories.defaultForSport(sport));
   }
 
   const canAddLocation =
+    locationName.trim().length > 0 &&
     Boolean(locationCategory) &&
     locationCity.trim().length > 0 &&
     locationAddress.trim().length > 0 &&
@@ -254,7 +252,6 @@ export function LocationStep({
     !addressLineError(locationAddress) &&
     (!isOtherCategory || locationCategoryCustom.trim().length > 0);
 
-  const canLinkHeadquarters = city.trim().length > 0 || address.trim().length > 0;
   const fieldAccentStyle = {
     ["--field-accent" as string]: stepAccent,
   } as React.CSSProperties;
@@ -364,37 +361,6 @@ export function LocationStep({
         </div>
       </SetupCard>
 
-      <div className={styles.bridge}>
-        <label
-          className={[
-            styles.bridgeToggle,
-            useClubAddressAsFirstLocation ? styles.bridgeToggleActive : "",
-            !canLinkHeadquarters && !useClubAddressAsFirstLocation
-              ? styles.bridgeToggleDisabled
-              : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        >
-          <input
-            type="checkbox"
-            className={styles.bridgeCheckbox}
-            checked={useClubAddressAsFirstLocation}
-            disabled={!canLinkHeadquarters && !useClubAddressAsFirstLocation}
-            onChange={(event) => onUseClubAddressChanged(event.target.checked)}
-          />
-          <span className={styles.bridgeCheckmark} aria-hidden />
-          <span className={styles.bridgeCopy}>
-            <span className={styles.bridgeTitle}>Siège = lieu de pratique</span>
-            <span className={styles.bridgeHint}>
-              {useClubAddressAsFirstLocation
-                ? "Adresse du club ajoutée"
-                : "Cocher pour l’ajouter"}
-            </span>
-          </span>
-        </label>
-      </div>
-
       <SetupCard
         accent={stepAccent}
         className={`${styles.panel} ${styles.practicePanel}`}
@@ -403,6 +369,24 @@ export function LocationStep({
           <span aria-hidden>⚽</span> Lieux de pratique
         </h3>
         <div className={styles.practiceFields}>
+          <div className={`${fieldStyles.field} ${styles.compactField}`}>
+            <span
+              className={`${fieldStyles.label} ${styles.compactLabel}`}
+              id="club-setup-location-name-label"
+            >
+              Nom du lieu
+            </span>
+            <input
+              className={`${fieldStyles.input} ${styles.compactInput}`}
+              style={fieldAccentStyle}
+              name="clubSetupPracticeName"
+              aria-labelledby="club-setup-location-name-label"
+              {...noBrowserAddressAutofill}
+              value={locationName}
+              placeholder="Ex. Gymnase des Bertisettes"
+              onChange={(event) => setLocationName(event.target.value)}
+            />
+          </div>
           <div className={`${fieldStyles.field} ${styles.compactField}`}>
             <span
               className={`${fieldStyles.label} ${styles.compactLabel}`}

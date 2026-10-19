@@ -10,7 +10,6 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/features/club_setup/providers/club_setup_provider.dart';
-import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/headquarters_step.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/identity_step.dart';
@@ -168,11 +167,6 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
         _showError(headquartersError);
         return;
       }
-      if (draft.useClubAddressAsFirstLocation) {
-        final upserted =
-            _upsertClubHeadquartersLocation(showErrorIfEmpty: true);
-        if (!upserted) return;
-      }
     }
     if (_step == ClubSetupSteps.practiceLocations &&
         !draft.canProceedPracticeLocations) {
@@ -224,84 +218,6 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     if (file == null) return;
     final bytes = await file.readAsBytes();
     await ref.read(clubSetupProvider.notifier).setLogoBytes(bytes);
-  }
-
-  /// Construit le lieu siège à partir du brouillon, ou `null` si trop incomplet.
-  PracticeLocation? _buildHeadquartersLocation() {
-    _syncDraftFromControllers();
-    final draft = ref.read(clubSetupProvider);
-    if (draft.city.trim().isEmpty && draft.address.trim().isEmpty) {
-      return null;
-    }
-    return ClubSetupFormat.headquartersPracticeLocation(
-      sport: draft.sport,
-      address: draft.address,
-      postalCode: draft.postalCode,
-      city: draft.city,
-    );
-  }
-
-  /// Insère ou remplace le lieu dérivé du siège.
-  bool _upsertClubHeadquartersLocation({required bool showErrorIfEmpty}) {
-    final clubAddressLocation = _buildHeadquartersLocation();
-    if (clubAddressLocation == null) {
-      if (showErrorIfEmpty) {
-        _showError(AppCopy.clubSetup.validationCityFirst);
-      }
-      return false;
-    }
-
-    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
-      final locations = List<PracticeLocation>.of(draft.practiceLocations)
-        ..removeWhere((location) => location.linkedToHeadquarters);
-      final alreadyPresent = locations.any(
-        (location) =>
-            ClubSetupFormat.isSameLocation(location, clubAddressLocation),
-      );
-      draft.practiceLocations = alreadyPresent
-          ? locations
-          : [clubAddressLocation, ...locations];
-      draft.useClubAddressAsFirstLocation = true;
-      return draft;
-    });
-    return true;
-  }
-
-  /// Retire le lieu créé depuis l'adresse du siège.
-  void _removeClubHeadquartersAsLocation() {
-    ref.read(clubSetupProvider.notifier).updateDraft((draft) {
-      draft.practiceLocations = draft.practiceLocations
-          .where((location) => !location.linkedToHeadquarters)
-          .toList();
-      draft.useClubAddressAsFirstLocation = false;
-      return draft;
-    });
-  }
-
-  /// Recalcule le lieu siège après un changement de ville, d'adresse ou de sport.
-  void _syncClubHeadquartersLocation() {
-    final draft = ref.read(clubSetupProvider);
-    if (!draft.useClubAddressAsFirstLocation) return;
-    final updated = _upsertClubHeadquartersLocation(showErrorIfEmpty: false);
-    if (!updated && mounted) {
-      // Ville/adresse encore incomplets : retire le lieu HQ sans
-      // désactiver la préférence utilisateur (évite de décocher en cours de saisie).
-      ref.read(clubSetupProvider.notifier).updateDraft((draft) {
-        draft.practiceLocations = draft.practiceLocations
-            .where((location) => !location.linkedToHeadquarters)
-            .toList();
-        return draft;
-      });
-    }
-  }
-
-  void _onUseClubAddressChanged(bool useClubAddress) {
-    if (useClubAddress) {
-      final added = _upsertClubHeadquartersLocation(showErrorIfEmpty: true);
-      if (!added) return;
-      return;
-    }
-    _removeClubHeadquartersAsLocation();
   }
 
   void _addLocation(PracticeLocation location) {
@@ -418,7 +334,6 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
                       draft.sport = sport;
                       return draft;
                     });
-                    _syncClubHeadquartersLocation();
                   },
                 ),
                 ObjectivesStep(
@@ -449,16 +364,12 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
                       draft.address = _addressController.text;
                       return draft;
                     });
-                    _syncClubHeadquartersLocation();
                   },
                 ),
                 PracticeLocationsStep(
                   sport: draft.sport,
                   fallbackCity: draft.city,
-                  hasClubStreetAddress: draft.address.trim().isNotEmpty,
-                  useClubAddressAsFirstLocation:
-                      draft.useClubAddressAsFirstLocation,
-                  onUseClubAddressChanged: _onUseClubAddressChanged,
+                  addressService: ref.read(frenchAddressServiceProvider),
                   locations: draft.practiceLocations,
                   onAdd: _addLocation,
                   onValidationError: _showError,
@@ -466,13 +377,9 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
                     final locations =
                         ref.read(clubSetupProvider).practiceLocations;
                     if (index < 0 || index >= locations.length) return;
-                    final removed = locations[index];
                     ref.read(clubSetupProvider.notifier).updateDraft((draft) {
                       draft.practiceLocations =
                           List.of(draft.practiceLocations)..removeAt(index);
-                      if (removed.linkedToHeadquarters) {
-                        draft.useClubAddressAsFirstLocation = false;
-                      }
                       return draft;
                     });
                   },

@@ -60,10 +60,9 @@ final class AppCopyClubSetup {
       'Indique le nombre de membres approximatif.';
   String get validationCityRequired => 'Ville du club requise.';
   String get validationPracticeLocation =>
-      'Ajoute au moins un lieu de pratique.';
-  String get validationCityFirst => 'Renseigne d\'abord la ville du club.';
+      'Ajoute au moins un lieu de pratique nommé.';
   String get validationCityAndLocation =>
-      'Ville et au moins un lieu de pratique requis.';
+      'Ville et au moins un lieu de pratique nommé requis.';
   String get validationProfileMissing =>
       'Profil introuvable. Reconnecte-toi ou vérifie ta connexion.';
   String createError(Object error) => 'Erreur lors de la création : $error';
@@ -92,16 +91,14 @@ final class AppCopyClubSetup {
   String approxMemberCount(String recap) => '≈ $recap';
 
   String get practiceSubtitleOther =>
-      'Ajoute d\'autres lieux si besoin (optionnel si le siège suffit).';
+      'Ajoute d\'autres lieux si besoin.';
   String get practiceSubtitleFirst =>
       'Ajoute au moins un lieu d\'entraînement/match.';
   String get newLocation => 'Nouveau lieu';
+  String get locationNameLabel => 'Nom du lieu';
+  String get locationNameHint => 'Ex. Gymnase des Bertisettes';
   String get locationTypeLabel => 'Type de lieu';
   String get locationsAdded => 'Lieux ajoutés';
-  String get useHeadquartersAddress =>
-      'Utiliser l\'adresse du siège du club comme lieu d\'entraînement/match';
-  String get useHeadquartersCity =>
-      'Utiliser la ville du siège du club comme lieu d\'entraînement/match';
 
   String get recapName => 'Nom';
   String get recapSport => 'Sport';

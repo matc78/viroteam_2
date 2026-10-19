@@ -9,7 +9,6 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club_setup/practice_location_categories.dart';
 import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
-import 'package:viro_team_v2/features/club_setup/utils/club_setup_format.dart';
 import 'package:viro_team_v2/features/club_setup/widgets/french_address_fields.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -35,6 +34,7 @@ class ClubLocationsScreen extends ConsumerStatefulWidget {
 }
 
 class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
+  final _nameController = TextEditingController();
   final _cityController = TextEditingController();
   final _postalController = TextEditingController();
   final _addressController = TextEditingController();
@@ -47,6 +47,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _cityController.dispose();
     _postalController.dispose();
     _addressController.dispose();
@@ -63,10 +64,13 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
 
   /// Indique si le formulaire d’ajout est complet et valide.
   bool get _canAdd {
+    final name = _nameController.text.trim();
     final city = _cityController.text.trim();
     final postal = _postalController.text.trim();
     final address = _addressController.text.trim();
-    if (city.isEmpty || postal.isEmpty || address.isEmpty) return false;
+    if (name.isEmpty || city.isEmpty || postal.isEmpty || address.isEmpty) {
+      return false;
+    }
     if (cityError(city) != null) return false;
     if (postalCodeError(postal) != null) return false;
     if (addressLineError(address) != null) return false;
@@ -107,12 +111,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
     final formattedAddress = formatAddressLine(_addressController.text);
     final custom = _customCategoryController.text.trim();
     final location = PracticeLocation(
-      name: ClubSetupFormat.practiceLocationName(
-        category: _category,
-        city: formattedCity,
-        categoryCustom:
-            _category == PracticeLocationCategories.other ? custom : null,
-      ),
+      name: _nameController.text.trim(),
       city: formattedCity,
       address: formattedAddress,
       category: _category,
@@ -123,6 +122,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
     final next = [...club.practiceLocations, location];
     await _persist(next, successMessage: AppCopy.club.locationAdded);
     if (!mounted) return;
+    _nameController.clear();
     _cityController.clear();
     _postalController.clear();
     _addressController.clear();
@@ -280,6 +280,18 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      TextField(
+                        controller: _nameController,
+                        enabled: !_busy,
+                        decoration: InputDecoration(
+                          labelText: AppCopy.club.locationNameLabel,
+                          hintText: AppCopy.club.locationNameHint,
+                          isDense: true,
+                        ),
+                        textCapitalization: TextCapitalization.words,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const SizedBox(height: ViroSpacing.md),
                       Text(
                         AppCopy.club.locationTypeLabel,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(

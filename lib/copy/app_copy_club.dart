@@ -64,6 +64,8 @@ final class AppCopyClub {
   String get locationsRegisteredHelper =>
       'Utilisés pour le planning, les matchs et le lieu de RDV.';
   String get addLocationSectionTitle => 'Ajouter un lieu';
+  String get locationNameLabel => 'Nom du lieu';
+  String get locationNameHint => 'Ex. Gymnase des Bertisettes';
   String get locationTypeLabel => 'Type de lieu';
   String get specifyLabel => 'Préciser';
   String get specifyLocationHint => 'Terrain synthétique…';

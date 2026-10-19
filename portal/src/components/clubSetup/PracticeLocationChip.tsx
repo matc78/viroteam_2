@@ -12,18 +12,19 @@ export function PracticeLocationChip({
   location,
   onRemove,
 }: PracticeLocationChipProps) {
+  const nameLabel = location.name.trim() || "Lieu";
   const cityLabel = location.city?.trim() || "";
   const addressLabel = location.address?.trim() || "";
   const details = [cityLabel, addressLabel].filter(Boolean).join(" · ");
-  const fallback = location.name;
-  const mainLabel = details || fallback;
   const categoryLabel = location.category
     ? PracticeLocationCategories.label(
         location.category,
         location.categoryCustom,
       )
     : null;
-  const fullLabel = categoryLabel ? `${categoryLabel} — ${mainLabel}` : mainLabel;
+  const fullLabel = [nameLabel, categoryLabel, details]
+    .filter(Boolean)
+    .join(" — ");
 
   return (
     <span className={styles.chip}>
@@ -32,14 +33,17 @@ export function PracticeLocationChip({
           <span className={styles.category}>{categoryLabel}</span>
         ) : null}
         <span className={styles.label} title={fullLabel}>
-          {mainLabel}
+          {nameLabel}
         </span>
+        {details ? (
+          <span className={styles.details}>{details}</span>
+        ) : null}
       </span>
       <button
         type="button"
         className={styles.remove}
         onClick={onRemove}
-        aria-label={`Retirer ${mainLabel}`}
+        aria-label={`Retirer ${nameLabel}`}
       >
         ×
       </button>

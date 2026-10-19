@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
+import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_member_rsvp_row.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -38,6 +40,7 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     this.excludeCoachUids = const {},
     this.canManageEvents = true,
     required this.onCanceled,
+    this.onRsvpUpdated,
   });
 
   final String clubId;
@@ -48,6 +51,9 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
   final bool canManageEvents;
   final VoidCallback onCanceled;
 
+  /// Notifie l'écran parent après un RSVP (invalidation des listes).
+  final VoidCallback? onRsvpUpdated;
+
   static Future<void> show({
     required BuildContext context,
     required WidgetRef ref,
@@ -57,6 +63,7 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     Set<String> excludeCoachUids = const {},
     bool canManageEvents = true,
     required VoidCallback onCanceled,
+    VoidCallback? onRsvpUpdated,
   }) {
     final accent = ref.read(clubMemberAccentProvider(clubId));
 
@@ -83,6 +90,7 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
             excludeCoachUids: excludeCoachUids,
             canManageEvents: canManageEvents,
             onCanceled: onCanceled,
+            onRsvpUpdated: onRsvpUpdated,
           ),
         ),
       ),
@@ -152,6 +160,39 @@ class _PlanningEventDetailSheetState
     if (!mounted) return;
     if (fresh != null) setState(() => _event = fresh);
     ref.invalidate(clubPitchAttendanceRateProvider(widget.clubId));
+  }
+
+  /// Met à jour le RSVP de l'utilisateur courant, puis rafraîchit le détail.
+  Future<void> _setRsvp(RsvpStatus status) async {
+    final authUid = ref.read(authStateProvider).value?.uid;
+    if (authUid == null) return;
+
+    final eventService = ref.read(eventServiceProvider);
+    final audienceId = await eventService.resolveAudienceId(
+      clubId: widget.clubId,
+      authUid: authUid,
+    );
+
+    try {
+      await eventService.updateRsvp(
+        clubId: widget.clubId,
+        eventId: _event.id,
+        uid: audienceId,
+        status: status,
+      );
+      final fresh = await eventService.getEvent(
+        clubId: widget.clubId,
+        eventId: _event.id,
+      );
+      if (!mounted) return;
+      if (fresh != null) setState(() => _event = fresh);
+      widget.onRsvpUpdated?.call();
+    } catch (_) {
+      widget.onRsvpUpdated?.call();
+      if (mounted) {
+        ViroSnackBar.show(context, AppCopy.planning.rsvpFailed);
+      }
+    }
   }
 
   /// Envoie une notification push ponctuelle à l'audience de l'événement.
@@ -413,6 +454,37 @@ class _PlanningEventDetailSheetState
       teamsById,
       membersByUid: membersByUid,
     );
+    final member = ref.watch(clubMemberProvider(widget.clubId)).value;
+    final authUid = ref.watch(authStateProvider).value?.uid;
+    final audienceId =
+        ref.watch(memberEventAudienceIdProvider(widget.clubId)).asData?.value;
+    final audienceKeys =
+        member != null ? eventAudienceKeys(member) : null;
+    final canRsvp = !event.canceled &&
+        authUid != null &&
+        audienceId != null &&
+        PlanningEventDisplay.canRsvpOnEvent(
+          event,
+          authUid,
+          teamsById,
+          clubAudienceId: audienceId,
+          member: member,
+          membersByUid: membersByUid,
+        );
+    final rsvpStatus = canRsvp
+        ? event.rsvpStatusForUser(
+            authUid,
+            clubAudienceId: audienceId,
+            memberAudienceKeys: audienceKeys,
+          )
+        : null;
+    final rsvpRow = canRsvp
+        ? PlanningRsvpCountChoiceRow(
+            counts: counts,
+            status: rsvpStatus ?? RsvpStatus.none,
+            onSelected: _setRsvp,
+          )
+        : PlanningRsvpSummaryRow(counts: counts);
 
     return Column(
       children: [
@@ -437,7 +509,7 @@ class _PlanningEventDetailSheetState
                   matchTimeStr: startStr,
                   matchAddress: location,
                   accent: accent,
-                  counts: counts,
+                  rsvpRow: rsvpRow,
                 )
               else
                 Row(
@@ -515,7 +587,7 @@ class _PlanningEventDetailSheetState
                                 ),
                               ),
                               const SizedBox(width: ViroSpacing.sm),
-                              PlanningRsvpSummaryRow(counts: counts),
+                              rsvpRow,
                             ],
                           ),
                           const SizedBox(height: 2),
@@ -634,7 +706,7 @@ class _AwayMatchHeader extends StatelessWidget {
     required this.matchTimeStr,
     required this.matchAddress,
     required this.accent,
-    required this.counts,
+    required this.rsvpRow,
   });
 
   final IconData typeIcon;
@@ -646,7 +718,7 @@ class _AwayMatchHeader extends StatelessWidget {
   final String matchTimeStr;
   final String? matchAddress;
   final Color accent;
-  final ({int yes, int no, int none}) counts;
+  final Widget rsvpRow;
 
   @override
   Widget build(BuildContext context) {
@@ -687,7 +759,7 @@ class _AwayMatchHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: ViroSpacing.sm),
-            PlanningRsvpSummaryRow(counts: counts),
+            rsvpRow,
           ],
         ),
         const SizedBox(height: 2),

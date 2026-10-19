@@ -126,6 +126,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
       ),
       canManageEvents: canManageEvents,
       onCanceled: () {},
+      onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
   }
 

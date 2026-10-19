@@ -94,6 +94,7 @@ class MemberPlanningScreen extends ConsumerWidget {
       ),
       canManageEvents: canManageEvents,
       onCanceled: () {},
+      onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
   }
 

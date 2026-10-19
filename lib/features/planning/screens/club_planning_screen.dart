@@ -156,6 +156,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     required bool canManage,
   }) {
     final members = ref.read(clubMembersProvider(widget.clubId)).value;
+    final dayParams = (clubId: widget.clubId, day: _selectedDay);
     PlanningEventDetailSheet.show(
       context: context,
       ref: ref,
@@ -170,6 +171,13 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       ),
       canManageEvents: canManage,
       onCanceled: () {},
+      onRsvpUpdated: () {
+        if (canManage) {
+          ref.invalidate(clubPlanningEventsProvider(dayParams));
+        } else {
+          ref.invalidate(memberClubPlanningEventsProvider(dayParams));
+        }
+      },
     );
   }
 

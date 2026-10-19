@@ -30,6 +30,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Détail d’événement (sheet planning) : pastilles RSVP cliquables comme sur la tuile pour modifier sa présence
 - Textes landing (hero, sections, FAQ, CTA) pour refléter planning, membres, cotisations et app club
 - Reverse proxy PostHog et DSN Sentry EU
 - Badge / logo Play Store aux couleurs officielles

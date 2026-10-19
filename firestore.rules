@@ -227,8 +227,9 @@ service cloud.firestore {
         && request.resource.data.get('parentClubIds', []) == []
         && request.resource.data.get('parentTeamIds', []) == [];
       // Les index parent sont maintenus par les Cloud Functions.
+      // `legal` est write-once à la création (preuve d’acceptation CGU).
       allow update: if isOwner(uid)
-        && !affectedKeys().hasAny(['parentLinks', 'parentClubIds', 'parentTeamIds', 'deleted']);
+        && !affectedKeys().hasAny(['parentLinks', 'parentClubIds', 'parentTeamIds', 'deleted', 'legal']);
       // Suppression de compte : callable `deleteMyAccount` (anonymisation).
       allow delete: if false;
 

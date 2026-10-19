@@ -246,22 +246,14 @@
   flex-shrink: 0;
 }
 
-.checkRow {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  font-size: 0.875rem;
-  line-height: 1.45;
-  color: var(--color-gray-700);
-  cursor: pointer;
-}
-
-.checkRow input {
-  margin-top: 0.2rem;
-  flex-shrink: 0;
-}
-
 .inlineLink {
   color: var(--color-primary-700);
   font-weight: 600;
+}
+
+.termsMention {
+  margin: 0 0 var(--space-md);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-gray-600);
 }

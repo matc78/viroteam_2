@@ -547,6 +547,14 @@ test("un utilisateur ne modifie pas ses index parent ni ne supprime son doc", as
   await assertSucceeds(updateDoc(doc(as(PLAYER), `users/${PLAYER.uid}`), { displayName: "Paul" }));
 });
 
+test("un utilisateur ne modifie pas sa trace legal (CGU) après création", async () => {
+  await assertFails(
+    updateDoc(doc(as(PLAYER), `users/${PLAYER.uid}`), {
+      legal: { termsVersion: "2099-01", termsAcceptedAt: new Date() },
+    }),
+  );
+});
+
 // ————————————————————————————————————————————————————————————————
 // Parents : uniquement l'équipe de l'enfant
 // ————————————————————————————————————————————————————————————————

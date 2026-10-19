@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -49,7 +50,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _loading = false;
   bool _googleLoading = false;
   bool _appleLoading = false;
-  bool _acceptedTerms = false;
   String? _error;
   bool _prefillApplied = false;
 
@@ -122,10 +122,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           return;
         }
         _applyAuthPrefill();
-        // CGU déjà acceptées avant le bouton social : ne pas redemander.
-        if (_hasSocialAuthProvider() && mounted) {
-          setState(() => _acceptedTerms = true);
-        }
       }
 
       final intent = widget.intentParam == 'join'
@@ -155,12 +151,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Future<void> _submitCompleteProfile() async {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
-    if (!_acceptedTerms) {
-      setState(() {
-        _error = AppCopy.auth.acceptTermsRequired;
-      });
-      return;
-    }
 
     final authUser = ref.read(authStateProvider).value;
     if (authUser == null) {
@@ -218,12 +208,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   Future<void> _submit() async {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) return;
-    if (!_acceptedTerms) {
-      setState(() {
-        _error = AppCopy.auth.acceptTermsRequired;
-      });
-      return;
-    }
     setState(() {
       _loading = true;
       _error = null;
@@ -338,12 +322,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     required String failureMessage,
     required void Function(bool value) setLoading,
   }) async {
-    if (!_acceptedTerms) {
-      setState(() {
-        _error = AppCopy.auth.acceptTermsRequired;
-      });
-      return;
-    }
     setState(() {
       setLoading(true);
       _error = null;
@@ -510,50 +488,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                 ],
                 const SizedBox(height: ViroSpacing.md),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Checkbox(
-                      value: _acceptedTerms,
-                      onChanged: isBusy
-                          ? null
-                          : (value) => setState(
-                                () => _acceptedTerms = value ?? false,
-                              ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppCopy.auth.acceptTermsLabel,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: ViroColors.gray600),
-                            ),
-                            Row(
-                              children: [
-                                TextButton(
-                                  onPressed: () => openPortalUrl(
-                                    portalPageUrl('/legal/cgu'),
-                                  ),
-                                  child: Text(AppCopy.auth.termsCgu),
-                                ),
-                                TextButton(
-                                  onPressed: () => openPortalUrl(
-                                    portalPageUrl('/legal/privacy'),
-                                  ),
-                                  child: Text(AppCopy.auth.termsPrivacy),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                const _TermsAcceptanceMention(),
                 if (_error != null) ...[
                   const SizedBox(height: ViroSpacing.md),
                   Text(
@@ -598,6 +533,69 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Mention d’acceptation CGU / privacy (liens cliquables, sans case à cocher).
+class _TermsAcceptanceMention extends StatefulWidget {
+  const _TermsAcceptanceMention();
+
+  @override
+  State<_TermsAcceptanceMention> createState() =>
+      _TermsAcceptanceMentionState();
+}
+
+class _TermsAcceptanceMentionState extends State<_TermsAcceptanceMention> {
+  late final TapGestureRecognizer _cguRecognizer;
+  late final TapGestureRecognizer _privacyRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    _cguRecognizer = TapGestureRecognizer()
+      ..onTap = () => openPortalUrl(portalPageUrl('/legal/cgu'));
+    _privacyRecognizer = TapGestureRecognizer()
+      ..onTap = () => openPortalUrl(portalPageUrl('/legal/privacy'));
+  }
+
+  @override
+  void dispose() {
+    _cguRecognizer.dispose();
+    _privacyRecognizer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: ViroColors.gray600,
+        );
+    final linkStyle = baseStyle?.copyWith(
+      color: ViroColors.primary600,
+      decoration: TextDecoration.underline,
+      fontWeight: FontWeight.w600,
+    );
+
+    return Text.rich(
+      TextSpan(
+        style: baseStyle,
+        children: [
+          TextSpan(text: AppCopy.auth.termsAcceptanceBeforeCgu),
+          TextSpan(
+            text: AppCopy.auth.termsCgu,
+            style: linkStyle,
+            recognizer: _cguRecognizer,
+          ),
+          TextSpan(text: AppCopy.auth.termsAcceptanceBetween),
+          TextSpan(
+            text: AppCopy.auth.termsPrivacy,
+            style: linkStyle,
+            recognizer: _privacyRecognizer,
+          ),
+          TextSpan(text: AppCopy.auth.termsAcceptanceAfter),
+        ],
       ),
     );
   }

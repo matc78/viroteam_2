@@ -43,6 +43,8 @@ export type ViroUserProfile = {
   notificationPreferences: NotificationPreferences;
   profileCompleted: boolean;
   disabled: boolean;
+  termsAcceptedAt: Date | null;
+  termsVersion: string | null;
 };
 
 function parseParentLink(item: Record<string, unknown>): ParentLink | null {
@@ -63,6 +65,8 @@ export function parseUserProfile(
   data: Record<string, unknown> | undefined,
 ): ViroUserProfile {
   const flags = (data?.[Fields.flags] as Record<string, unknown> | undefined) ?? {};
+  const legal =
+    (data?.[Fields.legal] as Record<string, unknown> | undefined) ?? {};
   const rawMemberships =
     (data?.[Fields.clubMemberships] as Array<Record<string, unknown>> | undefined) ??
     [];
@@ -73,6 +77,8 @@ export function parseUserProfile(
   const rawParentTeamIds = (data?.[Fields.parentTeamIds] as unknown[] | undefined) ?? [];
 
   const rawAvatar = data?.[Fields.avatarUrl];
+  const termsAcceptedRaw = legal[Fields.termsAcceptedAt];
+  const termsVersionRaw = legal[Fields.termsVersion];
   return {
     uid: (data?.[Fields.uid] as string | undefined) ?? uid,
     email: (data?.[Fields.email] as string | undefined) ?? "",
@@ -104,6 +110,14 @@ export function parseUserProfile(
     ),
     profileCompleted: Boolean(flags[Fields.profileCompleted]),
     disabled: Boolean(flags[Fields.disabled]),
+    termsAcceptedAt:
+      termsAcceptedRaw instanceof Timestamp
+        ? termsAcceptedRaw.toDate()
+        : null,
+    termsVersion:
+      typeof termsVersionRaw === "string" && termsVersionRaw.trim()
+        ? termsVersionRaw.trim()
+        : null,
   };
 }
 

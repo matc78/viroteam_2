@@ -22,6 +22,11 @@ abstract final class FirestoreFields {
   static const String lastConnectionAt = 'lastConnectionAt';
   static const String parentLinks = 'parentLinks';
 
+  /// Trace d’acceptation CGU / privacy à la création du compte.
+  static const String legal = 'legal';
+  static const String termsAcceptedAt = 'termsAcceptedAt';
+  static const String termsVersion = 'termsVersion';
+
   /// ClubIds où l’adulte a un lien guardian `active` — helper rules (pas un 3ᵉ modèle).
   static const String parentClubIds = 'parentClubIds';
 

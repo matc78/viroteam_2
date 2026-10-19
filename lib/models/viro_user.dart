@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/constants/legal_terms.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/notification_preferences.dart';
 import 'package:viro_team_v2/models/parent_link.dart';
@@ -20,6 +21,8 @@ class ViroUser {
     this.notificationPreferences = NotificationPreferences.defaults,
     this.profileCompleted = false,
     this.disabled = false,
+    this.termsAcceptedAt,
+    this.termsVersion,
     this.createdAt,
     this.updatedAt,
   });
@@ -38,6 +41,8 @@ class ViroUser {
   final NotificationPreferences notificationPreferences;
   final bool profileCompleted;
   final bool disabled;
+  final DateTime? termsAcceptedAt;
+  final String? termsVersion;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -73,6 +78,7 @@ class ViroUser {
   factory ViroUser.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     final flags = data[FirestoreFields.flags] as Map<String, dynamic>? ?? {};
+    final legal = data[FirestoreFields.legal] as Map<String, dynamic>? ?? {};
     final membershipsRaw =
         data[FirestoreFields.clubMemberships] as List<dynamic>? ?? [];
     final parentLinksRaw =
@@ -108,6 +114,9 @@ class ViroUser {
       profileCompleted:
           flags[FirestoreFields.profileCompleted] as bool? ?? false,
       disabled: flags[FirestoreFields.disabled] as bool? ?? false,
+      termsAcceptedAt:
+          (legal[FirestoreFields.termsAcceptedAt] as Timestamp?)?.toDate(),
+      termsVersion: legal[FirestoreFields.termsVersion] as String?,
       createdAt: (data[FirestoreFields.createdAt] as Timestamp?)?.toDate(),
       updatedAt: (data[FirestoreFields.updatedAt] as Timestamp?)?.toDate(),
     );
@@ -129,6 +138,10 @@ class ViroUser {
       FirestoreFields.flags: {
         FirestoreFields.profileCompleted: profileCompleted,
         FirestoreFields.disabled: disabled,
+      },
+      FirestoreFields.legal: {
+        FirestoreFields.termsAcceptedAt: now,
+        FirestoreFields.termsVersion: LegalTerms.currentVersion,
       },
       FirestoreFields.createdAt: now,
       FirestoreFields.updatedAt: now,

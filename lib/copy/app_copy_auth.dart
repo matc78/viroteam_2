@@ -38,10 +38,12 @@ final class AppCopyAuth {
   String get lastName => 'Nom';
   String get firstNameHint => 'Tristan';
   String get lastNameHint => 'Heraud';
-  String get acceptTermsLabel =>
-      'J’accepte les CGU et la politique de confidentialité.';
+  /// Préfixe avant le lien CGU (mention d’acceptation implicite).
+  String get termsAcceptanceBeforeCgu => 'En créant ton compte, tu acceptes les ';
   String get termsCgu => 'CGU';
-  String get termsPrivacy => 'Confidentialité';
+  String get termsAcceptanceBetween => ' et la ';
+  String get termsPrivacy => 'politique de confidentialité';
+  String get termsAcceptanceAfter => '.';
   String get createMyAccount => 'Créer mon compte';
   String get createMyAccountViroTeam => 'Créer mon compte ViroTeam';
   String get useAnotherAccount => 'Utiliser un autre compte';
@@ -74,8 +76,6 @@ final class AppCopyAuth {
       'Inscription Apple impossible. Réessaie.';
   String get accountCreateFailed =>
       'Création du compte impossible. Réessaie.';
-  String get acceptTermsRequired =>
-      'Tu dois accepter les CGU et la politique de confidentialité.';
   String get firebaseUserMissingAfterGoogle =>
       'Utilisateur Firebase absent après Google Sign-In';
   String get firebaseUserMissingAfterApple =>

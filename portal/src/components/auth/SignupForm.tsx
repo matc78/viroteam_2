@@ -21,7 +21,6 @@ type FieldErrors = {
   email?: string;
   password?: string;
   confirmPassword?: string;
-  acceptTerms?: string;
   form?: string;
 };
 
@@ -42,7 +41,6 @@ function SignupFormContent() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [acceptTerms, setAcceptTerms] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -72,10 +70,6 @@ function SignupFormContent() {
     } else if (confirmPassword !== password) {
       nextErrors.confirmPassword = "Les mots de passe ne correspondent pas.";
     }
-    if (!acceptTerms) {
-      nextErrors.acceptTerms =
-        "Tu dois accepter les CGU et la politique de confidentialité.";
-    }
     return nextErrors;
   }
 
@@ -103,13 +97,6 @@ function SignupFormContent() {
   }
 
   async function handleGoogleSignUp() {
-    if (!acceptTerms) {
-      setErrors({
-        acceptTerms:
-          "Tu dois accepter les CGU et la politique de confidentialité.",
-      });
-      return;
-    }
     setErrors({});
     setGoogleLoading(true);
     pendingOverlay.start("Inscription…");
@@ -267,36 +254,17 @@ function SignupFormContent() {
           </div>
         </div>
 
-        <div className={styles.field}>
-          <label className={styles.checkRow} htmlFor="signup-terms">
-            <input
-              id="signup-terms"
-              type="checkbox"
-              checked={acceptTerms}
-              onChange={(event) => setAcceptTerms(event.target.checked)}
-              aria-invalid={Boolean(errors.acceptTerms)}
-              aria-describedby={
-                errors.acceptTerms ? "signup-terms-error" : undefined
-              }
-            />
-            <span>
-              J’accepte les{" "}
-              <Link href="/legal/cgu" className={styles.inlineLink}>
-                CGU
-              </Link>{" "}
-              et la{" "}
-              <Link href="/legal/privacy" className={styles.inlineLink}>
-                politique de confidentialité
-              </Link>
-              .
-            </span>
-          </label>
-          {errors.acceptTerms ? (
-            <p id="signup-terms-error" className={styles.error} role="alert">
-              {errors.acceptTerms}
-            </p>
-          ) : null}
-        </div>
+        <p className={styles.termsMention}>
+          En créant ton compte, tu acceptes les{" "}
+          <Link href="/legal/cgu" className={styles.inlineLink}>
+            CGU
+          </Link>{" "}
+          et la{" "}
+          <Link href="/legal/privacy" className={styles.inlineLink}>
+            politique de confidentialité
+          </Link>
+          .
+        </p>
 
         {errors.form ? (
           <p className={styles.error} role="alert">

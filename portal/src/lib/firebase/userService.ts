@@ -15,6 +15,7 @@ import {
   softFormatFirstName,
   softFormatLastName,
 } from "@/lib/format/personDataFormat";
+import { LegalTerms } from "@/lib/legal/terms";
 
 /** Charge le profil users/{uid}. */
 export async function getUserProfile(uid: string): Promise<ViroUserProfile | null> {
@@ -54,6 +55,10 @@ export async function createUserProfile(params: {
     [Fields.flags]: {
       [Fields.profileCompleted]: Boolean(firstName),
       [Fields.disabled]: false,
+    },
+    [Fields.legal]: {
+      [Fields.termsAcceptedAt]: serverTimestamp(),
+      [Fields.termsVersion]: LegalTerms.currentVersion,
     },
     [Fields.createdAt]: serverTimestamp(),
     [Fields.updatedAt]: serverTimestamp(),

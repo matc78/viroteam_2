@@ -37,6 +37,7 @@
 | `parentLinks` | array | Index session parent : `[{ clubId, memberId, relation, status }]` — **pas** un rôle club. Source de vérité : `members/{memberId}/guardians/{parentUid}`. Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md). |
 | `notificationPreferences` | map | `{ events, announcements, fees, rsvp }` — booléens, défaut `true` (opt-in) |
 | `flags` | map | `{ profileCompleted, disabled }` |
+| `legal` | map | `{ termsAcceptedAt, termsVersion }` — trace d’acceptation CGU / privacy à la création du compte (version ex. `"2026-09"`) ; immuable après create (rules) |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |
 | `lastConnectionAt` | timestamp | |

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/services/event_service.dart';
+import 'package:viro_team_v2/utils/calendar_days.dart';
 
 DateTime _startOfToday() {
   final now = DateTime.now();
@@ -28,7 +29,7 @@ void main() {
   group('categorizeMemberEvents — fenêtre 14 jours', () {
     test('inclut un event à J+13 dans upcoming et pending', () {
       final today = _startOfToday();
-      final j13 = today.add(const Duration(days: 13));
+      final j13 = addCalendarDays(today, 13);
       final event = _eventOnDay(j13);
 
       final result = categorizeMemberEvents(
@@ -43,7 +44,7 @@ void main() {
 
     test('exclut un event à J+14 de upcoming et pending', () {
       final today = _startOfToday();
-      final j14 = today.add(const Duration(days: 14));
+      final j14 = addCalendarDays(today, 14);
       final event = _eventOnDay(j14);
 
       final result = categorizeMemberEvents(
@@ -60,13 +61,13 @@ void main() {
       final today = _startOfToday();
       expect(
         EventService.isWithinUpcomingPlanningWindow(
-          today.add(const Duration(days: 13)),
+          addCalendarDays(today, 13),
         ),
         isTrue,
       );
       expect(
         EventService.isWithinUpcomingPlanningWindow(
-          today.add(const Duration(days: 14)),
+          addCalendarDays(today, 14),
         ),
         isFalse,
       );

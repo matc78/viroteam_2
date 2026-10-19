@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_event.dart';
+import 'package:viro_team_v2/utils/calendar_days.dart';
 
 /// Helpers calendaires et tri pour le planning événements.
 class EventDateHelpers {
@@ -43,8 +44,7 @@ class EventDateHelpers {
   /// Indique si [eventDate] est dans la fenêtre planning à venir.
   static bool isWithinUpcomingPlanningWindow(DateTime eventDate) {
     final start = startOfToday();
-    final endExclusive =
-        start.add(const Duration(days: upcomingPlanningHorizonDays));
+    final endExclusive = addCalendarDays(start, upcomingPlanningHorizonDays);
     final day = startOfDay(eventDate);
     return !day.isBefore(start) && day.isBefore(endExclusive);
   }

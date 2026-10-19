@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
+import 'package:viro_team_v2/utils/calendar_days.dart';
 
 /// Couleur du dot indicateur selon le type d'événement.
 Color eventDotColor(String type) => switch (type) {
@@ -222,13 +223,13 @@ List<DateTime> buildPlanningDays({
           firstEventDate.day,
         )
       : todayDay;
-  final end = todayDay.add(Duration(days: futureDays));
+  final end = addCalendarDays(todayDay, futureDays);
 
   final days = <DateTime>[];
   var d = start;
   while (!d.isAfter(end)) {
     days.add(d);
-    d = d.add(const Duration(days: 1));
+    d = addCalendarDays(d, 1);
   }
   return days;
 }

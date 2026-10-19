@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/utils/calendar_days.dart';
 
 /// Statut RSVP d'un membre sur un événement.
 enum RsvpStatus {
@@ -259,7 +260,7 @@ class ClubEvent {
     final local = ts.toDate();
     // Legacy : minuit local (ex. Europe) → souvent J-1 à 22h en UTC à la lecture.
     if (local.hour >= 22) {
-      final next = local.add(const Duration(days: 1));
+      final next = addCalendarDays(local, 1);
       return DateTime(next.year, next.month, next.day);
     }
     return _startOfDay(local);

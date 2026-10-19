@@ -18,6 +18,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Contrôle d’alignement de version `pubspec.yaml` ↔ `ProjectConfig` ↔ tags (`tool/check_app_version.mjs`) branché en CI et Release Android
 - `CLAUDE.md` pour Claude Code (commandes, architecture dev/prod, conventions) ; `PROJECT_CONVENTIONS.md` et README réalignés sur le code (fond `ViroScaffold`, états vides, paiements Stripe / HelloAsso dormant, release iOS)
 
+### Corrigé
+
+- Dates décalées autour des changements d’heure (ajout de `Duration(days: n)` sur des dates locales) : jours en double / décalés dans le sélecteur du planning, séances récurrentes hebdo créées la veille après le passage à l’heure d’hiver, « Demain » / « Hier » faux le jour du changement, fenêtre « à venir » et écart en jours décalés au printemps. Nouveau helper `addCalendarDays` / `calendarDaysBetween` (`lib/utils/calendar_days.dart`)
+
 ### Sécurité
 
 - Durcissement des règles chat (réactions et preview inbox)

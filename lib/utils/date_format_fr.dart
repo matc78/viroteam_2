@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/utils/calendar_days.dart';
 
 final _dateFormat = DateFormat('EEE dd/MM', 'fr_FR');
 final _weekdayFormat = DateFormat('EEEE', 'fr_FR');
@@ -25,11 +26,8 @@ String formatWeekdayLong(DateTime date) =>
 String formatDayMonth(DateTime date) => _dayMonthFormat.format(date);
 
 /// Écart en jours calendaires entre [date] et aujourd'hui (positif = futur).
-int planningDaysFromToday(DateTime date) {
-  final dayOnly = _dateOnly(date);
-  final today = _dateOnly(DateTime.now());
-  return dayOnly.difference(today).inDays;
-}
+int planningDaysFromToday(DateTime date) =>
+    calendarDaysBetween(DateTime.now(), date);
 
 /// Libellé discret de l'écart (ex. « +3 », « -2 »). Null si aujourd'hui.
 String? formatPlanningDayOffset(int daysFromToday) {
@@ -49,7 +47,7 @@ String? formatPlanningDayOffset(int daysFromToday) {
 }) planningDayHeaderParts(DateTime date) {
   final dayOnly = _dateOnly(date);
   final today = _dateOnly(DateTime.now());
-  final tomorrow = today.add(const Duration(days: 1));
+  final tomorrow = addCalendarDays(today, 1);
   final daysFromToday = planningDaysFromToday(dayOnly);
 
   String? badge;
@@ -88,10 +86,10 @@ String formatChatMessageTime(DateTime date) =>
 String formatChatInboxTimestamp(DateTime date) {
   final dayOnly = _dateOnly(date);
   final today = _dateOnly(DateTime.now());
-  final yesterday = today.subtract(const Duration(days: 1));
+  final yesterday = addCalendarDays(today, -1);
   if (dayOnly == today) return formatChatMessageTime(date);
   if (dayOnly == yesterday) return 'Hier';
-  if (today.difference(dayOnly).inDays < 7) {
+  if (calendarDaysBetween(dayOnly, today) < 7) {
     return _capitalizeFr(DateFormat('EEE', 'fr_FR').format(date));
   }
   return formatDayMonth(date);
@@ -101,7 +99,7 @@ String formatChatInboxTimestamp(DateTime date) {
 String formatChatDaySeparator(DateTime date) {
   final dayOnly = _dateOnly(date);
   final today = _dateOnly(DateTime.now());
-  final yesterday = today.subtract(const Duration(days: 1));
+  final yesterday = addCalendarDays(today, -1);
   if (dayOnly == today) return "Aujourd'hui";
   if (dayOnly == yesterday) return 'Hier';
   return _capitalizeFr(DateFormat('EEEE d MMMM', 'fr_FR').format(dayOnly));

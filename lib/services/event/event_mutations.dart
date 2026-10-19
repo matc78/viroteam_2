@@ -4,6 +4,7 @@ import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
 import 'package:viro_team_v2/services/club_activity_service.dart';
 import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/event/event_paths.dart';
+import 'package:viro_team_v2/utils/calendar_days.dart';
 
 /// Création et annulation d'événements (y compris séries récurrentes).
 class EventMutations {
@@ -96,7 +97,7 @@ class EventMutations {
     var d = start;
     while (!d.isAfter(end) && dates.length < 52) {
       dates.add(d);
-      d = d.add(const Duration(days: 7));
+      d = addCalendarDays(d, 7);
     }
     return dates.isEmpty ? [start] : dates;
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
@@ -59,6 +60,7 @@ abstract final class ViroTheme {
         backgroundColor: Colors.transparent,
         foregroundColor: ViroColors.primary800,
         surfaceTintColor: Colors.transparent,
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
         titleTextStyle: textTheme.titleMedium?.copyWith(color: ViroColors.primary800),
         iconTheme: const IconThemeData(color: ViroColors.primary600),
         shadowColor: Colors.transparent,

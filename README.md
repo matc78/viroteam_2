@@ -91,6 +91,7 @@ La CI (job Flutter) et Release Android refusent un tag dont la version ≠ `pubs
 | Push `main` / PR | [`ci.yml`](.github/workflows/ci.yml) | Flutter analyze+test · portal lint+build · functions build (path filters sur PR ; full matrix sur `main`) |
 | Tag `v1.2.3` | [`release-android.yml`](.github/workflows/release-android.yml) | APK/AAB signés → GitHub Release + Play Store **internal** |
 | Tag `release-v1.2.3` | idem | APK/AAB → Play Store **production en brouillon** (pas de mise en ligne auto, pas de GitHub Release) |
+| Tag `v1.2.3` / `release-v1.2.3` | [`release-ios.yml`](.github/workflows/release-ios.yml) | IPA signé (clé API App Store Connect) → **TestFlight** — voir [`docs/DEPLOY_IOS.md`](docs/DEPLOY_IOS.md) |
 | Tag `portal-v1.2.3` | [`deploy-portal.yml`](.github/workflows/deploy-portal.yml) | Rollout Firebase App Hosting (`v2-prod`) |
 | Tag `functions-dev-v*` / `functions-v*` | [`deploy-functions.yml`](.github/workflows/deploy-functions.yml) | Deploy Cloud Functions (dual `*Dev` + prod) |
 | Tag `firestore-dev-v*` / `firestore-v*` | [`deploy-firestore.yml`](.github/workflows/deploy-firestore.yml) | Rules + indexes sur `v2-dev` ou `v2-prod` |
@@ -161,7 +162,7 @@ docs/
 - Sync calendrier (aide manuelle + ajout natif + export `.ics`)
 - Annonces club (création, liste, bannière home)
 - Cotisations (saisons, paliers, suivi membres, rappels)
-- Paiements hybrides HelloAsso (1×/3×, aides Pass'Sport/ANCV, hors-ligne)
+- Paiements hybrides : CB via Stripe Connect (aides Pass'Sport/ANCV, hors-ligne) ; HelloAsso dormant (réactivation envisagée)
 - Espace famille parent (planning, RSVP, cotisation au nom de l'enfant)
 - Profil + déconnexion
 - Deep link `/join?code=`
@@ -173,7 +174,7 @@ docs/
 - Auth Firebase (email + mot de passe)
 - Dashboard admin : home, membres, cotisations, planning
 - Planning : calendrier avec sélecteurs custom, picker invités multi, filtres persistants
-- Suivi cotisations : paiement hors-ligne, validation aides, HelloAsso
+- Suivi cotisations : paiement hors-ligne, validation aides, onboarding Stripe Connect du club
 - Espace famille parent (garde et navigation distinctes du bureau admin)
 - Fond décoratif global `DecorShapes`, thème Inter aligné sur l'app
 
@@ -182,8 +183,10 @@ docs/
 - `acceptInvitation` — accepter une invitation
 - `inviteGuardian` / `linkGuardian` / `revokeGuardian` — gestion parents (deux faces)
 - `setEventRsvp` — RSVP pour soi ou un enfant lié
-- `createHelloAssoCheckout` — checkout HelloAsso (1×/3× + aides)
-- `helloAssoWebhook` — webhook paiement (crédite uniquement après notif serveur)
+- `createStripeConnectLink` / `getStripeConnectStatus` — onboarding Stripe Connect du club
+- `createStripeCheckout` — paiement CB (PaymentIntent après aides)
+- `stripeWebhook` — webhook paiement (crédite uniquement après notif serveur)
+- `createHelloAssoCheckout` / `helloAssoWebhook` — **dormants**, conservés pour un éventuel passage à HelloAsso
 
 ## Backend Firebase
 

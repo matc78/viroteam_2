@@ -35,7 +35,7 @@ Référence technique : `lib/config/viro_theme.dart`, `viro_colors.dart`, `viro_
 ### Structure d’écran (obligatoire)
 
 - **Toujours** `ViroScaffold` + `ViroAppBar` — **jamais** `Scaffold` / `AppBar` Material bruts sur un écran métier.
-- Fond : dégradé `ViroColors.scaffoldGradient` + halos discrets (déjà dans `ViroScaffold`).
+- Fond : blanc + formes décoratives colorées (cercles bleu clair / sport, déjà dans `ViroScaffold`, accord portail web).
 - **Interdit** : bandeau / AppBar / header en **bleu opaque plein** (`primary800` en fond d’écran ou d’AppBar).
 
 ```dart
@@ -56,8 +56,8 @@ Scaffold(
 
 | Usage | Comment |
 |--------|---------|
-| Fond d’écran | Dégradé clair (`scaffoldGradient`) via `ViroScaffold` |
-| AppBar | Dégradé clair `headerGradient`, texte/icônes `primary800` |
+| Fond d’écran | Blanc + formes décoratives via `ViroScaffold` |
+| AppBar | `ViroAppBar` transparente (laisse voir le fond), titre `primary800`, icônes `primary600` (thème) |
 | Cartes / listes | `ViroCard`, fond `surfaceCard`, bordure `primary100` légère |
 | Bleu fort (`primary600`+) | Boutons primaires, liens, accents, badges — **pas** en plein écran |
 | Badges rôles | `ViroRoleBadge` (dégradés vifs, texte blanc) |
@@ -108,10 +108,14 @@ lib/
   app/              # MaterialApp, router
   config/           # Thème, motion, project_config, routes
   copy/             # AppCopy — tous les textes UI (FR)
-  features/         # Par domaine (auth, events, tournaments…)
+  constants/        # Champs Firestore (firestore_fields.dart), textes légaux
+  features/         # Par domaine (auth, planning, fees, members, chat…)
     <feature>/
       screens/      # Écrans fins (composition uniquement)
       widgets/      # Widgets propres à la feature
+      providers/    # État Riverpod de la feature
+      (models/ services/ utils/ si propres à la feature)
+  providers/        # Session globale + providers des services
   widgets/
     common/         # ViroScaffold, ViroCard, ViroRoleBadge, boutons flottants…
     lists/          # OBLIGATOIRE : tuiles et items de liste réutilisables
@@ -124,10 +128,10 @@ lib/
 
 - **Interdit** : `ListView.builder` avec un gros `itemBuilder` inline dans un `*_screen.dart`.
 - **Obligatoire** : un fichier dédié par type de ligne, ex. :
-  - `lib/widgets/lists/event_list_tile.dart`
-  - `lib/widgets/lists/roster_list_tile.dart`
-  - `lib/widgets/lists/invite_list_tile.dart`
-- L’écran ne fait que : `ListView(children: …)` ou `ListView.builder(itemBuilder: (_, i) => EventListTile(…))`.
+  - `lib/widgets/lists/member_list_tile.dart`
+  - `lib/widgets/lists/member_fee_list_tile.dart`
+  - `lib/widgets/lists/club_activity_list_tile.dart`
+- L’écran ne fait que : `ListView(children: …)` ou `ListView.builder(itemBuilder: (_, i) => MemberListTile(…))`.
 
 ---
 
@@ -201,20 +205,28 @@ Exemples de cible :
 - `flutter analyze` sans erreur avant merge.
 - Test widget minimal pour chaque `*ListTile` dans `test/widgets/lists/`.
 - Pas de requête N+1 : préférer requêtes groupées ou données dénormalisées.
-- États vides / erreur / chargement : widgets communs (`EmptyState`, `ErrorState`) — à créer une fois, réutiliser partout.
+- États vides / erreur : `ViroEmptyState`, `ViroErrorState` (`lib/widgets/common/viro_empty_error_state.dart`) — réutiliser partout.
 
 ---
 
-## 7. Suggestions complémentaires (recommandées)
+## 7. Pratiques complémentaires
 
-1. **`packages/viro_core`** — extraire models + services partagés quand la duplication devient gênante.
-2. **Feature flags** — `kDebugMode` ou Remote Config pour activer des écrans en cours.
-3. **Journal des décisions** — section en bas de ce fichier ou `DECISIONS.md` (1 ligne par choix d’archi).
-4. **Deep links invitation** — `/join?code=` (cf. `docs/specs/viroteam_v2_invitation_only_model.md`).
-5. **Pas de logique dans `build()`** — calculs / streams dans des providers.
-6. **Optimistic UI** pour RSVP et actions rapides (Firestore en arrière-plan).
-7. **CI** — `flutter test && flutter analyze` sur le repo.
-8. **Cursor** — règles dans `.cursor/rules/` (pointent vers ce fichier pour l’UI).
+En place :
+
+- **Feature flags** — `lib/config/feature_flags.dart` (`kDebugMode` / constantes), alignés côté portail.
+- **Journal des décisions** — section en bas de ce fichier (1 ligne par choix d’archi).
+- **Deep links invitation** — `/join?code=` (cf. `docs/specs/viroteam_v2_invitation_only_model.md`).
+- **CI** — `.github/workflows/ci.yml` (analyze + test Flutter, portail, functions, rules).
+- **Agents IA** — `CLAUDE.md` et `.cursor/rules/` (pointent vers ce fichier).
+
+À appliquer :
+
+- **Pas de logique dans `build()`** — calculs / streams dans des providers.
+- **Optimistic UI** pour RSVP et actions rapides (Firestore en arrière-plan).
+
+Plus tard :
+
+- **`packages/viro_core`** — extraire models + services partagés quand la duplication devient gênante.
 
 ---
 
@@ -222,7 +234,7 @@ Exemples de cible :
 
 | Date | Décision |
 |------|----------|
-| 2026-05 | Base Firestore dev nommée `V2-dev`, prod `V2-prod` |
+| 2026-05 | Base Firestore dev nommée `v2-dev`, prod `v2-prod` |
 | 2026-05 | UI flottante + `ViroMotion` / `ViroPressable` pour interactions |
 | 2026-05 | Tuiles de liste obligatoirement dans `lib/widgets/lists/` |
 | 2026-05 | Phosphor via `ViroIcons` / `ViroIcon` |
@@ -233,3 +245,5 @@ Exemples de cible :
 | 2026-08 | Parents = relation (pas rôle) ; spec `viroteam_v2_parents_spec.md` ; V1 = 1 adulte / enfant |
 | 2026-09 | Copy UI centralisé dans `AppCopy` (`lib/copy/`) ; voix « pote de vestiaire » (tutoiement) |
 | 2026-10 | A11y pragmatique : Semantics sur primitives app + `useDialogA11y` portail ; smoke `docs/A11Y_SMOKE.md` |
+| 2026-10 | Paiement CB via Stripe Connect ; HelloAsso dormant mais conservé (réactivation envisagée) |
+| 2026-10 | `CLAUDE.md` ajouté pour Claude Code (résumé de ce fichier + architecture dev/prod) |

@@ -16,6 +16,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Specs et roadmap messagerie v2
 - SEO landing : sitemap XML (route handler), `robots.txt` élargi, JSON-LD enrichi, mots-clés ciblés, FAQ marketing élargie, redirect `viroteam.com` → `www.viroteam.com`
 - Contrôle d’alignement de version `pubspec.yaml` ↔ `ProjectConfig` ↔ tags (`tool/check_app_version.mjs`) branché en CI et Release Android
+- `CLAUDE.md` pour Claude Code (commandes, architecture dev/prod, conventions) ; `PROJECT_CONVENTIONS.md` et README réalignés sur le code (fond `ViroScaffold`, états vides, paiements Stripe / HelloAsso dormant, release iOS)
 
 ### Sécurité
 

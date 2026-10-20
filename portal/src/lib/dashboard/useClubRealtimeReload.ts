@@ -28,11 +28,12 @@ export type ClubRealtimeReloadOptions = {
   collections?: readonly string[];
   /**
    * Écoute `fee_seasons` + cotisations de la saison active.
-   * Sans `memberFeeIds` : collection entière (admin/coach).
+   * Sans `memberFeeIds` (`undefined`) : collection entière (admin/coach).
    * Avec `memberFeeIds` : docs individuels (joueur/parent — rules).
+   * Tableau vide = en attente des ids (pas d’écoute collection, sinon permission-denied).
    */
   listenActiveMemberFees?: boolean;
-  /** Ids de fiches `member_fees` à écouter (sinon liste complète). */
+  /** Ids de fiches `member_fees` à écouter ; omis = liste complète. */
   memberFeeIds?: readonly string[];
   /** Déclenché après le 1er snapshot (baseline), debounce inclus. */
   onReload: () => void;
@@ -40,6 +41,19 @@ export type ClubRealtimeReloadOptions = {
   enabled?: boolean;
   debounceMs?: number;
 };
+
+/** Log listener Firestore sans overlay Next (`console.error` = erreur runtime en dev). */
+function logRealtimeError(
+  label: string,
+  details: Record<string, unknown>,
+  error: { code?: string; message?: string },
+): void {
+  console.warn(`[realtime] ${label}`, {
+    ...details,
+    code: error.code,
+    message: error.message,
+  });
+}
 
 /**
  * Recharge automatiquement une ressource club quand Firestore change.
@@ -49,7 +63,7 @@ export function useClubRealtimeReload({
   clubId,
   collections = [],
   listenActiveMemberFees = false,
-  memberFeeIds = [],
+  memberFeeIds,
   onReload,
   enabled = true,
   debounceMs = DEFAULT_DEBOUNCE_MS,
@@ -58,7 +72,11 @@ export function useClubRealtimeReload({
   onReloadRef.current = onReload;
 
   const collectionsKey = [...collections].sort().join("|");
-  const memberFeeIdsKey = [...memberFeeIds].filter(Boolean).sort().join("|");
+  /** `undefined` = mode collection ; sinon ids (éventuellement vides = attente). */
+  const memberFeeIdsKey =
+    memberFeeIds === undefined
+      ? "__all__"
+      : [...memberFeeIds].filter(Boolean).sort().join("|");
 
   useEffect(() => {
     if (!enabled || !clubId) return;
@@ -76,7 +94,8 @@ export function useClubRealtimeReload({
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
     let activeSeasonId: string | null = null;
-    const scopedFeeIds = memberFeeIdsKey
+    const scopedFeeMode = memberFeeIdsKey !== "__all__";
+    const scopedFeeIds = scopedFeeMode
       ? memberFeeIdsKey.split("|").filter(Boolean)
       : [];
 
@@ -112,12 +131,11 @@ export function useClubRealtimeReload({
           ref,
           () => scheduleReload(key),
           (error) => {
-            console.error("[realtime] listener collection en erreur", {
-              clubId: resolvedClubId,
-              path: relativePath,
-              code: error.code,
-              message: error.message,
-            });
+            logRealtimeError(
+              "listener collection en erreur",
+              { clubId: resolvedClubId, path: relativePath },
+              error,
+            );
           },
         ),
       );
@@ -141,9 +159,14 @@ export function useClubRealtimeReload({
             if (key.startsWith("__member_fee")) primedKeys.delete(key);
           }
         }
+        // Mode joueur/parent : attendre les ids (ne jamais lister la collection).
+        if (scopedFeeMode && scopedFeeIds.length === 0) {
+          return;
+        }
+
         activeSeasonId = seasonId;
 
-        if (scopedFeeIds.length > 0) {
+        if (scopedFeeMode) {
           for (const memberId of scopedFeeIds) {
             const feeRef = doc(
               db,
@@ -160,13 +183,11 @@ export function useClubRealtimeReload({
                 feeRef,
                 () => scheduleReload(key),
                 (error) => {
-                  console.error("[realtime] listener member_fee doc en erreur", {
-                    clubId: resolvedClubId,
-                    seasonId,
-                    memberId,
-                    code: error.code,
-                    message: error.message,
-                  });
+                  logRealtimeError(
+                    "listener member_fee doc en erreur",
+                    { clubId: resolvedClubId, seasonId, memberId },
+                    error,
+                  );
                 },
               ),
             );
@@ -187,12 +208,11 @@ export function useClubRealtimeReload({
             feesRef,
             () => scheduleReload("__member_fees__"),
             (error) => {
-              console.error("[realtime] listener member_fees en erreur", {
-                clubId: resolvedClubId,
-                seasonId,
-                code: error.code,
-                message: error.message,
-              });
+              logRealtimeError(
+                "listener member_fees en erreur",
+                { clubId: resolvedClubId, seasonId },
+                error,
+              );
             },
           ),
         );
@@ -212,7 +232,7 @@ export function useClubRealtimeReload({
             attachMemberFees(season.id);
           }
         } catch (error) {
-          console.error("[realtime] résolution saison active impossible", error);
+          console.warn("[realtime] résolution saison active impossible", error);
           primedKeys.add("__member_fees__");
         }
       }
@@ -231,11 +251,11 @@ export function useClubRealtimeReload({
             void syncActiveSeasonFees();
           },
           (error) => {
-            console.error("[realtime] listener fee_seasons en erreur", {
-              clubId: resolvedClubId,
-              code: error.code,
-              message: error.message,
-            });
+            logRealtimeError(
+              "listener fee_seasons en erreur",
+              { clubId: resolvedClubId },
+              error,
+            );
           },
         ),
       );

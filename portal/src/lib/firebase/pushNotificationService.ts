@@ -42,6 +42,8 @@ export async function startWebPush(): Promise<void> {
 /** Désenregistre le token web courant (logout). */
 export async function stopWebPush(): Promise<void> {
   if (typeof window === "undefined") return;
+  // Push jamais démarré sans VAPID : rien à désenregistrer.
+  if (!process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.trim()) return;
   try {
     const supported = await isSupported().catch(() => false);
     if (!supported) return;

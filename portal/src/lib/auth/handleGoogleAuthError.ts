@@ -1,7 +1,11 @@
-import { EmailUsedWithPasswordError } from "@/lib/firebase/googleAuth";
+import {
+  EmailUsedWithPasswordError,
+  GOOGLE_SIGN_IN_CANCELLED,
+} from "@/lib/firebase/googleAuth";
 
 type GoogleAuthErrorResult = {
-  formMessage: string;
+  /** Absent si l’utilisateur a simplement fermé la popup. */
+  formMessage?: string;
   emailToPrefill?: string;
   shouldStopLoading: boolean;
 };
@@ -17,6 +21,10 @@ export function handleGoogleAuthError(
       emailToPrefill: error.email,
       shouldStopLoading: true,
     };
+  }
+
+  if (error instanceof Error && error.message === GOOGLE_SIGN_IN_CANCELLED) {
+    return { shouldStopLoading: true };
   }
 
   return {

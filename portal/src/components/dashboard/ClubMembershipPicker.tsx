@@ -13,6 +13,7 @@ import {
 } from "@/lib/clubSetup/clubBrandColors";
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { sportEmoji } from "@/lib/sports/sportEmoji";
+import { NavLoadBar } from "@/components/common/NavLoadBar";
 import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import styles from "./ClubMembershipPicker.module.css";
@@ -33,6 +34,10 @@ type ClubMembershipPickerProps = {
    */
   formatSecondaryLabel?: (club: ClubMembershipTile) => string | null;
   onClubChange: (clubId: string, space: PortalSpace) => void;
+  /** Club en cours de chargement (barre de progression dans sa pastille). */
+  pendingClubId?: string | null;
+  /** Espace en cours de chargement (avec `pendingClubId`). */
+  pendingSpace?: PortalSpace | null;
 };
 
 function hasRoleBadge(role: string | null): boolean {
@@ -57,6 +62,8 @@ export function ClubMembershipPicker({
   showCreateClub = false,
   formatSecondaryLabel,
   onClubChange,
+  pendingClubId = null,
+  pendingSpace = null,
 }: ClubMembershipPickerProps) {
   const [logoLightbox, setLogoLightbox] = useState<{
     src: string;
@@ -86,6 +93,9 @@ export function ClubMembershipPicker({
           const clubName = club.name.trim() || "Club";
           const secondaryLabel = formatSecondaryLabel?.(club) ?? null;
           const logoUrl = club.logoUrl?.trim() || null;
+          const isPending =
+            club.id === pendingClubId &&
+            club.space === pendingSpace;
 
           return (
             <button
@@ -104,6 +114,7 @@ export function ClubMembershipPicker({
                 if (!isActive) onClubChange(club.id, club.space);
               }}
             >
+              <NavLoadBar active={isPending} />
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { FamilyRouteGuard } from "@/components/auth/FamilyRouteGuard";
+import { NavLoadBar } from "@/components/common/NavLoadBar";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
@@ -75,7 +76,8 @@ function FamilyShellChrome() {
     profile,
     selectClubContext,
   } = useAuth();
-  const { pendingHref, beginPageLoad } = usePageLoad();
+  const { pendingHref, pendingClubId, pendingSpace, beginPageLoad } =
+    usePageLoad();
   const { selectedTarget } = useFamilyAudience();
   const feeDeadlineUrgent = useFamilyFeeDeadlineUrgency(
     selectedTarget?.memberId ?? null,
@@ -96,8 +98,8 @@ function FamilyShellChrome() {
   function handleClubChange(clubId: string, space: PortalSpace) {
     if (space !== activeSpace) {
       const target = space === "family" ? "/family" : "/home";
+      if (!selectClubContext(clubId, space)) return;
       beginPageLoad(target, { clubId, space });
-      selectClubContext(clubId, space);
       router.replace(target);
       return;
     }
@@ -105,8 +107,8 @@ function FamilyShellChrome() {
     const stayOnPage =
       !isFamilyCrossClubPath(pathname) && isFamilyRouteAllowed(pathname);
     const target = stayOnPage ? pathname : "/family";
+    if (!selectClubContext(clubId, space)) return;
     beginPageLoad(target, { clubId, space });
-    selectClubContext(clubId, space);
     if (!stayOnPage) {
       router.replace("/family");
     }
@@ -116,6 +118,7 @@ function FamilyShellChrome() {
   const onMyPlanning = isFamilyMyPlanningPath(pathname);
   const onMessages = isFamilyMessagesPath(pathname);
   const onCrossClub = onMyPlanning || onMessages;
+  const pendingNavItem = NAV_ITEMS.find((item) => item.href === pendingHref);
   const isPlanning =
     pathname.startsWith("/family/planning") || onMyPlanning;
   const fillViewport = isPlanning || onMessages;
@@ -153,6 +156,8 @@ function FamilyShellChrome() {
               activeSpace={activeSpace}
               compact
               showCreateClub
+              pendingClubId={pendingClubId}
+              pendingSpace={pendingSpace}
               formatSecondaryLabel={(club) =>
                 club.space === "family" ? childHeaderLabel : null
               }
@@ -230,6 +235,12 @@ function FamilyShellChrome() {
 
         {!onCrossClub ? (
           <nav className={styles.navStrip} aria-label="Espace famille">
+            <NavLoadBar
+              active={pendingNavItem != null}
+              toneClassName={
+                pendingNavItem ? styles[pendingNavItem.toneClass] : undefined
+              }
+            />
             {NAV_ITEMS.map((item) => {
               const isActive = isNavItemActive(pathname, item.href);
               const isPending = pendingHref === item.href && !isActive;

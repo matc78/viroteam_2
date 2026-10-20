@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavLoadBar } from "@/components/common/NavLoadBar";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { requestPersonalPlanningReload } from "@/lib/dashboard/personalPlanningReload";
@@ -58,8 +59,9 @@ function CalendarIcon() {
 export function PersonalPlanningTile({ href }: PersonalPlanningTileProps) {
   const pathname = usePathname();
   const { profile } = useAuth();
-  const { beginPageLoad } = usePageLoad();
+  const { pendingHref, beginPageLoad } = usePageLoad();
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const isPending = pendingHref === href;
 
   if (!shouldShowPersonalPlanningTile(profile)) {
     return null;
@@ -82,6 +84,7 @@ export function PersonalPlanningTile({ href }: PersonalPlanningTileProps) {
         beginPageLoad(href);
       }}
     >
+      <NavLoadBar active={isPending} />
       <span className={styles.icon} aria-hidden>
         <CalendarIcon />
       </span>

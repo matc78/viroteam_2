@@ -13,11 +13,7 @@ import {
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
 import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
-import { reconcileMemberTeamIds } from "@/lib/firebase/teamService";
-import {
-  listClubParentRows,
-  type ClubParentRow,
-} from "@/lib/members/parentsView";
+import { scheduleMemberTeamIdsRepair } from "@/lib/firebase/teamService";
 
 /** Ligne membre enrichie pour le tableau portail. */
 export type MemberRow = ClubMemberRecord & {
@@ -44,9 +40,6 @@ export type MembersPageData = {
   teams: TeamOption[];
   seasonId: string | null;
   seasonLabel: string | null;
-  parents: ClubParentRow[];
-  /** True si une réparation `teamIds` a été écrite au chargement. */
-  teamIdsSynced: boolean;
 };
 
 /** Libellé FR d’un statut cotisation. */
@@ -126,10 +119,14 @@ function feeStatusForMember(
 export type LoadMembersPageOptions = {
   /** Rôle club du viewer (`admin` / `coach` / `player`). */
   role?: string | null;
+  /** Page Équipe : membres + équipes seulement (ni cotisations, ni réparation). */
+  rosterOnly?: boolean;
 };
 
 /**
- * Charge membres + équipes + cotisations saison active + parents.
+ * Charge membres + équipes + cotisations saison active.
+ * Les parents (une requête par membre) se chargent à part, à la demande :
+ * `listClubParentRows`.
  * List `member_fees` et reconcile `teamIds` réservés admin/coach (rules).
  */
 export async function loadMembersPageData(
@@ -137,40 +134,33 @@ export async function loadMembersPageData(
   options: LoadMembersPageOptions = {},
 ): Promise<MembersPageData> {
   const role = options.role ?? null;
+  const rosterOnly = options.rosterOnly === true;
   const canListFees =
-    role === MemberRoles.admin || role === MemberRoles.coach;
+    !rosterOnly && (role === MemberRoles.admin || role === MemberRoles.coach);
   const canReconcileTeamIds = canListFees;
 
   const [members, teams, season] = await Promise.all([
     listClubMembers(club.id),
     loadTeamsForClub(club.id),
-    getActiveSeason(club.id),
+    rosterOnly ? Promise.resolve(null) : getActiveSeason(club.id),
   ]);
 
-  const healed = canReconcileTeamIds
-    ? await reconcileMemberTeamIds(club.id, {
-        members: members.map((member) => ({
-          memberId: member.memberId,
-          accountUid: member.accountUid,
-          teamIds: member.teamIds,
-        })),
-        teams,
-      })
-    : false;
+  // Réparation hors chemin critique : le listener members/teams recharge la page.
+  if (canReconcileTeamIds) {
+    scheduleMemberTeamIdsRepair(club.id, {
+      members: members.map((member) => ({
+        memberId: member.memberId,
+        accountUid: member.accountUid,
+        teamIds: member.teamIds,
+      })),
+      teams,
+    });
+  }
+  const membersForRows = members;
+  const teamsForRows = teams;
 
-  // Recharge après réparation pour aligner rosters normalisés + teamIds.
-  const [membersForRows, teamsForRows] = healed
-    ? await Promise.all([listClubMembers(club.id), loadTeamsForClub(club.id)])
-    : [members, teams];
-
-  const [fees, parentsResult] = await Promise.all([
-    season && canListFees
-      ? listMemberFees(club.id, season.id)
-      : Promise.resolve([]),
-    listClubParentRows(club.id, membersForRows).catch(
-      () => [] as ClubParentRow[],
-    ),
-  ]);
+  const fees =
+    season && canListFees ? await listMemberFees(club.id, season.id) : [];
   const feesById = new Map(fees.map((fee) => [fee.id, fee]));
 
   const rows: MemberRow[] = membersForRows.map((member) => {
@@ -191,8 +181,6 @@ export async function loadMembersPageData(
     teams: teamsForRows,
     seasonId: season?.id ?? null,
     seasonLabel: season?.seasonLabel ?? null,
-    parents: parentsResult,
-    teamIdsSynced: healed,
   };
 }
 

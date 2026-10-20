@@ -16,6 +16,9 @@ import { useAuth } from "@/lib/firebase/AuthProvider";
 import { usePendingOverlay } from "@/lib/ui/usePendingOverlay";
 import styles from "./AuthForm.module.css";
 
+/** Filet de sécurité si la redirection post-auth ne vient jamais. */
+const AUTH_PENDING_TIMEOUT_MS = 20_000;
+
 type FieldErrors = {
   displayName?: string;
   email?: string;
@@ -45,7 +48,13 @@ function SignupFormContent() {
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isFounderIntent, setIsFounderIntent] = useState(false);
-  const pendingOverlay = usePendingOverlay("Inscription…");
+  const pendingOverlay = usePendingOverlay("Inscription…", {
+    timeoutMs: AUTH_PENDING_TIMEOUT_MS,
+    onTimeout: () => {
+      setSubmitting(false);
+      setGoogleLoading(false);
+    },
+  });
 
   useEffect(() => {
     captureFounderIntentFromSearch(searchParams.toString());
@@ -106,7 +115,7 @@ function SignupFormContent() {
     } catch (error) {
       const result = handleGoogleAuthError(error, "Inscription Google impossible.");
       if (result.emailToPrefill) setEmail(result.emailToPrefill);
-      setErrors({ form: result.formMessage });
+      if (result.formMessage) setErrors({ form: result.formMessage });
       if (result.shouldStopLoading) {
         setGoogleLoading(false);
         pendingOverlay.fail();

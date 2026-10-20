@@ -15,6 +15,7 @@ import {
   type WriteBatch,
 } from "firebase/firestore";
 import { getAppFirestore, getFirebaseAuth } from "./app";
+import { dedupeInFlight } from "./dedupeInFlight";
 import {
   Collections,
   FeeAidStatuses,
@@ -497,6 +498,15 @@ export function feePaymentMethodLabel(fee: MemberFeeRecord): string | null {
 
 /** Charge la saison active du club (`isActive == true`). Retourne la première si plusieurs. */
 export async function getActiveSeason(
+  clubId: string,
+): Promise<FeeSeasonRecord | null> {
+  // Lue par plusieurs loaders d’une même page : une seule requête en vol.
+  return dedupeInFlight(`activeSeason:${clubId}`, () =>
+    queryActiveSeason(clubId),
+  );
+}
+
+async function queryActiveSeason(
   clubId: string,
 ): Promise<FeeSeasonRecord | null> {
   const activeSeasonQuery = query(feeSeasonsCol(clubId), where(Fields.isActive, "==", true));

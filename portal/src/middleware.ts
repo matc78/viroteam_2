@@ -29,5 +29,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|monitoring|ingest).*)"],
+  // Images / scripts statiques exclus (robots.txt et sitemap.xml restent redirigés).
+  matcher: [
+    "/((?!_next/static|_next/image|monitoring|ingest|favicon\\.ico|.*\\.(?:png|jpg|jpeg|svg|webp|ico|webmanifest|js)$).*)",
+  ],
 };

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavLoadBar } from "@/components/common/NavLoadBar";
+import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { useChatOptional } from "@/lib/chat/ChatProvider";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 import styles from "./MessagingTile.module.css";
@@ -45,10 +47,12 @@ function isMessagesPath(pathname: string | null): boolean {
 export function MessagingTile() {
   const pathname = usePathname();
   const chat = useChatOptional();
+  const { pendingHref, beginPageLoad } = usePageLoad();
   if (!CHAT_MESSAGING_LIVE || !chat) return null;
 
   const { totalUnread, messagesHref } = chat;
   const isActive = isMessagesPath(pathname);
+  const isPending = pendingHref === messagesHref;
   const label =
     totalUnread > 0
       ? `Messagerie, ${totalUnread} non lu${totalUnread > 1 ? "s" : ""}`
@@ -62,7 +66,11 @@ export function MessagingTile() {
       className={`${styles.tile}${isActive ? ` ${styles.tileActive}` : ""}`}
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
+      onClick={() => {
+        if (!isActive) beginPageLoad(messagesHref);
+      }}
     >
+      <NavLoadBar active={isPending} />
       <span className={styles.icon}>
         <ChatIcon />
         {totalUnread > 0 ? (

@@ -41,7 +41,10 @@ export function usePlayerFeeDeadlineUrgency(): boolean {
       }
       const result = await loadFeeDeadlineUrgent(activeClub, memberId);
       if (!cancelled) setUrgent(result);
-    })();
+    })().catch(() => {
+      // Indicateur secondaire : en cas d’erreur on n’affiche simplement rien.
+      if (!cancelled) setUrgent(false);
+    });
 
     return () => {
       cancelled = true;

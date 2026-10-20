@@ -87,8 +87,10 @@ async function loadPlayerSelfFee(
   club: ClubRecord,
   uid: string,
 ): Promise<PlayerFeeData> {
-  const linkedMemberId = await getLinkedMemberId(club.id, uid);
-  const season = await getActiveSeason(club.id);
+  const [linkedMemberId, season] = await Promise.all([
+    getLinkedMemberId(club.id, uid),
+    getActiveSeason(club.id),
+  ]);
   if (!season || !linkedMemberId) {
     return {
       season,

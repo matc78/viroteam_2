@@ -15,6 +15,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
+import { dedupeInFlight } from "./dedupeInFlight";
 import { Collections, Fields, MemberRoles } from "./constants";
 import { getClub } from "./clubService";
 import { toDate } from "./types";
@@ -299,6 +300,14 @@ export async function getClubEvent(
 
 /** Charge les équipes d'un club pour résoudre les libellés. */
 export async function loadTeamsForClub(clubId: string): Promise<TeamOption[]> {
+  // Appels concurrents (plusieurs loaders d’une page) : une seule requête.
+  const teams = await dedupeInFlight(`teams:${clubId}`, () =>
+    queryTeamsForClub(clubId),
+  );
+  return [...teams];
+}
+
+async function queryTeamsForClub(clubId: string): Promise<TeamOption[]> {
   const teamsCol = collection(
     getAppFirestore(),
     Collections.clubs,
@@ -767,16 +776,41 @@ async function queryUpcomingRawEvents(clubId: string): Promise<
   );
 }
 
-/** Charge les événements à venir d'un club dans la fenêtre 14 jours. */
+/** Clubs dont les convocations à venir ont déjà été réparées cette session. */
+const audienceRepairedClubIds = new Set<string>();
+
+/**
+ * Aligne les convocations à venir sur les rosters (répare les ajouts portail
+ * sans sync), en arrière-plan et une seule fois par club et par session.
+ * Réservé admin / coach (écriture events). Le listener temps réel des pages
+ * recharge les données si des convocations ont été corrigées.
+ */
+export function scheduleUpcomingAudienceRepair(
+  clubId: string,
+  teams: TeamOption[],
+): void {
+  if (audienceRepairedClubIds.has(clubId)) return;
+  audienceRepairedClubIds.add(clubId);
+  void syncUpcomingEventsAudienceFromTeams(clubId, teams).catch((error) => {
+    audienceRepairedClubIds.delete(clubId);
+    console.warn("Réparation convocations", error);
+  });
+}
+
+/**
+ * Charge les événements à venir d'un club dans la fenêtre 14 jours.
+ * `repairAudience` (admin / coach) : lance la réparation des convocations.
+ */
 export async function loadUpcomingEvents(
   clubId: string,
-  options: { limit?: number } = {},
+  options: { limit?: number; repairAudience?: boolean } = {},
 ): Promise<ClubEventView[]> {
-  const teams = await loadTeamsForClub(clubId);
-  // Aligne les convocations sur le roster actuel (répare les ajouts portail sans sync).
-  await syncUpcomingEventsAudienceFromTeams(clubId, teams);
+  const [teams, rawEvents] = await Promise.all([
+    loadTeamsForClub(clubId),
+    queryUpcomingRawEvents(clubId),
+  ]);
+  if (options.repairAudience) scheduleUpcomingAudienceRepair(clubId, teams);
   const teamNameById = new Map(teams.map((team) => [team.id, team.name]));
-  const rawEvents = await queryUpcomingRawEvents(clubId);
 
   const parsed = rawEvents
     .map(({ id, data }) => parseClubEvent(id, data, teamNameById))

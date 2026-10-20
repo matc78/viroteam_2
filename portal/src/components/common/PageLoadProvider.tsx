@@ -17,28 +17,27 @@ import {
   type PortalSpace,
 } from "@/lib/firebase/AuthProvider";
 
-/** Délai mini pour qu’un voile soit perceptible. */
-const MIN_VISIBLE_MS = 200;
+/** Le voile n’apparaît que si le changement de club dure plus que ce délai. */
+const OVERLAY_DELAY_MS = 300;
 
 /** Filet de sécurité si une page ne signale jamais ready. */
-const SAFETY_TIMEOUT_MS = 12_000;
+const SAFETY_TIMEOUT_MS = 8_000;
 
 type PageLoadOptions = {
   clubId?: string;
   space?: PortalSpace;
-  /**
-   * Si true (défaut pour les appels explicites), attend `markPageReady`.
-   * Si false (nav automatique), le voile tombe dès que la route est alignée.
-   */
-  awaitContent?: boolean;
 };
 
 type PendingPageLoad = {
   href: string;
   clubId?: string;
   space?: PortalSpace;
-  startedAt: number;
-  awaitContent: boolean;
+  /**
+   * Changement de club / espace : voile (retardé) jusqu’à `markPageReady`.
+   * Sinon navigation entre modules : aucun voile, le panneau affiche son skeleton
+   * et la barre d’onglets montre la progression jusqu’à `markPageReady`.
+   */
+  blocking: boolean;
   /** True une fois que la page cible a fini son chargement de données. */
   contentReady: boolean;
 };
@@ -46,7 +45,11 @@ type PendingPageLoad = {
 type PageLoadContextValue = {
   /** Cible de navigation en cours (styles nav pending). */
   pendingHref: string | null;
-  /** Démarre le voile plein écran jusqu’à route + contenu prêts. */
+  /** Club ciblé par un changement de club en cours (pastille du header). */
+  pendingClubId: string | null;
+  /** Espace ciblé par un changement de club / espace en cours. */
+  pendingSpace: PortalSpace | null;
+  /** Démarre une navigation ; voile plein écran seulement si club / espace change. */
   beginPageLoad: (href: string, options?: PageLoadOptions) => void;
   /** Signale que le contenu de la page cible est prêt à s’afficher. */
   markPageReady: () => void;
@@ -77,71 +80,21 @@ export function pathMatchesTarget(pathname: string, href: string): boolean {
   return pathname === target || pathname.startsWith(`${target}/`);
 }
 
-/** True si le clic doit déclencher une navigation interne Next. */
-function shouldTrackInternalNavigation(
-  event: MouseEvent,
-  currentPathname: string,
-): string | null {
-  if (event.defaultPrevented) return null;
-  if (event.button !== 0) return null;
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-    return null;
-  }
-
-  const target = event.target;
-  if (!(target instanceof Element)) return null;
-
-  const anchor = target.closest("a");
-  if (!anchor) return null;
-  if (anchor.hasAttribute("download")) return null;
-  const linkTarget = anchor.getAttribute("target");
-  if (linkTarget && linkTarget !== "_self") return null;
-
-  const hrefAttr = anchor.getAttribute("href");
-  if (!hrefAttr || hrefAttr.startsWith("#")) return null;
-  if (
-    hrefAttr.startsWith("mailto:") ||
-    hrefAttr.startsWith("tel:") ||
-    hrefAttr.startsWith("javascript:")
-  ) {
-    return null;
-  }
-
-  let url: URL;
-  try {
-    url = new URL(hrefAttr, window.location.href);
-  } catch {
-    return null;
-  }
-
-  if (url.origin !== window.location.origin) return null;
-
-  const nextPath = url.pathname || "/";
-  if (nextPath === currentPathname) return null;
-
-  return nextPath;
-}
-
 /**
  * Provider global du voile de chargement page.
  * Survit aux changements de layout (bureau ↔ famille).
- * Couvre : premier chargement, clics liens internes, nav explicite dashboard.
+ * Seuls les changements de club / espace masquent l’écran (après 300 ms) ;
+ * la navigation entre modules s’affiche immédiatement (skeleton ou données)
+ * et reste « pending » jusqu’au signal ready (barre de chargement des onglets).
  */
 export function PageLoadProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { activeClub, activeSpace } = useAuth();
   const [pending, setPending] = useState<PendingPageLoad | null>(null);
-  const [bootOverlay, setBootOverlay] = useState(true);
-  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [overlayVisible, setOverlayVisible] = useState(false);
   const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pathnameRef = useRef(pathname);
-  pathnameRef.current = pathname;
 
   const clearTimers = useCallback(() => {
-    if (clearTimerRef.current) {
-      clearTimeout(clearTimerRef.current);
-      clearTimerRef.current = null;
-    }
     if (safetyTimerRef.current) {
       clearTimeout(safetyTimerRef.current);
       safetyTimerRef.current = null;
@@ -151,13 +104,11 @@ export function PageLoadProvider({ children }: { children: ReactNode }) {
   const beginPageLoad = useCallback(
     (href: string, options?: PageLoadOptions) => {
       clearTimers();
-      const awaitContent = options?.awaitContent ?? true;
       setPending({
         href: normalizePagePath(href),
         clubId: options?.clubId,
         space: options?.space,
-        startedAt: Date.now(),
-        awaitContent,
+        blocking: Boolean(options?.clubId || options?.space),
         contentReady: false,
       });
       safetyTimerRef.current = setTimeout(() => {
@@ -175,48 +126,16 @@ export function PageLoadProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  /** Voile au premier paint (landing et hard refresh). */
+  /** Voile retardé : rien ne s’affiche si le changement de club est rapide. */
+  const blockingPending = pending?.blocking === true;
   useEffect(() => {
-    const startedAt = Date.now();
-    let cancelled = false;
-    let delayTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const dismiss = () => {
-      if (cancelled) return;
-      const remaining = Math.max(0, MIN_VISIBLE_MS - (Date.now() - startedAt));
-      delayTimer = setTimeout(() => {
-        if (!cancelled) setBootOverlay(false);
-      }, remaining);
-    };
-
-    if (document.readyState === "complete") {
-      dismiss();
-    } else {
-      window.addEventListener("load", dismiss, { once: true });
-      delayTimer = setTimeout(dismiss, 3_000);
+    if (!blockingPending) {
+      setOverlayVisible(false);
+      return;
     }
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener("load", dismiss);
-      if (delayTimer) clearTimeout(delayTimer);
-    };
-  }, []);
-
-  /** Intercepte les liens internes pour afficher le voile hors dashboard. */
-  useEffect(() => {
-    function onDocumentClick(event: MouseEvent) {
-      const nextPath = shouldTrackInternalNavigation(
-        event,
-        pathnameRef.current,
-      );
-      if (!nextPath) return;
-      beginPageLoad(nextPath, { awaitContent: false });
-    }
-
-    document.addEventListener("click", onDocumentClick, true);
-    return () => document.removeEventListener("click", onDocumentClick, true);
-  }, [beginPageLoad]);
+    const timer = setTimeout(() => setOverlayVisible(true), OVERLAY_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [blockingPending]);
 
   useEffect(() => {
     if (!pending) return;
@@ -229,34 +148,11 @@ export function PageLoadProvider({ children }: { children: ReactNode }) {
 
     if (!pathReady || !clubReady) return;
 
-    if (!pending.contentReady) {
-      if (pending.awaitContent) return;
-      setPending((current) => {
-        if (!current || current.contentReady) return current;
-        return { ...current, contentReady: true };
-      });
-      return;
-    }
+    if (!pending.contentReady) return;
 
-    const elapsed = Date.now() - pending.startedAt;
-    const remaining = Math.max(0, MIN_VISIBLE_MS - elapsed);
-
-    clearTimerRef.current = setTimeout(() => {
-      clearTimerRef.current = null;
-      if (safetyTimerRef.current) {
-        clearTimeout(safetyTimerRef.current);
-        safetyTimerRef.current = null;
-      }
-      setPending(null);
-    }, remaining);
-
-    return () => {
-      if (clearTimerRef.current) {
-        clearTimeout(clearTimerRef.current);
-        clearTimerRef.current = null;
-      }
-    };
-  }, [pathname, activeClub?.id, activeSpace, pending]);
+    clearTimers();
+    setPending(null);
+  }, [pathname, activeClub?.id, activeSpace, pending, clearTimers]);
 
   useEffect(() => {
     return () => clearTimers();
@@ -265,13 +161,21 @@ export function PageLoadProvider({ children }: { children: ReactNode }) {
   const value = useMemo<PageLoadContextValue>(
     () => ({
       pendingHref: pending?.href ?? null,
+      pendingClubId: pending?.clubId ?? null,
+      pendingSpace: pending?.space ?? null,
       beginPageLoad,
       markPageReady,
     }),
-    [pending?.href, beginPageLoad, markPageReady],
+    [
+      pending?.href,
+      pending?.clubId,
+      pending?.space,
+      beginPageLoad,
+      markPageReady,
+    ],
   );
 
-  const showOverlay = bootOverlay || pending !== null;
+  const showOverlay = overlayVisible && pending?.blocking === true;
 
   return (
     <PageLoadContext.Provider value={value}>

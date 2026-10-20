@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ActivationRosterPanel } from "@/components/dashboard/ActivationRosterPanel";
 import { AddMemberDialog } from "@/components/dashboard/AddMemberDialog";
@@ -26,6 +26,7 @@ import {
   teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
+import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import {
   ClubListenSets,
   useClubRealtimeReload,
@@ -87,6 +88,7 @@ import {
 import {
   buildGuardianInviteMessage,
   filterParentRows,
+  listClubParentRows,
   membersWithoutParent,
   type ClubParentRow,
   type ParentsFilters,
@@ -120,13 +122,14 @@ function MembersPageContent() {
   const searchParams = useSearchParams();
   const teamQuery = searchParams.get("team");
   const { showToast } = useToast();
-  const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
-    activeClub,
-    (club) =>
-      loadMembersPageData(club, { role: activeClubRole }),
-    [activeClubRole],
-    "/members",
-  );
+  const { data, loading, refreshing, error, reload, loadedClubId } =
+    useAsyncClubPageResource(
+      activeClub,
+      (club) =>
+        loadMembersPageData(club, { role: activeClubRole }),
+      [activeClubRole],
+      "/members",
+    );
   const membersActive = useIsPortalRouteActive(["/members"]);
   useClubRealtimeReload({
     clubId: activeClub?.id,
@@ -136,7 +139,6 @@ function MembersPageContent() {
     enabled: membersActive,
   });
 
-  const teamIdsSyncToastShownRef = useRef(false);
   const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(
     null,
@@ -161,7 +163,6 @@ function MembersPageContent() {
   );
 
   useEffect(() => {
-    teamIdsSyncToastShownRef.current = false;
     setFilters(DEFAULT_FILTERS);
     setParentFilters(DEFAULT_PARENT_FILTERS);
     setSelectedMemberId(null);
@@ -221,12 +222,6 @@ function MembersPageContent() {
     }
   }, [caps.canManageParents, membersTab]);
 
-  useEffect(() => {
-    if (!data?.teamIdsSynced || teamIdsSyncToastShownRef.current) return;
-    teamIdsSyncToastShownRef.current = true;
-    showToast("Changement appliqué.", "success");
-  }, [data?.teamIdsSynced, showToast]);
-
   const filteredRows = useMemo(() => {
     if (!data) return [];
     const scopedMembers = membersVisibleToViewer({
@@ -281,18 +276,53 @@ function MembersPageContent() {
     linkedMemberId,
   ]);
 
+  // Parents : une requête guardians par membre → chargés seulement quand
+  // l’onglet Parents ou l’invitation parent est ouvert, puis à chaque reload.
+  const parentsWanted =
+    caps.canManageParents && (membersTab === "parents" || showInviteParent);
+  // Club pour lequel les parents ont été demandés (reste chargé ensuite).
+  const [parentsRequestedClubId, setParentsRequestedClubId] = useState<
+    string | null
+  >(null);
+  useEffect(() => {
+    if (parentsWanted && activeClub) setParentsRequestedClubId(activeClub.id);
+  }, [parentsWanted, activeClub]);
+  const parentsRequested =
+    activeClub !== null && parentsRequestedClubId === activeClub.id;
+  // Membres du club actif seulement — évite liste vide / données du club précédent.
+  const membersReadyForParents =
+    Boolean(data) &&
+    loadedClubId !== null &&
+    loadedClubId === activeClub?.id;
+  const [membersVersion, setMembersVersion] = useState(0);
+  useEffect(() => {
+    setMembersVersion(0);
+  }, [activeClub?.id]);
+  useEffect(() => {
+    if (membersReadyForParents) {
+      setMembersVersion((version) => version + 1);
+    }
+  }, [data, membersReadyForParents]);
+  const parentsResource = useAsyncClubResource(
+    parentsRequested && membersReadyForParents && membersVersion > 0
+      ? activeClub
+      : null,
+    (club) =>
+      listClubParentRows(club.id, data!.members).catch(
+        () => [] as ClubParentRow[],
+      ),
+    [membersVersion],
+  );
+  const parentRows = parentsResource.data;
+
   const filteredParents = useMemo(
-    () => filterParentRows(data?.parents ?? [], parentFilters),
-    [data?.parents, parentFilters],
+    () => filterParentRows(parentRows ?? [], parentFilters),
+    [parentRows, parentFilters],
   );
 
   const parentInviteCandidates = useMemo(
-    () =>
-      membersWithoutParent(
-        data?.members ?? [],
-        data?.parents ?? [],
-      ),
-    [data?.members, data?.parents],
+    () => membersWithoutParent(data?.members ?? [], parentRows ?? []),
+    [data?.members, parentRows],
   );
 
   function memberContactVisible(member: {
@@ -1561,7 +1591,17 @@ function MembersPageContent() {
           />
         ) : null}
 
-        {data && membersTab === "parents" && caps.canManageParents ? (
+        {data &&
+        membersTab === "parents" &&
+        caps.canManageParents &&
+        !parentRows ? (
+          <DashboardSkeleton variant="members" />
+        ) : null}
+
+        {data &&
+        membersTab === "parents" &&
+        caps.canManageParents &&
+        parentRows ? (
           <ParentsTable
             rows={filteredParents}
             filters={parentFilters}

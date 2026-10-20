@@ -1,20 +1,84 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { ReactNode, Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { TeamPageClient } from "@/app/(dashboard)/team/TeamPageClient";
-import { AnnouncementsPageClient } from "@/app/(dashboard)/announcements/AnnouncementsPageClient";
-import { ActivityPageClient } from "@/app/(dashboard)/activity/ActivityPageClient";
-import { EquipmentPageClient } from "@/app/(dashboard)/equipment/EquipmentPageClient";
-import { FeesPageClient } from "@/app/(dashboard)/fees/FeesPageClient";
-import { HomePageClient } from "@/app/(dashboard)/home/HomePageClient";
-import { MembersPageClient } from "@/app/(dashboard)/members/MembersPageClient";
-import { PlanningPageClient } from "@/app/(dashboard)/planning/PlanningPageClient";
-import { PersonalPlanningClient } from "@/components/dashboard/PersonalPlanningClient";
-import { MessagesPageClient } from "@/components/chat/MessagesPageClient";
-import { SettingsPageClient } from "@/app/(dashboard)/settings/SettingsPageClient";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
+import { preloadWhenIdle } from "@/lib/ui/preloadWhenIdle";
 import styles from "./DashboardModulePanels.module.css";
+
+// Un chunk JS par module : seul le module ouvert est chargé au premier affichage,
+// les autres sont préchargés quand le navigateur est libre.
+const loadHome = () => import("@/app/(dashboard)/home/HomePageClient");
+const loadMembers = () => import("@/app/(dashboard)/members/MembersPageClient");
+const loadTeam = () => import("@/app/(dashboard)/team/TeamPageClient");
+const loadPlanning = () => import("@/app/(dashboard)/planning/PlanningPageClient");
+const loadPersonalPlanning = () =>
+  import("@/components/dashboard/PersonalPlanningClient");
+const loadMessages = () => import("@/components/chat/MessagesPageClient");
+const loadFees = () => import("@/app/(dashboard)/fees/FeesPageClient");
+const loadAnnouncements = () =>
+  import("@/app/(dashboard)/announcements/AnnouncementsPageClient");
+const loadActivity = () => import("@/app/(dashboard)/activity/ActivityPageClient");
+const loadEquipment = () => import("@/app/(dashboard)/equipment/EquipmentPageClient");
+const loadSettings = () => import("@/app/(dashboard)/settings/SettingsPageClient");
+
+const HomePageClient = dynamic(() => loadHome().then((m) => m.HomePageClient), {
+  loading: () => <DashboardSkeleton variant="home" />,
+});
+const MembersPageClient = dynamic(
+  () => loadMembers().then((m) => m.MembersPageClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
+);
+const TeamPageClient = dynamic(() => loadTeam().then((m) => m.TeamPageClient), {
+  loading: () => <DashboardSkeleton variant="members" />,
+});
+const PlanningPageClient = dynamic(
+  () => loadPlanning().then((m) => m.PlanningPageClient),
+  { loading: () => <DashboardSkeleton variant="planning" /> },
+);
+const PersonalPlanningClient = dynamic(
+  () => loadPersonalPlanning().then((m) => m.PersonalPlanningClient),
+  { loading: () => <DashboardSkeleton variant="planning" /> },
+);
+const MessagesPageClient = dynamic(
+  () => loadMessages().then((m) => m.MessagesPageClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
+);
+const FeesPageClient = dynamic(() => loadFees().then((m) => m.FeesPageClient), {
+  loading: () => <DashboardSkeleton variant="fees" />,
+});
+const AnnouncementsPageClient = dynamic(
+  () => loadAnnouncements().then((m) => m.AnnouncementsPageClient),
+  { loading: () => <DashboardSkeleton variant="home" /> },
+);
+const ActivityPageClient = dynamic(
+  () => loadActivity().then((m) => m.ActivityPageClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
+);
+const EquipmentPageClient = dynamic(
+  () => loadEquipment().then((m) => m.EquipmentPageClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
+);
+const SettingsPageClient = dynamic(
+  () => loadSettings().then((m) => m.SettingsPageClient),
+  { loading: () => <DashboardSkeleton variant="home" /> },
+);
+
+const MODULE_LOADERS: Array<() => Promise<unknown>> = [
+  loadHome,
+  loadPlanning,
+  loadMembers,
+  loadFees,
+  loadTeam,
+  loadAnnouncements,
+  loadPersonalPlanning,
+  loadSettings,
+  loadEquipment,
+  loadActivity,
+  ...(CHAT_MESSAGING_LIVE ? [loadMessages] : []),
+];
 
 type ModuleId =
   | "home"
@@ -116,6 +180,8 @@ export function DashboardModulePanels() {
   const [mountedIds, setMountedIds] = useState(
     () => new Set<ModuleId>([activeId]),
   );
+
+  useEffect(() => preloadWhenIdle(MODULE_LOADERS), []);
 
   useEffect(() => {
     setMountedIds((previous) => {

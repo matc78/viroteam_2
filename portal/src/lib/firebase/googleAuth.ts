@@ -37,7 +37,10 @@ function mapGoogleAuthError(error: unknown): never {
           : undefined;
       throw new EmailUsedWithPasswordError(email);
     }
-    if (error.code === "auth/popup-closed-by-user") {
+    if (
+      error.code === "auth/popup-closed-by-user" ||
+      error.code === "auth/cancelled-popup-request"
+    ) {
       throw new Error(GOOGLE_SIGN_IN_CANCELLED);
     }
   }

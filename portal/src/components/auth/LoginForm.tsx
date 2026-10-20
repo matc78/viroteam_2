@@ -12,6 +12,9 @@ import { isUnknownAccountAuthError } from "@/lib/firebase/authErrors";
 import { usePendingOverlay } from "@/lib/ui/usePendingOverlay";
 import styles from "./AuthForm.module.css";
 
+/** Filet de sécurité si la redirection post-auth ne vient jamais. */
+const AUTH_PENDING_TIMEOUT_MS = 20_000;
+
 type FieldErrors = {
   email?: string;
   password?: string;
@@ -27,7 +30,13 @@ function LoginFormContent() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const pendingOverlay = usePendingOverlay("Connexion…");
+  const pendingOverlay = usePendingOverlay("Connexion…", {
+    timeoutMs: AUTH_PENDING_TIMEOUT_MS,
+    onTimeout: () => {
+      setSubmitting(false);
+      setGoogleLoading(false);
+    },
+  });
 
   usePostAuthRedirect();
 
@@ -84,7 +93,7 @@ function LoginFormContent() {
       }
       const result = handleGoogleAuthError(error);
       if (result.emailToPrefill) setEmail(result.emailToPrefill);
-      setErrors({ form: result.formMessage });
+      if (result.formMessage) setErrors({ form: result.formMessage });
       if (result.shouldStopLoading) {
         setGoogleLoading(false);
         pendingOverlay.fail();

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { BureauRouteGuard } from "@/components/auth/BureauRouteGuard";
+import { NavLoadBar } from "@/components/common/NavLoadBar";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
@@ -99,7 +100,8 @@ export function DashboardShell() {
     profile,
     selectClubContext,
   } = useAuth();
-  const { pendingHref, beginPageLoad } = usePageLoad();
+  const { pendingHref, pendingClubId, pendingSpace, beginPageLoad } =
+    usePageLoad();
   const feeDeadlineUrgent = usePlayerFeeDeadlineUrgency();
   const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
   const profileAvatarUrl = profile?.avatarUrl?.trim() || null;
@@ -123,8 +125,8 @@ export function DashboardShell() {
   function handleClubChange(clubId: string, space: PortalSpace) {
     if (space !== activeSpace) {
       const target = space === "family" ? "/family" : "/home";
+      if (!selectClubContext(clubId, space)) return;
       beginPageLoad(target, { clubId, space });
-      selectClubContext(clubId, space);
       router.replace(target);
       return;
     }
@@ -136,13 +138,16 @@ export function DashboardShell() {
       !isCrossClubPath(pathname) &&
       isBureauRouteAllowed(pathname, nextCaps);
     const target = stayOnPage ? pathname : "/home";
+    if (!selectClubContext(clubId, space)) return;
     beginPageLoad(target, { clubId, space });
-    selectClubContext(clubId, space);
     if (!stayOnPage) {
       router.replace("/home");
     }
   }
 
+  const pendingNavItem = visibleNavItems.find(
+    (item) => item.href === pendingHref,
+  );
   const resolvedUserName = profile?.displayName ?? "Membre";
   const wide = isWidePath(pathname);
   const onMyPlanning = isMyPlanningPath(pathname);
@@ -188,6 +193,8 @@ export function DashboardShell() {
               compact
               showCreateClub
               onClubChange={handleClubChange}
+              pendingClubId={pendingClubId}
+              pendingSpace={pendingSpace}
             />
           </div>
 
@@ -259,6 +266,12 @@ export function DashboardShell() {
 
         {!onCrossClub ? (
           <nav className={styles.navStrip} aria-label="Modules espace club">
+            <NavLoadBar
+              active={pendingNavItem != null}
+              toneClassName={
+                pendingNavItem ? styles[pendingNavItem.toneClass] : undefined
+              }
+            />
             {visibleNavItems.map((item) => {
               const isActive = isNavItemActive(pathname, item.href);
               const isPending = pendingHref === item.href && !isActive;

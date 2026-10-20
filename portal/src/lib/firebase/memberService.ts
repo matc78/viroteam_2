@@ -9,9 +9,11 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
+  where,
   type DocumentReference,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
+import { dedupeInFlight } from "./dedupeInFlight";
 import { validateEmail } from "@/lib/auth/validateEmail";
 import {
   formatFirstName,
@@ -325,8 +327,35 @@ export async function loadMembersByRosterIds(
   });
 }
 
-/** Résout la fiche licencié liée au compte Auth (Moi). */
+/** Liens compte → fiche déjà résolus (un lien établi ne change pas en session). */
+const linkedMemberIdCache = new Map<string, string>();
+
+/** Vide le cache des liens compte → fiche (déconnexion / changement de compte). */
+export function clearLinkedMemberIdCache(): void {
+  linkedMemberIdCache.clear();
+}
+
+/**
+ * Résout la fiche licencié liée au compte Auth (Moi).
+ * Appelé par la plupart des pages : résultat non nul mis en cache pour la
+ * session, appels concurrents mutualisés. Un « pas de fiche » est relu à
+ * chaque fois (le lien peut apparaître après une invitation acceptée).
+ */
 export async function getLinkedMemberId(
+  clubId: string,
+  accountUid: string,
+): Promise<string | null> {
+  const key = `${clubId}:${accountUid}`;
+  const cached = linkedMemberIdCache.get(key);
+  if (cached) return cached;
+  const linked = await dedupeInFlight(`linkedMember:${key}`, () =>
+    queryLinkedMemberId(clubId, accountUid),
+  );
+  if (linked) linkedMemberIdCache.set(key, linked);
+  return linked;
+}
+
+async function queryLinkedMemberId(
   clubId: string,
   accountUid: string,
 ): Promise<string | null> {
@@ -348,66 +377,102 @@ export async function getLinkedMemberId(
   return null;
 }
 
-async function enrichMember(
-  clubId: string,
+/** Complète nom / avatar / e-mail depuis `users/{uid}` (repli si snapshot incomplet). */
+async function enrichFromUserProfile(
   member: ClubMemberRecord,
 ): Promise<ClubMemberRecord> {
-  let enriched = { ...member };
+  if (!member.accountUid) return member;
+  try {
+    const userSnap = await getDoc(
+      doc(getAppFirestore(), Collections.users, member.accountUid),
+    );
+    if (!userSnap.exists()) return member;
+    const userData = userSnap.data() as Record<string, unknown>;
+    return {
+      ...member,
+      displayName:
+        member.displayName ||
+        String(userData[Fields.displayName] ?? "").trim() ||
+        member.displayName,
+      avatarUrl:
+        member.avatarUrl ??
+        (typeof userData[Fields.avatarUrl] === "string"
+          ? String(userData[Fields.avatarUrl])
+          : null),
+      email:
+        member.email ??
+        (typeof userData[Fields.email] === "string"
+          ? String(userData[Fields.email])
+          : null),
+    };
+  } catch {
+    // Profil user illisible : on garde la fiche membre seule.
+    return member;
+  }
+}
 
-  if (member.accountUid) {
-    try {
-      const userSnap = await getDoc(
-        doc(getAppFirestore(), Collections.users, member.accountUid),
-      );
-      if (userSnap.exists()) {
-        const userData = userSnap.data() as Record<string, unknown>;
+/**
+ * Invitations en attente du club, indexées par id (une seule requête).
+ * Joueur / tiers : liste refusée par les rules → map vide.
+ */
+async function loadPendingInvitationsById(
+  clubId: string,
+): Promise<Map<string, Record<string, unknown>>> {
+  try {
+    const snap = await getDocs(
+      query(
+        invitationsCol(clubId),
+        where(Fields.status, "==", InvitationStatus.pending),
+      ),
+    );
+    return new Map(
+      snap.docs.map((docSnap) => [
+        docSnap.id,
+        docSnap.data() as Record<string, unknown>,
+      ]),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+/**
+ * Enrichit les fiches membres sans lecture par membre : compte lié déduit
+ * d’`accountUid` (retiré à la suppression de compte), nom / avatar / e-mail
+ * depuis le snapshot, invitations jointes en mémoire. `users/{uid}` n’est lu
+ * qu’en repli pour les fiches liées dont le snapshot n’a pas d’e-mail.
+ */
+async function enrichMembers(
+  clubId: string,
+  members: ClubMemberRecord[],
+): Promise<ClubMemberRecord[]> {
+  const needsInvitations = members.some((member) => member.activeInvitationId);
+  const invitationsById = needsInvitations
+    ? await loadPendingInvitationsById(clubId)
+    : new Map<string, Record<string, unknown>>();
+
+  return Promise.all(
+    members.map(async (member) => {
+      let enriched: ClubMemberRecord = {
+        ...member,
+        hasLinkedAccount: Boolean(member.accountUid),
+      };
+      const invite = member.activeInvitationId
+        ? invitationsById.get(member.activeInvitationId)
+        : undefined;
+      if (invite) {
         enriched = {
           ...enriched,
-          hasLinkedAccount: true,
-          displayName:
-            enriched.displayName ||
-            String(userData[Fields.displayName] ?? "").trim() ||
-            enriched.displayName,
-          avatarUrl:
-            enriched.avatarUrl ??
-            (typeof userData[Fields.avatarUrl] === "string"
-              ? String(userData[Fields.avatarUrl])
-              : null),
-          email:
-            enriched.email ??
-            (typeof userData[Fields.email] === "string"
-              ? String(userData[Fields.email])
-              : null),
+          pendingInviteCode: String(invite[Fields.code] ?? "") || null,
+          pendingInviteExpiresAt: toDate(invite[Fields.expiresAt]),
         };
       }
-    } catch {
-      // Profil user illisible : on garde la fiche membre seule.
-    }
-  }
-
-  if (member.activeInvitationId) {
-    try {
-      const inviteSnap = await getDoc(
-        doc(invitationsCol(clubId), member.activeInvitationId),
-      );
-      if (inviteSnap.exists()) {
-        const inviteData = inviteSnap.data() as Record<string, unknown>;
-        if (
-          String(inviteData[Fields.status] ?? "") === InvitationStatus.pending
-        ) {
-          enriched = {
-            ...enriched,
-            pendingInviteCode: String(inviteData[Fields.code] ?? "") || null,
-            pendingInviteExpiresAt: toDate(inviteData[Fields.expiresAt]),
-          };
-        }
-      }
-    } catch {
-      // Joueur / tiers : invitations d’autres membres illisibles (rules lot 1).
-    }
-  }
-
-  return enriched;
+      // Snapshot écrit à l’acceptation : sans e-mail, il est incomplet.
+      return enriched.accountUid && !enriched.email
+        ? enrichFromUserProfile(enriched)
+        : enriched;
+    }),
+  );
 }
 
 /**
@@ -418,14 +483,11 @@ export async function listClubMembers(
   clubId: string,
 ): Promise<ClubMemberRecord[]> {
   const snap = await getDocs(query(membersCol(clubId), limit(MEMBERS_LIST_LIMIT)));
-  const members = await Promise.all(
-    snap.docs.map(async (docSnap) => {
-      const parsed = parseClubMember(
-        docSnap.id,
-        docSnap.data() as Record<string, unknown>,
-      );
-      return enrichMember(clubId, parsed);
-    }),
+  const members = await enrichMembers(
+    clubId,
+    snap.docs.map((docSnap) =>
+      parseClubMember(docSnap.id, docSnap.data() as Record<string, unknown>),
+    ),
   );
 
   members.sort((a, b) => {

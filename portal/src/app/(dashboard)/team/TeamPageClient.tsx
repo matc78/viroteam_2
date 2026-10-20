@@ -31,7 +31,8 @@ export function TeamPageClient() {
 
   const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub,
-    (club) => loadMembersPageData(club, { role: activeClubRole }),
+    (club) =>
+      loadMembersPageData(club, { role: activeClubRole, rosterOnly: true }),
     [activeClubRole],
     "/team",
   );

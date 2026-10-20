@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  experimental: {
+    // Imports nommés réécrits en imports profonds (moins de JS livré).
+    optimizePackageImports: ["framer-motion"],
+  },
   // PostHog API utilise des trailing slashes (/e/) — ne pas les retirer.
   skipTrailingSlashRedirect: true,
   // Fallback local / hors App Hosting. En prod FAH, le Host client n’atteint
@@ -63,12 +67,6 @@ export default withSentryConfig(nextConfig, {
   tunnelRoute: "/monitoring",
 
   webpack: {
-    // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-    // See the following for more information:
-    // https://docs.sentry.io/product/crons/
-    // https://vercel.com/docs/cron-jobs
-    automaticVercelMonitors: true,
-
     // Tree-shaking options for reducing bundle size
     treeshake: {
       // Automatically tree-shake Sentry logger statements to reduce bundle size

@@ -2,6 +2,7 @@ import {
   collection,
   deleteField,
   getDocs,
+  limit as limitDocs,
   orderBy,
   query,
   serverTimestamp,
@@ -214,11 +215,16 @@ function announcementsCollection(clubId: string) {
 /** Charge toutes les annonces du club (admin bureau), plus récentes d’abord. */
 export async function loadClubAnnouncements(
   clubId: string,
+  options: { limit?: number } = {},
 ): Promise<ClubAnnouncementRecord[]> {
   let snap;
   try {
+    const ordered = query(
+      announcementsCollection(clubId),
+      orderBy(Fields.createdAt, "desc"),
+    );
     snap = await getDocs(
-      query(announcementsCollection(clubId), orderBy(Fields.createdAt, "desc")),
+      options.limit ? query(ordered, limitDocs(options.limit)) : ordered,
     );
   } catch {
     snap = await getDocs(announcementsCollection(clubId));

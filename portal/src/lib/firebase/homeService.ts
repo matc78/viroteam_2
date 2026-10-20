@@ -16,6 +16,7 @@ import {
   remainingCents,
 } from "./feeService";
 import {
+  getClubMember,
   getLinkedMemberId,
   listClubMembers,
   type ClubMemberRecord,
@@ -408,20 +409,32 @@ function splitPersonalUpcomingEvents(params: {
 /**
  * Agrège les données home admin depuis Firestore (KPIs, charts, events).
  */
+/** Annonces lues pour l’aperçu accueil (les actives sont parmi les récentes). */
+const HOME_ANNOUNCEMENT_SCAN_LIMIT = 50;
+
 export async function loadHomeDashboard(params: {
   club: ClubRecord;
   adminDisplayName: string;
   uid?: string;
 }): Promise<HomeDashboardData> {
-  const linkedMemberId = params.uid
-    ? await getLinkedMemberId(params.club.id, params.uid)
-    : null;
-  const [season, teams, allUpcomingEvents, clubAnnouncements] =
+  // Tout en parallèle ; les cotisations suivent la saison sans attendre le reste.
+  const [linkedMemberId, { season, fees }, teams, allUpcomingEvents, clubAnnouncements] =
     await Promise.all([
-      getActiveSeason(params.club.id),
+      params.uid
+        ? getLinkedMemberId(params.club.id, params.uid)
+        : Promise.resolve(null),
+      getActiveSeason(params.club.id).then(async (activeSeason) => ({
+        season: activeSeason,
+        fees: activeSeason
+          ? await listMemberFees(params.club.id, activeSeason.id)
+          : [],
+      })),
       loadTeamsForClub(params.club.id),
-      loadUpcomingEvents(params.club.id),
-      loadClubAnnouncements(params.club.id),
+      loadUpcomingEvents(params.club.id, { repairAudience: true }),
+      // Accueil : seules les plus récentes peuvent encore être actives.
+      loadClubAnnouncements(params.club.id, {
+        limit: HOME_ANNOUNCEMENT_SCAN_LIMIT,
+      }),
     ]);
   const teamNamesById = new Map(
     teams.map((team) => [team.id, team.name] as const),
@@ -440,7 +453,6 @@ export async function loadHomeDashboard(params: {
       createdAt: announcement.createdAt,
       targetLabel: announcementTargetLabel(announcement, teamNamesById),
     }));
-  const fees = season ? await listMemberFees(params.club.id, season.id) : [];
   const upcomingEvents = allUpcomingEvents.slice(0, HOME_PREVIEW_EVENT_LIMIT);
   const upcomingEventCount = allUpcomingEvents.length;
   const pendingAids = countPendingAids(fees);
@@ -558,7 +570,7 @@ export async function loadCoachHomeDashboard(params: {
   const [teams, members, allUpcomingEvents, linkedMemberId] = await Promise.all([
     loadTeamsForClub(params.club.id),
     listClubMembers(params.club.id),
-    loadUpcomingEvents(params.club.id),
+    loadUpcomingEvents(params.club.id, { repairAudience: true }),
     getLinkedMemberId(params.club.id, params.uid),
   ]);
 
@@ -659,13 +671,16 @@ export async function loadPlayerHomeDashboard(params: {
   displayName: string;
   uid: string;
 }): Promise<PlayerHomeDashboardData> {
-  const linkedMemberId = await getLinkedMemberId(params.club.id, params.uid);
-  const [teams, allUpcomingEvents, members, season] = await Promise.all([
+  // Sa propre fiche suffit : pas de liste complète des membres.
+  const [linkedMemberId, teams, allUpcomingEvents, season] = await Promise.all([
+    getLinkedMemberId(params.club.id, params.uid),
     loadTeamsForClub(params.club.id),
     loadUpcomingEvents(params.club.id),
-    listClubMembers(params.club.id),
     getActiveSeason(params.club.id),
   ]);
+  const member = linkedMemberId
+    ? await getClubMember(params.club.id, linkedMemberId).catch(() => null)
+    : null;
 
   const matchIds = viewerMatchIds({
     uid: params.uid,
@@ -686,17 +701,19 @@ export async function loadPlayerHomeDashboard(params: {
     )
     .slice(0, HOME_PREVIEW_EVENT_LIMIT);
 
-  let announcements: PlayerHomeDashboardData["announcements"] = [];
-  const member =
-    (linkedMemberId
-      ? members.find((row) => row.memberId === linkedMemberId)
-      : null) ??
-    members.find(
-      (row) =>
-        row.accountUid === params.uid || row.memberId === params.uid,
-    ) ??
-    null;
+  const feeMemberId = linkedMemberId ?? member?.memberId ?? null;
+  const loadFee = async (): Promise<MemberFeeRecord | null> => {
+    if (!season || !feeMemberId) return null;
+    try {
+      return await getMemberFee(params.club.id, season.id, feeMemberId);
+    } catch {
+      // Cotisation illisible : on laisse l’accueil sans encart frais.
+      return null;
+    }
+  };
+  const feePromise = loadFee();
 
+  let announcements: PlayerHomeDashboardData["announcements"] = [];
   if (member) {
     const memberWithTeams: ClubMemberRecord = {
       ...member,
@@ -724,20 +741,8 @@ export async function loadPlayerHomeDashboard(params: {
     }));
   }
 
-  let fee: MemberFeeRecord | null = null;
-  let remainingFeeCents = 0;
-  const feeMemberId =
-    linkedMemberId ??
-    member?.memberId ??
-    null;
-  if (season && feeMemberId) {
-    try {
-      fee = await getMemberFee(params.club.id, season.id, feeMemberId);
-      if (fee) remainingFeeCents = remainingCents(fee, season);
-    } catch {
-      // Cotisation illisible : on laisse l’accueil sans encart frais.
-    }
-  }
+  const fee = await feePromise;
+  const remainingFeeCents = fee && season ? remainingCents(fee, season) : 0;
 
   return {
     clubName: params.club.name,

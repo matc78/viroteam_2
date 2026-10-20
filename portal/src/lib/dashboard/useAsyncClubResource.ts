@@ -40,13 +40,18 @@ export function useAsyncClubResource<T>(
   /** Toujours le loader du dernier render (évite closure stale au reload). */
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
+  /** Dernier objet club : l’effet ne dépend que de l’id (objet recréé à chaque refreshProfile). */
+  const activeClubRef = useRef(activeClub);
+  activeClubRef.current = activeClub;
+  const activeClubId = activeClub?.id ?? null;
 
   dataRef.current = data;
 
   const depsKey = JSON.stringify(deps);
 
   useEffect(() => {
-    if (!activeClub) {
+    const activeClub = activeClubRef.current;
+    if (!activeClubId || !activeClub) {
       setData(null);
       setLoading(false);
       setRefreshing(false);
@@ -100,8 +105,7 @@ export function useAsyncClubResource<T>(
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- depsKey sérialise les deps appelant
-  }, [activeClub, reloadToken, depsKey]);
+  }, [activeClubId, reloadToken, depsKey]);
 
   return {
     data,

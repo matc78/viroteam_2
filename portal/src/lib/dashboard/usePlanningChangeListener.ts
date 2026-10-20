@@ -5,10 +5,22 @@ import {
   collection,
   onSnapshot,
   query,
+  Timestamp,
   where,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getAppFirestore } from "@/lib/firebase/app";
+
+/** Fenêtre écoutée : events depuis 1 mois (pas tout l’historique de l’équipe). */
+const LISTEN_WINDOW_PAST_DAYS = 31;
+
+/** Début de fenêtre (index composite `teamIds` + `date` existant). */
+function listenWindowStart(): Timestamp {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - LISTEN_WINDOW_PAST_DAYS);
+  return Timestamp.fromDate(start);
+}
 
 type PlanningChangeListenerResult = {
   hasNewEvents: boolean;
@@ -104,6 +116,7 @@ export function usePlanningChangeListener(
       const teamQuery = query(
         eventsCol,
         where("teamIds", "array-contains", teamId),
+        where("date", ">=", listenWindowStart()),
       );
 
       const unsubscribe = onSnapshot(
@@ -223,6 +236,7 @@ export function useMultiClubPlanningChangeListener(
       const teamQuery = query(
         eventsCol,
         where("teamIds", "array-contains", teamId),
+        where("date", ">=", listenWindowStart()),
       );
       const unsubscribe = onSnapshot(
         teamQuery,

@@ -18,12 +18,13 @@ export function FamilyGuard({ children }: FamilyGuardProps) {
   const { status, isParent, isBureauUser, setActiveSpace, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const denyingRef = useRef(false);
+  // Chemin depuis lequel la redirection access-denied a été lancée.
+  const denyingRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (status === "loading") return;
+    if (status === "loading" || status === "error") return;
     if (status === "signedOut") {
-      denyingRef.current = false;
+      denyingRef.current = null;
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
@@ -36,8 +37,8 @@ export function FamilyGuard({ children }: FamilyGuardProps) {
       return;
     }
 
-    if (denyingRef.current) return;
-    denyingRef.current = true;
+    if (denyingRef.current === pathname) return;
+    denyingRef.current = pathname;
     router.replace("/access-denied?reason=role");
   }, [
     status,
@@ -49,7 +50,7 @@ export function FamilyGuard({ children }: FamilyGuardProps) {
     profile,
   ]);
 
-  if (status === "loading") {
+  if (status === "loading" || status === "error") {
     return <AuthLoadingState />;
   }
 

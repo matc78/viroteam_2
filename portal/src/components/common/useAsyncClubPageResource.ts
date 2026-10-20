@@ -19,6 +19,10 @@ export function useAsyncClubPageResource<T>(
   pageRoute: string,
 ): AsyncClubResourceState<T> {
   const state = useAsyncClubResource(activeClub, loader, deps);
-  useReportPageReady(isClubResourceReady(activeClub, state), pageRoute);
+  // Club `null` (accès refusé, cible absente) : rien à charger, la page est prête.
+  useReportPageReady(
+    activeClub === null || isClubResourceReady(activeClub, state),
+    pageRoute,
+  );
   return state;
 }

@@ -1,6 +1,13 @@
 import { FirebaseApp, getApp, getApps, initializeApp } from "firebase/app";
 import { Auth, getAuth } from "firebase/auth";
-import { Firestore, getFirestore } from "firebase/firestore";
+import {
+  Firestore,
+  getFirestore,
+  initializeFirestore,
+  memoryLocalCache,
+  memoryLruGarbageCollector,
+  terminate,
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -52,10 +59,44 @@ export function getFirebaseAuth(): Auth {
   return getAuth(getFirebaseApp());
 }
 
+let appFirestore: Firestore | null = null;
+
 /**
  * Instance Firestore sur v2-dev / v2-prod.
  * Ne jamais utiliser getFirestore(app) sans databaseId.
+ *
+ * Cache mémoire LRU (pas de persistance disque : rien ne reste sur un poste
+ * partagé après déconnexion) : les documents survivent à la fermeture d’un
+ * listener, donc un panneau rouvert ne retélécharge que les changements.
  */
 export function getAppFirestore(): Firestore {
-  return getFirestore(getFirebaseApp(), getFirestoreDatabaseId());
+  if (appFirestore) return appFirestore;
+  const app = getFirebaseApp();
+  const databaseId = getFirestoreDatabaseId();
+  try {
+    appFirestore = initializeFirestore(
+      app,
+      {
+        localCache: memoryLocalCache({
+          garbageCollector: memoryLruGarbageCollector(),
+        }),
+      },
+      databaseId,
+    );
+  } catch {
+    // Déjà initialisée (HMR dev) : on réutilise l’instance existante.
+    appFirestore = getFirestore(app, databaseId);
+  }
+  return appFirestore;
+}
+
+/**
+ * Ferme l’instance Firestore et vide son cache mémoire (déconnexion) :
+ * le compte suivant ne voit jamais les documents du précédent.
+ */
+export async function resetAppFirestore(): Promise<void> {
+  const current = appFirestore;
+  if (!current) return;
+  appFirestore = null;
+  await terminate(current).catch(() => undefined);
 }

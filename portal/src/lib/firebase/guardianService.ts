@@ -260,25 +260,22 @@ export async function claimPendingGuardianInvites(emailNorm: string): Promise<nu
   return claimed;
 }
 
-/** Prénom d’une fiche enfant pour les puces famille. */
-export async function childFirstName(
+/**
+ * Prénom (puces) + nom complet (header) d’une fiche enfant en une seule
+ * lecture. Fiche absente ou illisible → « Enfant ».
+ */
+export async function childNames(
   clubId: string,
   memberId: string,
-): Promise<string> {
-  const member = await getClubMember(clubId, memberId);
-  if (!member) return "Enfant";
-  return member.firstName.trim() || member.displayName.split(" ")[0] || "Enfant";
-}
-
-/** Nom complet d’une fiche enfant (header / accueil famille). */
-export async function childDisplayName(
-  clubId: string,
-  memberId: string,
-): Promise<string> {
-  const member = await getClubMember(clubId, memberId);
-  if (!member) return "Enfant";
+): Promise<{ firstName: string; displayName: string }> {
+  const member = await getClubMember(clubId, memberId).catch(() => null);
+  if (!member) return { firstName: "Enfant", displayName: "Enfant" };
   const full =
     member.displayName.trim() ||
     [member.firstName, member.lastName].filter(Boolean).join(" ");
-  return full || "Enfant";
+  return {
+    firstName:
+      member.firstName.trim() || member.displayName.split(" ")[0] || "Enfant",
+    displayName: full || "Enfant",
+  };
 }

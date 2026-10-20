@@ -108,12 +108,12 @@ export function FamilyTeamClient() {
     enabled: familyTeamActive,
   });
 
+  // Sans cible (audience vide ou en erreur), la page est prête : état vide affiché.
   useReportPageReady(
     !audienceLoading &&
-      isClubResourceReady(
-        activeClub && selectedMemberId ? activeClub : null,
-        { loading, loadedClubId },
-      ),
+      (!activeClub ||
+        !selectedMemberId ||
+        isClubResourceReady(activeClub, { loading, loadedClubId })),
     "/family/team",
   );
 

@@ -1,16 +1,61 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { ReactNode, Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { FamilyTeamClient } from "@/components/family/FamilyTeamClient";
-import { FamilyFeesClient } from "@/components/family/FamilyFeesClient";
-import { FamilyHomeClient } from "@/components/family/FamilyHomeClient";
-import { FamilyPlanningClient } from "@/components/family/FamilyPlanningClient";
-import { FamilySettingsClient } from "@/components/family/FamilySettingsClient";
-import { PersonalPlanningClient } from "@/components/dashboard/PersonalPlanningClient";
-import { MessagesPageClient } from "@/components/chat/MessagesPageClient";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
+import { preloadWhenIdle } from "@/lib/ui/preloadWhenIdle";
 import styles from "@/components/dashboard/DashboardModulePanels.module.css";
+
+// Un chunk JS par module (voir DashboardModulePanels).
+const loadHome = () => import("@/components/family/FamilyHomeClient");
+const loadTeam = () => import("@/components/family/FamilyTeamClient");
+const loadPlanning = () => import("@/components/family/FamilyPlanningClient");
+const loadPersonalPlanning = () =>
+  import("@/components/dashboard/PersonalPlanningClient");
+const loadMessages = () => import("@/components/chat/MessagesPageClient");
+const loadFees = () => import("@/components/family/FamilyFeesClient");
+const loadSettings = () => import("@/components/family/FamilySettingsClient");
+
+const FamilyHomeClient = dynamic(
+  () => loadHome().then((m) => m.FamilyHomeClient),
+  { loading: () => <DashboardSkeleton variant="home" /> },
+);
+const FamilyTeamClient = dynamic(
+  () => loadTeam().then((m) => m.FamilyTeamClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
+);
+const FamilyPlanningClient = dynamic(
+  () => loadPlanning().then((m) => m.FamilyPlanningClient),
+  { loading: () => <DashboardSkeleton variant="planning" /> },
+);
+const PersonalPlanningClient = dynamic(
+  () => loadPersonalPlanning().then((m) => m.PersonalPlanningClient),
+  { loading: () => <DashboardSkeleton variant="planning" /> },
+);
+const MessagesPageClient = dynamic(
+  () => loadMessages().then((m) => m.MessagesPageClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
+);
+const FamilyFeesClient = dynamic(
+  () => loadFees().then((m) => m.FamilyFeesClient),
+  { loading: () => <DashboardSkeleton variant="fees" /> },
+);
+const FamilySettingsClient = dynamic(
+  () => loadSettings().then((m) => m.FamilySettingsClient),
+  { loading: () => <DashboardSkeleton variant="home" /> },
+);
+
+const MODULE_LOADERS: Array<() => Promise<unknown>> = [
+  loadHome,
+  loadPlanning,
+  loadTeam,
+  loadFees,
+  loadPersonalPlanning,
+  loadSettings,
+  ...(CHAT_MESSAGING_LIVE ? [loadMessages] : []),
+];
 
 type ModuleId =
   | "home"
@@ -89,6 +134,8 @@ export function FamilyModulePanels() {
   const [mountedIds, setMountedIds] = useState(
     () => new Set<ModuleId>([activeId]),
   );
+
+  useEffect(() => preloadWhenIdle(MODULE_LOADERS), []);
 
   useEffect(() => {
     setMountedIds((previous) => {

@@ -355,8 +355,13 @@ export function ChatThreadView({
     };
   }, [clubId, conversationId]);
 
+  // Clés stables : le doc conversation change à chaque snapshot (dernier message).
+  const participantUidsKey = (conversation?.participantUids ?? []).join("|");
+  const isDirectConversation =
+    conversation != null && !isGroupConversation(conversation);
+
   useEffect(() => {
-    const uids = conversation?.participantUids ?? [];
+    const uids = participantUidsKey ? participantUidsKey.split("|") : [];
     if (uids.length === 0) {
       setParticipants([]);
       setAllParticipants([]);
@@ -373,7 +378,7 @@ export function ChatThreadView({
       viewerUid: user?.uid,
     });
     const seededForHeader =
-      conversation && !isGroupConversation(conversation) && user
+      isDirectConversation && user
         ? seeded.filter((participant) => participant.uid !== user.uid)
         : seeded;
     if (seeded.length > 0) {
@@ -389,22 +394,30 @@ export function ChatThreadView({
     void resolveConversationParticipants({
       clubId,
       participantUids: uids,
-    }).then((resolved) => {
-      if (cancelled) return;
-      setAllParticipants(resolved);
-      const filtered =
-        conversation && !isGroupConversation(conversation) && user
-          ? resolved.filter((participant) => participant.uid !== user.uid)
-          : resolved;
-      setParticipants(filtered);
-      setParticipantsLoading(false);
-    });
+    })
+      .then((resolved) => {
+        if (cancelled) return;
+        setAllParticipants(resolved);
+        const filtered =
+          isDirectConversation && user
+            ? resolved.filter((participant) => participant.uid !== user.uid)
+            : resolved;
+        setParticipants(filtered);
+      })
+      .catch((error) => {
+        // Annuaire illisible (ex. rules famille) : on garde la liste pré-remplie.
+        console.warn("Participants conversation", error);
+      })
+      .finally(() => {
+        if (!cancelled) setParticipantsLoading(false);
+      });
     return () => {
       cancelled = true;
     };
   }, [
     clubId,
-    conversation,
+    participantUidsKey,
+    isDirectConversation,
     user,
     chat?.previewSenderByKey,
     chat?.userDisplayNameByUid,

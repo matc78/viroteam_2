@@ -16,9 +16,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { getFirebaseAuth } from "@/lib/firebase/app";
+import { getFirebaseAuth, resetAppFirestore } from "@/lib/firebase/app";
+import { clearLinkedMemberIdCache } from "@/lib/firebase/memberService";
 import { toAuthActionError } from "@/lib/firebase/authErrors";
 import { isDevAuthBypassEnabled } from "@/lib/firebase/devAuth";
 import {
@@ -45,11 +47,15 @@ import {
   createUserProfile,
   getUserProfile,
 } from "@/lib/firebase/userService";
-import { startWebPush, stopWebPush } from "@/lib/firebase/pushNotificationService";
+import { SessionErrorState } from "@/components/auth/SessionErrorState";
 
 export type { PortalSpace };
 
-type AuthStatus = "loading" | "signedOut" | "signedIn";
+/** `error` : connecté côté Firebase mais profil / clubs illisibles (écran Réessayer). */
+type AuthStatus = "loading" | "signedOut" | "signedIn" | "error";
+
+/** Délai max accordé au désenregistrement push avant la déconnexion. */
+const STOP_WEB_PUSH_TIMEOUT_MS = 2_000;
 
 /** État exposé par le contexte Auth du portail. */
 type AuthContextValue = {
@@ -87,8 +93,8 @@ type AuthContextValue = {
   setActiveClubId: (clubId: string) => void;
   /** Bascule bureau / famille. */
   setActiveSpace: (space: PortalSpace) => void;
-  /** Sélection atomique club + espace (pastilles header). */
-  selectClubContext: (clubId: string, space: PortalSpace) => void;
+  /** Sélection atomique club + espace (pastilles header). Faux si club hors périmètre. */
+  selectClubContext: (clubId: string, space: PortalSpace) => boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: (options?: { createProfileIfMissing?: boolean }) => Promise<void>;
   signUp: (params: {
@@ -97,8 +103,10 @@ type AuthContextValue = {
     displayName: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
-  /** Recharge profil + clubs après mutation Firestore. */
+  /** Recharge profil + clubs après mutation Firestore (ne rejette jamais). */
   refreshProfile: () => Promise<void>;
+  /** Relance le chargement de session après un échec (`status === "error"`). */
+  retrySession: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -154,6 +162,34 @@ function pickActiveClub(
   return clubs[0];
 }
 
+/** Démarre le push web quand le navigateur est libre (module chargé à la demande). */
+function startWebPushWhenIdle(): void {
+  if (typeof window === "undefined") return;
+  const start = () => {
+    void import("@/lib/firebase/pushNotificationService")
+      .then(({ startWebPush }) => startWebPush())
+      .catch((error) => {
+        console.info("Web push non démarré", error);
+      });
+  };
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(start, { timeout: 5_000 });
+  } else {
+    setTimeout(start, 2_000);
+  }
+}
+
+/** Désenregistre le push web sans jamais bloquer la déconnexion plus de 2 s. */
+async function stopWebPushBounded(): Promise<void> {
+  const stop = import("@/lib/firebase/pushNotificationService")
+    .then(({ stopWebPush }) => stopWebPush())
+    .catch(() => undefined);
+  await Promise.race([
+    stop,
+    new Promise<void>((resolve) => setTimeout(resolve, STOP_WEB_PUSH_TIMEOUT_MS)),
+  ]);
+}
+
 function resolveSpace(params: {
   isBureauUser: boolean;
   isParent: boolean;
@@ -177,8 +213,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [activeClubId, setActiveClubIdState] = useState<string | null>(null);
   const [activeSpace, setActiveSpaceState] = useState<PortalSpace>("bureau");
 
+  /** Incrémenté à chaque chargement : un chargement périmé n’écrit plus d’état. */
+  const sessionGenerationRef = useRef(0);
+  /** Uids dont les invitations parent en attente ont déjà été réclamées. */
+  const claimedUidsRef = useRef(new Set<string>());
+  /** Dernier compte chargé (détecte un changement de compte sans rechargement). */
+  const lastUidRef = useRef<string | null>(null);
+
   const loadSession = useCallback(async (firebaseUser: User | null) => {
+    const generation = ++sessionGenerationRef.current;
+    const isStale = () => generation !== sessionGenerationRef.current;
+
     if (!firebaseUser) {
+      lastUidRef.current = null;
+      claimedUidsRef.current.clear();
+      clearLinkedMemberIdCache();
       setUser(null);
       setProfile(null);
       setAdminClubs([]);
@@ -186,40 +235,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setFamilyClubs([]);
       setActiveClubIdState(null);
       setStatus("signedOut");
+      // Vide le cache mémoire Firestore après déconnexion (poste partagé).
+      void resetAppFirestore();
       return;
     }
 
     setUser(firebaseUser);
-    let userProfile = await getUserProfile(firebaseUser.uid);
-
-    const emailNorm =
-      userProfile?.emailNorm || firebaseUser.email?.trim().toLowerCase() || "";
-    if (emailNorm) {
-      try {
-        const claimed = await claimPendingGuardianInvites(emailNorm);
-        if (claimed > 0) {
-          userProfile = await getUserProfile(firebaseUser.uid);
-        }
-      } catch (error) {
-        console.error("Claim guardian invites", error);
-      }
+    // Changement de compte dans le même onglet : on vide le cache Firestore
+    // (aucun listener n’est actif tant que la session n’est pas `signedIn`).
+    const previousUid = lastUidRef.current;
+    lastUidRef.current = firebaseUser.uid;
+    if (previousUid && previousUid !== firebaseUser.uid) {
+      clearLinkedMemberIdCache();
+      await resetAppFirestore();
+      if (isStale()) return;
     }
-
-    setProfile(userProfile);
-
-    void startWebPush().catch((error) => {
-      console.info("Web push non démarré", error);
-    });
+    const userProfile = await getUserProfile(firebaseUser.uid);
+    if (isStale()) return;
 
     const adminIds = adminClubIds(userProfile);
     const bureauIds = bureauClubIds(userProfile);
     const familyIds = familyClubIds(userProfile);
-    const [loadedAdminClubs, loadedBureauClubs, loadedFamilyClubs] =
-      await Promise.all([
-        adminIds.length > 0 ? getClubsByIds(adminIds) : Promise.resolve([]),
-        bureauIds.length > 0 ? getClubsByIds(bureauIds) : Promise.resolve([]),
-        familyIds.length > 0 ? getClubsByIds(familyIds) : Promise.resolve([]),
-      ]);
+    // Une seule lecture par club (admin ⊂ bureau, et un club peut être bureau + famille).
+    const loadedClubs = await getClubsByIds([
+      ...bureauIds,
+      ...adminIds,
+      ...familyIds,
+    ]);
+    if (isStale()) return;
+    const clubsIn = (ids: string[]) =>
+      loadedClubs.filter((club) => ids.includes(club.id));
+    const loadedAdminClubs = clubsIn(adminIds);
+    const loadedBureauClubs = clubsIn(bureauIds);
+    const loadedFamilyClubs = clubsIn(familyIds);
+
+    setProfile(userProfile);
     setAdminClubs(loadedAdminClubs);
     setBureauClubs(loadedBureauClubs);
     setFamilyClubs(loadedFamilyClubs);
@@ -242,24 +292,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (active) writeStoredClubId(active.id);
 
     setStatus("signedIn");
+    return userProfile?.emailNorm || firebaseUser.email?.trim().toLowerCase() || "";
   }, []);
+
+  /**
+   * Charge la session sans jamais rejeter. Un échec au premier chargement
+   * passe en `error` ; un échec de rafraîchissement garde la session courante.
+   * Les invitations parent sont réclamées ensuite, hors chemin critique.
+   */
+  const runSession = useCallback(
+    async (firebaseUser: User | null): Promise<void> => {
+      const generation = sessionGenerationRef.current + 1;
+      let emailNorm: string | undefined;
+      try {
+        emailNorm = await loadSession(firebaseUser);
+      } catch (error) {
+        console.error("Auth session error", error);
+        if (generation !== sessionGenerationRef.current) return;
+        setStatus((current) => (current === "signedIn" ? current : "error"));
+        return;
+      }
+      if (!firebaseUser || generation !== sessionGenerationRef.current) return;
+
+      startWebPushWhenIdle();
+
+      if (!emailNorm || claimedUidsRef.current.has(firebaseUser.uid)) return;
+      claimedUidsRef.current.add(firebaseUser.uid);
+      try {
+        const claimed = await claimPendingGuardianInvites(emailNorm);
+        if (claimed > 0 && generation === sessionGenerationRef.current) {
+          await loadSession(firebaseUser);
+        }
+      } catch (error) {
+        console.error("Claim guardian invites", error);
+      }
+    },
+    [loadSession],
+  );
 
   useEffect(() => {
     const auth = getFirebaseAuth();
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      void loadSession(firebaseUser).catch((error) => {
-        console.error("Auth session error", error);
-        setUser(null);
-        setProfile(null);
-        setAdminClubs([]);
-        setBureauClubs([]);
-        setFamilyClubs([]);
-        setActiveClubIdState(null);
-        setStatus("signedOut");
-      });
+      void runSession(firebaseUser);
     });
     return unsubscribe;
-  }, [loadSession]);
+  }, [runSession]);
 
   const setActiveClubId = useCallback(
     (clubId: string) => {
@@ -293,11 +370,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const selectClubContext = useCallback(
     (clubId: string, space: PortalSpace) => {
       const pool = space === "family" ? familyClubs : bureauClubs;
-      if (!pool.some((club) => club.id === clubId)) return;
+      if (!pool.some((club) => club.id === clubId)) return false;
       setActiveSpaceState(space);
       writeStoredSpace(space);
       setActiveClubIdState(clubId);
       writeStoredClubId(clubId);
+      return true;
     },
     [bureauClubs, familyClubs],
   );
@@ -339,17 +417,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (options?: { createProfileIfMissing?: boolean }) => {
       try {
         await firebaseSignInWithGoogle(options);
+        if (options?.createProfileIfMissing) {
+          // Profil éventuellement créé après le premier chargement de session.
+          await runSession(getFirebaseAuth().currentUser);
+        }
       } catch (error) {
         if (error instanceof EmailUsedWithPasswordError) {
           throw error;
         }
+        // Popup fermée : propagée telle quelle pour que le formulaire coupe son loader.
         if (error instanceof Error && error.message === GOOGLE_SIGN_IN_CANCELLED) {
-          return;
+          throw error;
         }
         throw toAuthActionError(error);
       }
     },
-    [],
+    [runSession],
   );
 
   const signUp = useCallback(
@@ -376,20 +459,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         throw toAuthActionError(error);
       }
+      // onAuthStateChanged a lu la session avant la création du profil.
+      await runSession(getFirebaseAuth().currentUser);
     },
-    [],
+    [runSession],
   );
 
   const logout = useCallback(async () => {
     writeStoredClubId(null);
-    await stopWebPush().catch(() => undefined);
+    await stopWebPushBounded();
     await signOut(getFirebaseAuth());
   }, []);
 
   const refreshProfile = useCallback(async () => {
     if (!user) return;
-    await loadSession(user);
-  }, [loadSession, user]);
+    await runSession(user);
+  }, [runSession, user]);
+
+  const retrySession = useCallback(() => {
+    const currentUser = getFirebaseAuth().currentUser;
+    setStatus("loading");
+    void runSession(currentUser);
+  }, [runSession]);
 
   const clubPool = activeSpace === "family" ? familyClubs : bureauClubs;
   const activeClub = useMemo(
@@ -427,6 +518,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       logout,
       refreshProfile,
+      retrySession,
     }),
     [
       status,
@@ -446,10 +538,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       logout,
       refreshProfile,
+      retrySession,
     ],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {status === "error" ? (
+        <SessionErrorState onRetry={retrySession} onLogout={logout} />
+      ) : null}
+    </AuthContext.Provider>
+  );
 }
 
 /** Accède au contexte Auth du portail. */

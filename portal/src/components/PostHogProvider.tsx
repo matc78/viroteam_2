@@ -6,8 +6,11 @@ import { posthog } from "@/lib/posthog";
 
 const CONSENT_KEY = "viro.cookieConsent";
 
-/** Capture les page views PostHog si le consentement a déjà été accepté. */
-export function PostHogProvider({ children }: { children: React.ReactNode }) {
+/**
+ * Capture les page views PostHog si le consentement a déjà été accepté.
+ * Sans enfants : à monter dans son propre `<Suspense>` (useSearchParams).
+ */
+export function PostHogPageView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -21,5 +24,5 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     posthog.capture("$pageview", { $current_url: url });
   }, [pathname, searchParams]);
 
-  return <>{children}</>;
+  return null;
 }

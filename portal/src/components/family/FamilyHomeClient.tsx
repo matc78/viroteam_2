@@ -133,31 +133,44 @@ export function FamilyHomeClient() {
       let member: Awaited<ReturnType<typeof getClubMember>>;
       let season: FeeSeasonRecord | null;
 
+      // Cotisation lancée dès que la saison est connue (indépendante du reste).
+      const seasonPromise = getActiveSeason(club.id);
+      const feePromise = seasonPromise.then((activeSeason) =>
+        activeSeason
+          ? getMemberFee(club.id, activeSeason.id, selectedMemberId)
+          : null,
+      );
+      // Évite un rejet non géré si une autre lecture échoue avant l’await.
+      feePromise.catch(() => undefined);
+
       if (isGuardianView) {
         [member, season] = await Promise.all([
           getClubMember(club.id, selectedMemberId),
-          getActiveSeason(club.id),
+          seasonPromise,
         ]);
-        const childTeamIds = member?.teamIds ?? [];
+        const childMember = member;
+        const childTeamIds = childMember?.teamIds ?? [];
         const teams = await loadTeamsByIds(club.id, childTeamIds);
-        const events = await loadUpcomingEventsForGuardian(
-          club.id,
-          childTeamIds,
-          { limit: 20, teams },
-        );
+        const [events, guardianAnnouncements] = await Promise.all([
+          loadUpcomingEventsForGuardian(club.id, childTeamIds, {
+            limit: 20,
+            teams,
+          }),
+          childMember
+            ? loadAnnouncementsForGuardian({
+                clubId: club.id,
+                member: childMember,
+                childTeamIds,
+                teamCategoryById: new Map(
+                  teams.map((team) => [team.id, team.category]),
+                ),
+              })
+            : Promise.resolve([]),
+        ]);
         filtered = events.filter((event) =>
           eventForChild(event, selectedMemberId, childTeamIds),
         );
-        announcements = member
-          ? await loadAnnouncementsForGuardian({
-              clubId: club.id,
-              member,
-              childTeamIds,
-              teamCategoryById: new Map(
-                teams.map((team) => [team.id, team.category]),
-              ),
-            })
-          : [];
+        announcements = guardianAnnouncements;
       } else {
         let events: ClubEventView[];
         let teams: Awaited<ReturnType<typeof loadTeamsForClub>>;
@@ -165,7 +178,7 @@ export function FamilyHomeClient() {
           getClubMember(club.id, selectedMemberId),
           loadUpcomingEvents(club.id, { limit: 20 }),
           loadTeamsForClub(club.id),
-          getActiveSeason(club.id),
+          seasonPromise,
         ]);
         filtered = events.filter((event) =>
           eventForMember(event, selectedMemberId),
@@ -182,12 +195,8 @@ export function FamilyHomeClient() {
           : [];
       }
 
-      let fee: MemberFeeRecord | null = null;
-      let remaining = 0;
-      if (season) {
-        fee = await getMemberFee(club.id, season.id, selectedMemberId);
-        if (fee) remaining = remainingCents(fee, season);
-      }
+      const fee: MemberFeeRecord | null = await feePromise;
+      const remaining = fee && season ? remainingCents(fee, season) : 0;
 
       const isSelf = selectedTarget?.kind === "self";
       const memberDisplayName = isSelf

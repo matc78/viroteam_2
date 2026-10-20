@@ -366,7 +366,7 @@ export function ImportMembersDialog({
   }
 
   function handleDownloadExcelTemplate() {
-    downloadMembersExcelTemplate({ categoryExample });
+    void downloadMembersExcelTemplate({ categoryExample });
   }
 
   const principleBlock = (

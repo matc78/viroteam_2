@@ -9,7 +9,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    initAnalytics();
+    void initAnalytics().catch(() => undefined);
   }, []);
 
   useEffect(() => {

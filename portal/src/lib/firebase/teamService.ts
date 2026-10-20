@@ -510,6 +510,26 @@ export async function reconcileMemberTeamIds(
   return writes > 0;
 }
 
+/** Clubs dont les `teamIds` ont déjà été réconciliés cette session. */
+const teamIdsRepairedClubIds = new Set<string>();
+
+/**
+ * Lance `reconcileMemberTeamIds` en arrière-plan, une fois par club et par
+ * session (admin / coach). Le listener temps réel de la page recharge les
+ * données si des fiches ont été corrigées.
+ */
+export function scheduleMemberTeamIdsRepair(
+  clubId: string,
+  preloaded?: Parameters<typeof reconcileMemberTeamIds>[1],
+): void {
+  if (teamIdsRepairedClubIds.has(clubId)) return;
+  teamIdsRepairedClubIds.add(clubId);
+  void reconcileMemberTeamIds(clubId, preloaded).catch((error) => {
+    teamIdsRepairedClubIds.delete(clubId);
+    console.warn("Réparation teamIds", error);
+  });
+}
+
 /** Alias pour l’import CSV / API historique — préférer `addMemberToTeam`. */
 export { addMemberToTeam as assignMemberToTeam };
 /** Groupe les équipes par catégorie (libellé FR pour le vide). */

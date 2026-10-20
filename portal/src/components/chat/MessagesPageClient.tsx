@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChatThreadView } from "@/components/chat/ChatThreadView";
+import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { ConversationListItem } from "@/components/chat/ConversationListItem";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { useChat } from "@/lib/chat/ChatProvider";
@@ -45,6 +46,11 @@ export function MessagesPageClient({
     setDockOpen,
     dmPeerNameByKey,
   } = useChat();
+
+  useReportPageReady(
+    isPanelActive && !(inboxLoading && conversations.length === 0),
+    isPanelActive ? pathname : null,
+  );
 
   const queryClubId = searchParams.get("clubId");
   const queryConversationId = searchParams.get("conversationId");

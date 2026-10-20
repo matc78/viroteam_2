@@ -12,8 +12,7 @@ import {
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { GuardianStatuses } from "@/lib/firebase/constants";
 import {
-  childDisplayName,
-  childFirstName,
+  childNames,
 } from "@/lib/firebase/guardianService";
 import { getLinkedMemberId } from "@/lib/firebase/memberService";
 
@@ -87,9 +86,21 @@ export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
         (membership) => membership.clubId === clubId,
       );
 
+      // « Moi » et chaque enfant en parallèle (une lecture par fiche).
+      const [selfId, children] = await Promise.all([
+        isLicensed
+          ? getLinkedMemberId(clubId, uid).catch(() => null)
+          : Promise.resolve(null),
+        Promise.all(
+          childLinks.map(async (link) => ({
+            memberId: link.memberId,
+            names: await childNames(clubId, link.memberId),
+          })),
+        ),
+      ]);
+
       const nextTargets: FamilyTarget[] = [];
       if (isLicensed) {
-        const selfId = await getLinkedMemberId(clubId, uid);
         if (selfId) {
           const selfDisplay =
             profile.displayName.trim() ||
@@ -103,15 +114,11 @@ export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
           });
         }
       }
-      for (const link of childLinks) {
-        const [firstName, displayName] = await Promise.all([
-          childFirstName(clubId, link.memberId),
-          childDisplayName(clubId, link.memberId),
-        ]);
+      for (const child of children) {
         nextTargets.push({
-          memberId: link.memberId,
-          label: firstName,
-          displayName,
+          memberId: child.memberId,
+          label: child.names.firstName,
+          displayName: child.names.displayName,
           kind: "child",
         });
       }

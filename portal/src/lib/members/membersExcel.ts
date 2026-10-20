@@ -1,5 +1,7 @@
-import * as XLSX from "xlsx";
 import { membersCsvTemplate } from "@/lib/members/membersCsv";
+
+/** `xlsx` (~400 Ko) n’est chargé qu’au moment d’un import / export Excel. */
+const loadXlsx = () => import("xlsx");
 
 const TEMPLATE_HEADERS = [
   "firstName",
@@ -16,7 +18,7 @@ const TEMPLATE_HEADERS = [
  * en texte CSV (pour `buildMembersImportPlan`).
  */
 export async function excelFileToCsvText(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer();
+  const [buffer, XLSX] = await Promise.all([file.arrayBuffer(), loadXlsx()]);
   const workbook = XLSX.read(buffer, { type: "array" });
   const firstSheetName = workbook.SheetNames[0];
   if (!firstSheetName) {
@@ -42,9 +44,10 @@ export async function excelFileToCsvText(file: File): Promise<string> {
 /**
  * Télécharge un modèle Excel (.xlsx) avec les colonnes d’import membres.
  */
-export function downloadMembersExcelTemplate(params?: {
+export async function downloadMembersExcelTemplate(params?: {
   categoryExample?: string;
-}): void {
+}): Promise<void> {
+  const XLSX = await loadXlsx();
   const category = params?.categoryExample?.trim() || "U13";
   const rows: string[][] = [
     [...TEMPLATE_HEADERS],

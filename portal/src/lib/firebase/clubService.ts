@@ -87,11 +87,27 @@ export async function getClub(clubId: string): Promise<ClubRecord | null> {
   return parseClub(clubId, snap.data() as Record<string, unknown>);
 }
 
-/** Charge plusieurs clubs (ignore les absents). */
+/**
+ * Charge plusieurs clubs. Ignore les absents et les refusés par les rules
+ * (ex. membre retiré dont le profil référence encore le club). Une autre
+ * erreur (réseau…) ne rejette que si aucun club n’a pu être lu.
+ */
 export async function getClubsByIds(clubIds: string[]): Promise<ClubRecord[]> {
   const uniqueIds = [...new Set(clubIds.filter(Boolean))];
-  const results = await Promise.all(uniqueIds.map((id) => getClub(id)));
-  return results.filter((club): club is ClubRecord => club !== null);
+  const results = await Promise.allSettled(uniqueIds.map((id) => getClub(id)));
+  const clubs: ClubRecord[] = [];
+  let firstError: unknown = null;
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled") {
+      if (result.value) clubs.push(result.value);
+      return;
+    }
+    console.warn(`Club ${uniqueIds[index]} illisible`, result.reason);
+    const code = (result.reason as { code?: unknown } | null)?.code;
+    if (code !== "permission-denied") firstError ??= result.reason;
+  });
+  if (clubs.length === 0 && firstError !== null) throw firstError;
+  return clubs;
 }
 
 /** Met à jour la config paiement en ligne (toggle CB) du club. */

@@ -4,14 +4,17 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-  // Add optional integrations for additional features
-  integrations: [Sentry.replayIntegration()],
+  // Replay chargé à la demande (CDN Sentry) une fois la page interactive :
+  // ~60 Ko gzip de moins dans le bundle initial.
+  integrations: [],
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
+  // 10 % des traces en prod : le tracing complet alourdit chaque navigation.
+  tracesSampleRate: isProduction ? 0.1 : 1,
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
@@ -30,5 +33,18 @@ Sentry.init({
     // httpBodies: [],
   },
 });
+
+if (typeof window !== "undefined") {
+  const addReplay = () => {
+    void Sentry.lazyLoadIntegration("replayIntegration")
+      .then((replayIntegration) => Sentry.addIntegration(replayIntegration()))
+      .catch(() => undefined);
+  };
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(addReplay, { timeout: 10_000 });
+  } else {
+    setTimeout(addReplay, 5_000);
+  }
+}
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

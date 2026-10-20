@@ -243,12 +243,20 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
     };
   }, [status, user, clubIds]);
 
+  // Annuaire membres (aperçus expéditeur) : chargé seulement une fois la
+  // messagerie ouverte (dock ou /messages), pas à chaque connexion.
+  const [directoryWanted, setDirectoryWanted] = useState(false);
+  useEffect(() => {
+    if (dockOpen || isMessagesPath(pathname)) setDirectoryWanted(true);
+  }, [dockOpen, pathname]);
+
   useEffect(() => {
     if (status !== "signedIn" || clubIds.length === 0) {
       setPreviewSenderByKey({});
       setMemberDisplayNameByKey({});
       return;
     }
+    if (!directoryWanted) return;
     let cancelled = false;
     void (async () => {
       const directory: Record<string, ChatPreviewSender> = {};
@@ -284,7 +292,7 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [status, clubIds]);
+  }, [status, clubIds, directoryWanted]);
 
   useEffect(() => {
     if (!user || conversations.length === 0) {

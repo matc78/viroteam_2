@@ -8,6 +8,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.2.8] - 2026-10-20
+
 ### Ajouté
 
 - App Check (attestation invisible) sur l’app Flutter : providers debug hors release, Play Integrity / App Attest en release — freine les créations de comptes bot sans captcha ni friction UX
@@ -33,10 +35,11 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Push d’annonce « Tous les membres » jamais envoyée en prod : la requête des parents actifs exigeait un index Firestore absent (`FAILED_PRECONDITION`). Elle filtre désormais par `clubId` (index composite `guardians (clubId, status)`) au lieu de lire les liens parent de tous les clubs
 - Index de portée collection group sur `guardians.parentUid` (requête de suppression de compte)
 - `functions/README.md` : encodage réparé (accents et tirets remplacés par `?` / `�`)
+- Validations sondage / réactions et MIME vignette chat
 
 ### Sécurité
 
-- App Check côté clients (app + portail) en préparation de l’enforcement console Auth / Firestore (voir `docs/DEPLOY_SUITE.md`)
+- App Check côté clients (app + portail) avec Enforce Auth / Firestore (voir `docs/DEPLOY_SUITE.md`)
 - Durcissement des règles chat (réactions et preview inbox)
 
 ### Modifié
@@ -48,9 +51,9 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Ignore le `node_modules` npm installé par erreur à la racine du monorepo
 - Messagerie masquée pour le déploiement portail / release app (`CHAT_MESSAGING_LIVE` / `FeatureFlags.chatMessagingLive`) tant qu’elle n’est pas sur le store
 
-### Corrigé
+### Note
 
-- Validations sondage / réactions et MIME vignette chat
+- Version app : `pubspec.yaml` / `ProjectConfig` en `2.2.8+14`
 
 ## [2.2.7] - 2026-10-19
 

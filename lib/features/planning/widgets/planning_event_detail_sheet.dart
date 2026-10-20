@@ -3,10 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
-import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_member_rsvp_row.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -162,23 +161,20 @@ class _PlanningEventDetailSheetState
     ref.invalidate(clubPitchAttendanceRateProvider(widget.clubId));
   }
 
-  /// Met à jour le RSVP de l'utilisateur courant, puis rafraîchit le détail.
+  /// Met à jour le RSVP de la cible sélectionnée (soi ou enfant), puis
+  /// rafraîchit le détail.
   Future<void> _setRsvp(RsvpStatus status) async {
-    final authUid = ref.read(authStateProvider).value?.uid;
-    if (authUid == null) return;
+    final rsvpTarget = await ref.read(rsvpTargetProvider(widget.clubId).future);
+    if (rsvpTarget == null) return;
 
     final eventService = ref.read(eventServiceProvider);
-    final audienceId = await eventService.resolveAudienceId(
-      clubId: widget.clubId,
-      authUid: authUid,
-    );
-
     try {
       await eventService.updateRsvp(
         clubId: widget.clubId,
         eventId: _event.id,
-        uid: audienceId,
+        uid: rsvpTarget.audienceId,
         status: status,
+        viaCallable: rsvpTarget.viaCallable,
       );
       final fresh = await eventService.getEvent(
         clubId: widget.clubId,
@@ -454,27 +450,25 @@ class _PlanningEventDetailSheetState
       teamsById,
       membersByUid: membersByUid,
     );
-    final member = ref.watch(clubMemberProvider(widget.clubId)).value;
-    final authUid = ref.watch(authStateProvider).value?.uid;
-    final audienceId =
-        ref.watch(memberEventAudienceIdProvider(widget.clubId)).asData?.value;
+    final rsvpTarget =
+        ref.watch(rsvpTargetProvider(widget.clubId)).asData?.value;
+    final rsvpMember = rsvpTarget?.member;
     final audienceKeys =
-        member != null ? eventAudienceKeys(member) : null;
+        rsvpMember != null ? eventAudienceKeys(rsvpMember) : null;
     final canRsvp = !event.canceled &&
-        authUid != null &&
-        audienceId != null &&
+        rsvpTarget != null &&
         PlanningEventDisplay.canRsvpOnEvent(
           event,
-          authUid,
+          rsvpTarget.subjectId,
           teamsById,
-          clubAudienceId: audienceId,
-          member: member,
+          clubAudienceId: rsvpTarget.audienceId,
+          member: rsvpMember,
           membersByUid: membersByUid,
         );
     final rsvpStatus = canRsvp
         ? event.rsvpStatusForUser(
-            authUid,
-            clubAudienceId: audienceId,
+            rsvpTarget.subjectId,
+            clubAudienceId: rsvpTarget.audienceId,
             memberAudienceKeys: audienceKeys,
           )
         : null;

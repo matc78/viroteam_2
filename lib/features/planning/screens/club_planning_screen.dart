@@ -20,7 +20,6 @@ import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
-import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_day_picker.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_tile.dart';
@@ -181,20 +180,17 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     );
   }
 
-  /// Met à jour le RSVP de l'utilisateur courant sur [event], puis recharge le jour.
+  /// Met à jour le RSVP de la cible sélectionnée (soi ou enfant) sur [event],
+  /// puis recharge le jour.
   Future<void> _setRsvp(
     ClubEvent event,
     RsvpStatus status, {
     required bool canManage,
   }) async {
-    final authUid = ref.read(authStateProvider).value?.uid;
-    if (authUid == null) return;
+    final rsvpTarget = await ref.read(rsvpTargetProvider(widget.clubId).future);
+    if (rsvpTarget == null) return;
 
     final eventService = ref.read(eventServiceProvider);
-    final audienceId = await eventService.resolveAudienceId(
-      clubId: event.clubId,
-      authUid: authUid,
-    );
     final dayParams = (clubId: widget.clubId, day: _selectedDay);
 
     void invalidateDay() {
@@ -209,8 +205,9 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       await eventService.updateRsvp(
         clubId: event.clubId,
         eventId: event.id,
-        uid: audienceId,
+        uid: rsvpTarget.audienceId,
         status: status,
+        viaCallable: rsvpTarget.viaCallable,
       );
       invalidateDay();
     } catch (_) {
@@ -244,11 +241,10 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         : null;
     final membersByUid =
         clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
-    final authUid = ref.watch(authStateProvider).value?.uid;
-    final audienceId =
-        ref.watch(memberEventAudienceIdProvider(clubId)).asData?.value;
+    final rsvpTarget = ref.watch(rsvpTargetProvider(clubId)).asData?.value;
+    final rsvpMember = rsvpTarget?.member;
     final audienceKeys =
-        member != null ? eventAudienceKeys(member) : null;
+        rsvpMember != null ? eventAudienceKeys(rsvpMember) : null;
 
     final clubBrandColors = club != null
         ? resolveClubBrandColors(
@@ -417,20 +413,19 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                         teamsById,
                         membersByUid: membersByUid,
                       );
-                      final canRsvp = authUid != null &&
-                          audienceId != null &&
+                      final canRsvp = rsvpTarget != null &&
                           PlanningEventDisplay.canRsvpOnEvent(
                             event,
-                            authUid,
+                            rsvpTarget.subjectId,
                             teamsById,
-                            clubAudienceId: audienceId,
-                            member: member,
+                            clubAudienceId: rsvpTarget.audienceId,
+                            member: rsvpMember,
                             membersByUid: membersByUid,
                           );
                       final rsvpStatus = canRsvp
                           ? event.rsvpStatusForUser(
-                              authUid,
-                              clubAudienceId: audienceId,
+                              rsvpTarget.subjectId,
+                              clubAudienceId: rsvpTarget.audienceId,
                               memberAudienceKeys: audienceKeys,
                             )
                           : null;

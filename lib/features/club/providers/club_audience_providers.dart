@@ -152,6 +152,58 @@ bool shouldShowAudienceSwitcher(List<FamilyAudienceTarget> targets) {
   return true;
 }
 
+/// Cible d'un RSVP dans un club.
+///
+/// [subjectId] : clé passée aux helpers RSVP de `ClubEvent` (`authUid` pour
+/// soi, `memberId` de l'enfant sinon) ; [audienceId] : clé écrite dans `rsvp` ;
+/// [viaCallable] : écriture via `setEventRsvp` (parent pour un enfant).
+typedef RsvpTarget = ({
+  String subjectId,
+  String audienceId,
+  ClubMember? member,
+  bool viaCallable,
+});
+
+/// Cible RSVP quand [selected] est un enfant, sinon `null` (cible = soi).
+RsvpTarget? childRsvpTarget({
+  required FamilyAudienceTarget? selected,
+  required ClubMember? childMember,
+}) {
+  if (selected == null || !selected.isChild) return null;
+  return (
+    subjectId: selected.memberId,
+    audienceId: selected.memberId,
+    member: childMember,
+    viaCallable: true,
+  );
+}
+
+/// Cible RSVP du club : enfant sélectionné ou compte connecté.
+final rsvpTargetProvider =
+    FutureProvider.family<RsvpTarget?, String>((ref, clubId) async {
+  final authUid = ref.watch(authStateProvider).value?.uid;
+  if (authUid == null) return null;
+
+  final selected = ref.watch(selectedClubAudienceProvider(clubId));
+  if (selected != null && selected.isChild) {
+    final childMember =
+        await ref.watch(clubAudienceMemberProvider(clubId).future);
+    return childRsvpTarget(selected: selected, childMember: childMember);
+  }
+
+  final selfMember = ref.watch(clubMemberProvider(clubId)).value;
+  final audienceId = await ref.read(eventServiceProvider).resolveAudienceId(
+        clubId: clubId,
+        authUid: authUid,
+      );
+  return (
+    subjectId: authUid,
+    audienceId: audienceId,
+    member: selfMember,
+    viaCallable: false,
+  );
+});
+
 /// Fiche membre de la cible (enfant ou soi).
 final clubAudienceMemberProvider =
     FutureProvider.family<ClubMember?, String>((ref, clubId) async {

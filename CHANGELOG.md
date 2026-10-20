@@ -19,6 +19,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Planning du club en vue enfant (parent) : le RSVP (tuile et fiche) s’applique à l’enfant sélectionné via la callable `setEventRsvp`, et le statut affiché est celui de l’enfant (avant : celui du parent, ou RSVP impossible pour un parent sans fiche)
 - Doublons de convocations (memberId + accountUid) après acceptation d’invitation : migration des events à la reconcilation roster, sync audience sans empiler les alias, liste / compteurs portail dédupliqués
 - Push d’annonce « Tous les membres » jamais envoyée en prod : la requête des parents actifs exigeait un index Firestore absent (`FAILED_PRECONDITION`). Elle filtre désormais par `clubId` (index composite `guardians (clubId, status)`) au lieu de lire les liens parent de tous les clubs
 - Index de portée collection group sur `guardians.parentUid` (requête de suppression de compte)

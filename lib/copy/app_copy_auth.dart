@@ -29,6 +29,16 @@ final class AppCopyAuth {
   String get emailFieldLabel => 'Email';
   String get password => 'Mot de passe';
   String get forgotPassword => 'Mot de passe oublié ?';
+  String get forgotPasswordTitle => 'Réinitialiser le mot de passe';
+  String get forgotPasswordHint =>
+      'Indique l’e-mail de ton compte. Si un compte existe, '
+      'tu recevras un lien pour choisir un nouveau mot de passe.';
+  String get forgotPasswordSendAction => 'Envoyer le lien';
+  String get forgotPasswordEmailSent =>
+      'Si un compte existe avec cet e-mail, tu vas recevoir un lien '
+      'pour réinitialiser ton mot de passe.';
+  String get forgotPasswordFailed =>
+      'Envoi du lien impossible. Réessaie dans un instant.';
   String get signInAction => 'Se connecter';
   String get orDivider => 'ou';
   String get continueWithGoogle => 'Continuer avec Google';

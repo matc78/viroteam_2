@@ -10,6 +10,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Mot de passe oublié sur l’écran de connexion (e-mail de réinitialisation Firebase) ; le changement de mot de passe reste disponible dans les paramètres uniquement pour les comptes e-mail / mot de passe
 - Messagerie in-app (Flutter + portail) : threads, DM, sondages, réactions, réponses, panel infos, dock flottant, deep links et notifications
 - Backend chat : sync équipes, triggers Cloud Functions et règles Firestore
 - Activation roster et import membres sans e-mail obligatoire (portail)

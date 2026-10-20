@@ -17,6 +17,43 @@ abstract final class AuthErrorMessage {
     return AppCopy.common.errorGeneric;
   }
 
+  /// Message d’erreur pour le reset mot de passe, ou `null` si succès neutre.
+  ///
+  /// `user-not-found` → `null` (anti-énumération : même message que succès).
+  /// Les erreurs « credentials » ne sont jamais renvoyées dans ce contexte.
+  static String? forPasswordReset(Object? error) {
+    if (error is FirebaseAuthException) {
+      final code = error.code;
+      if (code == 'user-not-found' || code == 'auth/user-not-found') {
+        return null;
+      }
+      return _forPasswordResetCode(code) ?? AppCopy.auth.forgotPasswordFailed;
+    }
+    if (error is StateError && error.message.isNotEmpty) {
+      return error.message;
+    }
+    return AppCopy.auth.forgotPasswordFailed;
+  }
+
+  static String? _forPasswordResetCode(String code) {
+    switch (code) {
+      case 'invalid-email':
+      case 'auth/invalid-email':
+        return AppCopy.auth.authErrorInvalidEmail;
+      case 'user-disabled':
+      case 'auth/user-disabled':
+        return AppCopy.auth.authErrorUserDisabled;
+      case 'too-many-requests':
+      case 'auth/too-many-requests':
+        return AppCopy.auth.authErrorTooManyRequests;
+      case 'network-request-failed':
+      case 'auth/network-request-failed':
+        return AppCopy.auth.authErrorNetworkFailed;
+      default:
+        return null;
+    }
+  }
+
   static String? _forCode(String code) {
     switch (code) {
       case 'invalid-email':

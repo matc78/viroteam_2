@@ -138,6 +138,11 @@ class AuthService {
     );
   }
 
+  /// Envoie l’e-mail Firebase de réinitialisation du mot de passe.
+  Future<void> sendPasswordResetEmail({required String email}) {
+    return _auth.sendPasswordResetEmail(email: email.trim());
+  }
+
   Future<void> signOut() async {
     await Future.wait([
       _auth.signOut(),

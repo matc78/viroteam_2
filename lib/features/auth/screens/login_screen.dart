@@ -6,8 +6,10 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/widgets/auth_social_buttons.dart';
+import 'package:viro_team_v2/features/auth/widgets/forgot_password_sheet.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
+import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -95,6 +97,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _showError(AppCopy.auth.googleLoginFailed);
     } finally {
       if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
+  /// Ouvre la sheet reset MDP et affiche le succès sur cet écran.
+  Future<void> _openForgotPassword() async {
+    final emailSent = await showForgotPasswordSheet(
+      context,
+      initialEmail: _emailController.text,
+    );
+    if (emailSent == true && mounted) {
+      ViroSnackBar.show(context, AppCopy.auth.forgotPasswordEmailSent);
     }
   }
 
@@ -191,6 +204,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   validator: (v) => v != null && v.length >= 6
                       ? null
                       : AppCopy.auth.passwordMin6,
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: isBusy ? null : _openForgotPassword,
+                    child: Text(AppCopy.auth.forgotPassword),
+                  ),
                 ),
                 if (errorMessage != null) ...[
                   const SizedBox(height: ViroSpacing.md),

@@ -16,6 +16,9 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Specs et roadmap messagerie v2
 - SEO landing : sitemap XML (route handler), `robots.txt` élargi, JSON-LD enrichi, mots-clés ciblés, FAQ marketing élargie, redirect `viroteam.com` → `www.viroteam.com`
 - Contrôle d’alignement de version `pubspec.yaml` ↔ `ProjectConfig` ↔ tags (`tool/check_app_version.mjs`) branché en CI et Release Android
+- Planning du club (app, coachs et admins) : vues Semaine et Mois en plus de la vue Jour — agenda de la semaine regroupé par jour, grille mensuelle avec pastilles par type d’événement (légende) et événements du jour sélectionné, navigation période précédente / suivante ; une seule requête Firestore par période
+- Type d’événement « Réunion » (`meeting`) : création dans l’app (sans équipe, titre facultatif) et le portail (invités optionnels), icône groupe, pastille cyan dans le planning et la légende
+- Création d’une réunion ou d’un événement « Autre » dans l’app : choix des convoqués (« Tout le club » par défaut, ou une sélection d’équipes). Seuls les convoqués voient l’événement dans leur planning ; « Tout le club » convoque chaque membre, y compris ceux sans équipe (avant : aucun convoqué, événement visible du seul staff)
 
 ### Corrigé
 

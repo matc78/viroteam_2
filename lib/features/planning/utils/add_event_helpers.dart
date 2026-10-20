@@ -81,3 +81,20 @@ List<String> addEventAudienceForTeam(
   }
   return audienceIdsForTeam(team, indexClubMembersByUid(members));
 }
+
+/// Convoqués (`teamMemberIds`) de plusieurs équipes, dédupliqués.
+///
+/// Avec [wholeClub], ajoute aussi chaque membre du club (y compris ceux
+/// sans équipe) : tout le club voit alors l'événement dans son planning.
+List<String> addEventAudienceForTeams(
+  List<ClubTeam> teams,
+  List<ClubMember>? members, {
+  bool wholeClub = false,
+}) {
+  return {
+    for (final team in teams) ...addEventAudienceForTeam(team, members),
+    if (wholeClub)
+      for (final member in members ?? const <ClubMember>[])
+        rosterAudienceId(member),
+  }.toList();
+}

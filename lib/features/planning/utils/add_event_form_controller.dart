@@ -48,6 +48,12 @@ class AddEventFormController extends ChangeNotifier {
   int? selectedMeetingLocationIndex;
   bool locationDefaultsApplied = false;
 
+  /// Types sans équipe : convoque tout le club (sinon [audienceTeamIds]).
+  bool audienceWholeClub = true;
+
+  /// Types sans équipe : équipes convoquées quand [audienceWholeClub] est faux.
+  final Set<String> audienceTeamIds = {};
+
   /// Vrai si le type courant est un match.
   bool get isMatch => type == EventTypes.match;
 
@@ -73,7 +79,7 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Sélectionne la première équipe triée si aucune n’est encore choisie.
   void ensureDefaultTeam(List<ClubTeam> sortedTeams) {
-    if (teamId != null || sortedTeams.isEmpty || type == EventTypes.other) {
+    if (teamId != null || sortedTeams.isEmpty || EventTypes.isTeamless(type)) {
       return;
     }
     teamId = sortedTeams.first.id;
@@ -84,7 +90,7 @@ class AddEventFormController extends ChangeNotifier {
   void onTypeChanged(String? value) {
     final nextType = value ?? EventTypes.training;
     type = nextType;
-    if (nextType == EventTypes.other) teamId = null;
+    if (EventTypes.isTeamless(nextType)) teamId = null;
     if (nextType == EventTypes.match) {
       isRecurring = false;
       recurrenceEndDate = null;
@@ -97,6 +103,24 @@ class AddEventFormController extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  /// Convoque tout le club ([wholeClub]) ou une sélection d'équipes.
+  void setAudienceWholeClub(bool wholeClub) {
+    audienceWholeClub = wholeClub;
+    notifyListeners();
+  }
+
+  /// Ajoute / retire [teamId] des équipes convoquées.
+  void toggleAudienceTeam(String teamId) {
+    if (!audienceTeamIds.remove(teamId)) audienceTeamIds.add(teamId);
+    notifyListeners();
+  }
+
+  /// Vrai si un type sans équipe n'a encore aucun convoqué choisi.
+  bool get _missingAudienceTeams =>
+      EventTypes.isTeamless(type) &&
+      !audienceWholeClub &&
+      audienceTeamIds.isEmpty;
 
   /// Met à jour domicile / extérieur et nettoie le lieu si besoin.
   void onMatchVenueChanged(String? venue) {
@@ -209,12 +233,13 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Indique si tous les champs requis sont renseignés pour activer Créer.
   bool canCreate(Club? club) {
-    if (type != EventTypes.other && (teamId == null || teamId!.isEmpty)) {
+    if (!EventTypes.isTeamless(type) && (teamId == null || teamId!.isEmpty)) {
       return false;
     }
     if (type == EventTypes.other && titleController.text.trim().isEmpty) {
       return false;
     }
+    if (_missingAudienceTeams) return false;
     if (isMatch && matchVenue == null) return false;
 
     final location = resolveLocation(club);
@@ -242,12 +267,13 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Message de validation à afficher, ou `null` si le formulaire est valide.
   String? validationMessage(Club? club) {
-    if (type != EventTypes.other && teamId == null) {
+    if (!EventTypes.isTeamless(type) && teamId == null) {
       return AppCopy.planning.chooseTeamSnack;
     }
     if (type == EventTypes.other && titleController.text.trim().isEmpty) {
       return AppCopy.planning.titleRequired;
     }
+    if (_missingAudienceTeams) return AppCopy.planning.chooseAudienceTeams;
 
     if (isMatch) {
       if (matchVenue == null) {
@@ -316,6 +342,19 @@ class AddEventFormController extends ChangeNotifier {
 
     final location = resolveLocation(club)!;
 
+    // Seuls les convoqués voient l'événement : équipe dédiée, ou (types sans
+    // équipe) tout le club / les équipes choisies.
+    final List<ClubTeam> audienceTeams;
+    if (team != null) {
+      audienceTeams = [team];
+    } else if (audienceWholeClub) {
+      audienceTeams = teams;
+    } else {
+      audienceTeams =
+          teams.where((t) => audienceTeamIds.contains(t.id)).toList();
+    }
+    final wholeClub = team == null && audienceWholeClub;
+
     saving = true;
     notifyListeners();
     try {
@@ -323,14 +362,17 @@ class AddEventFormController extends ChangeNotifier {
         clubId: clubId,
         creatorId: creatorId,
         type: type,
-        title: type == EventTypes.other
+        title: EventTypes.isTeamless(type)
             ? titleController.text.trim()
             : (team?.name ?? ''),
         startDate: date,
-        teamIds: team != null ? [team.id] : <String>[],
-        teamMemberIds:
-            team != null ? addEventAudienceForTeam(team, members) : <String>[],
-        allTeams: false,
+        teamIds: [for (final t in audienceTeams) t.id],
+        teamMemberIds: addEventAudienceForTeams(
+          audienceTeams,
+          members,
+          wholeClub: wholeClub,
+        ),
+        allTeams: wholeClub,
         location: location,
         startTime: addEventFormatTime(start),
         endTime: isMatch ? null : addEventFormatTime(end),

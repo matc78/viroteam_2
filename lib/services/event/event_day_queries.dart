@@ -52,6 +52,46 @@ class EventDayQueries {
         );
   }
 
+  /// Événements non annulés dont le jour calendaire est entre [start] inclus
+  /// et [endExclusive] exclu (vues semaine / mois du planning club).
+  ///
+  /// Une seule requête pour toute la période, triée par date.
+  Stream<List<ClubEvent>> watchClubEventsInRange({
+    required String clubId,
+    required DateTime start,
+    required DateTime endExclusive,
+  }) {
+    final rangeStart = EventDateHelpers.startOfDay(start);
+    final rangeEnd = EventDateHelpers.startOfDay(endExclusive);
+    // Fenêtre élargie + filtre calendaire : évite les ratés timezone / Timestamp.
+    final queryFrom = rangeStart.subtract(const Duration(hours: 14));
+    final queryTo = rangeEnd.add(const Duration(hours: 14));
+
+    return _paths
+        .events(clubId)
+        .where(
+          FirestoreFields.date,
+          isGreaterThanOrEqualTo: Timestamp.fromDate(queryFrom),
+        )
+        .where(
+          FirestoreFields.date,
+          isLessThan: Timestamp.fromDate(queryTo),
+        )
+        .orderBy(FirestoreFields.date)
+        .snapshots()
+        .map(
+          (snap) => EventDateHelpers.sortedByDate(
+            snap.docs
+                .map((d) => ClubEvent.fromFirestore(clubId: clubId, doc: d))
+                .where((e) {
+              if (e.canceled) return false;
+              final day = EventDateHelpers.startOfDay(e.date);
+              return !day.isBefore(rangeStart) && day.isBefore(rangeEnd);
+            }),
+          ),
+        );
+  }
+
   /// Événements d'un jour pour un membre (mêmes sources que l'accueil joueur).
   Stream<List<ClubEvent>> watchMemberEventsOnDay({
     required String clubId,

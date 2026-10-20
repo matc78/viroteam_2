@@ -54,4 +54,37 @@ void main() {
       );
     });
   });
+
+  group('Réunion', () {
+    test('le titre saisi suit le type en tête de tuile', () {
+      final event = _event(type: EventTypes.meeting, title: 'AG annuelle');
+      expect(PlanningEventDisplay.headline(event), 'Réunion · AG annuelle');
+      expect(
+        PlanningEventDisplay.calendarTitle(event),
+        'Réunion · AG annuelle',
+      );
+    });
+
+    test('sans titre (ou titre portail « Réunion ») : type seul', () {
+      expect(
+        PlanningEventDisplay.headline(
+          _event(type: EventTypes.meeting, title: ''),
+        ),
+        'Réunion',
+      );
+      expect(
+        PlanningEventDisplay.headline(
+          _event(type: EventTypes.meeting, title: 'Réunion'),
+        ),
+        'Réunion',
+      );
+    });
+
+    test('normalisation Firestore et absence d’équipe', () {
+      expect(ClubEvent.normalizeEventType('meeting'), EventTypes.meeting);
+      expect(ClubEvent.normalizeEventType('Réunion'), EventTypes.meeting);
+      expect(EventTypes.isTeamless(EventTypes.meeting), isTrue);
+      expect(EventTypes.isTeamless(EventTypes.training), isFalse);
+    });
+  });
 }

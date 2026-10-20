@@ -16,6 +16,7 @@ import type {
 import {
   type PlanningGuestKind,
   type PlanningGuestSelection,
+  WHOLE_CLUB_GUEST_ID,
 } from "@/lib/planning/resolveGuestAudience";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { useDismissOnOutsidePointer } from "@/lib/planning/useDismissOnOutsidePointer";
@@ -95,6 +96,16 @@ export function PlanningGuestPicker({
   const catalog = useMemo(() => {
     const items: GuestSuggestion[] = [];
 
+    if (allowedKinds.includes("club")) {
+      items.push({
+        kind: "club",
+        id: WHOLE_CLUB_GUEST_ID,
+        label: "Tout le club",
+        meta: "Tous les membres",
+        searchText: "tout le club tous les membres",
+      });
+    }
+
     for (const team of teams) {
       const meta = team.category ? `Équipe · ${team.category}` : "Équipe";
       items.push({
@@ -128,7 +139,7 @@ export function PlanningGuestPicker({
     }
 
     return items;
-  }, [teams, categories, people]);
+  }, [allowedKinds, teams, categories, people]);
 
   const labelByKey = useMemo(() => {
     const map = new Map<string, { label: string; meta: string }>();

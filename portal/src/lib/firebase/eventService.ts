@@ -31,7 +31,7 @@ import {
 } from "./activityService";
 
 /** Types d'événements club (aligné EventTypes Flutter). */
-export type EventType = "training" | "match" | "tournament" | "other";
+export type EventType = "training" | "match" | "tournament" | "meeting" | "other";
 
 /** Fenêtre planning à venir — alignée EventService Flutter. */
 export const UPCOMING_PLANNING_HORIZON_DAYS = 14;
@@ -124,6 +124,7 @@ const EVENT_TYPE_LABELS: Record<EventType, string> = {
   training: "Entraînement",
   match: "Match",
   tournament: "Tournoi",
+  meeting: "Réunion",
   other: "Autre",
 };
 
@@ -173,6 +174,7 @@ function parseEventType(raw: unknown): EventType {
     value === "training" ||
     value === "match" ||
     value === "tournament" ||
+    value === "meeting" ||
     value === "other"
   ) {
     return value;

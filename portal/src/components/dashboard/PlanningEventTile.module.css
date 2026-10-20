@@ -66,6 +66,11 @@
   color: var(--tone-amber-text);
 }
 
+.typeBadge[data-tone="cyan"] {
+  background: color-mix(in srgb, var(--color-sport-cyan) 14%, white);
+  color: #0369a1;
+}
+
 .typeBadge[data-tone="neutral"] {
   background: var(--color-gray-100);
   color: var(--color-gray-600);

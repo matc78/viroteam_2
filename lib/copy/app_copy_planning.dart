@@ -33,11 +33,19 @@ final class AppCopyPlanning {
 
   String get clubFallbackName => 'Club';
   String get allClub => 'Tout le club';
+  String get fieldAudience => 'Convoqués';
+  String get audienceTeams => 'Équipes';
+  String get audienceWholeClubHint =>
+      'Tous les membres du club le verront dans leur planning.';
+  String get audienceNoTeams =>
+      'Aucune équipe pour l’instant : convoque tout le club.';
+  String get chooseAudienceTeams => 'Choisis au moins une équipe';
   String get unnamedMember => 'Sans nom';
 
   String get typeTraining => 'Entraînement';
   String get typeMatch => 'Match';
   String get typeTournament => 'Tournoi';
+  String get typeMeeting => 'Réunion';
   String get typeOther => 'Autre';
   String get typeEvent => 'Événement';
 
@@ -45,6 +53,7 @@ final class AppCopyPlanning {
         'training' => typeTraining,
         'match' => typeMatch,
         'tournament' => typeTournament,
+        'meeting' => typeMeeting,
         _ => typeEvent,
       };
 
@@ -63,7 +72,9 @@ final class AppCopyPlanning {
   String get fieldTeam => 'Équipe';
   String get chooseTeam => 'Choisir une équipe';
   String get fieldTitle => 'Titre';
-  String get titleHint => 'Réunion, stage…';
+  String get titleHint => 'Stage, soirée du club…';
+  String get fieldTitleOptional => 'Titre (facultatif)';
+  String get meetingTitleHint => 'AG, réunion des parents…';
   String get homeOrAway => 'Domicile ou extérieur';
   String get home => 'Domicile';
   String get away => 'Extérieur';
@@ -154,4 +165,24 @@ final class AppCopyPlanning {
   String daysAgo(int days) => 'il y a ${days}j';
   String weeksAgo(int weeks) => 'il y a ${weeks}sem';
   String monthsAgo(int months) => 'il y a ${months}m';
+
+  // Vues jour / semaine / mois (coach-admin).
+  String get viewModeDay => 'Jour';
+  String get viewModeWeek => 'Semaine';
+  String get viewModeMonth => 'Mois';
+  String get previousWeekTooltip => 'Semaine précédente';
+  String get nextWeekTooltip => 'Semaine suivante';
+  String get previousMonthTooltip => 'Mois précédent';
+  String get nextMonthTooltip => 'Mois suivant';
+  String get emptyWeekAdmin =>
+      'Semaine calme, rien au planning.\nTape sur + pour poser un événement.';
+  String get emptyWeek => 'Semaine calme, rien au planning.';
+
+  /// Libellé lecteur d’écran d’une case de la grille mensuelle.
+  String monthDayCellLabel(String dateLabel, int eventCount) =>
+      switch (eventCount) {
+        0 => '$dateLabel, rien de prévu',
+        1 => '$dateLabel, 1 événement',
+        _ => '$dateLabel, $eventCount événements',
+      };
 }

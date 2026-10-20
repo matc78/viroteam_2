@@ -167,7 +167,7 @@ V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiv
 
 | Champ | Type | Description |
 |---|---|---|
-| `type` | string | `'training'` \| `'match'` \| `'tournament'` \| `'other'` |
+| `type` | string | `'training'` \| `'match'` \| `'tournament'` \| `'meeting'` \| `'other'` |
 | `title` | string | |
 | `location` | string | |
 | `teamIds` | array | Équipes concernées |

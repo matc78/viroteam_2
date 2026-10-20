@@ -46,6 +46,10 @@ abstract final class EventTypes {
   static const String training = 'training';
   static const String match = 'match';
   static const String tournament = 'tournament';
+  static const String meeting = 'meeting';
+
+  /// Types sans équipe dédiée (pas de choix d'équipe à la création app).
+  static bool isTeamless(String type) => type == other || type == meeting;
   static const String other = 'other';
 }
 
@@ -189,6 +193,7 @@ class ClubEvent {
       'training' || 'entraînement' || 'entrainement' => EventTypes.training,
       'match' => EventTypes.match,
       'tournament' || 'tournoi' => EventTypes.tournament,
+      'meeting' || 'réunion' || 'reunion' => EventTypes.meeting,
       'other' || 'autre' || 'évènement' || 'événement' || 'evenement' =>
         EventTypes.other,
       _ => raw != null && raw.isNotEmpty ? raw : EventTypes.other,

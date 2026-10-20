@@ -20,6 +20,7 @@ const TYPE_TONE: Record<EventType, string> = {
   training: "blue",
   match: "green",
   tournament: "amber",
+  meeting: "cyan",
   other: "neutral",
 };
 

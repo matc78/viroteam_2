@@ -212,6 +212,13 @@
   box-shadow: 0 2px 8px color-mix(in srgb, var(--tone-amber) 28%, transparent);
 }
 
+.typeChip[data-tone="cyan"][data-active="true"] {
+  background: var(--color-sport-cyan);
+  border-color: var(--color-sport-cyan);
+  color: #082f49;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-sport-cyan) 28%, transparent);
+}
+
 .typeChip[data-tone="neutral"][data-active="true"] {
   background: var(--color-primary-800);
   border-color: var(--color-primary-800);

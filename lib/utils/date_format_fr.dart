@@ -105,6 +105,27 @@ String formatChatDaySeparator(DateTime date) {
   return _capitalizeFr(DateFormat('EEEE d MMMM', 'fr_FR').format(dayOnly));
 }
 
+/// Jour complet (ex. « Mardi 20 octobre »).
+String formatDayLong(DateTime date) =>
+    _capitalizeFr(DateFormat('EEEE d MMMM', 'fr_FR').format(date));
+
+/// Mois et année du planning (ex. « Octobre 2026 »).
+String formatPlanningMonth(DateTime month) =>
+    _capitalizeFr(DateFormat('MMMM y', 'fr_FR').format(month));
+
+/// Semaine du planning à partir de son lundi [weekStart]
+/// (ex. « 19 – 25 octobre », « 26 oct. – 1 nov. »), année ajoutée si ce
+/// n'est pas l'année en cours.
+String formatPlanningWeekRange(DateTime weekStart) {
+  final start = _dateOnly(weekStart);
+  final end = addCalendarDays(start, 6);
+  final label = start.month == end.month
+      ? '${start.day} – ${end.day} ${DateFormat('MMMM', 'fr_FR').format(end)}'
+      : '${DateFormat('d MMM', 'fr_FR').format(start)} – '
+          '${DateFormat('d MMM', 'fr_FR').format(end)}';
+  return end.year == DateTime.now().year ? label : '$label ${end.year}';
+}
+
 /// Combine un jour calendaire avec une heure `HH:mm` (nullable).
 DateTime? combineEventDateTime(DateTime day, String? hm) {
   if (hm == null || hm.trim().isEmpty) return null;

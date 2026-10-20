@@ -58,6 +58,10 @@ class AddEventTypeTeamSection extends StatelessWidget {
               child: Text(AppCopy.planning.typeMatch, style: dropdownStyle),
             ),
             DropdownMenuItem(
+              value: EventTypes.meeting,
+              child: Text(AppCopy.planning.typeMeeting, style: dropdownStyle),
+            ),
+            DropdownMenuItem(
               value: EventTypes.other,
               child: Text(AppCopy.planning.typeOther, style: dropdownStyle),
             ),
@@ -65,7 +69,7 @@ class AddEventTypeTeamSection extends StatelessWidget {
           onChanged: enabled ? onTypeChanged : null,
         ),
         const SizedBox(height: ViroSpacing.md),
-        if (type != EventTypes.other) ...[
+        if (!EventTypes.isTeamless(type)) ...[
           DropdownButtonFormField<String>(
             key: ValueKey(
               'team_${sortedTeams.map((t) => t.id).join('_')}_$teamId',
@@ -108,13 +112,18 @@ class AddEventTypeTeamSection extends StatelessWidget {
           const SizedBox(height: ViroSpacing.md),
         ] else ...[
           AddEventFieldLabel(
-            AppCopy.planning.fieldTitle,
+            type == EventTypes.meeting
+                ? AppCopy.planning.fieldTitleOptional
+                : AppCopy.planning.fieldTitle,
             accentColor: accentColor,
           ),
           TextField(
             controller: titleController,
-            decoration:
-                addEventInputDecoration(hint: AppCopy.planning.titleHint),
+            decoration: addEventInputDecoration(
+              hint: type == EventTypes.meeting
+                  ? AppCopy.planning.meetingTitleHint
+                  : AppCopy.planning.titleHint,
+            ),
             enabled: enabled,
           ),
           const SizedBox(height: ViroSpacing.md),

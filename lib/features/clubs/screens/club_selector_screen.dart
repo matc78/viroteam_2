@@ -596,6 +596,7 @@ String _eventHighlightLabel(ClubEvent event) {
     EventTypes.match => AppCopy.planning.typeMatch,
     EventTypes.training => AppCopy.planning.typeTraining,
     EventTypes.tournament => AppCopy.planning.typeTournament,
+    EventTypes.meeting => AppCopy.planning.typeMeeting,
     _ => event.title.isNotEmpty ? event.title : AppCopy.planning.typeEvent,
   };
 

@@ -116,6 +116,7 @@ class _PlanningEventDetailSheetState
         EventTypes.training => ViroIcons.whistle,
         EventTypes.match => ViroIcons.ball,
         EventTypes.tournament => ViroIcons.trophy,
+        EventTypes.meeting => ViroIcons.groups,
         _ => ViroIcons.calendar,
       };
 

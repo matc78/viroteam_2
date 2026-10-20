@@ -169,6 +169,19 @@ class EventService {
   }) =>
       _day.watchClubEventsOnDay(clubId: clubId, day: day);
 
+  /// Événements du club entre [start] inclus et [endExclusive] exclu
+  /// (vues semaine / mois du planning club).
+  Stream<List<ClubEvent>> watchClubEventsInRange({
+    required String clubId,
+    required DateTime start,
+    required DateTime endExclusive,
+  }) =>
+      _day.watchClubEventsInRange(
+        clubId: clubId,
+        start: start,
+        endExclusive: endExclusive,
+      );
+
   /// Événements d'un jour pour un membre (mêmes sources que l'accueil joueur).
   Stream<List<ClubEvent>> watchMemberEventsOnDay({
     required String clubId,

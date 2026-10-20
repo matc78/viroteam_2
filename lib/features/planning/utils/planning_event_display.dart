@@ -12,6 +12,8 @@ abstract final class PlanningEventDisplay {
     if (event.type == EventTypes.other) {
       return event.title.isNotEmpty ? event.title : typeLabel;
     }
+    // Réunion : pas d'équipe pour porter le détail, le titre reste en tête.
+    if (event.type == EventTypes.meeting) return cardTitleLine(event);
     return typeLabel;
   }
 
@@ -48,8 +50,10 @@ abstract final class PlanningEventDisplay {
   }
 
   /// Titre pour calendrier / .ics (titre custom ou type d'événement).
-  static String calendarTitle(ClubEvent event) =>
-      event.title.isNotEmpty ? event.title : eventTypeLabel(event.type);
+  static String calendarTitle(ClubEvent event) {
+    if (event.type == EventTypes.meeting) return cardTitleLine(event);
+    return event.title.isNotEmpty ? event.title : eventTypeLabel(event.type);
+  }
 
   static String? teamLabel(
     ClubEvent event,
@@ -73,7 +77,8 @@ abstract final class PlanningEventDisplay {
       return teamLabel;
     }
     if (event.type == EventTypes.training ||
-        event.type == EventTypes.match) {
+        event.type == EventTypes.match ||
+        event.type == EventTypes.meeting) {
       return teamLabel;
     }
     return null;

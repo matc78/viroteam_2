@@ -19,6 +19,23 @@ final clubPlanningEventsProvider =
   },
 );
 
+/// Planning club sur une période (vues semaine / mois coach-admin).
+///
+/// [start] et [endExclusive] doivent être des minuits locaux stables
+/// (bornes de semaine / grille de mois) pour que la famille soit réutilisée.
+final clubPlanningRangeEventsProvider = StreamProvider.family<List<ClubEvent>,
+    ({String clubId, DateTime start, DateTime endExclusive})>(
+  (ref, params) {
+    final auth = ref.watch(firestoreAuthReadyProvider).value;
+    if (auth == null) return Stream.value([]);
+    return ref.read(eventServiceProvider).watchClubEventsInRange(
+          clubId: params.clubId,
+          start: params.start,
+          endExclusive: params.endExclusive,
+        );
+  },
+);
+
 /// Planning joueur : événements du jour via les mêmes requêtes que l'accueil.
 final memberClubPlanningEventsProvider = StreamProvider.family<
     List<ClubEvent>,

@@ -12,6 +12,7 @@ Color eventDotColor(String type) => switch (type) {
       EventTypes.match => ViroColors.error,
       EventTypes.training => ViroColors.success,
       EventTypes.tournament => ViroColors.warning,
+      EventTypes.meeting => ViroColors.sportCyan,
       _ => ViroColors.gray400,
     };
 
@@ -210,9 +211,12 @@ class _DayTile extends ConsumerWidget {
   );
 }
 
+/// Horizon par défaut du bandeau de jours (jours après aujourd'hui).
+const int planningPickerFutureDays = 28;
+
 List<DateTime> buildPlanningDays({
   DateTime? firstEventDate,
-  int futureDays = 28,
+  int futureDays = planningPickerFutureDays,
 }) {
   final today = DateTime.now();
   final todayDay = DateTime(today.year, today.month, today.day);

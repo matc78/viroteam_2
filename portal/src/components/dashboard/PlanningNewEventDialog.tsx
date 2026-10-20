@@ -50,7 +50,13 @@ type PlanningNewEventDialogProps = {
   onCreated: () => void;
 };
 
-const EVENT_TYPES: EventType[] = ["training", "match", "tournament", "other"];
+const EVENT_TYPES: EventType[] = [
+  "training",
+  "match",
+  "tournament",
+  "meeting",
+  "other",
+];
 const TIME_HOUR_START = 0;
 const TIME_HOUR_END = 24;
 
@@ -58,6 +64,7 @@ const TYPE_TONE: Record<EventType, string> = {
   training: "blue",
   match: "green",
   tournament: "amber",
+  meeting: "cyan",
   other: "neutral",
 };
 
@@ -213,6 +220,9 @@ export function PlanningNewEventDialog({
   const isTraining = type === "training";
   const isTournament = type === "tournament";
   const isOther = type === "other";
+  const isMeeting = type === "meeting";
+  /** « Autre » / « Réunion » : titre libre + invités optionnels. */
+  const hasFreeTitle = isOther || isMeeting;
   const needsSingleTeam = isTraining || isMatch;
   const guestAudience = useMemo(
     () => resolveGuestAudience(guests, teams, people),
@@ -242,6 +252,7 @@ export function PlanningNewEventDialog({
     isTraining,
     isTournament,
     isOther,
+    hasFreeTitle,
     isRecurring,
     needsSingleTeam,
     guests.length,
@@ -253,10 +264,14 @@ export function PlanningNewEventDialog({
     if (nextType !== "training") {
       setIsRecurring(false);
     }
-    if (nextType === "other" || nextType === "tournament") {
+    if (
+      nextType === "other" ||
+      nextType === "meeting" ||
+      nextType === "tournament"
+    ) {
       setTeamId("");
       setGuests([]);
-      if (nextType === "other") {
+      if (nextType === "other" || nextType === "meeting") {
         if (location === "Domicile" || location.trim() === "") {
           setLocation("Stade du club");
         }
@@ -358,12 +373,15 @@ export function PlanningNewEventDialog({
       resolvedTeamIds = [selectedTeam.id];
       resolvedMemberIds = selectedTeam.playerIds;
       resolvedTitle = selectedTeam.name;
-    } else if (isTournament || isOther) {
-      // « Autre » : invités optionnels (audience RSVP vide si aucun).
+    } else if (isTournament || hasFreeTitle) {
+      // « Autre » / « Réunion » : invités optionnels (audience RSVP vide si aucun).
       resolvedTeamIds = guestAudience.teamIds;
       resolvedMemberIds = guestAudience.teamMemberIds;
       if (isOther) {
         resolvedTitle = title.trim();
+      } else if (isMeeting) {
+        // Titre facultatif : « Réunion » seul si rien n'est saisi.
+        resolvedTitle = title.trim() || eventTypeLabel(type);
       } else {
         const guestLabels = guests
           .slice(0, 3)
@@ -394,6 +412,7 @@ export function PlanningNewEventDialog({
         startDate: day,
         teamIds: resolvedTeamIds,
         teamMemberIds: resolvedMemberIds,
+        allTeams: !needsSingleTeam && guestAudience.allTeams,
         location: resolvedLocation,
         startTime,
         endTime: isMatch ? undefined : endTime,
@@ -517,19 +536,21 @@ export function PlanningNewEventDialog({
             </div>
           ) : null}
 
-          {isOther ? (
+          {hasFreeTitle ? (
             <>
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="new-event-title-input">
-                  Titre
+                  {isMeeting ? "Titre (facultatif)" : "Titre"}
                 </label>
                 <input
                   id="new-event-title-input"
                   className={styles.input}
                   value={title}
                   onChange={(changeEvent) => setTitle(changeEvent.target.value)}
-                  placeholder="Réunion, AG…"
-                  required
+                  placeholder={
+                    isMeeting ? "AG, réunion des parents…" : "Stage, soirée du club…"
+                  }
+                  required={isOther}
                   disabled={saving}
                 />
               </div>
@@ -542,16 +563,17 @@ export function PlanningNewEventDialog({
                   teams={teams}
                   categories={categories}
                   people={people}
-                  allowedKinds={["team", "category", "person"]}
+                  allowedKinds={["club", "team", "category", "person"]}
                   value={guests}
                   onChange={setGuests}
                   disabled={saving}
-                  placeholder="Ajouter équipes, catégories, personnes…"
+                  placeholder="Tout le club, équipes, catégories, personnes…"
                 />
                 {guests.length === 0 ? (
                   <p className={styles.hint}>
-                    Optionnel — sans invités, personne n&apos;est convoqué au RSVP
-                    (ex. AG informative).
+                    Seuls les invités verront l&apos;événement dans leur planning.
+                    Sans invités, il reste visible uniquement par le bureau et
+                    les coachs.
                   </p>
                 ) : null}
               </div>

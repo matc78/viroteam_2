@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart'
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_form_controller.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_helpers.dart';
+import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_audience_section.dart';
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_location_section.dart';
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_more_options_section.dart';
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_save_bar.dart';
@@ -104,9 +105,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
 
     final uid = ref.read(authStateProvider).value?.uid;
     final teams = ref.read(clubTeamsProvider(widget.clubId)).value ?? [];
-    final members = ref.read(clubMembersProvider(widget.clubId)).value;
-
     try {
+      // « Tout le club » convoque chaque membre : la liste doit être chargée.
+      final members = ref.read(clubMembersProvider(widget.clubId)).value ??
+          await ref
+              .read(clubMembersProvider(widget.clubId).future)
+              .timeout(const Duration(seconds: 8));
+      if (!mounted) return;
       final count = await _form.save(
         clubId: widget.clubId,
         creatorId: uid,
@@ -188,7 +193,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
     final sortedTeams = addEventSortedTeams(teams, member);
     if (_form.teamId == null &&
         sortedTeams.isNotEmpty &&
-        _form.type != EventTypes.other) {
+        !EventTypes.isTeamless(_form.type)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _form.teamId == null) {
           _form.ensureDefaultTeam(sortedTeams);
@@ -222,6 +227,16 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
               onTypeChanged: _form.onTypeChanged,
               onTeamChanged: _form.setTeamId,
             ),
+            if (EventTypes.isTeamless(_form.type))
+              AddEventAudienceSection(
+                wholeClub: _form.audienceWholeClub,
+                sortedTeams: sortedTeams,
+                selectedTeamIds: _form.audienceTeamIds,
+                accentColor: accent,
+                enabled: enabled,
+                onWholeClubChanged: _form.setAudienceWholeClub,
+                onTeamToggled: _form.toggleAudienceTeam,
+              ),
             AddEventLocationSection(
               isMatch: _form.isMatch,
               matchVenue: _form.matchVenue,

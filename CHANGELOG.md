@@ -19,6 +19,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Icône de notification Android : silhouette monochrome du logo ViroTeam (PNG par densité) à la place du « V » placeholder — évite le disque blanc quand le système retombait sur l’icône launcher opaque ; FCM envoie aussi explicitement `icon` + teinte marque
 - Planning portail admin : pré-coche toutes les équipes si aucune sélection (évite un calendrier vide) ; filtre Joueur retiré de la sidebar
 - Planning du club en vue enfant (parent) : le RSVP (tuile et fiche) s’applique à l’enfant sélectionné via la callable `setEventRsvp`, et le statut affiché est celui de l’enfant (avant : celui du parent, ou RSVP impossible pour un parent sans fiche)
 - Doublons de convocations (memberId + accountUid) après acceptation d’invitation : migration des events à la reconcilation roster, sync audience sans empiler les alias, liste / compteurs portail dédupliqués

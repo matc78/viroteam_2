@@ -80,6 +80,10 @@ export function buildMulticastMessage(params: {
     android: {
       priority: "high",
       notification: {
+        // Silhouette monochrome `@drawable/ic_notification` (pas le launcher
+        // coloré : Android n'utilise que l'alpha → sinon disque / carré blanc).
+        icon: "ic_notification",
+        color: "#134A7D", // ViroColors.primary600
         channelId: androidChannelId(payload.preferenceKey),
         ...(grouping.tag ? { tag: grouping.tag } : {}),
       },

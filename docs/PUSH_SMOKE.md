@@ -28,7 +28,7 @@ Envoyer une annonce « Tous les membres » depuis le portail, puis modifier un �
 | # | État de l’app | Attendu | OK |
 |---|---------------|---------|----|
 | 7 | Premier plan, sur la home | Bannière système (Android **et** iOS) | ☐ |
-| 8 | Arrière-plan | Bannière ; icône monochrome + teinte bleue sur Android | ☐ |
+| 8 | Arrière-plan | Bannière ; pictogramme ViroTeam monochrome (pas un disque blanc) + teinte bleue sur Android | ☐ |
 | 9 | App tuée | Bannière ; tap → ouvre l’app sur le bon écran | ☐ |
 | 10 | Tap sur la bannière (premier plan / arrière-plan) | Navigation vers home (annonce) / planning (événement) | ☐ |
 | 11 | Événement modifié deux fois | Une seule notif dans le tiroir (la plus récente) | ☐ |

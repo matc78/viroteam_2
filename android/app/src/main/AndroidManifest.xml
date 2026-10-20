@@ -41,7 +41,8 @@
             android:value="false"
             tools:replace="android:value" />
         <!-- Push FCM en arrière-plan : canal de repli (si la push n'en précise
-             pas, ou avant la création des canaux par l'app), icône et teinte.
+             pas, ou avant la création des canaux par l'app), icône silhouette
+             monochrome (`ic_notification`, alpha only) et teinte marque.
              Le canal est créé au démarrage par LocalNotificationService. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

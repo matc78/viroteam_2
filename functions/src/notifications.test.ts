@@ -314,6 +314,8 @@ test("buildMulticastMessage : canal Android, tag, collapse-id et data.tag", () =
     },
   });
   assert.equal(message.android?.notification?.channelId, "viro_announcements");
+  assert.equal(message.android?.notification?.icon, "ic_notification");
+  assert.equal(message.android?.notification?.color, "#134A7D");
   assert.equal(message.android?.notification?.tag, "announcement_a1");
   assert.equal(message.apns?.headers?.["apns-collapse-id"], "announcement_a1");
   assert.equal(message.apns?.payload?.aps.threadId, "announcements");

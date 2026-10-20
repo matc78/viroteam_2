@@ -7,7 +7,6 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
-import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -67,12 +66,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
     setState(() => _loading = false);
     if (!ok) return;
 
-    final auth = ref.read(authStateProvider).value;
-    if (auth != null) {
-      context.go(AppRoutes.joinPreview);
-    } else {
-      context.push('${AppRoutes.signup}?intent=join&code=$code');
-    }
+    context.go(AppRoutes.joinPreview);
   }
 
   @override
@@ -188,6 +182,13 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
                 label: AppCopy.join.validateCode,
                 isLoading: _loading,
                 onPressed: _validate,
+              ),
+              const SizedBox(height: ViroSpacing.sm),
+              TextButton(
+                onPressed: _loading
+                    ? null
+                    : () => context.push(AppRoutes.login),
+                child: Text(AppCopy.auth.alreadyHaveAccount),
               ),
               const SizedBox(height: ViroSpacing.xl),
               Row(

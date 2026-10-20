@@ -11,6 +11,8 @@ import 'package:viro_team_v2/features/join/providers/pending_invitation_provider
 import 'package:viro_team_v2/features/join/providers/pending_invitations_provider.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
+import 'package:viro_team_v2/services/invitation_service.dart';
+import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -38,6 +40,21 @@ class _InvitationPreviewScreenState
         MemberRoles.coach => ViroRole.coach,
         _ => ViroRole.player,
       };
+
+  /// Ouvre le club déjà rejoint (pending invite + membership locale).
+  void _openClub() {
+    final pending = ref.read(pendingInvitationProvider);
+    final clubId = pending.club?.id;
+    if (clubId == null) return;
+    final membership =
+        ref.read(viroUserProvider).value?.membershipInClub(clubId);
+    ref.read(sessionProvider.notifier).setActiveClub(
+          clubId,
+          role: membership?.role,
+        );
+    ref.read(pendingInvitationProvider.notifier).clear();
+    context.go(AppRoutes.home);
+  }
 
   Future<void> _accept() async {
     final pending = ref.read(pendingInvitationProvider);
@@ -77,9 +94,17 @@ class _InvitationPreviewScreenState
       ref.invalidate(viroUserFutureProvider);
       ref.read(pendingInvitationProvider.notifier).clear();
       if (mounted) context.go(AppRoutes.home);
-    } catch (e) {
+    } on InvitationAcceptException catch (error) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = error.message);
+    } catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _error = callableErrorMessage(
+          error,
+          fallback: AppCopy.join.inviteAcceptFailed,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -99,7 +124,10 @@ class _InvitationPreviewScreenState
   @override
   Widget build(BuildContext context) {
     final pending = ref.watch(pendingInvitationProvider);
+    final authUser = ref.watch(authStateProvider).value;
+    final viroUser = ref.watch(viroUserProvider).value;
     final theme = Theme.of(context).textTheme;
+    final isSignedIn = authUser != null;
 
     if (!pending.hasInvitation) {
       return ViroScaffold(
@@ -115,6 +143,8 @@ class _InvitationPreviewScreenState
 
     final club = pending.club!;
     final invite = pending.invitation!;
+    final alreadyMember =
+        viroUser != null && viroUser.isLicensedInClub(club.id);
     final childName = [
       invite.firstName?.trim() ?? '',
       invite.lastName?.trim() ?? '',
@@ -211,24 +241,64 @@ class _InvitationPreviewScreenState
               ],
               if (_error != null) ...[
                 const SizedBox(height: ViroSpacing.md),
-                Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                Text(
+                  _error!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
               ],
               const Spacer(),
-              ViroPrimaryButton(
-                label: invite.isTeamInvite
-                    ? AppCopy.join.acceptTeamInvitation
-                    : AppCopy.join.acceptInvitation,
-                isLoading: _loading,
-                onPressed: _accept,
-              ),
-              const SizedBox(height: ViroSpacing.sm),
-              ViroPrimaryButton(
-                label: invite.isTeamInvite
-                    ? AppCopy.common.cancel
-                    : AppCopy.join.declineInvitation,
-                outlined: true,
-                onPressed: _decline,
-              ),
+              if (!isSignedIn) ...[
+                ViroPrimaryButton(
+                  label: AppCopy.auth.createMyAccount,
+                  onPressed: () =>
+                      context.push('${AppRoutes.signup}?intent=join'),
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                TextButton(
+                  onPressed: () => context.push(AppRoutes.login),
+                  child: Text(AppCopy.auth.alreadyHaveAccount),
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                ViroPrimaryButton(
+                  label: invite.isTeamInvite
+                      ? AppCopy.common.cancel
+                      : AppCopy.join.declineInvitation,
+                  outlined: true,
+                  onPressed: _decline,
+                ),
+              ] else if (alreadyMember) ...[
+                ViroPrimaryButton(
+                  label: AppCopy.join.openClub,
+                  onPressed: _openClub,
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                ViroPrimaryButton(
+                  label: AppCopy.common.cancel,
+                  outlined: true,
+                  onPressed: () {
+                    ref.read(pendingInvitationProvider.notifier).clear();
+                    if (context.mounted) context.go(AppRoutes.home);
+                  },
+                ),
+              ] else ...[
+                ViroPrimaryButton(
+                  label: invite.isTeamInvite
+                      ? AppCopy.join.acceptTeamInvitation
+                      : AppCopy.join.acceptInvitation,
+                  isLoading: _loading,
+                  onPressed: _accept,
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                ViroPrimaryButton(
+                  label: invite.isTeamInvite
+                      ? AppCopy.common.cancel
+                      : AppCopy.join.declineInvitation,
+                  outlined: true,
+                  onPressed: _decline,
+                ),
+              ],
             ],
           ),
         ),

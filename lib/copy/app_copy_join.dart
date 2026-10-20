@@ -24,6 +24,9 @@ final class AppCopyJoin {
   String get validateCode => 'Valider le code';
   String get askYourCoach => 'Demande à ton coach';
   String get codeNotFoundOrExpired => 'Code introuvable ou expiré.';
+  String get codeLookupFailed =>
+      'Impossible de vérifier le code. Réessaie dans un instant.';
+  String get openClub => 'Ouvrir le club';
   String get teamInviteCreateFailed =>
       'Impossible de créer le code d\'équipe.';
   String get teamInviteRevokeFailed =>

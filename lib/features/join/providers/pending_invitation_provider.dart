@@ -4,6 +4,7 @@ import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/invitation_service.dart';
+import 'package:viro_team_v2/utils/callable_error.dart';
 
 class PendingInvitationState {
   const PendingInvitationState({
@@ -62,7 +63,12 @@ class PendingInvitationNotifier extends Notifier<PendingInvitationState> {
       );
       return true;
     } catch (e) {
-      state = PendingInvitationState(error: e.toString());
+      state = PendingInvitationState(
+        error: callableErrorMessage(
+          e,
+          fallback: AppCopy.join.codeLookupFailed,
+        ),
+      );
       return false;
     }
   }

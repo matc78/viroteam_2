@@ -1,4 +1,9 @@
 import { FirebaseApp, getApp, getApps, initializeApp } from "firebase/app";
+import {
+  AppCheck,
+  initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
+} from "firebase/app-check";
 import { Auth, getAuth } from "firebase/auth";
 import {
   Firestore,
@@ -18,6 +23,12 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
+
+/** Clé site reCAPTCHA Enterprise (Firebase Console → App Check → Web). */
+const appCheckSiteKey =
+  process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY?.trim() ?? "";
+
+let appCheckInstance: AppCheck | null = null;
 
 const MISSING_DATABASE_ID_MESSAGE =
   "NEXT_PUBLIC_FIRESTORE_DATABASE_ID manquant : définis `v2-dev` (local, portal/.env.local) ou `v2-prod` (apphosting.yaml). Aucun fallback n’est appliqué pour éviter d’écrire dans la mauvaise base.";
@@ -45,13 +56,45 @@ function assertConfig(): void {
   getFirestoreDatabaseId();
 }
 
+/**
+ * Active App Check (score reCAPTCHA Enterprise invisible) si la clé site est
+ * définie. Sans clé : no-op (dev local avant Enforce). En développement, un
+ * `NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN=true` (ou un UUID enregistré)
+ * active le mode debug App Check.
+ */
+function ensureAppCheck(app: FirebaseApp): void {
+  if (typeof window === "undefined") return;
+  if (appCheckInstance) return;
+  if (!appCheckSiteKey) return;
+
+  const debugToken = process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN?.trim();
+  if (debugToken) {
+    // Firebase lit cette globale avant initializeAppCheck (mode debug local).
+    (
+      globalThis as typeof globalThis & {
+        FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string;
+      }
+    ).FIREBASE_APPCHECK_DEBUG_TOKEN =
+      debugToken === "true" || debugToken === "1" ? true : debugToken;
+  }
+
+  appCheckInstance = initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
+
 /** Initialise (ou réutilise) l’app Firebase web. */
 export function getFirebaseApp(): FirebaseApp {
   assertConfig();
   if (getApps().length > 0) {
-    return getApp();
+    const existing = getApp();
+    ensureAppCheck(existing);
+    return existing;
   }
-  return initializeApp(firebaseConfig);
+  const app = initializeApp(firebaseConfig);
+  ensureAppCheck(app);
+  return app;
 }
 
 /** Auth Firebase du portail. */

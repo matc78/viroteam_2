@@ -47,6 +47,29 @@ Voir aussi [`SETUP_LOCAL.md`](../SETUP_LOCAL.md).
 - [ ] Secret `SENTRY_AUTH_TOKEN` côté Firebase App Hosting (référencé dans [`portal/apphosting.yaml`](../portal/apphosting.yaml))
 - [ ] Backend `portal`, rollouts **non** automatiques sur chaque push `main`
 - [ ] `NEXT_PUBLIC_DEV_AUTH_BYPASS` **absent** en prod (déjà le cas dans `apphosting.yaml`)
+- [ ] `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` renseigné dans [`portal/apphosting.yaml`](../portal/apphosting.yaml) (clé site reCAPTCHA Enterprise)
+
+### App Check (anti-bot Auth — invisible)
+
+Objectif : bloquer les créations de comptes via l’API Identity Toolkit (clé web publique) **sans captcha visible**. Auth est projet-level (partagé v2-dev / v2-prod).
+
+1. **Console Firebase → App Check**
+   - [ ] Enregistrer les apps Android / iOS / Web du projet `viroteam-75303`
+   - [ ] Providers : Play Integrity (Android), App Attest / DeviceCheck (iOS), **reCAPTCHA Enterprise** (Web — score invisible)
+   - [ ] Créer la clé site Enterprise et la coller dans `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` (`.env.local` + `apphosting.yaml`)
+2. **Tokens debug** (builds debug/profile Flutter + portail local)
+   - [ ] Lancer l’app / le portail une fois ; récupérer le debug token (log / console)
+   - [ ] Console → App Check → Manage debug tokens → enregistrer
+   - [ ] Portail local : `NEXT_PUBLIC_FIREBASE_APPCHECK_DEBUG_TOKEN=true` (ou UUID déjà enregistré)
+3. **Déployer les clients** qui envoient déjà des jetons (app + portail), puis :
+   - [ ] Mode **Monitor** quelques jours (métriques, pas de refus)
+   - [ ] Puis **Enforce** sur **Authentication** et **Firestore** (optionnel : Storage / Functions)
+4. **Smoke** après Enforce : signup e-mail, Google, Apple (app) ; login / signup portail
+5. **Purge bots déjà créés** (one-shot, hors Enforce) :
+   ```bash
+   node tool/cleanup_orphan_auth_users.mjs --dry-run
+   node tool/cleanup_orphan_auth_users.mjs --apply
+   ```
 
 ### Cloud Functions secrets
 
@@ -156,7 +179,7 @@ Suivre intégralement [`DEPLOY_IOS.md`](DEPLOY_IOS.md) (compte Apple, Firebase p
 | **HelloAsso** (futur) | Partenariat → secrets Functions → flags HelloAsso (code conservé, dormant) |
 | Upload photo justificatif d’aide | Backlog Phase 7 |
 | FCM / push rappels | Backlog Phase 8 |
-| App Check | Hardening post-MVP |
+| App Check | Code clients prêt — finaliser console (section 1) puis Enforce Auth/Firestore |
 | Workflow CI iOS | Optionnel (certs Apple en secrets) |
 | 2ᵉ parent / dark mode / i18n | Hors scope immédiat (`ROADMAP.md`) |
 

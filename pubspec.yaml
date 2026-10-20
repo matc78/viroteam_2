@@ -22,6 +22,7 @@ dependencies:
   firebase_storage: ^13.0.5
   cloud_firestore: ^6.1.1
   cloud_functions: ^6.0.5
+  firebase_app_check: ^0.4.8
 
   url_launcher: ^6.3.2
   flutter_riverpod: ^3.0.3

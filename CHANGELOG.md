@@ -10,6 +10,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- App Check (attestation invisible) sur l’app Flutter : providers debug hors release, Play Integrity / App Attest en release — freine les créations de comptes bot sans captcha ni friction UX
+- Script admin `tool/cleanup_orphan_auth_users.mjs` pour lister / supprimer les comptes Auth orphelins bot-like (dry-run par défaut)
 - Mot de passe oublié sur l’écran de connexion (e-mail de réinitialisation Firebase) ; le changement de mot de passe reste disponible dans les paramètres uniquement pour les comptes e-mail / mot de passe
 - Messagerie in-app (Flutter + portail) : threads, DM, sondages, réactions, réponses, panel infos, dock flottant, deep links et notifications
 - Backend chat : sync équipes, triggers Cloud Functions et règles Firestore
@@ -34,6 +36,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Sécurité
 
+- App Check côté clients (app + portail) en préparation de l’enforcement console Auth / Firestore (voir `docs/DEPLOY_SUITE.md`)
 - Durcissement des règles chat (réactions et preview inbox)
 
 ### Modifié

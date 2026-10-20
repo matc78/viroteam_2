@@ -1,3 +1,4 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
@@ -17,6 +18,7 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await _activateAppCheck();
 
   // Erreurs framework (layout, polices, etc.) : non fatales — évite de
   // gonfler le crash rate Play / Android Vitals. Les vrais crashes isolés
@@ -41,4 +43,19 @@ Future<void> main() async {
 
   await initializeDateFormatting('fr_FR');
   runApp(const ProviderScope(child: ViroApp()));
+}
+
+/// Active App Check (attestation invisible). Debug/profile = providers debug
+/// (enregistrer le token dans la console Firebase) ; release = Play Integrity /
+/// App Attest (repli DeviceCheck sur anciens iOS).
+Future<void> _activateAppCheck() async {
+  final useDebugProviders = !kReleaseMode;
+  await FirebaseAppCheck.instance.activate(
+    providerAndroid: useDebugProviders
+        ? const AndroidDebugProvider()
+        : const AndroidPlayIntegrityProvider(),
+    providerApple: useDebugProviders
+        ? const AppleDebugProvider()
+        : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+  );
 }

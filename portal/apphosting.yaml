@@ -45,6 +45,12 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # App Check — clé site reCAPTCHA Enterprise (score invisible, publique côté client).
+  - variable: NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY
+    value: 6LcsJPgtAAAAAC-iB2genVhCSsNEKbJgqjDmuVDt
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_FIRESTORE_DATABASE_ID
     value: v2-prod
     availability:

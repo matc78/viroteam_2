@@ -15,6 +15,7 @@ export type PlanningLabelFilters = {
   teamIds: string[];
   coachIds: string[];
   categories: string[];
+  /** Conservé pour alignement storage / type sidebar ; toujours vide en UI. */
   playerIds: string[];
 };
 
@@ -37,8 +38,7 @@ export function hasActiveLabelFilters(filters: PlanningLabelFilters): boolean {
   return (
     filters.teamIds.length > 0 ||
     filters.coachIds.length > 0 ||
-    filters.categories.length > 0 ||
-    filters.playerIds.length > 0
+    filters.categories.length > 0
   );
 }
 
@@ -60,14 +60,13 @@ function collectMatchIds(
 
 /**
  * Labels sélectionnés qui matchent un événement (équipes, coachs,
- * catégories, joueurs).
+ * catégories).
  */
 function matchingLabelsForEvent(
   event: ClubEventView,
   teamById: Map<string, TeamOption>,
   filters: PlanningLabelFilters,
   coachMatchToFilterId: Map<string, string>,
-  playerMatchToFilterId: Map<string, string>,
 ): MatchedLabel[] {
   const matched: MatchedLabel[] = [];
   const seen = new Set<string>();
@@ -121,23 +120,6 @@ function matchingLabelsForEvent(
     }
   }
 
-  if (filters.playerIds.length > 0) {
-    const matchedPlayerFilterIds = new Set<string>();
-    for (const memberId of event.teamMemberIds) {
-      const filterId = playerMatchToFilterId.get(memberId);
-      if (filterId) matchedPlayerFilterIds.add(filterId);
-    }
-    for (const teamId of event.teamIds) {
-      for (const playerId of teamById.get(teamId)?.playerIds ?? []) {
-        const filterId = playerMatchToFilterId.get(playerId);
-        if (filterId) matchedPlayerFilterIds.add(filterId);
-      }
-    }
-    for (const playerFilterId of matchedPlayerFilterIds) {
-      pushLabel("player", playerFilterId);
-    }
-  }
-
   return matched;
 }
 
@@ -151,7 +133,6 @@ export function expandEventsToLabelBlocks(
   events: ClubEventView[],
   teams: TeamOption[],
   coaches: PlanningPersonOption[],
-  players: PlanningPersonOption[],
   filters: PlanningLabelFilters,
   teamColorById?: ReadonlyMap<string, string>,
 ): CalendarEventBlock[] {
@@ -161,13 +142,11 @@ export function expandEventsToLabelBlocks(
 
   const teamById = new Map(teams.map((team) => [team.id, team]));
   const coachMatchToFilterId = collectMatchIds(coaches, filters.coachIds);
-  const playerMatchToFilterId = collectMatchIds(players, filters.playerIds);
   const teamColors = mergeTeamFilterColors(
     teams.map((team) => team.id),
     teamColorById,
   );
   const coachColors = colorsForFilterIds(coaches.map((coach) => coach.id));
-  const playerColors = colorsForFilterIds(players.map((player) => player.id));
   const categoryColors = colorsForFilterIds(
     Array.from(
       new Set(
@@ -185,7 +164,6 @@ export function expandEventsToLabelBlocks(
       teamById,
       filters,
       coachMatchToFilterId,
-      playerMatchToFilterId,
     );
     for (const label of labels) {
       const palette =
@@ -193,9 +171,7 @@ export function expandEventsToLabelBlocks(
           ? teamColors
           : label.kind === "coach"
             ? coachColors
-            : label.kind === "player"
-              ? playerColors
-              : categoryColors;
+            : categoryColors;
       blocks.push({
         blockId: `${event.id}::${label.kind}:${label.id}`,
         event,

@@ -21,6 +21,7 @@ export type PlanningSidebarFilters = {
   teamIds: string[];
   coachIds: string[];
   categories: string[];
+  /** Conservé pour compat localStorage ; toujours `[]` (filtre retiré). */
   playerIds: string[];
 };
 
@@ -30,7 +31,6 @@ type PlanningSidebarProps = {
   selectedDay: Date;
   teams: TeamOption[];
   coaches: PlanningPersonOption[];
-  players: PlanningPersonOption[];
   categories: string[];
   filters: PlanningSidebarFilters;
   onFiltersChange: (filters: PlanningSidebarFilters) => void;
@@ -75,8 +75,8 @@ function isSameDay(a: Date, b: Date): boolean {
 
 /**
  * Sidebar Google-like : création, mini mois, calendriers par label
- * (équipes / coach / catégorie / joueur). Chaque case cochée affiche
- * les événements matchants dans sa couleur ; un événement multi-label
+ * (équipes / coach / catégorie). Chaque case cochée affiche les
+ * événements matchants dans sa couleur ; un événement multi-label
  * apparaît autant de fois que de labels actifs.
  */
 export function PlanningSidebar({
@@ -84,7 +84,6 @@ export function PlanningSidebar({
   selectedDay,
   teams,
   coaches,
-  players,
   categories,
   filters,
   onFiltersChange,
@@ -109,7 +108,6 @@ export function PlanningSidebar({
     teams: true,
     coaches: true,
     categories: true,
-    players: true,
   });
   const [filterSearch, setFilterSearch] = useState("");
 
@@ -149,12 +147,12 @@ export function PlanningSidebar({
     teamsSearchPlaceholder ??
     (teamsOnlyFilters
       ? "Rechercher une équipe…"
-      : "Équipes, catégories, joueurs…");
+      : "Équipes, coachs, catégories…");
   const searchAriaLabel =
     teamsSearchAriaLabel ??
     (teamsOnlyFilters
       ? "Rechercher une équipe"
-      : "Rechercher équipes, catégories et joueurs");
+      : "Rechercher équipes, coachs et catégories");
   const coachColors = useMemo(
     () => colorsForFilterIds(coaches.map((coach) => coach.id)),
     [coaches],
@@ -162,10 +160,6 @@ export function PlanningSidebar({
   const categoryColors = useMemo(
     () => colorsForFilterIds(categories),
     [categories],
-  );
-  const playerColors = useMemo(
-    () => colorsForFilterIds(players.map((player) => player.id)),
-    [players],
   );
 
   const filteredTeams = useMemo(
@@ -175,10 +169,6 @@ export function PlanningSidebar({
   const filteredCategories = useMemo(
     () => filterByLabel(categories, filterSearch, (category) => category),
     [categories, filterSearch],
-  );
-  const filteredPlayers = useMemo(
-    () => filterByLabel(players, filterSearch, (player) => player.name),
-    [players, filterSearch],
   );
   const hasFilterSearch = filterSearch.trim().length > 0;
 
@@ -347,35 +337,6 @@ export function PlanningSidebar({
                         onFiltersChange({
                           ...filters,
                           categories: toggleId(filters.categories, category),
-                        })
-                      }
-                    />
-                  ))
-                )}
-              </FilterSection>
-            ) : null}
-
-            {!teamsOnlyFilters ? (
-              <FilterSection
-                title="Joueur"
-                open={openSections.players}
-                onToggle={() => toggleSection("players")}
-              >
-                {players.length === 0 ? (
-                  <p className={styles.emptyHint}>Aucun joueur</p>
-                ) : filteredPlayers.length === 0 ? (
-                  <p className={styles.emptyHint}>Aucun résultat</p>
-                ) : (
-                  filteredPlayers.map((player) => (
-                    <FilterOption
-                      key={player.id}
-                      label={player.name}
-                      color={resolveFilterColor("player", player.id, playerColors)}
-                      checked={filters.playerIds.includes(player.id)}
-                      onToggle={() =>
-                        onFiltersChange({
-                          ...filters,
-                          playerIds: toggleId(filters.playerIds, player.id),
                         })
                       }
                     />

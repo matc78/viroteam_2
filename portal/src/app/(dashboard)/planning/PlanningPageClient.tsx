@@ -43,7 +43,7 @@ import {
   arePlanningFiltersEqual,
   emptyPlanningFilters,
   readPlanningFilters,
-  sanitizePlanningFilters,
+  resolveAdminPlanningFilters,
   writePlanningFilters,
 } from "@/lib/planning/planningFiltersStorage";
 import {
@@ -212,14 +212,13 @@ function PlanningPageContent() {
   useEffect(() => {
     if (!activeClub || filtersClubId !== activeClub.id || !data) return;
     if (caps.isAdmin) {
-      const sanitized = sanitizePlanningFilters(filters, {
+      const next = resolveAdminPlanningFilters(filters, {
         teamIds: new Set(data.teams.map((team) => team.id)),
         coachIds: new Set(data.coaches.map((coach) => coach.id)),
         categories: new Set(data.categories),
-        playerIds: new Set(data.players.map((player) => player.id)),
       });
-      if (!arePlanningFiltersEqual(filters, sanitized)) {
-        setFilters(sanitized);
+      if (!arePlanningFiltersEqual(filters, next)) {
+        setFilters(next);
       }
       setRoleScopeReady(true);
       return;
@@ -273,7 +272,6 @@ function PlanningPageContent() {
       visibleEvents,
       scopedTeams,
       caps.isAdmin ? data.coaches : [],
-      caps.isAdmin ? data.players : [],
       filters,
     );
   }, [data, filters, visibleEvents, scopedTeams, caps.isAdmin, roleScopeReady]);
@@ -456,7 +454,6 @@ function PlanningPageContent() {
             selectedDay={cursor}
             teams={scopedTeams}
             coaches={caps.isAdmin ? data.coaches : []}
-            players={caps.isAdmin ? data.players : []}
             categories={
               caps.isAdmin
                 ? data.categories

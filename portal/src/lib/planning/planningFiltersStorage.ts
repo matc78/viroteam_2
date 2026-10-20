@@ -34,7 +34,8 @@ function parseStoredFilters(raw: string | null): PlanningSidebarFilters | null {
       teamIds: record.teamIds,
       coachIds: record.coachIds,
       categories: record.categories,
-      playerIds: record.playerIds,
+      // Filtre joueur retiré de l’UI ; on ignore d’anciennes sélections.
+      playerIds: [],
     };
   } catch {
     return null;
@@ -84,6 +85,32 @@ export function sanitizePlanningFilters(
     coachIds: filters.coachIds.filter((id) => options.coachIds.has(id)),
     categories: filters.categories.filter((id) => options.categories.has(id)),
     playerIds: filters.playerIds.filter((id) => options.playerIds.has(id)),
+  };
+}
+
+/**
+ * Filtres admin après sanitize : pré-coche toutes les équipes si aucune
+ * n’est sélectionnée, et vide toujours le filtre joueur (retiré de l’UI).
+ */
+export function resolveAdminPlanningFilters(
+  filters: PlanningSidebarFilters,
+  options: {
+    teamIds: ReadonlySet<string>;
+    coachIds: ReadonlySet<string>;
+    categories: ReadonlySet<string>;
+  },
+): PlanningSidebarFilters {
+  const sanitized = sanitizePlanningFilters(filters, {
+    ...options,
+    playerIds: new Set(),
+  });
+  return {
+    ...sanitized,
+    teamIds:
+      sanitized.teamIds.length > 0
+        ? sanitized.teamIds
+        : [...options.teamIds],
+    playerIds: [],
   };
 }
 

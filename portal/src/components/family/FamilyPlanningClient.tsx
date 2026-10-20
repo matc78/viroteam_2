@@ -213,7 +213,6 @@ export function FamilyPlanningClient() {
       data.events,
       data.teams,
       [],
-      [],
       {
         teamIds: data.teams.map((team) => team.id),
         coachIds: [],
@@ -271,7 +270,6 @@ export function FamilyPlanningClient() {
             selectedDay={cursor}
             teams={[]}
             coaches={[]}
-            players={[]}
             categories={[]}
             filters={filters}
             onFiltersChange={setFilters}

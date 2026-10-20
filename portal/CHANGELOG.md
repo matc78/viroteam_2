@@ -11,7 +11,12 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ### Corrigé
 
+- Planning admin : calendrier vide quand aucune équipe n’était cochée — pré-coche toutes les équipes (comme le coach)
 - Doublons de convoqués sur le détail événement (même personne listée deux fois via memberId + accountUid) : sync audience qui migre les alias et liste dédupliquée
+
+### Modifié
+
+- Sidebar planning : filtre Joueur retiré ; Coach et Catégorie conservés pour l’admin
 
 ## [1.6.0] - 2026-10-12
 

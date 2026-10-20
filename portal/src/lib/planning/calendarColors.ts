@@ -33,7 +33,7 @@ export const CALENDAR_FILTER_COLORS = [
 ] as const;
 
 /** Préfixes de clé pour stabiliser les couleurs par type de filtre. */
-export type FilterColorKind = "team" | "coach" | "category" | "player";
+export type FilterColorKind = "team" | "coach" | "category";
 
 /**
  * Hash stable d'une chaîne (FNV-1a 32 bits) pour mieux répartir
@@ -59,7 +59,7 @@ export function colorForFilterKey(key: string): string {
   return CALENDAR_FILTER_COLORS[index] ?? CALENDAR_FILTER_COLORS[0];
 }
 
-/** Couleur d'un filtre (équipe, coach, catégorie, joueur). */
+/** Couleur d'un filtre (équipe, coach, catégorie). */
 export function colorForFilter(kind: FilterColorKind, id: string): string {
   return colorForFilterKey(filterColorKey(kind, id));
 }

@@ -263,7 +263,6 @@ export function PersonalPlanningClient({
       eventsColoredByClub(filteredEvents),
       clubOptions,
       [],
-      [],
       {
         teamIds: filters.teamIds,
         coachIds: [],
@@ -368,7 +367,6 @@ export function PersonalPlanningClient({
             selectedDay={cursor}
             teams={clubOptions}
             coaches={[]}
-            players={[]}
             categories={[]}
             filters={filters}
             onFiltersChange={setFilters}

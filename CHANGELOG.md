@@ -8,6 +8,29 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Notifications : nouveau calendrier des rappels d’événements — rappel 2 jours avant (sans réponse ou « peut-être », plus bilan coach avec le décompte) et rappel le jour J à 8h00 (la veille au soir pour un event avant 10h00), 7 jours sur 7 ; rappel 7 jours avant réservé aux événements marqués « Événement important » (coché d’office pour un tournoi ou une réunion)
+- Récap de la semaine le dimanche soir : une notif par personne (tous clubs et enfants confondus) avec le programme et les réponses attendues, envoyée seulement s’il y a au moins un événement ; désactivable dans les paramètres
+- Notif « Nouvelle convocation » à la création d’un événement dans les 7 jours (hors séries récurrentes), et aussi quand un joueur est ajouté à l’audience d’un événement déjà créé (sync roster / rattachement)
+- Préférence « Réponses des coéquipiers » (désactivée par défaut) pour suivre qui vient
+- Tap sur une notif d’événement : l’événement est mis en avant dans le planning ; pour un parent, l’enfant concerné est sélectionné
+
+### Modifié
+
+- Textes des notifications réécrits (tutoiement) : équipe, type, jour et heure dans le titre, lieu / RDV et action attendue dans le corps ; prénom de l’enfant pour les parents ; « modifié » dit ce qui a changé (lieu, lieu de RDV, heure de RDV, fin…) ; nom du club pour les annonces et cotisations
+- Réponses aux convocations : envoyées aux coachs (aux admins à défaut) avec le décompte oui / non / sans réponse, plus une confirmation aux parents quand la réponse de leur enfant est posée par quelqu’un d’autre ; plus envoyées à tous les coéquipiers par défaut
+- Modifications d’un événement regroupées sur 2 minutes en une seule notif
+- L’auteur d’une annonce ne reçoit plus sa propre notif ; la relance manuelle du coach n’est plus envoyée à ceux qui ont répondu Non
+
+### Corrigé
+
+- Écran ouvert depuis une notif (planning, cotisation, messagerie…) : le bouton retour et le retour Android remontent vers le club / l’accueil au lieu de ne rien faire ou de fermer l’app
+- Rappels J-2 jamais envoyés pour les événements du lundi et du mardi (et J-7 pour ceux du week-end) : les rappels tournent désormais tous les jours
+- Un report d’événement n’est plus remplacé sur le téléphone par un rappel envoyé juste après
+- Ouverture à froid depuis une notif : le club et l’enfant sont posés avant d’afficher l’écran
+- Changement du lieu de RDV (`meetingLocation`) : notifie désormais l’audience (comme l’heure de RDV)
+
 ## [2.2.8] - 2026-10-20
 
 ### Ajouté

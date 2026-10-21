@@ -1,16 +1,35 @@
+import type { DocumentData } from "firebase-admin/firestore";
+import { stringArray } from "../common";
+import type { EventFieldChange } from "./copy";
+import { formatTimeFr } from "./deepLinks";
+import { DAY_OF_REMINDER_EVE_BEFORE } from "./types";
+
+/** Drapeaux de rappel d'un event (posés par les crons ou à la création). */
+export type ReminderFlag = "reminderSentJ7" | "reminderSentJ2" | "reminderSentDay";
+
 /**
- * Détermine quels rappels auto envoyer à la création (trop tard pour attendre
- * le créneau 18:30).
- *
- * - ≤ 2 jours : rappel J-2 uniquement
- * - ≤ 7 jours : rappel J-7 uniquement
- * - sinon : aucun immédiat
+ * Rappels à marquer comme envoyés quand l'event est créé (ou reporté) dans
+ * leur fenêtre : la push « Nouvelle convocation » / « Changement de date »
+ * en tient lieu, inutile d'en remettre une couche le soir même.
  */
-export function immediateReminderKinds(daysUntil: number): Array<"j7" | "j2"> {
+export function creationReminderFlags(daysUntil: number): ReminderFlag[] {
   if (daysUntil < 0) return [];
-  if (daysUntil <= 2) return ["j2"];
-  if (daysUntil <= 7) return ["j7"];
-  return [];
+  const flags: ReminderFlag[] = [];
+  if (daysUntil <= 7) flags.push("reminderSentJ7");
+  if (daysUntil <= 2) flags.push("reminderSentJ2");
+  if (daysUntil === 0) flags.push("reminderSentDay");
+  return flags;
+}
+
+/**
+ * `true` si l'event commence assez tôt pour que son rappel du jour J parte
+ * la veille au soir plutôt qu'à 8h00 le jour même.
+ */
+export function dayOfReminderIsEve(startTime: unknown): boolean {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(startTime ?? "").trim());
+  if (!match) return false;
+  const normalized = `${match[1]!.padStart(2, "0")}:${match[2]}`;
+  return normalized < DAY_OF_REMINDER_EVE_BEFORE;
 }
 
 /** Champs dont le changement déclenche « reporté ». */
@@ -26,16 +45,88 @@ export function isEventPostponedChange(
   );
 }
 
+/** Champs suivis pour la push « modifié » (hors report / annulation). */
+export const MODIFIED_EVENT_FIELDS = [
+  "title",
+  "location",
+  "meetingLocation",
+  "matchVenue",
+  "endTime",
+  "meetingTime",
+  "type",
+] as const;
+
+export type ModifiedEventField = (typeof MODIFIED_EVENT_FIELDS)[number];
+
+/** Champs suivis qui ont changé entre before et after. */
+export function listModifiedEventFields(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown>,
+): ModifiedEventField[] {
+  if (!before) return [];
+  return MODIFIED_EVENT_FIELDS.filter(
+    (key) => stringifyField(before[key]) !== stringifyField(after[key]),
+  );
+}
+
+/** Champs modifiés → descriptions avec la valeur actuelle de l'event. */
+export function describeChanges(
+  eventData: DocumentData,
+  fields: string[],
+): EventFieldChange[] {
+  const known = new Set<string>(MODIFIED_EVENT_FIELDS);
+  const changes: EventFieldChange[] = [];
+  for (const field of fields) {
+    if (!known.has(field)) continue;
+    switch (field as ModifiedEventField) {
+      case "location":
+        changes.push({ field: "location", value: String(eventData.location ?? "").trim() });
+        break;
+      case "meetingLocation":
+        changes.push({
+          field: "meetingLocation",
+          value: String(eventData.meetingLocation ?? "").trim(),
+        });
+        break;
+      case "meetingTime":
+        changes.push({ field: "meetingTime", value: formatTimeFr(eventData.meetingTime) });
+        break;
+      case "endTime":
+        changes.push({ field: "endTime", value: formatTimeFr(eventData.endTime) });
+        break;
+      case "title":
+        changes.push({ field: "title", value: String(eventData.title ?? "").trim() });
+        break;
+      case "type":
+        changes.push({ field: "type", value: String(eventData.type ?? "").trim() });
+        break;
+      case "matchVenue":
+        changes.push({ field: "matchVenue" });
+        break;
+    }
+  }
+  return changes;
+}
+
+/**
+ * Ids ajoutés à `teamMemberIds` entre before et after (nouveaux convoqués
+ * après sync roster / rattachement parent).
+ */
+export function listAddedTeamMemberIds(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown>,
+): string[] {
+  if (!before) return [];
+  const previous = new Set(stringArray(before.teamMemberIds));
+  return stringArray(after.teamMemberIds).filter((id) => !previous.has(id));
+}
+
 /** Champs dont le changement déclenche « modifié » (hors report / annulation). */
 export function isEventContentModified(
   before: Record<string, unknown> | undefined,
   after: Record<string, unknown>,
 ): boolean {
-  if (!before) return false;
-  const keys = ["title", "location", "matchVenue", "endTime", "meetingTime", "type"];
-  return keys.some(
-    (key) => stringifyField(before[key]) !== stringifyField(after[key]),
-  );
+  return listModifiedEventFields(before, after).length > 0;
 }
 
 /** Entrée RSVP dont le statut a changé entre before et after. */
@@ -66,19 +157,25 @@ export function listRsvpStatusChanges(
   return changes;
 }
 
+/** Champs techniques écrits par les Functions push (jamais par l'utilisateur). */
+export const PUSH_BOOKKEEPING_FIELDS = [
+  "reminderSentJ7",
+  "reminderSentJ2",
+  "reminderSentDay",
+  "lastManualPushAt",
+  "rsvpNotifyPending",
+  "rsvpNotifyDueAt",
+  "rsvpLastActorUid",
+  "modifiedNotifyPending",
+  "modifiedNotifyDueAt",
+] as const;
+
 /** True si seuls les champs techniques push ont changé. */
 export function isOnlyPushBookkeepingChange(
   before: Record<string, unknown>,
   after: Record<string, unknown>,
 ): boolean {
-  const bookkeeping = new Set([
-    "reminderSentJ7",
-    "reminderSentJ2",
-    "lastManualPushAt",
-    "rsvpNotifyPending",
-    "rsvpNotifyDueAt",
-    "rsvpLastActorUid",
-  ]);
+  const bookkeeping = new Set<string>(PUSH_BOOKKEEPING_FIELDS);
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const key of keys) {
     if (bookkeeping.has(key)) continue;

@@ -1,110 +1,152 @@
 import type { Firestore } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { stringArray } from "../common";
 import { db, runWithDatabase, type FirestoreDatabaseId } from "../db";
-import {
-  eventReminderJ2Copy,
-  eventReminderJ7Copy,
-  feeReminderCopy,
-} from "./copy";
+import { ClubDirectory, resolveEventAudience } from "./audience";
+import { feeReminderCopy, weeklyDigestCopy } from "./copy";
 import {
   addDaysToDateId,
   dateIdToDayMonthLabel,
-  dateIdToIsoDate,
+  dateIdWeekday,
   feesDeepLink,
+  memberPlanningDeepLink,
   parisDateId,
-  parisDateLabel,
   planningDeepLink,
+  planningWebPath,
 } from "./deepLinks";
+import { sendEventPushToAudience } from "./eventPush";
+import { resolveFeeRecipientUids } from "./recipients";
 import {
-  resolveEventRecipientUids,
-  resolveFeeRecipientUids,
-} from "./recipients";
-import { flushDueRsvpNotifications } from "./rsvpNotify";
+  addEventToDigests,
+  eveningReminderSlots,
+  morningReminderSlots,
+  type DigestRecipient,
+  type ReminderSlot,
+} from "./reminderSlots";
+import { flushDueNotifications } from "./rsvpNotify";
 import { buildPushData, sendPushToUids } from "./send";
 
 const REGION = "europe-west1";
 const PARIS = "Europe/Paris";
 
-/**
- * Lun–Ven 18:30 Europe/Paris : rappels J-7 et J-2.
- */
-async function runEventReminders(): Promise<void> {
+async function runReminderSlots(slots: ReminderSlot[]): Promise<void> {
   const firestore = db();
-  const todayId = parisDateId(new Date());
-  const j7DateId = addDaysToDateId(todayId, 7);
-  const j2DateId = addDaysToDateId(todayId, 2);
-
   const clubsSnap = await firestore.collection("clubs").select().get();
   for (const clubDoc of clubsSnap.docs) {
-    await processClubEventReminders({
-      firestore,
-      clubId: clubDoc.id,
-      dateId: j7DateId,
-      kind: "j7",
-    });
-    await processClubEventReminders({
-      firestore,
-      clubId: clubDoc.id,
-      dateId: j2DateId,
-      kind: "j2",
-    });
+    const directory = new ClubDirectory(firestore, clubDoc.id);
+    for (const slot of slots) {
+      await processClubReminderSlot({ firestore, directory, slot });
+    }
   }
 }
 
-async function processClubEventReminders(params: {
+async function processClubReminderSlot(params: {
   firestore: Firestore;
-  clubId: string;
-  dateId: string;
-  kind: "j7" | "j2";
+  directory: ClubDirectory;
+  slot: ReminderSlot;
 }): Promise<void> {
-  const eventsSnap = await params.firestore
+  const { firestore, directory, slot } = params;
+  const eventsSnap = await firestore
     .collection("clubs")
-    .doc(params.clubId)
+    .doc(directory.clubId)
     .collection("events")
-    .where("dateId", "==", params.dateId)
+    .where("dateId", "==", slot.dateId)
     .get();
-
-  const flagField =
-    params.kind === "j7" ? "reminderSentJ7" : "reminderSentJ2";
 
   for (const eventDoc of eventsSnap.docs) {
     const data = eventDoc.data();
     if (data.canceled === true) continue;
-    if (data[flagField] === true) continue;
+    if (data[slot.flag] === true) continue;
+    if (!slot.includeEvent(data)) continue;
 
-    const dateLabel = dateIdToDayMonthLabel(params.dateId);
-    const copy =
-      params.kind === "j7"
-        ? eventReminderJ7Copy(String(data.title ?? ""), dateLabel)
-        : eventReminderJ2Copy(String(data.title ?? ""), dateLabel);
-    const deepLink = planningDeepLink(params.clubId, params.dateId);
-    const webPath = `/planning?clubId=${encodeURIComponent(params.clubId)}&date=${encodeURIComponent(dateIdToIsoDate(params.dateId))}`;
-    const recipients = await resolveEventRecipientUids({
-      firestore: params.firestore,
-      clubId: params.clubId,
-      teamIds: stringArray(data.teamIds),
-      teamMemberIds: stringArray(data.teamMemberIds),
+    const entries = await resolveEventAudience(directory, data);
+    await sendEventPushToAudience({
+      firestore,
+      clubId: directory.clubId,
+      eventId: eventDoc.id,
+      eventData: data,
+      type: slot.type,
+      entries,
+      onlyIfDisabled: slot.onlyIfDisabled,
+      copyFor: (entry) => slot.copyFor(data, entry, entries),
     });
+    await eventDoc.ref.update({ [slot.flag]: true });
+  }
+}
+
+/** Soir 18:30 Europe/Paris, 7 j / 7 : relances, veille des events matinaux, récap du dimanche. */
+async function runEveningReminders(): Promise<void> {
+  const todayId = parisDateId(new Date());
+  await runReminderSlots(eveningReminderSlots(todayId));
+  if (dateIdWeekday(todayId) === 0) {
+    await runWeeklyDigest(todayId);
+  }
+}
+
+/** Matin 8:00 Europe/Paris : rappel jour J. */
+async function runMorningReminders(): Promise<void> {
+  await runReminderSlots(morningReminderSlots(parisDateId(new Date())));
+}
+
+/**
+ * Récap du dimanche soir : une push par personne pour la semaine du lundi au
+ * dimanche suivants, seulement si elle a au moins un event.
+ */
+async function runWeeklyDigest(todayId: string): Promise<void> {
+  const firestore = db();
+  const mondayId = addDaysToDateId(todayId, 1);
+  const sundayId = addDaysToDateId(todayId, 7);
+  const digests = new Map<string, DigestRecipient>();
+
+  const clubsSnap = await firestore.collection("clubs").select().get();
+  for (const clubDoc of clubsSnap.docs) {
+    const directory = new ClubDirectory(firestore, clubDoc.id);
+    const eventsSnap = await firestore
+      .collection("clubs")
+      .doc(clubDoc.id)
+      .collection("events")
+      .where("dateId", ">=", mondayId)
+      .where("dateId", "<=", sundayId)
+      .orderBy("dateId")
+      .get();
+    for (const eventDoc of eventsSnap.docs) {
+      const data = eventDoc.data();
+      if (data.canceled === true) continue;
+      addEventToDigests({
+        digests,
+        clubId: clubDoc.id,
+        eventData: data,
+        entries: await resolveEventAudience(directory, data),
+      });
+    }
+  }
+
+  for (const [uid, digest] of digests) {
+    const copy = weeklyDigestCopy(digest.items);
+    if (!copy) continue;
+    // Un seul club : on ouvre son planning sur le lundi ; sinon le planning perso.
+    const singleClubId =
+      digest.clubIds.size === 1 ? [...digest.clubIds][0]! : "";
     await sendPushToUids({
-      firestore: params.firestore,
-      uids: recipients,
+      firestore,
+      uids: [uid],
       payload: {
         title: copy.title,
         body: copy.body,
-        preferenceKey: "events",
+        preferenceKey: "weeklyDigest",
+        alsoRequire: "events",
         data: buildPushData({
-          type:
-            params.kind === "j7" ? "event_reminder_j7" : "event_reminder_j2",
-          clubId: params.clubId,
-          deepLink,
-          webPath,
-          preferenceKey: "events",
-          extra: { eventId: eventDoc.id, dateId: params.dateId },
+          type: "event_weekly_digest",
+          clubId: singleClubId,
+          deepLink: singleClubId
+            ? planningDeepLink(singleClubId, mondayId)
+            : memberPlanningDeepLink(),
+          webPath: singleClubId
+            ? planningWebPath(singleClubId, mondayId)
+            : "/planning",
+          preferenceKey: "weeklyDigest",
         }),
       },
     });
-    await eventDoc.ref.update({ [flagField]: true });
   }
 }
 
@@ -123,14 +165,19 @@ async function runFeeReminders(): Promise<void> {
       .collection("fee_seasons")
       .where("isActive", "==", true)
       .get();
+    if (seasonsSnap.empty) continue;
+    const clubName = await new ClubDirectory(firestore, clubDoc.id).clubName();
 
     for (const seasonDoc of seasonsSnap.docs) {
       const season = seasonDoc.data();
-      const seasonLabel = String(season.seasonLabel ?? season.label ?? "saison");
+      const seasonLabel = String(season.seasonLabel ?? season.label ?? "");
       const deadline = season.paymentDeadlineAt?.toDate?.() as Date | undefined;
       const overdue = deadline != null && now.getTime() > deadline.getTime();
-      const deadlineLabel = deadline ? parisDateLabel(deadline) : null;
+      const deadlineLabel = deadline
+        ? dateIdToDayMonthLabel(parisDateId(deadline))
+        : null;
       const copy = feeReminderCopy({
+        clubName,
         seasonLabel,
         deadlineLabel,
         overdue,
@@ -163,14 +210,25 @@ async function runFeeReminders(): Promise<void> {
   }
 }
 
-function defineEventReminderSchedule(databaseId: FirestoreDatabaseId) {
+function defineEveningReminderSchedule(databaseId: FirestoreDatabaseId) {
   return onSchedule(
     {
-      schedule: "30 18 * * 1-5",
+      schedule: "30 18 * * *",
       timeZone: PARIS,
       region: REGION,
     },
-    async () => runWithDatabase(databaseId, () => runEventReminders()),
+    async () => runWithDatabase(databaseId, () => runEveningReminders()),
+  );
+}
+
+function defineMorningReminderSchedule(databaseId: FirestoreDatabaseId) {
+  return onSchedule(
+    {
+      schedule: "0 8 * * *",
+      timeZone: PARIS,
+      region: REGION,
+    },
+    async () => runWithDatabase(databaseId, () => runMorningReminders()),
   );
 }
 
@@ -186,7 +244,8 @@ function defineFeeReminderSchedule(databaseId: FirestoreDatabaseId) {
 }
 
 /**
- * Toutes les minutes : push RSVP dont le choix est stable depuis le debounce (5 s).
+ * Toutes les minutes : push RSVP dont le choix est stable depuis le debounce
+ * (5 s) et push « modifié » dont le regroupement (2 min) est échu.
  */
 function defineRsvpNotifyFlushSchedule(databaseId: FirestoreDatabaseId) {
   return onSchedule(
@@ -195,12 +254,16 @@ function defineRsvpNotifyFlushSchedule(databaseId: FirestoreDatabaseId) {
       timeZone: PARIS,
       region: REGION,
     },
-    async () => runWithDatabase(databaseId, () => flushDueRsvpNotifications()),
+    async () => runWithDatabase(databaseId, () => flushDueNotifications()),
   );
 }
 
-export const scheduleEventReminders = defineEventReminderSchedule("v2-prod");
-export const scheduleEventRemindersDev = defineEventReminderSchedule("v2-dev");
+export const scheduleEventReminders = defineEveningReminderSchedule("v2-prod");
+export const scheduleEventRemindersDev = defineEveningReminderSchedule("v2-dev");
+export const scheduleMorningEventReminders =
+  defineMorningReminderSchedule("v2-prod");
+export const scheduleMorningEventRemindersDev =
+  defineMorningReminderSchedule("v2-dev");
 export const scheduleFeeReminders = defineFeeReminderSchedule("v2-prod");
 export const scheduleFeeRemindersDev = defineFeeReminderSchedule("v2-dev");
 export const scheduleRsvpNotifyFlush = defineRsvpNotifyFlushSchedule("v2-prod");
@@ -208,4 +271,10 @@ export const scheduleRsvpNotifyFlushDev =
   defineRsvpNotifyFlushSchedule("v2-dev");
 
 /** Exposé pour tests manuels éventuels. */
-export { runEventReminders, runFeeReminders, flushDueRsvpNotifications };
+export {
+  runEveningReminders,
+  runMorningReminders,
+  runWeeklyDigest,
+  runFeeReminders,
+  flushDueNotifications,
+};

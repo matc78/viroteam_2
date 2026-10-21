@@ -123,6 +123,8 @@ export async function sendPushToUids(params: {
     uidPrefs,
     uids: uniqueUids,
     key: params.payload.preferenceKey,
+    alsoRequire: params.payload.alsoRequire,
+    onlyIfDisabled: params.payload.onlyIfDisabled,
   });
   if (allowedUids.length === 0) {
     return { recipientCount: 0, tokenCount: 0 };

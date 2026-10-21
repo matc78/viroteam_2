@@ -2,11 +2,14 @@ import * as admin from "firebase-admin";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable, isProdDatabase } from "../db";
 import { requireString, requireUid, stringArray } from "../common";
+import { ClubDirectory, resolveEventAudience } from "./audience";
 import { eventManualPushCopy } from "./copy";
-import { dateIdToIsoDate, parisDateLabel, planningDeepLink } from "./deepLinks";
+import {
+  contextForEntry,
+  eventPushContext,
+  sendEventPushToAudience,
+} from "./eventPush";
 import { canSendManualPush } from "./prefs";
-import { resolveEventRecipientUids } from "./recipients";
-import { buildPushData, sendPushToUids } from "./send";
 import { MANUAL_PUSH_COOLDOWN_MS } from "./types";
 
 /**
@@ -76,48 +79,28 @@ export const {
     return data;
   });
 
-  const dateId = String(event.dateId ?? "").trim();
-  const date =
-    event.date?.toDate?.() instanceof Date
-      ? (event.date.toDate() as Date)
-      : new Date();
-  const dateLabel = dateId
-    ? parisDateLabel(new Date(`${dateIdToIsoDate(dateId)}T12:00:00`))
-    : parisDateLabel(date);
-  const copy = eventManualPushCopy({
-    title: String(event.title ?? ""),
-    dateLabel,
-    startTime: String(event.startTime ?? ""),
-  });
-  const deepLink = planningDeepLink(clubId, dateId || "19700101");
-  const webPath = `/planning?clubId=${encodeURIComponent(clubId)}&date=${encodeURIComponent(dateIdToIsoDate(dateId))}`;
+  const directory = new ClubDirectory(firestore, clubId);
+  const entries = await resolveEventAudience(directory, event);
+  // L'expéditeur reçoit aussi la push : c'est sa confirmation d'envoi.
+  if (!entries.some((entry) => entry.uid === uid)) {
+    entries.push({ uid, relation: "coach", rsvp: "none" });
+  }
+  const base = eventPushContext(event);
 
-  const recipients = await resolveEventRecipientUids({
+  const result = await sendEventPushToAudience({
     firestore,
     clubId,
-    teamIds: stringArray(event.teamIds),
-    teamMemberIds: stringArray(event.teamMemberIds),
-    extraUids: [uid],
-  });
-
-  const result = await sendPushToUids({
-    firestore,
-    uids: recipients,
-    payload: {
-      title: copy.title,
-      body: copy.body,
-      preferenceKey: "events",
-      data: buildPushData({
-        type: "event_manual",
-        clubId,
-        deepLink,
-        webPath,
-        preferenceKey: "events",
-        extra: {
-          eventId,
-          dateId,
-        },
-      }),
+    eventId,
+    eventData: event,
+    type: "event_manual",
+    entries,
+    copyFor: (entry) => {
+      // Qui a déjà dit non n'a pas besoin d'être relancé.
+      if (entry.relation !== "coach" && entry.rsvp === "no") return null;
+      return eventManualPushCopy({
+        ...contextForEntry(base, entry),
+        rsvp: entry.relation === "coach" ? "yes" : entry.rsvp,
+      });
     },
   });
 

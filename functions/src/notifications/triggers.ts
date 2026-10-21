@@ -10,35 +10,29 @@ import {
 } from "firebase-functions/v2/firestore";
 import { stringArray } from "../common";
 import { db, runWithDatabase, type FirestoreDatabaseId } from "../db";
+import { ClubDirectory, resolveEventAudience } from "./audience";
 import {
   announcementPublishedCopy,
   eventCanceledCopy,
-  eventModifiedCopy,
+  eventCreatedCopy,
   eventPostponedCopy,
-  eventReminderJ2Copy,
-  eventReminderJ7Copy,
 } from "./copy";
+import { calendarDaysUntil, feesDeepLink, homeDeepLink } from "./deepLinks";
 import {
-  calendarDaysUntil,
-  dateIdToDayMonthLabel,
-  dateIdToIsoDate,
-  feesDeepLink,
-  homeDeepLink,
-  parisDateId,
-  parisDateLabel,
-  planningDeepLink,
-} from "./deepLinks";
-import {
-  immediateReminderKinds,
-  isEventContentModified,
+  creationReminderFlags,
   isEventPostponedChange,
   isOnlyPushBookkeepingChange,
+  listAddedTeamMemberIds,
+  listModifiedEventFields,
   listRsvpStatusChanges,
 } from "./eventChange";
+import { scheduleEventModifiedNotify } from "./eventModifiedNotify";
 import {
-  resolveAnnouncementRecipientUids,
-  resolveEventRecipientUids,
-} from "./recipients";
+  contextForEntry,
+  eventPushContext,
+  sendEventPushToAudience,
+} from "./eventPush";
+import { resolveAnnouncementRecipientUids } from "./recipients";
 import { scheduleRsvpNotifyDebounce } from "./rsvpNotify";
 import { buildPushData, sendPushToUids } from "./send";
 
@@ -54,9 +48,24 @@ type AnnouncementCreatedEvent = FirestoreEvent<
   { clubId: string; announcementId: string }
 >;
 
+/** Uid de l'utilisateur à l'origine de l'écriture (`undefined` si système). */
+function actorUid(event: EventWrittenEvent): string | undefined {
+  if (
+    event.authType === "unknown" ||
+    event.authType === "unauthenticated" ||
+    event.authType === "service_account" ||
+    event.authType === "system"
+  ) {
+    return undefined;
+  }
+  return typeof event.authId === "string" && event.authId.trim().length > 0
+    ? event.authId.trim()
+    : undefined;
+}
+
 /**
- * Trigger write event : création (rappels immédiats) / annulation / report /
- * modification.
+ * Trigger write event : création (nouvelle convocation) / annulation / report
+ * / modification (différée) / RSVP (différé).
  */
 async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
   const before = event.data?.before?.exists
@@ -68,26 +77,23 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
   const clubId = event.params.clubId;
   const eventId = event.params.eventId;
   const firestore = db();
+  const actor = actorUid(event);
 
   // Création
   if (!before) {
-    await handleEventCreated({
-      firestore,
-      clubId,
-      eventId,
-      eventData: after,
-    });
+    await handleEventCreated({ firestore, clubId, eventId, eventData: after, actor });
     return;
   }
 
   if (after.canceled === true && before.canceled !== true) {
-    await sendEventAudiencePush({
+    await sendToWholeAudience({
       firestore,
       clubId,
       eventId,
       eventData: after,
       type: "event_canceled",
-      copy: eventCanceledCopy(String(after.title ?? "")),
+      actor,
+      copy: eventCanceledCopy,
     });
     return;
   }
@@ -95,164 +101,207 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
   if (after.canceled === true) return;
 
   // Ignore les writes purement techniques (flags push) pour éviter les boucles.
-  if (before && isOnlyPushBookkeepingChange(before, after)) {
+  if (isOnlyPushBookkeepingChange(before, after)) {
     return;
+  }
+
+  const addedMemberIds = listAddedTeamMemberIds(before, after);
+  if (addedMemberIds.length > 0) {
+    await handleAudienceAdded({
+      firestore,
+      clubId,
+      eventId,
+      eventData: after,
+      addedRosterIds: addedMemberIds,
+      actor,
+    });
   }
 
   const rsvpChanges = listRsvpStatusChanges(before, after);
   if (rsvpChanges.length > 0) {
-    const authExclude =
-      event.authType === "unknown" ||
-      event.authType === "unauthenticated" ||
-      event.authType === "service_account" ||
-      event.authType === "system"
-        ? undefined
-        : typeof event.authId === "string" && event.authId.trim().length > 0
-          ? event.authId.trim()
-          : undefined;
     const actorExclude = String(after.rsvpLastActorUid ?? "").trim() || undefined;
     await scheduleRsvpNotifyDebounce({
       firestore,
       clubId,
       eventId,
       changes: rsvpChanges,
-      excludeUid: authExclude ?? actorExclude,
+      excludeUid: actor ?? actorExclude,
     });
   }
 
   if (isEventPostponedChange(before, after)) {
-    const dateId = String(after.dateId ?? "").trim();
-    const dateLabel = dateId
-      ? parisDateLabel(new Date(`${dateIdToIsoDate(dateId)}T12:00:00`))
-      : "date à confirmer";
-    await sendEventAudiencePush({
+    await sendToWholeAudience({
       firestore,
       clubId,
       eventId,
       eventData: after,
       type: "event_postponed",
-      copy: eventPostponedCopy({
-        title: String(after.title ?? ""),
-        dateLabel,
-        startTime: String(after.startTime ?? ""),
-      }),
+      actor,
+      copy: eventPostponedCopy,
     });
-    // Replanifier : passer des flags à false (ne pas se fier à `after` stale).
-    await firestore
-      .collection("clubs")
-      .doc(clubId)
-      .collection("events")
-      .doc(eventId)
-      .update({
-        reminderSentJ7: admin.firestore.FieldValue.delete(),
-        reminderSentJ2: admin.firestore.FieldValue.delete(),
-      });
-    await handleEventCreated({
-      firestore,
-      clubId,
-      eventId,
-      eventData: {
-        ...after,
-        reminderSentJ7: false,
-        reminderSentJ2: false,
-      },
-    });
+    // Le calendrier normal reprend pour la nouvelle date ; les rappels dont la
+    // fenêtre est déjà passée sont couverts par la push de report.
+    await resetReminderFlags({ firestore, clubId, eventId, eventData: after });
     return;
   }
 
-  if (isEventContentModified(before, after)) {
-    await sendEventAudiencePush({
+  const modifiedFields = listModifiedEventFields(before, after);
+  if (modifiedFields.length > 0) {
+    await scheduleEventModifiedNotify({
       firestore,
       clubId,
       eventId,
-      eventData: after,
-      type: "event_modified",
-      copy: eventModifiedCopy(String(after.title ?? "")),
+      fields: modifiedFields,
+      excludeUid: actor,
     });
   }
 }
 
+/**
+ * Nouvelle convocation : seulement si l'event est dans les 7 jours (au-delà,
+ * le récap du dimanche et les rappels suffisent) et hors série récurrente
+ * (une saison d'entraînements ne doit pas spammer). Les drapeaux de rappel
+ * ne sont posés que si la push a bien été envoyée — sinon les crons J-2 / jour J
+ * restent disponibles pour les occurrences de série.
+ */
 async function handleEventCreated(params: {
   firestore: Firestore;
   clubId: string;
   eventId: string;
   eventData: DocumentData;
+  actor?: string;
 }): Promise<void> {
   if (params.eventData.canceled === true) return;
+  // Série : pas de push « nouvelle convocation », et surtout pas de marquage
+  // reminderSent* (les crons du soir / matin doivent encore pouvoir relancer).
+  if (String(params.eventData.seriesId ?? "").trim().length > 0) return;
+
   const dateId = String(params.eventData.dateId ?? "").trim();
   if (!dateId) return;
 
-  const daysUntil = calendarDaysUntil({
-    now: new Date(),
-    eventDateId: dateId,
-  });
-  const kinds = immediateReminderKinds(daysUntil);
-  if (kinds.length === 0) return;
+  const daysUntil = calendarDaysUntil({ now: new Date(), eventDateId: dateId });
+  const flags = creationReminderFlags(daysUntil);
+  if (flags.length === 0) return;
 
-  const updates: Record<string, boolean> = {};
-  for (const kind of kinds) {
-    if (kind === "j7" && params.eventData.reminderSentJ7 === true) continue;
-    if (kind === "j2" && params.eventData.reminderSentJ2 === true) continue;
-    const dateLabel = dateIdToDayMonthLabel(dateId);
-    const copy =
-      kind === "j7"
-        ? eventReminderJ7Copy(String(params.eventData.title ?? ""), dateLabel)
-        : eventReminderJ2Copy(String(params.eventData.title ?? ""), dateLabel);
-    await sendEventAudiencePush({
-      firestore: params.firestore,
-      clubId: params.clubId,
-      eventId: params.eventId,
-      eventData: params.eventData,
-      type: kind === "j7" ? "event_reminder_j7" : "event_reminder_j2",
-      copy,
-    });
-    if (kind === "j7") updates.reminderSentJ7 = true;
-    if (kind === "j2") updates.reminderSentJ2 = true;
-  }
-  if (Object.keys(updates).length > 0) {
-    await params.firestore
-      .collection("clubs")
-      .doc(params.clubId)
-      .collection("events")
-      .doc(params.eventId)
-      .update(updates);
-  }
+  const directory = new ClubDirectory(params.firestore, params.clubId);
+  const entries = await resolveEventAudience(directory, params.eventData);
+  const base = eventPushContext(params.eventData);
+  await sendEventPushToAudience({
+    firestore: params.firestore,
+    clubId: params.clubId,
+    eventId: params.eventId,
+    eventData: params.eventData,
+    type: "event_created",
+    // Le coach connaît déjà l'event qu'il vient de créer.
+    entries: entries.filter((entry) => entry.relation !== "coach"),
+    excludeUids: params.actor ? [params.actor] : [],
+    copyFor: (entry) => eventCreatedCopy(contextForEntry(base, entry)),
+  });
+
+  await params.firestore
+    .collection("clubs")
+    .doc(params.clubId)
+    .collection("events")
+    .doc(params.eventId)
+    .update(Object.fromEntries(flags.map((flag) => [flag, true])));
 }
 
-async function sendEventAudiencePush(params: {
+/**
+ * Nouveaux convoqués ajoutés à un event existant (sync roster, rattachement
+ * parent…) : même fenêtre et silence séries que la création, push ciblée
+ * uniquement aux ids ajoutés (+ parents). Ne repose pas les flags de rappel.
+ */
+async function handleAudienceAdded(params: {
+  firestore: Firestore;
+  clubId: string;
+  eventId: string;
+  eventData: DocumentData;
+  addedRosterIds: string[];
+  actor?: string;
+}): Promise<void> {
+  if (params.eventData.canceled === true) return;
+  if (String(params.eventData.seriesId ?? "").trim().length > 0) return;
+
+  const dateId = String(params.eventData.dateId ?? "").trim();
+  if (!dateId) return;
+
+  const daysUntil = calendarDaysUntil({ now: new Date(), eventDateId: dateId });
+  if (creationReminderFlags(daysUntil).length === 0) return;
+
+  const directory = new ClubDirectory(params.firestore, params.clubId);
+  const addedMemberIds = new Set<string>();
+  for (const rosterId of params.addedRosterIds) {
+    addedMemberIds.add((await directory.resolveMemberId(rosterId)) ?? rosterId);
+  }
+
+  const entries = (await resolveEventAudience(directory, params.eventData)).filter(
+    (entry) =>
+      entry.relation !== "coach" &&
+      entry.memberId != null &&
+      addedMemberIds.has(entry.memberId),
+  );
+  if (entries.length === 0) return;
+
+  const base = eventPushContext(params.eventData);
+  await sendEventPushToAudience({
+    firestore: params.firestore,
+    clubId: params.clubId,
+    eventId: params.eventId,
+    eventData: params.eventData,
+    type: "event_created",
+    entries,
+    excludeUids: params.actor ? [params.actor] : [],
+    copyFor: (entry) => eventCreatedCopy(contextForEntry(base, entry)),
+  });
+}
+
+/** Après un report : drapeaux remis à zéro sauf ceux couverts par la push de report. */
+async function resetReminderFlags(params: {
+  firestore: Firestore;
+  clubId: string;
+  eventId: string;
+  eventData: DocumentData;
+}): Promise<void> {
+  const dateId = String(params.eventData.dateId ?? "").trim();
+  const covered = dateId
+    ? creationReminderFlags(calendarDaysUntil({ now: new Date(), eventDateId: dateId }))
+    : [];
+  const updates: Record<string, unknown> = {};
+  for (const flag of ["reminderSentJ7", "reminderSentJ2", "reminderSentDay"] as const) {
+    updates[flag] = covered.includes(flag)
+      ? true
+      : admin.firestore.FieldValue.delete();
+  }
+  await params.firestore
+    .collection("clubs")
+    .doc(params.clubId)
+    .collection("events")
+    .doc(params.eventId)
+    .update(updates);
+}
+
+/** Push à toute l'audience (joueurs, parents, coachs), sauf l'auteur du changement. */
+async function sendToWholeAudience(params: {
   firestore: Firestore;
   clubId: string;
   eventId: string;
   eventData: DocumentData;
   type: string;
-  copy: { title: string; body: string };
+  actor?: string;
+  copy: (ctx: ReturnType<typeof eventPushContext>) => { title: string; body: string };
 }): Promise<void> {
-  const dateId =
-    String(params.eventData.dateId ?? "").trim() || parisDateId(new Date());
-  const deepLink = planningDeepLink(params.clubId, dateId);
-  const webPath = `/planning?clubId=${encodeURIComponent(params.clubId)}&date=${encodeURIComponent(dateIdToIsoDate(dateId))}`;
-  const recipients = await resolveEventRecipientUids({
+  const directory = new ClubDirectory(params.firestore, params.clubId);
+  const entries = await resolveEventAudience(directory, params.eventData);
+  const base = eventPushContext(params.eventData);
+  await sendEventPushToAudience({
     firestore: params.firestore,
     clubId: params.clubId,
-    teamIds: stringArray(params.eventData.teamIds),
-    teamMemberIds: stringArray(params.eventData.teamMemberIds),
-  });
-  await sendPushToUids({
-    firestore: params.firestore,
-    uids: recipients,
-    payload: {
-      title: params.copy.title,
-      body: params.copy.body,
-      preferenceKey: "events",
-      data: buildPushData({
-        type: params.type,
-        clubId: params.clubId,
-        deepLink,
-        webPath,
-        preferenceKey: "events",
-        extra: { eventId: params.eventId, dateId },
-      }),
-    },
+    eventId: params.eventId,
+    eventData: params.eventData,
+    type: params.type,
+    entries,
+    excludeUids: params.actor ? [params.actor] : [],
+    copyFor: (entry) => params.copy(contextForEntry(base, entry)),
   });
 }
 
@@ -264,7 +313,12 @@ async function handleAnnouncementCreated(
   const data = snap.data()!;
   const clubId = event.params.clubId;
   const firestore = db();
-  const copy = announcementPublishedCopy(String(data.message ?? ""));
+  const senderId = String(data.senderId ?? "").trim();
+  const clubName = await new ClubDirectory(firestore, clubId).clubName();
+  const copy = announcementPublishedCopy({
+    clubName,
+    message: String(data.message ?? ""),
+  });
   const deepLink = homeDeepLink(clubId);
   const webPath = `/home?clubId=${encodeURIComponent(clubId)}`;
   const recipients = await resolveAnnouncementRecipientUids({
@@ -272,11 +326,11 @@ async function handleAnnouncementCreated(
     clubId,
     targetType: String(data.targetType ?? "Tous les membres"),
     targetIds: stringArray(data.targetIds),
-    senderId: String(data.senderId ?? ""),
   });
   await sendPushToUids({
     firestore,
-    uids: recipients,
+    // L'auteur sait ce qu'il vient de publier.
+    uids: recipients.filter((uid) => uid !== senderId),
     payload: {
       title: copy.title,
       body: copy.body,

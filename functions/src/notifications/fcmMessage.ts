@@ -12,6 +12,8 @@ export const ANDROID_CHANNEL_IDS: Record<NotificationPreferenceKey, string> = {
   chat: "viro_chat",
   fees: "viro_fees",
   rsvp: "viro_rsvp",
+  weeklyDigest: "viro_events",
+  rsvpTeammates: "viro_rsvp",
 };
 
 /** Canal Android d'une catégorie de push. */
@@ -35,12 +37,19 @@ export function pushGrouping(data: Record<string, string>): {
   }
   if (type === "event_rsvp_changed" && data.eventId) {
     // Un tag par event : la dernière push RSVP remplace la précédente (anti-spam).
-    const tag = `rsvp_${data.eventId}`;
+    const base = `rsvp_${data.eventId}`;
+    const tag = data.forMemberId ? `${base}_${data.forMemberId}` : base;
     return { tag, threadId: `event_${data.eventId}` };
   }
+  if (type === "event_weekly_digest") {
+    return { tag: "weekly_digest", threadId: "weekly_digest" };
+  }
   if (type.startsWith("event_") && data.eventId) {
-    const tag = `event_${data.eventId}`;
-    return { tag, threadId: tag };
+    // Un parent de deux enfants convoqués reçoit une push par enfant :
+    // elles ne doivent pas se remplacer.
+    const thread = `event_${data.eventId}`;
+    const tag = data.forMemberId ? `${thread}_${data.forMemberId}` : thread;
+    return { tag, threadId: thread };
   }
   if (type === "announcement_published" && data.announcementId) {
     const tag = `announcement_${data.announcementId}`;

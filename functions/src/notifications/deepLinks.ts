@@ -2,10 +2,50 @@
  * Construit les deep links app (`viroteam://…`) inclus dans le payload data.
  */
 
-/** Planning au jour de l'événement (pas l'event lui-même). */
-export function planningDeepLink(clubId: string, dateIdYyyyMmDd: string): string {
-  const dateIso = dateIdToIsoDate(dateIdYyyyMmDd);
-  return `viroteam://planning?clubId=${encodeURIComponent(clubId)}&date=${encodeURIComponent(dateIso)}`;
+/** Cible optionnelle d'un lien planning : event à mettre en avant, enfant à sélectionner. */
+export type PlanningLinkTarget = {
+  eventId?: string;
+  /** Fiche membre concernée quand la push s'adresse à un parent. */
+  memberId?: string;
+};
+
+/** Planning au jour de l'événement, avec l'event mis en avant si fourni. */
+export function planningDeepLink(
+  clubId: string,
+  dateIdYyyyMmDd: string,
+  target: PlanningLinkTarget = {},
+): string {
+  return `viroteam://planning?${planningQuery(clubId, dateIdYyyyMmDd, target)}`;
+}
+
+/** Équivalent portail de [planningDeepLink] (`webpush.fcmOptions.link`). */
+export function planningWebPath(
+  clubId: string,
+  dateIdYyyyMmDd: string,
+  target: PlanningLinkTarget = {},
+): string {
+  return `/planning?${planningQuery(clubId, dateIdYyyyMmDd, target)}`;
+}
+
+/** Planning de l'utilisateur, tous clubs confondus (récap hebdo). */
+export function memberPlanningDeepLink(): string {
+  return "viroteam://planning";
+}
+
+function planningQuery(
+  clubId: string,
+  dateIdYyyyMmDd: string,
+  target: PlanningLinkTarget,
+): string {
+  const params = [
+    `clubId=${encodeURIComponent(clubId)}`,
+    `date=${encodeURIComponent(dateIdToIsoDate(dateIdYyyyMmDd))}`,
+  ];
+  if (target.eventId) params.push(`eventId=${encodeURIComponent(target.eventId)}`);
+  if (target.memberId) {
+    params.push(`memberId=${encodeURIComponent(target.memberId)}`);
+  }
+  return params.join("&");
 }
 
 /** Accueil / home du club. */
@@ -134,4 +174,32 @@ export function calendarDaysUntil(params: {
 
 function pad2(value: number): string {
   return value.toString().padStart(2, "0");
+}
+
+/** Libellé court d'une dateId `YYYYMMDD` avec le jour (ex. « jeu. 23/10 »). */
+export function dateIdToShortDayLabel(dateId: string): string {
+  const iso = dateIdToIsoDate(dateId);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return iso;
+  const weekday = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "UTC",
+    weekday: "short",
+  }).format(
+    new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12)),
+  );
+  return `${weekday} ${match[3]}/${match[2]}`;
+}
+
+/** Jour de semaine d'une dateId `YYYYMMDD` (0 = dimanche … 6 = samedi). */
+export function dateIdWeekday(dateId: string): number {
+  const iso = dateIdToIsoDate(dateId);
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y!, m! - 1, d!, 12)).getUTCDay();
+}
+
+/** Heure Firestore `HH:mm` → libellé FR « 18h00 » (vide si absente / invalide). */
+export function formatTimeFr(time: string | null | undefined): string {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? "").trim());
+  if (!match) return "";
+  return `${Number(match[1])}h${match[2]}`;
 }

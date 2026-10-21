@@ -26,6 +26,14 @@ export function parseNotificationPreferences(
     // Compat legacy: si `rsvp` n'existe pas encore, reprendre la préférence `events`.
     rsvp: readBool(map.rsvp, legacyEventsPreference),
     chat: readBool(map.chat, DEFAULT_NOTIFICATION_PREFERENCES.chat),
+    weeklyDigest: readBool(
+      map.weeklyDigest,
+      DEFAULT_NOTIFICATION_PREFERENCES.weeklyDigest,
+    ),
+    rsvpTeammates: readBool(
+      map.rsvpTeammates,
+      DEFAULT_NOTIFICATION_PREFERENCES.rsvpTeammates,
+    ),
   };
 }
 
@@ -38,18 +46,31 @@ export function prefersNotification(
 }
 
 /**
- * Filtre les uids dont la préférence pour [key] est active.
- * Les docs absents / prefs absentes = opt-in.
+ * Filtre les uids dont la préférence pour [key] est active (et [alsoRequire]
+ * si fourni) ; avec [onlyIfDisabled], ne garde que ceux pour qui cette clé
+ * est coupée. Les docs absents / prefs absentes = valeurs par défaut.
  */
 export function filterUidsByPreference(params: {
   uidPrefs: Map<string, NotificationPreferences>;
   uids: string[];
   key: NotificationPreferenceKey;
+  alsoRequire?: NotificationPreferenceKey;
+  onlyIfDisabled?: NotificationPreferenceKey;
 }): string[] {
   return params.uids.filter((uid) => {
     const prefs =
       params.uidPrefs.get(uid) ?? DEFAULT_NOTIFICATION_PREFERENCES;
-    return prefersNotification(prefs, params.key);
+    if (!prefersNotification(prefs, params.key)) return false;
+    if (params.alsoRequire && !prefersNotification(prefs, params.alsoRequire)) {
+      return false;
+    }
+    if (
+      params.onlyIfDisabled &&
+      prefersNotification(prefs, params.onlyIfDisabled)
+    ) {
+      return false;
+    }
+    return true;
   });
 }
 

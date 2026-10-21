@@ -175,16 +175,22 @@ V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiv
 | `date` | timestamp | |
 | `startTime` | string | Format HH:mm |
 | `endTime` | string | Format HH:mm |
-| `teamMemberIds` | array | Audience de l'événement |
-| `rsvp` | map | `uid → 'yes' \| 'no' \| 'none'` |
+| `teamMemberIds` | array | Audience de l'événement (ajout → push « Nouvelle convocation » si ≤ 7 j, hors séries) |
+| `rsvp` | map | `uid → 'yes' \| 'no' \| 'maybe' \| 'none'` |
 | `attendance` | map | `uid → { status, lateMinutes, markedBy, markedAt }` |
 | `creatorId` | string | |
 | `createdAt` | timestamp | |
 | `canceled` | bool | Annulation soft |
 | `dateId` | string | `YYYYMMDD` (calendaire) |
-| `reminderSentJ7` | bool? | Rappel J-7 déjà envoyé (Functions) |
-| `reminderSentJ2` | bool? | Rappel J-2 déjà envoyé (Functions) |
+| `meetingLocation` | string? | Lieu de RDV (suivi pour la push « modifié », comme `meetingTime`) |
+| `seriesId` | string? | Série récurrente (pas de push « Nouvelle convocation ») |
+| `importantReminder` | bool? | Rappel J-7 en plus (event important : tournoi, AG…) |
+| `reminderSentJ7` | bool? | Rappel J-7 déjà envoyé / couvert (Functions) |
+| `reminderSentJ2` | bool? | Rappel J-2 déjà envoyé / couvert (Functions) — inclut bilan coach + relance peut-être |
+| `reminderSentDay` | bool? | Rappel jour J déjà envoyé (8h00, ou la veille 18h30 si début avant 10h00) |
 | `lastManualPushAt` | timestamp? | Rate-limit envoi manuel (1/h) |
+| `rsvpNotifyPending` / `rsvpNotifyDueAt` | map / timestamp? | File de push RSVP (debounce 5 s, Functions) |
+| `modifiedNotifyPending` / `modifiedNotifyDueAt` | map / timestamp? | Champs modifiés regroupés 2 min avant la push « modifié » (Functions) |
 
 > **`attendance`** est le seul map de présence — `sessionAttendance` et la collection `training_attendances` sont supprimés.
 

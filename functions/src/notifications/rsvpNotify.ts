@@ -1,20 +1,25 @@
 import * as admin from "firebase-admin";
 import type { DocumentData, Firestore, Timestamp } from "firebase-admin/firestore";
-import { stringArray } from "../common";
 import { db } from "../db";
-import { eventRsvpChangedCopy, formatMemberShortName } from "./copy";
 import {
-  dateIdToDayMonthLabel,
-  dateIdToIsoDate,
-  parisDateId,
-  planningDeepLink,
-} from "./deepLinks";
+  ClubDirectory,
+  eventStaffUids,
+  resolveEventAudience,
+  tallyRsvp,
+} from "./audience";
+import {
+  childRsvpConfirmationCopy,
+  eventRsvpChangedCopy,
+  formatMemberShortName,
+} from "./copy";
 import type { RsvpStatusChange } from "./eventChange";
+import { flushDueEventModifiedNotifications } from "./eventModifiedNotify";
 import {
-  memberAccountUid,
-  resolveEventRecipientUids,
-} from "./recipients";
-import { buildPushData, sendPushToUids } from "./send";
+  contextForEntry,
+  eventPushContext,
+  sendEventPushToAudience,
+} from "./eventPush";
+import { memberAccountUid } from "./recipients";
 import { RSVP_NOTIFY_DEBOUNCE_MS } from "./types";
 
 type RsvpNotifyPendingEntry = {
@@ -78,35 +83,6 @@ export async function scheduleRsvpNotifyDebounce(params: {
       ),
     });
   });
-}
-
-/**
- * Envoie les push RSVP dont le debounce est échu et le statut encore stable.
- */
-export async function flushDueRsvpNotifications(): Promise<void> {
-  const firestore = db();
-  const now = admin.firestore.Timestamp.now();
-  const clubsSnap = await firestore.collection("clubs").select().get();
-
-  for (const clubDoc of clubsSnap.docs) {
-    const eventsSnap = await firestore
-      .collection("clubs")
-      .doc(clubDoc.id)
-      .collection("events")
-      .where("rsvpNotifyDueAt", "<=", now)
-      .limit(40)
-      .get();
-
-    for (const eventDoc of eventsSnap.docs) {
-      await flushEventRsvpNotifications({
-        firestore,
-        clubId: clubDoc.id,
-        eventId: eventDoc.id,
-        eventData: eventDoc.data(),
-        nowMs: now.toMillis(),
-      });
-    }
-  }
 }
 
 async function flushEventRsvpNotifications(params: {
@@ -186,119 +162,125 @@ async function flushEventRsvpNotifications(params: {
 
   if (claimed.length === 0) return;
 
-  const eventTitle = String(params.eventData.title ?? "");
-  const eventType = String(params.eventData.type ?? "").trim();
-  const dateId =
-    String(params.eventData.dateId ?? "").trim() || parisDateId(new Date());
-  const dateLabel = dateIdToDayMonthLabel(dateId);
-  const deepLink = planningDeepLink(params.clubId, dateId);
-  const webPath = `/planning?clubId=${encodeURIComponent(params.clubId)}&date=${encodeURIComponent(dateIdToIsoDate(dateId))}`;
-
-  const audience = await resolveEventRecipientUids({
-    firestore: params.firestore,
-    clubId: params.clubId,
-    teamIds: stringArray(params.eventData.teamIds),
-    teamMemberIds: stringArray(params.eventData.teamMemberIds),
-  });
+  const directory = new ClubDirectory(params.firestore, params.clubId);
+  const entries = await resolveEventAudience(directory, params.eventData);
+  const staff = new Set(await eventStaffUids(directory, params.eventData));
+  const base = eventPushContext(params.eventData);
 
   const exclude = new Set<string>();
   const responses: Array<{ memberName: string; status: string }> = [];
+  const responders = new Map<string, string>();
 
   for (const entry of claimed) {
     if (entry.excludeUid) exclude.add(entry.excludeUid);
-    const accountUid = await resolveMemberAccountUid(
-      params.firestore,
-      params.clubId,
-      entry.memberId,
-    );
-    if (accountUid) exclude.add(accountUid);
-
-    const memberName = await resolveMemberShortName(
-      params.firestore,
-      params.clubId,
-      entry.memberId,
-    );
-    responses.push({ memberName, status: entry.status });
+    const memberId =
+      (await directory.resolveMemberId(entry.memberId)) ?? entry.memberId;
+    const member = await directory.member(memberId);
+    // Le joueur qui a répondu n'a pas besoin d'être prévenu de sa réponse.
+    exclude.add(member ? (memberAccountUid(member, memberId) ?? memberId) : entry.memberId);
+    responders.set(memberId, entry.status);
+    responses.push({
+      memberName: member
+        ? formatMemberShortName({
+            firstName: member.firstName as string | undefined,
+            lastName: member.lastName as string | undefined,
+            displayName: member.displayName as string | undefined,
+          })
+        : "Un membre",
+      status: entry.status,
+    });
   }
 
-  const recipients = audience.filter((uid) => !exclude.has(uid));
-  if (recipients.length === 0) return;
-
-  const copy = eventRsvpChangedCopy({
-    responses,
-    eventTitle,
-    eventType,
-    dateLabel,
-  });
-
-  const extra: Record<string, string> = {
-    eventId: params.eventId,
-    dateId,
-    rsvpCount: String(claimed.length),
-  };
+  const tally = tallyRsvp(entries);
+  const digestCopy = eventRsvpChangedCopy({ responses, ctx: base, tally });
+  const extra: Record<string, string> = { rsvpCount: String(claimed.length) };
   if (claimed.length === 1) {
     extra.memberId = claimed[0]!.memberId;
     extra.rsvp = claimed[0]!.status;
   }
-
-  await sendPushToUids({
+  const common = {
     firestore: params.firestore,
-    uids: recipients,
-    payload: {
-      title: copy.title,
-      body: copy.body,
-      preferenceKey: "rsvp",
-      data: buildPushData({
-        type: "event_rsvp_changed",
-        clubId: params.clubId,
-        deepLink,
-        webPath,
-        preferenceKey: "rsvp",
-        extra,
+    clubId: params.clubId,
+    eventId: params.eventId,
+    eventData: params.eventData,
+    type: "event_rsvp_changed",
+    excludeUids: exclude,
+    preferenceKey: "rsvp" as const,
+    extraData: extra,
+  };
+
+  // Staff (coachs, ou admins à défaut) : le digest avec le décompte.
+  await sendEventPushToAudience({
+    ...common,
+    entries: [...staff].map((uid) => ({ uid, relation: "coach", rsvp: "none" })),
+    copyFor: () => digestCopy,
+  });
+
+  // Parents du joueur : confirmation de la réponse posée pour leur enfant.
+  await sendEventPushToAudience({
+    ...common,
+    entries: entries.filter(
+      (entry) =>
+        entry.relation === "guardian" &&
+        entry.memberId != null &&
+        responders.has(entry.memberId) &&
+        !staff.has(entry.uid),
+    ),
+    copyFor: (entry) =>
+      childRsvpConfirmationCopy({
+        ctx: contextForEntry(base, entry),
+        status: responders.get(entry.memberId!) ?? "none",
       }),
-    },
+  });
+
+  // Coéquipiers et autres parents : seulement s'ils l'ont demandé.
+  await sendEventPushToAudience({
+    ...common,
+    entries: entries.filter(
+      (entry) =>
+        entry.relation !== "coach" &&
+        !staff.has(entry.uid) &&
+        !(entry.memberId != null && responders.has(entry.memberId)),
+    ),
+    alsoRequire: "rsvpTeammates",
+    copyFor: () => digestCopy,
   });
 }
 
 /**
- * Nom court d’un membre club pour le corps de la push RSVP (« Prénom N. »).
+ * Envoie les push RSVP dont le debounce est échu et le statut encore stable,
+ * puis les push « modifié » dont le regroupement est échu.
  */
-async function resolveMemberShortName(
-  firestore: Firestore,
-  clubId: string,
-  memberId: string,
-): Promise<string> {
-  const snap = await firestore
-    .collection("clubs")
-    .doc(clubId)
-    .collection("members")
-    .doc(memberId)
-    .get();
-  if (!snap.exists) return "Un membre";
-  const data = snap.data()!;
-  return formatMemberShortName({
-    firstName: data.firstName as string | undefined,
-    lastName: data.lastName as string | undefined,
-    displayName: data.displayName as string | undefined,
-  });
-}
+export async function flushDueNotifications(): Promise<void> {
+  const firestore = db();
+  const now = admin.firestore.Timestamp.now();
+  const clubsSnap = await firestore.collection("clubs").select().get();
 
-async function resolveMemberAccountUid(
-  firestore: Firestore,
-  clubId: string,
-  memberId: string,
-): Promise<string | null> {
-  const snap = await firestore
-    .collection("clubs")
-    .doc(clubId)
-    .collection("members")
-    .doc(memberId)
-    .get();
-  if (!snap.exists) {
-    const fallback = memberId.trim();
-    return fallback.length > 0 ? fallback : null;
+  for (const clubDoc of clubsSnap.docs) {
+    const eventsSnap = await firestore
+      .collection("clubs")
+      .doc(clubDoc.id)
+      .collection("events")
+      .where("rsvpNotifyDueAt", "<=", now)
+      .limit(40)
+      .get();
+
+    for (const eventDoc of eventsSnap.docs) {
+      await flushEventRsvpNotifications({
+        firestore,
+        clubId: clubDoc.id,
+        eventId: eventDoc.id,
+        eventData: eventDoc.data(),
+        nowMs: now.toMillis(),
+      });
+    }
+
+    await flushDueEventModifiedNotifications({
+      firestore,
+      clubId: clubDoc.id,
+      now,
+    });
   }
-  return memberAccountUid(snap.data()!, memberId);
 }
 
 function readPendingMap(raw: unknown): Record<string, RsvpNotifyPendingEntry> {

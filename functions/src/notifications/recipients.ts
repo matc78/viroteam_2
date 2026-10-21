@@ -47,62 +47,17 @@ export async function activeGuardianUids(
 }
 
 /**
- * Destinataires d'un event : joueurs (`teamMemberIds`) + coaches des `teamIds`
- * + guardians actifs des joueurs.
- */
-export async function resolveEventRecipientUids(params: {
-  firestore: Firestore;
-  clubId: string;
-  teamIds: string[];
-  teamMemberIds: string[];
-  extraUids?: string[];
-}): Promise<string[]> {
-  const { firestore, clubId } = params;
-  const uids = new Set<string>();
-
-  for (const extra of params.extraUids ?? []) {
-    if (extra.trim()) uids.add(extra.trim());
-  }
-
-  const teamIds = uniq(params.teamIds.map(String).filter(Boolean));
-  const teamMemberIds = uniq(params.teamMemberIds.map(String).filter(Boolean));
-
-  for (const teamId of teamIds) {
-    const teamSnap = await firestore
-      .collection("clubs")
-      .doc(clubId)
-      .collection("teams")
-      .doc(teamId)
-      .get();
-    if (!teamSnap.exists) continue;
-    for (const coachId of stringArray(teamSnap.data()?.coachIds)) {
-      uids.add(coachId);
-    }
-  }
-
-  // Résout memberId / accountUid via member_accounts (évite destinataire fantôme
-  // quand teamMemberIds contient encore les deux alias).
-  for (const rosterId of teamMemberIds) {
-    await addMemberAndGuardians(firestore, clubId, rosterId, uids);
-  }
-
-  return [...uids];
-}
-
-/**
- * Destinataires d'une annonce selon targetType + senderId.
+ * Destinataires d'une annonce selon targetType (l'auteur est retiré par l'appelant).
  */
 export async function resolveAnnouncementRecipientUids(params: {
   firestore: Firestore;
   clubId: string;
   targetType: string;
   targetIds: string[];
-  senderId: string;
 }): Promise<string[]> {
   const { firestore, clubId, targetType } = params;
   const targetIds = uniq(params.targetIds.map(String).filter(Boolean));
   const uids = new Set<string>();
-  if (params.senderId.trim()) uids.add(params.senderId.trim());
 
   if (targetType === TARGET_ALL || targetType === TARGET_ALL_LEGACY) {
     for (const uid of await allMemberAccountUids(firestore, clubId)) {

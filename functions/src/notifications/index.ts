@@ -17,6 +17,8 @@ export {
 export {
   scheduleEventReminders,
   scheduleEventRemindersDev,
+  scheduleMorningEventReminders,
+  scheduleMorningEventRemindersDev,
   scheduleFeeReminders,
   scheduleFeeRemindersDev,
   scheduleRsvpNotifyFlush,

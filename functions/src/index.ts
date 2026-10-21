@@ -93,6 +93,8 @@ export {
   onAnnouncementCreatedForPushDev,
   scheduleEventReminders,
   scheduleEventRemindersDev,
+  scheduleMorningEventReminders,
+  scheduleMorningEventRemindersDev,
   scheduleFeeReminders,
   scheduleFeeRemindersDev,
   scheduleRsvpNotifyFlush,

@@ -174,9 +174,6 @@ final class AppCopyPlanning {
   String get nextWeekTooltip => 'Semaine suivante';
   String get previousMonthTooltip => 'Mois précédent';
   String get nextMonthTooltip => 'Mois suivant';
-  String get emptyWeekAdmin =>
-      'Semaine calme, rien au planning.\nTape sur + pour poser un événement.';
-  String get emptyWeek => 'Semaine calme, rien au planning.';
 
   /// Libellé lecteur d’écran d’une case de la grille mensuelle.
   String monthDayCellLabel(String dateLabel, int eventCount) =>

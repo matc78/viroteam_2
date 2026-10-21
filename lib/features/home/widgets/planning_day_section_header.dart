@@ -9,20 +9,38 @@ class PlanningDaySectionHeader extends StatelessWidget {
     super.key,
     required this.day,
     this.compactTop = false,
+    this.muted = false,
+    this.accentColor,
   });
 
   final DateTime day;
   final bool compactTop;
 
+  /// Style grisé pour un jour sans événement (vue semaine).
+  final bool muted;
+
+  /// Couleur club pour le badge « Aujourd'hui » / « Demain ».
+  final Color? accentColor;
+
   @override
   Widget build(BuildContext context) {
     final parts = planningDayHeaderParts(day);
     final theme = Theme.of(context).textTheme;
+    final badgeColor = accentColor ?? ViroColors.primary600;
+    final weekdayColor =
+        muted ? ViroColors.gray400 : ViroColors.primary800;
+    final separatorColor =
+        muted ? ViroColors.gray300 : ViroColors.primary200;
+    final dateColor = muted ? ViroColors.gray400 : ViroColors.primary600;
+    final underlineColor =
+        muted ? ViroColors.gray300 : ViroColors.primary600;
+
+    final titleStyle = muted ? theme.titleMedium : theme.titleLarge;
 
     return Padding(
       padding: EdgeInsets.only(
-        top: compactTop ? ViroSpacing.xs : ViroSpacing.md,
-        bottom: ViroSpacing.sm,
+        top: compactTop || muted ? ViroSpacing.xs : ViroSpacing.md,
+        bottom: muted ? ViroSpacing.xs : ViroSpacing.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,8 +50,8 @@ class PlanningDaySectionHeader extends StatelessWidget {
             children: [
               Text(
                 parts.weekday,
-                style: theme.titleLarge?.copyWith(
-                  color: ViroColors.primary800,
+                style: titleStyle?.copyWith(
+                  color: weekdayColor,
                   fontWeight: FontWeight.w800,
                   height: 1.1,
                 ),
@@ -42,16 +60,16 @@ class PlanningDaySectionHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.xs),
                 child: Text(
                   '·',
-                  style: theme.titleLarge?.copyWith(
-                    color: ViroColors.primary200,
+                  style: titleStyle?.copyWith(
+                    color: separatorColor,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
               ),
               Text(
                 '${parts.day} ${parts.month}',
-                style: theme.titleLarge?.copyWith(
-                  color: ViroColors.primary600,
+                style: titleStyle?.copyWith(
+                  color: dateColor,
                   fontWeight: FontWeight.w600,
                   height: 1.1,
                 ),
@@ -78,7 +96,7 @@ class PlanningDaySectionHeader extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: ViroColors.primary600,
+                    color: badgeColor,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -98,7 +116,7 @@ class PlanningDaySectionHeader extends StatelessWidget {
             height: 2,
             width: 32,
             decoration: BoxDecoration(
-              color: ViroColors.primary600,
+              color: underlineColor,
               borderRadius: BorderRadius.circular(1),
             ),
           ),

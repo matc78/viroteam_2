@@ -472,17 +472,13 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                 PlanningViewMode.week => eventsAsync.when(
                     loading: _buildLoadingList,
                     error: (error, stackTrace) => _buildErrorList(),
-                    data: (events) => events.isEmpty
-                        ? _buildMessageList(
-                            canManage
-                                ? AppCopy.planning.emptyWeekAdmin
-                                : AppCopy.planning.emptyWeek,
-                          )
-                        : PlanningWeekAgenda(
-                            events: events,
-                            eventTileBuilder: buildEventTile,
-                            physics: ViroRefreshIndicator.scrollPhysics,
-                          ),
+                    data: (events) => PlanningWeekAgenda(
+                      weekStart: planningStartOfWeek(_selectedDay),
+                      events: events,
+                      eventTileBuilder: buildEventTile,
+                      physics: ViroRefreshIndicator.scrollPhysics,
+                      accentColor: clubColor,
+                    ),
                   ),
                 PlanningViewMode.day => eventsAsync.when(
                     loading: _buildLoadingList,
@@ -581,14 +577,28 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         bottom: ViroSpacing.xl,
       ),
       children: [
-        PlanningMonthGrid(
-          month: _selectedDay,
-          selectedDay: _selectedDay,
-          eventsByDay: eventsByDay,
-          onDaySelected: _selectDay,
-          accentColor: accentColor,
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: ViroSpacing.sm,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: ViroColors.white,
+              borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: ViroSpacing.sm),
+              child: PlanningMonthGrid(
+                month: _selectedDay,
+                selectedDay: _selectedDay,
+                eventsByDay: eventsByDay,
+                onDaySelected: _selectDay,
+                accentColor: accentColor,
+              ),
+            ),
+          ),
         ),
-        const SizedBox(height: ViroSpacing.sm),
+        const SizedBox(height: ViroSpacing.lg),
         const PlanningEventTypeLegend(),
         Padding(
           padding: const EdgeInsets.symmetric(
@@ -597,7 +607,10 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PlanningDaySectionHeader(day: _selectedDay),
+              PlanningDaySectionHeader(
+                day: _selectedDay,
+                accentColor: accentColor,
+              ),
               dayContent,
             ],
           ),

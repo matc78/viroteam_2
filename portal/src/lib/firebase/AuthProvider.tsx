@@ -4,6 +4,7 @@ import {
   User,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut,
@@ -21,7 +22,10 @@ import {
 } from "react";
 import { getFirebaseAuth, resetAppFirestore } from "@/lib/firebase/app";
 import { clearLinkedMemberIdCache } from "@/lib/firebase/memberService";
-import { toAuthActionError } from "@/lib/firebase/authErrors";
+import {
+  passwordResetErrorMessage,
+  toAuthActionError,
+} from "@/lib/firebase/authErrors";
 import { isDevAuthBypassEnabled } from "@/lib/firebase/devAuth";
 import {
   EmailUsedWithPasswordError,
@@ -102,6 +106,8 @@ type AuthContextValue = {
     password: string;
     displayName: string;
   }) => Promise<void>;
+  /** Envoie le lien Firebase de réinitialisation du mot de passe. */
+  sendPasswordResetEmail: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   /** Recharge profil + clubs après mutation Firestore (ne rejette jamais). */
   refreshProfile: () => Promise<void>;
@@ -465,6 +471,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [runSession],
   );
 
+  const sendPasswordResetEmail = useCallback(async (email: string) => {
+    try {
+      await firebaseSendPasswordResetEmail(getFirebaseAuth(), email.trim());
+    } catch (error) {
+      const resetMessage = passwordResetErrorMessage(error);
+      // Compte inconnu : succès neutre (anti-énumération), comme l’app.
+      if (resetMessage === null) return;
+      throw new Error(resetMessage);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     writeStoredClubId(null);
     await stopWebPushBounded();
@@ -516,6 +533,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signInWithGoogle,
       signUp,
+      sendPasswordResetEmail,
       logout,
       refreshProfile,
       retrySession,
@@ -536,6 +554,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signInWithGoogle,
       signUp,
+      sendPasswordResetEmail,
       logout,
       refreshProfile,
       retrySession,

@@ -103,3 +103,37 @@ export function authErrorMessage(error: unknown): string {
   }
   return errorMessageHint(error) ?? "Une erreur est survenue.";
 }
+
+const PASSWORD_RESET_FAILED =
+  "Envoi du lien impossible. Réessaie dans un instant.";
+
+/**
+ * Message d’erreur pour le reset mot de passe, ou `null` si succès neutre.
+ *
+ * `user-not-found` → `null` (anti-énumération : même UX que succès).
+ */
+export function passwordResetErrorMessage(error: unknown): string | null {
+  const code = errorCode(error);
+  if (code === "auth/user-not-found" || code === "user-not-found") {
+    return null;
+  }
+  if (code) {
+    switch (code) {
+      case "auth/invalid-email":
+      case "invalid-email":
+        return "Adresse e-mail invalide.";
+      case "auth/user-disabled":
+      case "user-disabled":
+        return "Ce compte est désactivé.";
+      case "auth/too-many-requests":
+      case "too-many-requests":
+        return "Trop de tentatives. Réessaie plus tard.";
+      case "auth/network-request-failed":
+      case "network-request-failed":
+        return "Problème réseau. Vérifie ta connexion.";
+      default:
+        return PASSWORD_RESET_FAILED;
+    }
+  }
+  return errorMessageHint(error) ?? PASSWORD_RESET_FAILED;
+}

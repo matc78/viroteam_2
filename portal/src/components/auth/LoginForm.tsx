@@ -7,6 +7,7 @@ import { AuthDivider, GoogleSignInButton } from "@/components/auth/GoogleSignInB
 import { handleGoogleAuthError } from "@/lib/auth/handleGoogleAuthError";
 import { usePostAuthRedirect } from "@/lib/auth/usePostAuthRedirect";
 import { validateEmail } from "@/lib/auth/validateEmail";
+import { authCopy } from "@/lib/copy/authCopy";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { isUnknownAccountAuthError } from "@/lib/firebase/authErrors";
 import { usePendingOverlay } from "@/lib/ui/usePendingOverlay";
@@ -134,9 +135,21 @@ function LoginFormContent() {
         </div>
 
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="login-password">
-            Mot de passe
-          </label>
+          <div className={styles.labelRow}>
+            <label className={styles.label} htmlFor="login-password">
+              Mot de passe
+            </label>
+            <Link
+              href={
+                email.trim()
+                  ? `/forgot-password?email=${encodeURIComponent(email.trim())}`
+                  : "/forgot-password"
+              }
+              className={styles.forgotLink}
+            >
+              {authCopy.forgotPasswordLink}
+            </Link>
+          </div>
           <div className={styles.passwordField}>
             <input
               id="login-password"

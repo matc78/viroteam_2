@@ -34,6 +34,44 @@
   color: var(--color-primary-800);
 }
 
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.forgotLink {
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary-600);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  transition: color 160ms ease;
+}
+
+.forgotLink:hover {
+  color: var(--color-primary-800);
+}
+
+.successBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  text-align: left;
+}
+
+.successMessage {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-primary-100) 70%, var(--color-white));
+  color: var(--color-primary-800);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
 .input {
   width: 100%;
   min-height: 2.75rem;

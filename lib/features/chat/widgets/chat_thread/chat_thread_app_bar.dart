@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/chat/chat_group_avatar_style.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_day_separator.dart';
 import 'package:viro_team_v2/features/chat/widgets/conversation_info_sheet.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
@@ -90,6 +91,15 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final conv = conversation;
+    final groupBackground = conv != null
+        ? colorForConversationGroupAvatarTone(conv.groupAvatarTone)
+        : colorForConversationGroupAvatarTone(
+            isChannel
+                ? ConversationGroupAvatarTone.channel
+                : ConversationGroupAvatarTone.group,
+          );
+
     return ViroAppBar(
       title: searchOpen
           ? TextField(
@@ -119,10 +129,11 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                       photoUrl: avatarUrl,
                       isGroup: isGroup,
                       isChannel: isChannel,
+                      groupBackground: groupBackground,
                       onEdit: isGroup &&
                               !isChannel &&
                               onChangeAvatar != null &&
-                              (conversation?.canEditGroupAvatar ?? false)
+                              (conv?.canEditGroupAvatar ?? false)
                           ? onChangeAvatar
                           : null,
                     ),
@@ -285,6 +296,7 @@ class _ThreadAvatar extends StatelessWidget {
     this.photoUrl,
     this.isGroup = false,
     this.isChannel = false,
+    this.groupBackground = ViroColors.sportGreen,
     this.onEdit,
   });
 
@@ -294,6 +306,7 @@ class _ThreadAvatar extends StatelessWidget {
   final String? photoUrl;
   final bool isGroup;
   final bool isChannel;
+  final Color groupBackground;
   final VoidCallback? onEdit;
 
   @override
@@ -306,7 +319,7 @@ class _ThreadAvatar extends StatelessWidget {
     if (isChannel) {
       avatar = _ThreadIconAvatar(
         size: size,
-        background: ViroColors.adminBadgeEnd,
+        background: groupBackground,
         icon: ViroIcons.megaphone,
         iconSize: iconSize,
       );
@@ -319,7 +332,7 @@ class _ThreadAvatar extends StatelessWidget {
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _ThreadIconAvatar(
             size: size,
-            background: ViroColors.sportGreen,
+            background: groupBackground,
             icon: ViroIcons.groups,
             iconSize: iconSize,
           ),
@@ -328,7 +341,7 @@ class _ThreadAvatar extends StatelessWidget {
     } else if (isGroup) {
       avatar = _ThreadIconAvatar(
         size: size,
-        background: ViroColors.sportGreen,
+        background: groupBackground,
         icon: ViroIcons.groups,
         iconSize: iconSize,
       );

@@ -95,6 +95,22 @@
   position: relative;
 }
 
+.heroAvatarGroup,
+.heroAvatarParents {
+  background: var(--color-sport-green);
+  color: #fff;
+}
+
+.heroAvatarTeam {
+  background: var(--color-primary-600);
+  color: #fff;
+}
+
+.heroAvatarChannel {
+  background: var(--color-role-admin);
+  color: #fff;
+}
+
 .heroAvatarBtn {
   position: relative;
   display: inline-flex;

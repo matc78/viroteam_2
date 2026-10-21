@@ -3,6 +3,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/chat/chat_group_avatar_style.dart';
 import 'package:viro_team_v2/features/chat/chat_thread_open_seed.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
@@ -123,6 +124,9 @@ class ConversationListTile extends StatelessWidget {
                 _ConversationAvatar(
                   initial: initial,
                   color: clubColor,
+                  groupBackground: colorForConversationGroupAvatarTone(
+                    conversation.groupAvatarTone,
+                  ),
                   isGroup: isGroup,
                   isChannel: isChannel,
                   photoUrl: isGroup
@@ -340,12 +344,13 @@ class _PreviewArrow extends StatelessWidget {
   }
 }
 
-/// Avatar circulaire : DM (photo ou initiale marque), groupe (users vert),
-/// canal (mégaphone violet).
+/// Avatar circulaire : DM (photo ou initiale marque), groupe (users),
+/// canal (mégaphone violet). Équipe = bleu primary, parents = vert.
 class _ConversationAvatar extends StatelessWidget {
   const _ConversationAvatar({
     required this.initial,
     required this.color,
+    required this.groupBackground,
     required this.isGroup,
     required this.isChannel,
     required this.heroTag,
@@ -354,6 +359,7 @@ class _ConversationAvatar extends StatelessWidget {
 
   final String initial;
   final Color color;
+  final Color groupBackground;
   final bool isGroup;
   final bool isChannel;
   final String heroTag;
@@ -371,7 +377,7 @@ class _ConversationAvatar extends StatelessWidget {
     final hasGroupPhoto = isGroup && !isChannel && hasPhoto;
 
     if (isChannel) {
-      background = ViroColors.adminBadgeEnd;
+      background = groupBackground;
       foreground = ViroColors.white;
       child = ViroIcon(ViroIcons.megaphone, size: 20, color: foreground);
     } else if (hasGroupPhoto) {
@@ -387,13 +393,13 @@ class _ConversationAvatar extends StatelessWidget {
             width: _kAvatarSize,
             height: _kAvatarSize,
             alignment: Alignment.center,
-            color: ViroColors.sportGreen,
+            color: groupBackground,
             child: ViroIcon(ViroIcons.groups, size: 20, color: ViroColors.white),
           ),
         ),
       );
     } else if (isGroup) {
-      background = ViroColors.sportGreen;
+      background = groupBackground;
       foreground = ViroColors.white;
       child = ViroIcon(ViroIcons.groups, size: 20, color: foreground);
     } else if (hasDmPhoto) {

@@ -16,6 +16,7 @@ import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import {
   chatDisplayTitle,
   chatStateDocId,
+  conversationGroupAvatarTone,
   isChannelConversation,
   isGroupConversation,
   type ChatConversation,
@@ -88,8 +89,15 @@ export function ConversationListItem({
   const brandText = readableTextOnBrand(brand);
   const isGroup = isGroupConversation(conversation);
   const isChannel = isChannelConversation(conversation);
+  const avatarTone = conversationGroupAvatarTone(conversation);
   const groupAvatarUrl =
     isGroup && !isChannel ? conversation.avatarUrl?.trim() || null : null;
+  const groupAvatarClass =
+    avatarTone === "team"
+      ? styles.avatarTeam
+      : avatarTone === "parents"
+        ? styles.avatarParents
+        : styles.avatarGroup;
   const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
   const previewSender = resolveConversationPreviewSender(
     conversation,
@@ -124,7 +132,13 @@ export function ConversationListItem({
     <>
     <button
       type="button"
-      className={`${styles.item}${selected ? ` ${styles.itemSelected}` : ""}${unread > 0 ? ` ${styles.itemUnread}` : ""}`}
+      className={[
+        styles.item,
+        selected ? styles.itemSelected : "",
+        unread > 0 ? styles.itemUnread : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       onClick={onSelect}
     >
       {isChannel ? (
@@ -144,7 +158,10 @@ export function ConversationListItem({
           <img src={groupAvatarUrl} alt="" />
         </span>
       ) : isGroup ? (
-        <span className={`${styles.avatar} ${styles.avatarGroup}`} aria-hidden>
+        <span
+          className={`${styles.avatar} ${groupAvatarClass}`}
+          aria-hidden
+        >
           <ChatIcon name="usersThree" size={18} />
         </span>
       ) : (

@@ -75,6 +75,16 @@
   color: #fff;
 }
 
+.avatarParents {
+  background: var(--color-sport-green);
+  color: #fff;
+}
+
+.avatarTeam {
+  background: var(--color-primary-600);
+  color: #fff;
+}
+
 .avatarPhoto {
   padding: 0;
   overflow: hidden;

@@ -25,10 +25,13 @@ import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import {
   canEditGroupAvatar,
   chatDisplayTitle,
+  conversationGroupAvatarTone,
+  isChannelConversation,
   isGroupConversation,
   type ChatConversation,
   type ChatMessage,
 } from "@/lib/firebase/chatTypes";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./ConversationInfoPanel.module.css";
 
 type ConversationInfoPanelProps = {
@@ -72,12 +75,18 @@ export function ConversationInfoPanel({
   initialRenameOpen = false,
 }: ConversationInfoPanelProps) {
   const isGroup = isGroupConversation(conversation);
+  const isChannel = isChannelConversation(conversation);
+  const avatarTone = conversationGroupAvatarTone(conversation);
   const canEditAvatar = canEditGroupAvatar(conversation) && !!onChangeAvatar;
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [renameOpen, setRenameOpen] = useState(initialRenameOpen);
+  const renameDialogRef = useDialogA11y({
+    onClose: () => setRenameOpen(false),
+    enabled: renameOpen,
+  });
   const dmOther =
     !isGroup && participants.length > 0
       ? participants[0] ?? null
@@ -100,7 +109,16 @@ export function ConversationInfoPanel({
   const mediaCount = media.images.length + media.links.length;
   const memberCount = participants.length;
   const memberLabel = `${memberCount} membre${memberCount > 1 ? "s" : ""}`;
-  const groupAvatarUrl = conversation.avatarUrl?.trim() || null;
+  const groupAvatarUrl =
+    isGroup && !isChannel ? conversation.avatarUrl?.trim() || null : null;
+  const heroToneClass =
+    avatarTone === "channel"
+      ? styles.heroAvatarChannel
+      : avatarTone === "team"
+        ? styles.heroAvatarTeam
+        : avatarTone === "parents"
+          ? styles.heroAvatarParents
+          : styles.heroAvatarGroup;
 
   const selected = selectedUid
     ? participants.find((participant) => participant.uid === selectedUid) ??
@@ -165,19 +183,32 @@ export function ConversationInfoPanel({
     );
   }
 
-  const heroFallbackStyle = groupAvatarUrl
-    ? undefined
-    : ({
-        background: `color-mix(in srgb, ${brand} 28%, white)`,
-        color: brand,
-      } as CSSProperties);
+  const heroFallbackStyle =
+    !isGroup && !groupAvatarUrl
+      ? ({
+          background: `color-mix(in srgb, ${brand} 28%, white)`,
+          color: brand,
+        } as CSSProperties)
+      : undefined;
 
   const heroAvatarInner = groupAvatarUrl ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={groupAvatarUrl} alt="" className={styles.heroAvatarImg} />
+  ) : isGroup ? (
+    <ChatIcon
+      name={isChannel ? "megaphone" : "usersThree"}
+      size={44}
+    />
   ) : (
     title.trim().slice(0, 1).toUpperCase() || "?"
   );
+
+  const heroAvatarClass = [
+    styles.heroAvatar,
+    isGroup && !groupAvatarUrl ? heroToneClass : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <aside className={styles.panel} aria-label="Infos de la discussion">
@@ -209,7 +240,7 @@ export function ConversationInfoPanel({
               disabled={avatarBusy}
               onClick={() => setAvatarLightboxOpen(true)}
             >
-              <span className={styles.heroAvatar} style={heroFallbackStyle}>
+              <span className={heroAvatarClass} style={heroFallbackStyle}>
                 {heroAvatarInner}
               </span>
               {canEditAvatar ? (
@@ -226,7 +257,7 @@ export function ConversationInfoPanel({
               disabled={avatarBusy}
               onClick={() => avatarInputRef.current?.click()}
             >
-              <span className={styles.heroAvatar} style={heroFallbackStyle}>
+              <span className={heroAvatarClass} style={heroFallbackStyle}>
                 {heroAvatarInner}
               </span>
               <span className={styles.heroAvatarBadge} aria-hidden>
@@ -235,7 +266,7 @@ export function ConversationInfoPanel({
             </button>
           ) : (
             <span
-              className={styles.heroAvatar}
+              className={heroAvatarClass}
               style={heroFallbackStyle}
               aria-hidden
             >
@@ -503,7 +534,12 @@ export function ConversationInfoPanel({
       </div>
 
       {renameOpen ? (
-        <div className={styles.renameOverlay} role="dialog" aria-modal>
+        <div
+          ref={renameDialogRef}
+          className={styles.renameOverlay}
+          role="dialog"
+          aria-modal="true"
+        >
           <form className={styles.renameCard} onSubmit={handleRenameSubmit}>
             <h4 className={styles.renameTitle}>Renommer la discussion</h4>
             <input

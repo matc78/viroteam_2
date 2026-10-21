@@ -1,6 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 
+/// Ton d’avatar icône (liste / AppBar / infos) — aligné sur le type.
+///
+/// La couleur UI se mappe côté widgets (`colorForConversationGroupAvatarTone`).
+enum ConversationGroupAvatarTone {
+  channel,
+  team,
+  parents,
+  group,
+}
+
 /// Conversation club (`clubs/{clubId}/conversations/{convId}`).
 class ChatConversation {
   const ChatConversation({
@@ -80,6 +90,18 @@ class ChatConversation {
 
   /// Groupe multi-users non-canal : les participants peuvent changer l’avatar.
   bool get canEditGroupAvatar => isGroup && !isReadonlyForMembers;
+
+  /// Ton d’avatar pour un groupe / canal (pas un DM).
+  ConversationGroupAvatarTone get groupAvatarTone {
+    if (isReadonlyForMembers) return ConversationGroupAvatarTone.channel;
+    if (type == ChatConversationTypes.team) {
+      return ConversationGroupAvatarTone.team;
+    }
+    if (type == ChatConversationTypes.parents) {
+      return ConversationGroupAvatarTone.parents;
+    }
+    return ConversationGroupAvatarTone.group;
+  }
 
   /// Sondages autorisés uniquement si plus de 2 participants (règles Firestore).
   bool get allowsPolls => participantUids.length > 2;

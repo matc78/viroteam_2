@@ -1199,8 +1199,9 @@ export function ChatThreadView({
         onDragLeave={handleDragLeave}
         onDrop={(event) => void handleDrop(event)}
       >
-        {isGroup ? (
+        {isGroup && conversation ? (
           <ConversationIntroCard
+            conversation={conversation}
             title={title}
             clubName={clubName}
             clubColor={clubColor}

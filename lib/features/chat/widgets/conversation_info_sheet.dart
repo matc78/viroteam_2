@@ -4,6 +4,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/chat/chat_group_avatar_style.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
@@ -110,6 +111,9 @@ Future<void> showConversationInfoSheet({
                       child: _GroupInfoAvatar(
                         photoUrl: hasGroupPhoto ? groupPhoto : null,
                         isChannel: conversation.isReadonlyForMembers,
+                        groupBackground: colorForConversationGroupAvatarTone(
+                          conversation.groupAvatarTone,
+                        ),
                         canEdit: canEditAvatar,
                         onTap: hasGroupPhoto || canEditAvatar
                             ? () {
@@ -312,6 +316,7 @@ Future<void> showConversationInfoSheet({
 class _GroupInfoAvatar extends StatelessWidget {
   const _GroupInfoAvatar({
     required this.isChannel,
+    required this.groupBackground,
     required this.canEdit,
     this.photoUrl,
     this.onTap,
@@ -319,6 +324,7 @@ class _GroupInfoAvatar extends StatelessWidget {
 
   final String? photoUrl;
   final bool isChannel;
+  final Color groupBackground;
   final bool canEdit;
   final VoidCallback? onTap;
 
@@ -388,7 +394,7 @@ class _GroupInfoAvatar extends StatelessWidget {
       height: _size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isChannel ? ViroColors.adminBadgeEnd : ViroColors.sportGreen,
+        color: groupBackground,
         shape: BoxShape.circle,
       ),
       child: ViroIcon(

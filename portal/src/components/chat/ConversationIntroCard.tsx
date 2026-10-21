@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, type CSSProperties } from "react";
+import { ChatIcon } from "@/components/chat/ChatIcons";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import type { ConversationParticipant } from "@/lib/chat/conversationParticipants";
 import {
@@ -8,10 +9,16 @@ import {
   splitBrandColorHex,
 } from "@/lib/clubSetup/clubBrandColors";
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
+import {
+  conversationGroupAvatarTone,
+  isChannelConversation,
+  type ChatConversation,
+} from "@/lib/firebase/chatTypes";
 import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
 import styles from "./ConversationIntroCard.module.css";
 
 type ConversationIntroCardProps = {
+  conversation: ChatConversation;
   title: string;
   clubName?: string;
   clubColor?: string | null;
@@ -82,6 +89,7 @@ export function countParticipantsByRole(
  * nom du groupe, club, effectif, stats de rôles.
  */
 export function ConversationIntroCard({
+  conversation,
   title,
   clubName,
   clubColor,
@@ -97,22 +105,37 @@ export function ConversationIntroCard({
     () => countParticipantsByRole(participants),
     [participants],
   );
-  const initial = title.trim().slice(0, 1).toUpperCase() || "?";
+  const isChannel = isChannelConversation(conversation);
+  const avatarTone = conversationGroupAvatarTone(conversation);
+  const groupAvatarUrl =
+    !isChannel ? conversation.avatarUrl?.trim() || null : null;
+
+  const avatarClass =
+    avatarTone === "channel"
+      ? styles.avatarChannel
+      : avatarTone === "team"
+        ? styles.avatarTeam
+        : avatarTone === "parents"
+          ? styles.avatarParents
+          : styles.avatarGroup;
+
+  const avatar = groupAvatarUrl ? (
+    <span className={`${styles.avatar} ${styles.avatarPhoto}`} aria-hidden>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={groupAvatarUrl} alt="" />
+    </span>
+  ) : (
+    <span className={`${styles.avatar} ${avatarClass}`} aria-hidden>
+      <ChatIcon
+        name={isChannel ? "megaphone" : "usersThree"}
+        size={28}
+      />
+    </span>
+  );
 
   const content = (
     <>
-      <span
-        className={styles.avatar}
-        style={
-          {
-            background: `color-mix(in srgb, ${brand} 28%, white)`,
-            color: brand,
-          } as CSSProperties
-        }
-        aria-hidden
-      >
-        {initial}
-      </span>
+      {avatar}
       <h3 className={styles.title}>{title}</h3>
       {clubName ? (
         <span

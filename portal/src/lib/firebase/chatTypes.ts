@@ -106,6 +106,26 @@ export function canEditGroupAvatar(conversation: ChatConversation): boolean {
 }
 
 /**
+ * Ton d’avatar icône (liste / intro / infos) — aligné sur le type de conversation.
+ * Canal = violet, équipe = bleu primary600, parents = vert, autres groupes = vert.
+ */
+export type ConversationGroupAvatarTone =
+  | "channel"
+  | "team"
+  | "parents"
+  | "group";
+
+/** Ton d’avatar pour une conversation groupe / canal (pas un DM). */
+export function conversationGroupAvatarTone(
+  conversation: ChatConversation,
+): ConversationGroupAvatarTone {
+  if (isChannelConversation(conversation)) return "channel";
+  if (conversation.type === ChatConversationTypes.team) return "team";
+  if (conversation.type === ChatConversationTypes.parents) return "parents";
+  return "group";
+}
+
+/**
  * UID de l’autre participant d’un DM 1:1 pour le viewer courant.
  * Null pour les groupes / si le viewer n’est pas dans la conversation.
  */

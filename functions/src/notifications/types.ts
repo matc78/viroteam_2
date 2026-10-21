@@ -36,7 +36,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 export const MANUAL_PUSH_COOLDOWN_MS = 60 * 60 * 1000;
 
 /** Délai avant push RSVP : le statut doit rester stable aussi longtemps. */
-export const RSVP_NOTIFY_DEBOUNCE_MS = 60 * 1000;
+export const RSVP_NOTIFY_DEBOUNCE_MS = 5 * 1000;
 
 export const ANNOUNCEMENT_BODY_MAX_CHARS = 120;
 

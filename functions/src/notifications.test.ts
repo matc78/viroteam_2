@@ -9,7 +9,9 @@ import {
   eventReminderJ2Copy,
   eventReminderJ7Copy,
   eventRsvpChangedCopy,
+  eventTypePushLabel,
   feeReminderCopy,
+  formatMemberShortName,
   preferenceOffWarning,
   rsvpStatusLabel,
   truncatePushBody,
@@ -70,22 +72,59 @@ test("copies event / fee / annonce", () => {
   assert.equal(eventModifiedCopy("X").title, "Événement modifié");
   assert.equal(rsvpStatusLabel("yes"), "Oui");
   assert.equal(rsvpStatusLabel("maybe"), "Peut-être");
+  assert.equal(eventTypePushLabel("training"), "Entraînement");
+  assert.equal(eventTypePushLabel("match"), "Match");
   assert.equal(
     eventRsvpChangedCopy({
-      memberName: "Marie",
-      status: "yes",
-      eventTitle: "Entraînement",
+      responses: [{ memberName: "Marie D.", status: "yes" }],
+      eventTitle: "Séniors Masculine 6x6",
+      eventType: "training",
+      dateLabel: "25/10",
     }).title,
-    "Réponse RSVP",
+    "Entraînement 25/10",
   );
   assert.match(
     eventRsvpChangedCopy({
-      memberName: "Marie",
-      status: "yes",
-      eventTitle: "Entraînement",
+      responses: [{ memberName: "Marie D.", status: "yes" }],
+      eventTitle: "Séniors Masculine 6x6",
+      eventType: "training",
+      dateLabel: "25/10",
     }).body,
-    /Marie : Oui — Entraînement/,
+    /Marie D\. : Oui — Séniors Masculine 6x6/,
   );
+  assert.equal(
+    eventRsvpChangedCopy({
+      responses: [
+        { memberName: "Marie D.", status: "yes" },
+        { memberName: "Paul G.", status: "no" },
+      ],
+      eventTitle: "Séniors",
+      eventType: "match",
+      dateLabel: "30/10",
+    }).title,
+    "Match 30/10",
+  );
+  assert.match(
+    eventRsvpChangedCopy({
+      responses: [
+        { memberName: "Marie D.", status: "yes" },
+        { memberName: "Paul G.", status: "no" },
+      ],
+      eventTitle: "Séniors",
+      eventType: "match",
+      dateLabel: "30/10",
+    }).body,
+    /2 réponses — Marie D\. : Oui, Paul G\. : Non — Séniors/,
+  );
+  assert.equal(
+    formatMemberShortName({ firstName: "Matia", lastName: "Cilly" }),
+    "Matia C.",
+  );
+  assert.equal(
+    formatMemberShortName({ displayName: "Paul DEL PERUGIA" }),
+    "Paul D.",
+  );
+  assert.equal(formatMemberShortName({}), "Un membre");
   assert.equal(announcementPublishedCopy("Hello world").title, "Nouvelle annonce");
   assert.equal(feeReminderCopy({
     seasonLabel: "2025",
@@ -202,7 +241,7 @@ test("listRsvpStatusChanges détecte les deltas (ignore les suppressions)", () =
     listRsvpStatusChanges({ rsvp: { a: "yes" } }, { rsvp: {} }),
     [],
   );
-  assert.equal(RSVP_NOTIFY_DEBOUNCE_MS, 60 * 1000);
+  assert.equal(RSVP_NOTIFY_DEBOUNCE_MS, 5 * 1000);
 });
 
 test("prefs : défaut opt-in + filtre + rate limit", () => {
@@ -282,7 +321,7 @@ test("pushGrouping : tag de remplacement par entité, thread sans tag pour le ch
   );
   assert.deepEqual(
     pushGrouping({ type: "event_rsvp_changed", eventId: "e1", memberId: "m1" }),
-    { tag: "rsvp_e1_m1", threadId: "event_e1" },
+    { tag: "rsvp_e1", threadId: "event_e1" },
   );
   assert.deepEqual(
     pushGrouping({ type: "announcement_published", announcementId: "a1" }),

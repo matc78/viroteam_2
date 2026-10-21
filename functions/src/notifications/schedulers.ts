@@ -186,7 +186,7 @@ function defineFeeReminderSchedule(databaseId: FirestoreDatabaseId) {
 }
 
 /**
- * Toutes les minutes : push RSVP dont le choix est stable depuis 1 min.
+ * Toutes les minutes : push RSVP dont le choix est stable depuis le debounce (5 s).
  */
 function defineRsvpNotifyFlushSchedule(databaseId: FirestoreDatabaseId) {
   return onSchedule(

@@ -2,8 +2,9 @@ import * as admin from "firebase-admin";
 import type { DocumentData, Firestore, Timestamp } from "firebase-admin/firestore";
 import { stringArray } from "../common";
 import { db } from "../db";
-import { eventRsvpChangedCopy } from "./copy";
+import { eventRsvpChangedCopy, formatMemberShortName } from "./copy";
 import {
+  dateIdToDayMonthLabel,
   dateIdToIsoDate,
   parisDateId,
   planningDeepLink,
@@ -24,7 +25,7 @@ type RsvpNotifyPendingEntry = {
 };
 
 /**
- * Enregistre / reporte le debounce RSVP (1 min) pour chaque membre modifié.
+ * Enregistre / reporte le debounce RSVP (5 s) pour chaque membre modifié.
  * Une nouvelle modification du même membre repousse `dueAt` et incrémente `version`.
  */
 export async function scheduleRsvpNotifyDebounce(params: {
@@ -186,8 +187,10 @@ async function flushEventRsvpNotifications(params: {
   if (claimed.length === 0) return;
 
   const eventTitle = String(params.eventData.title ?? "");
+  const eventType = String(params.eventData.type ?? "").trim();
   const dateId =
     String(params.eventData.dateId ?? "").trim() || parisDateId(new Date());
+  const dateLabel = dateIdToDayMonthLabel(dateId);
   const deepLink = planningDeepLink(params.clubId, dateId);
   const webPath = `/planning?clubId=${encodeURIComponent(params.clubId)}&date=${encodeURIComponent(dateIdToIsoDate(dateId))}`;
 
@@ -198,19 +201,10 @@ async function flushEventRsvpNotifications(params: {
     teamMemberIds: stringArray(params.eventData.teamMemberIds),
   });
 
-  for (const entry of claimed) {
-    const memberName = await resolveMemberDisplayName(
-      params.firestore,
-      params.clubId,
-      entry.memberId,
-    );
-    const copy = eventRsvpChangedCopy({
-      memberName,
-      status: entry.status,
-      eventTitle,
-    });
+  const exclude = new Set<string>();
+  const responses: Array<{ memberName: string; status: string }> = [];
 
-    const exclude = new Set<string>();
+  for (const entry of claimed) {
     if (entry.excludeUid) exclude.add(entry.excludeUid);
     const accountUid = await resolveMemberAccountUid(
       params.firestore,
@@ -219,38 +213,57 @@ async function flushEventRsvpNotifications(params: {
     );
     if (accountUid) exclude.add(accountUid);
 
-    const recipients = audience.filter((uid) => !exclude.has(uid));
-    if (recipients.length === 0) continue;
-
-    await sendPushToUids({
-      firestore: params.firestore,
-      uids: recipients,
-      payload: {
-        title: copy.title,
-        body: copy.body,
-        preferenceKey: "rsvp",
-        data: buildPushData({
-          type: "event_rsvp_changed",
-          clubId: params.clubId,
-          deepLink,
-          webPath,
-          preferenceKey: "rsvp",
-          extra: {
-            eventId: params.eventId,
-            dateId,
-            memberId: entry.memberId,
-            rsvp: entry.status,
-          },
-        }),
-      },
-    });
+    const memberName = await resolveMemberShortName(
+      params.firestore,
+      params.clubId,
+      entry.memberId,
+    );
+    responses.push({ memberName, status: entry.status });
   }
+
+  const recipients = audience.filter((uid) => !exclude.has(uid));
+  if (recipients.length === 0) return;
+
+  const copy = eventRsvpChangedCopy({
+    responses,
+    eventTitle,
+    eventType,
+    dateLabel,
+  });
+
+  const extra: Record<string, string> = {
+    eventId: params.eventId,
+    dateId,
+    rsvpCount: String(claimed.length),
+  };
+  if (claimed.length === 1) {
+    extra.memberId = claimed[0]!.memberId;
+    extra.rsvp = claimed[0]!.status;
+  }
+
+  await sendPushToUids({
+    firestore: params.firestore,
+    uids: recipients,
+    payload: {
+      title: copy.title,
+      body: copy.body,
+      preferenceKey: "rsvp",
+      data: buildPushData({
+        type: "event_rsvp_changed",
+        clubId: params.clubId,
+        deepLink,
+        webPath,
+        preferenceKey: "rsvp",
+        extra,
+      }),
+    },
+  });
 }
 
 /**
- * Nom affiché d’un membre club pour le corps de la push RSVP.
+ * Nom court d’un membre club pour le corps de la push RSVP (« Prénom N. »).
  */
-async function resolveMemberDisplayName(
+async function resolveMemberShortName(
   firestore: Firestore,
   clubId: string,
   memberId: string,
@@ -263,13 +276,11 @@ async function resolveMemberDisplayName(
     .get();
   if (!snap.exists) return "Un membre";
   const data = snap.data()!;
-  const composed = [data.firstName, data.lastName]
-    .map((part) => String(part ?? "").trim())
-    .filter(Boolean)
-    .join(" ");
-  if (composed) return composed;
-  const displayName = String(data.displayName ?? "").trim();
-  return displayName || "Un membre";
+  return formatMemberShortName({
+    firstName: data.firstName as string | undefined,
+    lastName: data.lastName as string | undefined,
+    displayName: data.displayName as string | undefined,
+  });
 }
 
 async function resolveMemberAccountUid(

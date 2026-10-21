@@ -33,8 +33,9 @@ export function pushGrouping(data: Record<string, string>): {
   if (type === "chat_message" && data.conversationId) {
     return { threadId: `chat_${data.conversationId}` };
   }
-  if (type === "event_rsvp_changed" && data.eventId && data.memberId) {
-    const tag = `rsvp_${data.eventId}_${data.memberId}`;
+  if (type === "event_rsvp_changed" && data.eventId) {
+    // Un tag par event : la dernière push RSVP remplace la précédente (anti-spam).
+    const tag = `rsvp_${data.eventId}`;
     return { tag, threadId: `event_${data.eventId}` };
   }
   if (type.startsWith("event_") && data.eventId) {

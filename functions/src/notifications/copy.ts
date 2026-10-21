@@ -104,18 +104,92 @@ export function rsvpStatusLabel(status: string): string {
   }
 }
 
-/** Push après stabilisation d’un RSVP (debounce). */
-export function eventRsvpChangedCopy(params: {
+/** Libellé FR du type d’événement pour le titre d’une push RSVP. */
+export function eventTypePushLabel(type: string): string {
+  switch (String(type ?? "").trim().toLowerCase()) {
+    case "training":
+    case "entraînement":
+    case "entrainement":
+      return "Entraînement";
+    case "match":
+      return "Match";
+    case "tournament":
+    case "tournoi":
+      return "Tournoi";
+    case "meeting":
+    case "réunion":
+    case "reunion":
+      return "Réunion";
+    default:
+      return "Événement";
+  }
+}
+
+/**
+ * Nom court pour une push RSVP : « Prénom N. ».
+ * Fallback sur displayName (même format) puis « Un membre ».
+ */
+export function formatMemberShortName(params: {
+  firstName?: string | null;
+  lastName?: string | null;
+  displayName?: string | null;
+}): string {
+  const firstName = String(params.firstName ?? "").trim();
+  const lastName = String(params.lastName ?? "").trim();
+  if (firstName && lastName) {
+    return `${firstName} ${lastName.charAt(0).toUpperCase()}.`;
+  }
+  if (firstName) return firstName;
+
+  const displayName = String(params.displayName ?? "").trim();
+  if (!displayName) return "Un membre";
+  const parts = displayName.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    // Prénom = 1er token ; nom = le reste → initiale du début du nom (« DEL… » → D.).
+    const lastNameStart = parts[1]!;
+    return `${parts[0]} ${lastNameStart.charAt(0).toUpperCase()}.`;
+  }
+  return displayName;
+}
+
+/** Une réponse RSVP dans un digest push. */
+export type RsvpDigestEntry = {
   memberName: string;
   status: string;
+};
+
+/**
+ * Push après stabilisation d’un ou plusieurs RSVP (digest anti-spam).
+ * Titre : « Entraînement 25/10 » ; corps 1 ou N réponses + titre d’événement.
+ */
+export function eventRsvpChangedCopy(params: {
+  responses: RsvpDigestEntry[];
   eventTitle: string;
+  eventType: string;
+  dateLabel: string;
 }): { title: string; body: string } {
-  const name = params.memberName.trim() || "Un membre";
   const eventTitle = params.eventTitle.trim() || "Événement";
-  const label = rsvpStatusLabel(params.status);
+  const dateLabel = params.dateLabel.trim() || "date à confirmer";
+  const typeLabel = eventTypePushLabel(params.eventType);
+  const title = `${typeLabel} ${dateLabel}`;
+
+  const responses = params.responses.length > 0
+    ? params.responses
+    : [{ memberName: "Un membre", status: "none" }];
+
+  const parts = responses.map((entry) => {
+    const name = entry.memberName.trim() || "Un membre";
+    return `${name} : ${rsvpStatusLabel(entry.status)}`;
+  });
+
+  const bodyCore =
+    responses.length === 1
+      ? `${parts[0]} — ${eventTitle}`
+      : `${responses.length} réponses — ${parts.join(", ")} — ${eventTitle}`;
+
   return {
-    title: "Réponse RSVP",
-    body: truncatePushBody(`${name} : ${label} — ${eventTitle}`),
+    title,
+    body: truncatePushBody(bodyCore),
   };
 }
 

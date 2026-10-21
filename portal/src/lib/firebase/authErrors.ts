@@ -55,6 +55,9 @@ function messageForAuthCode(code: string): string | null {
       return "Un compte existe déjà avec cet e-mail. Connecte-toi avec ton mot de passe.";
     case "auth/popup-closed-by-user":
       return "Connexion annulée.";
+    case "auth/internal-error":
+      // Souvent App Check Enforce sans jeton debug enregistré (localhost).
+      return "Connexion bloquée (App Check). En local : ouvre la console du navigateur, copie le debug token App Check, puis enregistre-le dans Firebase Console → App Check → Manage debug tokens.";
     default:
       return null;
   }

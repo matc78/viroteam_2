@@ -379,6 +379,7 @@ class _ClubBarItem extends StatelessWidget {
                       accentColor: color,
                       size: _logoSize,
                       borderRadius: _logoSize / 2,
+                      enableZoom: false,
                     ),
                   ),
                   if (badgeCount != null)

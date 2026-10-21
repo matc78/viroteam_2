@@ -37,6 +37,7 @@ import {
   cardFeeCentsFromNet,
   cardGrossCentsFromNet,
 } from "@/lib/stripe/cardGrossFromNet";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import { useRouter, useSearchParams } from "next/navigation";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
@@ -473,6 +474,11 @@ export function FeesConfigForm({
     setCategoryLinkTierId(null);
     setCategoryDraft("");
   }
+
+  const categoryDialogRef = useDialogA11y({
+    onClose: closeCategoryLink,
+    enabled: categoryLinkTierId != null,
+  });
 
   function confirmCategoryLink() {
     if (!categoryLinkTierId) return;
@@ -1052,11 +1058,9 @@ export function FeesConfigForm({
           className={dialogStyles.backdrop}
           role="presentation"
           onClick={closeCategoryLink}
-          onKeyDown={(keyboardEvent) => {
-            if (keyboardEvent.key === "Escape") closeCategoryLink();
-          }}
         >
           <FadeScrollArea
+            wrapRef={categoryDialogRef}
             className={`${panelStyles.panel} ${dialogStyles.panel} ${styles.categoryDialog}`}
             viewportClassName={dialogStyles.body}
             data-tone="amber"

@@ -8,6 +8,7 @@ import {
 } from "@/lib/firebase/callableService";
 import { joinCopy } from "@/lib/copy/joinCopy";
 import { site } from "@/lib/site";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./InviteTeamDialog.module.css";
 
 type InviteTeamDialogProps = {
@@ -33,6 +34,7 @@ export function InviteTeamDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const dialogRef = useDialogA11y({ onClose });
 
   async function load(forceRefresh = false) {
     setLoading(true);
@@ -121,8 +123,10 @@ export function InviteTeamDialog({
   return (
     <div className={styles.backdrop} role="presentation" onClick={onClose}>
       <div
+        ref={dialogRef}
         className={styles.dialog}
         role="dialog"
+        aria-modal="true"
         aria-labelledby="invite-team-title"
         onClick={(event) => event.stopPropagation()}
       >

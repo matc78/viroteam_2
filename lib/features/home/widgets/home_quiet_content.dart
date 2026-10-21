@@ -179,6 +179,7 @@ class _ClubShortcutTile extends ConsumerWidget {
             accentColor: accent,
             childMember: familyChild,
             borderRadius: 22,
+            enableZoom: false,
           ),
           const SizedBox(width: ViroSpacing.md),
           Expanded(

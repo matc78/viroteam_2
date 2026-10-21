@@ -269,6 +269,7 @@ class _ClubCard extends ConsumerWidget {
                   club: club,
                   accentColor: accentColor,
                   childMember: familyChild,
+                  enableZoom: false,
                 ),
                 const SizedBox(width: ViroSpacing.md),
                 Expanded(

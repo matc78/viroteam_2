@@ -8,6 +8,9 @@ abstract final class ViroMotion {
   /// Drill-in messagerie (inbox → fil), ~feeling WhatsApp.
   static const Duration drillIn = Duration(milliseconds: 280);
   static const Duration modal = Duration(milliseconds: 320);
+  /// Mise en avant d’un élément ouvert par une notif : affichage puis fondu.
+  static const Duration focusHighlightHold = Duration(milliseconds: 2400);
+  static const Duration focusHighlightFade = Duration(milliseconds: 600);
 
   static const Curve enter = Curves.easeOutCubic;
   static const Curve exit = Curves.easeInCubic;

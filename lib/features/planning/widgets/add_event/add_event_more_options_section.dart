@@ -10,7 +10,8 @@ import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_field
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_pick_value_row.dart';
 import 'package:viro_team_v2/models/club.dart';
 
-/// Options avancées : RDV match, récurrence entraînement, lieu de RDV.
+/// Options avancées : RDV match, récurrence entraînement, lieu de RDV,
+/// rappel 7 jours avant.
 class AddEventMoreOptionsSection extends StatelessWidget {
   /// ExpansionTile des options secondaires du formulaire événement.
   const AddEventMoreOptionsSection({
@@ -21,12 +22,14 @@ class AddEventMoreOptionsSection extends StatelessWidget {
     required this.meetingTime,
     required this.isRecurring,
     required this.recurrenceEndDate,
+    required this.importantReminder,
     required this.selectedMeetingLocationIndex,
     required this.accentColor,
     required this.enabled,
     required this.onPickMeetingTime,
     required this.onRecurringChanged,
     required this.onPickRecurrenceEnd,
+    required this.onImportantReminderChanged,
     required this.onMeetingLocationChanged,
   });
 
@@ -36,20 +39,18 @@ class AddEventMoreOptionsSection extends StatelessWidget {
   final TimeOfDay meetingTime;
   final bool isRecurring;
   final DateTime? recurrenceEndDate;
+  final bool importantReminder;
   final int? selectedMeetingLocationIndex;
   final Color accentColor;
   final bool enabled;
   final VoidCallback onPickMeetingTime;
   final ValueChanged<bool> onRecurringChanged;
   final VoidCallback onPickRecurrenceEnd;
+  final ValueChanged<bool> onImportantReminderChanged;
   final ValueChanged<int?> onMeetingLocationChanged;
 
   @override
   Widget build(BuildContext context) {
-    if (!isMatch && !isTraining && practiceLocations.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
     final dropdownStyle = Theme.of(context).textTheme.bodyMedium;
     final valueStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
@@ -79,6 +80,16 @@ class AddEventMoreOptionsSection extends StatelessWidget {
               ),
         ),
         children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              AppCopy.planning.importantReminder,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(AppCopy.planning.importantReminderSubtitle),
+            value: importantReminder,
+            onChanged: enabled ? onImportantReminderChanged : null,
+          ),
           if (isMatch) ...[
             AddEventPickValueRow(
               label: AppCopy.planning.meetingTime,

@@ -174,11 +174,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     return ClubAccentTheme(
       accentColor: memberAccent,
       child: ViroScaffold(
+      fallbackRoute: AppRoutes.home,
       appBar: ViroAppBar(
-        leading: IconButton(
-          icon: ViroIcon(ViroIcons.chevronLeft),
-          onPressed: () => context.pop(),
-        ),
+        fallbackRoute: AppRoutes.home,
         title: const Text(ProjectConfig.appName),
         onTitleTap: () => context.go(AppRoutes.home),
       ),

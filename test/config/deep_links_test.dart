@@ -20,6 +20,24 @@ void main() {
       );
     });
 
+    test('planning club + date + event à mettre en avant', () {
+      expect(
+        deepLinkRouteFromUri(
+          Uri.parse(
+            'viroteam://planning?clubId=c1&date=2026-09-15&eventId=e1&memberId=m1',
+          ),
+        ),
+        '${AppRoutes.clubPlanningPath('c1')}?date=2026-09-15&eventId=e1',
+      );
+    });
+
+    test('planning sans club : planning perso (récap hebdo)', () {
+      expect(
+        deepLinkRouteFromUri(Uri.parse('viroteam://planning')),
+        AppRoutes.memberPlanning,
+      );
+    });
+
     test('home', () {
       expect(
         deepLinkRouteFromUri(Uri.parse('viroteam://home?clubId=c1')),

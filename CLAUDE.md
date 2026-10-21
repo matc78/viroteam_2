@@ -101,7 +101,7 @@ Chercher d'abord dans `lib/widgets/common/`, `lib/widgets/lists/`, `lib/config/v
 - Listes : l'écran fait seulement `ListView.builder(itemBuilder: (_, i) => XxxListTile(…))` ; **interdit** d'écrire un gros `itemBuilder` inline dans un `*_screen.dart`. Chaque tuile a un test widget minimal dans `test/widgets/lists/`.
 - Nommage : `FeatureNomScreen`, `FeatureNomListTile`, `feature_nom_service.dart` ; noms explicites (pas de `data`, `res`, `tmp`, `x`).
 - `///` en tête de chaque méthode/fonction publique (rôle, params notables, retour) ; pas de commentaire qui répète le code.
-- Navigation via go_router uniquement (pas de `Navigator.push`).
+- Navigation via go_router uniquement (pas de `Navigator.push`). Écran atteignable par deep link (notif, lien) → `fallbackRoute` sur `ViroScaffold` et `ViroAppBar` (la pile peut être vide), jamais de `context.pop()` nu.
 - Pas de requêtes N+1 : préférer les requêtes groupées ou la dénormalisation. Optimistic UI pour le RSVP et les actions rapides.
 - Changements ciblés : ce qui est demandé, dans le style de la feature touchée, sans refactor hors scope.
 

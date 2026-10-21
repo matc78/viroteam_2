@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club.dart';
+import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/utils/season_end.dart';
@@ -47,6 +48,11 @@ TimeOfDay addEventMeetingTimeFromStart(TimeOfDay start) {
   final clamped = totalMinutes < 0 ? 0 : totalMinutes;
   return TimeOfDay(hour: clamped ~/ 60, minute: clamped % 60);
 }
+
+/// Rappel 7 jours avant coché d’office : un tournoi ou une réunion (AG) se
+/// prépare plus tôt qu’un entraînement.
+bool addEventImportantByDefault(String type) =>
+    type == EventTypes.tournament || type == EventTypes.meeting;
 
 /// Fin de saison résolue (club ou défaut), bornée au jour de l'événement.
 DateTime addEventSeasonRecurrenceEnd(Club? club, DateTime eventDay) {

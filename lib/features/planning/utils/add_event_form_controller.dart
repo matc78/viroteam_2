@@ -43,6 +43,12 @@ class AddEventFormController extends ChangeNotifier {
   String? matchVenue;
   bool isRecurring = false;
   DateTime? recurrenceEndDate;
+
+  /// Rappel 7 jours avant ; coché d’office pour un tournoi ou une réunion.
+  bool importantReminder = false;
+
+  /// True dès que le coach coche / décoche lui-même le rappel J-7.
+  bool importantReminderManuallyEdited = false;
   bool saving = false;
   int? selectedLocationIndex;
   int? selectedMeetingLocationIndex;
@@ -91,6 +97,9 @@ class AddEventFormController extends ChangeNotifier {
     final nextType = value ?? EventTypes.training;
     type = nextType;
     if (EventTypes.isTeamless(nextType)) teamId = null;
+    if (!importantReminderManuallyEdited) {
+      importantReminder = addEventImportantByDefault(nextType);
+    }
     if (nextType == EventTypes.match) {
       isRecurring = false;
       recurrenceEndDate = null;
@@ -176,6 +185,13 @@ class AddEventFormController extends ChangeNotifier {
     if (value && recurrenceEndDate == null) {
       recurrenceEndDate = addEventSeasonRecurrenceEnd(club, date);
     }
+    notifyListeners();
+  }
+
+  /// Active / désactive le rappel 7 jours avant (choix manuel du coach).
+  void setImportantReminder(bool value) {
+    importantReminderManuallyEdited = true;
+    importantReminder = value;
     notifyListeners();
   }
 
@@ -380,6 +396,7 @@ class AddEventFormController extends ChangeNotifier {
         meetingLocation: resolveMeetingLocation(club),
         matchVenue: isMatch ? matchVenue : null,
         recurrenceEndDate: isTraining && isRecurring ? recurrenceEndDate : null,
+        importantReminder: importantReminder,
       );
     } finally {
       saving = false;

@@ -26,6 +26,7 @@ import 'package:viro_team_v2/features/auth/screens/sign_up_screen.dart';
 
 import 'package:viro_team_v2/features/announcements/screens/club_announcements_screen.dart';
 import 'package:viro_team_v2/features/calendar/screens/calendar_sync_screen.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/screens/club_appearance_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_activity_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_locations_screen.dart';
@@ -151,7 +152,21 @@ abstract final class AppRoutes {
       clubMyTeamsPath(clubId, tab: 'manage');
 
 
-  static String clubPlanningPath(String clubId) => '/club/$clubId/planning';
+  /// Planning du club, ouvert sur [date] (`YYYY-MM-DD`) avec l’event
+  /// [eventId] mis en avant (deep link de notif).
+  static String clubPlanningPath(
+    String clubId, {
+    String? date,
+    String? eventId,
+  }) {
+    final base = '/club/$clubId/planning';
+    final query = <String, String>{
+      if (date != null && date.isNotEmpty) 'date': date,
+      if (eventId != null && eventId.isNotEmpty) 'eventId': eventId,
+    };
+    if (query.isEmpty) return base;
+    return Uri(path: base, queryParameters: query).toString();
+  }
 
   static String clubAnnouncementsPath(String clubId) =>
       '/club/$clubId/announcements';
@@ -432,11 +447,31 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         if (user.hasClubs) {
           // Push / lien reçu avant que la session soit prête : on y va
-          // directement au lieu de l’accueil (session club déjà posée par
-          // `prepareSessionForPendingDeepLink`).
+          // directement au lieu de l’accueil.
           final pendingLink =
               ref.read(pendingDeepLinkProvider.notifier).consume();
-          return pendingLink?.route ?? AppRoutes.home;
+          final target = pendingDeepLinkTarget(pendingLink, user);
+          final linkClubId = pendingLink?.clubId;
+          if (target != AppRoutes.home && linkClubId != null) {
+            // Pas de mutation de provider pendant la résolution de route.
+            Future.microtask(() {
+              if (ref.read(sessionProvider).activeClubId != linkClubId) {
+                ref.read(sessionProvider.notifier).setActiveClub(
+                      linkClubId,
+                      role: user.membershipInClub(linkClubId)?.role,
+                    );
+              }
+              selectDeepLinkChild(
+                select: (clubId, memberId) => ref
+                    .read(clubAudienceSelectionProvider.notifier)
+                    .select(clubId: clubId, memberId: memberId),
+                user: user,
+                clubId: linkClubId,
+                memberId: pendingLink?.memberId,
+              );
+            });
+          }
+          return target;
 
         }
 
@@ -742,11 +777,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           }
 
+          final eventIdParam = state.uri.queryParameters['eventId'];
+
           return ClubPlanningScreen(
 
             clubId: clubId,
 
             initialDate: initialDate,
+
+            focusEventId: eventIdParam != null && eventIdParam.isNotEmpty
+                ? eventIdParam
+                : null,
 
           );
 

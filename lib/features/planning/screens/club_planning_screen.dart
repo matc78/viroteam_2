@@ -26,6 +26,7 @@ import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart
 import 'package:viro_team_v2/features/planning/widgets/planning_day_picker.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_tile.dart';
+import 'package:viro_team_v2/features/planning/widgets/planning_focused_event_highlight.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_month_grid.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_period_header.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_view_mode_switcher.dart';
@@ -50,10 +51,14 @@ class ClubPlanningScreen extends ConsumerStatefulWidget {
     super.key,
     required this.clubId,
     this.initialDate,
+    this.focusEventId,
   });
 
   final String clubId;
   final DateTime? initialDate;
+
+  /// Event à mettre en avant à l’ouverture (tap sur une notif).
+  final String? focusEventId;
 
   @override
   ConsumerState<ClubPlanningScreen> createState() => _ClubPlanningScreenState();
@@ -66,6 +71,9 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   DateTime? _firstEventDate;
   late DateTime _selectedDay;
 
+  /// Event mis en avant ; oublié dès que l’utilisateur change de jour.
+  String? _focusEventId;
+
   /// Vue choisie (coach-admin) ; les autres profils restent en vue jour.
   PlanningViewMode _viewMode = PlanningViewMode.day;
 
@@ -77,6 +85,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     _selectedDay = initial != null
         ? DateTime(initial.year, initial.month, initial.day)
         : DateTime(now.year, now.month, now.day);
+    _focusEventId = widget.focusEventId;
     _initDays();
   }
 
@@ -187,7 +196,10 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   }
 
   void _selectDay(DateTime day) {
-    setState(() => _selectedDay = day);
+    setState(() {
+      _selectedDay = day;
+      _focusEventId = null;
+    });
     if (_viewMode == PlanningViewMode.day) {
       scrollPlanningToDay(
         controller: _dayScrollController,
@@ -342,7 +354,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
             member: rsvpMember,
             membersByUid: membersByUid,
           );
-      return PlanningEventTile(
+      final tile = PlanningEventTile(
         event: event,
         teamLabel: PlanningEventDisplay.teamLabel(event, teamsById),
         teamRsvpCounts: PlanningEventDisplay.rsvpCountsIncludingCoaches(
@@ -364,17 +376,19 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
             ? (next) => _setRsvp(event, next, canManage: canManage)
             : null,
       );
+      if (event.id != _focusEventId) return tile;
+      return PlanningFocusedEventHighlight(
+        color: clubColor ?? ViroColors.primary600,
+        child: tile,
+      );
     }
 
     return ClubAccentTheme(
       accentColor: memberAccent,
       child: ViroScaffold(
+      fallbackRoute: AppRoutes.clubDetailPath(clubId),
       appBar: ViroAppBar(
-        leading: IconButton(
-          tooltip: AppCopy.common.back,
-          icon: ViroIcon(ViroIcons.chevronLeft),
-          onPressed: () => context.pop(),
-        ),
+        fallbackRoute: AppRoutes.clubDetailPath(clubId),
         title: Text(AppCopy.planning.clubScreenTitle),
         actions: [
           IconButton(

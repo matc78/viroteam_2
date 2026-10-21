@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -884,6 +885,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final liveForBar = messagesAsync.value ?? const <ChatMessage>[];
 
     return ViroScaffold(
+      fallbackRoute: AppRoutes.conversations,
       appBar: ChatThreadAppBar(
         title: title,
         avatarInitial: avatarInitial,

@@ -1,8 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/navigation_fallback.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Signal hérité : fond rouge jour J échéance cotisation.
 class FeeDeadlineBackground extends InheritedWidget {
@@ -34,11 +38,16 @@ class ViroScaffold extends StatelessWidget {
     this.appBar,
     required this.body,
     this.floatingActionButton,
+    this.fallbackRoute,
   });
 
   final PreferredSizeWidget? appBar;
   final Widget body;
   final Widget? floatingActionButton;
+
+  /// Écran parent logique quand la pile est vide (ouverture par deep link) :
+  /// le retour système Android y mène au lieu de fermer l'app.
+  final String? fallbackRoute;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +56,7 @@ class ViroScaffold extends StatelessWidget {
         ? Color.lerp(ViroColors.white, ViroColors.error, 0.1)!
         : ViroColors.white;
 
-    return _ViroScaffoldShell(
+    final shell = _ViroScaffoldShell(
       backgroundColor: backgroundColor,
       feeDeadlineUrgent: feeDeadlineUrgent,
       child: Scaffold(
@@ -56,6 +65,15 @@ class ViroScaffold extends StatelessWidget {
         floatingActionButton: floatingActionButton,
         body: body,
       ),
+    );
+    final fallback = fallbackRoute;
+    if (fallback == null) return shell;
+    return PopScope(
+      canPop: context.canPop(),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go(fallback);
+      },
+      child: shell,
     );
   }
 }
@@ -543,11 +561,16 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.leading,
     this.onTitleTap,
     this.bottom,
+    this.fallbackRoute,
   });
 
   final Widget? title;
   final List<Widget>? actions;
   final Widget? leading;
+
+  /// Affiche un chevron retour qui dépile, ou va sur cette route si la pile
+  /// est vide (ouverture par deep link). Ignoré si [leading] est fourni.
+  final String? fallbackRoute;
   final PreferredSizeWidget? bottom;
 
   /// Tap sur le titre (ex. « ViroTeam » → retour à la home globale).
@@ -582,7 +605,7 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
       surfaceTintColor: Colors.transparent,
       foregroundColor: iconColor,
       forceMaterialTransparency: true,
-      leading: leading,
+      leading: leading ?? _fallbackBackButton(context),
       actions: actions,
       title: title == null
           ? null
@@ -607,6 +630,16 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
         fontWeight: FontWeight.w700,
       ),
       bottom: bottom,
+    );
+  }
+
+  Widget? _fallbackBackButton(BuildContext context) {
+    final fallback = fallbackRoute;
+    if (fallback == null) return null;
+    return IconButton(
+      tooltip: AppCopy.common.back,
+      icon: ViroIcon(ViroIcons.chevronLeft),
+      onPressed: () => popOrGo(context, fallback),
     );
   }
 }

@@ -29,7 +29,7 @@ final class AppCopyPlanning {
   String get loadPlanningError => 'Impossible de charger le planning';
   String get rsvpFailed => 'RSVP impossible, réessaie';
   String get moreOptions => 'Plus d\'options';
-  String get moreOptionsSubtitle => 'RDV, récurrence…';
+  String get moreOptionsSubtitle => 'Rappel J-7, RDV, récurrence…';
 
   String get clubFallbackName => 'Club';
   String get allClub => 'Tout le club';
@@ -90,6 +90,9 @@ final class AppCopyPlanning {
   String get start => 'Début';
   String get end => 'Fin';
   String get weeklyRecurrence => 'Récurrence hebdomadaire';
+  String get importantReminder => 'Événement important';
+  String get importantReminderSubtitle =>
+      'Rappel 7 jours avant en plus, pour ceux qui n’ont pas répondu';
   String get seasonEnd => 'Fin de saison';
   String get chooseDate => 'Choisir une date';
   String get seasonEndDefaultSubtitle =>

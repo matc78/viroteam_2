@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -106,7 +107,9 @@ class MemberPlanningScreen extends ConsumerWidget {
         const <String, Map<String, ClubTeam>>{};
 
     return ViroScaffold(
+      fallbackRoute: AppRoutes.home,
       appBar: ViroAppBar(
+        fallbackRoute: AppRoutes.home,
         title: Text(AppCopy.planning.memberScreenTitle),
       ),
       body: clubsAsync.when(

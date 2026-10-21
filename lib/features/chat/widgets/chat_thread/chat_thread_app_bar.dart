@@ -101,6 +101,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
           );
 
     return ViroAppBar(
+      fallbackRoute: AppRoutes.conversations,
       title: searchOpen
           ? TextField(
               controller: searchController,

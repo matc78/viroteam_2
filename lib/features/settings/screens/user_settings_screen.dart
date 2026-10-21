@@ -64,17 +64,9 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
         : const <String>[];
 
     return ViroScaffold(
+      fallbackRoute: AppRoutes.home,
       appBar: ViroAppBar(
-        leading: IconButton(
-          icon: ViroIcon(ViroIcons.chevronLeft),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go(AppRoutes.home);
-            }
-          },
-        ),
+        fallbackRoute: AppRoutes.home,
         title: Text(AppCopy.settings.screenTitle),
       ),
       body: userAsync.when(

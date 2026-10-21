@@ -109,4 +109,83 @@ void main() {
       expect(userCanOpenClub(_user(), 'c1'), isFalse);
     });
   });
+
+  group('deepLinkChildToSelect', () {
+    final parent = _user(
+      parentLinks: const [
+        ParentLink(
+          clubId: 'c1',
+          memberId: 'm1',
+          relation: 'parent',
+          status: GuardianStatuses.active,
+        ),
+      ],
+    );
+
+    test('enfant actif du parent dans ce club', () {
+      expect(deepLinkChildToSelect(parent, 'c1', 'm1'), 'm1');
+      expect(
+        deepLinkMemberId(Uri.parse('viroteam://planning?clubId=c1&memberId=m1')),
+        'm1',
+      );
+    });
+
+    test('autre fiche, autre club ou absent : sélection inchangée', () {
+      expect(deepLinkChildToSelect(parent, 'c1', 'm2'), isNull);
+      expect(deepLinkChildToSelect(parent, 'c2', 'm1'), isNull);
+      expect(deepLinkChildToSelect(parent, 'c1', null), isNull);
+    });
+
+    test('selectDeepLinkChild ne sélectionne que les enfants', () {
+      final selected = <String>[];
+      void select(String clubId, String memberId) =>
+          selected.add('$clubId/$memberId');
+      selectDeepLinkChild(
+        select: select,
+        user: parent,
+        clubId: 'c1',
+        memberId: 'm1',
+      );
+      selectDeepLinkChild(
+        select: select,
+        user: parent,
+        clubId: 'c1',
+        memberId: 'intrus',
+      );
+      expect(selected, ['c1/m1']);
+    });
+  });
+
+  group('pendingDeepLinkTarget', () {
+    final member = _user(
+      memberships: const [
+        ClubMembershipSummary(clubId: 'c1', role: MemberRoles.player),
+      ],
+    );
+
+    test('sans destination : accueil', () {
+      expect(pendingDeepLinkTarget(null, member), AppRoutes.home);
+    });
+
+    test('club accessible : la destination', () {
+      final link = PendingDeepLink(
+        route: AppRoutes.clubPlanningPath('c1'),
+        clubId: 'c1',
+      );
+      expect(pendingDeepLinkTarget(link, member), link.route);
+    });
+
+    test('club inaccessible : accueil', () {
+      final link = PendingDeepLink(
+        route: AppRoutes.clubPlanningPath('c2'),
+        clubId: 'c2',
+      );
+      expect(pendingDeepLinkTarget(link, member), AppRoutes.home);
+    });
+
+    test('destination sans club : la destination', () {
+      const link = PendingDeepLink(route: AppRoutes.memberPlanning);
+      expect(pendingDeepLinkTarget(link, member), AppRoutes.memberPlanning);
+    });
+  });
 }

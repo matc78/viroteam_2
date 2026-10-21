@@ -26,10 +26,18 @@ final class AppCopySettings {
   String get notificationsSection => 'Notifications';
   String get notificationsSubtitle =>
       'Choisis quels rappels tu reçois sur cet appareil.';
-  String get notifEvents => 'Événements';
-  String get notifEventsSubtitle => 'Rappels J-7 / J-2 et envois coaches';
-  String get notifRsvp => 'Réponses RSVP';
-  String get notifRsvpSubtitle => 'Quand un membre répond Présent / Absent';
+  String get notifEvents => 'Convocations et rappels';
+  String get notifEventsSubtitle =>
+      'Nouvelle convocation, rappel 2 jours avant et le jour J, annulations';
+  String get notifWeeklyDigest => 'Récap de la semaine';
+  String get notifWeeklyDigestSubtitle =>
+      'Le dimanche soir : ton programme et les réponses attendues';
+  String get notifRsvp => 'Réponses aux convocations';
+  String get notifRsvpSubtitle =>
+      'Coachs : qui vient, qui ne vient pas. Parents : la réponse posée pour ton enfant';
+  String get notifRsvpTeammates => 'Réponses des coéquipiers';
+  String get notifRsvpTeammatesSubtitle =>
+      'Savoir qui vient aux entraînements et aux matchs';
   String get notifAnnouncements => 'Annonces';
   String get notifAnnouncementsSubtitle => 'À la publication d’une annonce';
   String get notifFees => 'Cotisations';
@@ -40,13 +48,15 @@ final class AppCopySettings {
   String get disableAction => 'Désactiver';
   String get notifPrefSaveFailed => 'Impossible d’enregistrer la préférence';
   String get notifOffWarningEvents =>
-      'Tu ne recevras plus les rappels d’événements (J-7, J-2) ni les notifications envoyées par les coaches.';
+      'Tu ne recevras plus les convocations, les rappels (2 jours avant, jour J) ni les notifs envoyées par les coachs.';
+  String get notifOffWarningWeeklyDigest =>
+      'Tu ne recevras plus le récap du dimanche soir. Les rappels 2 jours avant prendront le relais.';
   String get notifOffWarningAnnouncements =>
       'Tu ne recevras plus de notification à la publication des annonces du club.';
   String get notifOffWarningFees =>
       'Tu ne recevras plus les rappels hebdomadaires de cotisation.';
   String get notifOffWarningRsvp =>
-      'Tu ne recevras plus de notification à chaque changement de RSVP.';
+      'Tu ne recevras plus de notif quand quelqu’un répond à une convocation.';
   String get notifOffWarningChat =>
       'Tu ne recevras plus de notification pour les nouveaux messages.';
   String get notifOffWarningDefault =>

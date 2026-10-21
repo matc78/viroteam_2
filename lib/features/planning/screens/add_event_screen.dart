@@ -279,6 +279,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
               meetingTime: _form.meetingTime,
               isRecurring: _form.isRecurring,
               recurrenceEndDate: _form.recurrenceEndDate,
+              importantReminder: _form.importantReminder,
               selectedMeetingLocationIndex: _form.selectedMeetingLocationIndex,
               accentColor: accent,
               enabled: enabled,
@@ -289,6 +290,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
               onRecurringChanged: (value) =>
                   _form.setRecurring(value, club: club),
               onPickRecurrenceEnd: () => _pickDate(isRecurrenceEnd: true),
+              onImportantReminderChanged: _form.setImportantReminder,
               onMeetingLocationChanged: _form.setSelectedMeetingLocationIndex,
             ),
           ],

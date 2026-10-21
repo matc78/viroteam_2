@@ -164,6 +164,7 @@ lib/
 - **Thème** : respecter la section 2 (`ViroScaffold`, pas de fond bleu opaque).
 - **Textes UI** : via **`AppCopy`** (`lib/copy/`) — pas de littéraux FR dans les widgets/écrans.
 - **Navigation** : `go_router` (pas de `Navigator.push` dispersé).
+- **Retour arrière** : tout écran atteignable par deep link (notif, lien) passe `fallbackRoute` (écran parent logique) à `ViroScaffold` **et** `ViroAppBar` — jamais de `context.pop()` nu : la pile peut être vide. Hors widget, `popOrGo` (`lib/config/navigation_fallback.dart`).
 - **État** : Riverpod (providers par feature, session globale en tête d’arbre).
 - **Nommage** : `FeatureNomScreen`, `FeatureNomListTile`, `feature_nom_service.dart`.
 
@@ -247,4 +248,6 @@ Plus tard :
 | 2026-10 | A11y pragmatique : Semantics sur primitives app + `useDialogA11y` portail ; smoke `docs/A11Y_SMOKE.md` |
 | 2026-10 | Paiement CB via Stripe Connect ; HelloAsso dormant mais conservé (réactivation envisagée) |
 | 2026-10 | `CLAUDE.md` ajouté pour Claude Code (résumé de ce fichier + architecture dev/prod) |
+| 2026-10 | Retour arrière : `fallbackRoute` sur `ViroScaffold` / `ViroAppBar` pour les écrans ouverts par deep link (pile vide) |
+| 2026-10 | Notifs : rappels J-2 + jour J (J-7 si « Événement important »), ciblés par réponse ; récap du dimanche ; réponses RSVP au staff (coéquipiers en opt-in) ; copy tutoyée avec équipe / jour / heure |
 | 2026-10 | Push au premier plan affichées par l’app (`LocalNotificationService` + `ForegroundPushPolicy`), Android et iOS ; un canal Android par clé de préférence (`PushChannel` ↔ `ANDROID_CHANNEL_IDS`) ; permission demandée via pré-demande, jamais au lancement |

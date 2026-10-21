@@ -47,14 +47,6 @@ class _ViroAppState extends ConsumerState<ViroApp> {
       }
     });
 
-    // Lien / push reçu à froid : la session club est posée dès que le profil
-    // arrive, avant que le routeur ne consomme la destination en attente.
-    ref.listen(viroUserProvider, (previous, next) {
-      final user = next.value;
-      if (user == null) return;
-      prepareSessionForPendingDeepLink(ref: ref, user: user);
-    });
-
     return MaterialApp.router(
       title: 'ViroTeam',
       debugShowCheckedModeBanner: false,

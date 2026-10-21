@@ -226,6 +226,7 @@ class EventService {
     String? meetingLocation,
     String? matchVenue,
     DateTime? recurrenceEndDate,
+    bool importantReminder = false,
   }) =>
       _mutations.createEvents(
         clubId: clubId,
@@ -243,6 +244,7 @@ class EventService {
         meetingLocation: meetingLocation,
         matchVenue: matchVenue,
         recurrenceEndDate: recurrenceEndDate,
+        importantReminder: importantReminder,
       );
 
   /// Annule un événement (marque `canceled`).

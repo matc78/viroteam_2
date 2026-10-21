@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -88,7 +89,11 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
       return ClubAccentTheme(
         accentColor: memberAccent,
         child: ViroScaffold(
-        appBar: ViroAppBar(title: Text(title)),
+        fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
+        appBar: ViroAppBar(
+          fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
+          title: Text(title),
+        ),
         body: const Center(child: CircularProgressIndicator()),
         ),
       );
@@ -101,7 +106,9 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
     return ClubAccentTheme(
       accentColor: memberAccent,
       child: ViroScaffold(
+      fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
       appBar: ViroAppBar(
+        fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
         title: Text(title),
       ),
       body: Column(

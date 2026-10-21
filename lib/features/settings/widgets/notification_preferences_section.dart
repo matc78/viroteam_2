@@ -13,7 +13,8 @@ import 'package:viro_team_v2/services/notification_permission_service.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 
-/// Section paramètres : toggles push (events / annonces / cotisations / RSVP).
+/// Section paramètres : toggles push (convocations / récap / réponses /
+/// annonces / cotisations / chat).
 class NotificationPreferencesSection extends ConsumerWidget {
   const NotificationPreferencesSection({super.key, required this.user});
 
@@ -26,7 +27,8 @@ class NotificationPreferencesSection extends ConsumerWidget {
     required bool enabled,
   }) async {
     final current = user.notificationPreferences;
-    if (!enabled) {
+    // Les réponses des coéquipiers sont un opt-in : pas d'avertissement au retrait.
+    if (!enabled && key != 'rsvpTeammates') {
       final accepted = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -49,9 +51,11 @@ class NotificationPreferencesSection extends ConsumerWidget {
 
     final next = switch (key) {
       'events' => current.copyWith(events: enabled),
+      'weeklyDigest' => current.copyWith(weeklyDigest: enabled),
       'announcements' => current.copyWith(announcements: enabled),
       'fees' => current.copyWith(fees: enabled),
       'rsvp' => current.copyWith(rsvp: enabled),
+      'rsvpTeammates' => current.copyWith(rsvpTeammates: enabled),
       'chat' => current.copyWith(chat: enabled),
       _ => current,
     };
@@ -77,6 +81,29 @@ class NotificationPreferencesSection extends ConsumerWidget {
     final systemAllowed =
         permission == null ||
         permission == NotificationPermissionStatus.granted;
+
+    Widget toggle({
+      required String key,
+      required String title,
+      required String subtitle,
+      required bool value,
+      bool enabled = true,
+    }) {
+      return SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        title: Text(title),
+        subtitle: Text(subtitle),
+        value: value,
+        onChanged: !systemAllowed || !enabled
+            ? null
+            : (next) => _setPreference(
+                  context: context,
+                  ref: ref,
+                  key: key,
+                  enabled: next,
+                ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,80 +136,57 @@ class NotificationPreferencesSection extends ConsumerWidget {
           ),
           child: Column(
             children: [
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(AppCopy.settings.notifEvents),
-                subtitle: Text(AppCopy.settings.notifEventsSubtitle),
+              toggle(
+                key: 'events',
+                title: AppCopy.settings.notifEvents,
+                subtitle: AppCopy.settings.notifEventsSubtitle,
                 value: prefs.events,
-                onChanged: !systemAllowed
-                    ? null
-                    : (value) => _setPreference(
-                        context: context,
-                        ref: ref,
-                        key: 'events',
-                        enabled: value,
-                      ),
               ),
               const Divider(height: 1),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(AppCopy.settings.notifRsvp),
-                subtitle: Text(AppCopy.settings.notifRsvpSubtitle),
+              toggle(
+                key: 'weeklyDigest',
+                title: AppCopy.settings.notifWeeklyDigest,
+                subtitle: AppCopy.settings.notifWeeklyDigestSubtitle,
+                value: prefs.events && prefs.weeklyDigest,
+                // Le récap suit les convocations : rien sans elles.
+                enabled: prefs.events,
+              ),
+              const Divider(height: 1),
+              toggle(
+                key: 'rsvp',
+                title: AppCopy.settings.notifRsvp,
+                subtitle: AppCopy.settings.notifRsvpSubtitle,
                 value: prefs.rsvp,
-                onChanged: !systemAllowed
-                    ? null
-                    : (value) => _setPreference(
-                        context: context,
-                        ref: ref,
-                        key: 'rsvp',
-                        enabled: value,
-                      ),
               ),
               const Divider(height: 1),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(AppCopy.settings.notifAnnouncements),
-                subtitle: Text(AppCopy.settings.notifAnnouncementsSubtitle),
+              toggle(
+                key: 'rsvpTeammates',
+                title: AppCopy.settings.notifRsvpTeammates,
+                subtitle: AppCopy.settings.notifRsvpTeammatesSubtitle,
+                value: prefs.rsvp && prefs.rsvpTeammates,
+                enabled: prefs.rsvp,
+              ),
+              const Divider(height: 1),
+              toggle(
+                key: 'announcements',
+                title: AppCopy.settings.notifAnnouncements,
+                subtitle: AppCopy.settings.notifAnnouncementsSubtitle,
                 value: prefs.announcements,
-                onChanged: !systemAllowed
-                    ? null
-                    : (value) => _setPreference(
-                        context: context,
-                        ref: ref,
-                        key: 'announcements',
-                        enabled: value,
-                      ),
               ),
               const Divider(height: 1),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(AppCopy.settings.notifFees),
-                subtitle: Text(AppCopy.settings.notifFeesSubtitle),
+              toggle(
+                key: 'fees',
+                title: AppCopy.settings.notifFees,
+                subtitle: AppCopy.settings.notifFeesSubtitle,
                 value: prefs.fees,
-                onChanged: !systemAllowed
-                    ? null
-                    : (value) => _setPreference(
-                        context: context,
-                        ref: ref,
-                        key: 'fees',
-                        enabled: value,
-                      ),
               ),
               if (FeatureFlags.chatMessagingLive) ...[
                 const Divider(height: 1),
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(AppCopy.settings.notifChat),
-                  subtitle: Text(AppCopy.settings.notifChatSubtitle),
+                toggle(
+                  key: 'chat',
+                  title: AppCopy.settings.notifChat,
+                  subtitle: AppCopy.settings.notifChatSubtitle,
                   value: prefs.chat,
-                  onChanged: !systemAllowed
-                      ? null
-                      : (value) => _setPreference(
-                          context: context,
-                          ref: ref,
-                          key: 'chat',
-                          enabled: value,
-                        ),
                 ),
               ],
             ],

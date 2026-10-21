@@ -35,6 +35,7 @@ class EventMutations {
     String? meetingLocation,
     String? matchVenue,
     DateTime? recurrenceEndDate,
+    bool importantReminder = false,
   }) async {
     final dates = _recurrenceDates(
       startDate: startDate,
@@ -63,6 +64,7 @@ class EventMutations {
           FirestoreFields.meetingLocation: meetingLocation,
         FirestoreFields.matchVenue: ?matchVenue,
         FirestoreFields.seriesId: ?seriesId,
+        if (importantReminder) FirestoreFields.importantReminder: true,
         FirestoreFields.teamMemberIds: teamMemberIds,
         FirestoreFields.rsvp: <String, String>{},
         FirestoreFields.attendance: <String, dynamic>{},

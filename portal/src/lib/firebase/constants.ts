@@ -135,6 +135,7 @@ export const Fields = {
   attendance: "attendance",
   creatorId: "creatorId",
   seriesId: "seriesId",
+  importantReminder: "importantReminder",
   canceled: "canceled",
   memberId: "memberId",
   accountUid: "accountUid",

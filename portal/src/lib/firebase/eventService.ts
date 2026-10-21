@@ -118,7 +118,14 @@ export type CreateClubEventInput = {
   allTeams?: boolean;
   /** Fin de récurrence hebdomadaire (aligné Flutter, max 52 occurrences). */
   recurrenceEndDate?: Date | null;
+  /** Rappel push 7 jours avant (event important : tournoi, AG…). */
+  importantReminder?: boolean;
 };
+
+/** Rappel J-7 coché d'office : un tournoi ou une réunion se prépare plus tôt. */
+export function importantReminderByDefault(type: EventType): boolean {
+  return type === "tournament" || type === "meeting";
+}
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
   training: "Entraînement",
@@ -449,6 +456,7 @@ export async function createClubEvent(
     if (input.meetingTime) payload[Fields.meetingTime] = input.meetingTime;
     if (input.matchVenue) payload[Fields.matchVenue] = input.matchVenue;
     if (seriesId) payload[Fields.seriesId] = seriesId;
+    if (input.importantReminder) payload[Fields.importantReminder] = true;
     batch.set(eventRef, payload);
   }
 

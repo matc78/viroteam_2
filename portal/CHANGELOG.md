@@ -12,6 +12,12 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Ajouté
 
 - Mot de passe oublié : page `/forgot-password` (lien depuis la connexion) et envoi du lien Firebase de réinitialisation, avec message neutre si le compte n’existe pas
+- Création d’événement : case « Événement important » (rappel 7 jours avant), cochée d’office pour un tournoi ou une réunion
+- Paramètres > Notifications : « Récap de la semaine » et « Réponses des coéquipiers » ; libellés alignés sur le nouveau calendrier des rappels (tutoiement)
+
+### Corrigé
+
+- Les préférences de notification enregistrées depuis le portail n’écrasent plus les nouveaux réglages faits dans l’app
 
 ## [1.8.0] - 2026-10-21
 

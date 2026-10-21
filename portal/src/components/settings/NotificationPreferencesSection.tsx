@@ -5,6 +5,7 @@ import { SettingsAccordion } from "@/components/settings/SettingsAccordion";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
   preferenceOffWarning,
   type NotificationPreferences,
 } from "@/lib/firebase/notificationPreferences";
@@ -16,16 +17,32 @@ const TOGGLE_ROWS: Array<{
   key: keyof NotificationPreferences;
   title: string;
   subtitle: string;
+  /** Toggle inactif tant que cette préférence parente est coupée. */
+  dependsOn?: keyof NotificationPreferences;
 }> = [
   {
     key: "events",
-    title: "Événements",
-    subtitle: "Rappels J-7 / J-2 et envois coaches",
+    title: "Convocations et rappels",
+    subtitle:
+      "Nouvelle convocation, rappel 2 jours avant et le jour J, annulations",
+  },
+  {
+    key: "weeklyDigest",
+    title: "Récap de la semaine",
+    subtitle: "Le dimanche soir : ton programme et les réponses attendues",
+    dependsOn: "events",
   },
   {
     key: "rsvp",
-    title: "Réponses RSVP",
-    subtitle: "Quand un membre répond Présent / Absent",
+    title: "Réponses aux convocations",
+    subtitle:
+      "Coachs : qui vient, qui ne vient pas. Parents : la réponse posée pour ton enfant",
+  },
+  {
+    key: "rsvpTeammates",
+    title: "Réponses des coéquipiers",
+    subtitle: "Savoir qui vient aux entraînements et aux matchs",
+    dependsOn: "rsvp",
   },
   {
     key: "announcements",
@@ -56,20 +73,16 @@ export function NotificationPreferencesSection() {
   const { showToast } = useToast();
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
-  const prefs = profile?.notificationPreferences ?? {
-    events: true,
-    announcements: true,
-    fees: true,
-    rsvp: true,
-    chat: true,
-  };
+  const prefs =
+    profile?.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
 
   async function setPreference(
     key: keyof NotificationPreferences,
     enabled: boolean,
   ) {
     if (!user || !profile) return;
-    if (!enabled) {
+    // Les réponses des coéquipiers sont un opt-in : pas de confirmation au retrait.
+    if (!enabled && key !== "rsvpTeammates") {
       const accepted = window.confirm(preferenceOffWarning(key));
       if (!accepted) return;
     }
@@ -96,12 +109,14 @@ export function NotificationPreferencesSection() {
       defaultOpen={false}
     >
       <div className={shared.stack}>
-        {visibleToggleRows().map((row) => (
+        {visibleToggleRows().map((row) => {
+          const parentOff = row.dependsOn != null && !prefs[row.dependsOn];
+          return (
           <label key={row.key} className={shared.checkRow}>
             <input
               type="checkbox"
-              checked={prefs[row.key]}
-              disabled={busyKey === row.key}
+              checked={prefs[row.key] && !parentOff}
+              disabled={busyKey === row.key || parentOff}
               onChange={(event) =>
                 void setPreference(row.key, event.target.checked)
               }
@@ -112,7 +127,8 @@ export function NotificationPreferencesSection() {
               <span className={shared.hint}>{row.subtitle}</span>
             </span>
           </label>
-        ))}
+          );
+        })}
       </div>
     </SettingsAccordion>
   );

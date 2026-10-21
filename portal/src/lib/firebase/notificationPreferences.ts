@@ -1,21 +1,31 @@
-/** Préférences push (events / annonces / cotisations / RSVP / chat). */
+/**
+ * Préférences push (convocations / récap / annonces / cotisations / RSVP /
+ * chat). Défauts alignés avec `functions/src/notifications/types.ts` et l'app.
+ * Le map est réécrit en entier : toute clé doit être lue ici, sinon on
+ * effacerait un choix fait dans l'app.
+ */
 export type NotificationPreferences = {
   events: boolean;
+  weeklyDigest: boolean;
   announcements: boolean;
   fees: boolean;
   rsvp: boolean;
+  rsvpTeammates: boolean;
   chat: boolean;
 };
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   events: true,
+  weeklyDigest: true,
   announcements: true,
   fees: true,
   rsvp: true,
+  // Réponses des coéquipiers : opt-in.
+  rsvpTeammates: false,
   chat: true,
 };
 
-/** Parse le map Firestore (défaut = opt-in). */
+/** Parse le map Firestore (clé absente = valeur par défaut). */
 export function parseNotificationPreferences(
   raw: unknown,
 ): NotificationPreferences {
@@ -23,28 +33,11 @@ export function parseNotificationPreferences(
     return { ...DEFAULT_NOTIFICATION_PREFERENCES };
   }
   const map = raw as Record<string, unknown>;
-  return {
-    events:
-      typeof map.events === "boolean"
-        ? map.events
-        : DEFAULT_NOTIFICATION_PREFERENCES.events,
-    announcements:
-      typeof map.announcements === "boolean"
-        ? map.announcements
-        : DEFAULT_NOTIFICATION_PREFERENCES.announcements,
-    fees:
-      typeof map.fees === "boolean"
-        ? map.fees
-        : DEFAULT_NOTIFICATION_PREFERENCES.fees,
-    rsvp:
-      typeof map.rsvp === "boolean"
-        ? map.rsvp
-        : DEFAULT_NOTIFICATION_PREFERENCES.rsvp,
-    chat:
-      typeof map.chat === "boolean"
-        ? map.chat
-        : DEFAULT_NOTIFICATION_PREFERENCES.chat,
-  };
+  const parsed = { ...DEFAULT_NOTIFICATION_PREFERENCES };
+  for (const key of Object.keys(parsed) as Array<keyof NotificationPreferences>) {
+    if (typeof map[key] === "boolean") parsed[key] = map[key];
+  }
+  return parsed;
 }
 
 /** Message de confirmation à la désactivation. */
@@ -53,14 +46,18 @@ export function preferenceOffWarning(
 ): string {
   switch (key) {
     case "events":
-      return "Vous ne recevrez plus les rappels d’événements (J-7, J-2) ni les notifications envoyées par les coaches.";
+      return "Tu ne recevras plus les convocations, les rappels (2 jours avant, jour J) ni les notifs envoyées par les coachs.";
+    case "weeklyDigest":
+      return "Tu ne recevras plus le récap du dimanche soir. Les rappels 2 jours avant prendront le relais.";
     case "announcements":
-      return "Vous ne recevrez plus de notification à la publication des annonces du club.";
+      return "Tu ne recevras plus de notification à la publication des annonces du club.";
     case "fees":
-      return "Vous ne recevrez plus les rappels hebdomadaires de cotisation.";
+      return "Tu ne recevras plus les rappels hebdomadaires de cotisation.";
     case "rsvp":
-      return "Vous ne recevrez plus de notification à chaque changement de RSVP.";
+      return "Tu ne recevras plus de notif quand quelqu’un répond à une convocation.";
+    case "rsvpTeammates":
+      return "Tu ne recevras plus les réponses de tes coéquipiers.";
     case "chat":
-      return "Vous ne recevrez plus de notification pour les nouveaux messages.";
+      return "Tu ne recevras plus de notification pour les nouveaux messages.";
   }
 }

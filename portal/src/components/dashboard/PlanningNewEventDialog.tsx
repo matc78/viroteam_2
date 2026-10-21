@@ -5,6 +5,7 @@ import {
   createClubEvent,
   eventTypeLabel,
   formatDayHeading,
+  importantReminderByDefault,
   type EventType,
   type PlanningPersonOption,
   type TeamOption,
@@ -192,6 +193,10 @@ export function PlanningNewEventDialog({
   const [matchVenue, setMatchVenue] = useState<"home" | "away">("home");
   const [location, setLocation] = useState("Stade du club");
   const [isRecurring, setIsRecurring] = useState(false);
+  const [importantReminder, setImportantReminder] = useState(false);
+  /** Vrai dès que l'admin coche / décoche lui-même le rappel J-7. */
+  const [importantReminderEdited, setImportantReminderEdited] =
+    useState(false);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState(() =>
     toDateInputValue(
       recurrenceEndForEventDay(day, resolveSeasonEndDate(seasonEndDate, day)),
@@ -261,6 +266,9 @@ export function PlanningNewEventDialog({
   function handleTypeChange(nextType: EventType) {
     setType(nextType);
     setError(null);
+    if (!importantReminderEdited) {
+      setImportantReminder(importantReminderByDefault(nextType));
+    }
     if (nextType !== "training") {
       setIsRecurring(false);
     }
@@ -419,6 +427,7 @@ export function PlanningNewEventDialog({
         meetingTime: isMatch ? meetingTime : undefined,
         matchVenue: isMatch ? matchVenue : undefined,
         recurrenceEndDate: resolvedRecurrenceEnd,
+        importantReminder,
       });
       onCreated();
       onClose();
@@ -730,6 +739,24 @@ export function PlanningNewEventDialog({
               ) : null}
             </div>
           ) : null}
+
+          <div className={styles.recurrenceBlock}>
+            <label className={styles.recurrenceToggle}>
+              <input
+                type="checkbox"
+                checked={importantReminder}
+                onChange={(changeEvent) => {
+                  setImportantReminderEdited(true);
+                  setImportantReminder(changeEvent.target.checked);
+                }}
+                disabled={saving}
+              />
+              <span>Événement important</span>
+            </label>
+            <p className={styles.hint}>
+              Rappel 7 jours avant en plus, pour ceux qui n’ont pas répondu.
+            </p>
+          </div>
 
           {error ? (
             <p className={styles.error} role="alert">

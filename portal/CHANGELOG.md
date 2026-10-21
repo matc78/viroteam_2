@@ -9,6 +9,8 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-10-21
+
 ### Ajouté
 
 - Mot de passe oublié : page `/forgot-password` (lien depuis la connexion) et envoi du lien Firebase de réinitialisation, avec message neutre si le compte n’existe pas
@@ -18,6 +20,10 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Corrigé
 
 - Les préférences de notification enregistrées depuis le portail n’écrasent plus les nouveaux réglages faits dans l’app
+
+### Note
+
+- Messagerie toujours masquée en prod (`CHAT_MESSAGING_LIVE` / `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` absent d’App Hosting)
 
 ## [1.8.0] - 2026-10-21
 

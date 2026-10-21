@@ -8,6 +8,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.2.9] - 2026-10-21
+
 ### Ajouté
 
 - Notifications : nouveau calendrier des rappels d’événements — rappel 2 jours avant (sans réponse ou « peut-être », plus bilan coach avec le décompte) et rappel le jour J à 8h00 (la veille au soir pour un event avant 10h00), 7 jours sur 7 ; rappel 7 jours avant réservé aux événements marqués « Événement important » (coché d’office pour un tournoi ou une réunion)
@@ -30,6 +32,11 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Un report d’événement n’est plus remplacé sur le téléphone par un rappel envoyé juste après
 - Ouverture à froid depuis une notif : le club et l’enfant sont posés avant d’afficher l’écran
 - Changement du lieu de RDV (`meetingLocation`) : notifie désormais l’audience (comme l’heure de RDV)
+
+### Note
+
+- Version app : `pubspec.yaml` / `ProjectConfig` en `2.2.9+15`
+- Messagerie toujours masquée en release (`FeatureFlags.chatMessagingLive`)
 
 ## [2.2.8] - 2026-10-20
 

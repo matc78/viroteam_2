@@ -381,7 +381,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                     : AppCopy.members.accountLinked,
           ),
           const SizedBox(height: ViroSpacing.lg),
-          _SectionLabel(label: AppCopy.members.sectionInfo, accent: accent),
+          _SectionLabel(label: AppCopy.members.sectionInfo),
           const SizedBox(height: ViroSpacing.sm),
           ViroCard(
             margin: EdgeInsets.zero,
@@ -438,7 +438,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
           ),
           if (_isAdmin) ...[
             const SizedBox(height: ViroSpacing.lg),
-            _SectionLabel(label: AppCopy.members.sectionAdmin, accent: accent),
+            _SectionLabel(label: AppCopy.members.sectionAdmin),
             const SizedBox(height: ViroSpacing.sm),
             ViroCard(
               margin: EdgeInsets.zero,
@@ -570,7 +570,7 @@ class _ProfileHeader extends StatelessWidget {
             textAlign: TextAlign.center,
             style: textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
-              color: palette.readableAccent(accent),
+              color: palette.brandText,
             ),
           ),
           const SizedBox(height: ViroSpacing.xs),
@@ -595,11 +595,9 @@ class _ProfileHeader extends StatelessWidget {
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({
     required this.label,
-    required this.accent,
   });
 
   final String label;
-  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -609,7 +607,7 @@ class _SectionLabel extends StatelessWidget {
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
-            color: palette.readableAccent(accent),
+            color: palette.brandText,
           ),
     );
   }

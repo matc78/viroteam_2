@@ -689,7 +689,6 @@ class _ClubHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
-    final readableAccent = palette.readableAccent(accent);
     final isFamilyView = familyChild != null;
     final clubMeta = [
       if (isFamilyView) club.name,
@@ -724,7 +723,7 @@ class _ClubHeader extends StatelessWidget {
             isFamilyView ? _familyChildTitle : club.name,
             textAlign: TextAlign.center,
             style: theme.titleMedium?.copyWith(
-              color: readableAccent,
+              color: palette.brandText,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -736,7 +735,7 @@ class _ClubHeader extends StatelessWidget {
               AppCopy.club.familyFollowingChild(_familyChildTitle),
               textAlign: TextAlign.center,
               style: theme.bodyMedium?.copyWith(
-                color: readableAccent,
+                color: palette.brandText,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -805,7 +804,7 @@ class _FamilyContextBanner extends StatelessWidget {
                   Text(
                     AppCopy.members.parentOf(childLabel),
                     style: theme.labelLarge?.copyWith(
-                      color: readableAccent,
+                      color: palette.brandText,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -839,9 +838,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
     final titleStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: accentColor != null
-              ? palette.readableAccent(accentColor!)
-              : palette.brandText,
+          color: palette.brandText,
           fontWeight: FontWeight.w700,
         );
 

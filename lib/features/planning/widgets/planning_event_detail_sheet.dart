@@ -292,7 +292,6 @@ class _PlanningEventDetailSheetState
   }
 
   Widget _buildMembersList(TextTheme theme) {
-    final accent = Theme.of(context).colorScheme.primary;
     final palette = context.viroPalette;
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
     final teams = ref.watch(clubTeamsProvider(widget.clubId)).value ?? [];
@@ -315,7 +314,7 @@ class _PlanningEventDetailSheetState
               AppCopy.planning.responsesCount(entries.length),
               style: theme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: accent,
+                color: palette.brandText,
               ),
             ),
             const SizedBox(height: ViroSpacing.sm),
@@ -525,7 +524,7 @@ class _PlanningEventDetailSheetState
                               startStr,
                               style: theme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
-                                color: accent,
+                                color: palette.brandText,
                                 height: 1.1,
                               ),
                             ),
@@ -577,7 +576,7 @@ class _PlanningEventDetailSheetState
                                             : headline,
                                         style: theme.titleSmall?.copyWith(
                                           fontWeight: FontWeight.w700,
-                                          color: accent,
+                                          color: palette.brandText,
                                           height: 1.2,
                                         ),
                                         maxLines: 2,
@@ -750,7 +749,7 @@ class _AwayMatchHeader extends StatelessWidget {
                       subtitle != null ? '$headline · $subtitle' : headline,
                       style: theme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: accent,
+                        color: palette.brandText,
                         height: 1.2,
                       ),
                       maxLines: 2,
@@ -863,7 +862,7 @@ class _AwayScheduleBlock extends StatelessWidget {
                 timeStr,
                 style: theme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: accent,
+                  color: palette.brandText,
                   height: 1.1,
                 ),
               ),

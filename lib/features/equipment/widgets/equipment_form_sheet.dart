@@ -361,7 +361,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
                 isEdit ? AppCopy.equipment.editTitle : AppCopy.equipment.createTitle,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: widget.managementAccent,
+                  color: context.viroPalette.brandText,
                 ),
               ),
             ),

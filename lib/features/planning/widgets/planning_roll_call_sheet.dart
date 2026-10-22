@@ -177,6 +177,7 @@ class _PlanningRollCallSheetState extends ConsumerState<PlanningRollCallSheet> {
                     AppCopy.planning.takeAttendanceTitle,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
+                          color: context.viroPalette.brandText,
                         ),
                   ),
                   const SizedBox(height: ViroSpacing.xs),

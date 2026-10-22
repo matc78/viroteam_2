@@ -114,7 +114,6 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
     final members = ref.read(clubMembersProvider(event.clubId)).value;
     PlanningEventDetailSheet.show(
       context: context,
-      ref: ref,
       clubId: event.clubId,
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),

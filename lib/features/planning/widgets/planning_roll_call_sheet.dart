@@ -35,32 +35,35 @@ class PlanningRollCallSheet extends ConsumerStatefulWidget {
   /// Ouvre la sheet d'appel. Retourne `true` si l'appel a été enregistré.
   static Future<bool> show({
     required BuildContext context,
-    required WidgetRef ref,
     required String clubId,
     required ClubEvent event,
     Set<String> excludeCoachUids = const {},
   }) async {
-    final accent = ref.read(clubMemberAccentProvider(clubId));
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (sheetContext) => ClubAccentTheme(
-        accentColor: accent,
-        child: DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.75,
-          minChildSize: 0.45,
-          maxChildSize: 0.95,
-          builder: (_, scrollController) => PlanningRollCallSheet(
-            clubId: clubId,
-            event: event,
-            scrollController: scrollController,
-            excludeCoachUids: excludeCoachUids,
-          ),
-        ),
+      builder: (sheetContext) => Consumer(
+        builder: (context, sheetRef, _) {
+          final accent = sheetRef.watch(clubMemberAccentProvider(clubId));
+          return ClubAccentTheme(
+            accentColor: accent,
+            child: DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.75,
+              minChildSize: 0.45,
+              maxChildSize: 0.95,
+              builder: (_, scrollController) => PlanningRollCallSheet(
+                clubId: clubId,
+                event: event,
+                scrollController: scrollController,
+                excludeCoachUids: excludeCoachUids,
+              ),
+            ),
+          );
+        },
       ),
     );
     return saved == true;

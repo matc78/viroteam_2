@@ -8,6 +8,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Corrigé
+
+- Détail d’événement : plus de titres / heures en rouge juste après l’ouverture de l’app — l’accent club réutilise la couleur déjà connue sur l’accueil au lieu d’un fallback preset
+
 ## [2.2.10] - 2026-10-22
 
 ### Ajouté

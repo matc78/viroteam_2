@@ -56,7 +56,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
 
   static Future<void> show({
     required BuildContext context,
-    required WidgetRef ref,
     required String clubId,
     required ClubEvent event,
     String? teamLabel,
@@ -65,8 +64,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     required VoidCallback onCanceled,
     VoidCallback? onRsvpUpdated,
   }) {
-    final accent = ref.read(clubMemberAccentProvider(clubId));
-
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -75,24 +72,31 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (sheetContext) => ClubAccentTheme(
-        accentColor: accent,
-        child: DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.65,
-          minChildSize: 0.4,
-          maxChildSize: 0.9,
-          builder: (_, scrollController) => PlanningEventDetailSheet(
-            clubId: clubId,
-            event: event,
-            scrollController: scrollController,
-            teamLabel: teamLabel,
-            excludeCoachUids: excludeCoachUids,
-            canManageEvents: canManageEvents,
-            onCanceled: onCanceled,
-            onRsvpUpdated: onRsvpUpdated,
-          ),
-        ),
+      builder: (sheetContext) => Consumer(
+        builder: (context, sheetRef, _) {
+          // Watch (pas read) : l'accent se met à jour si le club charge après
+          // l'ouverture (cold start) — évite de figer un fallback rouge.
+          final accent = sheetRef.watch(clubMemberAccentProvider(clubId));
+          return ClubAccentTheme(
+            accentColor: accent,
+            child: DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.65,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              builder: (_, scrollController) => PlanningEventDetailSheet(
+                clubId: clubId,
+                event: event,
+                scrollController: scrollController,
+                teamLabel: teamLabel,
+                excludeCoachUids: excludeCoachUids,
+                canManageEvents: canManageEvents,
+                onCanceled: onCanceled,
+                onRsvpUpdated: onRsvpUpdated,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -148,7 +152,6 @@ class _PlanningEventDetailSheetState
   Future<void> _openRollCall() async {
     final saved = await PlanningRollCallSheet.show(
       context: context,
-      ref: ref,
       clubId: widget.clubId,
       event: _event,
       excludeCoachUids: widget.excludeCoachUids,

@@ -80,7 +80,6 @@ class MemberPlanningScreen extends ConsumerWidget {
   }) {
     PlanningEventDetailSheet.show(
       context: context,
-      ref: ref,
       clubId: event.clubId,
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),

@@ -30,14 +30,30 @@ final clubProvider = FutureProvider.family<Club?, String>((ref, clubId) {
 });
 
 /// Couleurs de marque résolues (uni ou bicolore).
+///
+/// Tant que [clubProvider] n'a pas répondu, on réutilise le `brandColorHex`
+/// déjà connu via [userClubsProvider] (ex. cartes de l'accueil) pour éviter
+/// le fallback preset hashé — souvent rouge — sur les titres / heures du
+/// détail d'événement ouvert juste après le cold start.
 final clubBrandColorsProvider =
     Provider.family<ClubBrandColors, String>((ref, clubId) {
   final club = ref.watch(clubProvider(clubId)).value;
+  final brandColorHex = club?.brandColorHex ??
+      _brandColorHexFromUserClubs(ref.watch(userClubsProvider).value, clubId);
   return resolveClubBrandColors(
-    brandColorHex: club?.brandColorHex,
+    brandColorHex: brandColorHex,
     clubId: clubId,
   );
 });
+
+/// Hex de marque du club dans la liste session, ou `null` si inconnu / hors liste.
+String? _brandColorHexFromUserClubs(List<UserClubEntry>? entries, String clubId) {
+  if (entries == null) return null;
+  for (final entry in entries) {
+    if (entry.club.id == clubId) return entry.club.brandColorHex;
+  }
+  return null;
+}
 
 /// Couleur d'accent du club (brandColorHex ou fallback stable).
 final clubAccentColorProvider = Provider.family<Color, String>((ref, clubId) {

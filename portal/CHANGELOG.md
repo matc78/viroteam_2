@@ -9,6 +9,10 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Modifié
+
+- Création d’événement : Lieu en dropdown des lieux de pratique du club (1er par défaut + option « Autre »), saisie libre seulement pour match extérieur ou Autre
+
 ## [1.9.0] - 2026-10-21
 
 ### Ajouté

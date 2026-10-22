@@ -4,6 +4,7 @@ import {
   parseCoachPermissions,
   type CoachPermissions,
 } from "@/lib/auth/coachPermissions";
+import type { PracticeLocation } from "@/lib/clubSetup/clubSetupDraft";
 import { getAppFirestore } from "./app";
 import { Collections, Fields } from "./constants";
 import { toDate } from "./types";
@@ -30,7 +31,37 @@ export type ClubRecord = {
   createdAt: Date | null;
   /** Droits coach du club (defaults si absents). */
   coachPermissions: CoachPermissions;
+  /** Lieux de pratique (création d’événement, setup club). */
+  practiceLocations: PracticeLocation[];
 };
+
+/** Parse le tableau `practiceLocations` d’un document club. */
+function parsePracticeLocations(raw: unknown): PracticeLocation[] {
+  if (!Array.isArray(raw)) return [];
+  const locations: PracticeLocation[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const name = String(record.name ?? "").trim();
+    if (!name) continue;
+    const location: PracticeLocation = { name };
+    const city = typeof record.city === "string" ? record.city.trim() : "";
+    if (city) location.city = city;
+    const address =
+      typeof record.address === "string" ? record.address.trim() : "";
+    if (address) location.address = address;
+    const category =
+      typeof record.category === "string" ? record.category.trim() : "";
+    if (category) location.category = category;
+    const categoryCustom =
+      typeof record.categoryCustom === "string"
+        ? record.categoryCustom.trim()
+        : "";
+    if (categoryCustom) location.categoryCustom = categoryCustom;
+    locations.push(location);
+  }
+  return locations;
+}
 
 /** Statuts Stripe Connect Express stockés sur le club. */
 export type StripeConnectStatus =
@@ -77,6 +108,7 @@ export function parseClub(
       typeof rawBrand === "string" && rawBrand.trim() ? rawBrand.trim() : null,
     createdAt: toDate(data[Fields.createdAt]),
     coachPermissions: parseCoachPermissions(data[Fields.coachPermissions]),
+    practiceLocations: parsePracticeLocations(data[Fields.practiceLocations]),
   };
 }
 

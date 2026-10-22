@@ -562,6 +562,7 @@ function PlanningPageContent() {
                 ).sort((a, b) => a.localeCompare(b, "fr"))
           }
           people={createEventPeople}
+          practiceLocations={activeClub.practiceLocations}
           seasonEndDate={data?.seasonEndDate ?? null}
           onClose={() => setCreateEventDraft(null)}
           onCreated={reload}

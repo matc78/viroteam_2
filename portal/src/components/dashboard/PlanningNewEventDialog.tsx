@@ -10,6 +10,7 @@ import {
   type PlanningPersonOption,
   type TeamOption,
 } from "@/lib/firebase/eventService";
+import type { PracticeLocation } from "@/lib/clubSetup/clubSetupDraft";
 import {
   recurrenceEndForEventDay,
   resolveSeasonEndDate,
@@ -19,6 +20,11 @@ import {
   ANCHORED_POPOVER_FALLBACK_WIDTH_PX,
   computeAnchoredPosition,
 } from "@/lib/planning/anchoredPopoverPosition";
+import {
+  defaultPracticeLocationSelectValue,
+  PRACTICE_LOCATION_OTHER_VALUE,
+  practiceLocationLabel,
+} from "@/lib/planning/practiceLocationLabel";
 import {
   resolveGuestAudience,
   type PlanningGuestSelection,
@@ -45,6 +51,8 @@ type PlanningNewEventDialogProps = {
   teams: TeamOption[];
   categories: string[];
   people: PlanningPersonOption[];
+  /** Lieux de pratique du club (dropdown Lieu). */
+  practiceLocations?: PracticeLocation[];
   /** Fin de saison du club (sinon défaut 30 juin). */
   seasonEndDate?: Date | null;
   onClose: () => void;
@@ -152,6 +160,7 @@ export function PlanningNewEventDialog({
   teams,
   categories,
   people,
+  practiceLocations = [],
   seasonEndDate = null,
   onClose,
   onCreated,
@@ -191,7 +200,10 @@ export function PlanningNewEventDialog({
     ),
   );
   const [matchVenue, setMatchVenue] = useState<"home" | "away">("home");
-  const [location, setLocation] = useState("Stade du club");
+  const [locationSelectValue, setLocationSelectValue] = useState(() =>
+    defaultPracticeLocationSelectValue(practiceLocations),
+  );
+  const [customLocation, setCustomLocation] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
   const [importantReminder, setImportantReminder] = useState(false);
   /** Vrai dès que l'admin coche / décoche lui-même le rappel J-7. */
@@ -216,6 +228,17 @@ export function PlanningNewEventDialog({
     [teams],
   );
 
+  const locationSelectOptions = useMemo(
+    () => [
+      ...practiceLocations.map((location, index) => ({
+        value: String(index),
+        label: practiceLocationLabel(location),
+      })),
+      { value: PRACTICE_LOCATION_OTHER_VALUE, label: "Autre" },
+    ],
+    [practiceLocations],
+  );
+
   const selectedTeam = useMemo(
     () => teams.find((team) => team.id === teamId) ?? null,
     [teams, teamId],
@@ -229,6 +252,13 @@ export function PlanningNewEventDialog({
   /** « Autre » / « Réunion » : titre libre + invités optionnels. */
   const hasFreeTitle = isOther || isMeeting;
   const needsSingleTeam = isTraining || isMatch;
+  const useAwayLocationField = isMatch && matchVenue === "away";
+  const hasPracticeLocations = practiceLocations.length > 0;
+  const useLocationDropdown = !useAwayLocationField && hasPracticeLocations;
+  const useCustomLocationField =
+    useAwayLocationField ||
+    !hasPracticeLocations ||
+    locationSelectValue === PRACTICE_LOCATION_OTHER_VALUE;
   const guestAudience = useMemo(
     () => resolveGuestAudience(guests, teams, people),
     [guests, teams, people],
@@ -261,7 +291,16 @@ export function PlanningNewEventDialog({
     isRecurring,
     needsSingleTeam,
     guests.length,
+    useLocationDropdown,
+    useCustomLocationField,
   ]);
+
+  function resetLocationToDefault() {
+    setLocationSelectValue(
+      defaultPracticeLocationSelectValue(practiceLocations),
+    );
+    setCustomLocation("");
+  }
 
   function handleTypeChange(nextType: EventType) {
     setType(nextType);
@@ -279,12 +318,8 @@ export function PlanningNewEventDialog({
     ) {
       setTeamId("");
       setGuests([]);
-      if (nextType === "other" || nextType === "meeting") {
-        if (location === "Domicile" || location.trim() === "") {
-          setLocation("Stade du club");
-        }
-        return;
-      }
+      resetLocationToDefault();
+      return;
     }
     if (nextType === "training" || nextType === "match") {
       setGuests([]);
@@ -292,12 +327,8 @@ export function PlanningNewEventDialog({
     }
     if (nextType === "match") {
       setMatchVenue("home");
-      setLocation("Domicile");
-      return;
     }
-    if (location === "Domicile" || location.trim() === "") {
-      setLocation("Stade du club");
-    }
+    resetLocationToDefault();
   }
 
   function handleRecurringChange(checked: boolean) {
@@ -310,11 +341,28 @@ export function PlanningNewEventDialog({
 
   function handleMatchVenueChange(venue: "home" | "away") {
     setMatchVenue(venue);
+    setError(null);
     if (venue === "home") {
-      setLocation("Domicile");
+      resetLocationToDefault();
       return;
     }
-    if (location === "Domicile") setLocation("");
+    setCustomLocation("");
+  }
+
+  /** Résout la valeur `location` à persister selon dropdown / Autre / extérieur. */
+  function resolveEventLocation(): string | null {
+    if (useAwayLocationField || !hasPracticeLocations) {
+      const trimmed = customLocation.trim();
+      return trimmed || null;
+    }
+    if (locationSelectValue === PRACTICE_LOCATION_OTHER_VALUE) {
+      const trimmed = customLocation.trim();
+      return trimmed || null;
+    }
+    const index = Number(locationSelectValue);
+    const location = practiceLocations[index];
+    if (!location) return null;
+    return practiceLocationLabel(location);
   }
 
   async function handleSubmit(formEvent: FormEvent<HTMLFormElement>) {
@@ -333,12 +381,11 @@ export function PlanningNewEventDialog({
       setError("Titre requis.");
       return;
     }
-    if (isMatch && matchVenue === "away" && !location.trim()) {
-      setError("Lieu du match requis.");
-      return;
-    }
-    if (!isMatch && !location.trim()) {
-      setError("Lieu requis.");
+    const resolvedLocation = resolveEventLocation();
+    if (!resolvedLocation) {
+      setError(
+        useAwayLocationField ? "Lieu du match requis." : "Lieu requis.",
+      );
       return;
     }
     if (!isMatch) {
@@ -365,12 +412,6 @@ export function PlanningNewEventDialog({
         return;
       }
     }
-
-    const resolvedLocation = isMatch
-      ? matchVenue === "home"
-        ? "Domicile"
-        : location.trim()
-      : location.trim();
 
     let resolvedTeamIds: string[] = [];
     let resolvedMemberIds: string[] = [];
@@ -681,17 +722,47 @@ export function PlanningNewEventDialog({
             </div>
           )}
 
-          {!isMatch || matchVenue === "away" ? (
+          {useLocationDropdown ? (
             <div className={styles.field}>
               <label className={styles.label} htmlFor="new-event-location">
-                {isMatch ? "Lieu du match" : "Lieu"}
+                Lieu
+              </label>
+              <PlanningSelect
+                id="new-event-location"
+                value={locationSelectValue}
+                options={locationSelectOptions}
+                onChange={setLocationSelectValue}
+                required
+                disabled={saving}
+                placeholder="Choisir un lieu…"
+              />
+            </div>
+          ) : null}
+
+          {useCustomLocationField ? (
+            <div className={styles.field}>
+              <label
+                className={styles.label}
+                htmlFor="new-event-location-custom"
+              >
+                {useAwayLocationField
+                  ? "Lieu du match"
+                  : useLocationDropdown
+                    ? "Préciser le lieu"
+                    : "Lieu"}
               </label>
               <input
-                id="new-event-location"
+                id="new-event-location-custom"
                 className={styles.input}
-                value={location}
-                onChange={(changeEvent) => setLocation(changeEvent.target.value)}
-                placeholder={isMatch ? "Ville, stade adverse…" : "Stade du club"}
+                value={customLocation}
+                onChange={(changeEvent) =>
+                  setCustomLocation(changeEvent.target.value)
+                }
+                placeholder={
+                  useAwayLocationField
+                    ? "Ville, stade adverse…"
+                    : "Stade, gymnase…"
+                }
                 required
                 disabled={saving}
               />

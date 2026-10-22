@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -115,8 +115,10 @@ class _SingleColorSwatch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final isLight = color.computeLuminance() > 0.55;
-    final checkColor = isLight ? ViroColors.gray900 : Colors.white;
+    // La coche est posée sur la pastille : contraste fixe, indépendant du thème.
+    final checkColor = isLight ? ViroPalette.light.textPrimary : Colors.white;
 
     return Opacity(
       opacity: disabled ? 0.35 : 1,
@@ -135,8 +137,8 @@ class _SingleColorSwatch extends StatelessWidget {
             color: color,
             border: Border.all(
               color: selected
-                  ? ViroColors.gray900
-                  : Colors.black.withValues(alpha: 0.1),
+                  ? palette.textPrimary
+                  : palette.textPrimary.withValues(alpha: 0.1),
               width: selected ? 2.5 : 1,
             ),
           ),

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -37,7 +38,8 @@ Future<void> showViroImageLightbox(
   );
   return showDialog<void>(
     context: context,
-    barrierColor: ViroColors.primary900.withValues(alpha: 0.92),
+    // Voile immersif toujours sombre (icône blanche par-dessus), clair comme sombre.
+    barrierColor: ViroColors.mediaScrim.withValues(alpha: 0.92),
     builder: (dialogContext) {
       return _ViroImageLightboxDialog(
         imageUrl: imageUrl?.trim(),
@@ -138,16 +140,16 @@ class _ViroImageLightboxDialog extends StatelessWidget {
     );
   }
 
-  Widget _errorPlaceholder(double maxSide) {
+  Widget _errorPlaceholder(ViroPalette palette, double maxSide) {
     return Container(
       width: maxSide,
       height: maxSide,
-      color: ViroColors.gray200,
+      color: palette.surfaceMuted,
       alignment: Alignment.center,
       child: ViroIcon(
         ViroIcons.image,
         size: 64,
-        color: ViroColors.gray600,
+        color: palette.textSecondary,
       ),
     );
   }
@@ -166,7 +168,7 @@ class _ViroImageLightboxDialog extends StatelessWidget {
             height: maxSide,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
-                _errorPlaceholder(maxSide),
+                _errorPlaceholder(context.viroPalette, maxSide),
           ),
         );
       case ViroImageLightboxShape.rounded:
@@ -178,7 +180,7 @@ class _ViroImageLightboxDialog extends StatelessWidget {
             height: maxSide,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) =>
-                _errorPlaceholder(maxSide),
+                _errorPlaceholder(context.viroPalette, maxSide),
           ),
         );
       case ViroImageLightboxShape.free:
@@ -191,7 +193,7 @@ class _ViroImageLightboxDialog extends StatelessWidget {
             image: provider,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) =>
-                _errorPlaceholder(maxSide),
+                _errorPlaceholder(context.viroPalette, maxSide),
           ),
         );
     }

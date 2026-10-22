@@ -27,6 +27,7 @@ Ne créer un widget/service neuf que si rien d’existant ne convient (après ad
 - Cartes : `ViroCard` ; badges rôles : `ViroRoleBadge`.
 - Icônes : `ViroIcons` / `ViroIcon` (Phosphor) — pas `Icons.*`.
 - Couleurs / espacements / motion : uniquement `lib/config/` (pas de magic numbers).
+- Dark mode : couleurs neutres / de marque via `context.viroPalette` (`ViroPalette`), jamais `ViroColors.gray*` / `primary*` / `surface*` dans features et widgets (garde-fou `test/theme_palette_usage_test.dart`).
 - Interactions : `ViroPressable` / boutons flottants Viro.
 - **Textes UI** : via `AppCopy` (`lib/copy/`) — pas de littéraux FR dans widgets/écrans. Voix « pote de vestiaire » (tutoiement).
 

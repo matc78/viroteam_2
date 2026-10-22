@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart';
@@ -54,6 +54,7 @@ class EventPlanningCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final headline = PlanningEventDisplay.headline(event);
     final detail = PlanningEventDisplay.detailFromStoredTitle(event);
@@ -65,6 +66,7 @@ class EventPlanningCard extends StatelessWidget {
     ];
 
     final showPlayerRsvp = !coachView && onRsvpSelected != null;
+    final headlineColor = palette.readableAccent(clubColor);
 
     return ViroCard(
       onTap: onTap,
@@ -83,7 +85,12 @@ class EventPlanningCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ViroIcon(_typeIcon, size: 18, color: clubColor),
+              ViroIcon(
+                _typeIcon,
+                size: 18,
+                color: headlineColor,
+                shadows: palette.neonGlow(headlineColor, blur: 8),
+              ),
               const SizedBox(width: ViroSpacing.xs),
               Expanded(
                 child: Text.rich(
@@ -93,8 +100,9 @@ class EventPlanningCard extends StatelessWidget {
                         text: headline,
                         style: theme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: clubColor,
+                          color: headlineColor,
                           height: 1.2,
+                          shadows: palette.neonGlow(headlineColor, blur: 8),
                         ),
                       ),
                       if (detail != null)
@@ -102,7 +110,7 @@ class EventPlanningCard extends StatelessWidget {
                           text: ' · $detail',
                           style: theme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: ViroColors.primary800,
+                            color: palette.brandText,
                             height: 1.2,
                           ),
                         ),
@@ -121,7 +129,7 @@ class EventPlanningCard extends StatelessWidget {
             Text(
               scheduleParts.join(' · '),
               style: theme.bodySmall?.copyWith(
-                color: ViroColors.gray600,
+                color: palette.textSecondary,
                 height: 1.2,
               ),
               maxLines: 1,

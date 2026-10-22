@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
@@ -59,7 +59,8 @@ class PlanningEventTile extends StatelessWidget {
     final subtitle = PlanningEventDisplay.subtitle(event, teamLabel);
     final location = PlanningEventDisplay.locationLine(event);
 
-    final accent = clubColor ?? ViroColors.primary600;
+    final palette = context.viroPalette;
+    final accent = palette.readableAccent(clubColor ?? palette.accent);
 
     return ViroCard(
       onTap: onTap,
@@ -96,7 +97,7 @@ class PlanningEventTile extends StatelessWidget {
                           child: Text(
                             AppCopy.planning.rdvPrefix(rdvStr),
                             style: theme.labelSmall?.copyWith(
-                              color: ViroColors.gray600,
+                              color: palette.textSecondary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -107,7 +108,7 @@ class PlanningEventTile extends StatelessWidget {
                           child: Text(
                             endStr,
                             style: theme.labelSmall?.copyWith(
-                              color: ViroColors.gray400,
+                              color: palette.textMuted,
                             ),
                           ),
                         ),
@@ -142,7 +143,7 @@ class PlanningEventTile extends StatelessWidget {
                       Text(
                         subtitle,
                         style: theme.bodyMedium?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -152,7 +153,7 @@ class PlanningEventTile extends StatelessWidget {
                       Text(
                         location,
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray400,
+                          color: palette.textMuted,
                         ),
                       ),
                     ],

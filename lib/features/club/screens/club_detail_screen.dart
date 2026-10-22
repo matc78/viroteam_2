@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -687,6 +688,8 @@ class _ClubHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
+    final readableAccent = palette.readableAccent(accent);
     final isFamilyView = familyChild != null;
     final clubMeta = [
       if (isFamilyView) club.name,
@@ -721,7 +724,7 @@ class _ClubHeader extends StatelessWidget {
             isFamilyView ? _familyChildTitle : club.name,
             textAlign: TextAlign.center,
             style: theme.titleMedium?.copyWith(
-              color: accent,
+              color: readableAccent,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -733,7 +736,7 @@ class _ClubHeader extends StatelessWidget {
               AppCopy.club.familyFollowingChild(_familyChildTitle),
               textAlign: TextAlign.center,
               style: theme.bodyMedium?.copyWith(
-                color: accent,
+                color: readableAccent,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -742,7 +745,7 @@ class _ClubHeader extends StatelessWidget {
           Text(
             clubMeta,
             textAlign: TextAlign.center,
-            style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+            style: theme.bodySmall?.copyWith(color: palette.textSecondary),
           ),
           if (!isFamilyView && member != null) ...[
             const SizedBox(height: ViroSpacing.sm),
@@ -769,6 +772,8 @@ class _FamilyContextBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
+    final readableAccent = palette.readableAccent(accent);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -790,7 +795,7 @@ class _FamilyContextBanner extends StatelessWidget {
             ViroIcon(
               ViroIcons.roleParent,
               size: 20,
-              color: accent,
+              color: readableAccent,
             ),
             const SizedBox(width: ViroSpacing.sm),
             Expanded(
@@ -800,7 +805,7 @@ class _FamilyContextBanner extends StatelessWidget {
                   Text(
                     AppCopy.members.parentOf(childLabel),
                     style: theme.labelLarge?.copyWith(
-                      color: accent,
+                      color: readableAccent,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -808,7 +813,7 @@ class _FamilyContextBanner extends StatelessWidget {
                   Text(
                     AppCopy.club.familyAccessHint,
                     style: theme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],
@@ -832,8 +837,11 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final titleStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: accentColor ?? ViroColors.primary800,
+          color: accentColor != null
+              ? palette.readableAccent(accentColor!)
+              : palette.brandText,
           fontWeight: FontWeight.w700,
         );
 
@@ -883,6 +891,7 @@ class _FamilyFeeBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: ViroColors.warning.withValues(alpha: 0.12),
@@ -906,13 +915,13 @@ class _FamilyFeeBanner extends StatelessWidget {
                       AppCopy.club.familyFeeBanner(label),
                       style: theme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: ViroColors.warning,
+                        color: palette.warningText,
                       ),
                     ),
                     Text(
                       AppCopy.club.remainingDue(amountLabel),
                       style: theme.bodyMedium?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                   ],
@@ -920,7 +929,7 @@ class _FamilyFeeBanner extends StatelessWidget {
               ),
               ViroIcon(
                 ViroIcons.chevronRight,
-                color: ViroColors.gray400,
+                color: palette.textMuted,
                 size: 20,
               ),
             ],

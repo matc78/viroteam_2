@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -33,7 +33,7 @@ Future<void> showNewConversationSheet(
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: ViroColors.scaffold,
+    backgroundColor: context.viroPalette.surfaceCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
@@ -307,6 +307,7 @@ class _NewConversationSheetState extends ConsumerState<_NewConversationSheet> {
   @override
   Widget build(BuildContext context) {
     final clubs = ref.watch(userClubsProvider).value ?? const [];
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return SafeArea(
@@ -328,7 +329,7 @@ class _NewConversationSheetState extends ConsumerState<_NewConversationSheet> {
             const SizedBox(height: ViroSpacing.xs),
             Text(
               AppCopy.chat.newConversationHint,
-              style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+              style: theme.bodySmall?.copyWith(color: palette.textSecondary),
             ),
             const SizedBox(height: ViroSpacing.sm),
             if (clubs.length > 1)
@@ -396,7 +397,7 @@ class _NewConversationSheetState extends ConsumerState<_NewConversationSheet> {
                           overflow: TextOverflow.ellipsis,
                           style: theme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: ViroColors.primary800,
+                            color: palette.brandText,
                           ),
                         ),
                         subtitle: Align(

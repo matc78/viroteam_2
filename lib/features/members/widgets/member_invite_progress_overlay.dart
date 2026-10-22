@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
@@ -55,6 +55,7 @@ class _MemberInviteProgressOverlayState
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final total = widget.totalCount <= 0 ? 1 : widget.totalCount;
     final progress = (widget.completedCount / total).clamp(0.0, 1.0);
     final theme = Theme.of(context).textTheme;
@@ -62,7 +63,7 @@ class _MemberInviteProgressOverlayState
         widget.phaseLabel ?? AppCopy.members.inviteSendingPhase;
 
     return Material(
-      color: ViroColors.scaffold.withValues(alpha: 0.94),
+      color: palette.background.withValues(alpha: 0.94),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(ViroSpacing.xl),
@@ -79,7 +80,7 @@ class _MemberInviteProgressOverlayState
                 textAlign: TextAlign.center,
                 style: theme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                 ),
               ),
               const SizedBox(height: ViroSpacing.sm),
@@ -89,7 +90,7 @@ class _MemberInviteProgressOverlayState
                     ? widget.currentMemberName!
                     : AppCopy.members.pleaseWait,
                 textAlign: TextAlign.center,
-                style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+                style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
               ),
               const SizedBox(height: ViroSpacing.lg),
               ClipRRect(
@@ -97,8 +98,8 @@ class _MemberInviteProgressOverlayState
                 child: LinearProgressIndicator(
                   value: widget.totalCount == 0 ? null : progress,
                   minHeight: 10,
-                  backgroundColor: ViroColors.gray200,
-                  color: ViroColors.primary600,
+                  backgroundColor: palette.surfaceMuted,
+                  color: palette.accent,
                 ),
               ),
               const SizedBox(height: ViroSpacing.sm),
@@ -108,14 +109,14 @@ class _MemberInviteProgressOverlayState
                     : '${widget.completedCount} / ${widget.totalCount}',
                 style: theme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                 ),
               ),
               const SizedBox(height: ViroSpacing.md),
               Text(
                 AppCopy.members.stayOnScreenDuringSend,
                 textAlign: TextAlign.center,
-                style: theme.bodySmall?.copyWith(color: ViroColors.gray400),
+                style: theme.bodySmall?.copyWith(color: palette.textMuted),
               ),
             ],
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -26,7 +27,7 @@ Future<EquipmentFormResult?> showEquipmentFormSheet(
   return showModalBottomSheet<EquipmentFormResult>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: ViroColors.surfaceCard,
+    backgroundColor: context.viroPalette.surfaceCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(ViroSpacing.cardRadius),
@@ -177,6 +178,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
   }
 
   Widget _conditionChip(String value, String label) {
+    final palette = context.viroPalette;
     final accent = widget.managementAccent;
     final selected = _condition == value;
     return FilterChip(
@@ -184,7 +186,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: selected ? ViroColors.white : accent,
+                color: selected ? ViroColors.white : palette.readableAccent(accent),
                 fontWeight: FontWeight.w600,
               ),
         ),
@@ -195,8 +197,8 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       selectedColor: accent,
-      backgroundColor: ViroColors.gray50,
-      side: BorderSide(color: selected ? accent : ViroColors.gray200),
+      backgroundColor: palette.surfaceSubtle,
+      side: BorderSide(color: selected ? accent : palette.border),
       padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.xs),
     );
   }
@@ -269,7 +271,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
           Text(
             AppCopy.equipment.conditionSection,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: ViroColors.gray600,
+              color: context.viroPalette.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -370,7 +372,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
                 minWidth: ViroSpacing.minTouchTarget,
                 minHeight: ViroSpacing.minTouchTarget,
               ),
-              icon: ViroIcon(ViroIcons.close, color: ViroColors.gray600),
+              icon: ViroIcon(ViroIcons.close, color: context.viroPalette.textSecondary),
               tooltip: AppCopy.equipment.closeTooltip,
               onPressed: () => Navigator.pop(context),
             ),
@@ -383,7 +385,7 @@ class _EquipmentFormSheetState extends State<_EquipmentFormSheet> {
           Text(
             _error!,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: ViroColors.error,
+              color: context.viroPalette.errorText,
             ),
           ),
         ],

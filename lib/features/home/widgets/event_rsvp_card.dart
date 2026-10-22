@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
@@ -33,6 +34,7 @@ class EventRsvpCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final dateStr = formatEventDate(event.date);
     final timeStr = formatEventTime(event.startTime);
@@ -46,7 +48,11 @@ class EventRsvpCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              ViroIcon(ViroIcons.calendar, size: 18, color: clubColor),
+              ViroIcon(
+                ViroIcons.calendar,
+                size: 18,
+                color: palette.readableAccent(clubColor),
+              ),
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: Text(
@@ -64,7 +70,7 @@ class EventRsvpCard extends StatelessWidget {
             [dateStr, if (timeStr.isNotEmpty) timeStr, event.location]
                 .where((s) => s != null && s.isNotEmpty)
                 .join(' · '),
-            style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+            style: theme.bodySmall?.copyWith(color: palette.textSecondary),
           ),
           const SizedBox(height: ViroSpacing.md),
           Row(
@@ -79,7 +85,7 @@ class EventRsvpCard extends StatelessWidget {
                   color: ViroColors.error,
                   outlined: true,
                   borderColor: ViroColors.error,
-                  foregroundColor: ViroColors.gray600,
+                  foregroundColor: palette.textSecondary,
                   height: ViroSpacing.buttonHeightSmall,
                   onTap: onAbsent,
                 ),

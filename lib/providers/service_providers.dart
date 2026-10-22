@@ -22,6 +22,7 @@ import 'package:viro_team_v2/services/notification_soft_ask_service.dart';
 import 'package:viro_team_v2/services/push_notification_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
+import 'package:viro_team_v2/services/theme_preference_service.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
 import 'package:viro_team_v2/services/chat_messages_local_cache.dart';
 import 'package:viro_team_v2/services/user_avatar_storage.dart';
@@ -122,4 +123,10 @@ final guardianServiceProvider = Provider<GuardianService>(
 
 final portalBannerPrefsServiceProvider = Provider<PortalBannerPrefsService>(
   (ref) => PortalBannerPrefsService(),
+);
+
+/// Surchargé dans `main` avec des préférences préchargées (thème connu dès
+/// la première frame).
+final themePreferenceServiceProvider = Provider<ThemePreferenceService>(
+  (ref) => ThemePreferenceService(),
 );

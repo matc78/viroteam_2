@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/utils/calendar_days.dart';
 
-/// Couleur du dot indicateur selon le type d'événement.
-Color eventDotColor(String type) => switch (type) {
+/// Couleur du dot indicateur selon le type d'événement ([palette] : teinte
+/// neutre des types non catégorisés).
+Color eventDotColor(String type, ViroPalette palette) => switch (type) {
       EventTypes.match => ViroColors.error,
       EventTypes.training => ViroColors.success,
       EventTypes.tournament => ViroColors.warning,
       EventTypes.meeting => ViroColors.sportCyan,
-      _ => ViroColors.gray400,
+      _ => palette.textMuted,
     };
 
 /// Bandeau horizontal de sélection de jour (style V1, design V2).
@@ -110,7 +112,9 @@ class _DayTile extends ConsumerWidget {
             ) ??
         [];
 
+    final palette = context.viroPalette;
     final (bg, border, fg, subFg) = _tileColors(
+      palette: palette,
       isSelected: isSelected,
       isPast: isPast,
       selectedDayColor: selectedDayColor,
@@ -171,7 +175,7 @@ class _DayTile extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? ViroColors.white
-                            : eventDotColor(type),
+                            : eventDotColor(type, palette),
                         shape: BoxShape.circle,
                       ),
                     );
@@ -186,28 +190,31 @@ class _DayTile extends ConsumerWidget {
 }
 
 (Color bg, Color border, Color fg, Color subFg) _tileColors({
+  required ViroPalette palette,
   required bool isSelected,
   required bool isPast,
   Color? selectedDayColor,
 }) {
   if (isSelected) {
-    final accent = selectedDayColor ?? ViroColors.primary600;
-    final bg = isPast ? ViroColors.gray400 : accent;
+    final accent = selectedDayColor ?? palette.accentFill;
+    final bg = isPast ? palette.textMuted : accent;
     return (bg, bg, ViroColors.white, ViroColors.white.withValues(alpha: 0.75));
   }
   if (isPast) {
     return (
-      ViroColors.gray100,
-      ViroColors.gray300,
-      ViroColors.gray400,
-      ViroColors.gray400,
+      palette.surfaceMuted,
+      palette.borderStrong,
+      palette.textMuted,
+      palette.textMuted,
     );
   }
   return (
-    ViroColors.surfaceCard,
-    (selectedDayColor ?? ViroColors.primary100).withValues(alpha: 0.5),
-    selectedDayColor ?? ViroColors.primary800,
-    ViroColors.gray600,
+    palette.surfaceCard,
+    (selectedDayColor ?? palette.accentSoft).withValues(alpha: 0.5),
+    selectedDayColor != null
+        ? palette.readableAccent(selectedDayColor)
+        : palette.brandText,
+    palette.textSecondary,
   );
 }
 

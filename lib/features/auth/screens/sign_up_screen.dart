@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -376,6 +377,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final intent = ref.watch(signUpIntentProvider);
     final isJoin = intent == SignUpIntent.join;
     final isBusy = _loading || _googleLoading || _appleLoading;
@@ -441,7 +443,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                           ? AppCopy.auth.confirmSocialProfileHint
                           : AppCopy.auth.completeProfileHint,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: ViroColors.gray600,
+                            color: palette.textSecondary,
                           ),
                     ),
                   ),
@@ -569,11 +571,12 @@ class _TermsAcceptanceMentionState extends State<_TermsAcceptanceMention> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final baseStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: ViroColors.gray600,
+          color: palette.textSecondary,
         );
     final linkStyle = baseStyle?.copyWith(
-      color: ViroColors.primary600,
+      color: palette.accent,
       decoration: TextDecoration.underline,
       fontWeight: FontWeight.w600,
     );

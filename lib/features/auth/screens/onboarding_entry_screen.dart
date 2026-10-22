@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -17,6 +18,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final authUser = ref.watch(authStateProvider).value;
     final profileAsync = ref.watch(viroUserProvider);
@@ -59,7 +61,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                                         child: Text(
                                           AppCopy.auth.orphanAccountTitle,
                                           style: theme.titleSmall?.copyWith(
-                                            color: ViroColors.primary800,
+                                            color: palette.brandText,
                                             fontWeight: FontWeight.w700,
                                           ),
                                         ),
@@ -70,7 +72,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                                   Text(
                                     AppCopy.auth.orphanAccountHint,
                                     style: theme.bodyMedium?.copyWith(
-                                      color: ViroColors.gray600,
+                                      color: palette.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -81,7 +83,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                           Text(
                             AppCopy.auth.welcomeTitle,
                             style: theme.headlineMedium?.copyWith(
-                              color: ViroColors.primary800,
+                              color: palette.brandText,
                               fontWeight: FontWeight.w800,
                             ),
                             textAlign: TextAlign.center,
@@ -90,7 +92,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                           Text(
                             AppCopy.auth.welcomeSubtitle,
                             style: theme.bodyLarge?.copyWith(
-                              color: ViroColors.gray600,
+                              color: palette.textSecondary,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -123,7 +125,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                           const SizedBox(height: ViroSpacing.sm),
                           _AccentButton(
                             label: AppCopy.auth.createClub,
-                            color: ViroColors.primary600,
+                            color: palette.accent,
                             outlined: true,
                             onPressed: () => context.push(
                               needsViroTeamAccount

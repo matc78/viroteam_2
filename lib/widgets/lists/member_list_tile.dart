@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -85,7 +86,10 @@ class MemberListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final accent = accentColor ?? ViroColors.primary600;
+    final palette = context.viroPalette;
+    final rawAccent = accentColor ?? palette.accent;
+    // Texte / icônes en couleur club : éclaircie si trop sombre en mode sombre.
+    final accent = palette.readableAccent(rawAccent);
 
     final memberName = member.fullName.isNotEmpty
         ? member.fullName
@@ -103,7 +107,7 @@ class MemberListTile extends StatelessWidget {
       semanticLabel: memberName,
       child: Row(
         children: [
-          MemberAvatar(member: member, accentColor: accent),
+          MemberAvatar(member: member, accentColor: rawAccent),
           const SizedBox(width: ViroSpacing.md),
           Expanded(
             child: Column(
@@ -134,7 +138,7 @@ class MemberListTile extends StatelessWidget {
                       Text(
                         AppCopy.members.notRegisteredYet,
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                         ),
                       ),
                     if (parentLinkStatus != null &&
@@ -149,7 +153,7 @@ class MemberListTile extends StatelessWidget {
                             ? AppCopy.members.statusConnected
                             : AppCopy.members.statusPending,
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                         ),
                       ),
                     ],
@@ -184,7 +188,7 @@ class MemberListTile extends StatelessWidget {
               _isAdmin &&
               member.role != MemberRoles.admin)
             PopupMenuButton<String>(
-              icon: ViroIcon(ViroIcons.moreVertical, color: ViroColors.gray600),
+              icon: ViroIcon(ViroIcons.moreVertical, color: palette.textSecondary),
               onSelected: (value) {
                 switch (value) {
                   case 'role':
@@ -216,7 +220,7 @@ class MemberListTile extends StatelessWidget {
               padding: const EdgeInsets.only(left: ViroSpacing.xs),
               child: ViroIcon(
                 selected ? ViroIcons.checkCircle : ViroIcons.selectAll,
-                color: selected ? accent : ViroColors.gray400,
+                color: selected ? accent : palette.textMuted,
               ),
             ),
         ],

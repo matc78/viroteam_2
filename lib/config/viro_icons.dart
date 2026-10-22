@@ -58,6 +58,9 @@ abstract final class ViroIcons {
   static IconData get bell => PhosphorIconsRegular.bell;
   static IconData get payments => PhosphorIconsRegular.currencyEur;
   static IconData get image => PhosphorIconsRegular.image;
+  static IconData get themeLight => PhosphorIconsRegular.sun;
+  static IconData get themeDark => PhosphorIconsRegular.moon;
+  static IconData get themeSystem => PhosphorIconsRegular.deviceMobile;
   static IconData get camera => PhosphorIconsRegular.camera;
   static IconData get poll => PhosphorIconsRegular.chartBar;
   static IconData get smiley => PhosphorIconsRegular.smiley;
@@ -167,6 +170,9 @@ abstract final class ViroIcons {
             ('logout', logout),
             ('bell', bell),
             ('image', image),
+            ('themeLight', themeLight),
+            ('themeDark', themeDark),
+            ('themeSystem', themeSystem),
             ('camera', camera),
             ('selectAll', selectAll),
             ('note', note),
@@ -208,6 +214,7 @@ class ViroIcon extends StatelessWidget {
     this.size = 22,
     this.color,
     this.semanticLabel,
+    this.shadows,
   });
 
   final IconData icon;
@@ -216,6 +223,9 @@ class ViroIcon extends StatelessWidget {
 
   /// Libellé si l’icône porte une info non redondante avec un texte voisin.
   final String? semanticLabel;
+
+  /// Ombres / halo de l’icône (ex. `palette.neonGlow` en sombre).
+  final List<Shadow>? shadows;
 
   @override
   Widget build(BuildContext context) {
@@ -226,6 +236,7 @@ class ViroIcon extends StatelessWidget {
       icon,
       size: size,
       color: resolvedColor,
+      shadows: shadows,
     );
     if (semanticLabel == null) {
       return ExcludeSemantics(child: iconWidget);

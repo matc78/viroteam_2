@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -251,7 +252,9 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
   }
 
   Widget _sectionTitle(String title) {
-    final accent = widget.accentColor ?? ViroColors.primary800;
+    final accent = context.viroPalette.readableAccent(
+      widget.accentColor ?? context.viroPalette.brandText,
+    );
     return Text(
       title,
       style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -262,13 +265,14 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
   }
 
   Widget _paymentMethodChip(String method) {
-    final accent = widget.accentColor ?? ViroColors.primary600;
+    final palette = context.viroPalette;
+    final accent = widget.accentColor ?? palette.accentFill;
     final selected = _paymentMethods.contains(method);
     return FilterChip(
       label: Text(
         FeePaymentMethods.label(method),
         style: TextStyle(
-          color: selected ? ViroColors.white : accent,
+          color: selected ? ViroColors.white : palette.readableAccent(accent),
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -276,8 +280,8 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
       onSelected: (_) => _togglePaymentMethod(method),
       showCheckmark: false,
       selectedColor: accent,
-      backgroundColor: ViroColors.gray50,
-      side: BorderSide(color: selected ? accent : ViroColors.gray200),
+      backgroundColor: palette.surfaceSubtle,
+      side: BorderSide(color: selected ? accent : palette.border),
     );
   }
 
@@ -294,7 +298,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
         Text(
           AppCopy.fees.seasonSectionHint,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: ViroColors.gray600,
+                color: context.viroPalette.textSecondary,
               ),
         ),
         const SizedBox(height: ViroSpacing.sm),
@@ -354,7 +358,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
         Text(
           AppCopy.fees.tiersSectionHint,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: ViroColors.gray600,
+                color: context.viroPalette.textSecondary,
               ),
         ),
         const SizedBox(height: ViroSpacing.sm),
@@ -420,7 +424,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
           child: Text(
             AppCopy.fees.stripeConfigOnPortalHint,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: ViroColors.gray600,
+                  color: context.viroPalette.textSecondary,
                   height: 1.45,
                 ),
           ),
@@ -438,7 +442,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
         Text(
           AppCopy.fees.paymentSectionHint,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: ViroColors.gray600,
+                color: context.viroPalette.textSecondary,
               ),
         ),
         const SizedBox(height: ViroSpacing.sm),
@@ -468,7 +472,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
         subtitle: Text(
           AppCopy.fees.paymentSectionHint,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: ViroColors.gray600,
+                color: context.viroPalette.textSecondary,
               ),
         ),
         children: [
@@ -484,7 +488,9 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = widget.accentColor ?? ViroColors.primary800;
+    final accent = context.viroPalette.readableAccent(
+      widget.accentColor ?? context.viroPalette.brandText,
+    );
     final seasonAsync = ref.watch(activeSeasonProvider(widget.clubId));
     final clubAsync = ref.watch(clubProvider(widget.clubId));
     final dateFormat = DateFormat('dd/MM/yyyy');
@@ -518,7 +524,7 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
                     child: Text(
                       AppCopy.fees.noActiveSeasonConfig,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: ViroColors.gray600,
+                            color: context.viroPalette.textSecondary,
                           ),
                     ),
                   ),

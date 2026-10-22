@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/navigation_fallback.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
@@ -52,9 +53,10 @@ class ViroScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final feeDeadlineUrgent = FeeDeadlineBackground.of(context);
+    final background = context.viroPalette.background;
     final backgroundColor = feeDeadlineUrgent
-        ? Color.lerp(ViroColors.white, ViroColors.error, 0.1)!
-        : ViroColors.white;
+        ? Color.lerp(background, ViroColors.error, 0.1)!
+        : background;
 
     final shell = _ViroScaffoldShell(
       backgroundColor: backgroundColor,
@@ -131,16 +133,19 @@ class _DecorShapes extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final w = size.width;
     final h = size.height;
+    final palette = context.viroPalette;
 
     return IgnorePointer(
-      child: Stack(
+      child: Opacity(
+        opacity: palette.decorOpacityFactor,
+        child: Stack(
         fit: StackFit.expand,
         children: [
           // Cercle bleu clair — déborde haut-droite
           Positioned(
             top: -40,
             right: -30,
-            child: _Circle(diameter: 120, color: ViroColors.primary50.withValues(alpha: 0.45)),
+            child: _Circle(diameter: 120, color: palette.accentSofter.withValues(alpha: 0.45)),
           ),
           // Cercle orange — bord gauche
           Positioned(
@@ -164,7 +169,7 @@ class _DecorShapes extends StatelessWidget {
           Positioned(
             top: h * 0.55,
             right: -24,
-            child: _Ring(diameter: 80, color: ViroColors.primary200.withValues(alpha: 0.30)),
+            child: _Ring(diameter: 80, color: palette.accentMid.withValues(alpha: 0.30)),
           ),
           // Anneau orange — coin haut-gauche
           Positioned(
@@ -176,7 +181,7 @@ class _DecorShapes extends StatelessWidget {
           Positioned(
             bottom: h * 0.15,
             right: -8,
-            child: _Circle(diameter: 36, color: ViroColors.primary100.withValues(alpha: 0.30)),
+            child: _Circle(diameter: 36, color: palette.accentSoft.withValues(alpha: 0.30)),
           ),
           // Dot cyan
           Positioned(
@@ -223,7 +228,7 @@ class _DecorShapes extends StatelessWidget {
               child: Container(
                 width: 60,
                 height: 2,
-                color: ViroColors.primary200.withValues(alpha: 0.28),
+                color: palette.accentMid.withValues(alpha: 0.28),
               ),
             ),
           ),
@@ -251,7 +256,7 @@ class _DecorShapes extends StatelessWidget {
                 height: 16,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: ViroColors.primary100.withValues(alpha: 0.25),
+                  color: palette.accentSoft.withValues(alpha: 0.25),
                 ),
               ),
             ),
@@ -285,12 +290,13 @@ class _DecorShapes extends StatelessWidget {
                     child: _ConfettiShape(
                       kind: piece.kind,
                       size: piece.size,
-                      color: piece.color,
+                      color: piece.color(palette),
                     ),
                   ),
                 ),
               ),
         ],
+        ),
       ),
     );
   }
@@ -325,11 +331,11 @@ class _ConfettiSpec {
   double get rotateRadians => rotateDegrees * math.pi / 180;
 
   /// Couleur semi-transparente alignée sur le CSS du portail.
-  Color get color => switch (colorKey) {
+  Color color(ViroPalette palette) => switch (colorKey) {
         _ConfettiColor.cyan => ViroColors.sportCyan.withValues(alpha: 0.55),
         _ConfettiColor.yellow => ViroColors.sportYellow.withValues(alpha: 0.65),
         _ConfettiColor.green => ViroColors.sportGreen.withValues(alpha: 0.45),
-        _ConfettiColor.blue => ViroColors.primary200.withValues(alpha: 0.60),
+        _ConfettiColor.blue => palette.accentMid.withValues(alpha: 0.60),
       };
 }
 
@@ -592,11 +598,11 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
     final titleColor =
         appBarTheme.titleTextStyle?.color ??
         appBarTheme.foregroundColor ??
-        ViroColors.primary800;
+        context.viroPalette.brandText;
     final iconColor =
         appBarTheme.iconTheme?.color ??
         appBarTheme.foregroundColor ??
-        ViroColors.primary800;
+        context.viroPalette.brandText;
 
     return AppBar(
       elevation: 0,

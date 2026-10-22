@@ -47,6 +47,13 @@ class GoogleSignInButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fill =
+        isDark ? ViroColors.googleDarkFill : ViroColors.googleLightFill;
+    final border =
+        isDark ? ViroColors.googleDarkBorder : ViroColors.googleLightBorder;
+    final textColor =
+        isDark ? ViroColors.googleDarkText : ViroColors.googleLightText;
 
     return SizedBox(
       width: double.infinity,
@@ -54,8 +61,8 @@ class GoogleSignInButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: ViroColors.white,
-          side: BorderSide(color: ViroColors.gray200),
+          backgroundColor: fill,
+          side: BorderSide(color: border),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
           ),
@@ -74,7 +81,7 @@ class GoogleSignInButton extends StatelessWidget {
                   Text(
                     AppCopy.auth.continueWithGoogle,
                     style: theme.labelLarge?.copyWith(
-                      color: ViroColors.gray900,
+                      color: textColor,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -85,7 +92,7 @@ class GoogleSignInButton extends StatelessWidget {
   }
 }
 
-/// Bouton noir « Continuer avec Apple » (HIG Apple), iOS / macOS seulement.
+/// Bouton « Continuer avec Apple » (noir, ou blanc en sombre) (HIG Apple), iOS / macOS seulement.
 ///
 /// Rendu `SizedBox.shrink` ailleurs : Apple n’exige le bouton que sur ses
 /// plateformes (guideline 4.8) et le flux natif n’existe pas sur Android.
@@ -106,6 +113,12 @@ class AppleSignInButton extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isSupported) return const SizedBox.shrink();
     final theme = Theme.of(context).textTheme;
+    // HIG Apple : bouton noir sur fond clair, blanc sur fond sombre.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fill =
+        isDark ? ViroColors.appleDarkModeFill : ViroColors.appleLightModeFill;
+    final foreground =
+        isDark ? ViroColors.appleDarkModeText : ViroColors.appleLightModeText;
 
     return SizedBox(
       width: double.infinity,
@@ -113,31 +126,31 @@ class AppleSignInButton extends StatelessWidget {
       child: FilledButton(
         onPressed: isLoading ? null : onPressed,
         style: FilledButton.styleFrom(
-          backgroundColor: ViroColors.gray900,
-          disabledBackgroundColor: ViroColors.gray900,
-          foregroundColor: ViroColors.white,
+          backgroundColor: fill,
+          disabledBackgroundColor: fill,
+          foregroundColor: foreground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
           ),
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 22,
                 width: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: ViroColors.white,
+                  color: foreground,
                 ),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.apple, size: 24, color: ViroColors.white),
+                  Icon(Icons.apple, size: 24, color: foreground),
                   const SizedBox(width: ViroSpacing.sm),
                   Text(
                     AppCopy.auth.continueWithApple,
                     style: theme.labelLarge?.copyWith(
-                      color: ViroColors.white,
+                      color: foreground,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

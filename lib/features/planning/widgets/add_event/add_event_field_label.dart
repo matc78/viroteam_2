@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
-/// Décoration partagée des champs du formulaire nouvel événement.
-InputDecoration addEventInputDecoration({String? hint, String? label}) =>
+/// Décoration partagée des champs du formulaire nouvel événement ([palette] :
+/// palette du thème courant, pour le fond et la bordure).
+InputDecoration addEventInputDecoration({
+  required ViroPalette palette,
+  String? hint,
+  String? label,
+}) =>
     InputDecoration(
       hintText: hint,
       labelText: label,
@@ -13,10 +18,10 @@ InputDecoration addEventInputDecoration({String? hint, String? label}) =>
         vertical: ViroSpacing.sm + 2,
       ),
       filled: true,
-      fillColor: ViroColors.surfaceCard,
+      fillColor: palette.surfaceCard,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
-        borderSide: BorderSide(color: ViroColors.primary100),
+        borderSide: BorderSide(color: palette.accentSoft),
       ),
     );
 
@@ -36,7 +41,9 @@ class AddEventFieldLabel extends StatelessWidget {
         text,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w600,
-              color: accentColor ?? ViroColors.primary800,
+              color: accentColor != null
+                  ? context.viroPalette.readableAccent(accentColor!)
+                  : context.viroPalette.brandText,
             ),
       ),
     );

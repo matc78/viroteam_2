@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
@@ -30,6 +30,7 @@ class ClubListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final accent = accentColor ??
         resolveClubBrandColors(
           brandColorHex: club.brandColorHex,
@@ -62,7 +63,7 @@ class ClubListTile extends StatelessWidget {
                   Text(
                     club.name,
                     style: theme.titleMedium?.copyWith(
-                      color: accent,
+                      color: palette.readableAccent(accent),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -70,7 +71,7 @@ class ClubListTile extends StatelessWidget {
                   Text(
                     subtitle,
                     style: theme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_helpers.dart';
@@ -47,7 +48,10 @@ class AddEventTypeTeamSection extends StatelessWidget {
           isExpanded: true,
           style: dropdownStyle,
           menuMaxHeight: 240,
-          decoration: addEventInputDecoration(label: AppCopy.planning.fieldType),
+          decoration: addEventInputDecoration(
+            palette: context.viroPalette,
+            label: AppCopy.planning.fieldType,
+          ),
           items: [
             DropdownMenuItem(
               value: EventTypes.training,
@@ -80,8 +84,10 @@ class AddEventTypeTeamSection extends StatelessWidget {
             isExpanded: true,
             style: dropdownStyle,
             menuMaxHeight: 240,
-            decoration:
-                addEventInputDecoration(label: AppCopy.planning.fieldTeam),
+            decoration: addEventInputDecoration(
+              palette: context.viroPalette,
+              label: AppCopy.planning.fieldTeam,
+            ),
             hint: Text(AppCopy.planning.chooseTeam, style: dropdownStyle),
             selectedItemBuilder: (context) => sortedTeams
                 .map(
@@ -120,6 +126,7 @@ class AddEventTypeTeamSection extends StatelessWidget {
           TextField(
             controller: titleController,
             decoration: addEventInputDecoration(
+              palette: context.viroPalette,
               hint: type == EventTypes.meeting
                   ? AppCopy.planning.meetingTitleHint
                   : AppCopy.planning.titleHint,

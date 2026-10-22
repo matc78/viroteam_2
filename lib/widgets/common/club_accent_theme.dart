@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
 /// Applique la couleur unie du club aux boutons, AppBar, FAB, inputs et dialogs.
@@ -14,21 +15,25 @@ class ClubAccentTheme extends StatelessWidget {
   final Widget child;
 
   /// Style [SegmentedButton] avec la couleur unie du club.
-  static ButtonStyle segmentedButtonStyle(Color accentColor, Color onAccent) {
+  static ButtonStyle segmentedButtonStyle(
+    Color accentColor,
+    Color onAccent,
+    ViroPalette palette,
+  ) {
     return ButtonStyle(
       backgroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) return accentColor;
-        if (states.contains(WidgetState.disabled)) return ViroColors.gray100;
-        return ViroColors.gray50;
+        if (states.contains(WidgetState.disabled)) return palette.surfaceMuted;
+        return palette.surfaceSubtle;
       }),
       foregroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) return onAccent;
-        if (states.contains(WidgetState.disabled)) return ViroColors.gray400;
+        if (states.contains(WidgetState.disabled)) return palette.textMuted;
         return accentColor;
       }),
       side: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return const BorderSide(color: ViroColors.gray200);
+          return BorderSide(color: palette.border);
         }
         return BorderSide(color: accentColor.withValues(alpha: 0.45));
       }),
@@ -36,15 +41,20 @@ class ClubAccentTheme extends StatelessWidget {
   }
 
   /// Style [FilterChip] / [ChoiceChip] cohérent avec la couleur club.
-  static ChipThemeData chipThemeData(ChipThemeData base, Color accentColor, Color onAccent) {
+  static ChipThemeData chipThemeData(
+    ChipThemeData base,
+    Color accentColor,
+    Color onAccent,
+    ViroPalette palette,
+  ) {
     return base.copyWith(
-      backgroundColor: ViroColors.gray50,
+      backgroundColor: palette.surfaceSubtle,
       selectedColor: accentColor,
       secondarySelectedColor: accentColor,
       checkmarkColor: onAccent,
-      disabledColor: ViroColors.gray100,
+      disabledColor: palette.surfaceMuted,
       labelStyle: base.labelStyle?.copyWith(
-        color: ViroColors.gray900,
+        color: palette.textPrimary,
         fontWeight: FontWeight.w600,
       ),
       secondaryLabelStyle: base.secondaryLabelStyle?.copyWith(
@@ -56,18 +66,29 @@ class ClubAccentTheme extends StatelessWidget {
           return BorderSide(color: accentColor);
         }
         if (states.contains(WidgetState.disabled)) {
-          return const BorderSide(color: ViroColors.gray200);
+          return BorderSide(color: palette.border);
         }
-        return const BorderSide(color: ViroColors.gray200);
+        return BorderSide(color: palette.border);
       }),
     );
   }
 
-  /// Construit un [ThemeData] avec la couleur de marque club.
-  static ThemeData themeData(ThemeData base, Color accentColor) {
-    final onAccent = accentColor.computeLuminance() > 0.55
-        ? ViroColors.gray900
+  /// Texte / icône posé sur [accent] : encre sombre si l'accent est clair,
+  /// blanc sinon. En sombre, le seuil est plus bas car les accents club sont
+  /// éclaircis ([ViroPalette.readableAccent]) ; le rendu clair est inchangé.
+  static Color onAccentFor(Color accent, ViroPalette palette) {
+    final threshold = palette.isDark ? 0.35 : 0.55;
+    return accent.computeLuminance() > threshold
+        ? ViroColors.inkOnVivid
         : ViroColors.white;
+  }
+
+  /// Construit un [ThemeData] avec la couleur de marque club.
+  static ThemeData themeData(ThemeData base, Color brandColor) {
+    final palette = base.extension<ViroPalette>() ?? ViroPalette.light;
+    // En sombre, une couleur club trop foncée est éclaircie pour rester lisible.
+    final accentColor = palette.readableAccent(brandColor);
+    final onAccent = onAccentFor(accentColor, palette);
     final accentDark = Color.lerp(accentColor, Colors.black, 0.18)!;
     final textTheme = base.textTheme;
 
@@ -142,12 +163,12 @@ class ClubAccentTheme extends StatelessWidget {
           if (states.contains(WidgetState.focused)) {
             return baseStyle.copyWith(color: accentColor);
           }
-          return baseStyle.copyWith(color: ViroColors.gray600);
+          return baseStyle.copyWith(color: palette.textSecondary);
         }),
       ),
-      chipTheme: chipThemeData(base.chipTheme, accentColor, onAccent),
+      chipTheme: chipThemeData(base.chipTheme, accentColor, onAccent, palette),
       segmentedButtonTheme: SegmentedButtonThemeData(
-        style: segmentedButtonStyle(accentColor, onAccent),
+        style: segmentedButtonStyle(accentColor, onAccent, palette),
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
@@ -163,7 +184,7 @@ class ClubAccentTheme extends StatelessWidget {
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return accentColor;
-          return ViroColors.gray400;
+          return palette.textMuted;
         }),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -176,7 +197,7 @@ class ClubAccentTheme extends StatelessWidget {
         ),
       ),
       bottomSheetTheme: base.bottomSheetTheme.copyWith(
-        modalBackgroundColor: ViroColors.surfaceCard,
+        modalBackgroundColor: palette.surfaceCard,
       ),
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(foregroundColor: accentColor),

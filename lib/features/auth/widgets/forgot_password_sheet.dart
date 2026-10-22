@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -17,7 +17,7 @@ Future<bool?> showForgotPasswordSheet(
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: ViroColors.surfaceCard,
+    backgroundColor: context.viroPalette.surfaceCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(ViroSpacing.cardRadius),
@@ -93,6 +93,7 @@ class _ForgotPasswordSheetState extends ConsumerState<_ForgotPasswordSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return SafeArea(
@@ -114,7 +115,7 @@ class _ForgotPasswordSheetState extends ConsumerState<_ForgotPasswordSheet> {
                     AppCopy.auth.forgotPasswordTitle,
                     style: theme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: ViroColors.primary800,
+                      color: palette.brandText,
                     ),
                   ),
                 ),
@@ -127,7 +128,7 @@ class _ForgotPasswordSheetState extends ConsumerState<_ForgotPasswordSheet> {
             const SizedBox(height: ViroSpacing.sm),
             Text(
               AppCopy.auth.forgotPasswordHint,
-              style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+              style: theme.bodySmall?.copyWith(color: palette.textSecondary),
             ),
             const SizedBox(height: ViroSpacing.md),
             TextField(

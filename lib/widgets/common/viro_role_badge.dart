@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -181,7 +182,8 @@ class ViroRoleSatelliteBadge extends StatelessWidget {
           colors: [style.start, style.end],
         ),
         shape: BoxShape.circle,
-        border: Border.all(color: ViroColors.white, width: 2),
+        // Anneau de découpe : couleur de la carte sous l'avatar.
+        border: Border.all(color: context.viroPalette.surfaceCard, width: 2),
         boxShadow: [
           BoxShadow(
             color: style.end.withValues(alpha: 0.4),

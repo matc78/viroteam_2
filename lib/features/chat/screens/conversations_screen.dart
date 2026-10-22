@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -96,6 +96,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final uid = ref.watch(authStateProvider).value?.uid;
     final inboxAsync = ref.watch(chatInboxProvider);
     final states = ref.watch(chatStatesProvider).value ?? const {};
@@ -130,8 +131,8 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                   circular: true,
                   icon: ViroIcons.megaphone,
                   tooltip: AppCopy.chat.createCategoryChannel,
-                  backgroundColor: ViroColors.gray100,
-                  foregroundColor: ViroColors.primary800,
+                  backgroundColor: palette.surfaceMuted,
+                  foregroundColor: palette.brandText,
                   onPressed: () => _createCategoryChannel(context, ref),
                 ),
               ),
@@ -143,8 +144,8 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                 circular: true,
                 icon: ViroIcons.add,
                 tooltip: AppCopy.chat.newConversation,
-                backgroundColor: ViroColors.primary600,
-                foregroundColor: ViroColors.white,
+                backgroundColor: palette.accentFill,
+                foregroundColor: palette.onAccent,
                 onPressed: () => showNewConversationSheet(context, ref),
               ),
             ),
@@ -209,10 +210,10 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                             hintText: AppCopy.chat.searchConversationsHint,
                             prefixIcon: ViroIcon(
                               ViroIcons.search,
-                              color: ViroColors.gray400,
+                              color: palette.textMuted,
                             ),
                             filled: true,
-                            fillColor: ViroColors.gray100,
+                            fillColor: palette.surfaceMuted,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(999),
                               borderSide: BorderSide.none,
@@ -321,9 +322,9 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          ViroColors.white.withValues(alpha: 0),
-                          ViroColors.white.withValues(alpha: 0.55),
-                          ViroColors.white.withValues(alpha: 0.85),
+                          palette.background.withValues(alpha: 0),
+                          palette.background.withValues(alpha: 0.55),
+                          palette.background.withValues(alpha: 0.85),
                         ],
                         stops: const [0.0, 0.55, 1.0],
                       ),

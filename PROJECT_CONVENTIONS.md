@@ -30,12 +30,29 @@ Règles Cursor : [`.cursor/rules/`](.cursor/rules/) (`coding-standards`, `reuse-
 
 ## 2. Thème & harmonisation visuelle
 
-Référence technique : `lib/config/viro_theme.dart`, `viro_colors.dart`, `viro_motion.dart`, `viro_icons.dart`.
+Référence technique : `lib/config/viro_theme.dart`, `viro_palette.dart`, `viro_colors.dart`, `viro_motion.dart`, `viro_icons.dart`.
+
+### Clair / sombre (obligatoire)
+
+- L’app a deux thèmes : `ViroTheme.light` et `ViroTheme.dark`, chacun avec sa `ViroPalette` (`ThemeExtension`). L’utilisateur choisit Système / Clair / Sombre dans Paramètres > Apparence (`themeModeProvider`, persisté sur l’appareil).
+- Couleurs neutres et de marque → **`context.viroPalette`** : `background`, `surfaceCard`, `surfaceSubtle`, `textPrimary`, `textSecondary`, `textMuted`, `border`, `brandText`, `accent`, `accentFill` (fond de bouton plein), `accentSoft`…
+- **Interdit** dans `lib/features`, `lib/widgets`, `lib/screens` : `ViroColors.gray*`, `primary*`, `surface*`, `scaffold*` (resteraient clairs en sombre). Garde-fou : `test/theme_palette_usage_test.dart`.
+- Restent des constantes `ViroColors` (identiques dans les deux modes) : `sport*`, `success` / `warning` / `error` (texte : `palette.errorText`…), dégradés des badges de rôle, `white` posé sur un fond vif.
+- Couleur de marque club en texte ou icône → `palette.readableAccent(color)` (éclaircie si trop foncée en sombre).
+
+```dart
+// ✅ Bon
+final palette = context.viroPalette;
+Text(label, style: textTheme.bodySmall?.copyWith(color: palette.textSecondary));
+
+// ❌ Mauvais — reste gris foncé sur fond sombre
+Text(label, style: textTheme.bodySmall?.copyWith(color: ViroColors.gray600));
+```
 
 ### Structure d’écran (obligatoire)
 
 - **Toujours** `ViroScaffold` + `ViroAppBar` — **jamais** `Scaffold` / `AppBar` Material bruts sur un écran métier.
-- Fond : blanc + formes décoratives colorées (cercles bleu clair / sport, déjà dans `ViroScaffold`, accord portail web).
+- Fond : `palette.background` (blanc en clair, bleu nuit en sombre) + formes décoratives colorées (cercles bleu clair / sport, déjà dans `ViroScaffold`, accord portail web).
 - **Interdit** : bandeau / AppBar / header en **bleu opaque plein** (`primary800` en fond d’écran ou d’AppBar).
 
 ```dart
@@ -56,10 +73,10 @@ Scaffold(
 
 | Usage | Comment |
 |--------|---------|
-| Fond d’écran | Blanc + formes décoratives via `ViroScaffold` |
-| AppBar | `ViroAppBar` transparente (laisse voir le fond), titre `primary800`, icônes `primary600` (thème) |
-| Cartes / listes | `ViroCard`, fond `surfaceCard`, bordure `primary100` légère |
-| Bleu fort (`primary600`+) | Boutons primaires, liens, accents, badges — **pas** en plein écran |
+| Fond d’écran | `palette.background` + formes décoratives via `ViroScaffold` |
+| AppBar | `ViroAppBar` transparente (laisse voir le fond), titre `palette.brandText`, icônes `palette.accent` (thème) |
+| Cartes / listes | `ViroCard`, fond `palette.surfaceCard`, bordure `palette.cardBorder` légère |
+| Bleu fort (`palette.accent` / `accentFill`) | Boutons primaires, liens, accents, badges — **pas** en plein écran |
 | Badges rôles | `ViroRoleBadge` (dégradés vifs, texte blanc) |
 
 ### Composants UI à réutiliser
@@ -78,7 +95,7 @@ Scaffold(
 ### Motion & ombres
 
 - Durées et courbes → **`ViroMotion`** uniquement.
-- Ombres cartes → `ViroMotion.cardShadow()` (douce, teintée bleu — pas d’ombre noire dure).
+- Ombres cartes → `ViroMotion.cardShadow(palette)` (douce, teintée bleu en clair — pas d’ombre noire dure ; plus dense et neutre en sombre).
 - Boutons icône, menus, FAB → **`ViroPressable`** ou widgets flottants dédiés.
 - Menus / sheets / dialogs → thème Material (`ViroMotion.elevationMenu`).
 - Transitions d’écran : fade / Cupertino, pas de slides lourds.
@@ -251,3 +268,4 @@ Plus tard :
 | 2026-10 | Retour arrière : `fallbackRoute` sur `ViroScaffold` / `ViroAppBar` pour les écrans ouverts par deep link (pile vide) |
 | 2026-10 | Notifs : rappels J-2 + jour J (J-7 si « Événement important »), ciblés par réponse ; récap du dimanche ; réponses RSVP au staff (coéquipiers en opt-in) ; copy tutoyée avec équipe / jour / heure |
 | 2026-10 | Push au premier plan affichées par l’app (`LocalNotificationService` + `ForegroundPushPolicy`), Android et iOS ; un canal Android par clé de préférence (`PushChannel` ↔ `ANDROID_CHANNEL_IDS`) ; permission demandée via pré-demande, jamais au lancement |
+| 2026-10 | Dark mode app : `ViroPalette` (`ThemeExtension`) via `context.viroPalette`, `ViroTheme.dark`, choix Système / Clair / Sombre persisté localement ; `ViroColors` neutres / primaires interdits hors `lib/config` (garde-fou test) ; portail inchangé |

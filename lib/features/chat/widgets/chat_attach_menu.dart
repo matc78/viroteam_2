@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
@@ -171,6 +172,7 @@ class _PlusButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return ViroPressable(
       onTap: enabled ? onTap : null,
       enabled: enabled,
@@ -186,8 +188,8 @@ class _PlusButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: open
-              ? ViroColors.primary600.withValues(alpha: 0.14)
-              : ViroColors.gray100,
+              ? palette.accent.withValues(alpha: 0.14)
+              : palette.surfaceMuted,
         ),
         child: AnimatedRotation(
           turns: open ? 0.125 : 0,
@@ -196,7 +198,7 @@ class _PlusButton extends StatelessWidget {
           child: ViroIcon(
             ViroIcons.add,
             size: 18,
-            color: open ? ViroColors.primary900 : ViroColors.primary800,
+            color: open ? palette.brandStrong : palette.brandText,
           ),
         ),
       ),
@@ -219,16 +221,17 @@ class _AttachMenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return Material(
       color: Colors.transparent,
       child: Container(
         constraints: const BoxConstraints(minWidth: 164),
         padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: ViroColors.white,
+          color: palette.surfaceCard,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: ViroColors.gray200),
-          boxShadow: ViroMotion.floatingShadow(
+          border: Border.all(color: palette.border),
+          boxShadow: ViroMotion.floatingShadow(palette,
             opacity: 0.1,
             blur: 20,
             y: 8,
@@ -281,6 +284,7 @@ class _AttachMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return ViroPressable(
@@ -309,7 +313,7 @@ class _AttachMenuItem extends StatelessWidget {
             Text(
               label,
               style: theme.labelLarge?.copyWith(
-                color: ViroColors.primary900,
+                color: palette.brandStrong,
                 fontWeight: FontWeight.w600,
                 fontSize: 12.5,
               ),

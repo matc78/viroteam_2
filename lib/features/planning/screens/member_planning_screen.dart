@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -156,7 +156,9 @@ class MemberPlanningScreen extends ConsumerWidget {
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyLarge
-                                  ?.copyWith(color: ViroColors.gray600),
+                                  ?.copyWith(
+                                    color: context.viroPalette.textSecondary,
+                                  ),
                             ),
                           ),
                         ),
@@ -182,14 +184,14 @@ class MemberPlanningScreen extends ConsumerWidget {
                         ViroIcon(
                           ViroIcons.calendar,
                           size: 20,
-                          color: ViroColors.primary800,
+                          color: context.viroPalette.brandText,
                         ),
                         const SizedBox(width: ViroSpacing.sm),
                         Text(
                           AppCopy.planning.next14DaysTitle,
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: ViroColors.primary800,
+                                    color: context.viroPalette.brandText,
                                     fontWeight: FontWeight.w700,
                                   ),
                         ),

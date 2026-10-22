@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -31,8 +31,11 @@ class PortalAdminBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final accent = accentColor ?? ViroColors.primary600;
-    final accentStyle = ClubAccentStyle(accent);
+    final palette = context.viroPalette;
+    final rawAccent = accentColor ?? palette.accent;
+    final accentStyle = ClubAccentStyle(rawAccent);
+    // Texte / icônes en couleur club : éclaircie si trop sombre en mode sombre.
+    final accent = palette.readableAccent(rawAccent);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -69,14 +72,14 @@ class PortalAdminBanner extends StatelessWidget {
                                 : theme.titleSmall)
                             ?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: ViroColors.primary800,
+                          color: palette.brandText,
                         ),
                       ),
                       const SizedBox(height: ViroSpacing.xs),
                       Text(
                         message,
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                           height: 1.4,
                         ),
                       ),
@@ -88,7 +91,7 @@ class PortalAdminBanner extends StatelessWidget {
                     icon: ViroIcon(
                       ViroIcons.close,
                       size: 16,
-                      color: ViroColors.gray400,
+                      color: palette.textMuted,
                     ),
                     onPressed: onDismiss,
                     tooltip: 'Masquer',

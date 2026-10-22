@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -77,6 +77,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
     final fallbackAccent = ref.watch(clubMemberAccentProvider(clubId));
     final previewAccent =
         parseBrandColorHex(previewPrimaryHex) ?? fallbackAccent;
+    final palette = context.viroPalette;
 
     return ClubAccentTheme(
       accentColor: previewAccent,
@@ -138,7 +139,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                     AppCopy.club.logoSection,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: brandColors.primary,
+                          color: palette.readableAccent(brandColors.primary),
                         ),
                   ),
                   const SizedBox(height: ViroSpacing.sm),
@@ -173,7 +174,8 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                                   .textTheme
                                   .labelLarge
                                   ?.copyWith(
-                                    color: brandColors.primary,
+                                    color: palette
+                                        .readableAccent(brandColors.primary),
                                     fontWeight: FontWeight.w600,
                                   ),
                             ),
@@ -193,14 +195,14 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                     AppCopy.club.clubColorSection,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: brandColors.primary,
+                          color: palette.readableAccent(brandColors.primary),
                         ),
                   ),
                   const SizedBox(height: ViroSpacing.xs),
                   Text(
                     AppCopy.club.clubColorHelper,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                         ),
                   ),
                   const SizedBox(height: ViroSpacing.md),
@@ -243,8 +245,8 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
                               colors: [
-                                ViroColors.white.withValues(alpha: 0),
-                                ViroColors.white,
+                                palette.background.withValues(alpha: 0),
+                                palette.background,
                               ],
                             ),
                           ),
@@ -252,7 +254,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
                       ),
                     ),
                     ColoredBox(
-                      color: ViroColors.white,
+                      color: palette.background,
                       child: SafeArea(
                         top: false,
                         child: Padding(

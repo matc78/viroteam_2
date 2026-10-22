@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
@@ -16,6 +17,7 @@ class ClubAudienceSwitcher extends ConsumerWidget {
     final targetsAsync = ref.watch(clubFamilyTargetsProvider(clubId));
     final selected = ref.watch(selectedClubAudienceProvider(clubId));
     final accent = ref.watch(clubMemberAccentProvider(clubId));
+    final palette = context.viroPalette;
 
     return targetsAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -47,14 +49,14 @@ class ClubAudienceSwitcher extends ConsumerWidget {
                   labelStyle: TextStyle(
                     color: selected?.memberId == target.memberId
                         ? ViroColors.white
-                        : accent,
+                        : palette.readableAccent(accent),
                     fontWeight: FontWeight.w600,
                   ),
-                  backgroundColor: ViroColors.gray50,
+                  backgroundColor: palette.surfaceSubtle,
                   side: BorderSide(
                     color: selected?.memberId == target.memberId
                         ? accent
-                        : ViroColors.gray200,
+                        : palette.border,
                   ),
                   showCheckmark: false,
                 ),

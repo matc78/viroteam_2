@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -137,7 +138,9 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final accent = ClubSetupUi.stepAccent(ClubSetupSteps.practiceLocations);
+    final palette = context.viroPalette;
+    final accent =
+        ClubSetupUi.stepAccent(ClubSetupSteps.practiceLocations, palette);
     final categories = PracticeLocationCategories.forSport(widget.sport);
     final hasLocations = widget.locations.isNotEmpty;
     final canSubmit = _canSubmit;
@@ -163,7 +166,7 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                   AppCopy.clubSetup.newLocation,
                   style: theme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: ViroColors.primary800,
+                    color: palette.brandText,
                   ),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
@@ -182,7 +185,7 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                   AppCopy.clubSetup.locationTypeLabel,
                   style: theme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: ViroColors.gray600,
+                    color: palette.textSecondary,
                   ),
                 ),
                 const SizedBox(height: ViroSpacing.xs),
@@ -208,10 +211,10 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                           decoration: BoxDecoration(
                             color: selected
                                 ? accent.withValues(alpha: 0.14)
-                                : ViroColors.surfaceCard,
+                                : palette.surfaceCard,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: selected ? accent : ViroColors.primary100,
+                              color: selected ? accent : palette.accentSoft,
                               width: selected ? 2 : 1,
                             ),
                           ),
@@ -219,7 +222,7 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
                           child: Text(
                             PracticeLocationCategories.label(category),
                             style: theme.labelSmall?.copyWith(
-                              color: selected ? accent : ViroColors.gray600,
+                              color: selected ? accent : palette.textSecondary,
                               fontWeight: selected
                                   ? FontWeight.w700
                                   : FontWeight.w500,
@@ -294,7 +297,7 @@ class _PracticeLocationsStepState extends State<PracticeLocationsStep> {
               AppCopy.clubSetup.locationsAdded,
               style: theme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: ViroColors.primary800,
+                color: palette.brandText,
               ),
             ),
             const SizedBox(height: ViroSpacing.xs),
@@ -333,6 +336,7 @@ class _LocationChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final categoryLabel = location.category == null
         ? null
         : PracticeLocationCategories.label(
@@ -396,7 +400,7 @@ class _LocationChip extends StatelessWidget {
                             nameLabel,
                             softWrap: true,
                             style: theme.labelSmall?.copyWith(
-                              color: ViroColors.primary800,
+                              color: palette.brandText,
                               fontWeight: FontWeight.w700,
                               height: 1.25,
                             ),
@@ -407,7 +411,7 @@ class _LocationChip extends StatelessWidget {
                               details,
                               softWrap: true,
                               style: theme.labelSmall?.copyWith(
-                                color: ViroColors.gray600,
+                                color: palette.textSecondary,
                                 fontWeight: FontWeight.w500,
                                 height: 1.25,
                               ),

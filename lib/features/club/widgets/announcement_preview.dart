@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/announcements/widgets/announcement_message_sheet.dart';
@@ -21,6 +21,9 @@ class AnnouncementPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
+    final readableAccent =
+        accentColor != null ? palette.readableAccent(accentColor!) : null;
     final accentStyle =
         accentColor != null ? ClubAccentStyle(accentColor!) : null;
 
@@ -37,7 +40,7 @@ class AnnouncementPreview extends StatelessWidget {
           Row(
             children: [
               if (accentColor != null) ...[
-                ViroIcon(ViroIcons.bell, size: 16, color: accentColor),
+                ViroIcon(ViroIcons.bell, size: 16, color: readableAccent),
                 const SizedBox(width: ViroSpacing.xs),
               ],
               Expanded(
@@ -45,13 +48,13 @@ class AnnouncementPreview extends StatelessWidget {
                   announcement.authorName,
                   style: theme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: accentColor ?? ViroColors.primary800,
+                    color: readableAccent ?? palette.brandText,
                   ),
                 ),
               ),
               Text(
                 formatRelativeDate(announcement.createdAt),
-                style: theme.bodySmall?.copyWith(color: ViroColors.gray400),
+                style: theme.bodySmall?.copyWith(color: palette.textMuted),
               ),
             ],
           ),

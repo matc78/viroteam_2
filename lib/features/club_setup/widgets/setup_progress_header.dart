@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
 
@@ -20,7 +20,8 @@ class SetupProgressHeader extends StatelessWidget implements PreferredSizeWidget
   @override
   Widget build(BuildContext context) {
     final progress = (currentStep + 1) / totalSteps;
-    final activeColor = ClubSetupUi.stepAccent(currentStep);
+    final palette = context.viroPalette;
+    final activeColor = ClubSetupUi.stepAccent(currentStep, palette);
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: progress),
@@ -30,7 +31,7 @@ class SetupProgressHeader extends StatelessWidget implements PreferredSizeWidget
         return LinearProgressIndicator(
           value: value,
           minHeight: 3,
-          backgroundColor: ViroColors.primary50,
+          backgroundColor: palette.accentSofter,
           color: activeColor,
         );
       },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -67,6 +68,7 @@ class ConversationListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final unread = _effectiveUnreadCount(
       conversation: conversation,
       state: state,
@@ -83,7 +85,7 @@ class ConversationListTile extends StatelessWidget {
     final isChannel = conversation.isReadonlyForMembers;
     final showSenderInPreview = isGroup && firstName.isNotEmpty && !hasUnread;
     final previewColor =
-        hasUnread ? ViroColors.gray600 : ViroColors.gray400;
+        hasUnread ? palette.textSecondary : palette.textMuted;
     final previewStyle = theme.bodySmall?.copyWith(
       color: previewColor,
       fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
@@ -126,6 +128,7 @@ class ConversationListTile extends StatelessWidget {
                   color: clubColor,
                   groupBackground: colorForConversationGroupAvatarTone(
                     conversation.groupAvatarTone,
+                    palette: palette,
                   ),
                   isGroup: isGroup,
                   isChannel: isChannel,
@@ -162,7 +165,7 @@ class ConversationListTile extends StatelessWidget {
                                 fontWeight: hasUnread
                                     ? FontWeight.w800
                                     : FontWeight.w700,
-                                color: ViroColors.primary800,
+                                color: palette.brandText,
                               ),
                             ),
                           ),
@@ -171,7 +174,7 @@ class ConversationListTile extends StatelessWidget {
                             Text(
                               formatChatInboxTimestamp(timestamp),
                               style: theme.labelSmall?.copyWith(
-                                color: ViroColors.gray400,
+                                color: palette.textMuted,
                                 fontWeight: hasUnread
                                     ? FontWeight.w600
                                     : FontWeight.w400,
@@ -203,7 +206,7 @@ class ConversationListTile extends StatelessWidget {
                             ViroIcon(
                               ViroIcons.mute,
                               size: 12,
-                              color: ViroColors.primary600,
+                              color: palette.accent,
                             ),
                           ],
                         ],
@@ -282,11 +285,11 @@ class ConversationListTile extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Divider(
+          Divider(
             height: 1,
             thickness: 1,
             indent: ViroSpacing.screenHorizontal + _kAvatarSize + ViroSpacing.md,
-            color: ViroColors.gray200,
+            color: palette.border,
           ),
       ],
     );
@@ -331,8 +334,8 @@ class _PreviewArrow extends StatelessWidget {
       width: 16,
       height: 16,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        color: ViroColors.gray100,
+      decoration: BoxDecoration(
+        color: context.viroPalette.surfaceMuted,
         shape: BoxShape.circle,
       ),
       child: ViroIcon(
@@ -404,7 +407,7 @@ class _ConversationAvatar extends StatelessWidget {
       child = ViroIcon(ViroIcons.groups, size: 20, color: foreground);
     } else if (hasDmPhoto) {
       background = Colors.transparent;
-      foreground = color;
+      foreground = context.viroPalette.readableAccent(color);
       child = ClipOval(
         child: Image.network(
           trimmedPhoto,
@@ -419,8 +422,8 @@ class _ConversationAvatar extends StatelessWidget {
         ),
       );
     } else {
-      background = Color.lerp(Colors.white, color, 0.35)!;
-      foreground = color;
+      background = Color.lerp(context.viroPalette.surfaceCard, color, 0.35)!;
+      foreground = context.viroPalette.readableAccent(color);
       child = Text(
         initial,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -477,7 +480,8 @@ class _DmInitial extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = Color.lerp(Colors.white, color, 0.35)!;
+    final palette = context.viroPalette;
+    final background = Color.lerp(palette.surfaceCard, color, 0.35)!;
     return Container(
       width: size,
       height: size,
@@ -486,7 +490,7 @@ class _DmInitial extends StatelessWidget {
       child: Text(
         initial,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: color,
+              color: palette.readableAccent(color),
               fontWeight: FontWeight.w800,
             ),
       ),
@@ -502,19 +506,20 @@ class _UnreadBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return Container(
       constraints: const BoxConstraints(minWidth: 20),
       margin: const EdgeInsets.only(top: 2),
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: const BoxDecoration(
-        color: ViroColors.primary600,
-        borderRadius: BorderRadius.all(Radius.circular(10)),
+      decoration: BoxDecoration(
+        color: palette.accentFill,
+        borderRadius: const BorderRadius.all(Radius.circular(10)),
       ),
       child: Text(
         count > 99 ? '99+' : '$count',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: ViroColors.white,
+              color: palette.onAccent,
               fontWeight: FontWeight.w800,
               fontSize: 10,
             ),

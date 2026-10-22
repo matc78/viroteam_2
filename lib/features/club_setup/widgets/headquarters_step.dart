@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
@@ -25,7 +26,10 @@ class HeadquartersStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = ClubSetupUi.stepAccent(ClubSetupSteps.headquarters);
+    final accent = ClubSetupUi.stepAccent(
+      ClubSetupSteps.headquarters,
+      context.viroPalette,
+    );
 
     return SetupStepShell(
       centerBody: true,

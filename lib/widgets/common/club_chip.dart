@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
 /// Pastille nom de club (couleur de marque).
@@ -23,7 +24,7 @@ class ClubChip extends StatelessWidget {
   Widget build(BuildContext context) {
     if (filled) {
       final onBrand =
-          color.computeLuminance() > 0.45 ? ViroColors.primary900 : ViroColors.white;
+          color.computeLuminance() > 0.45 ? ViroColors.brandInkOnVivid : ViroColors.white;
       return Container(
         constraints: const BoxConstraints(maxWidth: 160),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -44,20 +45,27 @@ class ClubChip extends StatelessWidget {
       );
     }
 
+    final palette = context.viroPalette;
+    // En sombre : couleur ravivée + bordure plus franche, sinon une marque
+    // foncée se fond dans la carte.
+    final readable = palette.readableAccent(color);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: ViroSpacing.sm,
         vertical: ViroSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: readable.withValues(alpha: palette.isDark ? 0.12 : 0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        border: Border.all(
+          color: readable.withValues(alpha: palette.isDark ? 0.7 : 0.4),
+        ),
+        boxShadow: palette.neonBoxGlow(readable, blur: 8),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
+              color: readable,
               fontWeight: FontWeight.w600,
             ),
       ),

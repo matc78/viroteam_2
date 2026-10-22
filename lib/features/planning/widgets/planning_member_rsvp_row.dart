@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart';
@@ -48,7 +48,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: theme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: ViroColors.primary800,
+                    color: context.viroPalette.brandText,
                   ),
                 ),
                 if (isTeamCoach || !member.hasLinkedAccount) ...[
@@ -67,7 +67,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
                         Text(
                           AppCopy.planning.notRegisteredYet,
                           style: theme.bodySmall?.copyWith(
-                            color: ViroColors.gray600,
+                            color: context.viroPalette.textSecondary,
                           ),
                         ),
                     ],

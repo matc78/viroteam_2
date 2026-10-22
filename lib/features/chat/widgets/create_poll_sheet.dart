@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -21,7 +21,7 @@ Future<bool> showCreatePollSheet(
   final sent = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: ViroColors.scaffold,
+    backgroundColor: context.viroPalette.surfaceCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
@@ -122,6 +122,7 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -140,7 +141,7 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
             children: [
               Row(
                 children: [
-                  ViroIcon(ViroIcons.poll, color: ViroColors.primary600),
+                  ViroIcon(ViroIcons.poll, color: palette.accent),
                   const SizedBox(width: ViroSpacing.xs),
                   Expanded(
                     child: Text(
@@ -182,7 +183,7 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
                           onPressed: () => _removeOption(i),
                           icon: ViroIcon(
                             ViroIcons.trash,
-                            color: ViroColors.gray400,
+                            color: palette.textMuted,
                           ),
                         ),
                     ],
@@ -191,7 +192,7 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
               if (_optionControllers.length < 12)
                 TextButton.icon(
                   onPressed: _addOption,
-                  icon: ViroIcon(ViroIcons.add, color: ViroColors.primary600),
+                  icon: ViroIcon(ViroIcons.add, color: palette.accent),
                   label: Text(AppCopy.chat.pollAddOption),
                 ),
               SwitchListTile(

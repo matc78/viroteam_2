@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 
 /// Échelle typo Inter — docs/specs/viroteam_v2_design_system_final.md
 ///
@@ -7,8 +7,9 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 abstract final class ViroTypography {
   static const String _fontFamily = 'Inter';
 
-  /// Thème texte Inter appliqué sur le [TextTheme] de base Material.
-  static TextTheme textTheme(TextTheme base) {
+  /// Thème texte Inter appliqué sur le [TextTheme] de base Material, coloré
+  /// selon [palette] (clair ou sombre).
+  static TextTheme textTheme(TextTheme base, ViroPalette palette) {
     TextStyle withInter(TextStyle? style) =>
         (style ?? const TextStyle()).copyWith(fontFamily: _fontFamily);
 
@@ -17,59 +18,59 @@ abstract final class ViroTypography {
         fontSize: 32,
         fontWeight: FontWeight.w600,
         height: 1.2,
-        color: ViroColors.gray900,
+        color: palette.textPrimary,
       ),
       headlineMedium: withInter(base.headlineMedium).copyWith(
         fontSize: 24,
         fontWeight: FontWeight.w600,
         height: 1.2,
-        color: ViroColors.gray900,
+        color: palette.textPrimary,
       ),
       titleMedium: withInter(base.titleMedium).copyWith(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         height: 1.3,
-        color: ViroColors.gray900,
+        color: palette.textPrimary,
       ),
       bodyLarge: withInter(base.bodyLarge).copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         height: 1.5,
-        color: ViroColors.gray900,
+        color: palette.textPrimary,
       ),
       bodyMedium: withInter(base.bodyMedium).copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         height: 1.5,
-        color: ViroColors.gray600,
+        color: palette.textSecondary,
       ),
       bodySmall: withInter(base.bodySmall).copyWith(
         fontSize: 12,
         fontWeight: FontWeight.w400,
         height: 1.4,
-        color: ViroColors.gray400,
+        color: palette.textMuted,
       ),
       labelLarge: withInter(base.labelLarge).copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         height: 1.5,
-        color: ViroColors.gray600,
+        color: palette.textSecondary,
       ),
       labelSmall: withInter(base.labelSmall).copyWith(
         fontSize: 12,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.6,
-        color: ViroColors.gray600,
+        color: palette.textSecondary,
       ),
     );
   }
 
   /// Style des en-têtes de section (labels uppercase discrets).
-  static TextStyle get sectionHeader => const TextStyle(
+  static TextStyle sectionHeader(ViroPalette palette) => TextStyle(
         fontFamily: _fontFamily,
         fontSize: 12,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.6,
-        color: ViroColors.gray600,
+        color: palette.textSecondary,
       );
 }

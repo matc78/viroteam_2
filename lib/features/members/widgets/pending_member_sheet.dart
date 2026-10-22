@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -304,6 +304,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context);
     final titleColor = theme.appBarTheme.foregroundColor;
     final accent = theme.colorScheme.primary;
@@ -333,7 +334,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
             Text(
               AppCopy.members.pendingIdentityHint,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: ViroColors.gray600,
+                color: palette.textSecondary,
               ),
             ),
             const SizedBox(height: ViroSpacing.lg),
@@ -405,14 +406,14 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
                               Text(
                                 AppCopy.members.parentAccess,
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: ViroColors.gray600,
+                                  color: palette.textSecondary,
                                 ),
                               ),
                               if (_parentSubtitle() != null)
                                 Text(
                                   _parentSubtitle()!,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: ViroColors.gray600,
+                                    color: palette.textSecondary,
                                   ),
                                 ),
                             ],
@@ -434,7 +435,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               Text(
                 _error!,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: ViroColors.error,
+                  color: palette.errorText,
                 ),
               ),
             ],
@@ -469,7 +470,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               Text(
                 AppCopy.members.saveToEnableEmailSend,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: ViroColors.gray600,
+                  color: palette.textSecondary,
                 ),
               ),
             ],

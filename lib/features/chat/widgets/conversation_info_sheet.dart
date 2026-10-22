@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -56,6 +57,7 @@ Future<void> showConversationInfoSheet({
   VoidCallback? onChangeAvatar,
   void Function(String imageUrl)? onOpenImage,
 }) {
+  final palette = context.viroPalette;
   final participantMembers = <ClubMember>[];
   final seen = <String>{};
   for (final uid in conversation.participantUids) {
@@ -99,7 +101,7 @@ Future<void> showConversationInfoSheet({
                   child: Text(
                     AppCopy.chat.conversationInfo,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: ViroColors.primary800,
+                          color: palette.brandText,
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -113,6 +115,7 @@ Future<void> showConversationInfoSheet({
                         isChannel: conversation.isReadonlyForMembers,
                         groupBackground: colorForConversationGroupAvatarTone(
                           conversation.groupAvatarTone,
+                          palette: palette,
                         ),
                         canEdit: canEditAvatar,
                         onTap: hasGroupPhoto || canEditAvatar
@@ -141,7 +144,7 @@ Future<void> showConversationInfoSheet({
                 ListTile(
                   leading: ViroIcon(
                     favorite ? ViroIcons.favoriteFill : ViroIcons.favorite,
-                    color: ViroColors.primary600,
+                    color: palette.accent,
                   ),
                   title: Text(
                     favorite
@@ -156,7 +159,7 @@ Future<void> showConversationInfoSheet({
                 ListTile(
                   leading: ViroIcon(
                     muted ? ViroIcons.bell : ViroIcons.mute,
-                    color: ViroColors.primary600,
+                    color: palette.accent,
                   ),
                   title: Text(
                     muted ? AppCopy.chat.unmute : AppCopy.chat.mute,
@@ -169,7 +172,7 @@ Future<void> showConversationInfoSheet({
                 ListTile(
                   leading: ViroIcon(
                     ViroIcons.edit,
-                    color: ViroColors.primary600,
+                    color: palette.accent,
                   ),
                   title: Text(AppCopy.chat.renameConversation),
                   onTap: () {
@@ -181,7 +184,7 @@ Future<void> showConversationInfoSheet({
                   ListTile(
                     leading: ViroIcon(
                       ViroIcons.camera,
-                      color: ViroColors.primary600,
+                      color: palette.accent,
                     ),
                     title: Text(AppCopy.chat.changeGroupAvatar),
                     onTap: () {
@@ -200,7 +203,7 @@ Future<void> showConversationInfoSheet({
                   child: Text(
                     '${AppCopy.chat.conversationMembers} (${conversation.participantUids.length})',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: ViroColors.primary800,
+                          color: palette.brandText,
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -219,7 +222,7 @@ Future<void> showConversationInfoSheet({
                     child: Text(
                       AppCopy.chat.pollUnknownVoter,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: ViroColors.gray600,
+                            color: palette.textSecondary,
                           ),
                     ),
                   ),
@@ -234,7 +237,7 @@ Future<void> showConversationInfoSheet({
                   child: Text(
                     AppCopy.chat.conversationMedia,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: ViroColors.primary800,
+                          color: palette.brandText,
                           fontWeight: FontWeight.w700,
                         ),
                   ),
@@ -250,7 +253,7 @@ Future<void> showConversationInfoSheet({
                     child: Text(
                       AppCopy.chat.noConversationMedia,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: ViroColors.gray600,
+                            color: palette.textSecondary,
                           ),
                     ),
                   )
@@ -292,13 +295,13 @@ Future<void> showConversationInfoSheet({
                     ListTile(
                       leading: ViroIcon(
                         ViroIcons.attachment,
-                        color: ViroColors.primary600,
+                        color: palette.accent,
                       ),
                       title: Text(
                         link,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: ViroColors.primary600),
+                        style: TextStyle(color: palette.accent),
                       ),
                     ),
                   const SizedBox(height: ViroSpacing.md),
@@ -332,6 +335,7 @@ class _GroupInfoAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final trimmed = photoUrl?.trim();
     final hasPhoto = trimmed != null && trimmed.isNotEmpty;
     final Widget child;
@@ -372,14 +376,14 @@ class _GroupInfoAvatar extends StatelessWidget {
                 width: 28,
                 height: 28,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: ViroColors.primary600,
+                decoration: BoxDecoration(
+                  color: palette.accentFill,
                   shape: BoxShape.circle,
                 ),
                 child: ViroIcon(
                   ViroIcons.camera,
                   size: 14,
-                  color: ViroColors.white,
+                  color: palette.onAccent,
                 ),
               ),
           ],

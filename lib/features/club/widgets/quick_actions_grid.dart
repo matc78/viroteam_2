@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -70,6 +70,7 @@ class _QuickActionCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final radius = BorderRadius.circular(ViroSpacing.cardRadius);
     final labelStyle = Theme.of(context).textTheme.labelLarge?.copyWith(
           fontWeight: FontWeight.w600,
@@ -77,9 +78,11 @@ class _QuickActionCell extends StatelessWidget {
     final accentStyle = accentColor != null
         ? ClubAccentStyle(accentColor!)
         : null;
-    final iconColor = accentColor ?? ViroColors.primary600;
+    final iconColor = accentColor != null
+        ? palette.readableAccent(accentColor!)
+        : palette.accent;
     final borderColor = accentStyle?.border ??
-        ViroColors.primary100.withValues(alpha: 0.45);
+        palette.accentSoft.withValues(alpha: 0.45);
     final labelColor = iconColor;
 
     return ViroPressable(
@@ -87,10 +90,10 @@ class _QuickActionCell extends StatelessWidget {
       borderRadius: radius,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: ViroColors.surfaceCard,
+          color: palette.surfaceCard,
           borderRadius: radius,
           border: Border.all(color: borderColor),
-          boxShadow: ViroMotion.cardShadow(),
+          boxShadow: ViroMotion.cardShadow(palette),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(

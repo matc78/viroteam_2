@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
@@ -66,6 +67,7 @@ class AddEventLocationSection extends StatelessWidget {
             style: ClubAccentTheme.segmentedButtonStyle(
               accentColor,
               onAccentColor,
+              context.viroPalette,
             ),
             segments: [
               ButtonSegment(
@@ -108,8 +110,10 @@ class AddEventLocationSection extends StatelessWidget {
             isExpanded: true,
             style: dropdownStyle,
             menuMaxHeight: 240,
-            decoration:
-                addEventInputDecoration(label: AppCopy.planning.fieldLocation),
+            decoration: addEventInputDecoration(
+              palette: context.viroPalette,
+              label: AppCopy.planning.fieldLocation,
+            ),
             selectedItemBuilder: (context) => [
               for (final location in practiceLocations)
                 Text(
@@ -140,8 +144,10 @@ class AddEventLocationSection extends StatelessWidget {
           ),
           TextField(
             controller: locationController,
-            decoration:
-                addEventInputDecoration(hint: AppCopy.planning.locationHint),
+            decoration: addEventInputDecoration(
+              palette: context.viroPalette,
+              hint: AppCopy.planning.locationHint,
+            ),
             enabled: enabled,
           ),
           const SizedBox(height: ViroSpacing.md),

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -265,6 +266,9 @@ class _FeeContent extends ConsumerWidget {
     final deadline = season.paymentDeadlineAt;
     final club = ref.watch(clubProvider(clubId)).value;
     final accent = ref.watch(clubMemberAccentProvider(clubId));
+    final palette = context.viroPalette;
+    // Accent club en texte / icône : éclairci en sombre s'il est trop foncé.
+    final accentText = palette.readableAccent(accent);
     final onlinePaymentEnabled = FeatureFlags.stripePaymentsLive &&
         (club?.onlinePaymentEnabled ?? false);
     final canPay = display == MemberFeeDisplayStatus.aPayer ||
@@ -281,7 +285,7 @@ class _FeeContent extends ConsumerWidget {
             season.seasonLabel,
             style: theme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
-              color: ViroColors.gray600,
+              color: palette.textSecondary,
             ),
           ),
         const SizedBox(height: ViroSpacing.md),
@@ -313,7 +317,7 @@ class _FeeContent extends ConsumerWidget {
                   textAlign: TextAlign.center,
                   style: theme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: ViroColors.success,
+                    color: palette.successText,
                   ),
                 ),
                 if (fee.paidAt != null) ...[
@@ -321,7 +325,7 @@ class _FeeContent extends ConsumerWidget {
                   Text(
                     AppCopy.fees.confirmedOn(DateFormat.yMMMMd('fr_FR').format(fee.paidAt!)),
                     style: theme.bodyMedium?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],
@@ -329,7 +333,7 @@ class _FeeContent extends ConsumerWidget {
                   const SizedBox(height: ViroSpacing.xs),
                   Text(
                     AppCopy.fees.paidViaStripe,
-                    style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                    style: theme.bodySmall?.copyWith(color: palette.textSecondary),
                   ),
                 ],
                 if (fee.paidVia == FeePaidVia.inApp ||
@@ -337,7 +341,7 @@ class _FeeContent extends ConsumerWidget {
                   const SizedBox(height: ViroSpacing.xs),
                   Text(
                     AppCopy.fees.paidViaHelloAsso,
-                    style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                    style: theme.bodySmall?.copyWith(color: palette.textSecondary),
                   ),
                 ],
                 if (fee.paidVia == FeePaidVia.offline) ...[
@@ -345,7 +349,7 @@ class _FeeContent extends ConsumerWidget {
                   Text(
                     '${AppCopy.fees.paidOffline}'
                     '${fee.offlineMethod != null ? ' (${FeePaymentMethods.label(fee.offlineMethod!)})' : ''}',
-                    style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                    style: theme.bodySmall?.copyWith(color: palette.textSecondary),
                   ),
                 ],
                 if (amount > 0) ...[
@@ -365,7 +369,7 @@ class _FeeContent extends ConsumerWidget {
                       if (uri == null) return;
                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                     },
-                    icon: ViroIcon(ViroIcons.share, color: accent),
+                    icon: ViroIcon(ViroIcons.share, color: accentText),
                     label: Text(AppCopy.fees.downloadAttestation),
                   ),
                 ],
@@ -391,7 +395,7 @@ class _FeeContent extends ConsumerWidget {
                     formatFeeAmountCents(amount),
                     style: theme.displaySmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: accent,
+                      color: accentText,
                     ),
                   ),
                 ),
@@ -413,7 +417,7 @@ class _FeeContent extends ConsumerWidget {
                       ].join(' · '),
                       textAlign: TextAlign.center,
                       style: theme.bodyMedium?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                   ),
@@ -424,7 +428,7 @@ class _FeeContent extends ConsumerWidget {
                     child: Text(
                       AppCopy.fees.categoryLabel(tier.label),
                       style: theme.bodyLarge?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                   ),
@@ -454,8 +458,8 @@ class _FeeContent extends ConsumerWidget {
                                 : AppCopy.fees.aidProof,
                         style: theme.labelSmall?.copyWith(
                           color: aid.isValidated
-                              ? ViroColors.success
-                              : ViroColors.warning,
+                              ? palette.successText
+                              : palette.warningText,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -470,7 +474,7 @@ class _FeeContent extends ConsumerWidget {
             ViroCard(
               child: Row(
                 children: [
-                  ViroIcon(ViroIcons.calendar, color: accent),
+                  ViroIcon(ViroIcons.calendar, color: accentText),
                   const SizedBox(width: ViroSpacing.sm),
                   Expanded(
                     child: Column(
@@ -479,7 +483,7 @@ class _FeeContent extends ConsumerWidget {
                         Text(
                           AppCopy.fees.deadlineLabel,
                           style: theme.labelMedium?.copyWith(
-                            color: ViroColors.gray600,
+                            color: palette.textSecondary,
                           ),
                         ),
                         Text(
@@ -498,7 +502,7 @@ class _FeeContent extends ConsumerWidget {
             Text(
               AppCopy.fees.noDeadline,
               textAlign: TextAlign.center,
-              style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+              style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
             ),
         ],
 
@@ -539,7 +543,7 @@ class _FeeContent extends ConsumerWidget {
                         Text(
                           AppCopy.fees.iban,
                           style: theme.labelMedium?.copyWith(
-                            color: ViroColors.gray600,
+                            color: palette.textSecondary,
                           ),
                         ),
                         const SizedBox(height: ViroSpacing.xs),
@@ -554,7 +558,7 @@ class _FeeContent extends ConsumerWidget {
                     ),
                   ),
                   IconButton(
-                    icon: ViroIcon(ViroIcons.copy, color: accent),
+                    icon: ViroIcon(ViroIcons.copy, color: accentText),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: season.iban!));
                       ViroSnackBar.show(context, AppCopy.fees.ibanCopied);
@@ -579,7 +583,7 @@ class _FeeContent extends ConsumerWidget {
                 for (final method in season.paymentMethods)
                   Chip(
                     label: Text(FeePaymentMethods.label(method)),
-                    backgroundColor: ViroColors.primary50,
+                    backgroundColor: palette.accentSofter,
                   ),
               ],
             ),
@@ -598,7 +602,7 @@ class _FeeContent extends ConsumerWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ViroIcon(ViroIcons.bell, color: accent, size: 20),
+              ViroIcon(ViroIcons.bell, color: accentText, size: 20),
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: Text(
@@ -606,7 +610,7 @@ class _FeeContent extends ConsumerWidget {
                       ? AppCopy.fees.stripeAvailableAbove
                       : AppCopy.fees.stripeComingSoonFollowClub,
                   style: theme.bodySmall?.copyWith(
-                    color: ViroColors.gray600,
+                    color: palette.textSecondary,
                     height: 1.4,
                   ),
                 ),
@@ -638,7 +642,7 @@ class _WarningCard extends StatelessWidget {
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: ViroColors.error,
+                color: context.viroPalette.errorText,
                 height: 1.35,
               ),
         ),

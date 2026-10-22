@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 
@@ -49,9 +49,9 @@ class _ViroLogoLoaderState extends State<ViroLogoLoader>
           SizedBox(
             width: size,
             height: size,
-            child: const CircularProgressIndicator(
+            child: CircularProgressIndicator(
               strokeWidth: 2.5,
-              color: ViroColors.primary600,
+              color: context.viroPalette.accent,
             ),
           ),
           ScaleTransition(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -33,6 +34,7 @@ class ParentListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final isPending = parent.status == GuardianStatuses.pending;
 
     return Padding(
@@ -51,8 +53,8 @@ class ParentListTile extends StatelessWidget {
                     parent.displayName.isNotEmpty
                         ? parent.displayName[0].toUpperCase()
                         : '?',
-                    style: const TextStyle(
-                      color: ViroColors.primary800,
+                    style: TextStyle(
+                      color: palette.brandText,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -72,7 +74,7 @@ class ParentListTile extends StatelessWidget {
                         Text(
                           parent.email!,
                           style: theme.bodySmall?.copyWith(
-                            color: ViroColors.gray600,
+                            color: palette.textSecondary,
                           ),
                         ),
                       Text(
@@ -80,15 +82,15 @@ class ParentListTile extends StatelessWidget {
                           parent.children.map((c) => c.displayName).join(', '),
                         ),
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                         ),
                       ),
                       Text(
                         statusLabel,
                         style: theme.bodySmall?.copyWith(
                           color: parent.isActive
-                              ? ViroColors.success
-                              : ViroColors.gray600,
+                              ? palette.successText
+                              : palette.textSecondary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

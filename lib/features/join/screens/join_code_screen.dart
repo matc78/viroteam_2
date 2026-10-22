@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -73,6 +74,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
   Widget build(BuildContext context) {
     final pending = ref.watch(pendingInvitationProvider);
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return ViroScaffold(
       appBar: ViroAppBar(
@@ -109,7 +111,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
               Text(
                 AppCopy.join.enterCodeTitle,
                 style: theme.headlineSmall?.copyWith(
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                   fontWeight: FontWeight.w800,
                 ),
                 textAlign: TextAlign.center,
@@ -117,7 +119,7 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
               const SizedBox(height: ViroSpacing.sm),
               Text(
                 AppCopy.join.enterCodeSubtitle,
-                style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+                style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: ViroSpacing.xl),
@@ -129,24 +131,24 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
                 style: theme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   letterSpacing: 4,
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                 ),
                 decoration: InputDecoration(
                   hintText: AppCopy.join.codeHint,
                   hintStyle: theme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     letterSpacing: 4,
-                    color: ViroColors.gray200,
+                    color: palette.border,
                   ),
                   filled: true,
-                  fillColor: ViroColors.primary50.withValues(alpha: 0.5),
+                  fillColor: palette.accentSofter.withValues(alpha: 0.5),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
-                    borderSide: BorderSide(color: ViroColors.primary100),
+                    borderSide: BorderSide(color: palette.accentSoft),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
-                    borderSide: BorderSide(color: ViroColors.primary100),
+                    borderSide: BorderSide(color: palette.accentSoft),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
@@ -222,6 +224,7 @@ class _HelpChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: ViroSpacing.md,
@@ -239,7 +242,7 @@ class _HelpChip extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: ViroColors.gray600,
+                  color: palette.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
           ),

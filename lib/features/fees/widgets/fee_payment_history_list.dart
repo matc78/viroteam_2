@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/fees/models/fee_payment_event.dart';
@@ -54,7 +54,7 @@ class FeePaymentHistoryList extends ConsumerWidget {
               Text(
                 AppCopy.fees.paymentHistoryTitle,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: ViroColors.primary800,
+                      color: context.viroPalette.brandText,
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -64,7 +64,7 @@ class FeePaymentHistoryList extends ConsumerWidget {
               Text(
                 AppCopy.fees.paymentHistoryEmpty,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
+                      color: context.viroPalette.textSecondary,
                     ),
               )
             else
@@ -100,7 +100,7 @@ class _EventTile extends StatelessWidget {
                       event.title,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: ViroColors.primary800,
+                            color: context.viroPalette.brandText,
                           ),
                     ),
                   ),
@@ -108,7 +108,7 @@ class _EventTile extends StatelessWidget {
                   Text(
                     FeePaymentHistoryList._dateFormat.format(event.createdAt),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: context.viroPalette.textSecondary,
                         ),
                   ),
                 ],
@@ -118,7 +118,7 @@ class _EventTile extends StatelessWidget {
                 Text(
                   detail,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: context.viroPalette.textSecondary,
                       ),
                 ),
               ],
@@ -160,7 +160,7 @@ Future<void> showFeePaymentHistorySheet({
                   AppCopy.fees.paymentHistoryTitle,
                   style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: ViroColors.primary800,
+                        color: sheetContext.viroPalette.brandText,
                       ),
                 ),
                 if (memberDisplayName != null &&
@@ -169,7 +169,7 @@ Future<void> showFeePaymentHistorySheet({
                   Text(
                     memberDisplayName,
                     style: Theme.of(sheetContext).textTheme.bodyMedium?.copyWith(
-                          color: ViroColors.gray600,
+                          color: sheetContext.viroPalette.textSecondary,
                         ),
                   ),
                 ],

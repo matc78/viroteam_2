@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
@@ -56,6 +57,8 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
+    final accentText = palette.readableAccent(widget.accent);
     final team = widget.team;
     final theme = Theme.of(context).textTheme;
     final club = widget.club;
@@ -101,13 +104,13 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                     : null,
             child: hasAvatar || useClubLogo
                 ? null
-                : ViroIcon(ViroIcons.users, color: widget.accent),
+                : ViroIcon(ViroIcons.users, color: accentText),
           ),
           title: Text(
             team.name,
             style: theme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
-              color: widget.accent,
+              color: accentText,
             ),
           ),
           subtitle: Padding(
@@ -121,7 +124,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
               child: Text(
                 team.categoryLabel,
                 style: theme.labelSmall?.copyWith(
-                  color: widget.accent,
+                  color: accentText,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -176,7 +179,11 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                     ),
                   )
                 else if (_pending != null && _pending!.isNotEmpty) ...[
-                  _sectionHeader(context, AppCopy.teams.pendingSection, ViroColors.gray600),
+                  _sectionHeader(
+                    context,
+                    AppCopy.teams.pendingSection,
+                    palette.textSecondary,
+                  ),
                   ..._pending!.map(
                     (p) => MemberListTile(
                       member: pendingAsClubMember(p),
@@ -229,7 +236,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
       child: Text(
         title.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
+              color: context.viroPalette.readableAccent(color),
               fontWeight: FontWeight.w800,
               letterSpacing: 1.1,
             ),

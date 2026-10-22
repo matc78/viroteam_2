@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 
 final _urlPattern = RegExp(
   r'''(?:https?:\/\/|www\.)[^\s<]+[^\s<.,;:!?)\]}'"]''',
@@ -126,11 +126,15 @@ Future<void> _launchHref(String href) async {
 }
 
 /// Construit les [InlineSpan] linkifiés pour une bulle texte.
+///
+/// [palette] colore le lien par défaut (si [linkStyle] est absent) : passer
+/// `context.viroPalette` pour suivre le thème clair / sombre.
 List<InlineSpan> linkifyInlineSpans(
   String text, {
   TextStyle? style,
   TextStyle? linkStyle,
   List<TapGestureRecognizer>? recognizers,
+  required ViroPalette palette,
 }) {
   final segments = segmentMessageText(text);
   if (segments.isEmpty) {
@@ -138,9 +142,9 @@ List<InlineSpan> linkifyInlineSpans(
   }
   final resolvedLinkStyle = linkStyle ??
       (style ?? const TextStyle()).copyWith(
-        color: ViroColors.primary600,
+        color: palette.accent,
         decoration: TextDecoration.underline,
-        decorationColor: ViroColors.primary600,
+        decorationColor: palette.accent,
       );
   final spans = <InlineSpan>[];
   for (final segment in segments) {

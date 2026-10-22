@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -20,7 +20,7 @@ Future<void> showOpenAddressSheet(
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    backgroundColor: ViroColors.surfaceCard,
+    backgroundColor: context.viroPalette.surfaceCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(ViroSpacing.cardRadius),
@@ -57,6 +57,7 @@ class _OpenAddressSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return SafeArea(
       child: Padding(
@@ -74,14 +75,14 @@ class _OpenAddressSheet extends StatelessWidget {
               AppCopy.club.openAddressTitle,
               style: theme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: ViroColors.primary800,
+                color: palette.brandText,
               ),
             ),
             const SizedBox(height: ViroSpacing.xs),
             Text(
               address,
               style: theme.bodyMedium?.copyWith(
-                color: ViroColors.gray600,
+                color: palette.textSecondary,
                 height: 1.35,
               ),
             ),
@@ -123,6 +124,7 @@ class _MapsAppTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final accent = Theme.of(context).colorScheme.primary;
 
     return ViroPressable(
@@ -143,14 +145,14 @@ class _MapsAppTile extends StatelessWidget {
                 label,
                 style: theme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                 ),
               ),
             ),
             ViroIcon(
               ViroIcons.chevronRight,
               size: 18,
-              color: ViroColors.gray400,
+              color: palette.textMuted,
             ),
           ],
         ),

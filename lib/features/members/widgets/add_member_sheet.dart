@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -173,6 +174,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
   }
 
   Widget _buildForm(ThemeData theme, Color titleColor) {
+    final palette = context.viroPalette;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -239,11 +241,11 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
                       },
                 showCheckmark: false,
                 selectedColor: ViroColors.playerBadgeStart,
-                backgroundColor: ViroColors.gray50,
+                backgroundColor: palette.surfaceSubtle,
                 side: BorderSide(
                   color: _role == MemberRoles.player
                       ? ViroColors.playerBadgeStart
-                      : ViroColors.gray200,
+                      : palette.border,
                 ),
                 labelStyle: TextStyle(
                   fontWeight: FontWeight.w700,
@@ -267,11 +269,11 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
                       },
                 showCheckmark: false,
                 selectedColor: ViroColors.coachBadgeStart,
-                backgroundColor: ViroColors.gray50,
+                backgroundColor: palette.surfaceSubtle,
                 side: BorderSide(
                   color: _role == MemberRoles.coach
                       ? ViroColors.coachBadgeStart
-                      : ViroColors.gray200,
+                      : palette.border,
                 ),
                 labelStyle: TextStyle(
                   fontWeight: FontWeight.w700,
@@ -287,7 +289,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           const SizedBox(height: ViroSpacing.md),
           Text(
             _error!,
-            style: theme.textTheme.bodySmall?.copyWith(color: ViroColors.error),
+            style: theme.textTheme.bodySmall?.copyWith(color: palette.errorText),
           ),
         ],
         const SizedBox(height: ViroSpacing.lg),
@@ -315,6 +317,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
   }
 
   Widget _buildSuccess(ThemeData theme, Color titleColor, Color accent) {
+    final palette = context.viroPalette;
     final hasEmail = _member.email?.trim().isNotEmpty ?? false;
 
     return Column(
@@ -332,7 +335,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
         Text(
           AppCopy.members.memberAddedShareCode(_member.displayName),
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: ViroColors.gray600,
+            color: palette.textSecondary,
           ),
         ),
         const SizedBox(height: ViroSpacing.md),
@@ -374,6 +377,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context);
     final titleColor = theme.appBarTheme.foregroundColor;
     final accent = theme.colorScheme.primary;
@@ -386,8 +390,8 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + ViroSpacing.lg,
       ),
       child: _created == null
-          ? _buildForm(theme, titleColor ?? ViroColors.primary800)
-          : _buildSuccess(theme, titleColor ?? ViroColors.primary800, accent),
+          ? _buildForm(theme, titleColor ?? palette.brandText)
+          : _buildSuccess(theme, titleColor ?? palette.brandText, accent),
     );
   }
 }

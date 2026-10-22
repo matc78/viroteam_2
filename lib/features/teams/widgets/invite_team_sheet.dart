@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -143,6 +143,7 @@ class _InviteTeamSheetState extends ConsumerState<InviteTeamSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final invite = _invite;
     final dateLabel = invite == null
@@ -167,7 +168,7 @@ class _InviteTeamSheetState extends ConsumerState<InviteTeamSheet> {
           const SizedBox(height: ViroSpacing.xs),
           Text(
             AppCopy.join.inviteTeamSubtitle,
-            style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+            style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
           ),
           const SizedBox(height: ViroSpacing.lg),
           if (_loading)
@@ -198,7 +199,7 @@ class _InviteTeamSheetState extends ConsumerState<InviteTeamSheet> {
             Text(
               AppCopy.join.teamInviteExpires(dateLabel),
               textAlign: TextAlign.center,
-              style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+              style: theme.bodySmall?.copyWith(color: palette.textSecondary),
             ),
             const SizedBox(height: ViroSpacing.lg),
             ViroPrimaryButton(

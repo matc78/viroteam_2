@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_calendar_range.dart';
@@ -37,7 +38,7 @@ class PlanningMonthGrid extends StatelessWidget {
     ];
     final weekdayFormat = DateFormat('EEEEE', 'fr_FR');
     final labelStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
-      color: ViroColors.gray600,
+      color: context.viroPalette.textSecondary,
       fontWeight: FontWeight.w700,
     );
 
@@ -71,7 +72,7 @@ class PlanningMonthGrid extends StatelessWidget {
                       inMonth: day.month == month.month,
                       isSelected: DateUtils.isSameDay(day, selectedDay),
                       events: eventsByDay[day] ?? const [],
-                      accentColor: accentColor ?? ViroColors.primary600,
+                      accentColor: accentColor ?? context.viroPalette.accentFill,
                       onTap: () => onDaySelected(day),
                     ),
                   ),
@@ -107,15 +108,16 @@ class _MonthDayCell extends StatelessWidget {
     final isPast = day.isBefore(today);
     final eventTypes = events.map((e) => e.type).toSet().take(3).toList();
 
+    final palette = context.viroPalette;
     final Color numberColor;
     if (isSelected) {
       numberColor = ViroColors.white;
     } else if (!inMonth) {
-      numberColor = ViroColors.gray300;
+      numberColor = palette.borderStrong;
     } else if (isPast) {
-      numberColor = ViroColors.gray400;
+      numberColor = palette.textMuted;
     } else {
-      numberColor = ViroColors.primary800;
+      numberColor = palette.brandText;
     }
 
     return Semantics(
@@ -168,8 +170,9 @@ class _MonthDayCell extends StatelessWidget {
                         margin: const EdgeInsets.symmetric(horizontal: 1),
                         decoration: BoxDecoration(
                           color: inMonth
-                              ? eventDotColor(type)
-                              : eventDotColor(type).withValues(alpha: 0.4),
+                              ? eventDotColor(type, palette)
+                              : eventDotColor(type, palette)
+                                  .withValues(alpha: 0.4),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -192,7 +195,7 @@ class PlanningEventTypeLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = Theme.of(
       context,
-    ).textTheme.labelSmall?.copyWith(color: ViroColors.gray600);
+    ).textTheme.labelSmall?.copyWith(color: context.viroPalette.textSecondary);
     final entries = [
       (EventTypes.match, AppCopy.planning.typeMatch),
       (EventTypes.training, AppCopy.planning.typeTraining),
@@ -214,7 +217,7 @@ class PlanningEventTypeLegend extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: eventDotColor(type),
+                  color: eventDotColor(type, context.viroPalette),
                   shape: BoxShape.circle,
                 ),
               ),

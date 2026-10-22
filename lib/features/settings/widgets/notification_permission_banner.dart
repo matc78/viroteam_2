@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
@@ -14,6 +15,7 @@ class NotificationPermissionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return ViroCard(
@@ -34,14 +36,14 @@ class NotificationPermissionBanner extends StatelessWidget {
                       AppCopy.notifications.systemDisabledTitle,
                       style: theme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: ViroColors.gray900,
+                        color: palette.textPrimary,
                       ),
                     ),
                     const SizedBox(height: ViroSpacing.xs),
                     Text(
                       AppCopy.notifications.systemDisabledBody,
                       style: theme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                   ],

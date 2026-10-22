@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -91,13 +92,18 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final conv = conversation;
     final groupBackground = conv != null
-        ? colorForConversationGroupAvatarTone(conv.groupAvatarTone)
+        ? colorForConversationGroupAvatarTone(
+            conv.groupAvatarTone,
+            palette: palette,
+          )
         : colorForConversationGroupAvatarTone(
             isChannel
                 ? ConversationGroupAvatarTone.channel
                 : ConversationGroupAvatarTone.group,
+            palette: palette,
           );
 
     return ViroAppBar(
@@ -110,11 +116,11 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                 hintText: AppCopy.chat.searchMessagesHint,
                 border: InputBorder.none,
                 hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: ViroColors.gray400,
+                      color: palette.textMuted,
                     ),
               ),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: ViroColors.primary800,
+                    color: palette.brandText,
                   ),
             )
           : Row(
@@ -157,20 +163,20 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
               : AppCopy.chat.searchMessagesHint,
           icon: ViroIcon(
             searchOpen ? ViroIcons.close : ViroIcons.search,
-            color: ViroColors.primary600,
+            color: palette.accent,
           ),
           onPressed: onToggleSearch,
         ),
         if (!searchOpen && conversation != null)
           IconButton(
             tooltip: AppCopy.chat.conversationInfo,
-            icon: ViroIcon(ViroIcons.info, color: ViroColors.primary600),
+            icon: ViroIcon(ViroIcons.info, color: palette.accent),
             onPressed: () => _openInfo(context),
           ),
         if (isAdminOnly)
           IconButton(
             tooltip: AppCopy.chat.makeAnnouncement,
-            icon: ViroIcon(ViroIcons.megaphone, color: ViroColors.primary600),
+            icon: ViroIcon(ViroIcons.megaphone, color: palette.accent),
             onPressed: () => context.push(
               AppRoutes.clubAnnouncementsPath(clubId),
             ),
@@ -179,7 +185,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
           PopupMenuButton<String>(
             icon: ViroIcon(
               ViroIcons.moreVertical,
-              color: ViroColors.primary600,
+              color: palette.accent,
             ),
             onSelected: (value) {
               switch (value) {
@@ -208,7 +214,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ViroIcon(
                         ViroIcons.info,
                         size: 20,
-                        color: ViroColors.primary600,
+                        color: palette.accent,
                       ),
                       const SizedBox(width: ViroSpacing.sm),
                       Text(AppCopy.chat.conversationInfo),
@@ -222,7 +228,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ViroIcon(
                         ViroIcons.edit,
                         size: 20,
-                        color: ViroColors.primary600,
+                        color: palette.accent,
                       ),
                       const SizedBox(width: ViroSpacing.sm),
                       Text(AppCopy.chat.renameConversation),
@@ -237,7 +243,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                         ViroIcon(
                           ViroIcons.camera,
                           size: 20,
-                          color: ViroColors.primary600,
+                          color: palette.accent,
                         ),
                         const SizedBox(width: ViroSpacing.sm),
                         Text(AppCopy.chat.changeGroupAvatar),
@@ -253,7 +259,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                             ? ViroIcons.favoriteFill
                             : ViroIcons.favorite,
                         size: 20,
-                        color: ViroColors.primary600,
+                        color: palette.accent,
                       ),
                       const SizedBox(width: ViroSpacing.sm),
                       Text(
@@ -271,7 +277,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ViroIcon(
                         isMuted ? ViroIcons.bell : ViroIcons.mute,
                         size: 20,
-                        color: ViroColors.primary600,
+                        color: palette.accent,
                       ),
                       const SizedBox(width: ViroSpacing.sm),
                       Text(
@@ -430,7 +436,8 @@ class _ThreadInitialAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = Color.lerp(Colors.white, color, 0.35)!;
+    final palette = context.viroPalette;
+    final tint = Color.lerp(palette.surfaceCard, color, 0.35)!;
     return Container(
       width: size,
       height: size,
@@ -442,7 +449,7 @@ class _ThreadInitialAvatar extends StatelessWidget {
       child: Text(
         initial,
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: color,
+              color: palette.readableAccent(color),
               fontWeight: FontWeight.w800,
               fontSize: size * 0.4,
             ),

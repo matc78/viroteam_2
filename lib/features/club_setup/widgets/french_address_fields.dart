@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -303,6 +303,7 @@ class _AddressSuggestionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final radius = BorderRadius.circular(ViroSpacing.cardRadius);
     // Bordure / ombre sur le Container ; fond sur Material pour ink ListTile.
     return Container(
@@ -311,10 +312,10 @@ class _AddressSuggestionPanel extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: radius,
         border: Border.all(color: accent.withValues(alpha: 0.45)),
-        boxShadow: ViroMotion.cardShadow(elevated: false),
+        boxShadow: ViroMotion.cardShadow(palette, elevated: false),
       ),
       child: Material(
-        color: ViroColors.surfaceCard,
+        color: palette.surfaceCard,
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
         child: Column(

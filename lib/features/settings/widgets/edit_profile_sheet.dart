@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
@@ -18,7 +18,7 @@ Future<bool?> showEditProfileSheet(
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: ViroColors.surfaceCard,
+    backgroundColor: context.viroPalette.surfaceCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(ViroSpacing.cardRadius),
@@ -111,6 +111,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return SafeArea(
@@ -132,7 +133,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
                     AppCopy.settings.editProfileTitle,
                     style: theme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: ViroColors.primary800,
+                      color: palette.brandText,
                     ),
                   ),
                 ),

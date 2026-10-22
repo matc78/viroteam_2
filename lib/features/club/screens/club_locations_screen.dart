@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -171,6 +172,8 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
     final clubAsync = ref.watch(clubProvider(clubId));
     final member = ref.watch(clubMemberProvider(clubId)).value;
     final accent = ref.watch(clubManagementAccentProvider(clubId));
+    final palette = context.viroPalette;
+    final readableAccent = palette.readableAccent(accent);
 
     if (member != null && member.role != MemberRoles.admin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -210,14 +213,14 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                   AppCopy.club.locationsRegisteredTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: accent,
+                        color: readableAccent,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
                   AppCopy.club.locationsRegisteredHelper,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
@@ -244,7 +247,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: ViroSpacing.sm,
                           ),
-                          leading: ViroIcon(ViroIcons.place, color: accent),
+                          leading: ViroIcon(ViroIcons.place, color: readableAccent),
                           title: Text(
                             locations[i].name,
                             style: const TextStyle(fontWeight: FontWeight.w600),
@@ -270,7 +273,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                   AppCopy.club.addLocationSectionTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: accent,
+                        color: readableAccent,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
@@ -296,7 +299,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                         AppCopy.club.locationTypeLabel,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: ViroColors.gray600,
+                              color: palette.textSecondary,
                             ),
                       ),
                       const SizedBox(height: ViroSpacing.xs),
@@ -323,12 +326,12 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                                 decoration: BoxDecoration(
                                   color: selected
                                       ? accent.withValues(alpha: 0.14)
-                                      : ViroColors.surfaceCard,
+                                      : palette.surfaceCard,
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
                                     color: selected
                                         ? accent
-                                        : ViroColors.primary100,
+                                        : palette.accentSoft,
                                   ),
                                 ),
                                 alignment: Alignment.center,
@@ -340,8 +343,8 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
                                       ?.copyWith(
                                         fontWeight: FontWeight.w600,
                                         color: selected
-                                            ? accent
-                                            : ViroColors.primary800,
+                                            ? readableAccent
+                                            : palette.brandText,
                                       ),
                                 ),
                               ),

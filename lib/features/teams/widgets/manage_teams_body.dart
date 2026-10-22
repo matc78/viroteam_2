@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -55,6 +55,7 @@ class ManageTeamsBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.viroPalette;
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
     final clubAsync = ref.watch(clubProvider(clubId));
     final memberAsync = ref.watch(clubMemberProvider(clubId));
@@ -106,7 +107,7 @@ class ManageTeamsBody extends ConsumerWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyLarge
-                                    ?.copyWith(color: ViroColors.gray600),
+                                    ?.copyWith(color: palette.textSecondary),
                               ),
                             ],
                           ),

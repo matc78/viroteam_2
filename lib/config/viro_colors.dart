@@ -55,4 +55,25 @@ abstract final class ViroColors {
 
   static const Color roleBadgeText = white;
   static const Color roleBadgeIconBg = Color(0x33FFFFFF);
+
+  /// Voile derrière une photo plein écran (identique en clair et en sombre).
+  static const Color mediaScrim = primary900;
+
+  // Boutons de connexion tiers — chartes Google / Apple (variantes claire et
+  // sombre imposées par les marques, hors palette ViroTeam).
+  static const Color googleLightFill = white;
+  static const Color googleLightBorder = gray200;
+  static const Color googleLightText = gray900;
+  static const Color googleDarkFill = Color(0xFF131314);
+  static const Color googleDarkBorder = Color(0xFF8E918F);
+  static const Color googleDarkText = Color(0xFFE3E3E3);
+  static const Color appleLightModeFill = gray900;
+  static const Color appleLightModeText = white;
+  static const Color appleDarkModeFill = white;
+  static const Color appleDarkModeText = Color(0xFF000000);
+
+  /// Encre sombre posée sur une couleur vive claire (couleur club, pastille) :
+  /// identique en clair et en sombre puisque le fond ne change pas.
+  static const Color inkOnVivid = gray900;
+  static const Color brandInkOnVivid = primary900;
 }

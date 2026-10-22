@@ -6,8 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/routes.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -221,7 +221,11 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
           onTitleTap: _scrollToTop,
           actions: [
             IconButton(
-              icon: ViroIcon(ViroIcons.settings),
+              icon: ViroIcon(
+                ViroIcons.settings,
+                shadows: context.viroPalette
+                    .neonGlow(context.viroPalette.accent),
+              ),
               onPressed: () => context.push(AppRoutes.userSettings),
             ),
           ],
@@ -352,6 +356,7 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         ViroSpacing.screenHorizontal,
@@ -361,12 +366,12 @@ class _SectionTitle extends StatelessWidget {
       ),
       child: Row(
         children: [
-          ViroIcon(icon, size: 20, color: ViroColors.primary800),
+          ViroIcon(icon, size: 20, color: palette.brandText),
           const SizedBox(width: ViroSpacing.sm),
           Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                   fontWeight: FontWeight.w700,
                 ),
           ),

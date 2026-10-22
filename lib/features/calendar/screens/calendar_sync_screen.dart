@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/calendar/services/calendar_sync_service.dart';
@@ -57,6 +57,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
     final accent = ref.watch(clubMemberAccentProvider(widget.clubId));
     final eventsAsync = ref.watch(clubEventsProvider(widget.clubId));
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return ClubAccentTheme(
       accentColor: accent,
@@ -84,7 +85,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
                 borderColor: ClubAccentStyle(accent).border,
                 child: Text(
                   AppCopy.calendar.intro,
-                  style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
+                  style: theme.bodyLarge?.copyWith(color: palette.textSecondary),
                 ),
               ),
               const SizedBox(height: ViroSpacing.lg),
@@ -131,7 +132,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
                         Text(
                           AppCopy.calendar.noUpcoming,
                           style: theme.bodyMedium
-                              ?.copyWith(color: ViroColors.gray600),
+                              ?.copyWith(color: palette.textSecondary),
                         ),
                       ],
                     ],
@@ -178,7 +179,10 @@ class _ManualStepsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final accent = accentColor ?? ViroColors.primary600;
+    final palette = context.viroPalette;
+    final accent = accentColor != null
+        ? palette.readableAccent(accentColor!)
+        : palette.accent;
     return ViroCard(
       accentColor: accentColor,
       borderColor: accentColor != null

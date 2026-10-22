@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -121,9 +122,12 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final accent = clubAccentColor(
-      brandColorHex: item.brandColorHex,
-      clubId: item.clubId,
+    final palette = context.viroPalette;
+    final accent = palette.readableAccent(
+      clubAccentColor(
+        brandColorHex: item.brandColorHex,
+        clubId: item.clubId,
+      ),
     );
     final isOverdue = item.isOverdue;
     final isDeadlineToday = item.isFeeDeadlineUrgentDay;
@@ -139,13 +143,13 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
     Widget card(Color borderColor) => DecoratedBox(
       decoration: BoxDecoration(
         color: isDeadlineToday
-            ? Color.lerp(ViroColors.white, ViroColors.error, 0.08)
-            : ViroColors.white,
+            ? Color.lerp(palette.surfaceCard, ViroColors.error, 0.08)
+            : palette.surfaceCard,
         borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
         border: Border.all(color: borderColor, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: ViroColors.gray900.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -205,7 +209,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                       Text(
                         AppCopy.fees.feeSeasonTitle(item.season.seasonLabel),
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray400,
+                          color: palette.textMuted,
                         ),
                       ),
                     ],
@@ -216,7 +220,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                           amount,
                           style: theme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: isUrgent ? ViroColors.error : accent,
+                            color: isUrgent ? palette.errorText : accent,
                           ),
                         ),
                         const SizedBox(width: ViroSpacing.xs),
@@ -234,7 +238,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                           Text(
                             AppCopy.fees.toSettle,
                             style: theme.bodyMedium?.copyWith(
-                              color: ViroColors.gray400,
+                              color: palette.textMuted,
                             ),
                           ),
                       ],
@@ -244,7 +248,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
                       Text(
                         AppCopy.fees.beforeDeadline(deadlineText),
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray400,
+                          color: palette.textMuted,
                         ),
                       ),
                     ],
@@ -254,7 +258,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
               const SizedBox(width: ViroSpacing.xs),
               ViroIcon(
                 ViroIcons.chevronRight,
-                color: ViroColors.gray300,
+                color: palette.borderStrong,
                 size: 20,
               ),
             ],

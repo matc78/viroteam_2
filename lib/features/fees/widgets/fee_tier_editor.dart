@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -49,7 +50,8 @@ class FeeTierEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = accentColor ?? ViroColors.primary600;
+    final palette = context.viroPalette;
+    final accent = palette.readableAccent(accentColor ?? palette.accent);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -165,10 +167,11 @@ class _TierCardState extends State<_TierCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: ViroColors.surfaceCard,
+        color: palette.surfaceCard,
         borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
         border: Border.all(
           color: widget.accentColor.withValues(alpha: 0.35),
@@ -255,7 +258,7 @@ class _TierCardState extends State<_TierCard> {
                           Text(
                             '→',
                             style: theme.bodyMedium?.copyWith(
-                              color: ViroColors.gray400,
+                              color: palette.textMuted,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -290,7 +293,7 @@ class _TierCardState extends State<_TierCard> {
                                     ),
                                   ),
                                   style: theme.labelSmall?.copyWith(
-                                    color: ViroColors.gray600,
+                                    color: palette.textSecondary,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -307,7 +310,7 @@ class _TierCardState extends State<_TierCard> {
                             child: ViroIcon(
                               ViroIcons.info,
                               size: 18,
-                              color: ViroColors.gray400,
+                              color: palette.textMuted,
                               semanticLabel: AppCopy.fees.cardFeeInfoTooltip,
                             ),
                           ),

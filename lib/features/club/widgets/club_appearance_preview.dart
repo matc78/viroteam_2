@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/widgets/bicolor_circle.dart';
@@ -26,13 +26,14 @@ class ClubAppearancePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final memberStyle = ClubAccentStyle(brandColors.memberZoneColor);
     final managementStyle =
         ClubAccentStyle(brandColors.managementZoneColor);
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: ViroColors.surfaceCard,
+        color: palette.surfaceCard,
         borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
         border: Border.all(color: memberStyle.border),
       ),
@@ -44,7 +45,7 @@ class ClubAppearancePreview extends StatelessWidget {
             Text(
               AppCopy.club.preview,
               style: theme.labelMedium?.copyWith(
-                color: ViroColors.gray600,
+                color: palette.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -88,7 +89,7 @@ class ClubAppearancePreview extends StatelessWidget {
               Text(
                 AppCopy.club.singleColorAllSections,
                 textAlign: TextAlign.center,
-                style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                style: theme.bodySmall?.copyWith(color: palette.textSecondary),
               ),
             ],
           ],
@@ -116,6 +117,9 @@ class _ZonePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
+    // Même rendu que dans l'app : couleur club lisible sur le fond courant.
+    final readableAccent = palette.readableAccent(accent);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -139,7 +143,7 @@ class _ZonePreview extends StatelessWidget {
               ),
             ),
             const SizedBox(width: ViroSpacing.sm),
-            ViroIcon(icon, size: 20, color: accent),
+            ViroIcon(icon, size: 20, color: readableAccent),
             const SizedBox(width: ViroSpacing.sm),
             Expanded(
               child: Column(
@@ -149,13 +153,13 @@ class _ZonePreview extends StatelessWidget {
                     title,
                     style: theme.labelLarge?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: accent,
+                      color: readableAccent,
                     ),
                   ),
                   Text(
                     subtitle,
                     style: theme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],

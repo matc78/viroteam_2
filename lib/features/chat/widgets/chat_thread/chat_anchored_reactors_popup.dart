@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
@@ -116,14 +116,15 @@ class _ChatAnchoredReactorsPopupState extends State<ChatAnchoredReactorsPopup> {
     // Pas de barrière plein écran : elle bloquait le scroll du fil.
     if (layout == null) return const SizedBox.shrink();
 
+    final palette = context.viroPalette;
     return Positioned(
       left: layout.left,
       top: layout.top,
       width: _popupWidth,
       child: Material(
-        color: ViroColors.white,
+        color: palette.surfaceCard,
         elevation: ViroMotion.elevationMenu,
-        shadowColor: ViroColors.primary900.withValues(alpha: 0.18),
+        shadowColor: palette.shadowTint.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(
@@ -164,11 +165,11 @@ class _ChatAnchoredReactorsPopupState extends State<ChatAnchoredReactorsPopup> {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: ViroColors.gray200),
+                          border: Border.all(color: palette.border),
                         ),
                         child: ViroIcon(
                           ViroIcons.smiley,
-                          color: ViroColors.primary600,
+                          color: palette.accent,
                           size: 20,
                         ),
                       ),
@@ -261,13 +262,14 @@ class _ChatAnchoredReactorsPopupState extends State<ChatAnchoredReactorsPopup> {
     final initial =
         initialSource.isNotEmpty ? initialSource[0].toUpperCase() : '?';
 
+    final palette = context.viroPalette;
     return CircleAvatar(
       radius: 18,
-      backgroundColor: ViroColors.primary100,
+      backgroundColor: palette.accentSoft,
       child: Text(
         initial,
-        style: const TextStyle(
-          color: ViroColors.primary800,
+        style: TextStyle(
+          color: palette.brandText,
           fontWeight: FontWeight.w700,
         ),
       ),

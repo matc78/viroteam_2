@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -25,10 +26,11 @@ class RecapStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final stepAccent = ClubSetupUi.stepAccent(ClubSetupSteps.recap);
+    final palette = context.viroPalette;
+    final stepAccent = ClubSetupUi.stepAccent(ClubSetupSteps.recap, palette);
     final sportAccent = draft.sport.trim().isEmpty
         ? stepAccent
-        : ClubSetupUi.sportAccent(draft.sport);
+        : ClubSetupUi.sportAccent(draft.sport, palette);
     final headquartersLine = ClubSetupFormat.headquartersLine(
       address: draft.address,
       postalCode: draft.postalCode,
@@ -64,7 +66,7 @@ class RecapStep extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: ViroColors.primary800,
+                          color: palette.brandText,
                         ),
                       ),
                       const SizedBox(height: ViroSpacing.xs),
@@ -184,9 +186,7 @@ class _RecapIdentityBody extends StatelessWidget {
         _RecapLabeledValue(
           label: AppCopy.clubSetup.recapLogo,
           value: draft.logoBytes != null ? AppCopy.clubSetup.recapLogoAdded : AppCopy.clubSetup.recapLogoNotAdded,
-          valueColor: draft.logoBytes != null
-              ? ViroColors.sportGreen
-              : ViroColors.gray600,
+          valueColor: draft.logoBytes != null ? ViroColors.sportGreen : null,
         ),
         if (description.isNotEmpty) ...[
           const SizedBox(height: ViroSpacing.xs),
@@ -245,11 +245,12 @@ class _RecapObjectiveChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     if (objectives.isEmpty) {
       return Text(
         AppCopy.clubSetup.noPriority,
-        style: theme.bodySmall?.copyWith(color: ViroColors.gray400),
+        style: theme.bodySmall?.copyWith(color: palette.textMuted),
       );
     }
 
@@ -267,13 +268,13 @@ class _RecapObjectiveChips extends StatelessWidget {
           ...visibleObjectives.map(
             (objectiveKey) => (
               label: ClubObjectives.label(objectiveKey),
-              accent: ClubSetupUi.objectiveAccent(objectiveKey),
+              accent: ClubSetupUi.objectiveAccent(objectiveKey, palette),
             ),
           ),
           if (hiddenCount > 0)
             (
               label: '+$hiddenCount',
-              accent: ViroColors.gray400,
+              accent: palette.textMuted,
             ),
         ];
 
@@ -332,13 +333,14 @@ class _RecapLabeledValue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
           style: theme.labelSmall?.copyWith(
-            color: ViroColors.gray900,
+            color: palette.textPrimary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -346,7 +348,7 @@ class _RecapLabeledValue extends StatelessWidget {
         Text(
           value,
           style: theme.bodySmall?.copyWith(
-            color: valueColor ?? ViroColors.gray600,
+            color: valueColor ?? palette.textSecondary,
             height: 1.35,
             fontWeight: FontWeight.w500,
           ),
@@ -458,7 +460,7 @@ class _RecapPanel extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: ViroColors.primary800,
+                        color: context.viroPalette.brandText,
                       ),
                 ),
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -27,6 +28,7 @@ class EquipmentListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final subtitleParts = <String>[
       item.category,
       '×${item.quantity}',
@@ -56,14 +58,14 @@ class EquipmentListTile extends StatelessWidget {
                       item.name,
                       style: theme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: accentColor,
+                        color: palette.readableAccent(accentColor),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitleParts.join(' · '),
                       style: theme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                     if (item.notes.isNotEmpty)
@@ -72,7 +74,7 @@ class EquipmentListTile extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                         ),
                       ),
                   ],

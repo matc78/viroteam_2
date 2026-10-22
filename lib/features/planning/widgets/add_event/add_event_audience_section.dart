@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_field_label.dart';
@@ -33,7 +33,7 @@ class AddEventAudienceSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final hintStyle = Theme.of(
       context,
-    ).textTheme.bodySmall?.copyWith(color: ViroColors.gray600);
+    ).textTheme.bodySmall?.copyWith(color: context.viroPalette.textSecondary);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

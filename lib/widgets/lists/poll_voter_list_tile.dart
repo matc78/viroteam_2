@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -19,6 +19,7 @@ class PollVoterListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -32,13 +33,13 @@ class PollVoterListTile extends StatelessWidget {
           else
             CircleAvatar(
               radius: 20,
-              backgroundColor: ViroColors.primary100,
+              backgroundColor: palette.accentSoft,
               child: Text(
                 displayName.isNotEmpty
                     ? displayName.substring(0, 1).toUpperCase()
                     : '?',
                 style: theme.titleSmall?.copyWith(
-                  color: ViroColors.primary600,
+                  color: palette.accent,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -50,7 +51,7 @@ class PollVoterListTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.bodyLarge?.copyWith(
-                color: ViroColors.primary800,
+                color: palette.brandText,
                 fontWeight: FontWeight.w500,
               ),
             ),

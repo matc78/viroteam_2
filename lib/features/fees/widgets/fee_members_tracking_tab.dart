@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -119,7 +120,8 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   }
 
   Widget _sectionTitle(BuildContext context, String title) {
-    final accent = accentColor ?? ViroColors.primary800;
+    final palette = context.viroPalette;
+    final accent = palette.readableAccent(accentColor ?? palette.brandText);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         ViroSpacing.screenHorizontal,
@@ -332,7 +334,8 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   ) {
     final needsTier = fee.tierId == null || fee.tierId!.isEmpty;
     final remaining = fee.remainingCents(season);
-    final accent = accentColor ?? ViroColors.primary600;
+    final palette = context.viroPalette;
+    final accent = palette.readableAccent(accentColor ?? palette.accent);
 
     showModalBottomSheet<void>(
       context: context,
@@ -496,7 +499,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                           awaiting: stats.awaiting,
                         ),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: ViroColors.gray600,
+                              color: context.viroPalette.textSecondary,
                             ),
                       ),
                       const SizedBox(height: ViroSpacing.sm),
@@ -509,7 +512,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                                 hintText: AppCopy.fees.searchHint,
                                 prefixIcon: ViroIcon(
                                   ViroIcons.search,
-                                  color: ViroColors.gray600,
+                                  color: context.viroPalette.textSecondary,
                                 ),
                                 isDense: true,
                               ),

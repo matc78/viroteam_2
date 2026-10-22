@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -184,6 +184,7 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final busy = _signingOut || _deleting;
     final errorColor = Theme.of(context).colorScheme.error;
@@ -194,14 +195,14 @@ class _AccountSessionSectionState extends ConsumerState<AccountSessionSection> {
         Text(
           AppCopy.settings.sessionSection,
           style: theme.titleSmall?.copyWith(
-            color: ViroColors.primary800,
+            color: palette.brandText,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: ViroSpacing.xs),
         Text(
           AppCopy.settings.sessionSubtitle,
-          style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+          style: theme.bodySmall?.copyWith(color: palette.textSecondary),
         ),
         const SizedBox(height: ViroSpacing.sm),
         ViroCard(

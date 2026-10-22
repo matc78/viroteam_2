@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
@@ -168,6 +168,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final occupying = _guardian?.hasOccupant == true;
 
@@ -192,7 +193,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
           const SizedBox(height: ViroSpacing.sm),
           Text(
             AppCopy.members.parentSheetHint,
-            style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+            style: theme.bodySmall?.copyWith(color: palette.textSecondary),
           ),
           const SizedBox(height: ViroSpacing.lg),
           if (_loading)
@@ -219,7 +220,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
                 onTap: _copyCode,
                 child: Text(
                   AppCopy.members.inviteCodeLabel(_guardian!.invitationCode!),
-                  style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                  style: theme.bodySmall?.copyWith(color: palette.textSecondary),
                 ),
               ),
             ],
@@ -251,7 +252,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
             const SizedBox(height: ViroSpacing.sm),
             Text(
               _error!,
-              style: theme.bodySmall?.copyWith(color: ViroColors.error),
+              style: theme.bodySmall?.copyWith(color: palette.errorText),
             ),
           ],
         ],

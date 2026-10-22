@@ -23,6 +23,14 @@ final class AppCopySettings {
   String get loadProfileError => 'Impossible de charger le profil';
   String get loadClubsError => 'Impossible de charger les clubs';
 
+  String get appearanceSection => 'Apparence';
+  String get appearanceSubtitle =>
+      'Plutôt jour ou plutôt nocturne ? Choisis le thème de l’app sur cet appareil.';
+  String get themeSystem => 'Comme ton téléphone';
+  String get themeSystemSubtitle => 'Suit le réglage clair / sombre du système';
+  String get themeLight => 'Clair';
+  String get themeDark => 'Sombre';
+
   String get notificationsSection => 'Notifications';
   String get notificationsSubtitle =>
       'Choisis quels rappels tu reçois sur cet appareil.';

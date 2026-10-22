@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_attach_menu.dart';
@@ -39,12 +39,13 @@ class ChatThreadComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (showReplyBar)
           Material(
-            color: ViroColors.primary50,
+            color: palette.accentSofter,
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: ViroSpacing.screenHorizontal,
@@ -60,7 +61,7 @@ class ChatThreadComposer extends StatelessWidget {
                           '${AppCopy.chat.replyTo} $replyToSenderName',
                           style:
                               Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    color: ViroColors.primary600,
+                                    color: palette.accent,
                                     fontWeight: FontWeight.w700,
                                   ),
                         ),
@@ -78,7 +79,7 @@ class ChatThreadComposer extends StatelessWidget {
                     onPressed: onClearReply,
                     icon: ViroIcon(
                       ViroIcons.close,
-                      color: ViroColors.primary600,
+                      color: palette.accent,
                     ),
                   ),
                 ],
@@ -130,7 +131,7 @@ class ChatThreadComposer extends StatelessWidget {
                       decoration: InputDecoration(
                         hintText: AppCopy.chat.messageHint,
                         filled: true,
-                        fillColor: ViroColors.white,
+                        fillColor: palette.surfaceCard,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -148,7 +149,7 @@ class ChatThreadComposer extends StatelessWidget {
                   onPressed: sending ? null : onSend,
                   icon: ViroIcon(
                     ViroIcons.send,
-                    color: ViroColors.primary600,
+                    color: palette.accent,
                   ),
                 ),
               ],

@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -33,10 +33,12 @@ class IdentityStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stepAccent = ClubSetupUi.stepAccent(ClubSetupSteps.identity);
+    final palette = context.viroPalette;
+    final stepAccent =
+        ClubSetupUi.stepAccent(ClubSetupSteps.identity, palette);
     final sportAccent = draft.sport.trim().isEmpty
         ? stepAccent
-        : ClubSetupUi.sportAccent(draft.sport);
+        : ClubSetupUi.sportAccent(draft.sport, palette);
 
     return SetupStepShell(
       centerBody: true,
@@ -84,7 +86,7 @@ class IdentityStep extends StatelessWidget {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                 ),
           ),
           const SizedBox(height: ViroSpacing.xs),
@@ -102,7 +104,7 @@ class IdentityStep extends StatelessWidget {
               itemBuilder: (context, index) {
                 final sport = ClubSports.all[index];
                 final selected = draft.sport == sport;
-                final accent = ClubSetupUi.sportAccent(sport);
+                final accent = ClubSetupUi.sportAccent(sport, palette);
                 return _SportChip(
                   label: '${sportEmoji(sport)} $sport',
                   selected: selected,
@@ -133,6 +135,7 @@ class _SportChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return ViroPressable(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -143,10 +146,10 @@ class _SportChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.14)
-              : ViroColors.surfaceCard,
+              : palette.surfaceCard,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? accent : ViroColors.primary100,
+            color: selected ? accent : palette.accentSoft,
             width: selected ? 2 : 1,
           ),
         ),
@@ -156,7 +159,7 @@ class _SportChip extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: selected ? accent : ViroColors.gray600,
+                color: selected ? accent : palette.textSecondary,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 fontSize: 11,
               ),

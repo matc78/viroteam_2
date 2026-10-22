@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
@@ -78,6 +79,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final team = widget.team;
     final perms = widget.permissions;
     final canAddPlayer = perms.canAddPlayer(team);
@@ -120,13 +122,13 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                 team.name,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: widget.accent,
+                      color: palette.readableAccent(widget.accent),
                     ),
               ),
               subtitle: Text(
                 team.categoryLabel,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
               ),
               children: [
@@ -227,7 +229,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     else if (_pending != null && _pending!.isNotEmpty)
                       _buildRosterSection(
                         title: AppCopy.teams.pendingSection,
-                        titleColor: ViroColors.gray600,
+                        titleColor: palette.textSecondary,
                         canAdd: false,
                         children: _pending!.map(
                           (p) => MemberListTile(
@@ -250,7 +252,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
           if (_busy)
             Positioned.fill(
               child: Container(
-                color: Colors.white.withValues(alpha: 0.6),
+                color: palette.background.withValues(alpha: 0.6),
                 child: const Center(
                   child: SizedBox(
                     width: 28,
@@ -272,6 +274,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     bool canAdd = false,
     VoidCallback? onAdd,
   }) {
+    final palette = context.viroPalette;
     final childList = children.toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -284,7 +287,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                 child: Text(
                   title.toUpperCase(),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: titleColor,
+                        color: palette.readableAccent(titleColor),
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.1,
                       ),
@@ -305,7 +308,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
             child: Text(
               AppCopy.teams.noMembers,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: ViroColors.gray600,
+                    color: palette.textSecondary,
                   ),
             ),
           )

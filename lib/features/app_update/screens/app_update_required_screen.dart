@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/project_config.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -28,6 +28,7 @@ class AppUpdateRequiredScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return PopScope(
@@ -52,7 +53,7 @@ class AppUpdateRequiredScreen extends StatelessWidget {
                       AppCopy.appUpdate.title,
                       textAlign: TextAlign.center,
                       style: theme.headlineSmall?.copyWith(
-                        color: ViroColors.primary800,
+                        color: palette.brandText,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -61,7 +62,7 @@ class AppUpdateRequiredScreen extends StatelessWidget {
                       AppCopy.appUpdate.body,
                       textAlign: TextAlign.center,
                       style: theme.bodyLarge?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                     const SizedBox(height: ViroSpacing.xl),
@@ -80,7 +81,7 @@ class AppUpdateRequiredScreen extends StatelessWidget {
                       ),
                       textAlign: TextAlign.center,
                       style: theme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                   ],

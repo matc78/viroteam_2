@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_bubble_timestamp.dart';
@@ -51,6 +52,7 @@ class ChatMessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final align = mine ? Alignment.centerRight : Alignment.centerLeft;
 
     if (message.isDeleted) {
@@ -62,7 +64,7 @@ class ChatMessageBubble extends StatelessWidget {
             AppCopy.chat.messageDeleted,
             style: theme.bodySmall?.copyWith(
               fontStyle: FontStyle.italic,
-              color: ViroColors.gray400,
+              color: palette.textMuted,
             ),
           ),
         ),
@@ -98,7 +100,7 @@ class ChatMessageBubble extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isSearchMatch
                       ? ViroColors.warning.withValues(alpha: 0.12)
-                      : ViroColors.white,
+                      : palette.surfaceCard,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: borderColor, width: 1.5),
                 ),
@@ -111,7 +113,7 @@ class ChatMessageBubble extends StatelessWidget {
                         child: Text(
                           senderLabel,
                           style: theme.labelSmall?.copyWith(
-                            color: borderColor,
+                            color: palette.readableAccent(borderColor),
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -127,7 +129,7 @@ class ChatMessageBubble extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: ViroColors.primary50,
+                            color: palette.accentSofter,
                             borderRadius: BorderRadius.circular(8),
                             border: Border(
                               left: BorderSide(
@@ -143,7 +145,7 @@ class ChatMessageBubble extends StatelessWidget {
                                 Text(
                                   replySenderLabel,
                                   style: theme.labelSmall?.copyWith(
-                                    color: borderColor,
+                                    color: palette.readableAccent(borderColor),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -152,7 +154,7 @@ class ChatMessageBubble extends StatelessWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.bodySmall?.copyWith(
-                                  color: ViroColors.gray600,
+                                  color: palette.textSecondary,
                                 ),
                               ),
                             ],
@@ -201,7 +203,7 @@ class ChatMessageBubble extends StatelessWidget {
                         highlightQuery: highlightQuery,
                         localStatus: message.localStatus,
                         style: theme.bodyMedium?.copyWith(
-                          color: ViroColors.primary800,
+                          color: palette.brandText,
                         ),
                       ),
                     if (message.isSendFailed && onRetry != null)
@@ -217,7 +219,7 @@ class ChatMessageBubble extends StatelessWidget {
                           child: Text(
                             AppCopy.chat.retrySend,
                             style: theme.labelSmall?.copyWith(
-                              color: ViroColors.error,
+                              color: palette.errorText,
                               fontWeight: FontWeight.w700,
                             ),
                           ),

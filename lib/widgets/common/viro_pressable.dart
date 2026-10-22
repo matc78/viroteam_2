@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
@@ -108,7 +109,7 @@ class _ViroPressableState extends State<ViroPressable>
                 decoration: widget.floating
                     ? BoxDecoration(
                         borderRadius: radius,
-                        boxShadow: ViroMotion.floatingShadow(
+                        boxShadow: ViroMotion.floatingShadow(context.viroPalette,
                           opacity: _controller.value > 0 ? 0.05 : 0.08,
                         ),
                       )

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 
 /// Révèle [reveal] depuis la droite pendant un swipe, puis appelle [onCommit].
@@ -133,7 +134,7 @@ class ViroSwipeToRevealState extends State<ViroSwipeToReveal>
                     ignoring: t < 1,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        boxShadow: ViroMotion.floatingShadow(
+                        boxShadow: ViroMotion.floatingShadow(context.viroPalette,
                           opacity: 0.12 * t,
                           blur: 24,
                           y: 0,

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 
 /// Bouton emoji dans le sélecteur (état sélectionné si ta réaction).
 class ChatReactionPickButton extends StatelessWidget {
@@ -16,6 +16,7 @@ class ChatReactionPickButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: onTap,
@@ -26,10 +27,10 @@ class ChatReactionPickButton extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: selected
-              ? ViroColors.primary400.withValues(alpha: 0.14)
+              ? palette.accentMid.withValues(alpha: 0.14)
               : Colors.transparent,
           border: Border.all(
-            color: selected ? ViroColors.primary400 : Colors.transparent,
+            color: selected ? palette.accentMid : Colors.transparent,
             width: 1.5,
           ),
         ),

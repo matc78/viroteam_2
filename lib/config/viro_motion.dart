@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 
 /// Durées, courbes et élévations — interactions fluides et surfaces flottantes.
 abstract final class ViroMotion {
@@ -26,37 +27,50 @@ abstract final class ViroMotion {
   static const double elevationMenu = 12;
   static const double elevationFab = 10;
 
-  /// Ombre générique (boutons, icônes).
-  static List<BoxShadow> floatingShadow({
+  /// Ombre générique (boutons, icônes), teintée selon [palette] : bleutée en
+  /// clair, plus dense et neutre en sombre.
+  static List<BoxShadow> floatingShadow(
+    ViroPalette palette, {
     double opacity = 0.14,
     double blur = 16,
     double y = 6,
-  }) =>
-      [
-        BoxShadow(
-          color: ViroColors.primary900.withValues(alpha: opacity),
-          blurRadius: blur,
-          offset: Offset(0, y),
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: opacity * 0.35),
-          blurRadius: blur * 0.35,
-          offset: const Offset(0, 2),
-        ),
-      ];
+  }) {
+    final strength = palette.shadowStrength;
+    final tint = palette.isDark ? palette.shadowTint : ViroColors.primary900;
+    return [
+      BoxShadow(
+        color: tint.withValues(alpha: (opacity * strength).clamp(0, 1)),
+        blurRadius: blur,
+        offset: Offset(0, y),
+      ),
+      BoxShadow(
+        color: Colors.black
+            .withValues(alpha: (opacity * 0.35 * strength).clamp(0, 1)),
+        blurRadius: blur * 0.35,
+        offset: const Offset(0, 2),
+      ),
+    ];
+  }
 
-  /// Ombre des cartes — douce, teintée pour fond dégradé.
-  static List<BoxShadow> cardShadow({bool elevated = true}) => [
-        BoxShadow(
-          color: ViroColors.primary600.withValues(alpha: elevated ? 0.08 : 0.04),
-          blurRadius: elevated ? 20 : 12,
-          spreadRadius: -4,
-          offset: Offset(0, elevated ? 8 : 4),
-        ),
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.03),
-          blurRadius: 4,
-          offset: const Offset(0, 1),
-        ),
-      ];
+  /// Ombre des cartes — douce, teintée selon [palette].
+  static List<BoxShadow> cardShadow(
+    ViroPalette palette, {
+    bool elevated = true,
+  }) {
+    final strength = palette.shadowStrength;
+    return [
+      BoxShadow(
+        color: palette.shadowTint
+            .withValues(alpha: (elevated ? 0.08 : 0.04) * strength),
+        blurRadius: elevated ? 20 : 12,
+        spreadRadius: -4,
+        offset: Offset(0, elevated ? 8 : 4),
+      ),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.03 * strength),
+        blurRadius: 4,
+        offset: const Offset(0, 1),
+      ),
+    ];
+  }
 }

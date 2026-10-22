@@ -59,11 +59,16 @@ flutter_launcher_icons:
   remove_alpha_ios: true
 
 flutter_native_splash:
+  # Fond clair / sombre alignés sur ViroPalette (background / dark.background).
   color: "#FFFFFF"
+  color_dark: "#0B1220"
   background_image: assets/branding/splash.png
+  background_image_dark: assets/branding/splash_dark.png
   android_12:
     color: "#FFFFFF"
+    color_dark: "#0B1220"
     image: assets/branding/splash_logo.png
+    image_dark: assets/branding/splash_logo_dark.png
   ios: true
   android: true
   web: false

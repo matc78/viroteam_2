@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -36,6 +36,7 @@ class ViroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final radius = BorderRadius.circular(ViroSpacing.cardRadius);
     // Bordure / ombre sur le Container ; fond opaque sur Material pour que
     // ListTile (ink / tileColor) peigne correctement sans assertion Flutter.
@@ -44,13 +45,13 @@ class ViroCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: radius,
         border: Border.all(
-          color: borderColor ?? ViroColors.primary100.withValues(alpha: 0.45),
+          color: borderColor ?? palette.cardBorder,
           width: 1,
         ),
-        boxShadow: ViroMotion.cardShadow(elevated: elevated),
+        boxShadow: ViroMotion.cardShadow(palette, elevated: elevated),
       ),
       child: Material(
-        color: ViroColors.surfaceCard,
+        color: palette.surfaceCard,
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -113,6 +114,7 @@ class ViroStatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return ViroCard(
       onTap: onTap,
@@ -134,7 +136,7 @@ class ViroStatsCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: textTheme.bodySmall?.copyWith(
-              color: ViroColors.gray600,
+              color: palette.textSecondary,
               fontWeight: FontWeight.w500,
               height: 1.2,
             ),
@@ -145,7 +147,9 @@ class ViroStatsCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: textTheme.titleSmall?.copyWith(
-              color: accentColor ?? ViroColors.primary800,
+              color: accentColor != null
+                  ? palette.readableAccent(accentColor!)
+                  : palette.brandText,
               fontWeight: FontWeight.w700,
               height: 1.2,
             ),
@@ -157,7 +161,7 @@ class ViroStatsCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: textTheme.bodySmall?.copyWith(
-                color: ViroColors.gray600,
+                color: palette.textSecondary,
                 height: 1.2,
               ),
             ),

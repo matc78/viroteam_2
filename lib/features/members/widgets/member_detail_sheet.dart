@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -333,6 +334,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
     final accentStyle = _accentStyle;
@@ -357,7 +359,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
         _loadingExtras ? '…' : (_license?.isNotEmpty == true ? _license! : '—');
 
     return Material(
-      color: ViroColors.surfaceCard,
+      color: palette.surfaceCard,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       clipBehavior: Clip.antiAlias,
       child: ListView(
@@ -471,7 +473,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                 AppCopy.members.deleteMemberNamed(widget.member.fullName),
                 textAlign: TextAlign.center,
                 style: textTheme.bodyMedium?.copyWith(
-                  color: ViroColors.gray600,
+                  color: palette.textSecondary,
                 ),
               ),
               const SizedBox(height: ViroSpacing.md),
@@ -508,7 +510,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                       ? null
                       : () => setState(() => _confirmRemove = true),
                   style: TextButton.styleFrom(
-                    foregroundColor: ViroColors.error,
+                    foregroundColor: palette.errorText,
                   ),
                   child: Text(AppCopy.members.deleteMemberButton),
                 ),
@@ -535,6 +537,7 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
@@ -552,7 +555,7 @@ class _ProfileHeader extends StatelessWidget {
           colors: [
             accentStyle.surfaceTint,
             accentStyle.chipFill.withValues(alpha: 0.35),
-            ViroColors.surfaceCard,
+            palette.surfaceCard,
           ],
         ),
         borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
@@ -567,7 +570,7 @@ class _ProfileHeader extends StatelessWidget {
             textAlign: TextAlign.center,
             style: textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
-              color: accent,
+              color: palette.readableAccent(accent),
             ),
           ),
           const SizedBox(height: ViroSpacing.xs),
@@ -581,7 +584,7 @@ class _ProfileHeader extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: textTheme.bodySmall?.copyWith(color: ViroColors.gray600),
+            style: textTheme.bodySmall?.copyWith(color: palette.textSecondary),
           ),
         ],
       ),
@@ -600,12 +603,13 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return Text(
       label.toUpperCase(),
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
-            color: accent,
+            color: palette.readableAccent(accent),
           ),
     );
   }
@@ -624,6 +628,7 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final textTheme = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -638,7 +643,7 @@ class _InfoRow extends StatelessWidget {
             child: Text(
               label,
               style: textTheme.bodyMedium?.copyWith(
-                color: ViroColors.gray600,
+                color: palette.textSecondary,
               ),
             ),
           ),
@@ -649,7 +654,7 @@ class _InfoRow extends StatelessWidget {
               textAlign: TextAlign.right,
               style: textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: accent,
+                color: palette.readableAccent(accent),
               ),
             ),
           ),
@@ -676,6 +681,7 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final textTheme = Theme.of(context).textTheme;
 
     return ViroPressable(
@@ -695,7 +701,7 @@ class _ActionRow extends StatelessWidget {
                   Text(
                     label,
                     style: textTheme.bodyMedium?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
                   ),
                   if (loading)
@@ -706,7 +712,7 @@ class _ActionRow extends StatelessWidget {
                         height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: accent,
+                          color: palette.readableAccent(accent),
                         ),
                       ),
                     )
@@ -717,14 +723,18 @@ class _ActionRow extends StatelessWidget {
                         subtitle!,
                         style: textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: accent,
+                          color: palette.readableAccent(accent),
                         ),
                       ),
                     ),
                 ],
               ),
             ),
-            ViroIcon(ViroIcons.chevronRight, size: 18, color: accent),
+            ViroIcon(
+              ViroIcons.chevronRight,
+              size: 18,
+              color: palette.readableAccent(accent),
+            ),
           ],
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -59,11 +60,12 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
     required ValueChanged<bool> onSelected,
     required Color accent,
   }) {
+    final palette = context.viroPalette;
     return FilterChip(
       label: Text(
         label,
         style: TextStyle(
-          color: selected ? ViroColors.white : accent,
+          color: selected ? ViroColors.white : palette.readableAccent(accent),
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -71,8 +73,8 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
       onSelected: onSelected,
       showCheckmark: false,
       selectedColor: accent,
-      backgroundColor: ViroColors.gray50,
-      side: BorderSide(color: selected ? accent : ViroColors.gray200),
+      backgroundColor: palette.surfaceSubtle,
+      side: BorderSide(color: selected ? accent : palette.border),
     );
   }
 
@@ -193,7 +195,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
                 _selectedIds.isNotEmpty
             ? FloatingActionButton.extended(
                 onPressed: _openBulkActions,
-                icon: ViroIcon(ViroIcons.edit, color: Colors.white),
+                icon: ViroIcon(ViroIcons.edit),
                 label: Text(AppCopy.fees.selectedCountLabel(_selectedIds.length)),
               )
             : null,

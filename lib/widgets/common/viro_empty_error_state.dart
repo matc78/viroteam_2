@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -32,13 +33,13 @@ class ViroEmptyState extends StatelessWidget {
             ViroIcon(
               icon ?? ViroIcons.users,
               size: 40,
-              color: ViroColors.gray400,
+              color: context.viroPalette.textMuted,
             ),
             const SizedBox(height: ViroSpacing.md),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
+              style: theme.bodyLarge?.copyWith(color: context.viroPalette.textSecondary),
             ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: ViroSpacing.lg),
@@ -77,7 +78,7 @@ class ViroErrorState extends StatelessWidget {
             Text(
               displayMessage,
               textAlign: TextAlign.center,
-              style: theme.bodyLarge?.copyWith(color: ViroColors.gray600),
+              style: theme.bodyLarge?.copyWith(color: context.viroPalette.textSecondary),
             ),
             if (onRetry != null) ...[
               const SizedBox(height: ViroSpacing.lg),

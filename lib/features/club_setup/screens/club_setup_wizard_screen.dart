@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
@@ -295,7 +296,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
         _step == ClubSetupSteps.prerequisites;
 
     return ClubAccentTheme(
-      accentColor: ClubSetupUi.stepAccent(_step),
+      accentColor: ClubSetupUi.stepAccent(_step, context.viroPalette),
       child: ViroScaffold(
       appBar: ViroAppBar(
         leading: IconButton(

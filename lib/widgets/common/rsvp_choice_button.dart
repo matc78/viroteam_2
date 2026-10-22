@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
 /// Bouton d'action RSVP (Présent / Absent).
@@ -28,10 +29,11 @@ class RsvpChoiceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final radius = BorderRadius.circular(ViroSpacing.buttonRadius);
     final textColor =
-        foregroundColor ?? (outlined ? ViroColors.gray600 : ViroColors.white);
-    final background = outlined ? ViroColors.gray100 : color;
+        foregroundColor ?? (outlined ? palette.textSecondary : ViroColors.white);
+    final background = outlined ? palette.surfaceMuted : color;
     final outline = borderColor ?? (outlined ? color : null);
 
     return Material(

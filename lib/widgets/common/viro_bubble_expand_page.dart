@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 
 /// Page avec révélation circulaire depuis [origin] (ex. bulle chat home).
@@ -61,6 +61,7 @@ class _BubbleExpandTransition extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final fallback = Offset(size.width - 40, size.height - 56);
+    final palette = context.viroPalette;
 
     return AnimatedBuilder(
       animation: animation,
@@ -95,6 +96,7 @@ class _BubbleExpandTransition extends StatelessWidget {
                   center: center,
                   fraction: revealT,
                   maxRadius: _maxRadius(size, center),
+                  palette: palette,
                 ),
               ),
             ),
@@ -161,11 +163,13 @@ class _BubbleHaloPainter extends CustomPainter {
     required this.center,
     required this.fraction,
     required this.maxRadius,
+    required this.palette,
   });
 
   final Offset center;
   final double fraction;
   final double maxRadius;
+  final ViroPalette palette;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -178,8 +182,8 @@ class _BubbleHaloPainter extends CustomPainter {
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
-          ViroColors.white.withValues(alpha: opacity),
-          ViroColors.primary50.withValues(alpha: opacity * 0.9),
+          palette.background.withValues(alpha: opacity),
+          palette.accentSofter.withValues(alpha: opacity * 0.9),
         ],
       ).createShader(Rect.fromCircle(center: center, radius: radius));
 
@@ -190,6 +194,7 @@ class _BubbleHaloPainter extends CustomPainter {
   bool shouldRepaint(_BubbleHaloPainter oldDelegate) {
     return oldDelegate.center != center ||
         oldDelegate.fraction != fraction ||
-        oldDelegate.maxRadius != maxRadius;
+        oldDelegate.maxRadius != maxRadius ||
+        oldDelegate.palette != palette;
   }
 }

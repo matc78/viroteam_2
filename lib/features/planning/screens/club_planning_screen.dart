@@ -4,8 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/routes.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -334,6 +334,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           )
         : null;
     final clubColor = clubBrandColors?.primary;
+    final palette = context.viroPalette;
     final clubColorSecondary = clubBrandColors?.secondary;
 
     final teamsById = teamsAsync.value?.fold<Map<String, ClubTeam>>(
@@ -378,7 +379,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       );
       if (event.id != _focusEventId) return tile;
       return PlanningFocusedEventHighlight(
-        color: clubColor ?? ViroColors.primary600,
+        color: clubColor ?? palette.accent,
         child: tile,
       );
     }
@@ -416,18 +417,18 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: ViroColors.surfaceCard,
+                    color: palette.surfaceCard,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: clubColor ?? ViroColors.primary600,
+                      color: palette.readableAccent(clubColor ?? palette.accent),
                       width: 2,
                     ),
-                    boxShadow: ViroMotion.floatingShadow(
+                    boxShadow: ViroMotion.floatingShadow(palette,
                         opacity: 0.16, blur: 18, y: 5),
                   ),
                   child: _TodayCalendarIcon(
                     day: DateTime.now().day,
-                    color: clubColor ?? ViroColors.primary600,
+                    color: palette.readableAccent(clubColor ?? palette.accent),
                   ),
                 ),
               ),
@@ -473,7 +474,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
               todayBorderColor: clubColor,
               selectedDayColor: clubColor,
             ),
-          const Divider(height: 1, color: ViroColors.gray200),
+          Divider(height: 1, color: palette.border),
           Expanded(
             child: ViroRefreshIndicator(
               onRefresh: () => _refreshPlanning(canManage: canManage),
@@ -569,7 +570,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         style: Theme.of(context)
             .textTheme
             .bodyMedium
-            ?.copyWith(color: ViroColors.gray600),
+            ?.copyWith(color: context.viroPalette.textSecondary),
       );
     } else {
       dayContent = Column(
@@ -597,7 +598,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           ),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: ViroColors.white,
+              color: context.viroPalette.surfaceCard,
               borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
             ),
             child: Padding(
@@ -663,7 +664,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                 style: Theme.of(context)
                     .textTheme
                     .bodyMedium
-                    ?.copyWith(color: ViroColors.gray600),
+                    ?.copyWith(color: context.viroPalette.textSecondary),
               ),
             ),
           ),

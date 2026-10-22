@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 
 /// Tuile standard pour les listes de paramètres (icône, titre, chevron).
@@ -24,6 +24,7 @@ class SettingsListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -33,18 +34,18 @@ class SettingsListTile extends StatelessWidget {
           child: ListTile(
             contentPadding: EdgeInsets.zero,
             leading: icon != null
-                ? ViroIcon(icon!, color: ViroColors.primary800, size: 22)
+                ? ViroIcon(icon!, color: palette.brandText, size: 22)
                 : null,
             title: Text(title),
             subtitle: subtitle != null
                 ? Text(
                     subtitle!,
-                    style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                    style: theme.bodySmall?.copyWith(color: palette.textSecondary),
                   )
                 : null,
             trailing: trailing ??
                 (onTap != null
-                    ? ViroIcon(ViroIcons.chevronRight, color: ViroColors.gray600)
+                    ? ViroIcon(ViroIcons.chevronRight, color: palette.textSecondary)
                     : null),
             onTap: onTap,
           ),

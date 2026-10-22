@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -145,10 +145,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
 
     final teamsAsync = ref.watch(clubTeamsProvider(widget.clubId));
     final clubAsync = ref.watch(clubProvider(widget.clubId));
-    final accent = ref.watch(clubManagementAccentProvider(widget.clubId));
-    final onAccent = accent.computeLuminance() > 0.55
-        ? ViroColors.gray900
-        : ViroColors.white;
+    // Couleur club rendue lisible sur le fond courant (éclaircie en sombre),
+    // comme dans `ClubAccentTheme` ; texte foncé fixe sur un accent clair.
+    final palette = context.viroPalette;
+    final accent = palette.readableAccent(
+      ref.watch(clubManagementAccentProvider(widget.clubId)),
+    );
+    final onAccent = ClubAccentTheme.onAccentFor(accent, palette);
 
     return ClubAccentTheme(
       accentColor: accent,

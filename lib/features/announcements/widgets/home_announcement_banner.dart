@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
@@ -121,6 +121,8 @@ class _AnnouncementBannerCard extends StatelessWidget {
       clubId: item.clubId,
     );
     final announcement = item.announcement;
+    final palette = context.viroPalette;
+    final readableAccent = palette.readableAccent(accent);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -142,7 +144,7 @@ class _AnnouncementBannerCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ViroIcon(ViroIcons.bell, color: accent, size: 22),
+                    ViroIcon(ViroIcons.bell, color: readableAccent, size: 22),
                     const SizedBox(width: ViroSpacing.sm),
                     Expanded(
                       child: Column(
@@ -154,7 +156,7 @@ class _AnnouncementBannerCard extends StatelessWidget {
                                 child: Text(
                                   item.clubName,
                                   style: theme.labelMedium?.copyWith(
-                                    color: accent,
+                                    color: readableAccent,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -162,7 +164,7 @@ class _AnnouncementBannerCard extends StatelessWidget {
                               Text(
                                 formatRelativeDate(announcement.createdAt),
                                 style: theme.bodySmall?.copyWith(
-                                  color: ViroColors.gray400,
+                                  color: palette.textMuted,
                                 ),
                               ),
                             ],
@@ -181,7 +183,7 @@ class _AnnouncementBannerCard extends StatelessWidget {
                             Text(
                               announcement.authorName,
                               style: theme.bodySmall?.copyWith(
-                                color: ViroColors.gray600,
+                                color: palette.textSecondary,
                               ),
                             ),
                           ],
@@ -196,7 +198,7 @@ class _AnnouncementBannerCard extends StatelessWidget {
               icon: ViroIcon(
                 ViroIcons.close,
                 size: 20,
-                color: ViroColors.gray400,
+                color: palette.textMuted,
               ),
               onPressed: onDismiss,
               tooltip: AppCopy.common.hide,

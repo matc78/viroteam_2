@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -49,6 +49,7 @@ class PollVotesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.viroPalette;
     final messageAsync = ref.watch(
       chatMessageProvider((
         clubId: clubId,
@@ -68,7 +69,7 @@ class PollVotesScreen extends ConsumerWidget {
       appBar: ViroAppBar(
         title: Text(AppCopy.chat.pollDetailsTitle),
         leading: IconButton(
-          icon: ViroIcon(ViroIcons.chevronLeft, color: ViroColors.primary800),
+          icon: ViroIcon(ViroIcons.chevronLeft, color: palette.brandText),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -78,7 +79,7 @@ class PollVotesScreen extends ConsumerWidget {
           child: Text(
             AppCopy.chat.loadError,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: ViroColors.gray600,
+                  color: palette.textSecondary,
                 ),
           ),
         ),
@@ -88,7 +89,7 @@ class PollVotesScreen extends ConsumerWidget {
               child: Text(
                 AppCopy.chat.pollUnavailable,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
               ),
             );
@@ -129,6 +130,7 @@ class _PollVotesBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final question = (message.pollQuestion ?? message.text ?? '').trim();
     final voted = message.pollUniqueVoterCount;
@@ -149,7 +151,7 @@ class _PollVotesBody extends StatelessWidget {
               Text(
                 question,
                 style: theme.titleLarge?.copyWith(
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -158,12 +160,12 @@ class _PollVotesBody extends StatelessWidget {
                 message.pollAllowMultiple
                     ? AppCopy.chat.pollAllowMultiple
                     : AppCopy.chat.pollSingleChoice,
-                style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+                style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
               ),
               const SizedBox(height: ViroSpacing.xs),
               Text(
                 AppCopy.chat.pollVotedSummary(voted, participantCount),
-                style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+                style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
               ),
             ],
           ),
@@ -176,7 +178,7 @@ class _PollVotesBody extends StatelessWidget {
             ),
             child: Text(
               AppCopy.chat.pollNoVotesYet,
-              style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+              style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
             ),
           )
         else
@@ -207,6 +209,7 @@ class _OptionSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return Padding(
@@ -222,7 +225,7 @@ class _OptionSectionHeader extends StatelessWidget {
             child: Text(
               label,
               style: theme.titleSmall?.copyWith(
-                color: ViroColors.primary800,
+                color: palette.brandText,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -233,13 +236,13 @@ class _OptionSectionHeader extends StatelessWidget {
               vertical: ViroSpacing.xs,
             ),
             decoration: BoxDecoration(
-              color: ViroColors.primary100,
+              color: palette.accentSoft,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               AppCopy.chat.pollOptionVotesLabel(voteCount),
               style: theme.labelSmall?.copyWith(
-                color: ViroColors.primary600,
+                color: palette.accent,
                 fontWeight: FontWeight.w700,
               ),
             ),

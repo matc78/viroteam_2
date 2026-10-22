@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_team.dart';
@@ -16,7 +16,7 @@ Future<bool?> showEditTeamMessagingLinksSheet(
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: ViroColors.surfaceCard,
+    backgroundColor: context.viroPalette.surfaceCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(ViroSpacing.cardRadius),
@@ -129,6 +129,7 @@ class _EditTeamMessagingLinksSheetState
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return SafeArea(
@@ -147,14 +148,14 @@ class _EditTeamMessagingLinksSheetState
               AppCopy.teams.messagingLinksTitle,
               style: theme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: ViroColors.primary800,
+                color: palette.brandText,
               ),
             ),
             const SizedBox(height: ViroSpacing.xs),
             Text(
               AppCopy.teams.messagingLinksHelper,
               style: theme.bodyMedium?.copyWith(
-                color: ViroColors.gray600,
+                color: palette.textSecondary,
                 height: 1.35,
               ),
             ),
@@ -183,7 +184,7 @@ class _EditTeamMessagingLinksSheetState
               const SizedBox(height: ViroSpacing.sm),
               Text(
                 _error!,
-                style: theme.bodySmall?.copyWith(color: ViroColors.error),
+                style: theme.bodySmall?.copyWith(color: palette.errorText),
               ),
             ],
             const SizedBox(height: ViroSpacing.lg),

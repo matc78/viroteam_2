@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/settings/providers/notification_permission_provider.dart';
@@ -74,6 +74,7 @@ class NotificationPreferencesSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final prefs = user.notificationPreferences;
     // Statut inconnu (chargement / erreur) : on ne grise rien.
@@ -111,14 +112,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
         Text(
           AppCopy.settings.notificationsSection,
           style: theme.titleSmall?.copyWith(
-            color: ViroColors.primary800,
+            color: palette.brandText,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: ViroSpacing.xs),
         Text(
           AppCopy.settings.notificationsSubtitle,
-          style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+          style: theme.bodySmall?.copyWith(color: palette.textSecondary),
         ),
         const SizedBox(height: ViroSpacing.sm),
         if (!systemAllowed) ...[

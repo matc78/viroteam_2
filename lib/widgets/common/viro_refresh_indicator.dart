@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
 /// [RefreshIndicator] partagé — pull-to-refresh natif (feedback pendant le geste).
@@ -23,10 +23,11 @@ class ViroRefreshIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return RefreshIndicator(
       onRefresh: onRefresh,
-      color: ViroColors.primary600,
-      backgroundColor: ViroColors.white,
+      color: palette.accent,
+      backgroundColor: palette.surfaceCard,
       displacement: ViroSpacing.xl,
       triggerMode: RefreshIndicatorTriggerMode.onEdge,
       child: child,

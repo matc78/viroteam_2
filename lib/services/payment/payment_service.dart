@@ -328,7 +328,10 @@ Future<void> _initPaymentSheetWithLargerInputs({
   final parameters = SetupPaymentSheetParameters(
     paymentIntentClientSecret: clientSecret,
     merchantDisplayName: 'ViroTeam',
-    style: ThemeMode.system,
+    // Couleurs ci-dessous calibrées pour un fond clair : en ThemeMode.system,
+    // un téléphone en sombre affichait un sheet sombre avec du texte gray900
+    // illisible. On fige donc le sheet en clair (indépendant du thème de l'app).
+    style: ThemeMode.light,
     // Carte + wallets d'abord ; le reste (Bancontact, Klarna…) suit
     // dans l'ordre dynamique Stripe.
     paymentMethodOrder: const [

@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/settings/widgets/account_session_section.dart';
+import 'package:viro_team_v2/features/settings/widgets/appearance_settings_section.dart';
 import 'package:viro_team_v2/features/settings/widgets/change_email_sheet.dart';
 import 'package:viro_team_v2/features/settings/widgets/change_password_sheet.dart';
 import 'package:viro_team_v2/features/settings/widgets/edit_profile_sheet.dart';
@@ -51,6 +52,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final userAsync = ref.watch(viroUserProvider);
     final clubsAsync = ref.watch(userClubsProvider);
     final theme = Theme.of(context).textTheme;
@@ -111,7 +113,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                                   ? displayName
                                   : AppCopy.settings.myAccount,
                               style: theme.titleMedium?.copyWith(
-                                color: ViroColors.primary800,
+                                color: palette.brandText,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -119,7 +121,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                             Text(
                               user.email,
                               style: theme.bodyMedium?.copyWith(
-                                color: ViroColors.gray600,
+                                color: palette.textSecondary,
                               ),
                             ),
                             if (user.phone != null &&
@@ -128,7 +130,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                               Text(
                                 user.phone!.trim(),
                                 style: theme.bodySmall?.copyWith(
-                                  color: ViroColors.gray600,
+                                  color: palette.textSecondary,
                                 ),
                               ),
                             ],
@@ -142,14 +144,14 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 Text(
                   AppCopy.settings.myAccount,
                   style: theme.titleSmall?.copyWith(
-                    color: ViroColors.primary800,
+                    color: palette.brandText,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
                   AppCopy.settings.myAccountSubtitle,
-                  style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                  style: theme.bodySmall?.copyWith(color: palette.textSecondary),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
                 ViroCard(
@@ -193,10 +195,12 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 const SizedBox(height: ViroSpacing.xl),
                 NotificationPreferencesSection(user: user),
                 const SizedBox(height: ViroSpacing.xl),
+                const AppearanceSettingsSection(),
+                const SizedBox(height: ViroSpacing.xl),
                 Text(
                   AppCopy.settings.myClubs,
                   style: theme.titleSmall?.copyWith(
-                    color: ViroColors.primary800,
+                    color: palette.brandText,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -233,7 +237,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 Text(
                   AppCopy.settings.legalSection,
                   style: theme.titleSmall?.copyWith(
-                    color: ViroColors.primary800,
+                    color: palette.brandText,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

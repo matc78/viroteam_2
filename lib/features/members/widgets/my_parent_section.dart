@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
@@ -26,11 +26,12 @@ class MyParentSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.viroPalette;
     final guardianAsync = ref.watch(
       _myGuardianProvider((clubId: club.id, memberId: member.memberId)),
     );
     final theme = Theme.of(context).textTheme;
-    final accent = accentColor ?? ViroColors.primary600;
+    final accent = accentColor ?? palette.accent;
 
     return guardianAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -40,7 +41,7 @@ class MyParentSection extends ConsumerWidget {
           padding: const EdgeInsets.all(ViroSpacing.md),
           child: Text(
             AppCopy.members.loadParentError,
-            style: theme.bodySmall?.copyWith(color: ViroColors.error),
+            style: theme.bodySmall?.copyWith(color: palette.errorText),
           ),
         ),
       ),
@@ -57,7 +58,7 @@ class MyParentSection extends ConsumerWidget {
                   AppCopy.members.myParentTitle,
                   style: theme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: accent,
+                    color: palette.readableAccent(accent),
                   ),
                 ),
                 const SizedBox(height: ViroSpacing.xs),
@@ -73,7 +74,7 @@ class MyParentSection extends ConsumerWidget {
                             AppCopy.members.pendingLower,
                         ].join(' · ')
                       : AppCopy.members.noParentInviteHint,
-                  style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+                  style: theme.bodySmall?.copyWith(color: palette.textSecondary),
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 ViroPrimaryButton(

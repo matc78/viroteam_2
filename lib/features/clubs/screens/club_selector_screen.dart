@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -77,6 +77,7 @@ class _ClubSelectorBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.viroPalette;
     final hasClubs = clubs.isNotEmpty;
     final hasInvitations = invitations.isNotEmpty;
 
@@ -107,7 +108,7 @@ class _ClubSelectorBody extends ConsumerWidget {
               child: Text(
                 AppCopy.club.myClubsCount(clubs.length),
                 style: theme.titleSmall?.copyWith(
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -147,7 +148,7 @@ class _ClubSelectorBody extends ConsumerWidget {
               child: Text(
                 AppCopy.club.pendingInvitesCount(invitations.length),
                 style: theme.titleSmall?.copyWith(
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -189,6 +190,7 @@ class _EmptyStateWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return Padding(
       padding: const EdgeInsets.all(ViroSpacing.lg),
@@ -206,7 +208,7 @@ class _EmptyStateWidget extends StatelessWidget {
             AppCopy.club.emptyClubsTitle,
             textAlign: TextAlign.center,
             style: theme.titleMedium?.copyWith(
-              color: ViroColors.primary800,
+              color: palette.brandText,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -214,7 +216,7 @@ class _EmptyStateWidget extends StatelessWidget {
           Text(
             AppCopy.club.emptyClubsBody,
             textAlign: TextAlign.center,
-            style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+            style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
           ),
           const SizedBox(height: ViroSpacing.xl),
           ViroPrimaryButton(
@@ -240,12 +242,14 @@ class _ClubCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final club = entry.club;
     final membership = entry.membership;
     final accentColor = clubAccentColor(
       brandColorHex: club.brandColorHex,
       clubId: club.id,
     );
+    final readableAccent = palette.readableAccent(accentColor);
     final memberLabel = club.memberCount == 1
         ? AppCopy.club.memberSingular
         : AppCopy.club.memberPlural;
@@ -256,8 +260,8 @@ class _ClubCard extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(ViroSpacing.md),
         decoration: BoxDecoration(
-          color: ViroColors.white,
-          border: Border.all(color: ViroColors.gray200),
+          color: palette.surfaceCard,
+          border: Border.all(color: palette.border),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -279,14 +283,14 @@ class _ClubCard extends ConsumerWidget {
                       Text(
                         club.name,
                         style: theme.titleSmall?.copyWith(
-                          color: accentColor,
+                          color: readableAccent,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         '${club.sport} • ${club.memberCount} $memberLabel',
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                         ),
                       ),
                     ],
@@ -319,14 +323,14 @@ class _ClubCard extends ConsumerWidget {
                   Icon(
                     ViroIcons.calendar,
                     size: 16,
-                    color: ViroColors.gray600,
+                    color: palette.textSecondary,
                   ),
                   const SizedBox(width: ViroSpacing.sm),
                   Expanded(
                     child: Text(
                       _eventHighlightLabel(entry.highlightEvent!),
                       style: theme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                   ),
@@ -336,7 +340,7 @@ class _ClubCard extends ConsumerWidget {
               Text(
                 AppCopy.planning.noUpcomingClub,
                 style: theme.bodySmall?.copyWith(
-                  color: ViroColors.gray400,
+                  color: palette.textMuted,
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -346,7 +350,7 @@ class _ClubCard extends ConsumerWidget {
               child: Icon(
                 ViroIcons.chevronRight,
                 size: 20,
-                color: accentColor,
+                color: readableAccent,
               ),
             ),
           ],
@@ -455,14 +459,15 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final invite = widget.invitation;
     final clubName = invite.clubName ?? AppCopy.club.aClubFallback;
 
     return Container(
       padding: const EdgeInsets.all(ViroSpacing.md),
       decoration: BoxDecoration(
-        color: ViroColors.primary50,
-        border: Border.all(color: ViroColors.primary200),
+        color: palette.accentSofter,
+        border: Border.all(color: palette.accentMid),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -480,7 +485,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                     Text(
                       AppCopy.club.clubInvitedYou(clubName),
                       style: theme.bodyMedium?.copyWith(
-                        color: ViroColors.primary800,
+                        color: palette.brandText,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -494,14 +499,14 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                               : AppCopy.club.followChildGeneric)
                           : AppCopy.club.roleColon(_roleLabel(invite.role)),
                       style: theme.bodySmall?.copyWith(
-                        color: ViroColors.primary600,
+                        color: palette.accent,
                       ),
                     ),
                     if (invite.clubSport != null && invite.clubSport!.isNotEmpty)
                       Text(
                         invite.clubSport!,
                         style: theme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                         ),
                       ),
                   ],
@@ -513,7 +518,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
             const SizedBox(height: ViroSpacing.sm),
             Text(
               _error!,
-              style: theme.bodySmall?.copyWith(color: ViroColors.error),
+              style: theme.bodySmall?.copyWith(color: palette.errorText),
             ),
           ],
           const SizedBox(height: ViroSpacing.md),
@@ -527,15 +532,15 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                       vertical: ViroSpacing.sm,
                     ),
                     decoration: BoxDecoration(
-                      color: ViroColors.white,
-                      border: Border.all(color: ViroColors.primary200),
+                      color: palette.surfaceCard,
+                      border: Border.all(color: palette.accentMid),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       AppCopy.club.declineInvite,
                       textAlign: TextAlign.center,
                       style: theme.bodySmall?.copyWith(
-                        color: ViroColors.primary600,
+                        color: palette.accent,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -551,11 +556,11 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                       vertical: ViroSpacing.sm,
                     ),
                     decoration: BoxDecoration(
-                      color: ViroColors.primary600,
+                      color: palette.accentFill,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: _loading
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 18,
                             child: Center(
                               child: SizedBox(
@@ -563,7 +568,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: ViroColors.white,
+                                  color: palette.onAccent,
                                 ),
                               ),
                             ),
@@ -572,7 +577,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                             AppCopy.club.acceptInvite,
                             textAlign: TextAlign.center,
                             style: theme.bodySmall?.copyWith(
-                              color: ViroColors.white,
+                              color: palette.onAccent,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

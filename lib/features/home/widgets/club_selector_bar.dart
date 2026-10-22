@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -139,6 +140,7 @@ class _AddClubBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     // Padding gauche réduit + emprise = taille du + : évite le trou
     // visuel dû à un petit cercle centré dans un slot logo.
     return Padding(
@@ -163,18 +165,22 @@ class _AddClubBarItem extends StatelessWidget {
                     width: _size,
                     height: _size,
                     decoration: BoxDecoration(
-                      color: ViroColors.primary50,
+                      color: palette.accentSofter,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: ViroColors.primary200,
-                        width: 1,
+                        color: palette.isDark
+                            ? palette.accent
+                            : palette.accentMid,
+                        width: palette.isDark ? 1.5 : 1,
                       ),
+                      boxShadow: palette.neonBoxGlow(palette.accent),
                     ),
                     alignment: Alignment.center,
                     child: ViroIcon(
                       ViroIcons.add,
                       size: 14,
-                      color: ViroColors.primary600,
+                      color: palette.accent,
+                      shadows: palette.neonGlow(palette.accent, blur: 6),
                     ),
                   ),
                 ),
@@ -208,6 +214,7 @@ class _ChatBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final hasBadge = badgeCount != null;
 
@@ -225,12 +232,12 @@ class _ChatBarItem extends StatelessWidget {
             width: _size,
             height: _size,
             child: CustomPaint(
-              painter: const _ChatCirclePainter(),
+              painter: _ChatCirclePainter(palette),
               child: Center(
                 child: ViroIcon(
                   ViroIcons.chatFill,
                   size: 22,
-                  color: ViroColors.primary600,
+                  color: palette.accent,
                 ),
               ),
             ),
@@ -245,7 +252,7 @@ class _ChatBarItem extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: ViroColors.error,
                     shape: BoxShape.circle,
-                    boxShadow: ViroMotion.floatingShadow(
+                    boxShadow: ViroMotion.floatingShadow(context.viroPalette,
                       opacity: 0.18,
                       blur: 8,
                       y: 2,
@@ -275,7 +282,9 @@ class _ChatBarItem extends StatelessWidget {
 
 /// Peint le pastille ronde du bouton chat (ombre + dégradé + contour).
 class _ChatCirclePainter extends CustomPainter {
-  const _ChatCirclePainter();
+  const _ChatCirclePainter(this.palette);
+
+  final ViroPalette palette;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -286,7 +295,8 @@ class _ChatCirclePainter extends CustomPainter {
       center.translate(0, 3),
       radius,
       Paint()
-        ..color = ViroColors.primary900.withValues(alpha: 0.12)
+        ..color = palette.shadowTint
+            .withValues(alpha: 0.12 * palette.shadowStrength)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
     canvas.drawCircle(
@@ -302,10 +312,10 @@ class _ChatCirclePainter extends CustomPainter {
       center,
       radius,
       Paint()
-        ..shader = const LinearGradient(
+        ..shader = LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [ViroColors.white, ViroColors.primary50],
+          colors: [palette.surfaceCard, palette.accentSofter],
         ).createShader(bounds),
     );
     canvas.drawCircle(
@@ -314,12 +324,13 @@ class _ChatCirclePainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.25
-        ..color = ViroColors.primary100,
+        ..color = palette.accentSoft,
     );
   }
 
   @override
-  bool shouldRepaint(covariant _ChatCirclePainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ChatCirclePainter oldDelegate) =>
+      oldDelegate.palette != palette;
 }
 
 class _ClubBarItem extends StatelessWidget {
@@ -343,8 +354,9 @@ class _ClubBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
-    final color = accentColor ?? ViroColors.primary600;
+    final color = accentColor ?? palette.accentFill;
 
     final semanticParts = <String>[
       club.name,
@@ -368,7 +380,7 @@ class _ClubBarItem extends StatelessWidget {
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      boxShadow: ViroMotion.floatingShadow(
+                      boxShadow: ViroMotion.floatingShadow(context.viroPalette,
                         opacity: 0.16,
                         blur: 12,
                         y: 4,
@@ -430,7 +442,7 @@ class _ClubBarItem extends StatelessWidget {
                     style: theme.labelSmall?.copyWith(
                       fontSize: 10,
                       height: 1.1,
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                       fontWeight: FontWeight.w400,
                     ),
                   ),

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
@@ -26,6 +26,7 @@ class HomeQuietContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final greeting = AppCopy.home.greeting(firstName);
 
@@ -42,14 +43,14 @@ class HomeQuietContent extends StatelessWidget {
           Text(
             greeting,
             style: theme.headlineSmall?.copyWith(
-              color: ViroColors.primary800,
+              color: palette.brandText,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: ViroSpacing.xs),
           Text(
             AppCopy.home.quietSubtitle,
-            style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+            style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
           ),
           const SizedBox(height: ViroSpacing.lg),
           const _EmptyPlanningCard(),
@@ -60,7 +61,7 @@ class HomeQuietContent extends StatelessWidget {
                   ? AppCopy.home.yourClub
                   : AppCopy.home.yourClubs,
               style: theme.titleSmall?.copyWith(
-                color: ViroColors.primary800,
+                color: palette.brandText,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -85,6 +86,7 @@ class _EmptyPlanningCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return ViroCard(
@@ -97,14 +99,14 @@ class _EmptyPlanningCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Color.lerp(ViroColors.white, ViroColors.primary100, 0.6)!,
+              color: Color.lerp(palette.surfaceCard, palette.accentSoft, 0.6)!,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
             child: ViroIcon(
               ViroIcons.calendar,
               size: 24,
-              color: ViroColors.primary600,
+              color: palette.accent,
             ),
           ),
           const SizedBox(width: ViroSpacing.md),
@@ -115,7 +117,7 @@ class _EmptyPlanningCard extends StatelessWidget {
                 Text(
                   AppCopy.home.emptyPlanningTitle,
                   style: theme.titleSmall?.copyWith(
-                    color: ViroColors.primary800,
+                    color: palette.brandText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -123,7 +125,7 @@ class _EmptyPlanningCard extends StatelessWidget {
                 Text(
                   AppCopy.home.emptyPlanningBody,
                   style: theme.bodySmall?.copyWith(
-                    color: ViroColors.gray600,
+                    color: palette.textSecondary,
                     height: 1.4,
                   ),
                 ),
@@ -147,6 +149,7 @@ class _ClubShortcutTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final club = entry.club;
     final membership = entry.membership;
@@ -191,7 +194,7 @@ class _ClubShortcutTile extends ConsumerWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.titleSmall?.copyWith(
-                    color: ViroColors.primary800,
+                    color: palette.brandText,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -201,7 +204,7 @@ class _ClubShortcutTile extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
                   ),
               ],
@@ -216,7 +219,7 @@ class _ClubShortcutTile extends ConsumerWidget {
           ViroIcon(
             ViroIcons.chevronRight,
             size: 18,
-            color: ViroColors.gray400,
+            color: palette.textMuted,
           ),
         ],
       ),

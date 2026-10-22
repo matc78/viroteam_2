@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -86,19 +86,20 @@ class UserSettingsAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final trimmedUrl = avatarUrl?.trim();
     final hasPhoto = trimmedUrl != null && trimmedUrl.isNotEmpty;
 
     Widget avatar = CircleAvatar(
       radius: 32,
-      backgroundColor: ViroColors.primary100,
+      backgroundColor: palette.accentSoft,
       backgroundImage: hasPhoto ? NetworkImage(trimmedUrl) : null,
       child: hasPhoto
           ? null
           : Text(
               _initials.isNotEmpty ? _initials : '?',
-              style: const TextStyle(
-                color: ViroColors.primary800,
+              style: TextStyle(
+                color: palette.brandText,
                 fontWeight: FontWeight.w700,
                 fontSize: 18,
               ),

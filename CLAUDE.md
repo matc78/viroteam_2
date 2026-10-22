@@ -92,8 +92,9 @@ Chercher d'abord dans `lib/widgets/common/`, `lib/widgets/lists/`, `lib/config/v
 ### Thème
 
 - Couleurs, typo, espacements, durées/courbes : uniquement via `lib/config/` (`ViroColors`, `ViroSpacing`, `ViroMotion`…) — pas de `Color(0x…)` ni de magic numbers dans les features.
-- Fond d'écran blanc + formes décoratives colorées (fournis par `ViroScaffold`). **Interdit** : AppBar / bandeau / fond plein en bleu opaque (`primary800`). Le bleu fort (`primary600`+) est réservé aux boutons primaires, liens, accents et badges.
-- Ombres de carte : `ViroMotion.cardShadow()` (douce, teintée bleu). Menus / sheets / dialogs : thème Material (`ViroMotion.elevationMenu`). Transitions d'écran : fade / Cupertino, pas de slides lourds.
+- Dark mode : `ViroTheme.light` / `ViroTheme.dark` embarquent une `ViroPalette` (`lib/config/viro_palette.dart`). Couleurs neutres et de marque via `context.viroPalette` (`textPrimary`, `textSecondary`, `surfaceCard`, `accent`, `brandText`…), **jamais** `ViroColors.gray*` / `primary*` / `surface*` dans `lib/features`, `lib/widgets`, `lib/screens` (garde-fou `test/theme_palette_usage_test.dart`). Restent des constantes : `sport*`, `success`/`warning`/`error`, badges de rôle, blanc sur fond vif. Couleur club en texte/icône → `palette.readableAccent(color)`. Choix Système / Clair / Sombre : `themeModeProvider`, persisté par `ThemePreferenceService`.
+- Fond d'écran `palette.background` (blanc en clair, bleu nuit en sombre) + formes décoratives colorées (fournis par `ViroScaffold`). **Interdit** : AppBar / bandeau / fond plein en bleu opaque (`primary800`). Le bleu fort (`accent` / `accentFill`) est réservé aux boutons primaires, liens, accents et badges.
+- Ombres de carte : `ViroMotion.cardShadow(palette)` (douce, teintée bleu en clair). Menus / sheets / dialogs : thème Material (`ViroMotion.elevationMenu`). Transitions d'écran : fade / Cupertino, pas de slides lourds.
 
 ### Structure
 

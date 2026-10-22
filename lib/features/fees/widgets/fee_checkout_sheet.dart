@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
@@ -83,7 +83,7 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
           const SizedBox(height: ViroSpacing.xs),
           Text(
             AppCopy.fees.totalDue(formatFeeAmountCents(_due)),
-            style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+            style: theme.bodyMedium?.copyWith(color: context.viroPalette.textSecondary),
           ),
           const SizedBox(height: ViroSpacing.md),
           Text(
@@ -93,7 +93,7 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
           const SizedBox(height: ViroSpacing.md),
           DecoratedBox(
             decoration: BoxDecoration(
-              color: ViroColors.primary50,
+              color: context.viroPalette.accentSofter,
               borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
             ),
             child: Padding(
@@ -117,7 +117,7 @@ class _FeeCheckoutSheetState extends State<FeeCheckoutSheet> {
                         formatFeeAmountCents(_feeCents),
                       ),
                       style: theme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: context.viroPalette.textSecondary,
                       ),
                     ),
                   ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
@@ -289,6 +290,7 @@ class _PlanningEventDetailSheetState
 
   Widget _buildMembersList(TextTheme theme) {
     final accent = Theme.of(context).colorScheme.primary;
+    final palette = context.viroPalette;
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
     final teams = ref.watch(clubTeamsProvider(widget.clubId)).value ?? [];
     final eventTeams = _eventTeams(teams);
@@ -319,7 +321,7 @@ class _PlanningEventDetailSheetState
                 padding: const EdgeInsets.symmetric(vertical: ViroSpacing.lg),
                 child: Text(
                   AppCopy.planning.noMembersCalled,
-                  style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+                  style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
                 ),
               )
             else
@@ -428,6 +430,7 @@ class _PlanningEventDetailSheetState
   Widget build(BuildContext context) {
     final event = _event;
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final accent = Theme.of(context).colorScheme.primary;
     final headline = PlanningEventDisplay.headline(event);
     final subtitle = PlanningEventDisplay.subtitle(event, widget.teamLabel);
@@ -530,7 +533,7 @@ class _PlanningEventDetailSheetState
                                 child: Text(
                                   AppCopy.planning.rdvPrefix(rdvStr),
                                   style: theme.labelSmall?.copyWith(
-                                    color: ViroColors.gray600,
+                                    color: palette.textSecondary,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -541,7 +544,7 @@ class _PlanningEventDetailSheetState
                                 child: Text(
                                   endStr,
                                   style: theme.labelSmall?.copyWith(
-                                    color: ViroColors.gray400,
+                                    color: palette.textMuted,
                                   ),
                                 ),
                               ),
@@ -589,7 +592,7 @@ class _PlanningEventDetailSheetState
                           Text(
                             dateStr,
                             style: theme.bodySmall?.copyWith(
-                              color: ViroColors.gray600,
+                              color: palette.textSecondary,
                               height: 1.3,
                             ),
                             maxLines: 1,
@@ -600,7 +603,7 @@ class _PlanningEventDetailSheetState
                             Text.rich(
                               TextSpan(
                                 style: theme.bodySmall?.copyWith(
-                                  color: ViroColors.gray600,
+                                  color: palette.textSecondary,
                                   height: 1.3,
                                 ),
                                 children: [
@@ -611,7 +614,7 @@ class _PlanningEventDetailSheetState
                                       child: ViroIcon(
                                         ViroIcons.place,
                                         size: 13,
-                                        color: ViroColors.gray400,
+                                        color: palette.textMuted,
                                       ),
                                     ),
                                   ),
@@ -632,12 +635,12 @@ class _PlanningEventDetailSheetState
                 FilledButton.icon(
                   onPressed: _sendingPush ? null : _sendEventPush,
                   icon: _sendingPush
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: ViroColors.white,
+                            color: palette.onAccent,
                           ),
                         )
                       : ViroIcon(ViroIcons.bell, size: 18),
@@ -718,6 +721,7 @@ class _AwayMatchHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final trimmedMeeting = meetingLocation?.trim();
     final trimmedAddress = matchAddress?.trim();
     final hasMeetingPlace =
@@ -761,7 +765,7 @@ class _AwayMatchHeader extends StatelessWidget {
         Text(
           AppCopy.planning.awayWithDate(dateStr),
           style: theme.bodySmall?.copyWith(
-            color: ViroColors.gray600,
+            color: palette.textSecondary,
             height: 1.3,
           ),
         ),
@@ -791,7 +795,7 @@ class _AwayMatchHeader extends StatelessWidget {
                   Divider(
                     height: 1,
                     thickness: 1,
-                    color: ViroColors.primary100.withValues(alpha: 0.55),
+                    color: palette.accentSoft.withValues(alpha: 0.55),
                   ),
                   const SizedBox(height: ViroSpacing.sm),
                 ],
@@ -834,6 +838,7 @@ class _AwayScheduleBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final trimmedPlace = place?.trim();
     final hasPlace = trimmedPlace != null && trimmedPlace.isNotEmpty;
 
@@ -845,7 +850,7 @@ class _AwayScheduleBlock extends StatelessWidget {
             Text(
               label,
               style: theme.labelSmall?.copyWith(
-                color: ViroColors.gray400,
+                color: palette.textMuted,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -875,7 +880,7 @@ class _AwayScheduleBlock extends StatelessWidget {
                   child: ViroIcon(
                     placeIcon,
                     size: 14,
-                    color: ViroColors.gray400,
+                    color: palette.textMuted,
                   ),
                 ),
                 const SizedBox(width: ViroSpacing.xs),
@@ -883,7 +888,7 @@ class _AwayScheduleBlock extends StatelessWidget {
                   child: Text(
                     trimmedPlace,
                     style: theme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                       height: 1.3,
                     ),
                   ),

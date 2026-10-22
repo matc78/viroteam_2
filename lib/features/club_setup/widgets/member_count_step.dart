@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
@@ -70,6 +70,7 @@ class _MemberCountStepState extends State<MemberCountStep> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
     final values = ClubMemberCountRanges.all;
     final selected = widget.memberCountRange;
     final selectedIndex = selected == null ? -1 : values.indexOf(selected);
@@ -91,7 +92,7 @@ class _MemberCountStepState extends State<MemberCountStep> {
                 AppCopy.clubSetup.memberCountQuestion,
                 textAlign: TextAlign.center,
                 style: theme.bodySmall?.copyWith(
-                  color: ViroColors.gray600,
+                  color: palette.textSecondary,
                   height: 1.35,
                 ),
               ),
@@ -147,7 +148,7 @@ class _MemberCountStepState extends State<MemberCountStep> {
                     : AppCopy.clubSetup.approxMemberCount(ClubMemberCountRanges.recapLabel(effectiveSelected)),
                 textAlign: TextAlign.center,
                 style: theme.bodySmall?.copyWith(
-                  color: ViroColors.gray600,
+                  color: palette.textSecondary,
                   fontWeight: effectiveSelected != null
                       ? FontWeight.w600
                       : FontWeight.w400,
@@ -176,7 +177,9 @@ class _MemberCountChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final accent = ClubSetupUi.stepAccent(ClubSetupSteps.memberCount);
+    final palette = context.viroPalette;
+    final accent =
+        ClubSetupUi.stepAccent(ClubSetupSteps.memberCount, palette);
 
     return ViroPressable(
       onTap: onTap,
@@ -193,10 +196,10 @@ class _MemberCountChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.14)
-              : ViroColors.surfaceCard,
+              : palette.surfaceCard,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? accent : ViroColors.primary100,
+            color: selected ? accent : palette.accentSoft,
             width: selected ? 2 : 1,
           ),
         ),
@@ -204,7 +207,7 @@ class _MemberCountChip extends StatelessWidget {
           label,
           style: theme.titleMedium?.copyWith(
             fontWeight: FontWeight.w800,
-            color: selected ? accent : ViroColors.primary800,
+            color: selected ? accent : palette.brandText,
           ),
         ),
       ),

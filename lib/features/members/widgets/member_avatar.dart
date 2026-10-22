@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
@@ -28,12 +28,13 @@ class MemberAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final hasAccount = member.hasLinkedAccount;
     final photoUrl = member.avatarUrl?.trim();
     final hasPhoto =
         hasAccount && photoUrl != null && photoUrl.isNotEmpty;
 
-    final accent = accentColor ?? ViroColors.primary600;
+    final accent = accentColor ?? palette.accent;
     final accentBorder = showAccentBorder
         ? Border.all(color: accent, width: 1.5)
         : null;
@@ -65,7 +66,7 @@ class MemberAvatar extends StatelessWidget {
         child: Text(
           member.initials,
           style: TextStyle(
-            color: accent,
+            color: palette.readableAccent(accent),
             fontWeight: FontWeight.w700,
             fontSize: size * 0.35,
           ),
@@ -77,15 +78,15 @@ class MemberAvatar extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: ViroColors.gray100,
+          color: palette.surfaceMuted,
           border: accentBorder ??
-              Border.all(color: ViroColors.gray300, width: 1.5),
+              Border.all(color: palette.borderStrong, width: 1.5),
         ),
         alignment: Alignment.center,
         child: ViroIcon(
           ViroIcons.user,
           size: size * 0.45,
-          color: ViroColors.gray600,
+          color: palette.textSecondary,
         ),
       );
     }

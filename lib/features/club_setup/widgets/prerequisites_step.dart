@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club_setup/utils/club_setup_ui.dart';
@@ -97,7 +98,7 @@ class _ResumeBanner extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: ViroColors.primary800,
+                    color: context.viroPalette.brandText,
                     fontWeight: FontWeight.w600,
                   ),
             ),
@@ -126,6 +127,7 @@ class _PrerequisiteItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     final iconWidget = Container(
       width: 40,
@@ -152,7 +154,7 @@ class _PrerequisiteItem extends StatelessWidget {
             textAlign: mirrored ? TextAlign.right : TextAlign.left,
             style: theme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w700,
-              color: ViroColors.primary800,
+              color: palette.brandText,
               height: 1.25,
             ),
           ),
@@ -163,7 +165,7 @@ class _PrerequisiteItem extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: mirrored ? TextAlign.right : TextAlign.left,
             style: theme.bodySmall?.copyWith(
-              color: ViroColors.gray600,
+              color: palette.textSecondary,
               height: 1.3,
             ),
           ),

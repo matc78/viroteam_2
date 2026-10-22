@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -156,7 +156,7 @@ class _PlanningRollCallSheetState extends ConsumerState<PlanningRollCallSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: ViroColors.gray200,
+                color: context.viroPalette.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -180,7 +180,7 @@ class _PlanningRollCallSheetState extends ConsumerState<PlanningRollCallSheet> {
                   Text(
                     AppCopy.planning.takeAttendanceSubtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: context.viroPalette.textSecondary,
                         ),
                   ),
                   const SizedBox(height: ViroSpacing.md),
@@ -208,7 +208,7 @@ class _PlanningRollCallSheetState extends ConsumerState<PlanningRollCallSheet> {
                         style: Theme.of(context)
                             .textTheme
                             .bodyMedium
-                            ?.copyWith(color: ViroColors.gray600),
+                            ?.copyWith(color: context.viroPalette.textSecondary),
                       ),
                     )
                   else
@@ -281,7 +281,7 @@ class _RollCallRow extends StatelessWidget {
                   Text(
                     AppCopy.planning.attendanceUnmarked,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: context.viroPalette.textSecondary,
                         ),
                   ),
               ],
@@ -290,7 +290,7 @@ class _RollCallRow extends StatelessWidget {
           SegmentedButton<AttendanceStatus>(
             style: SegmentedButton.styleFrom(
               selectedBackgroundColor: accent,
-              selectedForegroundColor: ViroColors.white,
+              selectedForegroundColor: Theme.of(context).colorScheme.onPrimary,
             ),
             segments: [
               ButtonSegment(

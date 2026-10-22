@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 
 class FeeStatusChip extends StatelessWidget {
@@ -14,7 +15,7 @@ class FeeStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = _colors(status);
+    final (bg, fg) = _colors(status, context.viroPalette);
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 8 : 10,
@@ -35,30 +36,34 @@ class FeeStatusChip extends StatelessWidget {
     );
   }
 
-  (Color, Color) _colors(MemberFeeDisplayStatus status) => switch (status) {
+  (Color, Color) _colors(
+    MemberFeeDisplayStatus status,
+    ViroPalette palette,
+  ) =>
+      switch (status) {
         MemberFeeDisplayStatus.paye => (
-            Color.lerp(ViroColors.white, ViroColors.success, 0.15)!,
-            ViroColors.success,
+            Color.lerp(palette.surfaceCard, ViroColors.success, 0.15)!,
+            palette.successText,
           ),
         MemberFeeDisplayStatus.exonere => (
-            ViroColors.gray100,
-            ViroColors.gray600,
+            palette.surfaceMuted,
+            palette.textSecondary,
           ),
         MemberFeeDisplayStatus.enRetard => (
-            Color.lerp(ViroColors.white, ViroColors.error, 0.12)!,
-            ViroColors.error,
+            Color.lerp(palette.surfaceCard, ViroColors.error, 0.12)!,
+            palette.errorText,
           ),
         MemberFeeDisplayStatus.echeanceAujourdhui => (
-            Color.lerp(ViroColors.white, ViroColors.error, 0.12)!,
-            ViroColors.error,
+            Color.lerp(palette.surfaceCard, ViroColors.error, 0.12)!,
+            palette.errorText,
           ),
         MemberFeeDisplayStatus.partiel => (
-            Color.lerp(ViroColors.white, ViroColors.primary600, 0.12)!,
-            ViroColors.primary800,
+            Color.lerp(palette.surfaceCard, palette.accent, 0.12)!,
+            palette.brandText,
           ),
         MemberFeeDisplayStatus.aPayer => (
-            Color.lerp(ViroColors.white, ViroColors.warning, 0.15)!,
-            ViroColors.warning,
+            Color.lerp(palette.surfaceCard, ViroColors.warning, 0.15)!,
+            palette.warningText,
           ),
       };
 }

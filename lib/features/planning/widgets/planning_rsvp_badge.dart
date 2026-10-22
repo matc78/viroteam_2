@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -54,7 +55,10 @@ class PlanningRsvpCountBadge extends StatelessWidget {
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: ViroColors.white, width: 1.5),
+                border: Border.all(
+                  color: context.viroPalette.surfaceCard,
+                  width: 1.5,
+                ),
               ),
               alignment: Alignment.center,
               child: Text(

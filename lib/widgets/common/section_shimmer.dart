@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
 /// Placeholder animé pendant le chargement des sections.
@@ -59,7 +59,7 @@ class _ShimmerCard extends StatelessWidget {
     return Container(
       height: 100,
       decoration: BoxDecoration(
-        color: ViroColors.gray200.withValues(alpha: opacity.clamp(0.0, 1.0)),
+        color: context.viroPalette.surfaceMuted.withValues(alpha: opacity.clamp(0.0, 1.0)),
         borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
       ),
     );

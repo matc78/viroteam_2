@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
@@ -27,8 +28,9 @@ class ChatBubbleTimestamp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: onImage ? ViroColors.white : ViroColors.gray400,
+          color: onImage ? ViroColors.white : palette.textMuted,
           fontWeight: FontWeight.w500,
           height: 1.1,
         );
@@ -39,7 +41,7 @@ class ChatBubbleTimestamp extends StatelessWidget {
     } else if (localStatus == ChatMessageLocalStatus.failed) {
       label = Text(
         AppCopy.chat.messageSendFailed,
-        style: style?.copyWith(color: ViroColors.error),
+        style: style?.copyWith(color: palette.errorText),
       );
     } else {
       final time = formatChatMessageTime(sentAt);
@@ -52,7 +54,7 @@ class ChatBubbleTimestamp extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: ViroColors.primary900.withValues(alpha: 0.45),
+        color: Colors.black.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(8),
       ),
       child: label,
@@ -117,6 +119,7 @@ class _ChatBubbleTextWithTimeState extends State<ChatBubbleTextWithTime> {
       widget.text,
       style: widget.style,
       recognizers: _recognizers,
+      palette: context.viroPalette,
     );
     final query = widget.highlightQuery?.trim();
     if (query == null || query.isEmpty) return spans;

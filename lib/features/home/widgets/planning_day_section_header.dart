@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 
@@ -24,16 +25,14 @@ class PlanningDaySectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final parts = planningDayHeaderParts(day);
     final theme = Theme.of(context).textTheme;
-    final badgeColor = accentColor ?? ViroColors.primary600;
-    final weekdayColor =
-        muted ? ViroColors.gray400 : ViroColors.primary800;
-    final separatorColor =
-        muted ? ViroColors.gray300 : ViroColors.primary200;
-    final dateColor = muted ? ViroColors.gray400 : ViroColors.primary600;
-    final underlineColor =
-        muted ? ViroColors.gray300 : ViroColors.primary600;
+    final badgeColor = accentColor ?? palette.accentFill;
+    final weekdayColor = muted ? palette.textMuted : palette.brandText;
+    final separatorColor = muted ? palette.borderStrong : palette.accentMid;
+    final dateColor = muted ? palette.textMuted : palette.accent;
+    final underlineColor = muted ? palette.borderStrong : palette.accent;
 
     final titleStyle = muted ? theme.titleMedium : theme.titleLarge;
 
@@ -70,6 +69,7 @@ class PlanningDaySectionHeader extends StatelessWidget {
                 '${parts.day} ${parts.month}',
                 style: titleStyle?.copyWith(
                   color: dateColor,
+                  shadows: muted ? null : palette.neonGlow(dateColor),
                   fontWeight: FontWeight.w600,
                   height: 1.1,
                 ),
@@ -81,7 +81,7 @@ class PlanningDaySectionHeader extends StatelessWidget {
                   child: Text(
                     parts.dayOffsetLabel!,
                     style: theme.labelSmall?.copyWith(
-                      color: ViroColors.gray400,
+                      color: palette.textMuted,
                       fontWeight: FontWeight.w400,
                       height: 1,
                     ),

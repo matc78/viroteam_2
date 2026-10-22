@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
@@ -33,6 +33,7 @@ class AddEventSaveBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const fadeHeight = ViroSpacing.lg;
+    final background = context.viroPalette.background;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -47,8 +48,8 @@ class AddEventSaveBar extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    ViroColors.white.withValues(alpha: 0),
-                    ViroColors.white,
+                    background.withValues(alpha: 0),
+                    background,
                   ],
                 ),
               ),
@@ -56,7 +57,7 @@ class AddEventSaveBar extends StatelessWidget {
           ),
         ),
         ColoredBox(
-          color: ViroColors.white,
+          color: background,
           child: SafeArea(
             top: false,
             child: Padding(

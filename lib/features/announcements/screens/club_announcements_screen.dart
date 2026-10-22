@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -30,6 +31,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.viroPalette;
     final announcementsAsync = ref.watch(clubAnnouncementsListProvider(clubId));
     final memberAsync = ref.watch(clubMemberProvider(clubId));
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
@@ -96,7 +98,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyLarge
-                                  ?.copyWith(color: ViroColors.gray400),
+                                  ?.copyWith(color: palette.textMuted),
                               textAlign: TextAlign.center,
                             ),
                           ],
@@ -268,7 +270,7 @@ class ClubAnnouncementsScreen extends ConsumerWidget {
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
               AppCopy.common.delete,
-              style: TextStyle(color: ViroColors.error),
+              style: TextStyle(color: ctx.viroPalette.errorText),
             ),
           ),
         ],
@@ -318,6 +320,8 @@ class _AnnouncementHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
+    final readableAccent = palette.readableAccent(accentColor);
 
     return ViroCard(
       onTap: onTap,
@@ -328,20 +332,20 @@ class _AnnouncementHistoryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              ViroIcon(ViroIcons.bell, size: 16, color: accentColor),
+              ViroIcon(ViroIcons.bell, size: 16, color: readableAccent),
               const SizedBox(width: ViroSpacing.xs),
               Expanded(
                 child: Text(
                   announcement.authorName,
                   style: theme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: accentColor,
+                    color: readableAccent,
                   ),
                 ),
               ),
               Text(
                 formatRelativeDate(announcement.createdAt),
-                style: theme.bodySmall?.copyWith(color: ViroColors.gray400),
+                style: theme.bodySmall?.copyWith(color: palette.textMuted),
               ),
               if (canManage)
                 PopupMenuButton<String>(
@@ -387,7 +391,7 @@ class _AnnouncementHistoryCard extends StatelessWidget {
             child: Text(
               targetLabel,
               style: theme.labelSmall?.copyWith(
-                color: accentColor,
+                color: readableAccent,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -397,13 +401,13 @@ class _AnnouncementHistoryCard extends StatelessWidget {
             Text(
               '${AppCopy.announcements.untilDate(DateFormat('d MMM yyyy HH:mm', 'fr_FR').format(announcement.endsAt!))}'
               '${announcement.closedAt != null ? AppCopy.announcements.closedSuffix : ''}',
-              style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+              style: theme.bodySmall?.copyWith(color: palette.textSecondary),
             ),
           ] else if (announcement.closedAt != null) ...[
             const SizedBox(height: ViroSpacing.xs),
             Text(
               AppCopy.announcements.closedBadge,
-              style: theme.bodySmall?.copyWith(color: ViroColors.gray600),
+              style: theme.bodySmall?.copyWith(color: palette.textSecondary),
             ),
           ],
           const SizedBox(height: ViroSpacing.sm),

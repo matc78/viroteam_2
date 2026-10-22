@@ -3,8 +3,8 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -621,6 +621,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (ctx) {
+        final palette = ctx.viroPalette;
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -628,7 +629,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               ListTile(
                 leading: ViroIcon(
                   ViroIcons.camera,
-                  color: ViroColors.primary600,
+                  color: palette.accent,
                 ),
                 title: Text(AppCopy.chat.changeGroupAvatarCamera),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
@@ -636,7 +637,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               ListTile(
                 leading: ViroIcon(
                   ViroIcons.image,
-                  color: ViroColors.primary600,
+                  color: palette.accent,
                 ),
                 title: Text(AppCopy.chat.changeGroupAvatarGallery),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
@@ -788,6 +789,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final uid = ref.watch(authStateProvider).value?.uid;
     // Tant que le fil est ouvert, chaque arrivée de message remet unread à 0
     // (et rafraîchit lastReadAt pour le trigger push).
@@ -858,7 +860,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         widget.openSeed?.title ??
         AppCopy.chat.conversationsTitle;
     final avatarColor =
-        widget.openSeed?.clubColor ?? ViroColors.primary600;
+        widget.openSeed?.clubColor ?? palette.accent;
     final avatarInitial =
         widget.openSeed?.initial ?? avatarInitialFromTitle(title);
     final isGroup = conv?.isGroup ?? widget.openSeed?.isGroup ?? false;
@@ -930,7 +932,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         children: [
           if (isAdminOnly)
             Material(
-              color: ViroColors.primary50,
+              color: palette.accentSofter,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: ViroSpacing.screenHorizontal,
@@ -939,7 +941,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 child: Text(
                   AppCopy.chat.readonlyHint,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.primary600,
+                        color: palette.accent,
                       ),
                 ),
               ),
@@ -948,9 +950,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                const DecoratedBox(
+                DecoratedBox(
                   decoration: BoxDecoration(
-                    color: ViroColors.surface,
+                    color: palette.surface,
                     image: DecorationImage(
                       image: AssetImage('assets/images/chat/thread_bg.png'),
                       repeat: ImageRepeat.repeat,
@@ -960,7 +962,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                     ),
                   ),
                 ),
-                const ColoredBox(color: Color(0x9EFFFFFF)),
+                ColoredBox(
+                  color: palette.background.withValues(alpha: 0.62),
+                ),
                 messagesAsync.when(
                   loading: () => const SizedBox.expand(),
                   error: (_, _) =>

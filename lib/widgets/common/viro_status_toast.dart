@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -114,7 +115,7 @@ class _ViroStatusToastBannerState extends State<_ViroStatusToastBanner>
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
-                  boxShadow: ViroMotion.floatingShadow(
+                  boxShadow: ViroMotion.floatingShadow(context.viroPalette,
                     opacity: 0.22,
                     blur: 20,
                     y: 8,

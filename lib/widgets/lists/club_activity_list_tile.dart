@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -42,7 +42,9 @@ class ClubActivityListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
-    final accent = accentColor ?? ViroColors.primary600;
+    final palette = context.viroPalette;
+    final accent = accentColor ?? palette.accent;
+    final readableAccent = palette.readableAccent(accent);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
@@ -55,7 +57,7 @@ class ClubActivityListTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ViroIcon(_icon, size: 22, color: accent),
+            ViroIcon(_icon, size: 22, color: readableAccent),
             const SizedBox(width: ViroSpacing.sm),
             Expanded(
               child: Column(
@@ -65,7 +67,7 @@ class ClubActivityListTile extends StatelessWidget {
                     event.displayTitle,
                     style: theme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: accent,
+                      color: readableAccent,
                     ),
                   ),
                   if (event.displayDetail != null) ...[
@@ -73,7 +75,7 @@ class ClubActivityListTile extends StatelessWidget {
                     Text(
                       event.displayDetail!,
                       style: theme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                   ],
@@ -81,13 +83,13 @@ class ClubActivityListTile extends StatelessWidget {
                   Text(
                     AppCopy.activity.byActor(event.actorDisplayName),
                     style: theme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
                   ),
                   Text(
                     _dateFormat.format(event.createdAt),
                     style: theme.bodySmall?.copyWith(
-                      color: ViroColors.gray600,
+                      color: palette.textSecondary,
                     ),
                   ),
                 ],

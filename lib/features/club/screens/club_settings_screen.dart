@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:viro_team_v2/config/routes.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -155,6 +155,8 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
     final clubAsync = ref.watch(clubProvider(clubId));
     final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
     final managementAccent = ref.watch(clubManagementAccentProvider(clubId));
+    final palette = context.viroPalette;
+    final readableManagementAccent = palette.readableAccent(managementAccent);
 
     if (member != null && member.role != MemberRoles.admin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -195,7 +197,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                 Text(
                   AppCopy.club.configureClubIntro(club.name),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.lg),
@@ -203,14 +205,14 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                   AppCopy.club.locationsSectionTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: managementAccent,
+                        color: readableManagementAccent,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
                   AppCopy.club.locationsSectionHelper,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
@@ -218,7 +220,10 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                   accentColor: managementAccent,
                   margin: EdgeInsets.zero,
                   child: ListTile(
-                    leading: ViroIcon(ViroIcons.place, color: managementAccent),
+                    leading: ViroIcon(
+                      ViroIcons.place,
+                      color: readableManagementAccent,
+                    ),
                     title: Text(
                       AppCopy.club.manageLocations,
                       style: const TextStyle(fontWeight: FontWeight.w600),
@@ -232,7 +237,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                     ),
                     trailing: ViroIcon(
                       ViroIcons.chevronRight,
-                      color: managementAccent,
+                      color: readableManagementAccent,
                     ),
                     onTap: () => context.push(
                       AppRoutes.clubLocationsPath(clubId),
@@ -244,14 +249,14 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                   AppCopy.club.seasonEndSectionTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: managementAccent,
+                        color: readableManagementAccent,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
                   AppCopy.club.seasonEndHelper,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
@@ -265,7 +270,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                         subtitle: Text(dateLabel),
                         trailing: ViroIcon(
                           ViroIcons.calendar,
-                          color: managementAccent,
+                          color: readableManagementAccent,
                         ),
                         onTap: _seasonBusy ? null : _pickSeasonDate,
                       ),
@@ -279,7 +284,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
-                                ?.copyWith(color: ViroColors.error),
+                                ?.copyWith(color: palette.errorText),
                           ),
                         ),
                       Padding(
@@ -303,14 +308,14 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                   AppCopy.club.coachRightsSectionTitle,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: managementAccent,
+                        color: readableManagementAccent,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.xs),
                 Text(
                   AppCopy.club.coachRightsHelper,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
@@ -325,7 +330,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                         if (index > 0)
                           Divider(
                             height: 1,
-                            color: ViroColors.gray200,
+                            color: palette.border,
                           ),
                         SwitchListTile(
                           title: Text(coachPermissionLabels[index].label),
@@ -334,7 +339,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
-                                ?.copyWith(color: ViroColors.gray600),
+                                ?.copyWith(color: palette.textSecondary),
                           ),
                           value: _permissionValue(permissions, index),
                           activeThumbColor: managementAccent,

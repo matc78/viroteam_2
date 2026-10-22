@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/open_chat_thread.dart';
@@ -56,6 +56,7 @@ class TeamMessagingLinksSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     // Parents seuls : pas dans `team:{id}` (joueurs + coaches uniquement).
     final isGuardianOnly =
@@ -69,7 +70,7 @@ class TeamMessagingLinksSection extends ConsumerWidget {
           Text(
             AppCopy.teams.discussionsHeader,
             style: theme.labelSmall?.copyWith(
-              color: accent,
+              color: palette.readableAccent(accent),
               fontWeight: FontWeight.w800,
               letterSpacing: 1.1,
             ),
@@ -118,6 +119,7 @@ class _MessagingLinkTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return ViroPressable(
@@ -131,21 +133,21 @@ class _MessagingLinkTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            ViroIcon(icon, size: 22, color: accent),
+            ViroIcon(icon, size: 22, color: palette.readableAccent(accent)),
             const SizedBox(width: ViroSpacing.md),
             Expanded(
               child: Text(
                 label,
                 style: theme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                 ),
               ),
             ),
             ViroIcon(
               ViroIcons.chevronRight,
               size: 18,
-              color: ViroColors.gray400,
+              color: palette.textMuted,
             ),
           ],
         ),

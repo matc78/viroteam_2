@@ -1,8 +1,8 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_bubble_timestamp.dart';
@@ -44,6 +44,7 @@ class ChatPollBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final align = mine ? Alignment.centerRight : Alignment.centerLeft;
     final total = message.pollTotalVotes;
@@ -62,10 +63,10 @@ class ChatPollBubble extends StatelessWidget {
             maxWidth: MediaQuery.sizeOf(context).width * 0.82,
           ),
           decoration: BoxDecoration(
-            color: ViroColors.white,
+            color: palette.surfaceCard,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: borderColor ?? ViroColors.primary100,
+              color: borderColor ?? palette.accentSoft,
               width: 1.5,
             ),
           ),
@@ -78,7 +79,9 @@ class ChatPollBubble extends StatelessWidget {
                   child: Text(
                     senderLabel,
                     style: theme.labelSmall?.copyWith(
-                      color: borderColor ?? ViroColors.primary600,
+                      color: borderColor != null
+                          ? palette.readableAccent(borderColor!)
+                          : palette.accent,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -88,13 +91,13 @@ class ChatPollBubble extends StatelessWidget {
                   ViroIcon(
                     ViroIcons.poll,
                     size: 16,
-                    color: ViroColors.primary600,
+                    color: palette.accent,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     AppCopy.chat.pollLabel,
                     style: theme.labelSmall?.copyWith(
-                      color: ViroColors.primary600,
+                      color: palette.accent,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -104,7 +107,7 @@ class ChatPollBubble extends StatelessWidget {
               Text(
                 question,
                 style: theme.titleSmall?.copyWith(
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -114,7 +117,7 @@ class ChatPollBubble extends StatelessWidget {
                     ? AppCopy.chat.pollAllowMultiple
                     : AppCopy.chat.pollSingleChoice,
                 style: theme.labelSmall?.copyWith(
-                  color: ViroColors.gray600,
+                  color: palette.textSecondary,
                 ),
               ),
               const SizedBox(height: ViroSpacing.sm),
@@ -138,7 +141,7 @@ class ChatPollBubble extends StatelessWidget {
                     child: Text(
                       AppCopy.chat.pollVotersLabel(uniqueVoters),
                       style: theme.labelSmall?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                       ),
                     ),
                   ),
@@ -150,7 +153,7 @@ class ChatPollBubble extends StatelessWidget {
               ),
               if (onViewVotes != null) ...[
                 const SizedBox(height: ViroSpacing.sm),
-                Divider(height: 1, color: ViroColors.primary100),
+                Divider(height: 1, color: palette.accentSoft),
                 ViroPressable(
                   onTap: onViewVotes,
                   child: Padding(
@@ -159,7 +162,7 @@ class ChatPollBubble extends StatelessWidget {
                       child: Text(
                         AppCopy.chat.viewVotes,
                         style: theme.labelLarge?.copyWith(
-                          color: ViroColors.primary600,
+                          color: palette.accent,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -196,6 +199,7 @@ class _PollOptionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final voteCount = voterUids.length;
     final ratio = totalVotes <= 0 ? 0.0 : voteCount / totalVotes;
@@ -211,10 +215,10 @@ class _PollOptionRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           child: Container(
             decoration: BoxDecoration(
-              color: ViroColors.primary50,
+              color: palette.accentSofter,
               border: Border.all(
                 color:
-                    selected ? ViroColors.primary600 : ViroColors.primary100,
+                    selected ? palette.accent : palette.accentSoft,
               ),
               borderRadius: BorderRadius.circular(10),
             ),
@@ -226,7 +230,7 @@ class _PollOptionRow extends StatelessWidget {
                     child: FractionallySizedBox(
                       widthFactor: ratio.clamp(0.0, 1.0),
                       child: ColoredBox(
-                        color: ViroColors.primary100.withValues(alpha: 0.9),
+                        color: palette.accentSoft.withValues(alpha: 0.9),
                       ),
                     ),
                   ),
@@ -242,15 +246,15 @@ class _PollOptionRow extends StatelessWidget {
                         marker,
                         size: 18,
                         color: selected
-                            ? ViroColors.primary600
-                            : ViroColors.gray400,
+                            ? palette.accent
+                            : palette.textMuted,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           option.text,
                           style: theme.bodyMedium?.copyWith(
-                            color: ViroColors.primary800,
+                            color: palette.brandText,
                             fontWeight:
                                 selected ? FontWeight.w700 : FontWeight.w500,
                           ),
@@ -268,7 +272,7 @@ class _PollOptionRow extends StatelessWidget {
                       Text(
                         '$voteCount',
                         style: theme.labelSmall?.copyWith(
-                          color: ViroColors.gray600,
+                          color: palette.textSecondary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -333,6 +337,7 @@ class _PollVoterAvatarBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final avatar = member != null
         ? IgnorePointer(
             child: MemberAvatar(
@@ -344,18 +349,18 @@ class _PollVoterAvatarBubble extends StatelessWidget {
             width: _kPollAvatarSize,
             height: _kPollAvatarSize,
             alignment: Alignment.center,
-            color: ViroColors.primary100,
+            color: palette.accentSoft,
             child: ViroIcon(
               ViroIcons.user,
               size: _kPollAvatarSize * 0.45,
-              color: ViroColors.primary600,
+              color: palette.accent,
             ),
           );
 
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: ViroColors.white, width: 1.5),
+        border: Border.all(color: palette.surfaceCard, width: 1.5),
       ),
       child: ClipOval(child: avatar),
     );

@@ -3,39 +3,52 @@ import 'package:flutter/services.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_typography.dart';
 
 export 'package:viro_team_v2/config/viro_colors.dart';
 export 'package:viro_team_v2/config/viro_motion.dart';
+export 'package:viro_team_v2/config/viro_palette.dart';
 export 'package:viro_team_v2/config/viro_spacing.dart';
 export 'package:viro_team_v2/config/viro_typography.dart';
 export 'package:viro_team_v2/config/viro_icons.dart';
 
-/// Thème Material 3 — design system ViroTeam v2 (mode clair uniquement).
+/// Thème Material 3 — design system ViroTeam v2 (modes clair et sombre).
 abstract final class ViroTheme {
-  static ThemeData get light {
-    const colorScheme = ColorScheme.light(
-      primary: ViroColors.primary600,
-      onPrimary: ViroColors.white,
-      primaryContainer: ViroColors.primary50,
-      onPrimaryContainer: ViroColors.primary800,
-      secondary: ViroColors.primary800,
-      onSecondary: ViroColors.white,
-      surface: ViroColors.white,
-      onSurface: ViroColors.gray900,
+  /// Thème clair (fond blanc).
+  static ThemeData get light => _build(ViroPalette.light);
+
+  /// Thème sombre (fond bleu nuit).
+  static ThemeData get dark => _build(ViroPalette.dark);
+
+  static ThemeData _build(ViroPalette palette) {
+    final colorScheme = ColorScheme(
+      brightness: palette.brightness,
+      primary: palette.accentFill,
+      onPrimary: palette.onAccent,
+      primaryContainer: palette.accentSofter,
+      onPrimaryContainer: palette.brandText,
+      secondary: palette.brandText,
+      onSecondary: palette.background,
+      surface: palette.surfaceCard,
+      onSurface: palette.textPrimary,
+      onSurfaceVariant: palette.textSecondary,
+      surfaceContainerHighest: palette.surfaceMuted,
       error: ViroColors.error,
       onError: ViroColors.white,
-      outline: ViroColors.gray300,
+      outline: palette.borderStrong,
+      outlineVariant: palette.border,
     );
 
     final base = ThemeData(
       useMaterial3: true,
+      brightness: palette.brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: ViroColors.scaffoldHighlight,
-      dividerColor: ViroColors.gray200,
+      scaffoldBackgroundColor: palette.background,
+      dividerColor: palette.border,
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
-      hoverColor: ViroColors.primary100.withValues(alpha: 0.35),
+      hoverColor: palette.accentSoft.withValues(alpha: 0.35),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
@@ -47,9 +60,10 @@ abstract final class ViroTheme {
       ),
     );
 
-    final textTheme = ViroTypography.textTheme(base.textTheme);
+    final textTheme = ViroTypography.textTheme(base.textTheme, palette);
 
     return base.copyWith(
+      extensions: [palette],
       textTheme: textTheme,
       primaryTextTheme: textTheme,
       appBarTheme: AppBarTheme(
@@ -58,53 +72,55 @@ abstract final class ViroTheme {
         centerTitle: false,
         toolbarHeight: ViroSpacing.topBarHeight,
         backgroundColor: Colors.transparent,
-        foregroundColor: ViroColors.primary800,
+        foregroundColor: palette.brandText,
         surfaceTintColor: Colors.transparent,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
-        titleTextStyle: textTheme.titleMedium?.copyWith(color: ViroColors.primary800),
-        iconTheme: const IconThemeData(color: ViroColors.primary600),
+        systemOverlayStyle: palette.isDark
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
+        titleTextStyle: textTheme.titleMedium?.copyWith(color: palette.brandText),
+        iconTheme: IconThemeData(color: palette.accent),
         shadowColor: Colors.transparent,
       ),
       cardTheme: CardThemeData(
-        color: ViroColors.surfaceCard,
+        color: palette.surfaceCard,
         elevation: 0,
         margin: const EdgeInsets.only(bottom: ViroSpacing.md),
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
         ),
-        shadowColor: ViroColors.primary800.withValues(alpha: 0.12),
+        shadowColor: palette.shadowTint.withValues(alpha: 0.12),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: _primaryButtonStyle(textTheme),
+        style: _primaryButtonStyle(textTheme, palette),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: _secondaryButtonStyle(textTheme),
+        style: _secondaryButtonStyle(textTheme, palette),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: _tertiaryButtonStyle(textTheme),
+        style: _tertiaryButtonStyle(textTheme, palette),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: ViroColors.white,
+        fillColor: palette.surfaceCard,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: ViroSpacing.md,
           vertical: 12,
         ),
         hintStyle: textTheme.bodyMedium?.copyWith(
           fontStyle: FontStyle.italic,
-          color: ViroColors.gray400,
+          color: palette.textMuted,
         ),
         labelStyle: textTheme.labelLarge,
         helperStyle: textTheme.bodySmall,
-        errorStyle: textTheme.bodySmall?.copyWith(color: ViroColors.error),
+        errorStyle: textTheme.bodySmall?.copyWith(color: palette.errorText),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
-          borderSide: const BorderSide(color: ViroColors.gray300),
+          borderSide: BorderSide(color: palette.borderStrong),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
-          borderSide: const BorderSide(color: ViroColors.primary600, width: 2),
+          borderSide: BorderSide(color: palette.accent, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
@@ -116,16 +132,16 @@ abstract final class ViroTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: ViroColors.gray50,
-        selectedColor: ViroColors.primary600,
-        side: const BorderSide(color: ViroColors.gray200),
+        backgroundColor: palette.surfaceSubtle,
+        selectedColor: palette.accentFill,
+        side: BorderSide(color: palette.border),
         labelStyle: textTheme.bodySmall?.copyWith(
           fontWeight: FontWeight.w500,
-          color: ViroColors.primary800,
+          color: palette.brandText,
         ),
         secondaryLabelStyle: textTheme.bodySmall?.copyWith(
           fontWeight: FontWeight.w600,
-          color: ViroColors.white,
+          color: palette.onAccent,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
@@ -139,14 +155,14 @@ abstract final class ViroTheme {
         ),
         // Durée appliquée via [ViroSnackBar.show] et [ProjectConfig.snackBarDuration].
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: ViroColors.primary600,
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: palette.accent,
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         elevation: ViroMotion.elevationFab,
         highlightElevation: ViroMotion.elevationFab + 4,
-        backgroundColor: ViroColors.primary600,
-        foregroundColor: ViroColors.white,
+        backgroundColor: palette.accentFill,
+        foregroundColor: palette.onAccent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -158,7 +174,7 @@ abstract final class ViroTheme {
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
           minimumSize: const Size.square(ViroSpacing.minTouchTarget),
-          foregroundColor: ViroColors.primary800,
+          foregroundColor: palette.brandText,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
           ),
@@ -166,33 +182,33 @@ abstract final class ViroTheme {
       ),
       popupMenuTheme: PopupMenuThemeData(
         elevation: ViroMotion.elevationMenu,
-        color: ViroColors.white,
+        color: palette.surfaceCard,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
-          side: const BorderSide(color: ViroColors.gray200),
+          side: BorderSide(color: palette.border),
         ),
         textStyle: textTheme.bodyLarge,
       ),
       menuTheme: MenuThemeData(
         style: MenuStyle(
           elevation: WidgetStateProperty.all(ViroMotion.elevationMenu),
-          backgroundColor: WidgetStateProperty.all(ViroColors.white),
+          backgroundColor: WidgetStateProperty.all(palette.surfaceCard),
           surfaceTintColor: WidgetStateProperty.all(Colors.transparent),
           shape: WidgetStateProperty.all(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
-              side: const BorderSide(color: ViroColors.gray200),
+              side: BorderSide(color: palette.border),
             ),
           ),
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
         elevation: ViroMotion.elevationMenu,
-        backgroundColor: ViroColors.white,
+        backgroundColor: palette.surfaceCard,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
-        dragHandleColor: ViroColors.gray300,
+        dragHandleColor: palette.borderStrong,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(ViroSpacing.cardRadius + 4),
@@ -201,7 +217,7 @@ abstract final class ViroTheme {
       ),
       dialogTheme: DialogThemeData(
         elevation: ViroMotion.elevationMenu,
-        backgroundColor: ViroColors.white,
+        backgroundColor: palette.surfaceCard,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
@@ -221,18 +237,21 @@ abstract final class ViroTheme {
     );
   }
 
-  static ButtonStyle _primaryButtonStyle(TextTheme textTheme) {
+  static ButtonStyle _primaryButtonStyle(
+    TextTheme textTheme,
+    ViroPalette palette,
+  ) {
     return ElevatedButton.styleFrom(
       minimumSize: const Size.fromHeight(ViroSpacing.buttonHeightLarge),
-      backgroundColor: ViroColors.primary600,
-      foregroundColor: ViroColors.white,
-      disabledBackgroundColor: ViroColors.gray200,
-      disabledForegroundColor: ViroColors.gray400,
+      backgroundColor: palette.accentFill,
+      foregroundColor: palette.onAccent,
+      disabledBackgroundColor: palette.border,
+      disabledForegroundColor: palette.textMuted,
       elevation: ViroMotion.elevationRest,
-      shadowColor: ViroColors.primary900.withValues(alpha: 0.2),
+      shadowColor: palette.shadowTint.withValues(alpha: 0.2),
       textStyle: textTheme.bodyLarge?.copyWith(
         fontWeight: FontWeight.w600,
-        color: ViroColors.white,
+        color: palette.onAccent,
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
@@ -246,30 +265,33 @@ abstract final class ViroTheme {
       }),
       overlayColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.pressed)) {
-          return ViroColors.primary800.withValues(alpha: 0.2);
+          return palette.accentFillPressed.withValues(alpha: 0.2);
         }
         if (states.contains(WidgetState.hovered)) {
-          return ViroColors.primary600.withValues(alpha: 0.12);
+          return palette.accentFill.withValues(alpha: 0.12);
         }
         return null;
       }),
       backgroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.disabled)) return ViroColors.gray200;
-        if (states.contains(WidgetState.pressed)) return ViroColors.primary900;
-        if (states.contains(WidgetState.hovered)) return ViroColors.primary800;
-        return ViroColors.primary600;
+        if (states.contains(WidgetState.disabled)) return palette.border;
+        if (states.contains(WidgetState.pressed)) return palette.accentFillPressed;
+        if (states.contains(WidgetState.hovered)) return palette.accentFillHover;
+        return palette.accentFill;
       }),
     );
   }
 
-  static ButtonStyle _secondaryButtonStyle(TextTheme textTheme) {
+  static ButtonStyle _secondaryButtonStyle(
+    TextTheme textTheme,
+    ViroPalette palette,
+  ) {
     return OutlinedButton.styleFrom(
       minimumSize: const Size.fromHeight(ViroSpacing.buttonHeightMedium),
-      foregroundColor: ViroColors.primary600,
-      disabledForegroundColor: ViroColors.gray400,
+      foregroundColor: palette.accent,
+      disabledForegroundColor: palette.textMuted,
       elevation: ViroMotion.elevationRest,
-      shadowColor: ViroColors.primary900.withValues(alpha: 0.1),
-      side: const BorderSide(color: ViroColors.primary600, width: 2),
+      shadowColor: palette.shadowTint.withValues(alpha: 0.1),
+      side: BorderSide(color: palette.accent, width: 2),
       textStyle: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
@@ -283,29 +305,32 @@ abstract final class ViroTheme {
       }),
       side: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return const BorderSide(color: ViroColors.gray300, width: 2);
+          return BorderSide(color: palette.borderStrong, width: 2);
         }
-        return const BorderSide(color: ViroColors.primary600, width: 2);
+        return BorderSide(color: palette.accent, width: 2);
       }),
       backgroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.pressed)) return ViroColors.primary100;
-        if (states.contains(WidgetState.hovered)) return ViroColors.primary50;
-        return ViroColors.white;
+        if (states.contains(WidgetState.pressed)) return palette.accentSoft;
+        if (states.contains(WidgetState.hovered)) return palette.accentSofter;
+        return palette.surfaceCard;
       }),
       foregroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.disabled)) return ViroColors.gray400;
-        if (states.contains(WidgetState.pressed)) return ViroColors.primary900;
-        if (states.contains(WidgetState.hovered)) return ViroColors.primary800;
-        return ViroColors.primary600;
+        if (states.contains(WidgetState.disabled)) return palette.textMuted;
+        if (states.contains(WidgetState.pressed)) return palette.brandStrong;
+        if (states.contains(WidgetState.hovered)) return palette.brandText;
+        return palette.accent;
       }),
     );
   }
 
-  static ButtonStyle _tertiaryButtonStyle(TextTheme textTheme) {
+  static ButtonStyle _tertiaryButtonStyle(
+    TextTheme textTheme,
+    ViroPalette palette,
+  ) {
     return TextButton.styleFrom(
       minimumSize: const Size(0, ViroSpacing.buttonHeightSmall),
-      foregroundColor: ViroColors.primary600,
-      disabledForegroundColor: ViroColors.gray400,
+      foregroundColor: palette.accent,
+      disabledForegroundColor: palette.textMuted,
       textStyle: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
     );
   }

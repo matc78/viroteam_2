@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -328,12 +329,13 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
     required bool selected,
     required ValueChanged<bool> onSelected,
   }) {
-    final accent = widget.accentColor ?? ViroColors.primary600;
+    final palette = context.viroPalette;
+    final accent = widget.accentColor ?? palette.accentFill;
     return FilterChip(
       label: Text(
         label,
         style: TextStyle(
-          color: selected ? ViroColors.white : accent,
+          color: selected ? ViroColors.white : palette.readableAccent(accent),
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -341,9 +343,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
       onSelected: onSelected,
       showCheckmark: false,
       selectedColor: accent,
-      backgroundColor: ViroColors.gray50,
+      backgroundColor: palette.surfaceSubtle,
       side: BorderSide(
-        color: selected ? accent : ViroColors.gray200,
+        color: selected ? accent : palette.border,
       ),
     );
   }
@@ -363,6 +365,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final parentsAsync = ref.watch(clubParentsProvider(widget.clubId));
     final theme = Theme.of(context).textTheme;
 
@@ -429,10 +432,11 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                   OutlinedButton(
                     onPressed: _busy ? null : _inviteFromList,
                     style: OutlinedButton.styleFrom(
-                      foregroundColor:
-                          widget.accentColor ?? ViroColors.primary600,
+                      foregroundColor: palette.readableAccent(
+                        widget.accentColor ?? palette.accent,
+                      ),
                       side: BorderSide(
-                        color: widget.accentColor ?? ViroColors.primary600,
+                        color: widget.accentColor ?? palette.accent,
                       ),
                     ),
                     child: Text(AppCopy.common.invite),
@@ -446,7 +450,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                 child: Text(
                   AppCopy.members.parentsEmpty,
                   textAlign: TextAlign.center,
-                  style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+                  style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
                 ),
               )
             else

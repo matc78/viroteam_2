@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_helpers.dart';
@@ -76,7 +76,7 @@ class AddEventMoreOptionsSection extends StatelessWidget {
         subtitle: Text(
           AppCopy.planning.moreOptionsSubtitle,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: ViroColors.gray600,
+                color: context.viroPalette.textSecondary,
               ),
         ),
         children: [
@@ -138,6 +138,7 @@ class AddEventMoreOptionsSection extends StatelessWidget {
               style: dropdownStyle,
               menuMaxHeight: 240,
               decoration: addEventInputDecoration(
+                palette: context.viroPalette,
                 label: AppCopy.planning.meetingLocation,
               ),
               selectedItemBuilder: (context) => [

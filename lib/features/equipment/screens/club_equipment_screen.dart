@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -153,11 +154,12 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
     required VoidCallback onTap,
     required Color accent,
   }) {
+    final palette = context.viroPalette;
     return FilterChip(
       label: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: selected ? ViroColors.white : accent,
+              color: selected ? ViroColors.white : palette.readableAccent(accent),
               fontWeight: FontWeight.w600,
             ),
       ),
@@ -167,8 +169,8 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       selectedColor: accent,
-      backgroundColor: ViroColors.gray50,
-      side: BorderSide(color: selected ? accent : ViroColors.gray200),
+      backgroundColor: palette.surfaceSubtle,
+      side: BorderSide(color: selected ? accent : palette.border),
       padding: const EdgeInsets.symmetric(
         horizontal: ViroSpacing.sm,
         vertical: ViroSpacing.xs,
@@ -250,7 +252,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                       child: Text(
                         AppCopy.equipment.intro,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: ViroColors.gray600,
+                              color: context.viroPalette.textSecondary,
                             ),
                       ),
                     ),
@@ -363,7 +365,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
-                              ?.copyWith(color: ViroColors.gray600),
+                              ?.copyWith(color: context.viroPalette.textSecondary),
                         ),
                       ),
                     )

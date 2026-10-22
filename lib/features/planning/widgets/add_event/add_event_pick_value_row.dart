@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
@@ -46,7 +46,7 @@ class AddEventPickValueRow extends StatelessWidget {
           Text(
             subtitle!,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: ViroColors.primary600,
+                  color: context.viroPalette.accent,
                 ),
           ),
         ],

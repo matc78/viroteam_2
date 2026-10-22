@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
@@ -11,10 +11,11 @@ void showAnnouncementMessageSheet(
   required ClubAnnouncement announcement,
   String? clubName,
 }) {
+  final palette = context.viroPalette;
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: ViroColors.surfaceCard,
+    backgroundColor: palette.surfaceCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(ViroSpacing.cardRadius),
@@ -37,7 +38,7 @@ void showAnnouncementMessageSheet(
               Text(
                 clubName,
                 style: theme.labelMedium?.copyWith(
-                  color: ViroColors.gray400,
+                  color: palette.textMuted,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -46,13 +47,13 @@ void showAnnouncementMessageSheet(
             Text(
               announcement.authorName,
               style: theme.titleMedium?.copyWith(
-                color: ViroColors.primary800,
+                color: palette.brandText,
               ),
             ),
             const SizedBox(height: ViroSpacing.xs),
             Text(
               formatRelativeDate(announcement.createdAt),
-              style: theme.bodySmall?.copyWith(color: ViroColors.gray400),
+              style: theme.bodySmall?.copyWith(color: palette.textMuted),
             ),
             const SizedBox(height: ViroSpacing.md),
             Text(announcement.message, style: theme.bodyLarge),
@@ -64,7 +65,7 @@ void showAnnouncementMessageSheet(
                 child: Text(
                   AppCopy.common.close,
                   style: theme.labelLarge?.copyWith(
-                    color: ViroColors.primary600,
+                    color: palette.accent,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

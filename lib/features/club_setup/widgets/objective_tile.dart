@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -24,7 +24,8 @@ class ObjectiveChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
     final icon = clubObjectiveIcon(objectiveKey);
-    final accent = ClubSetupUi.objectiveAccent(objectiveKey);
+    final palette = context.viroPalette;
+    final accent = ClubSetupUi.objectiveAccent(objectiveKey, palette);
 
     return ViroPressable(
       onTap: onToggle,
@@ -36,10 +37,10 @@ class ObjectiveChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.12)
-              : ViroColors.surfaceCard,
+              : palette.surfaceCard,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? accent : ViroColors.primary100,
+            color: selected ? accent : palette.accentSoft,
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -49,14 +50,14 @@ class ObjectiveChip extends StatelessWidget {
             ViroIcon(
               icon,
               size: 15,
-              color: selected ? accent : ViroColors.gray400,
+              color: selected ? accent : palette.textMuted,
             ),
             const SizedBox(width: 6),
             Text(
               ClubObjectives.label(objectiveKey),
               style: theme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: selected ? accent : ViroColors.primary800,
+                color: selected ? accent : palette.brandText,
                 height: 1.1,
               ),
             ),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -177,12 +178,13 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
     required ValueChanged<bool> onSelected,
     Color? accentColor,
   }) {
-    final accent = accentColor ?? ViroColors.primary600;
+    final palette = context.viroPalette;
+    final accent = accentColor ?? palette.accentFill;
     return FilterChip(
       label: Text(
         label,
         style: TextStyle(
-          color: selected ? ViroColors.white : accent,
+          color: selected ? ViroColors.white : palette.readableAccent(accent),
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -190,9 +192,9 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       onSelected: onSelected,
       showCheckmark: false,
       selectedColor: accent,
-      backgroundColor: ViroColors.gray50,
+      backgroundColor: palette.surfaceSubtle,
       side: BorderSide(
-        color: selected ? accent : ViroColors.gray200,
+        color: selected ? accent : palette.border,
       ),
     );
   }
@@ -293,7 +295,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
               onPressed: () => Navigator.pop(ctx, true),
               child: Text(
                 AppCopy.common.delete,
-                style: TextStyle(color: ViroColors.error),
+                style: TextStyle(color: ctx.viroPalette.errorText),
               ),
             ),
           ],
@@ -549,6 +551,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final clubId = widget.clubId;
     final membersAsync = ref.watch(clubMembersWithInvitesProvider(clubId));
     final clubAsync = ref.watch(clubForMembersProvider(clubId));
@@ -807,7 +810,9 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodyMedium
-                                          ?.copyWith(color: ViroColors.gray600),
+                                          ?.copyWith(
+                                            color: palette.textSecondary,
+                                          ),
                                     ),
                                   ),
                                 )

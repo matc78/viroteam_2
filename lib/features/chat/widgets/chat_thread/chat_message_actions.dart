@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -22,6 +23,7 @@ void showChatMessageActionsSheet({
   required void Function(ChatMessage message, Set<String> myEmojis)
       onOpenEmojiPicker,
 }) {
+  final palette = context.viroPalette;
   final canCopy = (message.text ?? '').trim().isNotEmpty &&
       message.type == ChatMessageTypes.text;
   final canEdit =
@@ -42,7 +44,7 @@ void showChatMessageActionsSheet({
             ListTile(
               leading: ViroIcon(
                 ViroIcons.chat,
-                color: ViroColors.primary600,
+                color: palette.accent,
               ),
               title: Text(AppCopy.chat.reply),
               onTap: () {
@@ -54,7 +56,7 @@ void showChatMessageActionsSheet({
             ListTile(
               leading: ViroIcon(
                 ViroIcons.copy,
-                color: ViroColors.primary600,
+                color: palette.accent,
               ),
               title: Text(AppCopy.chat.copyMessage),
               onTap: () {
@@ -66,7 +68,7 @@ void showChatMessageActionsSheet({
             ListTile(
               leading: ViroIcon(
                 ViroIcons.edit,
-                color: ViroColors.primary600,
+                color: palette.accent,
               ),
               title: Text(AppCopy.chat.editMessage),
               onTap: () {
@@ -87,7 +89,7 @@ void showChatMessageActionsSheet({
                 Text(
                   AppCopy.chat.reactions,
                   style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
-                        color: ViroColors.gray600,
+                        color: palette.textSecondary,
                         fontWeight: FontWeight.w700,
                       ),
                 ),
@@ -118,12 +120,12 @@ void showChatMessageActionsSheet({
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: ViroColors.gray50,
-                          border: Border.all(color: ViroColors.gray200),
+                          color: palette.surfaceSubtle,
+                          border: Border.all(color: palette.border),
                         ),
                         child: ViroIcon(
                           ViroIcons.smiley,
-                          color: ViroColors.primary600,
+                          color: palette.accent,
                           size: 20,
                         ),
                       ),
@@ -141,7 +143,7 @@ void showChatMessageActionsSheet({
               ),
               title: Text(
                 AppCopy.chat.deleteMessage,
-                style: const TextStyle(color: ViroColors.error),
+                style: TextStyle(color: palette.errorText),
               ),
               onTap: () {
                 Navigator.pop(ctx);

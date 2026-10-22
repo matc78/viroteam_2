@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
@@ -33,8 +34,9 @@ class ViroFloatingIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = backgroundColor ?? ViroColors.white;
-    final fg = foregroundColor ?? ViroColors.primary800;
+    final palette = context.viroPalette;
+    final bg = backgroundColor ?? palette.surfaceCard;
+    final fg = foregroundColor ?? palette.brandText;
     final radius = BorderRadius.circular(circular ? 999 : 14);
 
     return Tooltip(
@@ -48,7 +50,7 @@ class ViroFloatingIconButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: bg,
             borderRadius: radius,
-            boxShadow: ViroMotion.floatingShadow(opacity: 0.16, blur: 18, y: 5),
+            boxShadow: ViroMotion.floatingShadow(palette, opacity: 0.16, blur: 18, y: 5),
           ),
           child: Padding(
             padding: EdgeInsets.all(circular ? 10 : 11),
@@ -110,7 +112,7 @@ class ViroFloatingActionButton extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [accent, accentDark],
             ),
-            boxShadow: ViroMotion.floatingShadow(opacity: 0.22, blur: 20, y: 8),
+            boxShadow: ViroMotion.floatingShadow(context.viroPalette, opacity: 0.22, blur: 20, y: 8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

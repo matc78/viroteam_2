@@ -12,6 +12,7 @@ class DesignSystemPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return ViroScaffold(
       appBar: const ViroAppBar(title: Text('ViroTeam v2')),
@@ -28,7 +29,7 @@ class DesignSystemPreviewScreen extends StatelessWidget {
             style: textTheme.bodyMedium,
           ),
           const SizedBox(height: ViroSpacing.lg),
-          Text('ICÔNES PHOSPHOR', style: ViroTypography.sectionHeader),
+          Text('ICÔNES PHOSPHOR', style: ViroTypography.sectionHeader(palette)),
           const SizedBox(height: ViroSpacing.sm),
           Text(
             'Via ViroIcons — pas de Material Icons.',
@@ -37,7 +38,7 @@ class DesignSystemPreviewScreen extends StatelessWidget {
           const SizedBox(height: ViroSpacing.sm),
           const _IconsCatalog(),
           const SizedBox(height: ViroSpacing.lg),
-          Text('BOUTONS FLOTTANTS', style: ViroTypography.sectionHeader),
+          Text('BOUTONS FLOTTANTS', style: ViroTypography.sectionHeader(palette)),
           const SizedBox(height: ViroSpacing.sm),
           Row(
             children: [
@@ -61,7 +62,7 @@ class DesignSystemPreviewScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: ViroSpacing.lg),
-          Text('BOUTONS', style: ViroTypography.sectionHeader),
+          Text('BOUTONS', style: ViroTypography.sectionHeader(palette)),
           const SizedBox(height: ViroSpacing.sm),
           SizedBox(
             width: double.infinity,
@@ -81,7 +82,7 @@ class DesignSystemPreviewScreen extends StatelessWidget {
           const SizedBox(height: ViroSpacing.sm),
           TextButton(onPressed: () {}, child: const Text('Action tertiaire')),
           const SizedBox(height: ViroSpacing.lg),
-          Text('CARTES', style: ViroTypography.sectionHeader),
+          Text('CARTES', style: ViroTypography.sectionHeader(palette)),
           const SizedBox(height: ViroSpacing.sm),
           const _SampleEventCard(),
           const SizedBox(height: ViroSpacing.sm),
@@ -101,7 +102,7 @@ class DesignSystemPreviewScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: ViroSpacing.lg),
-          Text('BADGES RÔLES', style: ViroTypography.sectionHeader),
+          Text('BADGES RÔLES', style: ViroTypography.sectionHeader(palette)),
           const SizedBox(height: ViroSpacing.sm),
           Wrap(
             spacing: ViroSpacing.sm,
@@ -139,6 +140,7 @@ class _IconsCatalog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,7 +155,7 @@ class _IconsCatalog extends StatelessWidget {
               group.title.toUpperCase(),
               style: textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: ViroColors.gray600,
+                color: palette.textSecondary,
                 letterSpacing: 0.5,
               ),
             ),
@@ -199,6 +201,7 @@ class _IconTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -206,19 +209,19 @@ class _IconTile extends StatelessWidget {
         horizontal: 4,
       ),
       decoration: BoxDecoration(
-        color: ViroColors.surface,
+        color: palette.surface,
         borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ViroIcon(icon, size: 26, color: ViroColors.primary800),
+          ViroIcon(icon, size: 26, color: palette.brandText),
           const SizedBox(height: 6),
           Text(
             name,
             style: textTheme.bodySmall?.copyWith(
               fontSize: 10,
-              color: ViroColors.gray600,
+              color: palette.textSecondary,
             ),
             textAlign: TextAlign.center,
             maxLines: 2,
@@ -255,9 +258,10 @@ class _SampleEventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return ViroCard(
-      accentColor: ViroColors.primary600,
+      accentColor: palette.accent,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -266,14 +270,14 @@ class _SampleEventCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: ViroColors.primary50,
+                  color: palette.accentSofter,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   'SAM. 15 MARS',
                   style: textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: ViroColors.primary800,
+                    color: palette.brandText,
                     letterSpacing: 0.4,
                   ),
                 ),
@@ -282,7 +286,7 @@ class _SampleEventCard extends StatelessWidget {
               Text(
                 '15:00',
                 style: textTheme.titleMedium?.copyWith(
-                  color: ViroColors.primary800,
+                  color: palette.brandText,
                 ),
               ),
             ],
@@ -291,7 +295,7 @@ class _SampleEventCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ViroIcon(ViroIcons.ball, size: 20, color: ViroColors.primary600),
+              ViroIcon(ViroIcons.ball, size: 20, color: palette.accent),
               const SizedBox(width: ViroSpacing.sm),
               Expanded(
                 child: Text('Match — U15 Séniors', style: textTheme.titleMedium),
@@ -301,7 +305,7 @@ class _SampleEventCard extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              ViroIcon(ViroIcons.place, size: 16, color: ViroColors.gray400),
+              ViroIcon(ViroIcons.place, size: 16, color: palette.textMuted),
               const SizedBox(width: 4),
               Expanded(
                 child: Text('Stade Municipal', style: textTheme.bodyMedium),
@@ -309,7 +313,7 @@ class _SampleEventCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: ViroSpacing.md),
-          const Divider(height: 1, color: ViroColors.gray100),
+          Divider(height: 1, color: palette.surfaceMuted),
           const SizedBox(height: ViroSpacing.md),
           Row(
             children: [

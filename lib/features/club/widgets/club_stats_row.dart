@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_event.dart';
@@ -143,6 +143,7 @@ class _MemberCountStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
 
     return SizedBox(
       width: _widthFor(count),
@@ -164,7 +165,7 @@ class _MemberCountStatCard extends StatelessWidget {
             Text(
               AppCopy.club.statMembers,
               style: theme.bodySmall?.copyWith(
-                color: ViroColors.gray600,
+                color: palette.textSecondary,
                 fontWeight: FontWeight.w500,
                 height: 1.2,
               ),
@@ -173,7 +174,9 @@ class _MemberCountStatCard extends StatelessWidget {
             Text(
               '$count',
               style: theme.titleLarge?.copyWith(
-                color: accentColor ?? ViroColors.primary800,
+                color: accentColor != null
+                    ? palette.readableAccent(accentColor!)
+                    : palette.brandText,
                 fontWeight: FontWeight.w800,
                 height: 1.15,
               ),

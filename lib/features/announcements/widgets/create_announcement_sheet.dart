@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -27,7 +27,7 @@ Future<void> showCreateAnnouncementSheet(
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: ViroColors.surfaceCard,
+    backgroundColor: context.viroPalette.surfaceCard,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
         top: Radius.circular(ViroSpacing.cardRadius),
@@ -314,11 +314,12 @@ class _TargetPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
     final accent = Theme.of(context).colorScheme.primary;
+    final palette = context.viroPalette;
 
     if (targetType == AnnouncementTargetTypes.tousLesMembres) {
       return Text(
         AppCopy.announcements.broadcastAllMembersHint,
-        style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+        style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
       );
     }
 
@@ -326,7 +327,7 @@ class _TargetPicker extends StatelessWidget {
       if (teams.isEmpty) {
         return Text(
           AppCopy.announcements.noTeamsInClub,
-          style: theme.bodyMedium?.copyWith(color: ViroColors.gray400),
+          style: theme.bodyMedium?.copyWith(color: palette.textMuted),
         );
       }
       return Wrap(
@@ -343,11 +344,11 @@ class _TargetPicker extends StatelessWidget {
             labelStyle: TextStyle(
               color: isSelected
                   ? Theme.of(context).colorScheme.onPrimary
-                  : ViroColors.gray900,
+                  : palette.textPrimary,
               fontWeight: FontWeight.w600,
             ),
             side: BorderSide(
-              color: isSelected ? accent : ViroColors.gray200,
+              color: isSelected ? accent : palette.border,
             ),
           );
         }).toList(),
@@ -367,7 +368,7 @@ class _TargetPicker extends StatelessWidget {
       if (categories.isEmpty) {
         return Text(
           AppCopy.announcements.noCategories,
-          style: theme.bodyMedium?.copyWith(color: ViroColors.gray400),
+          style: theme.bodyMedium?.copyWith(color: palette.textMuted),
         );
       }
 
@@ -385,11 +386,11 @@ class _TargetPicker extends StatelessWidget {
             labelStyle: TextStyle(
               color: isSelected
                   ? Theme.of(context).colorScheme.onPrimary
-                  : ViroColors.gray900,
+                  : palette.textPrimary,
               fontWeight: FontWeight.w600,
             ),
             side: BorderSide(
-              color: isSelected ? accent : ViroColors.gray200,
+              color: isSelected ? accent : palette.border,
             ),
           );
         }).toList(),

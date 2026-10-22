@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_theme.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/features/settings/providers/theme_mode_provider.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -38,6 +39,7 @@ class _ViroAppState extends ConsumerState<ViroApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(goRouterProvider);
     final feeDeadlineUrgent = ref.watch(feeDeadlineUrgentBackgroundProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     ref.listen(authStateProvider, (previous, next) {
       final user = next.value;
@@ -51,6 +53,8 @@ class _ViroAppState extends ConsumerState<ViroApp> {
       title: 'ViroTeam',
       debugShowCheckedModeBanner: false,
       theme: ViroTheme.light,
+      darkTheme: ViroTheme.dark,
+      themeMode: themeMode,
       locale: const Locale('fr', 'FR'),
       supportedLocales: const [Locale('fr', 'FR')],
       localizationsDelegates: const [

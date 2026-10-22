@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/utils/team_categories.dart';
@@ -51,6 +51,7 @@ class _CreateTeamDialogState extends State<_CreateTeamDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(AppCopy.teams.newTeamTitle),
@@ -91,7 +92,7 @@ class _CreateTeamDialogState extends State<_CreateTeamDialog> {
           onPressed: () => Navigator.pop(context),
           child: Text(
             AppCopy.common.cancel,
-            style: TextStyle(color: ViroColors.gray600),
+            style: TextStyle(color: palette.textSecondary),
           ),
         ),
         FilledButton(

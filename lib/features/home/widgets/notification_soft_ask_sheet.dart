@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/settings/providers/notification_permission_provider.dart';
@@ -60,6 +60,7 @@ class NotificationSoftAskSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
 
     return SafeArea(
@@ -78,15 +79,15 @@ class NotificationSoftAskSheet extends StatelessWidget {
               child: Container(
                 width: 64,
                 height: 64,
-                decoration: const BoxDecoration(
-                  color: ViroColors.primary50,
+                decoration: BoxDecoration(
+                  color: palette.accentSofter,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
                 child: ViroIcon(
                   ViroIcons.bell,
                   size: 32,
-                  color: ViroColors.primary600,
+                  color: palette.accent,
                 ),
               ),
             ),
@@ -96,14 +97,14 @@ class NotificationSoftAskSheet extends StatelessWidget {
               textAlign: TextAlign.center,
               style: theme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: ViroColors.primary800,
+                color: palette.brandText,
               ),
             ),
             const SizedBox(height: ViroSpacing.sm),
             Text(
               AppCopy.notifications.softAskBody,
               textAlign: TextAlign.center,
-              style: theme.bodyMedium?.copyWith(color: ViroColors.gray600),
+              style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
             ),
             const SizedBox(height: ViroSpacing.lg),
             _BenefitRow(
@@ -148,16 +149,17 @@ class _BenefitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     return Row(
       children: [
-        ViroIcon(icon, size: 20, color: ViroColors.primary600),
+        ViroIcon(icon, size: 20, color: palette.accent),
         const SizedBox(width: ViroSpacing.sm),
         Expanded(
           child: Text(
             label,
             style: Theme.of(
               context,
-            ).textTheme.bodyMedium?.copyWith(color: ViroColors.gray900),
+            ).textTheme.bodyMedium?.copyWith(color: palette.textPrimary),
           ),
         ),
       ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_team.dart';
@@ -109,9 +110,10 @@ class ClubAudienceScopePicker extends StatelessWidget {
     final accent =
         accentColor ?? Theme.of(context).colorScheme.primary;
     final onAccent =
-        accent.computeLuminance() > 0.45 ? ViroColors.primary900 : ViroColors.white;
+        accent.computeLuminance() > 0.45 ? ViroColors.brandInkOnVivid : ViroColors.white;
     final options = _options;
     final theme = Theme.of(context);
+    final palette = context.viroPalette;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -146,14 +148,14 @@ class ClubAudienceScopePicker extends StatelessWidget {
                     ? AppCopy.chat.noTeamsWithPlayersForChannel
                     : AppCopy.chat.noTeamsForChannel,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: ViroColors.gray400,
+              color: palette.textMuted,
             ),
           )
         else ...[
           Text(
             _optionsHint,
             style: theme.textTheme.labelSmall?.copyWith(
-              color: ViroColors.gray400,
+              color: palette.textMuted,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
             ),
@@ -181,7 +183,7 @@ class ClubAudienceScopePicker extends StatelessWidget {
                 checkmarkColor: onAccent,
                 backgroundColor: accent.withValues(alpha: 0.08),
                 labelStyle: TextStyle(
-                  color: selected ? onAccent : ViroColors.gray900,
+                  color: selected ? onAccent : palette.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
                 side: BorderSide(

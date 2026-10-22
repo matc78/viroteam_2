@@ -522,6 +522,13 @@ test("isEventPostponedChange / champs modifiés / bookkeeping", () => {
     ),
     true,
   );
+  assert.equal(
+    isOnlyPushBookkeepingChange(
+      { title: "A", rsvp: { u1: "yes" } },
+      { title: "A", rsvp: { u1: "yes" }, seenAt: { u2: { toMillis: () => 3 } } },
+    ),
+    true,
+  );
 });
 
 test("listRsvpStatusChanges détecte les deltas (ignore les suppressions)", () => {

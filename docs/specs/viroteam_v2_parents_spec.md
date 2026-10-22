@@ -162,6 +162,7 @@ Sous-onglet **Parents** dans Membres (bureau) : liste filtrable des invitations 
 - Cotisation : docs `member_fees/{memberId de l’enfant}`. Le parent paie **pour** l’enfant.
 - Checkout HelloAsso : callable avec `memberId` cible ; le serveur vérifie `cible == moi` **ou** guardian `active` avec `canPay`.
 - RSVP : clé `events.rsvp[memberId]` de l’enfant si guardian `active` + `canRsvp` (aujourd’hui les rules ne permettent que la clé du connecté — à élargir à l’implémentation).
+- Statut « vu » : clé `events.seenAt[memberId]` (horodatage serveur, première vue conservée). Le parent qui affiche le planning de l’enfant le marque via la callable `markEventSeen` (mêmes contrôles que `setEventRsvp`) ; le membre lui-même écrit sa propre clé directement (rules).
 - Aides / justificatifs / reçu : vue payeur parent (c’est l’adulte qui gère Pass’Sport, etc.).
 
 ---

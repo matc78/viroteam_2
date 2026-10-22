@@ -21,14 +21,28 @@ import { getClub } from "./clubService";
 import { toDate } from "./types";
 import { resolveSeasonEndDate } from "@/lib/planning/seasonEnd";
 import {
+  audienceMapKeys,
+  buildAudienceMapsPatch,
   buildCanonicalByAnyId,
   planAudienceSync,
   type AudienceAliasPair,
+  type AudienceKeyedMaps,
 } from "@/lib/planning/audienceAliasSync";
 import {
   appendClubActivityToBatch,
   ClubActivityTypes,
 } from "./activityService";
+
+/** Champ map d'un document event, ou `{}` s'il est absent / invalide. */
+function objectField(
+  data: Record<string, unknown>,
+  field: string,
+): Record<string, unknown> {
+  const value = data[field];
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
 
 /** Types d'événements club (aligné EventTypes Flutter). */
 export type EventType = "training" | "match" | "tournament" | "meeting" | "other";
@@ -533,20 +547,16 @@ export async function removeAudienceFromUpcomingTeamEvents(params: {
     const members = Array.isArray(data[Fields.teamMemberIds])
       ? (data[Fields.teamMemberIds] as unknown[]).map(String)
       : [];
-    const rsvp =
-      data[Fields.rsvp] && typeof data[Fields.rsvp] === "object"
-        ? (data[Fields.rsvp] as Record<string, unknown>)
-        : null;
-    const hasRsvp = Boolean(rsvp && audienceId in rsvp);
-    if (!members.includes(audienceId) && !hasRsvp) continue;
-
     const patch: Record<string, unknown> = {};
     if (members.includes(audienceId)) {
       patch[Fields.teamMemberIds] = arrayRemove(audienceId);
     }
-    if (hasRsvp) {
-      patch[`${Fields.rsvp}.${audienceId}`] = deleteField();
+    for (const field of [Fields.rsvp, Fields.rsvpUpdatedAt, Fields.seenAt]) {
+      if (audienceId in objectField(data, field)) {
+        patch[`${field}.${audienceId}`] = deleteField();
+      }
     }
+    if (Object.keys(patch).length === 0) continue;
 
     batch.update(doc(eventsCollection(params.clubId), docSnap.id), patch);
     pending += 1;
@@ -642,34 +652,23 @@ export async function syncUpcomingEventsAudienceFromTeams(
     const currentMemberIds = Array.isArray(data[Fields.teamMemberIds])
       ? (data[Fields.teamMemberIds] as unknown[]).map(String)
       : [];
-    const rsvp =
-      data[Fields.rsvp] && typeof data[Fields.rsvp] === "object"
-        ? (data[Fields.rsvp] as Record<string, unknown>)
-        : {};
+    const maps: AudienceKeyedMaps = {
+      rsvp: objectField(data, Fields.rsvp),
+      rsvpUpdatedAt: objectField(data, Fields.rsvpUpdatedAt),
+      seenAt: objectField(data, Fields.seenAt),
+    };
     const plan = planAudienceSync({
       currentMemberIds,
       expectedCanonicalIds: expected,
       canonicalByAnyId,
-      rsvpKeys: Object.keys(rsvp),
+      rsvpKeys: audienceMapKeys(maps),
     });
     if (!plan.changed) continue;
 
     const patch: Record<string, unknown> = {
       [Fields.teamMemberIds]: plan.nextMemberIds,
+      ...buildAudienceMapsPatch({ plan, maps, deleteField: deleteField() }),
     };
-    for (const legacyKey of plan.rsvpDeletes) {
-      const move = plan.rsvpMoves.find((entry) => entry.from === legacyKey);
-      const legacyValue = rsvp[legacyKey];
-      const hasCanonical =
-        move &&
-        rsvp[move.to] !== undefined &&
-        rsvp[move.to] !== null &&
-        String(rsvp[move.to]).trim() !== "";
-      if (move && !hasCanonical && legacyValue != null) {
-        patch[`${Fields.rsvp}.${move.to}`] = legacyValue;
-      }
-      patch[`${Fields.rsvp}.${legacyKey}`] = deleteField();
-    }
 
     batch.update(doc(eventsCol, id), patch);
     pending += 1;

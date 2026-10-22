@@ -25,6 +25,8 @@ export {
   regenerateGuardianInviteDev,
   setEventRsvp,
   setEventRsvpDev,
+  markEventSeen,
+  markEventSeenDev,
 } from "./guardians";
 
 export { sendMemberInvites, sendMemberInvitesDev } from "./memberInvites";

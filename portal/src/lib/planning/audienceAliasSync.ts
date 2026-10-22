@@ -81,3 +81,66 @@ export function planAudienceSync(params: {
 
   return { nextMemberIds, rsvpDeletes, rsvpMoves, changed };
 }
+
+/** Maps d’un event indexées par id d’audience. */
+export type AudienceKeyedMaps = {
+  rsvp: Record<string, unknown>;
+  rsvpUpdatedAt: Record<string, unknown>;
+  seenAt: Record<string, unknown>;
+};
+
+/** Toutes les clés d’audience présentes dans les maps (entrée `rsvpKeys`). */
+export function audienceMapKeys(maps: AudienceKeyedMaps): string[] {
+  return [
+    ...new Set([
+      ...Object.keys(maps.rsvp),
+      ...Object.keys(maps.rsvpUpdatedAt),
+      ...Object.keys(maps.seenAt),
+    ]),
+  ];
+}
+
+function hasValue(value: unknown): boolean {
+  return value !== undefined && value !== null && String(value).trim() !== "";
+}
+
+/**
+ * Patch des maps RSVP / `rsvpUpdatedAt` / `seenAt` pour les clés legacy du plan.
+ * Le timestamp de vote suit le RSVP (déplacé seulement avec lui) ; `seenAt`
+ * migre seul et conserve la vue canonique existante.
+ */
+export function buildAudienceMapsPatch(params: {
+  plan: Pick<AudienceSyncPlan, "rsvpDeletes" | "rsvpMoves">;
+  maps: AudienceKeyedMaps;
+  deleteField: unknown;
+}): Record<string, unknown> {
+  const { plan, maps, deleteField } = params;
+  const patch: Record<string, unknown> = {};
+  for (const legacyKey of plan.rsvpDeletes) {
+    const target = plan.rsvpMoves.find((entry) => entry.from === legacyKey)?.to;
+    let rsvpMoved = false;
+    if (legacyKey in maps.rsvp) {
+      const legacyValue = maps.rsvp[legacyKey];
+      if (target && !hasValue(maps.rsvp[target]) && legacyValue != null) {
+        patch[`rsvp.${target}`] = legacyValue;
+        rsvpMoved = true;
+      }
+      patch[`rsvp.${legacyKey}`] = deleteField;
+    }
+    if (legacyKey in maps.rsvpUpdatedAt) {
+      const legacyValue = maps.rsvpUpdatedAt[legacyKey];
+      if (target && rsvpMoved && legacyValue != null) {
+        patch[`rsvpUpdatedAt.${target}`] = legacyValue;
+      }
+      patch[`rsvpUpdatedAt.${legacyKey}`] = deleteField;
+    }
+    if (legacyKey in maps.seenAt) {
+      const legacyValue = maps.seenAt[legacyKey];
+      if (target && maps.seenAt[target] == null && legacyValue != null) {
+        patch[`seenAt.${target}`] = legacyValue;
+      }
+      patch[`seenAt.${legacyKey}`] = deleteField;
+    }
+  }
+  return patch;
+}

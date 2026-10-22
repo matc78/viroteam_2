@@ -173,13 +173,28 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
-    /// RSVP : le membre ne peut modifier que sa propre clé dans `rsvp`.
-    function onlyOwnRsvpUpdate(clubId) {
+    /// Map `memberId → Timestamp` : seule la clé `ownId` change, et sa valeur
+    /// est l'horodatage serveur (`serverTimestamp()` côté client).
+    function ownServerTimestampOk(field, ownId) {
+      let before = resource.data.get(field, {});
+      let after = request.resource.data.get(field, {});
+      return !affectedKeys().hasAny([field]) || (
+        after.diff(before).affectedKeys().hasOnly([ownId])
+        && after[ownId] == request.time
+      );
+    }
+
+    /// Le membre ne modifie que ses propres clés : `rsvp`, son horodatage
+    /// `rsvpUpdatedAt` et sa vue `seenAt`.
+    function onlyOwnAudienceUpdate(clubId) {
+      let ownId = audienceMemberId(clubId);
       let rsvpAffected = request.resource.data.get('rsvp', {})
         .diff(resource.data.get('rsvp', {})).affectedKeys();
       return isClubMember(clubId)
-        && affectedKeys().hasOnly(['rsvp', 'updatedAt'])
-        && rsvpAffected.hasOnly([audienceMemberId(clubId)]);
+        && affectedKeys().hasOnly(['rsvp', 'rsvpUpdatedAt', 'seenAt', 'updatedAt'])
+        && rsvpAffected.hasOnly([ownId])
+        && ownServerTimestampOk('rsvpUpdatedAt', ownId)
+        && ownServerTimestampOk('seenAt', ownId);
     }
 
     /// Le titulaire d'une fiche ne modifie que son profil affiché.
@@ -333,7 +348,7 @@ service cloud.firestore {
         allow read: if isClubMember(clubId)
           || guardianCanSeeTeams(clubId, resource.data.get('teamIds', []));
         allow create: if isClubCoachOrAdmin(clubId);
-        allow update: if isClubCoachOrAdmin(clubId) || onlyOwnRsvpUpdate(clubId);
+        allow update: if isClubCoachOrAdmin(clubId) || onlyOwnAudienceUpdate(clubId);
         allow delete: if isClubAdmin(clubId);
       }
 

@@ -132,6 +132,8 @@ export const Fields = {
   category: "category",
   announcementId: "announcementId",
   rsvp: "rsvp",
+  rsvpUpdatedAt: "rsvpUpdatedAt",
+  seenAt: "seenAt",
   attendance: "attendance",
   creatorId: "creatorId",
   seriesId: "seriesId",

@@ -6,6 +6,8 @@ import 'package:viro_team_v2/models/club_event.dart';
 ClubEvent _event({
   List<String> teamMemberIds = const ['playerA', 'playerB'],
   Map<String, String> rsvp = const {},
+  Map<String, DateTime> rsvpUpdatedAt = const {},
+  Map<String, DateTime> seenAt = const {},
   Map<String, dynamic> legacyAttendance = const {},
 }) {
   return ClubEvent(
@@ -16,6 +18,8 @@ ClubEvent _event({
     date: DateTime(2026, 5, 20),
     teamMemberIds: teamMemberIds,
     rsvp: rsvp,
+    rsvpUpdatedAt: rsvpUpdatedAt,
+    seenAt: seenAt,
     legacyAttendance: legacyAttendance,
   );
 }
@@ -108,6 +112,55 @@ void main() {
           clubAudienceId: 'coachMemberId',
         ),
         RsvpStatus.none,
+      );
+    });
+  });
+
+  group('ClubEvent.rsvpUpdatedAtForUser', () {
+    final t1 = DateTime(2026, 10, 12, 13, 45);
+
+    test('lit le timestamp de la clé qui porte le statut', () {
+      final event = _event(
+        rsvp: {'playerA': 'yes'},
+        rsvpUpdatedAt: {'playerA': t1},
+      );
+      expect(event.rsvpUpdatedAtForUser('playerA'), t1);
+    });
+
+    test('ignore un timestamp porté par une autre clé que le statut', () {
+      final event = _event(
+        rsvp: {'uidA': 'no'},
+        rsvpUpdatedAt: {'playerA': t1},
+      );
+      expect(
+        event.rsvpUpdatedAtForUser('uidA', clubAudienceId: 'playerA'),
+        isNull,
+      );
+    });
+
+    test('null sans réponse, même avec un timestamp résiduel', () {
+      final event = _event(rsvpUpdatedAt: {'playerA': t1});
+      expect(event.rsvpUpdatedAtForUser('playerA'), isNull);
+    });
+  });
+
+  group('ClubEvent.seenAtForUser / awaitsSeenBy', () {
+    final seen = DateTime(2026, 10, 12, 9, 0);
+
+    test('retrouve la vue sous un alias du membre', () {
+      final event = _event(seenAt: {'playerA': seen});
+      expect(
+        event.seenAtForUser('uidA', clubAudienceId: 'playerA'),
+        seen,
+      );
+      expect(event.awaitsSeenBy('uidA', clubAudienceId: 'playerA'), isFalse);
+    });
+
+    test('awaitsSeenBy : vrai sans réponse ni vue, faux après réponse', () {
+      expect(_event().awaitsSeenBy('playerA'), isTrue);
+      expect(
+        _event(rsvp: {'playerA': 'yes'}).awaitsSeenBy('playerA'),
+        isFalse,
       );
     });
   });

@@ -63,4 +63,9 @@ final class AppCopyCommon {
 
   String get emptySearch => 'Rien trouvé de ce côté';
   String get notProvided => 'Pas renseigné';
+
+  /// Œil animé `SeenEye` : lecteur d'écran et tooltip.
+  String get seen => 'Vu';
+  String get notSeenYet => 'Pas encore vu';
+  String get seenTooltip => 'Rien ne lui échappe 👀';
 }

@@ -657,6 +657,13 @@ test("un membre répond présent uniquement pour lui-même", async () => {
   await assertSucceeds(
     updateDoc(doc(as(PLAYER), `clubs/${CLUB}/events/evA`), {
       [`rsvp.${PLAYER.uid}`]: "yes",
+      [`rsvpUpdatedAt.${PLAYER.uid}`]: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(PLAYER), `clubs/${CLUB}/events/evA`), {
+      [`rsvp.${PLAYER.uid}`]: "no",
+      [`rsvpUpdatedAt.${PLAYER.uid}`]: serverTimestamp(),
     }),
   );
   await assertFails(
@@ -664,7 +671,46 @@ test("un membre répond présent uniquement pour lui-même", async () => {
       [`rsvp.${COACH.uid}`]: "yes",
     }),
   );
+  await assertFails(
+    updateDoc(doc(as(PLAYER), `clubs/${CLUB}/events/evA`), {
+      [`rsvp.${PLAYER.uid}`]: "maybe",
+      [`rsvpUpdatedAt.${COACH.uid}`]: serverTimestamp(),
+    }),
+  );
 });
+
+for (const field of ["rsvpUpdatedAt", "seenAt"]) {
+  test(`${field} : uniquement sa clé, à l'heure serveur`, async () => {
+    const eventPath = `clubs/${CLUB}/events/evA`;
+    // Première écriture (champ absent) avec une clé étrangère.
+    await assertFails(
+      updateDoc(doc(as(PLAYER), eventPath), {
+        [`${field}.${COACH.uid}`]: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(as(PLAYER), eventPath), {
+        [`${field}.${PLAYER.uid}`]: "abc",
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(as(PLAYER), eventPath), {
+        [`${field}.${PLAYER.uid}`]: Timestamp.fromDate(new Date("2030-01-01")),
+      }),
+    );
+    await assertSucceeds(
+      updateDoc(doc(as(PLAYER), eventPath), {
+        [`${field}.${PLAYER.uid}`]: serverTimestamp(),
+      }),
+    );
+    // Champ existant : clé étrangère toujours refusée.
+    await assertFails(
+      updateDoc(doc(as(PLAYER), eventPath), {
+        [`${field}.${COACH.uid}`]: serverTimestamp(),
+      }),
+    );
+  });
+}
 
 test("un coach crée un événement, un joueur non", async () => {
   await assertSucceeds(

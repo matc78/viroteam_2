@@ -170,12 +170,18 @@ export const PUSH_BOOKKEEPING_FIELDS = [
   "modifiedNotifyDueAt",
 ] as const;
 
-/** True si seuls les champs techniques push ont changé. */
+/** Suivi par membre sans effet push (vue de l'événement sur la home). */
+export const SILENT_TRACKING_FIELDS = ["seenAt"] as const;
+
+/** True si seuls les champs techniques push (ou de suivi silencieux) ont changé. */
 export function isOnlyPushBookkeepingChange(
   before: Record<string, unknown>,
   after: Record<string, unknown>,
 ): boolean {
-  const bookkeeping = new Set<string>(PUSH_BOOKKEEPING_FIELDS);
+  const bookkeeping = new Set<string>([
+    ...PUSH_BOOKKEEPING_FIELDS,
+    ...SILENT_TRACKING_FIELDS,
+  ]);
   const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
   for (const key of keys) {
     if (bookkeeping.has(key)) continue;

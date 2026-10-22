@@ -55,17 +55,31 @@ RsvpMigrationPlan? planRsvpMigration(
 
 /// Construit le patch Firestore pour migrer l’audience d’un event.
 ///
+/// [rsvpUpdatedAt] suit le vote : le timestamp legacy n'est déplacé que si le
+/// RSVP legacy l'est aussi, sinon il est seulement supprimé. [seenAt] migre
+/// indépendamment (la vue canonique existante est conservée).
+///
 /// Retourne `null` si rien à changer.
 Map<String, dynamic>? buildEventAudienceMigrationPatch({
   required List<String> teamMemberIds,
   required Map<String, dynamic>? rsvp,
+  Map<String, dynamic>? rsvpUpdatedAt,
+  Map<String, dynamic>? seenAt,
   required String legacyId,
   required String canonicalId,
 }) {
   final nextMembers =
       migrateTeamMemberIds(teamMemberIds, legacyId, canonicalId);
   final rsvpPlan = planRsvpMigration(rsvp, legacyId, canonicalId);
-  if (nextMembers == null && rsvpPlan == null) return null;
+  final hasLegacyRsvpUpdatedAt = legacyId != canonicalId &&
+      (rsvpUpdatedAt?.containsKey(legacyId) ?? false);
+  final seenAtPlan = planRsvpMigration(seenAt, legacyId, canonicalId);
+  if (nextMembers == null &&
+      rsvpPlan == null &&
+      !hasLegacyRsvpUpdatedAt &&
+      seenAtPlan == null) {
+    return null;
+  }
 
   final patch = <String, dynamic>{};
   if (nextMembers != null) {
@@ -75,6 +89,19 @@ Map<String, dynamic>? buildEventAudienceMigrationPatch({
     patch['${FirestoreFields.rsvp}.$legacyId'] = FieldValue.delete();
     if (rsvpPlan.setCanonical) {
       patch['${FirestoreFields.rsvp}.$canonicalId'] = rsvpPlan.legacyValue;
+    }
+  }
+  if (hasLegacyRsvpUpdatedAt) {
+    patch['${FirestoreFields.rsvpUpdatedAt}.$legacyId'] = FieldValue.delete();
+    final legacyTimestamp = rsvpUpdatedAt![legacyId];
+    if ((rsvpPlan?.setCanonical ?? false) && legacyTimestamp != null) {
+      patch['${FirestoreFields.rsvpUpdatedAt}.$canonicalId'] = legacyTimestamp;
+    }
+  }
+  if (seenAtPlan != null) {
+    patch['${FirestoreFields.seenAt}.$legacyId'] = FieldValue.delete();
+    if (seenAtPlan.setCanonical) {
+      patch['${FirestoreFields.seenAt}.$canonicalId'] = seenAtPlan.legacyValue;
     }
   }
   return patch;

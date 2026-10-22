@@ -578,9 +578,18 @@ class TeamService {
       final rsvp = rsvpRaw is Map
           ? Map<String, dynamic>.from(rsvpRaw)
           : null;
+      final rsvpUpdatedAtRaw = data[FirestoreFields.rsvpUpdatedAt];
+      final rsvpUpdatedAt = rsvpUpdatedAtRaw is Map
+          ? Map<String, dynamic>.from(rsvpUpdatedAtRaw)
+          : null;
+      final seenAtRaw = data[FirestoreFields.seenAt];
+      final seenAt =
+          seenAtRaw is Map ? Map<String, dynamic>.from(seenAtRaw) : null;
       final patch = buildEventAudienceMigrationPatch(
         teamMemberIds: teamMemberIds,
         rsvp: rsvp,
+        rsvpUpdatedAt: rsvpUpdatedAt,
+        seenAt: seenAt,
         legacyId: legacyMemberId,
         canonicalId: authUid,
       );

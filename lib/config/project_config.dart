@@ -154,6 +154,13 @@ abstract final class ProjectConfig {
   /// l'écran se poser avant d'ouvrir la sheet).
   static const Duration notificationSoftAskDelay = Duration(milliseconds: 1200);
 
+  // —— Statut « vu » des convocations ——
+  /// Temps d'affichage continu d'une carte avant de marquer l'event « vu ».
+  static const Duration eventSeenDwell = Duration(seconds: 1);
+
+  /// Part minimale de la carte visible à l'écran pour compter la vue.
+  static const double eventSeenVisibleFraction = 0.5;
+
   // —— Rôles & permissions ——
   //
   // Hiérarchie club (héritage cumulatif) :

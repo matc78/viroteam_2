@@ -5,7 +5,9 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/home/providers/event_seen_provider.dart';
 import 'package:viro_team_v2/features/home/widgets/event_planning_card.dart';
+import 'package:viro_team_v2/features/home/widgets/event_seen_visibility_tracker.dart';
 import 'package:viro_team_v2/features/home/widgets/planning_day_section_header.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
@@ -173,7 +175,7 @@ class _MemberEventCard extends ConsumerWidget {
           canManageEvents: canManageEvents,
         );
 
-    return EventPlanningCard(
+    final card = EventPlanningCard(
       event: event,
       clubName: clubNames[event.clubId] ?? AppCopy.planning.clubFallbackName,
       clubColor: clubColors[event.clubId] ?? context.viroPalette.accent,
@@ -185,6 +187,23 @@ class _MemberEventCard extends ConsumerWidget {
       rsvpStatus: canRsvp ? status : null,
       onRsvpSelected:
           canRsvp ? (next) => onSetRsvp(event, next) : null,
+    );
+
+    final needsSeen = canRsvp &&
+        event.awaitsSeenBy(
+          uid,
+          clubAudienceId: audienceId,
+          memberAudienceKeys: audienceKeys,
+        );
+    if (!needsSeen) return card;
+    return EventSeenVisibilityTracker(
+      trackingKey: '${event.clubId}/${event.id}',
+      onSeen: () => ref.read(eventSeenControllerProvider).markSeen(
+            clubId: event.clubId,
+            eventId: event.id,
+            audienceId: audienceId,
+          ),
+      child: card,
     );
   }
 }

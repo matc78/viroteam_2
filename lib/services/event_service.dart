@@ -296,6 +296,20 @@ class EventService {
         viaCallable: viaCallable,
       );
 
+  /// Marque l'événement comme vu par [audienceId] (soi ou enfant).
+  Future<void> markSeen({
+    required String clubId,
+    required String eventId,
+    required String audienceId,
+    bool viaCallable = false,
+  }) =>
+      _rsvp.markSeen(
+        clubId: clubId,
+        eventId: eventId,
+        audienceId: audienceId,
+        viaCallable: viaCallable,
+      );
+
   /// Enregistre l'appel coach (`attendance`) sans modifier `rsvp`.
   Future<void> updateAttendance({
     required String clubId,

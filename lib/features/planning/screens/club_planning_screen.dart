@@ -20,6 +20,8 @@ import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/features/home/providers/event_seen_provider.dart';
+import 'package:viro_team_v2/features/home/widgets/event_seen_visibility_tracker.dart';
 import 'package:viro_team_v2/features/home/widgets/planning_day_section_header.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_calendar_range.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
@@ -376,10 +378,29 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
             ? (next) => _setRsvp(event, next, canManage: canManage)
             : null,
       );
-      if (event.id != _focusEventId) return tile;
+      // Parent : la vue du planning de l'enfant vaut « vu » (pas de home enfant).
+      final trackedTile = canRsvp &&
+              rsvpTarget.viaCallable &&
+              event.awaitsSeenBy(
+                rsvpTarget.subjectId,
+                clubAudienceId: rsvpTarget.audienceId,
+                memberAudienceKeys: audienceKeys,
+              )
+          ? EventSeenVisibilityTracker(
+              trackingKey: '${event.clubId}/${event.id}/${rsvpTarget.audienceId}',
+              onSeen: () => ref.read(eventSeenControllerProvider).markSeen(
+                    clubId: event.clubId,
+                    eventId: event.id,
+                    audienceId: rsvpTarget.audienceId,
+                    viaCallable: true,
+                  ),
+              child: tile,
+            )
+          : tile;
+      if (event.id != _focusEventId) return trackedTile;
       return PlanningFocusedEventHighlight(
         color: clubColor ?? palette.accent,
-        child: tile,
+        child: trackedTile,
       );
     }
 

@@ -40,6 +40,7 @@ dependencies:
   sign_in_with_apple: ^8.2.0
   crypto: ^3.0.7
   flutter_local_notifications: ^22.3.2
+  visibility_detector: ^0.4.0+2
 
 dev_dependencies:
   flutter_test:

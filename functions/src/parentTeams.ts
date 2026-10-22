@@ -386,19 +386,47 @@ async function syncUpcomingEventAudienceForRosterChange(params: {
       patch.teamMemberIds = [...nextMembers];
     }
 
+    const rsvpUpdatedAt =
+      data.rsvpUpdatedAt && typeof data.rsvpUpdatedAt === "object"
+        ? (data.rsvpUpdatedAt as Record<string, unknown>)
+        : {};
+    const seenAt =
+      data.seenAt && typeof data.seenAt === "object"
+        ? (data.seenAt as Record<string, unknown>)
+        : {};
+
     for (const key of keysToRemove) {
-      if (!(key in rsvp)) continue;
       const target = rsvpMigrateTo.get(key);
-      const legacyValue = rsvp[key];
-      const hasTarget =
-        target &&
-        rsvp[target] !== undefined &&
-        rsvp[target] !== null &&
-        String(rsvp[target]).trim() !== "";
-      if (target && !hasTarget && legacyValue != null) {
-        patch[`rsvp.${target}`] = legacyValue;
+      let rsvpMoved = false;
+      if (key in rsvp) {
+        const legacyValue = rsvp[key];
+        const hasTarget =
+          target &&
+          rsvp[target] !== undefined &&
+          rsvp[target] !== null &&
+          String(rsvp[target]).trim() !== "";
+        if (target && !hasTarget && legacyValue != null) {
+          patch[`rsvp.${target}`] = legacyValue;
+          rsvpMoved = true;
+        }
+        patch[`rsvp.${key}`] = admin.firestore.FieldValue.delete();
       }
-      patch[`rsvp.${key}`] = admin.firestore.FieldValue.delete();
+      // Le timestamp suit le vote : déplacé seulement avec le RSVP legacy.
+      if (key in rsvpUpdatedAt) {
+        const legacyValue = rsvpUpdatedAt[key];
+        if (target && rsvpMoved && legacyValue != null) {
+          patch[`rsvpUpdatedAt.${target}`] = legacyValue;
+        }
+        patch[`rsvpUpdatedAt.${key}`] = admin.firestore.FieldValue.delete();
+      }
+      if (key in seenAt) {
+        const legacyValue = seenAt[key];
+        const hasTarget = target && seenAt[target] != null;
+        if (target && !hasTarget && legacyValue != null) {
+          patch[`seenAt.${target}`] = legacyValue;
+        }
+        patch[`seenAt.${key}`] = admin.firestore.FieldValue.delete();
+      }
     }
 
     if (Object.keys(patch).length === 0) continue;

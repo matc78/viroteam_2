@@ -78,6 +78,8 @@ class ClubEvent {
     this.allTeams = false,
     this.teamMemberIds = const [],
     this.rsvp = const {},
+    this.rsvpUpdatedAt = const {},
+    this.seenAt = const {},
     this.legacyAttendance = const {},
     this.canceled = false,
     this.seriesId,
@@ -98,6 +100,10 @@ class ClubEvent {
   final bool allTeams;
   final List<String> teamMemberIds;
   final Map<String, String> rsvp;
+  /// Dernière modification RSVP par membre (`memberId` → date locale).
+  final Map<String, DateTime> rsvpUpdatedAt;
+  /// Première vue de l'événement sur la home par membre (`memberId` → date).
+  final Map<String, DateTime> seenAt;
   /// Présences v1 (`attendance`) — utilisé si `rsvp` est vide.
   final Map<String, dynamic> legacyAttendance;
   final bool canceled;
@@ -138,12 +144,8 @@ class ClubEvent {
       clubAudienceId: clubAudienceId,
       memberAudienceKeys: memberAudienceKeys,
     );
-    for (final key in keys) {
-      final value = rsvp[key];
-      if (value != null) {
-        return RsvpStatus.fromString(value);
-      }
-    }
+    final rsvpKey = _rsvpKeyIn(keys);
+    if (rsvpKey != null) return RsvpStatus.fromString(rsvp[rsvpKey]);
     if (legacyAttendance.isNotEmpty) {
       for (final key in keys) {
         final entry = legacyAttendance[key];
@@ -152,6 +154,72 @@ class ClubEvent {
       }
     }
     return RsvpStatus.none;
+  }
+
+  /// Date du vote RSVP de l'utilisateur, lue sur la clé qui porte le statut.
+  ///
+  /// Retourne `null` sans réponse (statut `none`) ou sans timestamp associé.
+  DateTime? rsvpUpdatedAtForUser(
+    String authUid, {
+    String? clubAudienceId,
+    Set<String>? memberAudienceKeys,
+  }) {
+    final rsvpKey = _rsvpKeyIn(
+      _audienceKeysForUser(
+        authUid,
+        clubAudienceId: clubAudienceId,
+        memberAudienceKeys: memberAudienceKeys,
+      ),
+    );
+    if (rsvpKey == null) return null;
+    if (RsvpStatus.fromString(rsvp[rsvpKey]) == RsvpStatus.none) return null;
+    return rsvpUpdatedAt[rsvpKey];
+  }
+
+  /// Date à laquelle l'utilisateur a vu l'événement sur sa home, si connue.
+  DateTime? seenAtForUser(
+    String authUid, {
+    String? clubAudienceId,
+    Set<String>? memberAudienceKeys,
+  }) {
+    if (seenAt.isEmpty) return null;
+    final keys = _audienceKeysForUser(
+      authUid,
+      clubAudienceId: clubAudienceId,
+      memberAudienceKeys: memberAudienceKeys,
+    );
+    for (final key in keys) {
+      final value = seenAt[key];
+      if (value != null) return value;
+    }
+    return null;
+  }
+
+  /// `true` si l'utilisateur n'a ni répondu ni encore vu l'événement.
+  bool awaitsSeenBy(
+    String authUid, {
+    String? clubAudienceId,
+    Set<String>? memberAudienceKeys,
+  }) =>
+      rsvpStatusForUser(
+            authUid,
+            clubAudienceId: clubAudienceId,
+            memberAudienceKeys: memberAudienceKeys,
+          ) ==
+          RsvpStatus.none &&
+      seenAtForUser(
+            authUid,
+            clubAudienceId: clubAudienceId,
+            memberAudienceKeys: memberAudienceKeys,
+          ) ==
+          null;
+
+  /// Première clé de [keys] présente dans [rsvp].
+  String? _rsvpKeyIn(Set<String> keys) {
+    for (final key in keys) {
+      if (rsvp[key] != null) return key;
+    }
+    return null;
   }
 
   /// Identifiants possibles de l'utilisateur sur l'événement (jamais d'autres joueurs).
@@ -280,6 +348,10 @@ class ClubEvent {
   }) {
     final data = doc.data() ?? {};
     final rsvpRaw = data[FirestoreFields.rsvp] as Map<String, dynamic>? ?? {};
+    final rsvpUpdatedAtRaw =
+        data[FirestoreFields.rsvpUpdatedAt] as Map<String, dynamic>? ?? {};
+    final seenAtRaw =
+        data[FirestoreFields.seenAt] as Map<String, dynamic>? ?? {};
     final attendanceRaw =
         data[FirestoreFields.attendance] as Map<String, dynamic>? ?? {};
 
@@ -305,10 +377,28 @@ class ClubEvent {
               .toList() ??
           [],
       rsvp: rsvpRaw.map((k, v) => MapEntry(k, v.toString())),
+      rsvpUpdatedAt: _parseTimestampMap(rsvpUpdatedAtRaw),
+      seenAt: _parseTimestampMap(seenAtRaw),
       legacyAttendance: attendanceRaw,
       canceled: data[FirestoreFields.canceled] as bool? ?? false,
       seriesId: data[FirestoreFields.seriesId] as String?,
     );
+  }
+
+  /// Map Firestore `memberId → Timestamp` → dates (valeurs invalides ignorées).
+  static Map<String, DateTime> _parseTimestampMap(
+    Map<String, dynamic> raw,
+  ) {
+    final result = <String, DateTime>{};
+    for (final entry in raw.entries) {
+      final value = entry.value;
+      if (value is Timestamp) {
+        result[entry.key] = value.toDate();
+      } else if (value is DateTime) {
+        result[entry.key] = value;
+      }
+    }
+    return result;
   }
 
   static DateTime _startOfDay(DateTime d) =>

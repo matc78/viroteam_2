@@ -112,6 +112,10 @@ abstract final class FirestoreFields {
   static const String seriesId = 'seriesId';
   static const String teamMemberIds = 'teamMemberIds';
   static const String rsvp = 'rsvp';
+  /// Dernière modification RSVP par membre (`memberId` → Timestamp).
+  static const String rsvpUpdatedAt = 'rsvpUpdatedAt';
+  /// Première vue de l'événement sur la home par membre (`memberId` → Timestamp).
+  static const String seenAt = 'seenAt';
   static const String attendance = 'attendance';
   static const String creatorId = 'creatorId';
   static const String canceled = 'canceled';

@@ -19,6 +19,13 @@ class EventRsvpOperations {
   final EventPaths _paths;
   final FirebaseFunctions _functions;
 
+  /// Maps d'un event indexées par `memberId`, nettoyées au retrait du membre.
+  static const _perMemberEventMaps = [
+    FirestoreFields.rsvp,
+    FirestoreFields.rsvpUpdatedAt,
+    FirestoreFields.seenAt,
+  ];
+
   /// ID présent dans `teamMemberIds` / `playerIds` (doc `members/{memberId}`).
   String rosterAudienceId(ClubMember member, String authUid) =>
       member.memberId;
@@ -70,6 +77,31 @@ class EventRsvpOperations {
     }
     await _paths.events(clubId).doc(eventId).update({
       '${FirestoreFields.rsvp}.$uid': status.firestoreValue,
+      '${FirestoreFields.rsvpUpdatedAt}.$uid': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Marque l'événement comme vu par [audienceId] (soi ou enfant).
+  ///
+  /// [viaCallable] : parent pour un enfant (callable `markEventSeen`).
+  Future<void> markSeen({
+    required String clubId,
+    required String eventId,
+    required String audienceId,
+    bool viaCallable = false,
+  }) async {
+    if (viaCallable) {
+      final callable =
+          _functions.httpsCallable(cloudCallableName('markEventSeen'));
+      await callable.call<Map<String, dynamic>>({
+        'clubId': clubId,
+        'eventId': eventId,
+        'memberId': audienceId,
+      });
+      return;
+    }
+    await _paths.events(clubId).doc(eventId).update({
+      '${FirestoreFields.seenAt}.$audienceId': FieldValue.serverTimestamp(),
     });
   }
 
@@ -273,18 +305,18 @@ class EventRsvpOperations {
                   ?.whereType<String>()
                   .toList() ??
               [];
-      final rsvp = data[FirestoreFields.rsvp];
-      final hasRsvp = rsvp is Map && rsvp.containsKey(audienceId);
-      if (!members.contains(audienceId) && !hasRsvp) continue;
-
       final patch = <String, dynamic>{};
       if (members.contains(audienceId)) {
         patch[FirestoreFields.teamMemberIds] =
             FieldValue.arrayRemove([audienceId]);
       }
-      if (hasRsvp) {
-        patch['${FirestoreFields.rsvp}.$audienceId'] = FieldValue.delete();
+      for (final field in _perMemberEventMaps) {
+        final values = data[field];
+        if (values is Map && values.containsKey(audienceId)) {
+          patch['$field.$audienceId'] = FieldValue.delete();
+        }
       }
+      if (patch.isEmpty) continue;
       batch.update(doc.reference, patch);
       pending++;
       if (pending >= 400) {

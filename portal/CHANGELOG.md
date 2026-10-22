@@ -13,6 +13,10 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 - Création d’événement : Lieu en dropdown des lieux de pratique du club (1er par défaut + option « Autre »), saisie libre seulement pour match extérieur ou Autre
 
+### Corrigé
+
+- Équipes : le retrait d’un membre et la synchro des alias d’audience nettoient / migrent aussi `rsvpUpdatedAt` et `seenAt` (plus de dates de vote orphelines)
+
 ## [1.9.0] - 2026-10-21
 
 ### Ajouté

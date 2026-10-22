@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
@@ -234,6 +235,22 @@ class _PlanningEventDetailSheetState
         memberAudienceKeys: eventAudienceKeys(member),
       );
 
+  /// Date de dernier vote RSVP du membre, si connue.
+  DateTime? _rsvpUpdatedAtForMember(String id, ClubMember member) =>
+      _event.rsvpUpdatedAtForUser(
+        id,
+        clubAudienceId: member.memberId,
+        memberAudienceKeys: eventAudienceKeys(member),
+      );
+
+  /// Date à laquelle le membre a vu l'événement sur sa home, si connue.
+  DateTime? _seenAtForMember(String id, ClubMember member) =>
+      _event.seenAtForUser(
+        id,
+        clubAudienceId: member.memberId,
+        memberAudienceKeys: eventAudienceKeys(member),
+      );
+
   /// Coachs en tête, puis joueurs ; dans chaque groupe : présent → en attente →
   /// absent, puis alphabétique.
   List<({String id, ClubMember member, bool isCoach})> _sortedEntries(
@@ -327,16 +344,45 @@ class _PlanningEventDetailSheetState
                 ),
               )
             else
-              for (final entry in entries)
-                PlanningMemberRsvpRow(
-                  member: entry.member,
-                  status: _rsvpForMember(entry.id, entry.member),
-                  isTeamCoach: entry.isCoach,
-                ),
+              ..._memberRows(entries),
           ],
         );
       },
     );
+  }
+
+  /// Lignes de réponse ; les yeux « vu » s'ouvrent en cascade dans l'ordre
+  /// de la liste (rang compté parmi les seules lignes « vu »).
+  List<Widget> _memberRows(
+    List<({String id, ClubMember member, bool isCoach})> entries,
+  ) {
+    var seenRank = 0;
+    final rows = <Widget>[];
+    for (final entry in entries) {
+      final status = _rsvpForMember(entry.id, entry.member);
+      final lastUpdatedAt = _rsvpUpdatedAtForMember(entry.id, entry.member);
+      final seenAt = _seenAtForMember(entry.id, entry.member);
+      final opensEye = seenAt != null &&
+          PlanningMemberRsvpRow.showsSeenEye(
+            status: status,
+            lastUpdatedAt: lastUpdatedAt,
+          );
+      rows.add(
+        PlanningMemberRsvpRow(
+          key: ValueKey(entry.id),
+          member: entry.member,
+          status: status,
+          lastUpdatedAt: lastUpdatedAt,
+          seenAt: seenAt,
+          seenEyeDelay: opensEye
+              ? ViroMotion.seenEyeStartDelay +
+                  ViroMotion.seenEyeStagger * seenRank++
+              : Duration.zero,
+          isTeamCoach: entry.isCoach,
+        ),
+      );
+    }
+    return rows;
   }
 
   /// Équipes ciblées par l'événement (aucune si pas d'équipe liée).

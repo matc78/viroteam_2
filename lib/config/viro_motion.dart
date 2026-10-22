@@ -12,6 +12,11 @@ abstract final class ViroMotion {
   /// Mise en avant d’un élément ouvert par une notif : affichage puis fondu.
   static const Duration focusHighlightHold = Duration(milliseconds: 2400);
   static const Duration focusHighlightFade = Duration(milliseconds: 600);
+  /// Ouverture de l'œil « vu » (`SeenEye`), attente avant la première
+  /// ouverture (sheet posé) et décalage entre deux lignes.
+  static const Duration seenEyeOpen = Duration(milliseconds: 1400);
+  static const Duration seenEyeStartDelay = Duration(milliseconds: 700);
+  static const Duration seenEyeStagger = Duration(milliseconds: 180);
 
   static const Curve enter = Curves.easeOutCubic;
   static const Curve exit = Curves.easeInCubic;

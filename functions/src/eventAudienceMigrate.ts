@@ -60,20 +60,41 @@ export function planRsvpMigration(
 }
 
 /**
- * Patch Firestore pour un document event (ids + RSVP).
+ * Patch Firestore pour un document event (ids + RSVP + rsvpUpdatedAt + seenAt).
+ * `rsvpUpdatedAt` suit le vote : le timestamp legacy n'est déplacé que si le
+ * RSVP legacy l'est aussi, sinon il est seulement supprimé. `seenAt` migre
+ * indépendamment (la vue canonique existante est conservée).
  * Retourne `null` si rien à changer.
  */
 export function buildEventAudienceMigrationPatch(params: {
   teamMemberIds: string[];
   rsvp: Record<string, unknown> | null | undefined;
+  rsvpUpdatedAt?: Record<string, unknown> | null | undefined;
+  seenAt?: Record<string, unknown> | null | undefined;
   legacyId: string;
   canonicalId: string;
   deleteField: unknown;
 }): Record<string, unknown> | null {
-  const { teamMemberIds, rsvp, legacyId, canonicalId, deleteField } = params;
+  const {
+    teamMemberIds,
+    rsvp,
+    rsvpUpdatedAt,
+    seenAt,
+    legacyId,
+    canonicalId,
+    deleteField,
+  } = params;
   const nextMembers = migrateTeamMemberIds(teamMemberIds, legacyId, canonicalId);
   const rsvpPlan = planRsvpMigration(rsvp, legacyId, canonicalId);
-  if (!nextMembers && !rsvpPlan) return null;
+  const hasLegacyRsvpUpdatedAt =
+    legacyId !== canonicalId &&
+    !!rsvpUpdatedAt &&
+    typeof rsvpUpdatedAt === "object" &&
+    legacyId in rsvpUpdatedAt;
+  const seenAtPlan = planRsvpMigration(seenAt, legacyId, canonicalId);
+  if (!nextMembers && !rsvpPlan && !hasLegacyRsvpUpdatedAt && !seenAtPlan) {
+    return null;
+  }
 
   const patch: Record<string, unknown> = {};
   if (nextMembers) {
@@ -83,6 +104,19 @@ export function buildEventAudienceMigrationPatch(params: {
     patch[`rsvp.${legacyId}`] = deleteField;
     if (rsvpPlan.setCanonical) {
       patch[`rsvp.${canonicalId}`] = rsvpPlan.legacyValue;
+    }
+  }
+  if (hasLegacyRsvpUpdatedAt) {
+    patch[`rsvpUpdatedAt.${legacyId}`] = deleteField;
+    const legacyTimestamp = rsvpUpdatedAt![legacyId];
+    if (rsvpPlan?.setCanonical && legacyTimestamp != null) {
+      patch[`rsvpUpdatedAt.${canonicalId}`] = legacyTimestamp;
+    }
+  }
+  if (seenAtPlan) {
+    patch[`seenAt.${legacyId}`] = deleteField;
+    if (seenAtPlan.setCanonical) {
+      patch[`seenAt.${canonicalId}`] = seenAtPlan.legacyValue;
     }
   }
   return patch;

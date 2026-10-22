@@ -61,6 +61,13 @@ final class AppCopyPlanning {
   String get rsvpAbsent => 'Absent';
   String get rsvpPending => 'En attente';
 
+  /// Lecteur d’écran : date du vote RSVP ([when] ex. « 12/10 à 13h45 »).
+  String rsvpAnsweredAt(String when) => 'Répondu le $when';
+
+  /// Icône « vu » : convocation vue sur la home, sans réponse.
+  String seenNotAnswered(String when) =>
+      'Vu le $when, pas encore répondu';
+
   /// Libellé lecteur d’écran pour un compteur RSVP (résumé).
   String rsvpCountLabel(String statusLabel, int count) =>
       '$count $statusLabel';

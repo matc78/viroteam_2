@@ -156,9 +156,19 @@ async function reconcileRosterIds(params: {
       data.rsvp && typeof data.rsvp === "object"
         ? (data.rsvp as Record<string, unknown>)
         : null;
+    const rsvpUpdatedAt =
+      data.rsvpUpdatedAt && typeof data.rsvpUpdatedAt === "object"
+        ? (data.rsvpUpdatedAt as Record<string, unknown>)
+        : null;
+    const seenAt =
+      data.seenAt && typeof data.seenAt === "object"
+        ? (data.seenAt as Record<string, unknown>)
+        : null;
     const patch = buildEventAudienceMigrationPatch({
       teamMemberIds,
       rsvp,
+      rsvpUpdatedAt,
+      seenAt,
       legacyId: legacyMemberId,
       canonicalId: authUid,
       deleteField: admin.firestore.FieldValue.delete(),

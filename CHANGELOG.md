@@ -8,6 +8,11 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Détail d’événement : horodatage du dernier vote RSVP (`12/10 · 13h45`, heure serveur) à gauche de l’icône sur chaque tuile membre, lu sur la même clé que le statut
+- Convocations : statut « vu » — un œil à côté de « En attente » quand le membre a vu l’événement sur sa home (carte affichée ≥ 1 s) sans répondre ; pour un enfant, la vue du planning par le parent compte (callable `markEventSeen`)
+
 ### Corrigé
 
 - Détail d’événement : plus de titres / heures en rouge juste après l’ouverture de l’app — l’accent club réutilise la couleur déjà connue sur l’accueil au lieu d’un fallback preset

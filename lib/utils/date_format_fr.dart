@@ -5,7 +5,7 @@ import 'package:viro_team_v2/utils/calendar_days.dart';
 final _dateFormat = DateFormat('EEE dd/MM', 'fr_FR');
 final _weekdayFormat = DateFormat('EEEE', 'fr_FR');
 final _dayMonthFormat = DateFormat('d/MM', 'fr_FR');
-final _timeFormat = DateFormat('HH\'h\'mm', 'fr_FR');
+final _timeFormat = DateFormat('H\'h\'mm', 'fr_FR');
 final _chatMessageTimeFormat = DateFormat('HH:mm', 'fr_FR');
 final _relativeFormat = DateFormat.yMMMd('fr_FR');
 
@@ -24,6 +24,21 @@ String formatWeekdayLong(DateTime date) =>
 
 /// Jour et mois numériques (ex. « 20/05 »).
 String formatDayMonth(DateTime date) => _dayMonthFormat.format(date);
+
+/// Heure locale courte (ex. « 13h45 »).
+String formatClockTime(DateTime date) => _timeFormat.format(date.toLocal());
+
+/// Jour, mois et heure courts (ex. « 12/10 · 13h45 »).
+String formatDayMonthTime(DateTime date) {
+  final local = date.toLocal();
+  return '${_dayMonthFormat.format(local)} · ${_timeFormat.format(local)}';
+}
+
+/// Jour et heure pour une phrase (ex. « 12/10 à 13h45 »).
+String formatDayMonthAtTime(DateTime date) {
+  final local = date.toLocal();
+  return '${_dayMonthFormat.format(local)} à ${_timeFormat.format(local)}';
+}
 
 /// Écart en jours calendaires entre [date] et aujourd'hui (positif = futur).
 int planningDaysFromToday(DateTime date) =>

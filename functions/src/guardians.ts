@@ -1063,8 +1063,48 @@ export const {
 
   await eventRef.update({
     [`rsvp.${memberId}`]: value,
+    [`rsvpUpdatedAt.${memberId}`]:
+      admin.firestore.FieldValue.serverTimestamp(),
     rsvpLastActorUid: uid,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { ok: true };
+});
+
+/**
+ * Marque un événement « vu » pour soi ou un enfant lié (clé events.seenAt[memberId]).
+ * Idempotent : la première vue est conservée. Pas d'`updatedAt` (suivi silencieux).
+ * Prod → v2-prod ; `markEventSeenDev` → v2-dev.
+ */
+export const {
+  prod: markEventSeen,
+  dev: markEventSeenDev,
+} = defineDualCallable(async (request: CallableRequest) => {
+  const uid = requireUid(request);
+  const clubId = requireString(request.data?.clubId, "clubId");
+  const eventId = requireString(request.data?.eventId, "eventId");
+  const memberId = requireString(request.data?.memberId, "memberId");
+
+  await assertCanActForMember({
+    clubId,
+    memberId,
+    uid,
+    permission: "canRsvp",
+  });
+
+  const eventRef = clubRef(clubId).collection("events").doc(eventId);
+  const eventSnap = await eventRef.get();
+  if (!eventSnap.exists) {
+    throw new HttpsError("not-found", "Événement introuvable");
+  }
+  const seenAt = eventSnap.get("seenAt");
+  if (seenAt && typeof seenAt === "object" && seenAt[memberId] != null) {
+    return { ok: true };
+  }
+
+  await eventRef.update({
+    [`seenAt.${memberId}`]: admin.firestore.FieldValue.serverTimestamp(),
   });
 
   return { ok: true };

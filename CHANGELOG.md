@@ -8,6 +8,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.2.10] - 2026-10-22
+
 ### Ajouté
 
 - Mode sombre : l’app suit le réglage clair / sombre du téléphone par défaut, et Paramètres > Apparence permet de forcer Clair ou Sombre (choix mémorisé sur l’appareil, appliqué dès le lancement)
@@ -18,6 +20,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Logos ViroTeam (`ViroLogo` / `ViroLogoMark`) affichés en blanc en mode sombre pour rester lisibles sur le fond sombre
 - Mode sombre plus lisible sur l’accueil : couleurs de club ravivées (type d’événement, pastille club), accents bleus plus clairs, et halo « néon » discret sur les dates du planning, le bouton Réglages et le bouton d’ajout de club
 - Splash natif (Android / iOS, y compris Android 12) : variante sombre (fond `#0B1220`, logo blanc) quand le téléphone est en mode sombre — plus de flash blanc au cold start
+
+### Note
+
+- Version app : `pubspec.yaml` / `ProjectConfig` en `2.2.10+16`
 
 ## [2.2.9] - 2026-10-21
 

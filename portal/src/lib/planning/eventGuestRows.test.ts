@@ -22,6 +22,8 @@ function makeEvent(
     location: "Gymnase",
     teamIds: ["team1"],
     teamLabels: ["Séniors"],
+    excludedMemberIds: [],
+    seriesId: null,
     rsvpByMemberId: {},
     rsvpYes: 0,
     rsvpNo: 0,

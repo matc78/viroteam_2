@@ -24,6 +24,8 @@ import {
   audienceMapKeys,
   buildAudienceMapsPatch,
   buildCanonicalByAnyId,
+  excludedCanonicalIds,
+  isAudienceIdExcluded,
   planAudienceSync,
   type AudienceAliasPair,
   type AudienceKeyedMaps,
@@ -42,6 +44,15 @@ function objectField(
   return value && typeof value === "object"
     ? (value as Record<string, unknown>)
     : {};
+}
+
+/** Champ tableau de chaînes d'un document event, ou `[]`. */
+function stringArrayField(
+  data: Record<string, unknown>,
+  field: string,
+): string[] {
+  const value = data[field];
+  return Array.isArray(value) ? value.map(String).filter(Boolean) : [];
 }
 
 /** Types d'événements club (aligné EventTypes Flutter). */
@@ -67,6 +78,10 @@ export type ClubEventView = {
   teamLabels: string[];
   /** Audience RSVP / joueurs convoqués. */
   teamMemberIds: string[];
+  /** Joueurs retirés des convoqués (invisibles pour eux, jamais réintégrés par la synchro). */
+  excludedMemberIds: string[];
+  /** Série récurrente (un doc par occurrence), sinon null. */
+  seriesId: string | null;
   /** Map memberId → yes | maybe | no. */
   rsvpByMemberId: Record<string, string>;
   rsvpYes: number;
@@ -124,6 +139,11 @@ export type CreateClubEventInput = {
   startDate: Date;
   teamIds: string[];
   teamMemberIds: string[];
+  /**
+   * Joueurs retirés des convoqués (match : décochés à la création).
+   * Retirés de `teamMemberIds` ; champ omis si vide.
+   */
+  excludedMemberIds?: string[];
   location: string;
   startTime: string;
   endTime?: string;
@@ -290,9 +310,12 @@ export function parseClubEvent(
     location: String(data[Fields.location] ?? ""),
     teamIds,
     teamLabels,
-    teamMemberIds: Array.isArray(data[Fields.teamMemberIds])
-      ? (data[Fields.teamMemberIds] as unknown[]).map(String)
-      : [],
+    teamMemberIds: stringArrayField(data, Fields.teamMemberIds),
+    excludedMemberIds: stringArrayField(data, Fields.excludedMemberIds),
+    seriesId:
+      typeof data[Fields.seriesId] === "string" && data[Fields.seriesId]
+        ? String(data[Fields.seriesId])
+        : null,
     rsvpByMemberId,
     rsvpYes,
     rsvpNo,
@@ -445,6 +468,13 @@ export async function createClubEvent(
   const eventsCol = eventsCollection(input.clubId);
   const batch = writeBatch(getAppFirestore());
   const seriesId = dates.length > 1 ? doc(eventsCol).id : null;
+  const excludedMemberIds = [
+    ...new Set((input.excludedMemberIds ?? []).filter(Boolean)),
+  ];
+  const excludedSet = new Set(excludedMemberIds);
+  const teamMemberIds = input.teamMemberIds.filter(
+    (id) => !excludedSet.has(id),
+  );
 
   for (const day of dates) {
     const eventRef = doc(eventsCol);
@@ -459,7 +489,7 @@ export async function createClubEvent(
       ),
       [Fields.dateId]: formatDateId(day),
       [Fields.startTime]: input.startTime,
-      [Fields.teamMemberIds]: input.teamMemberIds,
+      [Fields.teamMemberIds]: teamMemberIds,
       [Fields.rsvp]: {},
       [Fields.attendance]: {},
       [Fields.creatorId]: input.creatorId,
@@ -471,6 +501,9 @@ export async function createClubEvent(
     if (input.matchVenue) payload[Fields.matchVenue] = input.matchVenue;
     if (seriesId) payload[Fields.seriesId] = seriesId;
     if (input.importantReminder) payload[Fields.importantReminder] = true;
+    if (excludedMemberIds.length > 0) {
+      payload[Fields.excludedMemberIds] = excludedMemberIds;
+    }
     batch.set(eventRef, payload);
   }
 
@@ -488,6 +521,8 @@ export async function createClubEvent(
 /**
  * Ajoute un convoqué aux événements à venir d'une équipe
  * (aligné EventService Flutter `addAudienceToUpcomingTeamEvents`).
+ * Ignore les événements où ce joueur (ou un de ses alias) a été retiré des
+ * convoqués (`excludedMemberIds`).
  */
 export async function addAudienceToUpcomingTeamEvents(params: {
   clubId: string;
@@ -498,6 +533,13 @@ export async function addAudienceToUpcomingTeamEvents(params: {
   if (!audienceId) return;
 
   const snap = await queryUpcomingTeamEvents(params.clubId, params.teamId);
+  const hasExclusions = snap.some(
+    ({ data }) => stringArrayField(data, Fields.excludedMemberIds).length > 0,
+  );
+  // Alias chargés seulement si un event porte des exclus (une seule requête).
+  const canonicalByAnyId = hasExclusions
+    ? buildCanonicalByAnyId(await loadAudienceAliasPairs(params.clubId))
+    : new Map<string, string>();
   const db = getAppFirestore();
   let batch = writeBatch(db);
   let pending = 0;
@@ -509,6 +551,11 @@ export async function addAudienceToUpcomingTeamEvents(params: {
       ? (data[Fields.teamMemberIds] as unknown[]).map(String)
       : [];
     if (members.includes(audienceId)) continue;
+    const excluded = excludedCanonicalIds(
+      stringArrayField(data, Fields.excludedMemberIds),
+      canonicalByAnyId,
+    );
+    if (isAudienceIdExcluded(audienceId, excluded, canonicalByAnyId)) continue;
 
     batch.update(doc(eventsCollection(params.clubId), docSnap.id), {
       [Fields.teamMemberIds]: arrayUnion(audienceId),
@@ -662,6 +709,7 @@ export async function syncUpcomingEventsAudienceFromTeams(
       expectedCanonicalIds: expected,
       canonicalByAnyId,
       rsvpKeys: audienceMapKeys(maps),
+      excludedMemberIds: stringArrayField(data, Fields.excludedMemberIds),
     });
     if (!plan.changed) continue;
 

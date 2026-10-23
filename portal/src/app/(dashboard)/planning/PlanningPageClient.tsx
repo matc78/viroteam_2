@@ -10,6 +10,8 @@ import {
 } from "@/components/dashboard/PlanningCalendar";
 import { PlanningEventDetailPanel } from "@/components/dashboard/PlanningEventDetailPanel";
 import { PlanningNewEventDialog } from "@/components/dashboard/PlanningNewEventDialog";
+import { EventConvocationsDialog } from "@/components/dashboard/EventConvocationsDialog";
+import { canManageEventConvocations } from "@/lib/planning/eventConvocations";
 import {
   PlanningSidebar,
   type PlanningSidebarFilters,
@@ -83,6 +85,9 @@ function PlanningPageContent() {
     null,
   );
   const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
+  /** Événement dont on gère les convoqués (dialog dédié). */
+  const [convocationsEvent, setConvocationsEvent] =
+    useState<ClubEventView | null>(null);
   const [roleScopeReady, setRoleScopeReady] = useState(false);
 
   const range = useMemo(() => {
@@ -173,6 +178,21 @@ function PlanningPageContent() {
     user?.uid,
     linkedMemberId,
   ]);
+
+  const creatableTeamIdSet = useMemo(
+    () => new Set(creatableTeams.map((team) => team.id)),
+    [creatableTeams],
+  );
+
+  /** Admin, ou coach d'une des équipes de l'événement ; événement à venir. */
+  function canManageConvocationsOf(event: ClubEventView): boolean {
+    if (!activeClub || !canManageEventConvocations(event)) return false;
+    if (caps.isAdmin) return true;
+    return (
+      caps.isCoach &&
+      event.teamIds.some((teamId) => creatableTeamIdSet.has(teamId))
+    );
+  }
 
   const scopedTeamIdSet = useMemo(
     () => new Set(scopedTeams.map((team) => team.id)),
@@ -535,6 +555,27 @@ function PlanningPageContent() {
           canSendPush={Boolean(
             activeClub && (caps.isAdmin || caps.isCoach),
           )}
+          onManageConvocations={
+            canManageConvocationsOf(selectedEvent)
+              ? () => {
+                  setConvocationsEvent(selectedEvent);
+                  setSelectedEvent(null);
+                  setSelectedEventAnchor(null);
+                  setSelectedEventColor(null);
+                }
+              : undefined
+          }
+        />
+      ) : null}
+
+      {convocationsEvent && activeClub && data ? (
+        <EventConvocationsDialog
+          clubId={activeClub.id}
+          event={convocationsEvent}
+          teams={data.teams}
+          directory={guestDirectory}
+          onClose={() => setConvocationsEvent(null)}
+          onSaved={handleRefresh}
         />
       ) : null}
 

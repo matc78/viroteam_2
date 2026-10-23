@@ -34,17 +34,60 @@ export type AudienceSyncPlan = {
 };
 
 /**
+ * Ids des joueurs retirés des convoqués (`excludedMemberIds`) étendus à leur
+ * alias canonique, pour comparer quel que soit l’id stocké (memberId / uid).
+ */
+export function excludedCanonicalIds(
+  excludedMemberIds: string[] | undefined,
+  canonicalByAnyId: Map<string, string>,
+): Set<string> {
+  const result = new Set<string>();
+  for (const id of excludedMemberIds ?? []) {
+    if (!id) continue;
+    result.add(id);
+    result.add(canonicalByAnyId.get(id) ?? id);
+  }
+  return result;
+}
+
+/** True si `id` (ou son alias canonique) fait partie des exclus étendus. */
+export function isAudienceIdExcluded(
+  id: string,
+  excludedCanonical: Set<string>,
+  canonicalByAnyId: Map<string, string>,
+): boolean {
+  if (excludedCanonical.size === 0) return false;
+  return (
+    excludedCanonical.has(id) ||
+    excludedCanonical.has(canonicalByAnyId.get(id) ?? id)
+  );
+}
+
+/**
  * Calcule la sync audience : ajoute les ids attendus (roster), retire les
  * alias legacy des membres concernés, conserve les invités manuels hors alias.
+ * Un id présent dans `excludedMemberIds` (ou un de ses alias) n’est jamais
+ * réintégré : le retrait des convoqués par le coach prime sur le roster.
  */
 export function planAudienceSync(params: {
   currentMemberIds: string[];
   expectedCanonicalIds: string[];
   canonicalByAnyId: Map<string, string>;
   rsvpKeys?: string[];
+  excludedMemberIds?: string[];
 }): AudienceSyncPlan {
   const current = [...new Set(params.currentMemberIds.filter(Boolean))];
-  const expected = new Set(params.expectedCanonicalIds.filter(Boolean));
+  const excluded = excludedCanonicalIds(
+    params.excludedMemberIds,
+    params.canonicalByAnyId,
+  );
+  const expected = new Set(
+    params.expectedCanonicalIds.filter(
+      (id) =>
+        Boolean(id) &&
+        !isAudienceIdExcluded(id, excluded, params.canonicalByAnyId),
+    ),
+  );
   const next = new Set(current);
   const rsvpDeletes: string[] = [];
   const rsvpMoves: Array<{ from: string; to: string }> = [];

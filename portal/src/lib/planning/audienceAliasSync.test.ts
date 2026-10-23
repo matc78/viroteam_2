@@ -3,6 +3,8 @@ import {
   audienceMapKeys,
   buildAudienceMapsPatch,
   buildCanonicalByAnyId,
+  excludedCanonicalIds,
+  isAudienceIdExcluded,
   planAudienceSync,
 } from "./audienceAliasSync";
 
@@ -42,6 +44,69 @@ describe("planAudienceSync", () => {
     expect(new Set(plan.nextMemberIds)).toEqual(
       new Set(["manual-x", "uid-a"]),
     );
+  });
+
+  it("ne réintègre jamais un joueur exclu (même id)", () => {
+    const plan = planAudienceSync({
+      currentMemberIds: ["uid-b"],
+      expectedCanonicalIds: ["uid-a", "uid-b"],
+      canonicalByAnyId,
+      excludedMemberIds: ["uid-a"],
+    });
+    expect(plan.nextMemberIds).toEqual(["uid-b"]);
+    expect(plan.changed).toBe(false);
+  });
+
+  it("ne réintègre pas un exclu stocké sous son memberId alors que le roster porte l’uid", () => {
+    const plan = planAudienceSync({
+      currentMemberIds: ["uid-b"],
+      expectedCanonicalIds: ["uid-a", "uid-b"],
+      canonicalByAnyId,
+      excludedMemberIds: ["mem-a"],
+    });
+    expect(plan.nextMemberIds).toEqual(["uid-b"]);
+    expect(plan.changed).toBe(false);
+  });
+
+  it("ne réintègre pas un exclu stocké sous son uid alors que le roster porte le memberId", () => {
+    const plan = planAudienceSync({
+      currentMemberIds: [],
+      expectedCanonicalIds: ["mem-a", "uid-b"],
+      canonicalByAnyId,
+      excludedMemberIds: ["uid-a"],
+    });
+    expect(plan.nextMemberIds).toEqual(["uid-b"]);
+  });
+
+  it("ajoute toujours les autres joueurs du roster malgré des exclus", () => {
+    const plan = planAudienceSync({
+      currentMemberIds: [],
+      expectedCanonicalIds: ["uid-a", "uid-b"],
+      canonicalByAnyId,
+      excludedMemberIds: ["mem-a"],
+    });
+    expect(plan.changed).toBe(true);
+    expect(plan.nextMemberIds).toEqual(["uid-b"]);
+  });
+});
+
+describe("isAudienceIdExcluded", () => {
+  const canonicalByAnyId = buildCanonicalByAnyId([
+    { memberId: "mem-a", canonicalId: "uid-a" },
+  ]);
+
+  it("matche via l’alias canonique dans les deux sens", () => {
+    const fromMember = excludedCanonicalIds(["mem-a"], canonicalByAnyId);
+    expect(isAudienceIdExcluded("uid-a", fromMember, canonicalByAnyId)).toBe(true);
+    const fromUid = excludedCanonicalIds(["uid-a"], canonicalByAnyId);
+    expect(isAudienceIdExcluded("mem-a", fromUid, canonicalByAnyId)).toBe(true);
+    expect(isAudienceIdExcluded("uid-z", fromUid, canonicalByAnyId)).toBe(false);
+  });
+
+  it("aucun exclu → jamais exclu", () => {
+    expect(
+      isAudienceIdExcluded("uid-a", excludedCanonicalIds([], canonicalByAnyId), canonicalByAnyId),
+    ).toBe(false);
   });
 });
 

@@ -24,6 +24,7 @@ import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import { useToast } from "@/components/ToastProvider";
 import { sendEventPush } from "@/lib/firebase/callableService";
+import { convocationsCopy } from "@/lib/copy/convocationsCopy";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningEventDetailPanel.module.css";
@@ -49,6 +50,11 @@ type PlanningEventDetailPanelProps = {
   onRsvpUpdated?: () => void;
   /** Affiche le bouton d'envoi de notification (coach / admin). */
   canSendPush?: boolean;
+  /**
+   * Si fourni, affiche « Gérer les convoqués » (coach de l'équipe / admin,
+   * événement à venir lié à une équipe).
+   */
+  onManageConvocations?: () => void;
 };
 
 function rsvpRowLabel(status: RsvpRowStatus): string {
@@ -119,6 +125,7 @@ export function PlanningEventDetailPanel({
   linkedMemberId,
   onRsvpUpdated,
   canSendPush = false,
+  onManageConvocations,
 }: PlanningEventDetailPanelProps) {
   const { showToast } = useToast();
   const [sendingPush, setSendingPush] = useState(false);
@@ -373,8 +380,18 @@ export function PlanningEventDetailPanel({
             ) : null}
           </section>
 
-          {canSendPush && clubId ? (
+          {onManageConvocations || (canSendPush && clubId) ? (
             <div className={styles.pushActions}>
+              {onManageConvocations ? (
+                <button
+                  type="button"
+                  className={styles.pushButton}
+                  onClick={onManageConvocations}
+                >
+                  {convocationsCopy.manageAction}
+                </button>
+              ) : null}
+              {canSendPush && clubId ? (
               <button
                 type="button"
                 className={styles.pushButton}
@@ -383,6 +400,7 @@ export function PlanningEventDetailPanel({
               >
                 {sendingPush ? "Envoi…" : "Envoyer une notification"}
               </button>
+              ) : null}
             </div>
           ) : null}
         </FadeScrollArea>

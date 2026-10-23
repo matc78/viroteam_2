@@ -126,6 +126,8 @@ export const Fields = {
   allTeams: "allTeams",
   teamId: "teamId",
   teamMemberIds: "teamMemberIds",
+  /** Joueurs retirés des convoqués d’un event (jamais réintégrés par la synchro roster). */
+  excludedMemberIds: "excludedMemberIds",
   playerIds: "playerIds",
   coachIds: "coachIds",
   pendingPlayerIds: "pendingPlayerIds",

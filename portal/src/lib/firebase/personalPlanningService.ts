@@ -20,6 +20,7 @@ import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { splitBrandColorHex } from "@/lib/clubSetup/clubBrandColors";
 import { buildGuestDirectoryFromMembers } from "@/lib/planning/eventGuestRows";
 import {
+  isExcludedFromEvent,
   memberMatchIds,
   rosterContains,
   teamsCoachedByViewer,
@@ -85,13 +86,15 @@ function hasBureauMembership(
 
 /**
  * Visibilité planning perso : équipes du scope ou convocation perso.
- * Exclut les events club-wide (`teamIds` vide) sauf invitation explicite.
+ * Exclut les events club-wide (`teamIds` vide) sauf invitation explicite,
+ * et ceux dont la personne a été retirée des convoqués.
  */
 function eventVisibleToPersonalScope(params: {
   event: ClubEventView;
   viewerTeamIds: Set<string>;
   playerMatchIds: Set<string>;
 }): boolean {
+  if (isExcludedFromEvent(params.event, params.playerMatchIds)) return false;
   if (
     params.event.teamMemberIds.some((id) => params.playerMatchIds.has(id))
   ) {

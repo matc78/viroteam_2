@@ -9,6 +9,11 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Ajouté
+
+- Convocations : un coach / admin peut retirer des joueurs des convoqués. Création de match : liste des joueurs de l’équipe, tous cochés par défaut (décocher = ne joue pas). Planning : action « Gérer les convoqués » dans le détail d’un événement à venir (cocher / décocher, « Cette séance » ou « Celle-ci et les suivantes » pour une série), via la callable `updateEventConvocations`
+- Un joueur retiré (`excludedMemberIds`) ne voit plus l’événement dans le planning, l’accueil et l’espace famille ; la synchro des rosters ne le réintègre jamais
+
 ### Modifié
 
 - Création d’événement : Lieu en dropdown des lieux de pratique du club (1er par défaut + option « Autre »), saisie libre seulement pour match extérieur ou Autre

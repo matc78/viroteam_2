@@ -131,16 +131,34 @@ export function eventTouchesTeams(
   return event.teamIds.some((teamId) => viewerTeamIds.has(teamId));
 }
 
-/** Filtre events pour un joueur (équipes ou convocation personnelle). */
+/**
+ * True si le membre (un de ses ids : memberId, accountUid…) a été retiré des
+ * convoqués : l’événement lui est alors totalement invisible.
+ */
+export function isExcludedFromEvent(
+  event: { excludedMemberIds?: string[] },
+  matchIds: Set<string>,
+): boolean {
+  const excluded = event.excludedMemberIds ?? [];
+  if (excluded.length === 0 || matchIds.size === 0) return false;
+  return excluded.some((id) => matchIds.has(id));
+}
+
+/**
+ * Filtre events pour un joueur (équipes ou convocation personnelle).
+ * Un joueur retiré des convoqués (`excludedMemberIds`) ne voit pas l’event.
+ */
 export function eventVisibleToPlayer(params: {
   event: {
     teamIds: string[];
     teamMemberIds: string[];
+    excludedMemberIds?: string[];
     allTeams?: boolean;
   };
   viewerTeamIds: Set<string>;
   playerMatchIds: Set<string>;
 }): boolean {
+  if (isExcludedFromEvent(params.event, params.playerMatchIds)) return false;
   if (
     params.event.teamMemberIds.some((id) => params.playerMatchIds.has(id))
   ) {
@@ -157,6 +175,7 @@ export function eventVisibleToRosterMember(params: {
   event: {
     teamIds: string[];
     teamMemberIds: string[];
+    excludedMemberIds?: string[];
     allTeams?: boolean;
   };
   rosterTeamIds: Set<string>;

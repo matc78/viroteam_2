@@ -367,6 +367,26 @@ export async function sendEventPush(params: {
   return callFunction("sendEventPush", params);
 }
 
+/** Portée d’une modification de convoqués (`following` : série récurrente). */
+export type EventConvocationScope = "occurrence" | "following";
+
+/**
+ * Retire / réintègre des joueurs des convoqués d’un événement (coach / admin).
+ * `excludeIds` / `reintegrateIds` sont des deltas par rapport à l’état actuel ;
+ * `following` applique aussi aux occurrences suivantes de la série (jamais
+ * aux séances passées). Le serveur gère `teamMemberIds`, `excludedMemberIds`,
+ * le nettoyage RSVP et la notif « Nouvelle convocation » des réintégrés.
+ */
+export async function updateEventConvocations(params: {
+  clubId: string;
+  eventId: string;
+  excludeIds: string[];
+  reintegrateIds: string[];
+  scope: EventConvocationScope;
+}): Promise<{ ok: true; updatedCount: number }> {
+  return callFunction("updateEventConvocations", params);
+}
+
 /**
  * Upload le logo club (callable Admin SDK).
  * Contourne la limite Storage rules ↔ bases Firestore nommées.

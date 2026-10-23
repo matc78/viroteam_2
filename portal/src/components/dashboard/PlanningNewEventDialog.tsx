@@ -29,7 +29,13 @@ import {
   resolveGuestAudience,
   type PlanningGuestSelection,
 } from "@/lib/planning/resolveGuestAudience";
+import { buildGuestDirectoryFromPeople } from "@/lib/planning/eventGuestRows";
+import { convocationsCopy } from "@/lib/copy/convocationsCopy";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import {
+  ConvocationChecklist,
+  type ConvocationChecklistItem,
+} from "./ConvocationChecklist";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import { PlanningGuestPicker } from "./PlanningGuestPicker";
 import { PlanningSelect } from "./PlanningSelect";
@@ -216,6 +222,10 @@ export function PlanningNewEventDialog({
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Match : joueurs décochés (retirés des convoqués), réinitialisé au changement d'équipe / type. */
+  const [excludedPlayerIds, setExcludedPlayerIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const teamSelectOptions = useMemo(
     () =>
@@ -263,6 +273,33 @@ export function PlanningNewEventDialog({
     () => resolveGuestAudience(guests, teams, people),
     [guests, teams, people],
   );
+  const peopleDirectory = useMemo(
+    () => buildGuestDirectoryFromPeople(people),
+    [people],
+  );
+  /** Match : joueurs de l'équipe sélectionnée (id roster = id `teamMemberIds`). */
+  const matchRosterItems = useMemo<ConvocationChecklistItem[]>(() => {
+    if (!isMatch || !selectedTeam) return [];
+    return [...new Set(selectedTeam.playerIds.filter(Boolean))]
+      .map((playerId) => {
+        const entry = peopleDirectory[playerId];
+        return {
+          key: playerId,
+          name: entry?.name.trim() || convocationsCopy.memberFallback,
+          avatarUrl: entry?.avatarUrl ?? null,
+        };
+      })
+      .sort((left, right) => left.name.localeCompare(right.name, "fr"));
+  }, [isMatch, selectedTeam, peopleDirectory]);
+  const matchCheckedKeys = useMemo(
+    () =>
+      new Set(
+        matchRosterItems
+          .map((item) => item.key)
+          .filter((key) => !excludedPlayerIds.has(key)),
+      ),
+    [matchRosterItems, excludedPlayerIds],
+  );
 
   useLayoutEffect(() => {
     function updatePosition() {
@@ -291,6 +328,7 @@ export function PlanningNewEventDialog({
     isRecurring,
     needsSingleTeam,
     guests.length,
+    matchRosterItems.length,
     useLocationDropdown,
     useCustomLocationField,
   ]);
@@ -302,9 +340,26 @@ export function PlanningNewEventDialog({
     setCustomLocation("");
   }
 
+  function handleTeamChange(nextTeamId: string) {
+    setTeamId(nextTeamId);
+    setExcludedPlayerIds(new Set());
+  }
+
+  function handleMatchCheckedChange(nextCheckedKeys: Set<string>) {
+    setError(null);
+    setExcludedPlayerIds(
+      new Set(
+        matchRosterItems
+          .map((item) => item.key)
+          .filter((key) => !nextCheckedKeys.has(key)),
+      ),
+    );
+  }
+
   function handleTypeChange(nextType: EventType) {
     setType(nextType);
     setError(null);
+    setExcludedPlayerIds(new Set());
     if (!importantReminderEdited) {
       setImportantReminder(importantReminderByDefault(nextType));
     }
@@ -373,6 +428,14 @@ export function PlanningNewEventDialog({
       setError("Choisissez une équipe.");
       return;
     }
+    if (
+      isMatch &&
+      matchRosterItems.length > 0 &&
+      matchCheckedKeys.size === 0
+    ) {
+      setError(convocationsCopy.createNoneChecked);
+      return;
+    }
     if (isTournament && guests.length === 0) {
       setError("Ajoutez au moins une équipe ou une catégorie.");
       return;
@@ -415,12 +478,19 @@ export function PlanningNewEventDialog({
 
     let resolvedTeamIds: string[] = [];
     let resolvedMemberIds: string[] = [];
+    let resolvedExcludedIds: string[] = [];
     // Aligné Flutter : titre = nom d'équipe (le type est affiché à part).
     let resolvedTitle = "";
 
     if (needsSingleTeam && selectedTeam) {
       resolvedTeamIds = [selectedTeam.id];
       resolvedMemberIds = selectedTeam.playerIds;
+      if (isMatch) {
+        // Décochés : hors `teamMemberIds`, listés dans `excludedMemberIds`.
+        resolvedExcludedIds = matchRosterItems
+          .map((item) => item.key)
+          .filter((key) => !matchCheckedKeys.has(key));
+      }
       resolvedTitle = selectedTeam.name;
     } else if (isTournament || hasFreeTitle) {
       // « Autre » / « Réunion » : invités optionnels (audience RSVP vide si aucun).
@@ -461,6 +531,7 @@ export function PlanningNewEventDialog({
         startDate: day,
         teamIds: resolvedTeamIds,
         teamMemberIds: resolvedMemberIds,
+        excludedMemberIds: resolvedExcludedIds,
         allTeams: !needsSingleTeam && guestAudience.allTeams,
         location: resolvedLocation,
         startTime,
@@ -560,7 +631,7 @@ export function PlanningNewEventDialog({
                 id="new-event-team"
                 value={teamId}
                 options={teamSelectOptions}
-                onChange={setTeamId}
+                onChange={handleTeamChange}
                 required
                 disabled={saving}
                 placeholder="Choisir une équipe…"
@@ -660,6 +731,21 @@ export function PlanningNewEventDialog({
                 </button>
               </div>
             </div>
+          ) : null}
+
+          {isMatch && selectedTeam ? (
+            <ConvocationChecklist
+              idPrefix="new-event-convocation"
+              items={matchRosterItems}
+              checkedKeys={matchCheckedKeys}
+              onChange={handleMatchCheckedChange}
+              legend={convocationsCopy.createLegend}
+              hint={convocationsCopy.createHint}
+              emptyLabel={convocationsCopy.createEmptyRoster}
+              disabled={saving}
+              errorId="new-event-error"
+              invalid={error === convocationsCopy.createNoneChecked}
+            />
           ) : null}
 
           {isMatch ? (
@@ -830,7 +916,7 @@ export function PlanningNewEventDialog({
           </div>
 
           {error ? (
-            <p className={styles.error} role="alert">
+            <p id="new-event-error" className={styles.error} role="alert">
               {error}
             </p>
           ) : null}

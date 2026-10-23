@@ -40,8 +40,8 @@ abstract final class ProjectConfig {
       'phc_wMm5hy9zFdbcsgUXoibRunuxb2crXmL6iLnLSMLHBvBv';
 
   /// Clé publique du projet PostHog « ViroTeam dev » (debug / profile).
-  /// Vide = aucun envoi hors release.
-  static const String posthogDevApiKey = '';
+  static const String posthogDevApiKey =
+      'phc_xwPxt9Kkn3qMDzf3utNvtpuPrrrfQ9Pe4KeY8ZenJ2ey';
 
   static const String posthogHost = 'https://eu.i.posthog.com';
 

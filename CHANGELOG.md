@@ -8,6 +8,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.2.11] - 2026-10-23
+
 ### Ajouté
 
 - Détail d’événement : horodatage du dernier vote RSVP (`12/10 · 13h45`, heure serveur) à gauche de l’icône sur chaque tuile membre, lu sur la même clé que le statut
@@ -31,6 +33,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 ### Corrigé
 
 - Détail d’événement : plus de titres / heures en rouge juste après l’ouverture de l’app — l’accent club réutilise la couleur déjà connue sur l’accueil au lieu d’un fallback preset
+
+### Note
+
+- Version app : `pubspec.yaml` / `ProjectConfig` en `2.2.11+17`
 
 ## [2.2.10] - 2026-10-22
 

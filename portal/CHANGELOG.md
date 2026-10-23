@@ -14,9 +14,11 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 - Convocations : un coach / admin peut retirer des joueurs des convoqués. Création de match : liste des joueurs de l’équipe, tous cochés par défaut (décocher = ne joue pas). Planning : action « Gérer les convoqués » dans le détail d’un événement à venir (cocher / décocher, « Cette séance » ou « Celle-ci et les suivantes » pour une série), via la callable `updateEventConvocations`
 - Un joueur retiré (`excludedMemberIds`) ne voit plus l’événement dans le planning, l’accueil et l’espace famille ; la synchro des rosters ne le réintègre jamais
 - Analytics PostHog (après accord du bandeau cookies) : identification par uid Firebase (rôle max, parent, nombre de clubs, date d’inscription ; ni nom ni e-mail), groupe `club` pour le club actif, propriété `surface: portal`, `reset` à la déconnexion. Mêmes clés que l’app mobile pour croiser web et mobile
+- Liens « Télécharger l’app » marqués par campagne (badges stores : `store_badges`, messages d’invitation copiés : `invite_share`) pour la Play Console et App Store Connect
 
 ### Modifié
 
+- Confidentialité : mention des compteurs d’usage par club envoyés par nos serveurs à PostHog, sans identifiant ni donnée personnelle
 - Création d’événement : Lieu en dropdown des lieux de pratique du club (1er par défaut + option « Autre »), saisie libre seulement pour match extérieur ou Autre
 
 - Politique de confidentialité : mesure d’audience de l’app et du portail détaillée (données collectées, consentement)

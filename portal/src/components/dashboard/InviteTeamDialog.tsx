@@ -8,6 +8,7 @@ import {
 } from "@/lib/firebase/callableService";
 import { joinCopy } from "@/lib/copy/joinCopy";
 import { site } from "@/lib/site";
+import { appStoreLink, playStoreLink } from "@/lib/storeLinks";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./InviteTeamDialog.module.css";
 
@@ -75,8 +76,8 @@ export function InviteTeamDialog({
       teamName: invite.teamName || teamName,
       code: invite.code,
       joinUrl: invite.joinUrl,
-      appStoreUrl: site.appStoreUrl,
-      playStoreUrl: site.playStoreUrl,
+      appStoreUrl: appStoreLink("invite_share"),
+      playStoreUrl: playStoreLink("invite_share"),
       siteUrl: site.url,
     });
     await navigator.clipboard.writeText(message);

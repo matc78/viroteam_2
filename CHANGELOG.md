@@ -16,6 +16,9 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Création de match : liste des joueurs de l’équipe, tous convoqués par défaut, à décocher / recocher
 - Mesure d’audience sur consentement : une feuille « Tu nous files un coup de main ? » s’affiche une fois sur l’accueil (accepter / refuser au même niveau), et le choix reste modifiable dans Paramètres > Mesure d’audience. Sans accord, rien n’est envoyé à PostHog
 - Analytics PostHog : identification par uid Firebase (rôle max, parent, nombre de clubs, date d’inscription ; ni nom ni e-mail), groupe `club` pour le club actif (nom, sport, effectif), suivi des écrans par motif de route, `reset` à la déconnexion. Mêmes clés que le portail pour croiser web et mobile
+- Plan de taggage `docs/analytics_events.csv` et guide `docs/ANALYTICS.md` (tableaux de bord, alertes, stores, rituel du lundi) ; script `tool/posthog_dashboards.mjs` qui crée les tableaux Santé, Activation, Rétention et Cotisations via l’API PostHog
+- Functions : événements clés envoyés à PostHog côté serveur, rattachés au club seul (aucun uid) — `signup_completed` (anonyme), `club_created`, `invitation_sent`, `invitation_accepted`, `join_code_used`, `guardian_linked`, `event_created`, `convocation_sent`, `rsvp_set`, `fee_payment_succeeded` ; nouveaux triggers `onClubCreatedForAnalytics` / `onUserCreatedForAnalytics` (+ `Dev`)
+- Liens stores marqués par campagne (Play `referrer` UTM, App Store `ct`) dans les messages d’invitation de l’app et les e-mails d’invitation
 
 ### Modifié
 

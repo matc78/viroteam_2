@@ -8,6 +8,11 @@ import {
   type FirestoreAuthEvent,
   type FirestoreEvent,
 } from "firebase-functions/v2/firestore";
+import {
+  ServerAnalyticsEvents,
+  captureClubEvent,
+  captureConvocationSent,
+} from "../analytics";
 import { stringArray } from "../common";
 import { db, runWithDatabase, type FirestoreDatabaseId } from "../db";
 import { ClubDirectory, resolveEventAudience } from "./audience";
@@ -82,6 +87,14 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
 
   // Création
   if (!before) {
+    await captureClubEvent({
+      clubId,
+      event: ServerAnalyticsEvents.eventCreated,
+      properties: {
+        event_type: String(after.type ?? "").trim() || "unknown",
+        is_series: String(after.seriesId ?? "").trim().length > 0,
+      },
+    });
     await handleEventCreated({ firestore, clubId, eventId, eventData: after, actor });
     return;
   }
@@ -120,6 +133,17 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
   }
 
   const rsvpChanges = listRsvpStatusChanges(before, after);
+  // Écriture directe d'un membre pour lui-même ; la callable (parent) compte
+  // ses réponses de son côté (`setEventRsvp`).
+  if (actor) {
+    for (const change of rsvpChanges) {
+      await captureClubEvent({
+        clubId,
+        event: ServerAnalyticsEvents.rsvpSet,
+        properties: { status: change.status, for_child: false, via: "direct" },
+      });
+    }
+  }
   if (rsvpChanges.length > 0) {
     const actorExclude = String(after.rsvpLastActorUid ?? "").trim() || undefined;
     await scheduleRsvpNotifyDebounce({
@@ -188,7 +212,7 @@ async function handleEventCreated(params: {
   const directory = new ClubDirectory(params.firestore, params.clubId);
   const entries = await resolveEventAudience(directory, params.eventData);
   const base = eventPushContext(params.eventData);
-  await sendEventPushToAudience({
+  const { recipientCount } = await sendEventPushToAudience({
     firestore: params.firestore,
     clubId: params.clubId,
     eventId: params.eventId,
@@ -199,6 +223,7 @@ async function handleEventCreated(params: {
     excludeUids: params.actor ? [params.actor] : [],
     copyFor: (entry) => eventCreatedCopy(contextForEntry(base, entry)),
   });
+  await captureConvocationSent(params.clubId, "created", recipientCount);
 
   await params.firestore
     .collection("clubs")
@@ -249,7 +274,7 @@ async function handleAudienceAdded(params: {
   if (entries.length === 0) return;
 
   const base = eventPushContext(params.eventData);
-  await sendEventPushToAudience({
+  const { recipientCount } = await sendEventPushToAudience({
     firestore: params.firestore,
     clubId: params.clubId,
     eventId: params.eventId,
@@ -259,6 +284,11 @@ async function handleAudienceAdded(params: {
     excludeUids: params.actor ? [params.actor] : [],
     copyFor: (entry) => eventCreatedCopy(contextForEntry(base, entry)),
   });
+  await captureConvocationSent(
+    params.clubId,
+    params.reintegration ? "reintegration" : "audience_added",
+    recipientCount,
+  );
 }
 
 /** Après un report : drapeaux remis à zéro sauf ceux couverts par la push de report. */

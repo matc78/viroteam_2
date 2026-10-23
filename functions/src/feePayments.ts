@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { getStorage } from "firebase-admin/storage";
+import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
 import { db } from "./db";
 
 const RECEIPT_SIGNED_URL_TTL_MS = 60 * 60 * 1000;
@@ -178,6 +179,19 @@ export async function creditMemberFeeFromCardPayment(params: {
       );
     }
   });
+
+  if (creditedCents > 0) {
+    await captureClubEvent({
+      clubId,
+      event: ServerAnalyticsEvents.feePaymentSucceeded,
+      properties: {
+        provider,
+        amount_cents: creditedCents,
+        currency: "eur",
+        fully_paid: nextStatus === "paye",
+      },
+    });
+  }
 
   return { status: nextStatus, creditedCents };
 }

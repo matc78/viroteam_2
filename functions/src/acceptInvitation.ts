@@ -14,6 +14,11 @@ import {
   resolveAuthEmail,
   trySendGuyTransactionalEmail,
 } from "./email";
+import {
+  ServerAnalyticsEvents,
+  captureClubEvent,
+  clubMemberCount,
+} from "./analytics";
 import { db, defineDualCallable } from "./db";
 
 export { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
@@ -452,6 +457,16 @@ async function handleAcceptInvitation(
       });
     }
   }
+
+  await captureClubEvent({
+    clubId,
+    event: ServerAnalyticsEvents.invitationAccepted,
+    properties: {
+      kind: "member",
+      role: result.role,
+      member_count: await clubMemberCount(clubId),
+    },
+  });
 
   return { ok: true, memberId: result.memberId };
 }

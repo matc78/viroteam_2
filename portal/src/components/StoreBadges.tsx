@@ -1,4 +1,5 @@
 import { site } from "@/lib/site";
+import { appStoreLink, playStoreLink } from "@/lib/storeLinks";
 import styles from "./StoreBadges.module.css";
 
 type StoreBadgesProps = {
@@ -7,12 +8,12 @@ type StoreBadgesProps = {
 
 /** Badges Play Store (actif) et App Store (actif dès que `site.appStoreUrl` est renseigné, « bientôt » sinon). */
 export function StoreBadges({ className }: StoreBadgesProps) {
-  const appStoreUrl = site.appStoreUrl;
+  const appStoreUrl = site.appStoreUrl ? appStoreLink("store_badges") : "";
   return (
     <div className={[styles.badges, className].filter(Boolean).join(" ")}>
       <a
         className={styles.badge}
-        href={site.playStoreUrl}
+        href={playStoreLink("store_badges")}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Télécharger ViroTeam sur Google Play"

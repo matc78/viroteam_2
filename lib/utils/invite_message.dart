@@ -5,6 +5,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
+import 'package:viro_team_v2/utils/store_links.dart';
 
 /// Génère un code d'invitation alphanumérique (6 caractères, uppercase).
 String generateInviteCode({int length = 6}) {
@@ -24,8 +25,8 @@ String buildInviteMessage({
     clubName: club.name,
     code: invitation.code,
     joinUrl: joinUrl,
-    appStoreUrl: ProjectConfig.appStoreUrl,
-    playStoreUrl: ProjectConfig.playStoreUrl,
+    appStoreUrl: appStoreLink(StoreCampaign.inviteShare),
+    playStoreUrl: playStoreLink(StoreCampaign.inviteShare),
     siteUrl: ProjectConfig.siteUrl,
   );
 }
@@ -47,8 +48,8 @@ String buildTeamInviteMessage({
     teamName: teamName,
     code: code,
     joinUrl: resolvedJoinUrl,
-    appStoreUrl: ProjectConfig.appStoreUrl,
-    playStoreUrl: ProjectConfig.playStoreUrl,
+    appStoreUrl: appStoreLink(StoreCampaign.inviteShare),
+    playStoreUrl: playStoreLink(StoreCampaign.inviteShare),
     siteUrl: ProjectConfig.siteUrl,
   );
 }
@@ -69,8 +70,8 @@ String buildGuardianInviteMessage({
     clubName: club.name,
     code: code,
     joinUrl: joinUrl,
-    appStoreUrl: ProjectConfig.appStoreUrl,
-    playStoreUrl: ProjectConfig.playStoreUrl,
+    appStoreUrl: appStoreLink(StoreCampaign.inviteShare),
+    playStoreUrl: playStoreLink(StoreCampaign.inviteShare),
     siteUrl: ProjectConfig.siteUrl,
   );
 }

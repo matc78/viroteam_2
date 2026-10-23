@@ -73,6 +73,10 @@ abstract final class ProjectConfig {
   static const String appStoreUrl =
       'https://apps.apple.com/fr/app/viroteam/id6807822265';
 
+  /// Jeton fournisseur App Store Connect (`pt`) des liens de campagne : sans
+  /// lui, Apple ignore `ct`. Aligné portail `APP_STORE_PROVIDER_TOKEN`.
+  static const String appStoreProviderToken = '';
+
   /// Site marketing / portail public (liens secondaires invitations).
   static const String siteUrl = 'https://www.viroteam.com';
 

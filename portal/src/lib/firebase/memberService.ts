@@ -22,6 +22,7 @@ import {
 } from "@/lib/format/personDataFormat";
 import { joinCopy } from "@/lib/copy/joinCopy";
 import { site, webJoinRedirectPath } from "@/lib/site";
+import { appStoreLink, playStoreLink } from "@/lib/storeLinks";
 import {
   removeMember as removeMemberCallable,
   setMemberRole as setMemberRoleCallable,
@@ -170,8 +171,8 @@ export function buildInviteMessage(params: {
     clubName: params.clubName,
     code: params.code,
     joinUrl: inviteJoinUrl(params.code),
-    appStoreUrl: site.appStoreUrl,
-    playStoreUrl: site.playStoreUrl,
+    appStoreUrl: appStoreLink("invite_share"),
+    playStoreUrl: playStoreLink("invite_share"),
     siteUrl: site.url,
   });
 }

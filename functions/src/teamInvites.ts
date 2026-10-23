@@ -3,6 +3,11 @@ import type { DocumentData } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { stringArray } from "./common";
 import { buildJoinUrl } from "./email";
+import {
+  ServerAnalyticsEvents,
+  captureClubEvent,
+  clubMemberCount,
+} from "./analytics";
 import { db, defineDualCallable } from "./db";
 import { assertClubAdmin } from "./guardians";
 import {
@@ -270,6 +275,11 @@ async function handleCreateOrRefreshTeamInvite(
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
   await batch.commit();
+  await captureClubEvent({
+    clubId,
+    event: ServerAnalyticsEvents.invitationSent,
+    properties: { kind: "team_code", refreshed: !existingSnap.empty },
+  });
 
   return toInviteResponse({
     clubId,
@@ -635,6 +645,15 @@ async function handleAcceptTeamInvitation(
       memberId,
       alreadyInTeam: false,
     };
+  });
+
+  await captureClubEvent({
+    clubId,
+    event: ServerAnalyticsEvents.joinCodeUsed,
+    properties: {
+      already_in_team: result.alreadyInTeam,
+      member_count: await clubMemberCount(clubId),
+    },
   });
 
   return {

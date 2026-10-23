@@ -64,6 +64,13 @@ export { uploadClubLogo, uploadClubLogoDev } from "./uploadClubLogo";
 export { onTeamWritten, onTeamWrittenDev } from "./parentTeams";
 
 export {
+  onClubCreatedForAnalytics,
+  onClubCreatedForAnalyticsDev,
+  onUserCreatedForAnalytics,
+  onUserCreatedForAnalyticsDev,
+} from "./analyticsTriggers";
+
+export {
   updateEventConvocations,
   updateEventConvocationsDev,
 } from "./eventConvocations";

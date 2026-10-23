@@ -13,6 +13,7 @@ import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import { inviteJoinUrl, listClubMembers } from "@/lib/firebase/memberService";
 import { joinCopy } from "@/lib/copy/joinCopy";
 import { site } from "@/lib/site";
+import { appStoreLink, playStoreLink } from "@/lib/storeLinks";
 
 /** Enfant lié à une ligne parent (vue admin). */
 export type ParentChildRef = {
@@ -396,8 +397,8 @@ export function buildGuardianInviteMessage(params: {
     clubName: params.clubName,
     code: params.code,
     joinUrl: inviteJoinUrl(params.code),
-    appStoreUrl: site.appStoreUrl,
-    playStoreUrl: site.playStoreUrl,
+    appStoreUrl: appStoreLink("invite_share"),
+    playStoreUrl: playStoreLink("invite_share"),
     siteUrl: site.url,
   });
 }

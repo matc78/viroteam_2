@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import { captureConvocationSent } from "../analytics";
 import { db, defineDualCallable, isProdDatabase } from "../db";
 import { requireString, requireUid, stringArray } from "../common";
 import { ClubDirectory, resolveEventAudience } from "./audience";
@@ -103,6 +104,7 @@ export const {
       });
     },
   });
+  await captureConvocationSent(clubId, "manual", result.recipientCount);
 
   return {
     ok: true,

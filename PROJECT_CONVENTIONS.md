@@ -236,7 +236,7 @@ En place :
 - **Deep links invitation** — `/join?code=` (cf. `docs/specs/viroteam_v2_invitation_only_model.md`).
 - **CI** — `.github/workflows/ci.yml` (analyze + test Flutter, portail, functions, rules).
 - **Agents IA** — `CLAUDE.md` et `.cursor/rules/` (pointent vers ce fichier).
-- **Analytics produit** — PostHog uniquement, via `AnalyticsService` (app) / `@/lib/posthog` (portail) : rien n’est envoyé sans consentement, jamais de PII (nom, e-mail, téléphone, contenus) ; identité = uid Firebase, propriétés personne / groupe `club` construites par `analytics_identity.dart` ↔ `analyticsIdentity.ts` (mêmes clés). Événements nommés `objet_action` en snake_case.
+- **Analytics produit** — PostHog uniquement, via `AnalyticsService` (app) / `@/lib/posthog` (portail) : rien n’est envoyé sans consentement, jamais de PII (nom, e-mail, téléphone, contenus) ; identité = uid Firebase, propriétés personne / groupe `club` construites par `analytics_identity.dart` ↔ `analyticsIdentity.ts` (mêmes clés). Événements nommés `objet_action` en snake_case. Plan de taggage : `docs/analytics_events.csv` (tout nouvel événement y est ajouté). Les événements clés (inscription, club créé, invitations, RSVP, paiement réussi…) partent des Functions via `captureClubEvent` (`functions/src/analytics.ts`) : rattachés au groupe `club` seulement, jamais à un uid (le consentement n’est connu que des clients). Tableaux de bord et rituel : `docs/ANALYTICS.md`.
 
 À appliquer :
 
@@ -271,3 +271,4 @@ Plus tard :
 | 2026-10 | Push au premier plan affichées par l’app (`LocalNotificationService` + `ForegroundPushPolicy`), Android et iOS ; un canal Android par clé de préférence (`PushChannel` ↔ `ANDROID_CHANNEL_IDS`) ; permission demandée via pré-demande, jamais au lancement |
 | 2026-10 | Dark mode app : `ViroPalette` (`ThemeExtension`) via `context.viroPalette`, `ViroTheme.dark`, choix Système / Clair / Sombre persisté localement ; `ViroColors` neutres / primaires interdits hors `lib/config` (garde-fou test) ; portail inchangé |
 | 2026-10 | Analytics : PostHog seul (Firebase Analytics retiré), projets dev / prod séparés, consentement explicite dans l’app (feuille + Paramètres) et bandeau cookies sur le portail ; identify uid Firebase + groupe `club`, mêmes clés web / mobile |
+| 2026-10 | Événements clés envoyés par les Functions, rattachés au club seul (pas d’uid, pas besoin du consentement client) ; plan de taggage `docs/analytics_events.csv` ; liens stores marqués par campagne (`utm_source` = surface, `utm_campaign` = emplacement) ; replay de sessions portail écarté pour l’instant |

@@ -11,6 +11,7 @@ import {
   normalizeMemberInviteRole,
   sendGuyTransactionalEmail,
 } from "./email";
+import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
 import { db, defineDualCallable } from "./db";
 import { assertClubAdmin } from "./guardians";
 import { ClubActivityTypes, logClubActivity } from "./clubActivity";
@@ -393,6 +394,11 @@ export const {
         type: ClubActivityTypes.invitationsSent,
         actorUid: callerUid,
         count: sent,
+      });
+      await captureClubEvent({
+        clubId,
+        event: ServerAnalyticsEvents.invitationSent,
+        properties: { kind: "member_email", invite_count: sent },
       });
     }
 

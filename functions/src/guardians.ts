@@ -12,6 +12,7 @@ import {
   resolveAuthEmail,
   trySendGuyTransactionalEmail,
 } from "./email";
+import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
 import { db, defineDualCallable } from "./db";
 import { recomputeParentTeamIdsSafe } from "./parentTeams";
 
@@ -228,15 +229,16 @@ function guardianPermissions(data: DocumentData | undefined): GuardianPermission
 
 /**
  * Vérifie que l’appelant agit pour sa propre fiche ou comme parent active.
+ * Retourne `forChild` à true quand il agit comme parent.
  */
 export async function assertCanActForMember(params: {
   clubId: string;
   memberId: string;
   uid: string;
   permission: "canRsvp" | "canPay";
-}): Promise<void> {
+}): Promise<{ forChild: boolean }> {
   const ownMemberId = await resolveCallerMemberId(params.clubId, params.uid);
-  if (ownMemberId === params.memberId) return;
+  if (ownMemberId === params.memberId) return { forChild: false };
 
   const snap = await guardianRef(params.clubId, params.memberId, params.uid).get();
   if (!snap.exists) {
@@ -253,6 +255,7 @@ export async function assertCanActForMember(params: {
   if (!permissions[params.permission]) {
     throw new HttpsError("permission-denied", "Droit insuffisant");
   }
+  return { forChild: true };
 }
 
 function isCapStatus(status: string): boolean {
@@ -568,6 +571,11 @@ export const {
     inviteRef,
     callerUid,
   });
+  await captureClubEvent({
+    clubId,
+    event: ServerAnalyticsEvents.invitationSent,
+    properties: { kind: "guardian", account_exists: Boolean(existingParentUid) },
+  });
 
   return {
     ok: true,
@@ -765,6 +773,11 @@ export const {
       });
     }
   }
+
+  await captureClubEvent({
+    clubId: invitation.clubId,
+    event: ServerAnalyticsEvents.guardianLinked,
+  });
 
   return { ok: true, clubId: invitation.clubId, memberId };
 });
@@ -1048,7 +1061,7 @@ export const {
     throw new HttpsError("invalid-argument", "Réponse RSVP invalide");
   }
 
-  await assertCanActForMember({
+  const { forChild } = await assertCanActForMember({
     clubId,
     memberId,
     uid,
@@ -1067,6 +1080,12 @@ export const {
       admin.firestore.FieldValue.serverTimestamp(),
     rsvpLastActorUid: uid,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  // Le trigger events ignore les écritures serveur : la réponse est comptée ici.
+  await captureClubEvent({
+    clubId,
+    event: ServerAnalyticsEvents.rsvpSet,
+    properties: { status: value, for_child: forChild, via: "callable" },
   });
 
   return { ok: true };

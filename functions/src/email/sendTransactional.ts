@@ -4,6 +4,7 @@
 import * as admin from "firebase-admin";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { sendBrevoTransactionalEmail } from "../brevo";
+import { withAppStoreCampaign, withPlayStoreCampaign } from "../storeLinks";
 import { buildGuyEmail } from "./guyCopy";
 import type { BuiltEmail, GuyEmailParams } from "./types";
 
@@ -37,19 +38,21 @@ export function buildJoinUrl(code: string): string {
 }
 
 /**
- * Play Store URL paramétrée (chaîne vide si désactivée).
+ * Play Store URL paramétrée (chaîne vide si désactivée), marquée campagne
+ * `email` / `invite` pour la Play Console.
  */
 export function configuredPlayStoreUrl(): string | undefined {
   const value = playStoreUrl.value().trim();
-  return value || undefined;
+  return value ? withPlayStoreCampaign(value, "email", "invite") : undefined;
 }
 
 /**
- * App Store URL paramétrée (chaîne vide si désactivée).
+ * App Store URL paramétrée (chaîne vide si désactivée), marquée campagne
+ * `email_invite` (ajouter `?pt=…` à `APP_STORE_URL` pour qu'Apple la lise).
  */
 export function configuredAppStoreUrl(): string | undefined {
   const value = appStoreUrl.value().trim();
-  return value || undefined;
+  return value ? withAppStoreCampaign(value, "email", "invite") : undefined;
 }
 
 /**

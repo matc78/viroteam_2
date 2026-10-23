@@ -137,7 +137,8 @@ export default function PrivacyPage() {
             </li>
             <li>
               PostHog (mesure d’audience de l’app et du portail, hébergé en UE,
-              sur consentement)
+              sur consentement ; nos serveurs y envoient aussi des compteurs
+              d’usage rattachés au club, sans identifiant ni donnée personnelle)
             </li>
             <li>Sentry (monitoring d’erreurs de l’app et du portail)</li>
             <li>Brevo (e-mails transactionnels d’invitation)</li>

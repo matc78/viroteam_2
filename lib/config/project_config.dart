@@ -34,6 +34,22 @@ abstract final class ProjectConfig {
 
   static const String firebaseProjectId = 'viroteam-75303';
 
+  // —— Analytics produit (PostHog, hébergement UE) ——
+  /// Clé publique du projet PostHog « ViroTeam prod » (release uniquement).
+  static const String posthogProdApiKey =
+      'phc_wMm5hy9zFdbcsgUXoibRunuxb2crXmL6iLnLSMLHBvBv';
+
+  /// Clé publique du projet PostHog « ViroTeam dev » (debug / profile).
+  /// Vide = aucun envoi hors release.
+  static const String posthogDevApiKey = '';
+
+  static const String posthogHost = 'https://eu.i.posthog.com';
+
+  /// Clé PostHog active : prod en release seulement, pour que les sessions de
+  /// test (y compris [forceProdBackend]) ne polluent pas les stats réelles.
+  static String get posthogApiKey =>
+      kReleaseMode ? posthogProdApiKey : posthogDevApiKey;
+
   // —— Portail web (bureau admin + espace famille parent) ——
   /// URL de base du portail.
   ///

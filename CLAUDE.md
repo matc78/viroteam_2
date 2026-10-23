@@ -64,6 +64,7 @@ Les règles Firestore restent simples ; tout ce qui touche à plusieurs document
 - Entrée : `lib/main.dart` → `ProviderScope` → `lib/app/viro_app.dart`. Router go_router unique dans `lib/config/routes.dart` (redirections auth/session, deep links `/join?code=` via `deep_links.dart` + `pending_invitation_provider`).
 - Riverpod : services instanciés comme `Provider` dans `lib/providers/service_providers.dart` ; providers d'état par feature dans `lib/features/<feature>/providers/`.
 - Logique métier / accès Firestore dans `lib/services/` (pas dans les écrans, pas dans `build()`). Écrans fins dans `lib/features/<feature>/screens/`.
+- Analytics : PostHog uniquement, via `AnalyticsService` (`lib/services/analytics_service.dart`) / `@/lib/posthog` côté portail. Rien sans consentement (`analyticsConsentProvider` dans l'app, bandeau cookies sur le portail), jamais de PII ; identité = uid Firebase + groupe `club`, propriétés construites par `analytics_identity.dart` ↔ `portal/src/lib/analytics/analyticsIdentity.ts` (mêmes clés). Clé prod en release seulement (`ProjectConfig.posthogApiKey`).
 - Feature flags dans `lib/config/feature_flags.dart` (ex. messagerie `chatMessagingLive` = debug uniquement, aligné avec `CHAT_MESSAGING_LIVE` côté portail).
 
 ### Portail (`portal/`)

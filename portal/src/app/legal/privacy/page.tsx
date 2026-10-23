@@ -29,7 +29,7 @@ export default function PrivacyPage() {
       <article className={styles.article}>
         <h1>Politique de confidentialité</h1>
         <p className={styles.meta}>
-          Dernière mise à jour : 28 septembre 2026
+          Dernière mise à jour : 23 octobre 2026
         </p>
 
         <section>
@@ -81,7 +81,13 @@ export default function PrivacyPage() {
             </li>
             <li>Notifications push (convocations, rappels, messages du club)</li>
             <li>Sécurité, support et amélioration du Service</li>
-            <li>Mesure d’audience (sous réserve de consentement cookies)</li>
+            <li>
+              Mesure d’audience de l’app et du portail, uniquement avec votre
+              consentement (bandeau cookies sur le portail, réglage
+              « Statistiques d’usage » dans l’app, modifiable à tout moment) :
+              identifiant de compte, rôle, club actif, écrans et fonctions
+              utilisés — jamais votre nom, votre e-mail ni vos messages
+            </li>
           </ul>
         </section>
 
@@ -129,7 +135,10 @@ export default function PrivacyPage() {
               </a>
               .
             </li>
-            <li>PostHog (analytics produit, hébergé en UE)</li>
+            <li>
+              PostHog (mesure d’audience de l’app et du portail, hébergé en UE,
+              sur consentement)
+            </li>
             <li>Sentry (monitoring d’erreurs de l’app et du portail)</li>
             <li>Brevo (e-mails transactionnels d’invitation)</li>
           </ul>

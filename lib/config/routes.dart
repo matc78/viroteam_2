@@ -1,9 +1,9 @@
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
 import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/config/router_refresh.dart';
@@ -269,7 +269,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
 
     observers: [
-      FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
+      // Écrans PostHog : nom = motif de route (`/club/:clubId`), sans id.
+      PosthogObserver(),
     ],
 
     redirect: (context, state) {
@@ -600,6 +601,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           if (state.extra is ConversationsSwipeCommit) {
             return ViroSlidePage<void>(
               key: state.pageKey,
+              name: state.path,
               transitionDuration: Duration.zero,
               child: const ConversationsScreen(),
             );
@@ -607,6 +609,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final origin = state.extra is Offset ? state.extra as Offset : null;
           return ViroBubbleExpandPage<void>(
             key: state.pageKey,
+            name: state.path,
             origin: origin,
             child: const ConversationsScreen(),
           );
@@ -625,6 +628,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               : null;
           return ViroSlidePage<void>(
             key: state.pageKey,
+            name: state.path,
             child: ChatThreadScreen(
               clubId: clubId,
               conversationId: conversationId,

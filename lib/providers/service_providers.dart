@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/services/analytics_consent_service.dart';
 import 'package:viro_team_v2/services/analytics_service.dart';
 import 'package:viro_team_v2/services/account_service.dart';
 import 'package:viro_team_v2/services/announcement_service.dart';
@@ -29,8 +30,15 @@ import 'package:viro_team_v2/services/user_avatar_storage.dart';
 import 'package:viro_team_v2/services/conversation_avatar_storage.dart';
 import 'package:viro_team_v2/services/user_service.dart';
 
+/// Surchargé dans `main` avec l'instance démarrée selon le consentement.
 final analyticsServiceProvider = Provider<AnalyticsService>(
   (ref) => AnalyticsService(),
+);
+
+/// Surchargé dans `main` avec des préférences préchargées (consentement connu
+/// avant l'init PostHog).
+final analyticsConsentServiceProvider = Provider<AnalyticsConsentService>(
+  (ref) => AnalyticsConsentService(),
 );
 
 final feePaymentAnalyticsProvider = Provider<FeePaymentAnalytics>(

@@ -26,6 +26,7 @@ import 'package:viro_team_v2/features/announcements/widgets/home_announcement_ba
 import 'package:viro_team_v2/features/fees/widgets/fee_reminder_banner.dart';
 import 'package:viro_team_v2/features/home/widgets/home_quiet_content.dart';
 import 'package:viro_team_v2/features/home/widgets/notification_soft_ask_sheet.dart';
+import 'package:viro_team_v2/features/settings/widgets/analytics_consent_sheet.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -57,8 +58,10 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _offerNotifications());
   }
 
-  /// Pré-demande notifs : seulement avec au moins un club (sinon rien à
-  /// notifier), après un court délai pour laisser la home s'afficher.
+  /// Pré-demandes (mesure d'audience puis notifs) : seulement avec au moins
+  /// un club, après un court délai pour laisser la home s'afficher. Une
+  /// seule feuille par ouverture : les notifs attendent le lancement suivant
+  /// si le consentement vient d'être demandé.
   Future<void> _offerNotifications() async {
     try {
       final clubs = await ref.read(userClubsProvider.future);
@@ -67,6 +70,8 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
       return;
     }
     await Future<void>.delayed(ProjectConfig.notificationSoftAskDelay);
+    if (!mounted) return;
+    if (await maybeShowAnalyticsConsent(context, ref)) return;
     if (!mounted) return;
     await maybeShowNotificationSoftAsk(context, ref);
   }

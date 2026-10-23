@@ -8,6 +8,7 @@ import 'package:viro_team_v2/features/settings/providers/notification_permission
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/notification_permission_service.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/viro_benefit_row.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 /// Propose d'activer les notifs (pré-demande avant la popup système) si la
@@ -107,17 +108,17 @@ class NotificationSoftAskSheet extends StatelessWidget {
               style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
             ),
             const SizedBox(height: ViroSpacing.lg),
-            _BenefitRow(
+            ViroBenefitRow(
               icon: ViroIcons.calendar,
               label: AppCopy.notifications.softAskBenefitEvents,
             ),
             const SizedBox(height: ViroSpacing.sm),
-            _BenefitRow(
+            ViroBenefitRow(
               icon: ViroIcons.clock,
               label: AppCopy.notifications.softAskBenefitChanges,
             ),
             const SizedBox(height: ViroSpacing.sm),
-            _BenefitRow(
+            ViroBenefitRow(
               icon: ViroIcons.megaphone,
               label: AppCopy.notifications.softAskBenefitAnnouncements,
             ),
@@ -137,32 +138,6 @@ class NotificationSoftAskSheet extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _BenefitRow extends StatelessWidget {
-  const _BenefitRow({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.viroPalette;
-    return Row(
-      children: [
-        ViroIcon(icon, size: 20, color: palette.accent),
-        const SizedBox(width: ViroSpacing.sm),
-        Expanded(
-          child: Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: palette.textPrimary),
-          ),
-        ),
-      ],
     );
   }
 }

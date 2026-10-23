@@ -14,6 +14,16 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Convocations : statut « vu » — un œil à côté de « En attente » quand le membre a vu l’événement sur sa home (carte affichée ≥ 1 s) sans répondre ; pour un enfant, la vue du planning par le parent compte (callable `markEventSeen`)
 - Convocations : le coach peut retirer des joueurs d’un événement (détail > « Gérer les convoqués »), pour une séance ou « celle-ci et les suivantes » d’une série ; un joueur retiré ne voit plus l’événement et ne reçoit aucune notif, et la synchro d’équipe ne le reconvoque pas (champ `excludedMemberIds`, callable `updateEventConvocations`). Réintégré, il reçoit « Nouvelle convocation » (≤ 7 j), même sur une série
 - Création de match : liste des joueurs de l’équipe, tous convoqués par défaut, à décocher / recocher
+- Mesure d’audience sur consentement : une feuille « Tu nous files un coup de main ? » s’affiche une fois sur l’accueil (accepter / refuser au même niveau), et le choix reste modifiable dans Paramètres > Mesure d’audience. Sans accord, rien n’est envoyé à PostHog
+- Analytics PostHog : identification par uid Firebase (rôle max, parent, nombre de clubs, date d’inscription ; ni nom ni e-mail), groupe `club` pour le club actif (nom, sport, effectif), suivi des écrans par motif de route, `reset` à la déconnexion. Mêmes clés que le portail pour croiser web et mobile
+
+### Modifié
+
+- PostHog initialisé par l’app (`AUTO_INIT` désactivé sur Android / iOS) : projet « ViroTeam prod » en release uniquement, projet « ViroTeam dev » sinon (`ProjectConfig.posthogDevApiKey`, vide = aucun envoi)
+
+### Supprimé
+
+- Firebase Analytics (doublon de PostHog) : paquet `firebase_analytics` et observateur de routes retirés
 
 ### Corrigé
 

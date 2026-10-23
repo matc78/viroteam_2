@@ -7,6 +7,7 @@ import 'package:viro_team_v2/config/viro_theme.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/settings/providers/theme_mode_provider.dart';
+import 'package:viro_team_v2/providers/analytics_identity_provider.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -40,6 +41,7 @@ class _ViroAppState extends ConsumerState<ViroApp> {
     final router = ref.watch(goRouterProvider);
     final feeDeadlineUrgent = ref.watch(feeDeadlineUrgentBackgroundProvider);
     final themeMode = ref.watch(themeModeProvider);
+    ref.watch(analyticsIdentitySyncProvider);
 
     ref.listen(authStateProvider, (previous, next) {
       final user = next.value;

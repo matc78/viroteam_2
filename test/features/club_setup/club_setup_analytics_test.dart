@@ -4,26 +4,16 @@ import 'package:viro_team_v2/features/club_setup/club_setup_steps.dart';
 import 'package:viro_team_v2/features/club_setup/services/club_setup_analytics.dart';
 import 'package:viro_team_v2/services/analytics_service.dart';
 
-class _RecordingAnalyticsClient implements AnalyticsClient {
-  final captures = <({String eventName, Map<String, Object>? properties})>[];
-
-  @override
-  Future<void> capture({
-    required String eventName,
-    Map<String, Object>? properties,
-  }) async {
-    captures.add((eventName: eventName, properties: properties));
-  }
-}
+import '../../helpers/recording_analytics_client.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late _RecordingAnalyticsClient client;
+  late RecordingAnalyticsClient client;
   late ClubSetupAnalytics analytics;
 
   setUp(() {
-    client = _RecordingAnalyticsClient();
+    client = RecordingAnalyticsClient();
     analytics = ClubSetupAnalytics(analytics: AnalyticsService(client: client));
   });
 

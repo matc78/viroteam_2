@@ -31,6 +31,26 @@ final class AppCopySettings {
   String get themeLight => 'Clair';
   String get themeDark => 'Sombre';
 
+  String get analyticsSection => 'Mesure d’audience';
+  String get analyticsSubtitle =>
+      'Aide-nous à savoir ce qui marche dans l’app et ce qui coince.';
+  String get analyticsToggle => 'Statistiques d’usage';
+  String get analyticsToggleSubtitle =>
+      'Écrans visités et fonctions utilisées. Pas de pub, pas de revente.';
+  String get analyticsConsentTitle => 'Tu nous files un coup de main ?';
+  String get analyticsConsentBody =>
+      'On aimerait mesurer comment l’app est utilisée pour savoir quoi '
+      'améliorer en priorité.';
+  String get analyticsConsentPointUsage =>
+      'Les écrans visités et les fonctions utilisées';
+  String get analyticsConsentPointNoContent =>
+      'Jamais tes messages, ton nom ni ton e-mail';
+  String get analyticsConsentPointNoAds => 'Pas de pub, pas de revente';
+  String get analyticsConsentFooter =>
+      'Tu peux changer d’avis à tout moment dans tes paramètres.';
+  String get analyticsConsentAccept => 'Ok, j’accepte';
+  String get analyticsConsentDecline => 'Non merci';
+
   String get notificationsSection => 'Notifications';
   String get notificationsSubtitle =>
       'Choisis quels rappels tu reçois sur cet appareil.';

@@ -6,6 +6,13 @@ const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY ?? "";
 /** Proxy local (/ingest) pour contourner les adblockers — voir next.config.ts. */
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "/ingest";
 
+const readyListeners = new Set<() => void>();
+
+/// Propriétés ajoutées à tous les événements (à rejouer après `reset`).
+export function registerBaseProperties(): void {
+  posthog.register({ surface: "portal" });
+}
+
 /// Initialise PostHog (côté client uniquement, une seule fois).
 export function initPostHog(): void {
   if (typeof window === "undefined") return;
@@ -18,7 +25,20 @@ export function initPostHog(): void {
     person_profiles: "identified_only",
     capture_pageview: false, // on gère manuellement via le provider
     capture_pageleave: true,
+    loaded: () => {
+      registerBaseProperties();
+      readyListeners.forEach((listener) => listener());
+    },
   });
+}
+
+/// Abonne [listener] au chargement de PostHog (consentement accepté en cours
+/// de session) ; retourne la désinscription.
+export function onPostHogReady(listener: () => void): () => void {
+  readyListeners.add(listener);
+  return () => {
+    readyListeners.delete(listener);
+  };
 }
 
 export { posthog };

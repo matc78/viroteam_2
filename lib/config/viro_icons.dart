@@ -63,6 +63,7 @@ abstract final class ViroIcons {
   static IconData get themeSystem => PhosphorIconsRegular.deviceMobile;
   static IconData get camera => PhosphorIconsRegular.camera;
   static IconData get poll => PhosphorIconsRegular.chartBar;
+  static IconData get analytics => PhosphorIconsRegular.chartLineUp;
   static IconData get smiley => PhosphorIconsRegular.smiley;
   static IconData get selectAll => PhosphorIconsRegular.selectionAll;
   static IconData get note => PhosphorIconsRegular.notePencil;
@@ -176,6 +177,7 @@ abstract final class ViroIcons {
             ('camera', camera),
             ('selectAll', selectAll),
             ('note', note),
+            ('analytics', analytics),
           ],
         ),
         ViroIconCatalogGroup(

@@ -9,6 +9,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/settings/widgets/account_session_section.dart';
+import 'package:viro_team_v2/features/settings/widgets/analytics_settings_section.dart';
 import 'package:viro_team_v2/features/settings/widgets/appearance_settings_section.dart';
 import 'package:viro_team_v2/features/settings/widgets/change_email_sheet.dart';
 import 'package:viro_team_v2/features/settings/widgets/change_password_sheet.dart';
@@ -196,6 +197,8 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 NotificationPreferencesSection(user: user),
                 const SizedBox(height: ViroSpacing.xl),
                 const AppearanceSettingsSection(),
+                const SizedBox(height: ViroSpacing.xl),
+                const AnalyticsSettingsSection(),
                 const SizedBox(height: ViroSpacing.xl),
                 Text(
                   AppCopy.settings.myClubs,

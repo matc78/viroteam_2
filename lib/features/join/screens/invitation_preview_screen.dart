@@ -121,6 +121,21 @@ class _InvitationPreviewScreenState
     if (mounted) context.go(AppRoutes.entry);
   }
 
+  /// Déconnecte pour permettre de se connecter avec le compte invité.
+  ///
+  /// L’invitation pending est conservée pour reprendre après reconnexion.
+  Future<void> _useAnotherAccount() async {
+    ref.read(signUpIntentProvider.notifier).setIntent(SignUpIntent.join);
+    await ref.read(authServiceProvider).signOut();
+    if (mounted) context.go(AppRoutes.login);
+  }
+
+  /// Ouvre le login en gardant l’intention « rejoindre » (évite club-setup).
+  void _goToLoginForJoin() {
+    ref.read(signUpIntentProvider.notifier).setIntent(SignUpIntent.join);
+    context.push(AppRoutes.login);
+  }
+
   @override
   Widget build(BuildContext context) {
     final pending = ref.watch(pendingInvitationProvider);
@@ -257,7 +272,7 @@ class _InvitationPreviewScreenState
                 ),
                 const SizedBox(height: ViroSpacing.sm),
                 TextButton(
-                  onPressed: () => context.push(AppRoutes.login),
+                  onPressed: _goToLoginForJoin,
                   child: Text(AppCopy.auth.alreadyHaveAccount),
                 ),
                 const SizedBox(height: ViroSpacing.sm),
@@ -296,7 +311,11 @@ class _InvitationPreviewScreenState
                       ? AppCopy.common.cancel
                       : AppCopy.join.declineInvitation,
                   outlined: true,
-                  onPressed: _decline,
+                  onPressed: _loading ? null : _decline,
+                ),
+                TextButton(
+                  onPressed: _loading ? null : _useAnotherAccount,
+                  child: Text(AppCopy.auth.useAnotherAccount),
                 ),
               ],
             ],

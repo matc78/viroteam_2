@@ -134,7 +134,7 @@ class OnboardingEntryScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: ViroSpacing.md),
-                          if (needsViroTeamAccount)
+                          if (authUser != null)
                             TextButton(
                               onPressed: () async {
                                 await ref.read(authServiceProvider).signOut();

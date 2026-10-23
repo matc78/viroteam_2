@@ -8,6 +8,11 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Corrigé
+
+- Onboarding / invitation : « Se déconnecter » / « Utiliser un autre compte » sur club-setup, preview d’invitation et entry quand on est déjà connecté — évite d’être coincé sans club (mauvais e-mail vs invitation)
+- Connexion depuis une invitation : conserve l’intent `join` pour ne plus forcer le wizard création de club
+
 ## [2.2.11] - 2026-10-23
 
 ### Ajouté

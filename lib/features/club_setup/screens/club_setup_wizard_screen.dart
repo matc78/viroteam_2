@@ -396,17 +396,35 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
               ViroSpacing.lg,
               ViroSpacing.md,
             ),
-            child: _step < ClubSetupSteps.total - 1
-                ? ViroPortalButton(label: _continueLabel(), onPressed: _next)
-                : ViroPortalButton(
-                    label: AppCopy.clubSetup.createClub,
-                    isLoading: _submitting,
-                    onPressed: _submit,
-                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _step < ClubSetupSteps.total - 1
+                    ? ViroPortalButton(
+                        label: _continueLabel(),
+                        onPressed: _next,
+                      )
+                    : ViroPortalButton(
+                        label: AppCopy.clubSetup.createClub,
+                        isLoading: _submitting,
+                        onPressed: _submit,
+                      ),
+                TextButton(
+                  onPressed: _submitting ? null : _signOut,
+                  child: Text(AppCopy.auth.signOut),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     ),
     );
+  }
+
+  /// Quitte la session pour pouvoir se reconnecter avec un autre compte.
+  Future<void> _signOut() async {
+    await ref.read(authServiceProvider).signOut();
+    if (mounted) context.go(AppRoutes.entry);
   }
 }

@@ -115,14 +115,17 @@ class EventService {
         authUid: authUid,
       );
 
-  /// Événements à venir visibles par un parent (équipes de l'enfant).
+  /// Événements à venir visibles par un parent (équipes de l'enfant, hors
+  /// ceux dont l'enfant [childAudienceKeys] a été retiré).
   Stream<List<ClubEvent>> watchUpcomingEventsForGuardian({
     required String clubId,
     required List<String> childTeamIds,
+    Set<String> childAudienceKeys = const {},
   }) =>
       _upcoming.watchUpcomingEventsForGuardian(
         clubId: clubId,
         childTeamIds: childTeamIds,
+        childAudienceKeys: childAudienceKeys,
       );
 
   /// Aperçu club côté parent : prochain à venir, sinon plus récent passé.
@@ -219,6 +222,7 @@ class EventService {
     required List<String> teamIds,
     required List<String> teamMemberIds,
     required bool allTeams,
+    List<String> excludedMemberIds = const [],
     String? location,
     String? startTime,
     String? endTime,
@@ -237,6 +241,7 @@ class EventService {
         teamIds: teamIds,
         teamMemberIds: teamMemberIds,
         allTeams: allTeams,
+        excludedMemberIds: excludedMemberIds,
         location: location,
         startTime: startTime,
         endTime: endTime,
@@ -347,6 +352,24 @@ class EventService {
     required String clubId,
   }) =>
       _rsvp.computePitchAttendanceRate(clubId: clubId);
+
+  /// Retire ([excludeIds]) / réintègre ([reintegrateIds]) des joueurs convoqués
+  /// via la callable `updateEventConvocations`. [following] : aussi les
+  /// occurrences suivantes de la série. Retourne le nombre d'événements modifiés.
+  Future<int> updateConvocations({
+    required String clubId,
+    required String eventId,
+    required List<String> excludeIds,
+    required List<String> reintegrateIds,
+    bool following = false,
+  }) =>
+      _rsvp.updateConvocations(
+        clubId: clubId,
+        eventId: eventId,
+        excludeIds: excludeIds,
+        reintegrateIds: reintegrateIds,
+        following: following,
+      );
 
   /// Ajoute un convoqué aux événements à venir d'une équipe.
   Future<void> addAudienceToUpcomingTeamEvents({

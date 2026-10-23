@@ -28,6 +28,7 @@ class EventMutations {
     required List<String> teamIds,
     required List<String> teamMemberIds,
     required bool allTeams,
+    List<String> excludedMemberIds = const [],
     String? location,
     String? startTime,
     String? endTime,
@@ -66,6 +67,8 @@ class EventMutations {
         FirestoreFields.seriesId: ?seriesId,
         if (importantReminder) FirestoreFields.importantReminder: true,
         FirestoreFields.teamMemberIds: teamMemberIds,
+        if (excludedMemberIds.isNotEmpty)
+          FirestoreFields.excludedMemberIds: excludedMemberIds,
         FirestoreFields.rsvp: <String, String>{},
         FirestoreFields.attendance: <String, dynamic>{},
         FirestoreFields.creatorId: creatorId,

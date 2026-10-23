@@ -27,6 +27,7 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/planning/widgets/planning_convocation_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_roll_call_sheet.dart';
 
 enum _CancelScope { single, series }
@@ -165,6 +166,31 @@ class _PlanningEventDetailSheetState
     if (!mounted) return;
     if (fresh != null) setState(() => _event = fresh);
     ref.invalidate(clubPitchAttendanceRateProvider(widget.clubId));
+  }
+
+  /// Coach : événement d'équipe(s) à venir, convocations modifiables.
+  bool get _canManageConvocations {
+    if (!widget.canManageEvents || _event.canceled) return false;
+    if (_event.teamIds.isEmpty || _event.allTeams) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return !_event.date.isBefore(today);
+  }
+
+  Future<void> _openConvocations() async {
+    final saved = await PlanningConvocationSheet.show(
+      context: context,
+      clubId: widget.clubId,
+      event: _event,
+    );
+    if (!saved || !mounted) return;
+    final fresh = await ref.read(eventServiceProvider).getEvent(
+          clubId: widget.clubId,
+          eventId: _event.id,
+        );
+    if (!mounted) return;
+    if (fresh != null) setState(() => _event = fresh);
+    widget.onRsvpUpdated?.call();
   }
 
   /// Met à jour le RSVP de la cible sélectionnée (soi ou enfant), puis
@@ -708,6 +734,19 @@ class _PlanningEventDetailSheetState
                   onPressed: _openRollCall,
                   icon: ViroIcon(ViroIcons.whistle, size: 18),
                   label: Text(AppCopy.planning.takeAttendance),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(
+                      ViroSpacing.buttonHeightMedium,
+                    ),
+                  ),
+                ),
+              ],
+              if (_canManageConvocations) ...[
+                const SizedBox(height: ViroSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: _openConvocations,
+                  icon: ViroIcon(ViroIcons.users, size: 18),
+                  label: Text(AppCopy.planning.manageConvocations),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(
                       ViroSpacing.buttonHeightMedium,

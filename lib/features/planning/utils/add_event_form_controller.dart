@@ -60,6 +60,9 @@ class AddEventFormController extends ChangeNotifier {
   /// Types sans équipe : équipes convoquées quand [audienceWholeClub] est faux.
   final Set<String> audienceTeamIds = {};
 
+  /// Match : joueurs de l'équipe décochés par le coach (non convoqués).
+  final Set<String> excludedPlayerIds = {};
+
   /// Vrai si le type courant est un match.
   bool get isMatch => type == EventTypes.match;
 
@@ -96,6 +99,7 @@ class AddEventFormController extends ChangeNotifier {
   void onTypeChanged(String? value) {
     final nextType = value ?? EventTypes.training;
     type = nextType;
+    excludedPlayerIds.clear();
     if (EventTypes.isTeamless(nextType)) teamId = null;
     if (!importantReminderManuallyEdited) {
       importantReminder = addEventImportantByDefault(nextType);
@@ -124,6 +128,12 @@ class AddEventFormController extends ChangeNotifier {
     if (!audienceTeamIds.remove(teamId)) audienceTeamIds.add(teamId);
     notifyListeners();
   }
+
+  /// Vrai si le match a des joueurs ([matchPlayerIds]) mais tous décochés.
+  bool _noPlayerConvoked(List<String> matchPlayerIds) =>
+      isMatch &&
+      matchPlayerIds.isNotEmpty &&
+      matchPlayerIds.every(excludedPlayerIds.contains);
 
   /// Vrai si un type sans équipe n'a encore aucun convoqué choisi.
   bool get _missingAudienceTeams =>
@@ -201,9 +211,16 @@ class AddEventFormController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Met à jour l’équipe sélectionnée.
+  /// Met à jour l’équipe sélectionnée (les joueurs décochés repartent à zéro).
   void setTeamId(String? value) {
+    if (value != teamId) excludedPlayerIds.clear();
     teamId = value;
+    notifyListeners();
+  }
+
+  /// Match : décoche / recoche le joueur [playerId] des convoqués.
+  void togglePlayerConvoked(String playerId) {
+    if (!excludedPlayerIds.remove(playerId)) excludedPlayerIds.add(playerId);
     notifyListeners();
   }
 
@@ -248,7 +265,9 @@ class AddEventFormController extends ChangeNotifier {
   }
 
   /// Indique si tous les champs requis sont renseignés pour activer Créer.
-  bool canCreate(Club? club) {
+  ///
+  /// [matchPlayerIds] : joueurs de l'équipe du match (au moins un convoqué).
+  bool canCreate(Club? club, {List<String> matchPlayerIds = const []}) {
     if (!EventTypes.isTeamless(type) && (teamId == null || teamId!.isEmpty)) {
       return false;
     }
@@ -256,6 +275,7 @@ class AddEventFormController extends ChangeNotifier {
       return false;
     }
     if (_missingAudienceTeams) return false;
+    if (_noPlayerConvoked(matchPlayerIds)) return false;
     if (isMatch && matchVenue == null) return false;
 
     final location = resolveLocation(club);
@@ -282,7 +302,10 @@ class AddEventFormController extends ChangeNotifier {
   }
 
   /// Message de validation à afficher, ou `null` si le formulaire est valide.
-  String? validationMessage(Club? club) {
+  String? validationMessage(
+    Club? club, {
+    List<String> matchPlayerIds = const [],
+  }) {
     if (!EventTypes.isTeamless(type) && teamId == null) {
       return AppCopy.planning.chooseTeamSnack;
     }
@@ -290,6 +313,9 @@ class AddEventFormController extends ChangeNotifier {
       return AppCopy.planning.titleRequired;
     }
     if (_missingAudienceTeams) return AppCopy.planning.chooseAudienceTeams;
+    if (_noPlayerConvoked(matchPlayerIds)) {
+      return AppCopy.planning.keepOnePlayerConvoked;
+    }
 
     if (isMatch) {
       if (matchVenue == null) {
@@ -340,10 +366,11 @@ class AddEventFormController extends ChangeNotifier {
     required List<ClubTeam> teams,
     required List<ClubMember>? members,
     required EventService eventService,
+    List<String> matchPlayerIds = const [],
   }) async {
     if (creatorId == null) return null;
 
-    final error = validationMessage(club);
+    final error = validationMessage(club, matchPlayerIds: matchPlayerIds);
     if (error != null) return null;
 
     ClubTeam? team;
@@ -370,6 +397,13 @@ class AddEventFormController extends ChangeNotifier {
           teams.where((t) => audienceTeamIds.contains(t.id)).toList();
     }
     final wholeClub = team == null && audienceWholeClub;
+    final excludedIds =
+        isMatch && team != null ? excludedPlayerIds.toList() : <String>[];
+    final audienceIds = addEventAudienceForTeams(
+      audienceTeams,
+      members,
+      wholeClub: wholeClub,
+    ).where((id) => !excludedIds.contains(id)).toList();
 
     saving = true;
     notifyListeners();
@@ -383,12 +417,9 @@ class AddEventFormController extends ChangeNotifier {
             : (team?.name ?? ''),
         startDate: date,
         teamIds: [for (final t in audienceTeams) t.id],
-        teamMemberIds: addEventAudienceForTeams(
-          audienceTeams,
-          members,
-          wholeClub: wholeClub,
-        ),
+        teamMemberIds: audienceIds,
         allTeams: wholeClub,
+        excludedMemberIds: excludedIds,
         location: location,
         startTime: addEventFormatTime(start),
         endTime: isMatch ? null : addEventFormatTime(end),

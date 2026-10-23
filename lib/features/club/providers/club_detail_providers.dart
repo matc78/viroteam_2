@@ -7,6 +7,7 @@ import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.da
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
+import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_event.dart';
@@ -162,6 +163,7 @@ final clubEventsForMemberProvider = StreamProvider.family<ClubEventsState,
       (child) => eventService.watchUpcomingEventsForGuardian(
         clubId: params.clubId,
         childTeamIds: child?.teamIds ?? const [],
+        childAudienceKeys: child != null ? eventAudienceKeys(child) : const {},
       ),
     );
   } else {

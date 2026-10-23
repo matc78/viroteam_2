@@ -57,6 +57,35 @@ List<String> audienceIdsForTeam(
   return ids.toList();
 }
 
+/// Joueurs (fiches connues) de [teams], dédupliqués et triés par nom.
+///
+/// `id` = clé `teamMemberIds` / `excludedMemberIds` du joueur.
+List<({String id, ClubMember member})> teamPlayerEntries(
+  List<ClubTeam> teams,
+  Map<String, ClubMember> membersByUid,
+) {
+  final seenMemberIds = <String>{};
+  final entries = <({String id, ClubMember member})>[];
+  for (final team in teams) {
+    for (final rosterUid in team.playerIds) {
+      final member = clubMemberForTeamUid(membersByUid, rosterUid);
+      if (member == null || !seenMemberIds.add(member.memberId)) continue;
+      entries.add((id: rosterAudienceId(member), member: member));
+    }
+  }
+  entries.sort(
+    (a, b) => a.member.fullName
+        .toLowerCase()
+        .compareTo(b.member.fullName.toLowerCase()),
+  );
+  return entries;
+}
+
+/// `true` si le joueur [member] des équipes de [event] n'en a pas été retiré
+/// (pas encore synchronisé dans `teamMemberIds` = convoqué quand même).
+bool isConvokedOnEvent(ClubEvent event, ClubMember member) =>
+    !event.isExcludedFor(eventAudienceKeys(member));
+
 /// Index des membres par toutes les clés roster / RSVP.
 Map<String, ClubMember> indexClubMembersByUid(List<ClubMember> members) {
   final map = <String, ClubMember>{};

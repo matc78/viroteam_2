@@ -138,7 +138,25 @@ class EventUpcomingQueries {
   }
 
   /// Événements des équipes du joueur (compat. v1 : `teamIds` / `teamName`).
+  ///
+  /// Sans ceux dont le coach l'a retiré (`excludedMemberIds`).
   Stream<List<ClubEvent>> watchUpcomingEventsForPlayerTeams({
+    required String clubId,
+    required String audienceId,
+    required String authUid,
+  }) {
+    final playerKeys = {audienceId, authUid};
+    return _watchUpcomingEventsForPlayerTeams(
+      clubId: clubId,
+      audienceId: audienceId,
+      authUid: authUid,
+    ).map(
+      (events) =>
+          events.where((event) => !event.isExcludedFor(playerKeys)).toList(),
+    );
+  }
+
+  Stream<List<ClubEvent>> _watchUpcomingEventsForPlayerTeams({
     required String clubId,
     required String audienceId,
     required String authUid,
@@ -252,9 +270,11 @@ class EventUpcomingQueries {
   /// Événements à venir visibles par un parent : uniquement ceux des équipes
   /// de l'enfant ([childTeamIds] = `members/{child}.teamIds`), une requête
   /// par équipe. Pas de lecture globale ni de fallback v1 `teamName`.
+  /// Sans ceux dont l'enfant ([childAudienceKeys]) a été retiré par le coach.
   Stream<List<ClubEvent>> watchUpcomingEventsForGuardian({
     required String clubId,
     required List<String> childTeamIds,
+    Set<String> childAudienceKeys = const {},
   }) {
     final teamIds = childTeamIds.where((id) => id.isNotEmpty).toSet();
     if (teamIds.isEmpty) return Stream.value(<ClubEvent>[]);
@@ -269,8 +289,11 @@ class EventUpcomingQueries {
           ),
         )
         .toList();
-    return combineLatestListStreams(streams)
-        .map(EventDateHelpers.dedupeEvents);
+    return combineLatestListStreams(streams).map(
+      (events) => EventDateHelpers.dedupeEvents(events)
+          .where((event) => !event.isExcludedFor(childAudienceKeys))
+          .toList(),
+    );
   }
 
   /// Convocation d’une fiche cible uniquement (pas de fusion coach / séniors).

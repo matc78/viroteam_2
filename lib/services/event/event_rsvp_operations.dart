@@ -233,7 +233,31 @@ class EventRsvpOperations {
     return presentCount / markedCount * 100;
   }
 
+  /// Retire / réintègre des joueurs convoqués (callable, multi-occurrences).
+  ///
+  /// Retourne le nombre d'événements modifiés.
+  Future<int> updateConvocations({
+    required String clubId,
+    required String eventId,
+    required List<String> excludeIds,
+    required List<String> reintegrateIds,
+    required bool following,
+  }) async {
+    final callable =
+        _functions.httpsCallable(cloudCallableName('updateEventConvocations'));
+    final result = await callable.call<Map<String, dynamic>>({
+      'clubId': clubId,
+      'eventId': eventId,
+      'excludeIds': excludeIds,
+      'reintegrateIds': reintegrateIds,
+      'scope': following ? 'following' : 'occurrence',
+    });
+    return (result.data['updatedCount'] as num?)?.toInt() ?? 0;
+  }
+
   /// Ajoute un convoqué aux événements à venir d'une équipe (joueur ou coach).
+  ///
+  /// Les joueurs retirés par le coach (`excludedMemberIds`) sont ignorés.
   Future<void> addAudienceToUpcomingTeamEvents({
     required String clubId,
     required String teamId,
@@ -262,6 +286,9 @@ class EventRsvpOperations {
                   .toList() ??
               [];
       if (members.contains(audienceId)) continue;
+      final excluded =
+          (data[FirestoreFields.excludedMemberIds] as List<dynamic>?) ?? [];
+      if (excluded.contains(audienceId)) continue;
 
       batch.update(doc.reference, {
         FirestoreFields.teamMemberIds: FieldValue.arrayUnion([audienceId]),

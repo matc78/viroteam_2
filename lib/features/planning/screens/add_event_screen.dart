@@ -9,9 +9,11 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_form_controller.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_helpers.dart';
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_audience_section.dart';
+import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_convocation_section.dart';
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_location_section.dart';
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_more_options_section.dart';
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_save_bar.dart';
@@ -95,9 +97,37 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
     if (picked != null) onPicked(picked);
   }
 
+  /// Ids des joueurs de l'équipe du match (vide hors match / en chargement).
+  List<String> _matchPlayerIds(
+    List<({String id, ClubMember member})>? players,
+  ) =>
+      _form.isMatch && players != null
+          ? [for (final player in players) player.id]
+          : const [];
+
+  /// Joueurs de l'équipe choisie pour un match, `null` sinon ou en chargement.
+  List<({String id, ClubMember member})>? _watchMatchPlayers() {
+    final teamId = _form.teamId;
+    if (!_form.isMatch || teamId == null) return null;
+    return ref.watch(
+      teamConvocationPlayersProvider((clubId: widget.clubId, teamId: teamId)),
+    );
+  }
+
   Future<void> _save() async {
     final club = ref.read(clubProvider(widget.clubId)).value;
-    final error = _form.validationMessage(club);
+    final teamId = _form.teamId;
+    final matchPlayerIds = _matchPlayerIds(
+      _form.isMatch && teamId != null
+          ? ref.read(
+              teamConvocationPlayersProvider(
+                (clubId: widget.clubId, teamId: teamId),
+              ),
+            )
+          : null,
+    );
+    final error =
+        _form.validationMessage(club, matchPlayerIds: matchPlayerIds);
     if (error != null) {
       ViroSnackBar.show(context, error);
       return;
@@ -119,6 +149,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
         teams: teams,
         members: members,
         eventService: ref.read(eventServiceProvider),
+        matchPlayerIds: matchPlayerIds,
       );
       if (count == null || !mounted) return;
       ViroSnackBar.show(context, AppCopy.planning.eventsCreated(count));
@@ -208,6 +239,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
         club?.practiceLocations ?? const <PracticeLocation>[];
     final enabled = !_form.saving;
     final saveBarHeight = AddEventSaveBar.reservedHeight(context);
+    final matchPlayers = _watchMatchPlayers();
 
     return Stack(
       children: [
@@ -230,6 +262,14 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
               onTypeChanged: _form.onTypeChanged,
               onTeamChanged: _form.setTeamId,
             ),
+            if (_form.isMatch && _form.teamId != null)
+              AddEventConvocationSection(
+                players: matchPlayers,
+                excludedIds: _form.excludedPlayerIds,
+                accentColor: accent,
+                enabled: enabled,
+                onPlayerToggled: _form.togglePlayerConvoked,
+              ),
             if (EventTypes.isTeamless(_form.type))
               AddEventAudienceSection(
                 wholeClub: _form.audienceWholeClub,
@@ -305,7 +345,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
           child: AddEventSaveBar(
             isRecurringSeries: _form.isRecurring && _form.isTraining,
             isLoading: _form.saving,
-            canSubmit: _form.canCreate(club),
+            canSubmit: _form.canCreate(
+              club,
+              matchPlayerIds: _matchPlayerIds(matchPlayers),
+            ),
             onSubmit: _save,
           ),
         ),

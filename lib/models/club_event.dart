@@ -77,6 +77,7 @@ class ClubEvent {
     this.teamIds = const [],
     this.allTeams = false,
     this.teamMemberIds = const [],
+    this.excludedMemberIds = const [],
     this.rsvp = const {},
     this.rsvpUpdatedAt = const {},
     this.seenAt = const {},
@@ -99,6 +100,9 @@ class ClubEvent {
   final List<String> teamIds;
   final bool allTeams;
   final List<String> teamMemberIds;
+
+  /// Joueurs retirés par le coach : ils ne voient pas l'événement.
+  final List<String> excludedMemberIds;
   final Map<String, String> rsvp;
   /// Dernière modification RSVP par membre (`memberId` → date locale).
   final Map<String, DateTime> rsvpUpdatedAt;
@@ -114,6 +118,10 @@ class ClubEvent {
 
   RsvpStatus rsvpFor(String uid) =>
       RsvpStatus.fromString(rsvp[uid]);
+
+  /// `true` si une des clés d'audience [keys] a été retirée par le coach.
+  bool isExcludedFor(Iterable<String> keys) =>
+      excludedMemberIds.isNotEmpty && keys.any(excludedMemberIds.contains);
 
   /// Clé RSVP / audience réellement présente dans [teamMemberIds].
   String audienceKeyFor(String authUid, {String? clubAudienceId}) {
@@ -376,6 +384,11 @@ class ClubEvent {
               ?.whereType<String>()
               .toList() ??
           [],
+      excludedMemberIds:
+          (data[FirestoreFields.excludedMemberIds] as List<dynamic>?)
+                  ?.whereType<String>()
+                  .toList() ??
+              [],
       rsvp: rsvpRaw.map((k, v) => MapEntry(k, v.toString())),
       rsvpUpdatedAt: _parseTimestampMap(rsvpUpdatedAtRaw),
       seenAt: _parseTimestampMap(seenAtRaw),

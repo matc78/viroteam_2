@@ -111,6 +111,8 @@ abstract final class FirestoreFields {
   static const String matchVenue = 'matchVenue';
   static const String seriesId = 'seriesId';
   static const String teamMemberIds = 'teamMemberIds';
+  /// Joueurs retirés des convoqués par le coach (jamais reconvoqués par la synchro).
+  static const String excludedMemberIds = 'excludedMemberIds';
   static const String rsvp = 'rsvp';
   /// Dernière modification RSVP par membre (`memberId` → Timestamp).
   static const String rsvpUpdatedAt = 'rsvpUpdatedAt';

@@ -205,11 +205,12 @@ abstract final class PlanningEventDisplay {
     required Set<String> playerTeamIds,
     required Map<String, ClubTeam> teamsById,
   }) {
+    if (isCoachForEvent(event, authUid, teamsById)) return true;
+    if (event.isExcludedFor({authUid, audienceId})) return false;
     if (event.allTeams) return true;
     if (event.isInvitedAsPlayer(authUid, clubAudienceId: audienceId)) {
       return true;
     }
-    if (isCoachForEvent(event, authUid, teamsById)) return true;
     if (event.teamIds.any(playerTeamIds.contains)) return true;
     return false;
   }

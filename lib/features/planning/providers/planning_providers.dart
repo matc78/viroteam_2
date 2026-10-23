@@ -3,7 +3,11 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
+import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
+import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
+import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 
@@ -36,6 +40,21 @@ final clubPlanningRangeEventsProvider = StreamProvider.family<List<ClubEvent>,
   },
 );
 
+/// Joueurs d'une équipe, triés (création de match : choix des convoqués).
+///
+/// `null` tant que l'équipe ou les membres chargent.
+final teamConvocationPlayersProvider = Provider.family<
+    List<({String id, ClubMember member})>?,
+    ({String clubId, String teamId})>((ref, params) {
+  final teams = ref.watch(clubTeamsProvider(params.clubId)).value;
+  final members = ref.watch(clubMembersProvider(params.clubId)).value;
+  if (teams == null || members == null) return null;
+  return teamPlayerEntries(
+    teams.where((team) => team.id == params.teamId).toList(),
+    indexClubMembersByUid(members),
+  );
+});
+
 /// Planning joueur : événements du jour via les mêmes requêtes que l'accueil.
 final memberClubPlanningEventsProvider = StreamProvider.family<
     List<ClubEvent>,
@@ -58,6 +77,8 @@ final memberClubPlanningEventsProvider = StreamProvider.family<
             (child) => eventService.watchUpcomingEventsForGuardian(
               clubId: params.clubId,
               childTeamIds: child?.teamIds ?? const [],
+              childAudienceKeys:
+                  child != null ? eventAudienceKeys(child) : const {},
             ),
           )
         : eventService.watchEventsForTargetMember(

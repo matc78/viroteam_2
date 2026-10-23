@@ -12,6 +12,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 - Détail d’événement : horodatage du dernier vote RSVP (`12/10 · 13h45`, heure serveur) à gauche de l’icône sur chaque tuile membre, lu sur la même clé que le statut
 - Convocations : statut « vu » — un œil à côté de « En attente » quand le membre a vu l’événement sur sa home (carte affichée ≥ 1 s) sans répondre ; pour un enfant, la vue du planning par le parent compte (callable `markEventSeen`)
+- Convocations : le coach peut retirer des joueurs d’un événement (détail > « Gérer les convoqués »), pour une séance ou « celle-ci et les suivantes » d’une série ; un joueur retiré ne voit plus l’événement et ne reçoit aucune notif, et la synchro d’équipe ne le reconvoque pas (champ `excludedMemberIds`, callable `updateEventConvocations`). Réintégré, il reçoit « Nouvelle convocation » (≤ 7 j), même sur une série
+- Création de match : liste des joueurs de l’équipe, tous convoqués par défaut, à décocher / recocher
 
 ### Corrigé
 

@@ -142,6 +142,27 @@ final class AppCopyPlanning {
   String get thisEventOnly => 'Cet événement seulement';
   String get wholeSeries => 'Toute la série';
 
+  String get convocationSectionTitle => 'Joueurs convoqués';
+  String convocationCount(int convoked, int total) =>
+      '$convoked/$total convoqués';
+  String get matchConvocationHint =>
+      'Décoche ceux qui ne sont pas du match. Ils ne le verront pas.';
+  String get teamNoPlayers => 'Aucun joueur dans cette équipe pour l’instant';
+  String get keepOnePlayerConvoked => 'Garde au moins un joueur convoqué';
+  String get notConvoked => 'Pas convoqué';
+  String get manageConvocations => 'Gérer les convoqués';
+  String get manageConvocationsSubtitle =>
+      'Un joueur décoché ne voit plus l’événement et ne reçoit aucune notif.';
+  String get convocationScopeTitle => 'Appliquer à quelles séances ?';
+  String get convocationScopeBody =>
+      'Cet entraînement fait partie d’une série récurrente.';
+  String get thisSessionOnly => 'Cette séance';
+  String get thisAndFollowing => 'Celle-ci et les suivantes';
+  String convocationsSaved(int count) => count > 1
+      ? 'Convoqués mis à jour sur $count séances'
+      : 'Convoqués mis à jour';
+  String get convocationsSaveFailed => 'Mise à jour impossible, réessaie';
+
   String get takeAttendance => 'Faire l\'appel';
   String get takeAttendanceTitle => 'Faire l\'appel';
   String get takeAttendanceSubtitle =>

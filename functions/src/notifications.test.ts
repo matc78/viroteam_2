@@ -45,6 +45,7 @@ import {
   creationReminderFlags,
   dayOfReminderIsEve,
   describeChanges,
+  isConvocationReintegration,
   isEventContentModified,
   isEventPostponedChange,
   isOnlyPushBookkeepingChange,
@@ -406,6 +407,25 @@ test("listAddedTeamMemberIds : seulement les ids nouvellement présents", () => 
     [],
   );
   assert.deepEqual(listAddedTeamMemberIds(undefined, { teamMemberIds: ["a"] }), []);
+});
+
+test("isConvocationReintegration : un exclu quitte excludedMemberIds", () => {
+  assert.equal(
+    isConvocationReintegration(
+      { excludedMemberIds: ["a", "b"] },
+      { excludedMemberIds: ["b"] },
+    ),
+    true,
+  );
+  assert.equal(
+    isConvocationReintegration(
+      { excludedMemberIds: ["a"] },
+      { excludedMemberIds: ["a", "b"] },
+    ),
+    false,
+  );
+  assert.equal(isConvocationReintegration({}, { teamMemberIds: ["a"] }), false);
+  assert.equal(isConvocationReintegration(undefined, {}), false);
 });
 
 test("copies peut-être J-7 / J-2 et bilan coach", () => {

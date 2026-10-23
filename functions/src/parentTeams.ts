@@ -287,7 +287,7 @@ async function filterRemovedStillOnTeamRoster(params: {
 /**
  * Clés audience / RSVP possibles pour un id roster (memberId, accountUid…).
  */
-async function audienceKeysForRosterId(
+export async function audienceKeysForRosterId(
   firestore: Firestore,
   clubId: string,
   rosterId: string,
@@ -333,9 +333,13 @@ async function syncUpcomingEventAudienceForRosterChange(params: {
   const keysToRemove = new Set<string>();
   // Alias legacy → id canonique (pour migrer le RSVP).
   const rsvpMigrateTo = new Map<string, string>();
+  // Toutes les variantes d'un id ajouté (respect de `excludedMemberIds`).
+  const aliasesByAddedKey = new Map<string, string[]>();
 
   for (const rosterId of added) {
-    for (const key of await audienceKeysForRosterId(firestore, clubId, rosterId)) {
+    const aliases = await audienceKeysForRosterId(firestore, clubId, rosterId);
+    aliasesByAddedKey.set(rosterId, uniq([rosterId, ...aliases]));
+    for (const key of aliases) {
       if (key === rosterId) continue;
       keysToRemove.add(key);
       rsvpMigrateTo.set(key, rosterId);
@@ -373,8 +377,14 @@ async function syncUpcomingEventAudienceForRosterChange(params: {
         ? (data.rsvp as Record<string, unknown>)
         : {};
 
+    // Un joueur retiré par le coach n'est jamais reconvoqué par la synchro.
+    const excluded = new Set(stringArray(data.excludedMemberIds));
     const nextMembers = new Set(members);
-    for (const key of keysToAdd) nextMembers.add(key);
+    for (const key of keysToAdd) {
+      const aliases = aliasesByAddedKey.get(key) ?? [key];
+      if (aliases.some((alias) => excluded.has(alias))) continue;
+      nextMembers.add(key);
+    }
     for (const key of keysToRemove) nextMembers.delete(key);
 
     const membersChanged =

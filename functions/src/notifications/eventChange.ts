@@ -121,6 +121,21 @@ export function listAddedTeamMemberIds(
   return stringArray(after.teamMemberIds).filter((id) => !previous.has(id));
 }
 
+/**
+ * True si des joueurs retirés par le coach ont été réintégrés : seule la
+ * callable `updateEventConvocations` vide `excludedMemberIds`.
+ */
+export function isConvocationReintegration(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown>,
+): boolean {
+  if (!before) return false;
+  const stillExcluded = new Set(stringArray(after.excludedMemberIds));
+  return stringArray(before.excludedMemberIds).some(
+    (id) => !stillExcluded.has(id),
+  );
+}
+
 /** Champs dont le changement déclenche « modifié » (hors report / annulation). */
 export function isEventContentModified(
   before: Record<string, unknown> | undefined,

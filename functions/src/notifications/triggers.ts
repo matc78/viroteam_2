@@ -20,6 +20,7 @@ import {
 import { calendarDaysUntil, feesDeepLink, homeDeepLink } from "./deepLinks";
 import {
   creationReminderFlags,
+  isConvocationReintegration,
   isEventPostponedChange,
   isOnlyPushBookkeepingChange,
   listAddedTeamMemberIds,
@@ -113,6 +114,7 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
       eventId,
       eventData: after,
       addedRosterIds: addedMemberIds,
+      reintegration: isConvocationReintegration(before, after),
       actor,
     });
   }
@@ -210,6 +212,8 @@ async function handleEventCreated(params: {
  * Nouveaux convoqués ajoutés à un event existant (sync roster, rattachement
  * parent…) : même fenêtre et silence séries que la création, push ciblée
  * uniquement aux ids ajoutés (+ parents). Ne repose pas les flags de rappel.
+ * [reintegration] (joueur remis par le coach après un retrait) : prévenu
+ * même sur une occurrence de série.
  */
 async function handleAudienceAdded(params: {
   firestore: Firestore;
@@ -217,10 +221,12 @@ async function handleAudienceAdded(params: {
   eventId: string;
   eventData: DocumentData;
   addedRosterIds: string[];
+  reintegration: boolean;
   actor?: string;
 }): Promise<void> {
   if (params.eventData.canceled === true) return;
-  if (String(params.eventData.seriesId ?? "").trim().length > 0) return;
+  const isSeries = String(params.eventData.seriesId ?? "").trim().length > 0;
+  if (isSeries && !params.reintegration) return;
 
   const dateId = String(params.eventData.dateId ?? "").trim();
   if (!dateId) return;

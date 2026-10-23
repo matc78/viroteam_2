@@ -40,7 +40,7 @@ export const {
     throw new HttpsError("failed-precondition", "Événement annulé");
   }
 
-  await assertCanSendEventPush({
+  await assertEventCoachOrAdmin({
     clubId,
     uid,
     teamIds: stringArray(preEvent.teamIds),
@@ -111,7 +111,11 @@ export const {
   };
 });
 
-async function assertCanSendEventPush(params: {
+/**
+ * Admin du club, ou coach d'une des équipes de l'événement ([teamIds]) :
+ * sinon `permission-denied`.
+ */
+export async function assertEventCoachOrAdmin(params: {
   clubId: string;
   uid: string;
   teamIds: string[];

@@ -64,6 +64,11 @@ export { uploadClubLogo, uploadClubLogoDev } from "./uploadClubLogo";
 export { onTeamWritten, onTeamWrittenDev } from "./parentTeams";
 
 export {
+  updateEventConvocations,
+  updateEventConvocationsDev,
+} from "./eventConvocations";
+
+export {
   createCoachDm,
   createCoachDmDev,
   createCategoryChannel,

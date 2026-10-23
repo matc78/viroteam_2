@@ -175,7 +175,8 @@ V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiv
 | `date` | timestamp | |
 | `startTime` | string | Format HH:mm |
 | `endTime` | string | Format HH:mm |
-| `teamMemberIds` | array | Audience de l'événement (ajout → push « Nouvelle convocation » si ≤ 7 j, hors séries) |
+| `teamMemberIds` | array | Audience de l'événement (ajout → push « Nouvelle convocation » si ≤ 7 j, hors séries sauf réintégration) |
+| `excludedMemberIds` | array? | Joueurs retirés par le coach : absents de `teamMemberIds`, événement masqué pour eux (et leurs parents), jamais reconvoqués par la synchro roster. Écrit à la création (match) ou via la callable `updateEventConvocations` |
 | `rsvp` | map | `uid → 'yes' \| 'no' \| 'maybe' \| 'none'` |
 | `attendance` | map | `uid → { status, lateMinutes, markedBy, markedAt }` |
 | `creatorId` | string | |

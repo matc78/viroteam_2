@@ -9,7 +9,26 @@ import {
   eventPushContext,
   sendEventPushToAudience,
 } from "./eventPush";
-import { EVENT_MODIFIED_DEBOUNCE_MS } from "./types";
+import { calendarDaysUntil } from "./deepLinks";
+import {
+  EVENT_MODIFIED_DEBOUNCE_MS,
+  EVENT_MODIFIED_SAME_DAY_DEBOUNCE_MS,
+} from "./types";
+
+/**
+ * Délai de regroupement selon la date de l'event : 10 min en général, 2 min
+ * le jour J (ou sans date) pour qu'un changement de dernière minute arrive à temps.
+ */
+export function eventModifiedDebounceMs(params: {
+  eventDateId: string;
+  now: Date;
+}): number {
+  const dateId = params.eventDateId.trim();
+  if (!dateId) return EVENT_MODIFIED_SAME_DAY_DEBOUNCE_MS;
+  return calendarDaysUntil({ now: params.now, eventDateId: dateId }) <= 0
+    ? EVENT_MODIFIED_SAME_DAY_DEBOUNCE_MS
+    : EVENT_MODIFIED_DEBOUNCE_MS;
+}
 
 /**
  * Accumule les champs modifiés d'un event et (re)pousse l'échéance : un coach
@@ -32,7 +51,8 @@ export async function scheduleEventModifiedNotify(params: {
   await params.firestore.runTransaction(async (tx) => {
     const snap = await tx.get(eventRef);
     if (!snap.exists) return;
-    const pending = (snap.data()?.modifiedNotifyPending ?? {}) as DocumentData;
+    const eventData = snap.data() ?? {};
+    const pending = (eventData.modifiedNotifyPending ?? {}) as DocumentData;
     const fields = new Set([...stringArray(pending.fields), ...params.fields]);
     const excludeUids = new Set(stringArray(pending.excludeUids));
     if (params.excludeUid) excludeUids.add(params.excludeUid);
@@ -42,7 +62,11 @@ export async function scheduleEventModifiedNotify(params: {
         excludeUids: [...excludeUids],
       },
       modifiedNotifyDueAt: admin.firestore.Timestamp.fromMillis(
-        Date.now() + EVENT_MODIFIED_DEBOUNCE_MS,
+        Date.now() +
+          eventModifiedDebounceMs({
+            eventDateId: String(eventData.dateId ?? ""),
+            now: new Date(),
+          }),
       ),
     });
   });

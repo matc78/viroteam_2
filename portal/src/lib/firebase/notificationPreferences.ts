@@ -1,6 +1,18 @@
 /**
+ * Moment du bilan des réponses envoyé aux coachs : 2 jours avant, la veille
+ * au soir ou avec le rappel du jour J.
+ */
+export type CoachSummaryTiming = "j2" | "eve" | "day";
+
+export const COACH_SUMMARY_TIMINGS: readonly CoachSummaryTiming[] = [
+  "j2",
+  "eve",
+  "day",
+];
+
+/**
  * Préférences push (convocations / récap / annonces / cotisations / RSVP /
- * chat). Défauts alignés avec `functions/src/notifications/types.ts` et l'app.
+ * chat / bilan coach). Défauts alignés avec `functions/src/notifications/types.ts` et l'app.
  * Le map est réécrit en entier : toute clé doit être lue ici, sinon on
  * effacerait un choix fait dans l'app.
  */
@@ -12,7 +24,14 @@ export type NotificationPreferences = {
   rsvp: boolean;
   rsvpTeammates: boolean;
   chat: boolean;
+  coachSummaryTiming: CoachSummaryTiming;
 };
+
+/** Préférences on / off (tout sauf le moment du bilan coach). */
+export type NotificationToggleKey = Exclude<
+  keyof NotificationPreferences,
+  "coachSummaryTiming"
+>;
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   events: true,
@@ -23,6 +42,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   // Réponses des coéquipiers : opt-in.
   rsvpTeammates: false,
   chat: true,
+  coachSummaryTiming: "eve",
 };
 
 /** Parse le map Firestore (clé absente = valeur par défaut). */
@@ -35,14 +55,19 @@ export function parseNotificationPreferences(
   const map = raw as Record<string, unknown>;
   const parsed = { ...DEFAULT_NOTIFICATION_PREFERENCES };
   for (const key of Object.keys(parsed) as Array<keyof NotificationPreferences>) {
+    if (key === "coachSummaryTiming") continue;
     if (typeof map[key] === "boolean") parsed[key] = map[key];
   }
+  const timing = COACH_SUMMARY_TIMINGS.find(
+    (value) => value === map.coachSummaryTiming,
+  );
+  if (timing) parsed.coachSummaryTiming = timing;
   return parsed;
 }
 
 /** Message de confirmation à la désactivation. */
 export function preferenceOffWarning(
-  key: keyof NotificationPreferences,
+  key: NotificationToggleKey,
 ): string {
   switch (key) {
     case "events":

@@ -8,6 +8,15 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Notifications : chaque coach choisit quand recevoir le bilan des réponses (Paramètres > Notifications) : 2 jours avant, la veille au soir (par défaut) ou avec le rappel du jour J
+
+### Modifié
+
+- Notifications « événement modifié » : les corrections sont regroupées pendant 10 min au lieu de 2 (2 min si l’événement a lieu le jour même)
+- Bilan des réponses pour les coachs : envoyé par défaut la veille au soir au lieu de 2 jours avant
+
 ### Corrigé
 
 - Onboarding / invitation : « Se déconnecter » / « Utiliser un autre compte » sur club-setup, preview d’invitation et entry quand on est déjà connecté — évite d’être coincé sans club (mauvais e-mail vs invitation)

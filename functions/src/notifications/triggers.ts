@@ -303,7 +303,12 @@ async function resetReminderFlags(params: {
     ? creationReminderFlags(calendarDaysUntil({ now: new Date(), eventDateId: dateId }))
     : [];
   const updates: Record<string, unknown> = {};
-  for (const flag of ["reminderSentJ7", "reminderSentJ2", "reminderSentDay"] as const) {
+  for (const flag of [
+    "reminderSentJ7",
+    "reminderSentJ2",
+    "reminderSentDay",
+    "reminderSentCoachEve",
+  ] as const) {
     updates[flag] = covered.includes(flag)
       ? true
       : admin.firestore.FieldValue.delete();

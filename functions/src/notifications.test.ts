@@ -11,7 +11,7 @@ import {
   eventManualPushCopy,
   eventModifiedCopy,
   eventPostponedCopy,
-  eventCoachJ2SummaryCopy,
+  eventCoachSummaryCopy,
   eventReminderJ2Copy,
   eventReminderJ2MaybeCopy,
   eventReminderJ7Copy,
@@ -53,6 +53,7 @@ import {
   listModifiedEventFields,
   listRsvpStatusChanges,
 } from "./notifications/eventChange";
+import { eventModifiedDebounceMs } from "./notifications/eventModifiedNotify";
 import {
   canSendManualPush,
   filterUidsByPreference,
@@ -321,6 +322,7 @@ test("créneaux du soir : J-2 tous les jours (lundi/mardi compris), dimanche ré
       ["reminderSentJ2", "20261026", undefined],
       ["reminderSentJ7", "20261031", undefined],
       ["reminderSentDay", "20261025", undefined],
+      ["reminderSentCoachEve", "20261025", undefined],
     ],
   );
   // Dimanche : J-2 (mardi) et J-7 couverts par le récap, sauf pour qui l'a coupé.
@@ -336,6 +338,10 @@ test("créneaux du soir : J-2 tous les jours (lundi/mardi compris), dimanche ré
   const eve = saturday[2]!;
   assert.equal(eve.includeEvent({ startTime: "09:00" }), true);
   assert.equal(eve.includeEvent({ startTime: "18:00" }), false);
+  // Bilan coach de la veille : les events matinaux l'ont dans le rappel de la veille.
+  const coachEve = saturday[3]!;
+  assert.equal(coachEve.includeEvent({ startTime: "18:00" }), true);
+  assert.equal(coachEve.includeEvent({ startTime: "09:00" }), false);
   const morning = morningReminderSlots("20261024")[0]!;
   assert.equal(morning.dateId, "20261024");
   assert.equal(morning.includeEvent({ startTime: "18:00" }), true);
@@ -366,7 +372,7 @@ test("ciblage : J-2 aux sans-réponse / peut-être + bilan coach, jour J sauf le
   const eventData = { title: "U15", type: "training", dateId: "20261026", startTime: "18:00" };
   const [j2, , eve] = eveningReminderSlots("20261024");
   const j2Targets = audienceWithMaybe.filter(
-    (entry) => j2!.copyFor(eventData, entry, audienceWithMaybe) != null,
+    (entry) => j2!.copyFor(eventData, entry, audienceWithMaybe, "j2") != null,
   );
   assert.deepEqual(j2Targets.map((entry) => entry.uid), [
     "u-none",
@@ -375,23 +381,59 @@ test("ciblage : J-2 aux sans-réponse / peut-être + bilan coach, jour J sauf le
     "u-maybe",
     "p-maybe",
   ]);
-  assert.match(j2!.copyFor(eventData, audienceWithMaybe[3]!, audienceWithMaybe)!.title, /^Léo · /);
   assert.match(
-    j2!.copyFor(eventData, audienceWithMaybe[6]!, audienceWithMaybe)!.body,
+    j2!.copyFor(eventData, audienceWithMaybe[3]!, audienceWithMaybe, "eve")!.title,
+    /^Léo · /,
+  );
+  assert.match(
+    j2!.copyFor(eventData, audienceWithMaybe[6]!, audienceWithMaybe, "eve")!.body,
     /peut-être/,
   );
-  const coachCopy = j2!.copyFor(eventData, audienceWithMaybe[4]!, audienceWithMaybe)!;
+  // Bilan J-2 seulement pour les coachs qui l'ont choisi.
+  assert.equal(j2!.copyFor(eventData, audienceWithMaybe[4]!, audienceWithMaybe, "eve"), null);
+  assert.equal(j2!.copyFor(eventData, audienceWithMaybe[4]!, audienceWithMaybe, "day"), null);
+  const coachCopy = j2!.copyFor(eventData, audienceWithMaybe[4]!, audienceWithMaybe, "j2")!;
   assert.match(coachCopy.body, /Dans 2 jours/);
   assert.match(coachCopy.body, /1 oui/);
   assert.match(coachCopy.body, /1 peut-être/);
   assert.match(coachCopy.body, /1 sans réponse/);
 
   const dayTargets = audience.filter(
-    (entry) => eve!.copyFor(eventData, entry, audience) != null,
+    (entry) => eve!.copyFor(eventData, entry, audience, "j2") != null,
   );
   assert.deepEqual(dayTargets.map((entry) => entry.uid), ["u-yes", "u-none", "p-none", "coach"]);
   // Un coach n'est pas relancé pour répondre.
-  assert.doesNotMatch(eve!.copyFor(eventData, audience[4]!, audience)!.body, /répondre/);
+  assert.doesNotMatch(eve!.copyFor(eventData, audience[4]!, audience, "j2")!.body, /répondre/);
+});
+
+test("bilan coach selon son réglage : J-2, veille ou jour J", () => {
+  const coach = audience[4]!;
+  const evening = { title: "U15", type: "training", dateId: "20261025", startTime: "18:00" };
+  const early = { ...evening, startTime: "09:00" };
+  const [, , dayEve, coachEve] = eveningReminderSlots("20261024");
+  const morning = morningReminderSlots("20261025")[0]!;
+
+  // Veille : push dédiée pour un event de 10h et plus, rien pour les autres réglages.
+  assert.equal(coachEve!.copyFor(evening, coach, audience, "eve")!.body, "Demain · 1 oui, 1 non, 1 sans réponse");
+  assert.equal(coachEve!.copyFor(evening, coach, audience, "day"), null);
+  assert.equal(coachEve!.copyFor(evening, coach, audience, "j2"), null);
+  assert.equal(coachEve!.copyFor(evening, audience[1]!, audience, "eve"), null);
+  // Event matinal : le décompte arrive avec le rappel de la veille (veille ou jour J).
+  assert.match(dayEve!.copyFor(early, coach, audience, "eve")!.body, /^1 oui, 1 non/);
+  assert.match(dayEve!.copyFor(early, coach, audience, "day")!.body, /^1 oui, 1 non/);
+  assert.doesNotMatch(dayEve!.copyFor(early, coach, audience, "j2")!.body, /oui/);
+  // Jour J le matin : décompte seulement pour le réglage « jour J ».
+  assert.match(morning.copyFor(evening, coach, audience, "day")!.body, /^1 oui, 1 non/);
+  assert.doesNotMatch(morning.copyFor(evening, coach, audience, "eve")!.body, /oui/);
+  // Un joueur n'a jamais le décompte.
+  assert.doesNotMatch(morning.copyFor(evening, audience[0]!, audience, "day")!.body, /1 oui/);
+});
+
+test("regroupement « modifié » : 10 min, 2 min le jour J", () => {
+  const now = new Date("2026-10-24T10:00:00Z");
+  assert.equal(eventModifiedDebounceMs({ eventDateId: "20261024", now }), 2 * 60 * 1000);
+  assert.equal(eventModifiedDebounceMs({ eventDateId: "", now }), 2 * 60 * 1000);
+  assert.equal(eventModifiedDebounceMs({ eventDateId: "20261025", now }), 10 * 60 * 1000);
 });
 
 test("listAddedTeamMemberIds : seulement les ids nouvellement présents", () => {
@@ -434,13 +476,28 @@ test("copies peut-être J-7 / J-2 et bilan coach", () => {
   const maybeParent = eventReminderJ2MaybeCopy({ ...training, childFirstName: "Mia" });
   assert.match(maybeParent.body, /Mia/);
   assert.match(eventReminderJ7MaybeCopy(training).body, /Dans une semaine/);
-  const coach = eventCoachJ2SummaryCopy({
+  const coach = eventCoachSummaryCopy({
     ...training,
     tally: { yes: 8, no: 1, maybe: 2, none: 5 },
+    when: "j2",
   });
   assert.equal(coach.title, "Entraînement jeu. 23/10 à 18h00");
-  assert.match(coach.body, /8 oui/);
+  assert.match(coach.body, /^Dans 2 jours · 8 oui/);
   assert.match(coach.body, /5 sans réponse/);
+  const coachEve = eventCoachSummaryCopy({
+    ...training,
+    tally: { yes: 8, no: 1, maybe: 0, none: 0 },
+    when: "eve",
+  });
+  assert.equal(coachEve.body, "Demain · 8 oui, 1 non");
+  const dayWithTally = eventDayOfReminderCopy({
+    ...training,
+    when: "today",
+    rsvp: "yes",
+    tally: { yes: 8, no: 1, maybe: 0, none: 2 },
+  });
+  assert.match(dayWithTally.body, /^8 oui, 1 non, 2 sans réponse · /);
+  assert.doesNotMatch(dayWithTally.body, /répondre/);
 });
 
 test("récap : agrège par personne, ignore les non, un parent voit l'enfant", () => {
@@ -523,6 +580,10 @@ test("isEventPostponedChange / champs modifiés / bookkeeping", () => {
     true,
   );
   assert.equal(
+    isOnlyPushBookkeepingChange({ title: "A" }, { title: "A", reminderSentCoachEve: true }),
+    true,
+  );
+  assert.equal(
     isOnlyPushBookkeepingChange(
       { title: "A", reminderSentJ7: true },
       { title: "B", reminderSentJ7: false },
@@ -580,7 +641,16 @@ test("prefs : défauts, compat legacy, filtres et rate limit", () => {
     chat: true,
     weeklyDigest: true,
     rsvpTeammates: false,
+    coachSummaryTiming: "eve",
   });
+  assert.equal(
+    parseNotificationPreferences({ coachSummaryTiming: "day" }).coachSummaryTiming,
+    "day",
+  );
+  assert.equal(
+    parseNotificationPreferences({ coachSummaryTiming: "j-1" }).coachSummaryTiming,
+    "eve",
+  );
   assert.equal(parseNotificationPreferences({ events: false }).events, false);
   assert.equal(parseNotificationPreferences({ events: false }).rsvp, false);
   assert.equal(parseNotificationPreferences({ rsvp: false }).rsvp, false);

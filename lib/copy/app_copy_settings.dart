@@ -66,6 +66,12 @@ final class AppCopySettings {
   String get notifRsvpTeammates => 'Réponses des coéquipiers';
   String get notifRsvpTeammatesSubtitle =>
       'Savoir qui vient aux entraînements et aux matchs';
+  String get notifCoachSummary => 'Bilan des réponses';
+  String get notifCoachSummarySubtitle =>
+      'Coachs : le décompte de qui vient, au moment qui t’arrange';
+  String get coachSummaryJ2 => 'J-2';
+  String get coachSummaryEve => 'Veille';
+  String get coachSummaryDay => 'Jour J';
   String get notifAnnouncements => 'Annonces';
   String get notifAnnouncementsSubtitle => 'À la publication d’une annonce';
   String get notifFees => 'Cotisations';

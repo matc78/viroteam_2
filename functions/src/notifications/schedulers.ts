@@ -23,7 +23,8 @@ import {
   type ReminderSlot,
 } from "./reminderSlots";
 import { flushDueNotifications } from "./rsvpNotify";
-import { buildPushData, sendPushToUids } from "./send";
+import { buildPushData, loadPreferences, sendPushToUids } from "./send";
+import { DEFAULT_COACH_SUMMARY_TIMING } from "./types";
 
 const REGION = "europe-west1";
 const PARIS = "Europe/Paris";
@@ -59,6 +60,10 @@ async function processClubReminderSlot(params: {
     if (!slot.includeEvent(data)) continue;
 
     const entries = await resolveEventAudience(directory, data);
+    const coachPrefs = await loadPreferences(
+      firestore,
+      entries.filter((entry) => entry.relation === "coach").map((entry) => entry.uid),
+    );
     await sendEventPushToAudience({
       firestore,
       clubId: directory.clubId,
@@ -67,7 +72,14 @@ async function processClubReminderSlot(params: {
       type: slot.type,
       entries,
       onlyIfDisabled: slot.onlyIfDisabled,
-      copyFor: (entry) => slot.copyFor(data, entry, entries),
+      copyFor: (entry) =>
+        slot.copyFor(
+          data,
+          entry,
+          entries,
+          coachPrefs.get(entry.uid)?.coachSummaryTiming ??
+            DEFAULT_COACH_SUMMARY_TIMING,
+        ),
     });
     await eventDoc.ref.update({ [slot.flag]: true });
   }
@@ -245,7 +257,7 @@ function defineFeeReminderSchedule(databaseId: FirestoreDatabaseId) {
 
 /**
  * Toutes les minutes : push RSVP dont le choix est stable depuis le debounce
- * (5 s) et push « modifié » dont le regroupement (2 min) est échu.
+ * (5 s) et push « modifié » dont le regroupement (10 min, 2 min le jour J) est échu.
  */
 function defineRsvpNotifyFlushSchedule(databaseId: FirestoreDatabaseId) {
   return onSchedule(

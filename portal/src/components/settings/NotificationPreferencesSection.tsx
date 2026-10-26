@@ -7,18 +7,20 @@ import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   preferenceOffWarning,
+  type CoachSummaryTiming,
   type NotificationPreferences,
+  type NotificationToggleKey,
 } from "@/lib/firebase/notificationPreferences";
 import { updateNotificationPreferences } from "@/lib/firebase/userService";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 import shared from "@/components/settings/settingsShared.module.css";
 
 const TOGGLE_ROWS: Array<{
-  key: keyof NotificationPreferences;
+  key: NotificationToggleKey;
   title: string;
   subtitle: string;
   /** Toggle inactif tant que cette préférence parente est coupée. */
-  dependsOn?: keyof NotificationPreferences;
+  dependsOn?: NotificationToggleKey;
 }> = [
   {
     key: "events",
@@ -61,14 +63,27 @@ const TOGGLE_ROWS: Array<{
   },
 ];
 
+const COACH_SUMMARY_OPTIONS: Array<{ value: CoachSummaryTiming; label: string }> = [
+  { value: "j2", label: "2 jours avant" },
+  { value: "eve", label: "La veille au soir" },
+  { value: "day", label: "Avec le rappel du jour J" },
+];
+
 function visibleToggleRows() {
   return TOGGLE_ROWS.filter(
     (row) => row.key !== "chat" || CHAT_MESSAGING_LIVE,
   );
 }
 
-/** Accordion préférences push (bureau + famille). */
-export function NotificationPreferencesSection() {
+/**
+ * Accordion préférences push (bureau + famille). [showCoachSummary] affiche
+ * le moment du bilan des réponses (bureau : staff du club).
+ */
+export function NotificationPreferencesSection({
+  showCoachSummary = false,
+}: {
+  showCoachSummary?: boolean;
+} = {}) {
   const { user, profile, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -76,19 +91,22 @@ export function NotificationPreferencesSection() {
   const prefs =
     profile?.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
 
-  async function setPreference(
-    key: keyof NotificationPreferences,
-    enabled: boolean,
-  ) {
-    if (!user || !profile) return;
+  async function setPreference(key: NotificationToggleKey, enabled: boolean) {
     // Les réponses des coéquipiers sont un opt-in : pas de confirmation au retrait.
     if (!enabled && key !== "rsvpTeammates") {
       const accepted = window.confirm(preferenceOffWarning(key));
       if (!accepted) return;
     }
-    setBusyKey(key);
+    await savePreferences(key, { ...prefs, [key]: enabled });
+  }
+
+  async function savePreferences(
+    busy: keyof NotificationPreferences,
+    next: NotificationPreferences,
+  ) {
+    if (!user || !profile) return;
+    setBusyKey(busy);
     try {
-      const next = { ...prefs, [key]: enabled };
       await updateNotificationPreferences({
         uid: user.uid,
         preferences: next,
@@ -129,6 +147,34 @@ export function NotificationPreferencesSection() {
           </label>
           );
         })}
+        {showCoachSummary ? (
+          <label className={shared.checkRow}>
+            <span>
+              <strong>Bilan des réponses</strong>
+              <br />
+              <span className={shared.hint}>
+                Coachs : le décompte de qui vient, au moment choisi
+              </span>
+              <br />
+              <select
+                value={prefs.coachSummaryTiming}
+                disabled={busyKey === "coachSummaryTiming" || !prefs.events}
+                onChange={(event) =>
+                  void savePreferences("coachSummaryTiming", {
+                    ...prefs,
+                    coachSummaryTiming: event.target.value as CoachSummaryTiming,
+                  })
+                }
+              >
+                {COACH_SUMMARY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </label>
+        ) : null}
       </div>
     </SettingsAccordion>
   );

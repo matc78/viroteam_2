@@ -3,18 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/settings/providers/notification_permission_provider.dart';
 import 'package:viro_team_v2/features/settings/widgets/notification_permission_banner.dart';
 import 'package:viro_team_v2/models/notification_preferences.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/services/notification_permission_service.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 
 /// Section paramètres : toggles push (convocations / récap / réponses /
-/// annonces / cotisations / chat).
+/// annonces / cotisations / chat) et moment du bilan des réponses (coachs).
 class NotificationPreferencesSection extends ConsumerWidget {
   const NotificationPreferencesSection({super.key, required this.user});
 
@@ -60,6 +62,27 @@ class NotificationPreferencesSection extends ConsumerWidget {
       _ => current,
     };
 
+    if (!context.mounted) return;
+    await _save(context: context, ref: ref, next: next);
+  }
+
+  Future<void> _setCoachSummaryTiming({
+    required BuildContext context,
+    required WidgetRef ref,
+    required CoachSummaryTiming timing,
+  }) {
+    return _save(
+      context: context,
+      ref: ref,
+      next: user.notificationPreferences.copyWith(coachSummaryTiming: timing),
+    );
+  }
+
+  Future<void> _save({
+    required BuildContext context,
+    required WidgetRef ref,
+    required NotificationPreferences next,
+  }) async {
     try {
       await ref.read(userServiceProvider).updateNotificationPreferences(
             uid: user.uid,
@@ -82,6 +105,10 @@ class NotificationPreferencesSection extends ConsumerWidget {
     final systemAllowed =
         permission == null ||
         permission == NotificationPermissionStatus.granted;
+    // Le bilan des réponses ne concerne que le staff du club actif.
+    final isCoach = MemberRoleHierarchy.isCoachOrAbove(
+      ref.watch(sessionProvider).activeRole ?? '',
+    );
 
     Widget toggle({
       required String key,
@@ -167,6 +194,56 @@ class NotificationPreferencesSection extends ConsumerWidget {
                 value: prefs.rsvp && prefs.rsvpTeammates,
                 enabled: prefs.rsvp,
               ),
+              if (isCoach) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: ViroSpacing.sm,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        AppCopy.settings.notifCoachSummary,
+                        style: theme.bodyLarge,
+                      ),
+                      Text(
+                        AppCopy.settings.notifCoachSummarySubtitle,
+                        style: theme.bodyMedium?.copyWith(
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: ViroSpacing.sm),
+                      SegmentedButton<CoachSummaryTiming>(
+                        showSelectedIcon: false,
+                        segments: [
+                          ButtonSegment(
+                            value: CoachSummaryTiming.j2,
+                            label: Text(AppCopy.settings.coachSummaryJ2),
+                          ),
+                          ButtonSegment(
+                            value: CoachSummaryTiming.eve,
+                            label: Text(AppCopy.settings.coachSummaryEve),
+                          ),
+                          ButtonSegment(
+                            value: CoachSummaryTiming.day,
+                            label: Text(AppCopy.settings.coachSummaryDay),
+                          ),
+                        ],
+                        selected: {prefs.coachSummaryTiming},
+                        // Le bilan part avec les convocations et rappels.
+                        onSelectionChanged: !systemAllowed || !prefs.events
+                            ? null
+                            : (selected) => _setCoachSummaryTiming(
+                                  context: context,
+                                  ref: ref,
+                                  timing: selected.first,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const Divider(height: 1),
               toggle(
                 key: 'announcements',

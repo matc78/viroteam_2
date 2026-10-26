@@ -5,7 +5,11 @@ import { formatTimeFr } from "./deepLinks";
 import { DAY_OF_REMINDER_EVE_BEFORE } from "./types";
 
 /** Drapeaux de rappel d'un event (posés par les crons ou à la création). */
-export type ReminderFlag = "reminderSentJ7" | "reminderSentJ2" | "reminderSentDay";
+export type ReminderFlag =
+  | "reminderSentJ7"
+  | "reminderSentJ2"
+  | "reminderSentDay"
+  | "reminderSentCoachEve";
 
 /**
  * Rappels à marquer comme envoyés quand l'event est créé (ou reporté) dans
@@ -177,6 +181,7 @@ export const PUSH_BOOKKEEPING_FIELDS = [
   "reminderSentJ7",
   "reminderSentJ2",
   "reminderSentDay",
+  "reminderSentCoachEve",
   "lastManualPushAt",
   "rsvpNotifyPending",
   "rsvpNotifyDueAt",

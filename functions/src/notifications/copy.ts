@@ -208,22 +208,31 @@ export function eventReminderJ2MaybeCopy(ctx: EventPushContext): PushCopy {
   };
 }
 
-/** Bilan J-2 pour les coachs : décompte des réponses avant l'event. */
-export function eventCoachJ2SummaryCopy(
-  ctx: EventPushContext & { tally: RsvpTally },
+/**
+ * Bilan des réponses pour les coachs (J-2 ou la veille au soir, selon leur
+ * réglage) : décompte avant l'event.
+ */
+export function eventCoachSummaryCopy(
+  ctx: EventPushContext & { tally: RsvpTally; when: "j2" | "eve" },
 ): PushCopy {
+  const lead = ctx.when === "j2" ? "Dans 2 jours" : "Demain";
   return {
     title: typeDayTime(ctx),
-    body: truncatePushBody(`Dans 2 jours · ${formatRsvpTally(ctx.tally)}`),
+    body: truncatePushBody(`${lead} · ${formatRsvpTally(ctx.tally)}`),
   };
 }
 
 /**
  * Rappel du jour J (le matin, ou la veille au soir pour un event matinal),
- * pour ceux qui viennent, hésitent ou n'ont pas répondu.
+ * pour ceux qui viennent, hésitent ou n'ont pas répondu. [tally] (coach qui
+ * a choisi ce moment pour son bilan) ajoute le décompte des réponses.
  */
 export function eventDayOfReminderCopy(
-  ctx: EventPushContext & { when: "today" | "tomorrow"; rsvp: RsvpStatus },
+  ctx: EventPushContext & {
+    when: "today" | "tomorrow";
+    rsvp: RsvpStatus;
+    tally?: RsvpTally;
+  },
 ): PushCopy {
   const child = ctx.childFirstName?.trim();
   const whenLabel = ctx.when === "today" ? "C’est aujourd’hui" : "Demain";
@@ -237,6 +246,12 @@ export function eventDayOfReminderCopy(
     ctx.meetingTime ? `RDV ${ctx.meetingTime}` : undefined,
     ctx.location,
   ]);
+  if (ctx.tally) {
+    return {
+      title,
+      body: truncatePushBody(joinParts([formatRsvpTally(ctx.tally), details])),
+    };
+  }
   const action =
     ctx.rsvp === "none"
       ? child

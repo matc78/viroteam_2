@@ -1,5 +1,8 @@
 import {
+  COACH_SUMMARY_TIMINGS,
+  DEFAULT_COACH_SUMMARY_TIMING,
   DEFAULT_NOTIFICATION_PREFERENCES,
+  type CoachSummaryTiming,
   type NotificationPreferenceKey,
   type NotificationPreferences,
 } from "./types";
@@ -34,6 +37,7 @@ export function parseNotificationPreferences(
       map.rsvpTeammates,
       DEFAULT_NOTIFICATION_PREFERENCES.rsvpTeammates,
     ),
+    coachSummaryTiming: readCoachSummaryTiming(map.coachSummaryTiming),
   };
 }
 
@@ -87,4 +91,9 @@ export function canSendManualPush(params: {
 function readBool(value: unknown, fallback: boolean): boolean {
   if (typeof value === "boolean") return value;
   return fallback;
+}
+
+function readCoachSummaryTiming(value: unknown): CoachSummaryTiming {
+  return COACH_SUMMARY_TIMINGS.find((timing) => timing === value) ??
+    DEFAULT_COACH_SUMMARY_TIMING;
 }

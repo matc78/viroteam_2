@@ -9,6 +9,10 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Ajouté
+
+- Paramètres > Notifications (bureau) : choix du moment du bilan des réponses envoyé aux coachs (2 jours avant, la veille au soir, avec le rappel du jour J)
+
 ## [1.10.0] - 2026-10-23
 
 ### Ajouté

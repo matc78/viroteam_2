@@ -35,7 +35,7 @@
 | ~~`fcmToken`~~ | — | Remplacé par sous-collection `fcmTokens` (multi-appareils) |
 | `clubMemberships` | array | `[{ clubId, role }]` — clubs où l’utilisateur est **membre** (`player` \| `coach` \| `admin`) |
 | `parentLinks` | array | Index session parent : `[{ clubId, memberId, relation, status }]` — **pas** un rôle club. Source de vérité : `members/{memberId}/guardians/{parentUid}`. Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md). |
-| `notificationPreferences` | map | `{ events, announcements, fees, rsvp }` — booléens, défaut `true` (opt-in) |
+| `notificationPreferences` | map | `{ events, weeklyDigest, announcements, fees, rsvp, rsvpTeammates, chat }` — booléens, défaut `true` sauf `rsvpTeammates` (`false`) ; `coachSummaryTiming` : `'j2' | 'eve' | 'day'` (moment du bilan des réponses pour les coachs, défaut `'eve'`) |
 | `flags` | map | `{ profileCompleted, disabled }` |
 | `legal` | map | `{ termsAcceptedAt, termsVersion }` — trace d’acceptation CGU / privacy à la création du compte (version ex. `"2026-09"`) ; immuable après create (rules) |
 | `createdAt` | timestamp | |
@@ -187,11 +187,12 @@ V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiv
 | `seriesId` | string? | Série récurrente (pas de push « Nouvelle convocation ») |
 | `importantReminder` | bool? | Rappel J-7 en plus (event important : tournoi, AG…) |
 | `reminderSentJ7` | bool? | Rappel J-7 déjà envoyé / couvert (Functions) |
-| `reminderSentJ2` | bool? | Rappel J-2 déjà envoyé / couvert (Functions) — inclut bilan coach + relance peut-être |
+| `reminderSentJ2` | bool? | Rappel J-2 déjà envoyé / couvert (Functions) — inclut bilan des coachs réglés sur J-2 + relance peut-être |
+| `reminderSentCoachEve` | bool? | Bilan coach de la veille déjà envoyé (18h30, events de 10h et plus ; Functions) |
 | `reminderSentDay` | bool? | Rappel jour J déjà envoyé (8h00, ou la veille 18h30 si début avant 10h00) |
 | `lastManualPushAt` | timestamp? | Rate-limit envoi manuel (1/h) |
 | `rsvpNotifyPending` / `rsvpNotifyDueAt` | map / timestamp? | File de push RSVP (debounce 5 s, Functions) |
-| `modifiedNotifyPending` / `modifiedNotifyDueAt` | map / timestamp? | Champs modifiés regroupés 2 min avant la push « modifié » (Functions) |
+| `modifiedNotifyPending` / `modifiedNotifyDueAt` | map / timestamp? | Champs modifiés regroupés 10 min (2 min le jour J) avant la push « modifié » (Functions) |
 
 > **`attendance`** est le seul map de présence — `sessionAttendance` et la collection `training_attendances` sont supprimés.
 

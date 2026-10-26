@@ -23,7 +23,23 @@ export type PushPayload = {
   data: Record<string, string>;
 };
 
-export type NotificationPreferences = Record<NotificationPreferenceKey, boolean>;
+/**
+ * Moment du bilan des réponses envoyé aux coachs : 2 jours avant, la veille
+ * au soir ou avec le rappel du jour J.
+ */
+export type CoachSummaryTiming = "j2" | "eve" | "day";
+
+export const COACH_SUMMARY_TIMINGS: readonly CoachSummaryTiming[] = [
+  "j2",
+  "eve",
+  "day",
+];
+
+export const DEFAULT_COACH_SUMMARY_TIMING: CoachSummaryTiming = "eve";
+
+export type NotificationPreferences = Record<NotificationPreferenceKey, boolean> & {
+  coachSummaryTiming: CoachSummaryTiming;
+};
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   events: true,
@@ -34,6 +50,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   weeklyDigest: true,
   // Les réponses des coéquipiers ne partent qu'aux joueurs qui l'ont demandé.
   rsvpTeammates: false,
+  coachSummaryTiming: DEFAULT_COACH_SUMMARY_TIMING,
 };
 
 export const MANUAL_PUSH_COOLDOWN_MS = 60 * 60 * 1000;
@@ -42,7 +59,10 @@ export const MANUAL_PUSH_COOLDOWN_MS = 60 * 60 * 1000;
 export const RSVP_NOTIFY_DEBOUNCE_MS = 5 * 1000;
 
 /** Délai de regroupement des modifications d'un event avant push. */
-export const EVENT_MODIFIED_DEBOUNCE_MS = 2 * 60 * 1000;
+export const EVENT_MODIFIED_DEBOUNCE_MS = 10 * 60 * 1000;
+
+/** Regroupement raccourci le jour J : un changement de dernière minute doit arriver à temps. */
+export const EVENT_MODIFIED_SAME_DAY_DEBOUNCE_MS = 2 * 60 * 1000;
 
 /**
  * Heure (HH:mm) avant laquelle le rappel du jour J part la veille au soir :

@@ -1,7 +1,29 @@
 import 'package:viro_team_v2/copy/app_copy.dart';
 
+/// Moment du bilan des réponses envoyé aux coachs (valeur Firestore
+/// `coachSummaryTiming`) : 2 jours avant, la veille au soir ou avec le
+/// rappel du jour J.
+enum CoachSummaryTiming {
+  j2('j2'),
+  eve('eve'),
+  day('day');
+
+  const CoachSummaryTiming(this.wireValue);
+
+  /// Valeur stockée dans `notificationPreferences.coachSummaryTiming`.
+  final String wireValue;
+
+  /// Réglage lu depuis Firestore ; valeur absente ou inconnue → [eve].
+  static CoachSummaryTiming fromWire(Object? value) {
+    for (final timing in values) {
+      if (timing.wireValue == value) return timing;
+    }
+    return eve;
+  }
+}
+
 /// Préférences push utilisateur (events / récap / annonces / cotisations /
-/// RSVP / chat). Les défauts doivent rester alignés avec
+/// RSVP / chat / bilan coach). Les défauts doivent rester alignés avec
 /// `functions/src/notifications/types.ts`.
 class NotificationPreferences {
   const NotificationPreferences({
@@ -12,6 +34,7 @@ class NotificationPreferences {
     this.rsvp = true,
     this.rsvpTeammates = false,
     this.chat = true,
+    this.coachSummaryTiming = CoachSummaryTiming.eve,
   });
 
   final bool events;
@@ -26,6 +49,9 @@ class NotificationPreferences {
   final bool rsvpTeammates;
   final bool chat;
 
+  /// Moment du bilan des réponses (coachs uniquement).
+  final CoachSummaryTiming coachSummaryTiming;
+
   static const NotificationPreferences defaults = NotificationPreferences();
 
   factory NotificationPreferences.fromMap(Map<String, dynamic>? map) {
@@ -38,6 +64,9 @@ class NotificationPreferences {
       rsvp: map['rsvp'] as bool? ?? true,
       rsvpTeammates: map['rsvpTeammates'] as bool? ?? false,
       chat: map['chat'] as bool? ?? true,
+      coachSummaryTiming: CoachSummaryTiming.fromWire(
+        map['coachSummaryTiming'],
+      ),
     );
   }
 
@@ -49,6 +78,7 @@ class NotificationPreferences {
         'rsvp': rsvp,
         'rsvpTeammates': rsvpTeammates,
         'chat': chat,
+        'coachSummaryTiming': coachSummaryTiming.wireValue,
       };
 
   NotificationPreferences copyWith({
@@ -59,6 +89,7 @@ class NotificationPreferences {
     bool? rsvp,
     bool? rsvpTeammates,
     bool? chat,
+    CoachSummaryTiming? coachSummaryTiming,
   }) {
     return NotificationPreferences(
       events: events ?? this.events,
@@ -68,6 +99,7 @@ class NotificationPreferences {
       rsvp: rsvp ?? this.rsvp,
       rsvpTeammates: rsvpTeammates ?? this.rsvpTeammates,
       chat: chat ?? this.chat,
+      coachSummaryTiming: coachSummaryTiming ?? this.coachSummaryTiming,
     );
   }
 }

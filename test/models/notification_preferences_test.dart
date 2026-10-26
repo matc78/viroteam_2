@@ -10,16 +10,26 @@ void main() {
       expect(prefs.weeklyDigest, isTrue);
       expect(prefs.rsvpTeammates, isFalse);
       expect(prefs.events, isTrue);
+      expect(prefs.coachSummaryTiming, CoachSummaryTiming.eve);
+    });
+
+    test('bilan coach : valeur inconnue → veille', () {
+      final prefs = NotificationPreferences.fromMap(const {
+        'coachSummaryTiming': 'j-1',
+      });
+      expect(prefs.coachSummaryTiming, CoachSummaryTiming.eve);
     });
 
     test('aller-retour Firestore', () {
       const prefs = NotificationPreferences(
         weeklyDigest: false,
         rsvpTeammates: true,
+        coachSummaryTiming: CoachSummaryTiming.day,
       );
       final back = NotificationPreferences.fromMap(prefs.toMap());
       expect(back.weeklyDigest, isFalse);
       expect(back.rsvpTeammates, isTrue);
+      expect(back.coachSummaryTiming, CoachSummaryTiming.day);
     });
   });
 

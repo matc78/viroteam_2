@@ -1,7 +1,7 @@
 import type { DocumentData } from "firebase-admin/firestore";
 import { tallyRsvp, type EventAudienceEntry } from "./audience";
 import {
-  eventCoachJ2SummaryCopy,
+  eventCoachSummaryCopy,
   eventDayOfReminderCopy,
   eventReminderJ2Copy,
   eventReminderJ2MaybeCopy,
@@ -17,7 +17,7 @@ import {
 } from "./deepLinks";
 import { dayOfReminderIsEve, type ReminderFlag } from "./eventChange";
 import { contextForEntry, eventPushContext } from "./eventPush";
-import type { NotificationPreferenceKey } from "./types";
+import type { CoachSummaryTiming, NotificationPreferenceKey } from "./types";
 
 /**
  * Calendrier des rappels d'events et récap hebdo : logique pure (sans
@@ -33,12 +33,14 @@ export type ReminderSlot = {
   includeEvent: (eventData: DocumentData) => boolean;
   /**
    * Copy d'un destinataire, `null` pour ne pas le notifier.
-   * [allEntries] sert au bilan coach (décompte RSVP).
+   * [allEntries] sert au bilan coach (décompte RSVP) ; [coachTiming] est le
+   * moment choisi par ce destinataire pour son bilan (coachs uniquement).
    */
   copyFor: (
     eventData: DocumentData,
     entry: EventAudienceEntry,
     allEntries: EventAudienceEntry[],
+    coachTiming: CoachSummaryTiming,
   ) => PushCopy | null;
   /** Le dimanche, J-7 / J-2 ne partent qu'à ceux qui ont coupé le récap. */
   onlyIfDisabled?: NotificationPreferenceKey;
@@ -56,6 +58,7 @@ function pendingResponseOnly(
     eventData: DocumentData,
     entry: EventAudienceEntry,
     _allEntries: EventAudienceEntry[],
+    _coachTiming: CoachSummaryTiming,
   ): PushCopy | null => {
     if (entry.relation === "coach") return null;
     if (entry.rsvp !== "none" && entry.rsvp !== "maybe") return null;
@@ -65,17 +68,21 @@ function pendingResponseOnly(
 }
 
 /**
- * J-2 : relance aux sans-réponse / peut-être, et bilan (décompte) aux coachs.
+ * J-2 : relance aux sans-réponse / peut-être, et bilan (décompte) aux coachs
+ * qui l'ont choisi à J-2.
  */
 function j2CopyFor(
   eventData: DocumentData,
   entry: EventAudienceEntry,
   allEntries: EventAudienceEntry[],
+  coachTiming: CoachSummaryTiming,
 ): PushCopy | null {
   if (entry.relation === "coach") {
-    return eventCoachJ2SummaryCopy({
+    if (coachTiming !== "j2") return null;
+    return eventCoachSummaryCopy({
       ...eventPushContext(eventData),
       tally: tallyRsvp(allEntries),
+      when: "j2",
     });
   }
   if (entry.rsvp !== "none" && entry.rsvp !== "maybe") return null;
@@ -85,28 +92,56 @@ function j2CopyFor(
     : eventReminderJ2Copy(ctx);
 }
 
-/** Jour J : ceux qui viennent, hésitent ou n'ont pas répondu, et les coachs. */
+/**
+ * Bilan coach réglé sur la veille : push dédiée, sauf pour un event matinal
+ * dont le rappel jour J part déjà la veille au soir (le décompte y est ajouté).
+ */
+function coachEveSummaryCopyFor(
+  eventData: DocumentData,
+  entry: EventAudienceEntry,
+  allEntries: EventAudienceEntry[],
+  coachTiming: CoachSummaryTiming,
+): PushCopy | null {
+  if (entry.relation !== "coach" || coachTiming !== "eve") return null;
+  return eventCoachSummaryCopy({
+    ...eventPushContext(eventData),
+    tally: tallyRsvp(allEntries),
+    when: "eve",
+  });
+}
+
+/**
+ * Jour J : ceux qui viennent, hésitent ou n'ont pas répondu, et les coachs.
+ * Le coach qui veut son bilan à ce moment-là (réglage « jour J », ou « veille »
+ * quand ce rappel part la veille) y trouve le décompte des réponses.
+ */
 function dayOfCopy(when: "today" | "tomorrow") {
   return (
     eventData: DocumentData,
     entry: EventAudienceEntry,
-    _allEntries: EventAudienceEntry[],
+    allEntries: EventAudienceEntry[],
+    coachTiming: CoachSummaryTiming,
   ): PushCopy | null => {
     if (entry.rsvp === "no") return null;
+    const withTally =
+      entry.relation === "coach" &&
+      (coachTiming === "day" || (coachTiming === "eve" && when === "tomorrow"));
     return eventDayOfReminderCopy({
       ...contextForEntry(eventPushContext(eventData), entry),
       when,
       // Un coach n'a pas de réponse à donner.
       rsvp: entry.relation === "coach" ? "yes" : entry.rsvp,
+      ...(withTally ? { tally: tallyRsvp(allEntries) } : {}),
     });
   };
 }
 
 /**
  * Créneaux du soir (18:30) pour la date Paris [todayId] :
- * - J-2 pour tous les events (sans-réponse / peut-être + bilan coach) ;
+ * - J-2 pour tous les events (sans-réponse / peut-être + bilan des coachs réglés sur J-2) ;
  * - J-7 pour les events marqués importants, aux sans-réponse / peut-être ;
- * - veille au soir du rappel jour J pour les events qui commencent avant 10h.
+ * - veille au soir du rappel jour J pour les events qui commencent avant 10h ;
+ * - bilan de la veille pour les coachs réglés sur « veille » (events de 10h et plus).
  *
  * Le dimanche, le récap couvre J-2 (mardi) et J-7 (dimanche suivant) : ces
  * relances ne partent qu'à ceux qui ont coupé le récap.
@@ -139,6 +174,13 @@ export function eveningReminderSlots(todayId: string): ReminderSlot[] {
       type: "event_reminder_day",
       includeEvent: (eventData) => dayOfReminderIsEve(eventData.startTime),
       copyFor: dayOfCopy("tomorrow"),
+    },
+    {
+      dateId: addDaysToDateId(todayId, 1),
+      flag: "reminderSentCoachEve",
+      type: "event_coach_summary",
+      includeEvent: (eventData) => !dayOfReminderIsEve(eventData.startTime),
+      copyFor: coachEveSummaryCopyFor,
     },
   ];
 }

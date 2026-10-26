@@ -199,7 +199,8 @@ function logPushSummary(
   });
 }
 
-async function loadPreferences(
+/** Préférences push des [uids] (valeurs par défaut si doc ou map absents). */
+export async function loadPreferences(
   firestore: Firestore,
   uids: string[],
 ): Promise<Map<string, ReturnType<typeof parseNotificationPreferences>>> {

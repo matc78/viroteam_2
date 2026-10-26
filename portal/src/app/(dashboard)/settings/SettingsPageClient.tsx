@@ -409,7 +409,7 @@ export function SettingsPageClient() {
       ) : null}
 
       <AccountSettingsSection />
-      <NotificationPreferencesSection />
+      <NotificationPreferencesSection showCoachSummary />
     </div>
   );
 }

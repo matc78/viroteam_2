@@ -129,6 +129,8 @@ class FeeStats {
     required this.exempt,
     required this.pending,
     required this.overdue,
+    this.collectedCents = 0,
+    this.remainingCents = 0,
   });
 
   final int total;
@@ -137,19 +139,35 @@ class FeeStats {
   final int pending;
   final int overdue;
 
+  /// Montant déjà couvert (paiements + aides validées), plafonné au dû.
+  final int collectedCents;
+
+  /// Reste à encaisser sur l'ensemble des fiches.
+  final int remainingCents;
+
   int get awaiting => pending + overdue;
 
   double get paidPercent => total > 0 ? paid / total : 0;
 
+  /// Agrège [fees] ; les montants ne sont calculés que si [season] est fourni.
   static FeeStats compute(
     List<MemberFee> fees,
-    DateTime? deadline,
-  ) {
+    DateTime? deadline, {
+    FeeSeason? season,
+  }) {
     var paid = 0;
     var exempt = 0;
     var pending = 0;
     var overdue = 0;
+    var collectedCents = 0;
+    var remainingCents = 0;
     for (final f in fees) {
+      if (season != null) {
+        final due = f.amountDueCents(season);
+        final covered = f.coveredCents(season);
+        collectedCents += covered > due ? due : covered;
+        remainingCents += f.remainingCents(season);
+      }
       switch (f.displayStatus(deadline)) {
         case MemberFeeDisplayStatus.paye:
           paid++;
@@ -169,6 +187,8 @@ class FeeStats {
       exempt: exempt,
       pending: pending,
       overdue: overdue,
+      collectedCents: collectedCents,
+      remainingCents: remainingCents,
     );
   }
 }

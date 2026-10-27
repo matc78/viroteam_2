@@ -10,6 +10,8 @@ import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
+import 'package:viro_team_v2/features/fees/widgets/fee_mark_paid_dialogs.dart';
+import 'package:viro_team_v2/features/fees/widgets/fee_tracking_stats_card.dart';
 import 'package:viro_team_v2/features/fees/widgets/offline_payment_dialog.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_payment_history_list.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -251,15 +253,21 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     final season = ref.read(activeSeasonProvider(clubId)).value;
     if (season == null) return;
     final fees = ref.read(allMemberFeesProvider(clubId)).value ?? [];
-    final csv = await ref.read(feeServiceProvider).exportCsv(
-          clubId: clubId,
-          seasonId: season.id,
-          season: season,
-          fees: fees,
-        );
-    await Clipboard.setData(ClipboardData(text: csv));
-    if (context.mounted) {
-      ViroSnackBar.show(context, AppCopy.fees.csvCopied);
+    try {
+      final csv = await ref.read(feeServiceProvider).exportCsv(
+            clubId: clubId,
+            seasonId: season.id,
+            season: season,
+            fees: fees,
+          );
+      await Clipboard.setData(ClipboardData(text: csv));
+      if (context.mounted) {
+        ViroSnackBar.show(context, AppCopy.fees.csvCopied);
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ViroSnackBar.show(context, AppCopy.fees.csvCopyError);
+      }
     }
   }
 
@@ -271,6 +279,15 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   ) async {
     final remaining = fee.remainingCents(season);
     if (remaining <= 0) return;
+    final confirmed = await showFeeMarkPaidConfirmDialog(
+      context,
+      title: AppCopy.fees.markPaidConfirmTitle(1),
+      body: AppCopy.fees.markPaidSingleConfirmBody(
+        memberName: fee.memberDisplayName,
+        amount: formatFeeAmountCents(remaining),
+      ),
+    );
+    if (!confirmed || !context.mounted) return;
     try {
       await ref.read(feeServiceProvider).validateOfflinePayment(
             clubId: clubId,
@@ -403,6 +420,8 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                   ),
                   onTap: () async {
                     Navigator.pop(ctx);
+                    await Future<void>.delayed(Duration.zero);
+                    if (!context.mounted) return;
                     await _markRemainingPaid(context, ref, fee, season);
                   },
                 ),
@@ -455,7 +474,9 @@ class FeeMembersTrackingTab extends ConsumerWidget {
 
     return seasonAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => const ViroErrorState(),
+      error: (error, stackTrace) => ViroErrorState(
+        onRetry: () => ref.invalidate(activeSeasonProvider(clubId)),
+      ),
       data: (season) {
         if (season == null) {
           return ViroEmptyState(
@@ -469,7 +490,9 @@ class FeeMembersTrackingTab extends ConsumerWidget {
 
         return feesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => const ViroErrorState(),
+          error: (error, stackTrace) => ViroErrorState(
+            onRetry: () => ref.invalidate(allMemberFeesProvider(clubId)),
+          ),
           data: (allFees) {
             final lists = _splitFees(allFees, season);
             final existingIds = allFees.map((f) => f.memberId).toSet();
@@ -488,19 +511,9 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        AppCopy.fees.trackingStats(
-                          paid: stats.paid,
-                          total: stats.total,
-                          paidPercent: stats.total > 0
-                              ? (stats.paidPercent * 100).round()
-                              : 0,
-                          exempt: stats.exempt,
-                          awaiting: stats.awaiting,
-                        ),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: context.viroPalette.textSecondary,
-                            ),
+                      FeeTrackingStatsCard(
+                        stats: stats,
+                        accentColor: accentColor,
                       ),
                       const SizedBox(height: ViroSpacing.sm),
                       Row(

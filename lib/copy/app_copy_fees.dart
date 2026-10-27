@@ -153,6 +153,51 @@ final class AppCopyFees {
   String get adjustPaidNoteHint => 'Motif de la correction (optionnel)';
   String get adjustPaidSaved => 'Montant déjà payé mis à jour';
   String get markPaidOfflineHint => 'Enregistre le reste dû (espèces)';
+
+  /// Titre de confirmation « Marquer payé » (unitaire ou groupé).
+  String markPaidConfirmTitle(int count) => count > 1
+      ? 'Marquer $count cotisations comme payées ?'
+      : 'Marquer 1 cotisation comme payée ?';
+
+  /// Corps de confirmation unitaire : membre + montant enregistré en espèces.
+  String markPaidSingleConfirmBody({
+    required String memberName,
+    required String amount,
+  }) =>
+      'Le reste dû de $memberName ($amount) sera enregistré '
+      'comme payé en espèces.';
+
+  /// Corps de confirmation groupée : total + membres ignorés éventuels.
+  String markPaidBulkConfirmBody({
+    required String totalAmount,
+    required int skipped,
+  }) =>
+      'Le reste dû de chaque membre sera enregistré comme payé en espèces '
+      '($totalAmount au total).'
+      '${skipped > 0 ? '\n$skipped membre${skipped > 1 ? 's' : ''} '
+          'ignoré${skipped > 1 ? 's' : ''} (déjà à jour, exonéré '
+          'ou sans tarif).' : ''}';
+
+  /// Progression du marquage groupé.
+  String markPaidProgress(int done, int total) =>
+      'Enregistrement… $done/$total';
+
+  /// Succès du marquage groupé.
+  String markPaidBulkDone(int count) => count > 1
+      ? '$count cotisations marquées payées'
+      : '1 cotisation marquée payée';
+
+  String get markPaidBulkNone =>
+      'Aucune cotisation à marquer payée dans la sélection '
+      '(déjà à jour, exonérée ou sans tarif).';
+
+  /// Échec en cours de marquage groupé.
+  String markPaidBulkInterrupted({
+    required int done,
+    required int total,
+    required String detail,
+  }) =>
+      'Arrêt après $done/$total cotisations : $detail';
   String categoryLabel(String label) => 'Catégorie : $label';
   String get aidValidated => 'Validée';
   String get aidRejected => 'Refusée';
@@ -250,7 +295,8 @@ final class AppCopyFees {
   String get configureSeason => 'Configurer la saison';
   String get searchHint => 'Rechercher…';
   String get multiSelectTooltip => 'Sélection multiple';
-  String get exportCsvTooltip => 'Exporter CSV';
+  String get exportCsvTooltip => 'Copier en CSV';
+  String get csvCopyError => 'Impossible de copier le CSV';
   String get filterByCategory => 'Filtrer par catégorie';
   String get allCategories => 'Toutes les catégories';
   String unpaidSection(int count) => 'En attente ($count)';
@@ -259,17 +305,31 @@ final class AppCopyFees {
   String upToDateSection(int count) => 'À jour ($count)';
   String get privateNoteHint => 'Note privée';
 
-  String trackingStats({
-    required int paid,
-    required int total,
-    required int paidPercent,
-    required int exempt,
-    required int awaiting,
-  }) =>
-      '$paid / $total ont payé '
-      '($paidPercent %) · '
-      '$exempt exonéré${exempt > 1 ? 's' : ''} · '
-      '$awaiting en attente';
+  /// Taux de cotisations payées (en-tête du suivi admin).
+  String statsPaidRate(int percent) => '$percent % payé';
+
+  /// Nombre de membres ayant payé sur le total.
+  String statsPaidCount({required int paid, required int total}) =>
+      '$paid / $total membre${total > 1 ? 's' : ''}';
+
+  String get statsCollected => 'Encaissé';
+  String get statsRemaining => 'Restant';
+
+  /// Ligne secondaire : exonérés + en attente.
+  String statsBreakdown({required int exempt, required int awaiting}) =>
+      '$exempt exonéré${exempt > 1 ? 's' : ''} · $awaiting en attente';
+
+  /// Libellé lecteur d'écran de la barre de progression.
+  String statsProgressSemantics(int percent) =>
+      'Cotisations payées : $percent %';
+
+  String get manageFees => 'Gérer les cotisations';
+  String get noActiveSeasonPlayerAdmin =>
+      'Aucune saison de cotisation active.\n'
+      'Configure-la pour que tes membres voient leur cotisation.';
+  String get myFeeNotConfiguredAdmin =>
+      'Cette cotisation n\'a pas encore été paramétrée. '
+      'Assigne un tarif depuis le suivi des cotisations.';
 
   String get paymentMethodVirement => 'Virement';
   String get paymentMethodCheque => 'Chèque';

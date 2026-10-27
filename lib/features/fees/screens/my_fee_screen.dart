@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:viro_team_v2/config/feature_flags.dart';
@@ -103,6 +104,11 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
     final feeAsync = ref.watch(
       myFeeProvider((clubId: widget.clubId, memberId: audienceId)),
     );
+    final isAdmin = ref.watch(clubMemberProvider(widget.clubId)).value?.role ==
+        MemberRoles.admin;
+    final openAdminFees = isAdmin
+        ? () => context.push(AppRoutes.clubFeesPath(widget.clubId))
+        : null;
 
     return ClubAccentTheme(
       accentColor: memberAccent,
@@ -120,6 +126,9 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => ViroErrorState(
           message: AppCopy.fees.loadFeeError,
+          onRetry: () => ref.invalidate(
+            myFeeProvider((clubId: widget.clubId, memberId: audienceId)),
+          ),
         ),
         data: (data) {
           final season = data.season;
@@ -136,8 +145,13 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
                   SizedBox(
                     height: 280,
                     child: ViroEmptyState(
-                      message:
-                          AppCopy.fees.noActiveSeasonPlayer,
+                      icon: ViroIcons.payments,
+                      message: isAdmin
+                          ? AppCopy.fees.noActiveSeasonPlayerAdmin
+                          : AppCopy.fees.noActiveSeasonPlayer,
+                      actionLabel:
+                          isAdmin ? AppCopy.fees.configureSeason : null,
+                      onAction: openAdminFees,
                     ),
                   ),
                 ],
@@ -159,9 +173,15 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
                   SizedBox(
                     height: 280,
                     child: ViroEmptyState(
-                      message: selected?.isChild == true
-                          ? AppCopy.fees.childFeeNotConfigured(selected!.label)
-                          : AppCopy.fees.myFeeNotConfigured,
+                      icon: ViroIcons.payments,
+                      message: isAdmin
+                          ? AppCopy.fees.myFeeNotConfiguredAdmin
+                          : selected?.isChild == true
+                              ? AppCopy.fees
+                                  .childFeeNotConfigured(selected!.label)
+                              : AppCopy.fees.myFeeNotConfigured,
+                      actionLabel: isAdmin ? AppCopy.fees.manageFees : null,
+                      onAction: openAdminFees,
                     ),
                   ),
                 ],
@@ -281,11 +301,14 @@ class _FeeContent extends ConsumerWidget {
       padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
       children: [
         if (season.seasonLabel.isNotEmpty)
-          Text(
-            season.seasonLabel,
-            style: theme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: palette.textSecondary,
+          Semantics(
+            header: true,
+            child: Text(
+              AppCopy.fees.feeSeasonTitle(season.seasonLabel),
+              style: theme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: palette.brandText,
+              ),
             ),
           ),
         const SizedBox(height: ViroSpacing.md),
@@ -369,7 +392,7 @@ class _FeeContent extends ConsumerWidget {
                       if (uri == null) return;
                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                     },
-                    icon: ViroIcon(ViroIcons.share, color: accentText),
+                    icon: ViroIcon(ViroIcons.download, color: accentText),
                     label: Text(AppCopy.fees.downloadAttestation),
                   ),
                 ],
@@ -436,6 +459,13 @@ class _FeeContent extends ConsumerWidget {
               ],
             ),
           ),
+          if (canPay && onlinePaymentEnabled) ...[
+            const SizedBox(height: ViroSpacing.xs),
+            ViroPrimaryButton(
+              label: AppCopy.fees.payOnline,
+              onPressed: () => _openStripeCheckout(context, ref),
+            ),
+          ],
           if (fee.aids.isNotEmpty) ...[
             const SizedBox(height: ViroSpacing.md),
             ...fee.aids.map(
@@ -504,14 +534,6 @@ class _FeeContent extends ConsumerWidget {
               textAlign: TextAlign.center,
               style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
             ),
-        ],
-
-        if (canPay && onlinePaymentEnabled) ...[
-          const SizedBox(height: ViroSpacing.lg),
-          ViroPrimaryButton(
-            label: AppCopy.fees.payOnline,
-            onPressed: () => _openStripeCheckout(context, ref),
-          ),
         ],
 
         const SizedBox(height: ViroSpacing.lg),
@@ -598,25 +620,23 @@ class _FeeContent extends ConsumerWidget {
         ),
         const SizedBox(height: ViroSpacing.lg),
 
-        ViroCard(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ViroIcon(ViroIcons.bell, color: accentText, size: 20),
-              const SizedBox(width: ViroSpacing.sm),
-              Expanded(
-                child: Text(
-                  onlinePaymentEnabled
-                      ? AppCopy.fees.stripeAvailableAbove
-                      : AppCopy.fees.stripeComingSoonFollowClub,
-                  style: theme.bodySmall?.copyWith(
-                    color: palette.textSecondary,
-                    height: 1.4,
-                  ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ViroIcon(ViroIcons.info, color: palette.textMuted, size: 16),
+            const SizedBox(width: ViroSpacing.xs),
+            Expanded(
+              child: Text(
+                onlinePaymentEnabled
+                    ? AppCopy.fees.stripeAvailableAbove
+                    : AppCopy.fees.stripeComingSoonFollowClub,
+                style: theme.bodySmall?.copyWith(
+                  color: palette.textMuted,
+                  height: 1.4,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         const SizedBox(height: ViroSpacing.xl),
       ],

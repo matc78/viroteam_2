@@ -45,6 +45,13 @@ class FeePaymentHistoryList extends ConsumerWidget {
       ),
       error: (_, _) => ViroErrorState(
         message: AppCopy.fees.paymentHistoryLoadError,
+        onRetry: () => ref.invalidate(
+          memberFeePaymentEventsProvider((
+            clubId: clubId,
+            seasonId: seasonId,
+            memberId: memberId,
+          )),
+        ),
       ),
       data: (events) {
         return Column(

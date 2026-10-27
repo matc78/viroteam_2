@@ -11,8 +11,10 @@ import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart'
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_bulk_action_sheet.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_config_tab.dart';
+import 'package:viro_team_v2/features/fees/widgets/fee_mark_paid_dialogs.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_members_tracking_tab.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
@@ -215,45 +217,87 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
     );
   }
 
-  /// Enregistre le reste dû (espèces) pour chaque membre sélectionné.
+  /// Enregistre le reste dû (espèces) pour chaque membre sélectionné,
+  /// après confirmation et avec un dialog de progression bloquant.
   Future<void> _bulkMarkRemainingPaid(FeeSeason season) async {
     final fees = ref.read(allMemberFeesProvider(widget.clubId)).value ?? [];
     final byId = {for (final fee in fees) fee.memberId: fee};
-    var applied = 0;
+    final eligible = <MemberFee>[
+      for (final memberId in _selectedIds)
+        if (byId[memberId] case final fee?)
+          if (fee.status != MemberFeeStatus.exonere &&
+              fee.tierId != null &&
+              fee.tierId!.isNotEmpty &&
+              fee.remainingCents(season) > 0)
+            fee,
+    ];
+
+    if (eligible.isEmpty) {
+      ViroSnackBar.show(context, AppCopy.fees.markPaidBulkNone);
+      return;
+    }
+
+    final totalCents = eligible.fold<int>(
+      0,
+      (sum, fee) => sum + fee.remainingCents(season),
+    );
+    final confirmed = await showFeeMarkPaidConfirmDialog(
+      context,
+      title: AppCopy.fees.markPaidConfirmTitle(eligible.length),
+      body: AppCopy.fees.markPaidBulkConfirmBody(
+        totalAmount: formatFeeAmountCents(totalCents),
+        skipped: _selectedIds.length - eligible.length,
+      ),
+    );
+    if (!confirmed || !mounted) return;
+
+    final progress = ValueNotifier<int>(0);
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    FeeBulkProgressDialog.show(
+      context,
+      progress: progress,
+      total: eligible.length,
+    );
+    Object? failure;
     try {
-      for (final memberId in _selectedIds) {
-        final fee = byId[memberId];
-        if (fee == null) continue;
-        if (fee.status == MemberFeeStatus.exonere) continue;
-        if (fee.tierId == null || fee.tierId!.isEmpty) continue;
-        final remaining = fee.remainingCents(season);
-        if (remaining <= 0) continue;
-        await ref.read(feeServiceProvider).validateOfflinePayment(
-              clubId: widget.clubId,
-              seasonId: season.id,
-              memberId: memberId,
-              offlineMethod: FeePaymentMethods.especes,
-              amountCents: remaining,
-              season: season,
-              currentFee: fee,
-            );
-        applied += 1;
-      }
-      setState(() {
-        _selectionMode = false;
-        _selectedIds.clear();
-      });
-      if (mounted) {
-        ViroSnackBar.show(
-          context,
-          applied > 0 ? AppCopy.fees.updateDone : AppCopy.fees.noMembersToShow,
+      final feeService = ref.read(feeServiceProvider);
+      for (final fee in eligible) {
+        await feeService.validateOfflinePayment(
+          clubId: widget.clubId,
+          seasonId: season.id,
+          memberId: fee.memberId,
+          offlineMethod: FeePaymentMethods.especes,
+          amountCents: fee.remainingCents(season),
+          season: season,
+          currentFee: fee,
         );
+        progress.value += 1;
       }
     } catch (error) {
-      if (mounted) {
-        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(error));
-      }
+      failure = error;
+    } finally {
+      rootNavigator.pop();
     }
+    final applied = progress.value;
+    progress.dispose();
+    if (!mounted) return;
+
+    if (failure != null) {
+      ViroSnackBar.show(
+        context,
+        AppCopy.fees.markPaidBulkInterrupted(
+          done: applied,
+          total: eligible.length,
+          detail: AppCopy.common.errorWithDetails(failure),
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+    ViroSnackBar.show(context, AppCopy.fees.markPaidBulkDone(applied));
   }
 
   Future<void> _bulkTier(String tierId, FeeSeason season) async {

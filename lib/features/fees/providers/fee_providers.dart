@@ -98,7 +98,7 @@ final memberFeePaymentEventsProvider = StreamProvider.family<
 final feeStatsProvider = Provider.family<FeeStats, String>((ref, clubId) {
   final fees = ref.watch(allMemberFeesProvider(clubId)).value ?? [];
   final season = ref.watch(activeSeasonProvider(clubId)).value;
-  return FeeStats.compute(fees, season?.paymentDeadlineAt);
+  return FeeStats.compute(fees, season?.paymentDeadlineAt, season: season);
 });
 
 /// Bannières cotisation due sur la home (tous clubs).

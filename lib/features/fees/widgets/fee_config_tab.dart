@@ -497,11 +497,15 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
 
     return seasonAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => const ViroErrorState(),
+      error: (error, stackTrace) => ViroErrorState(
+        onRetry: () => ref.invalidate(activeSeasonProvider(widget.clubId)),
+      ),
       data: (season) {
         return clubAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => const ViroErrorState(),
+          error: (error, stackTrace) => ViroErrorState(
+            onRetry: () => ref.invalidate(clubProvider(widget.clubId)),
+          ),
           data: (club) {
             if (club == null) {
               return Center(child: Text(AppCopy.fees.clubNotFound));

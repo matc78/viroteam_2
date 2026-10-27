@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
@@ -147,13 +148,7 @@ class _FeeReminderCardState extends State<_FeeReminderCard>
             : palette.surfaceCard,
         borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
         border: Border.all(color: borderColor, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: ViroMotion.accentBorderTileShadow(palette, borderColor),
       ),
       child: ViroPressable(
         onTap: widget.onTap,

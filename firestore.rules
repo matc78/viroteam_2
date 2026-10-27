@@ -307,6 +307,13 @@ service cloud.firestore {
         && resource.data.get('email', '') == authEmail();
     }
 
+/// Invitation rattachée à la fiche du compte connecté (ex. invite parent
+    /// vue depuis « Mon parent » sur la fiche club du joueur).
+    function isOwnMemberInvite(clubId) {
+      return resource.data.get('memberId', '') is string
+        && ownsMemberDoc(clubId, resource.data.memberId);
+    }
+
     // ————————————————————————————————————————————————————————————
     // users
     // ————————————————————————————————————————————————————————————
@@ -420,7 +427,9 @@ service cloud.firestore {
 
       // ——— Invitations ———
       match /invitations/{inviteId} {
-        allow get, list: if isClubCoachOrAdmin(clubId) || isInvitee();
+        allow get, list: if isClubCoachOrAdmin(clubId)
+          || isInvitee()
+          || isOwnMemberInvite(clubId);
         // E-mail obligatoire pour member ; team/guardian uniquement via Cloud Functions.
         // Coach : seulement avec le droit `canInvitePlayers` (aligné sur
         // `createTeamInvite`), sinon il contournait le réglage de l'admin.

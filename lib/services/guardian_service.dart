@@ -108,10 +108,19 @@ class GuardianService {
       );
     }
 
-    final invitesSnap = await _invitations(clubId)
-        .where(FirestoreFields.memberId, isEqualTo: memberId)
-        .where(FirestoreFields.status, isEqualTo: InvitationStatus.pending)
-        .get();
+    // Joueur / titulaire : lit ses invites (règle isOwnMemberInvite). Si les
+    // règles refusent encore la liste, on tombe sur « pas de parent » plutôt
+    // qu’une erreur rouge (même tolérance que [MemberService.fetchClubParents]).
+    QuerySnapshot<Map<String, dynamic>> invitesSnap;
+    try {
+      invitesSnap = await _invitations(clubId)
+          .where(FirestoreFields.memberId, isEqualTo: memberId)
+          .where(FirestoreFields.status, isEqualTo: InvitationStatus.pending)
+          .get();
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') return empty;
+      rethrow;
+    }
     QueryDocumentSnapshot<Map<String, dynamic>>? pendingInvite;
     for (final doc in invitesSnap.docs) {
       final type = doc.data()[FirestoreFields.type] as String? ??

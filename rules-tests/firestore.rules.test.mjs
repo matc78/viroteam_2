@@ -438,6 +438,33 @@ test("l'admin du club lit ses invitations", async () => {
   await assertSucceeds(getDocs(collection(as(ADMIN), `clubs/${CLUB}/invitations`)));
 });
 
+test("le joueur lit les invitations parent de sa propre fiche", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/invitations/invGuardianOwn`), {
+      code: "PAR456",
+      status: "pending",
+      type: "guardian",
+      memberId: PLAYER.uid,
+      email: "parent-of-player@club.fr",
+      clubId: CLUB,
+    });
+  });
+  await assertSucceeds(
+    getDoc(doc(as(PLAYER), `clubs/${CLUB}/invitations/invGuardianOwn`)),
+  );
+  const q = query(
+    collection(as(PLAYER), `clubs/${CLUB}/invitations`),
+    where("memberId", "==", PLAYER.uid),
+    where("status", "==", "pending"),
+  );
+  const snap = await assertSucceeds(getDocs(q));
+  assert.equal(snap.size, 1);
+});
+
+test("le joueur ne lit pas les invitations d'une autre fiche", async () => {
+  await assertFails(getDoc(doc(as(PLAYER), `clubs/${CLUB}/invitations/inv1`)));
+});
+
 test("l'invité décline son invitation mais ne peut pas l'accepter lui-même", async () => {
   await assertFails(
     updateDoc(doc(as(INVITEE), `clubs/${CLUB}/invitations/inv1`), { status: "accepted" }),

@@ -130,13 +130,23 @@ export async function getMemberGuardian(
     };
   }
 
-  const invitesSnap = await getDocs(
-    query(
-      invitationsCol(clubId),
-      where(Fields.memberId, "==", memberId),
-      where(Fields.status, "==", InvitationStatus.pending),
-    ),
-  );
+  // Titulaire de la fiche : lit ses invites (règle isOwnMemberInvite). Si la
+  // liste est encore refusée, on renvoie « pas de parent » plutôt qu’une erreur.
+  let invitesSnap;
+  try {
+    invitesSnap = await getDocs(
+      query(
+        invitationsCol(clubId),
+        where(Fields.memberId, "==", memberId),
+        where(Fields.status, "==", InvitationStatus.pending),
+      ),
+    );
+  } catch (error: unknown) {
+    if ((error as { code?: string })?.code === "permission-denied") {
+      return empty;
+    }
+    throw error;
+  }
   const pendingInvite = invitesSnap.docs.find(
     (inviteDoc) =>
       String(inviteDoc.data()[Fields.type] ?? "") === InvitationTypes.guardian,

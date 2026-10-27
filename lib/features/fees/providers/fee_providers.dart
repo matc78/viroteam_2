@@ -7,6 +7,7 @@ import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 /// Rappel cotisation affiché sur la home.
 class HomeFeeReminderItem {
@@ -160,7 +161,7 @@ final homeFeeRemindersProvider =
       clubStreams.add(
         eventService
             .watchClubMember(clubId: club.id, uid: authUid)
-            .asyncExpand((member) {
+            .switchMap((member) {
           if (member == null) {
             return Stream.value(<HomeFeeReminderItem>[]);
           }

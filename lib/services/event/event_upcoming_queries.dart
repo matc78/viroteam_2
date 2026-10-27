@@ -5,6 +5,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/event/event_paths.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 /// Streams « planning à venir » (joueur, coach, parent, multi-clubs).
 class EventUpcomingQueries {
@@ -83,7 +84,7 @@ class EventUpcomingQueries {
         .teams(clubId)
         .where(FirestoreFields.coachIds, arrayContains: authUid)
         .snapshots()
-        .asyncExpand((teamsSnap) {
+        .switchMap((teamsSnap) {
       final teamIds = teamsSnap.docs.map((d) => d.id).toList();
       if (teamIds.isEmpty) return Stream.value(<ClubEvent>[]);
 
@@ -161,7 +162,7 @@ class EventUpcomingQueries {
     required String audienceId,
     required String authUid,
   }) {
-    return _paths.teams(clubId).snapshots().asyncExpand((teamsSnap) {
+    return _paths.teams(clubId).snapshots().switchMap((teamsSnap) {
       final playerTeamIds = <String>[];
       final playerTeamNames = <String>{};
 
@@ -332,7 +333,7 @@ class EventUpcomingQueries {
       );
     }).toList();
 
-    return combineLatestListStreams(audienceStreams).asyncExpand((entries) {
+    return combineLatestListStreams(audienceStreams).switchMap((entries) {
       final audienceByClub = Map<String, String>.fromEntries(entries);
 
       final eventStreams = clubIds.map((clubId) {

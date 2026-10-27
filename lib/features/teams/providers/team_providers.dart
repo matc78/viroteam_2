@@ -4,6 +4,7 @@ import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart'
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 final myTeamsProvider =
     StreamProvider.family<List<ClubTeam>, String>((ref, clubId) {
@@ -40,7 +41,7 @@ final clubTeamsProvider =
 Stream<List<ClubTeam>> _watchGuardianChildTeams(Ref ref, String clubId) {
   return Stream.fromFuture(
     ref.watch(guardianChildTeamIdsProvider(clubId).future),
-  ).asyncExpand(
+  ).switchMap(
     (childTeamIds) => ref.read(teamServiceProvider).watchTeamsByIds(
           clubId: clubId,
           teamIds: childTeamIds,

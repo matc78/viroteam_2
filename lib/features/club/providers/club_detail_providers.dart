@@ -13,6 +13,7 @@ import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 class ClubEventsState {
   const ClubEventsState({
@@ -159,7 +160,7 @@ final clubEventsForMemberProvider = StreamProvider.family<ClubEventsState,
         clubId: params.clubId,
         memberId: params.memberId,
       ),
-    ).asyncExpand(
+    ).switchMap(
       (child) => eventService.watchUpcomingEventsForGuardian(
         clubId: params.clubId,
         childTeamIds: child?.teamIds ?? const [],

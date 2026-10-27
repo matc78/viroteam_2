@@ -10,6 +10,7 @@ import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 /// Annonce active sur la home avec contexte club.
 class HomeAnnouncementItem {
@@ -34,7 +35,7 @@ final clubAnnouncementsProvider =
   if (ref.watch(isGuardianOnlyInClubProvider(clubId))) {
     return Stream.fromFuture(
       ref.watch(guardianChildTeamIdsProvider(clubId).future),
-    ).asyncExpand(
+    ).switchMap(
       (childTeamIds) =>
           ref.read(announcementServiceProvider).watchAnnouncementsForGuardian(
                 clubId: clubId,
@@ -133,7 +134,7 @@ final homeActiveAnnouncementsProvider =
           clubId: club.id,
           memberId: entry.parentLinks.first.memberId,
         ),
-      ).asyncExpand((child) {
+      ).switchMap((child) {
         final childTeamIds = child?.teamIds ?? const <String>[];
         final teams = teamsByClub[club.id]?.values.toList() ?? [];
         return announcementService
@@ -162,7 +163,7 @@ final homeActiveAnnouncementsProvider =
       });
     }
 
-    return eventService.watchClubMember(clubId: club.id, uid: authUid).asyncExpand(
+    return eventService.watchClubMember(clubId: club.id, uid: authUid).switchMap(
       (member) {
         final dismissed =
             member?.dismissedAnnouncementIds.toSet() ?? <String>{};

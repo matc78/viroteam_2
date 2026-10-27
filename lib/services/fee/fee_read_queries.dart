@@ -3,6 +3,7 @@ import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/services/fee/fee_paths.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 /// Lectures Firestore cotisations (saisons, fiches et ledger).
 class FeeReadQueries {
@@ -87,7 +88,7 @@ class FeeReadQueries {
     required String clubId,
     required String memberId,
   }) {
-    return watchActiveSeason(clubId).asyncExpand((season) {
+    return watchActiveSeason(clubId).switchMap((season) {
       if (season == null) {
         return Stream.value((fee: null, season: null));
       }

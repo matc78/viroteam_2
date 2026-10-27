@@ -4,6 +4,7 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 class MemberEventsState {
   const MemberEventsState({
@@ -36,7 +37,7 @@ final memberEventsProvider = StreamProvider<MemberEventsState>((ref) {
     );
   }).toList();
 
-  return combineLatestListStreams(audienceStreams).asyncExpand((entries) {
+  return combineLatestListStreams(audienceStreams).switchMap((entries) {
     final audienceByClub = Map<String, String>.fromEntries(entries);
 
     return eventService

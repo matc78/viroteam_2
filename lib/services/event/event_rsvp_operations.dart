@@ -6,6 +6,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/event/event_paths.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 /// RSVP, appel coach, résolution d'audience et stats de présence.
 class EventRsvpOperations {
@@ -134,7 +135,7 @@ class EventRsvpOperations {
   }) {
     final accountIndexRef = _paths.memberAccountRef(clubId, uid);
 
-    return accountIndexRef.snapshots().asyncExpand((indexSnap) {
+    return accountIndexRef.snapshots().switchMap((indexSnap) {
       String? linkedMemberId;
       if (indexSnap.exists) {
         final indexData = indexSnap.data();

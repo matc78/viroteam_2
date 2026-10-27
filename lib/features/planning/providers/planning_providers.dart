@@ -10,6 +10,7 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/event_service.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 final clubPlanningEventsProvider =
     StreamProvider.family<List<ClubEvent>, ({String clubId, DateTime day})>(
@@ -73,7 +74,7 @@ final memberClubPlanningEventsProvider = StreamProvider.family<
     final childEvents = ref.watch(isGuardianOnlyInClubProvider(params.clubId))
         ? Stream.fromFuture(
             ref.watch(clubAudienceMemberProvider(params.clubId).future),
-          ).asyncExpand(
+          ).switchMap(
             (child) => eventService.watchUpcomingEventsForGuardian(
               clubId: params.clubId,
               childTeamIds: child?.teamIds ?? const [],

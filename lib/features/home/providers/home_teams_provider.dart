@@ -5,6 +5,7 @@ import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
+import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 /// Équipes de tous les clubs de l'utilisateur (aperçu home multi-clubs).
 final homeClubTeamsProvider =
@@ -32,7 +33,7 @@ final homeClubTeamsProvider =
           user: user,
           clubId: clubId,
         ),
-      ).asyncExpand(
+      ).switchMap(
         (childTeamIds) => teamService
             .watchTeamsByIds(clubId: clubId, teamIds: childTeamIds)
             .map(toEntry),

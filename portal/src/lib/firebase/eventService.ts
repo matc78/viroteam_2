@@ -187,6 +187,34 @@ export function dateOnly(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+/**
+ * Jour calendaire d'un événement (minuit local), indépendant du fuseau du
+ * navigateur : `dateId` d'abord, sinon jour UTC le plus proche du timestamp
+ * (écriture actuelle = minuit UTC, legacy = minuit Europe → 22h/23h UTC la veille).
+ * Miroir de `ClubEvent.calendarDateFromFirestore` côté app.
+ */
+export function eventCalendarDate(data: Record<string, unknown>): Date | null {
+  const dateId = data[Fields.dateId];
+  if (typeof dateId === "string" && /^\d{8}$/.test(dateId)) {
+    return new Date(
+      Number(dateId.slice(0, 4)),
+      Number(dateId.slice(4, 6)) - 1,
+      Number(dateId.slice(6, 8)),
+    );
+  }
+  const stored = toDate(data[Fields.date]);
+  if (!stored) {
+    const start = toDate(data[Fields.startTime]);
+    return start ? dateOnly(start) : null;
+  }
+  const roundUp = stored.getUTCHours() >= 12 ? 1 : 0;
+  return new Date(
+    stored.getUTCFullYear(),
+    stored.getUTCMonth(),
+    stored.getUTCDate() + roundUp,
+  );
+}
+
 /** Fusionne une date calendaire avec une heure `HH:mm`. */
 export function combineDateAndTime(date: Date, time?: string | null): Date {
   const result = dateOnly(date);
@@ -265,7 +293,7 @@ export function parseClubEvent(
   teamNameById: Map<string, string> = new Map(),
 ): ClubEventView | null {
   if (data[Fields.canceled] === true) return null;
-  const eventDate = toDate(data[Fields.date]) ?? toDate(data[Fields.startTime]);
+  const eventDate = eventCalendarDate(data);
   if (!eventDate) return null;
 
   const teamIds = Array.isArray(data[Fields.teamIds])
@@ -678,7 +706,7 @@ export async function syncUpcomingEventsAudienceFromTeams(
 
   for (const { id, data } of raw) {
     if (data[Fields.canceled] === true) continue;
-    const eventDate = toDate(data[Fields.date]) ?? toDate(data[Fields.startTime]);
+    const eventDate = eventCalendarDate(data);
     if (!eventDate || dateOnly(eventDate).getTime() < today.getTime()) continue;
 
     const eventTeamIds = Array.isArray(data[Fields.teamIds])
@@ -967,8 +995,7 @@ async function queryUpcomingTeamEventsForGuardian(
         data: docSnap.data() as Record<string, unknown>,
       }))
       .filter(({ data }) => {
-        const eventDate =
-          toDate(data[Fields.date]) ?? toDate(data[Fields.startTime]);
+        const eventDate = eventCalendarDate(data);
         return (
           eventDate !== null &&
           dateOnly(eventDate).getTime() >= today.getTime()
@@ -1058,8 +1085,7 @@ async function queryTeamEventsInRangeForGuardian(
         data: docSnap.data() as Record<string, unknown>,
       }))
       .filter(({ data }) => {
-        const eventDate =
-          toDate(data[Fields.date]) ?? toDate(data[Fields.startTime]);
+        const eventDate = eventCalendarDate(data);
         if (!eventDate) return false;
         const dayMs = dateOnly(eventDate).getTime();
         return dayMs >= startMs && dayMs <= endMs;

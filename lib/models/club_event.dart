@@ -10,18 +10,18 @@ enum RsvpStatus {
   no;
 
   static RsvpStatus fromString(String? value) => switch (value) {
-        'yes' => RsvpStatus.yes,
-        'maybe' => RsvpStatus.maybe,
-        'no' => RsvpStatus.no,
-        _ => RsvpStatus.none,
-      };
+    'yes' => RsvpStatus.yes,
+    'maybe' => RsvpStatus.maybe,
+    'no' => RsvpStatus.no,
+    _ => RsvpStatus.none,
+  };
 
   String get firestoreValue => switch (this) {
-        RsvpStatus.yes => 'yes',
-        RsvpStatus.maybe => 'maybe',
-        RsvpStatus.no => 'no',
-        RsvpStatus.none => 'none',
-      };
+    RsvpStatus.yes => 'yes',
+    RsvpStatus.maybe => 'maybe',
+    RsvpStatus.no => 'no',
+    RsvpStatus.none => 'none',
+  };
 }
 
 /// Statut d'appel coach (`attendance.{uid}.status`) — distinct du RSVP.
@@ -30,15 +30,15 @@ enum AttendanceStatus {
   absent;
 
   static AttendanceStatus? fromString(String? value) => switch (value) {
-        'present' || 'yes' => AttendanceStatus.present,
-        'absent' || 'no' => AttendanceStatus.absent,
-        _ => null,
-      };
+    'present' || 'yes' => AttendanceStatus.present,
+    'absent' || 'no' => AttendanceStatus.absent,
+    _ => null,
+  };
 
   String get firestoreValue => switch (this) {
-        AttendanceStatus.present => 'present',
-        AttendanceStatus.absent => 'absent',
-      };
+    AttendanceStatus.present => 'present',
+    AttendanceStatus.absent => 'absent',
+  };
 }
 
 /// Types d'événements club.
@@ -104,20 +104,21 @@ class ClubEvent {
   /// Joueurs retirés par le coach : ils ne voient pas l'événement.
   final List<String> excludedMemberIds;
   final Map<String, String> rsvp;
+
   /// Dernière modification RSVP par membre (`memberId` → date locale).
   final Map<String, DateTime> rsvpUpdatedAt;
+
   /// Première vue de l'événement sur la home par membre (`memberId` → date).
   final Map<String, DateTime> seenAt;
+
   /// Présences v1 (`attendance`) — utilisé si `rsvp` est vide.
   final Map<String, dynamic> legacyAttendance;
   final bool canceled;
   final String? seriesId;
 
-  bool get isRecurringSeries =>
-      seriesId != null && seriesId!.isNotEmpty;
+  bool get isRecurringSeries => seriesId != null && seriesId!.isNotEmpty;
 
-  RsvpStatus rsvpFor(String uid) =>
-      RsvpStatus.fromString(rsvp[uid]);
+  RsvpStatus rsvpFor(String uid) => RsvpStatus.fromString(rsvp[uid]);
 
   /// `true` si une des clés d'audience [keys] a été retirée par le coach.
   bool isExcludedFor(Iterable<String> keys) =>
@@ -135,12 +136,11 @@ class ClubEvent {
     String authUid, {
     String? clubAudienceId,
     Set<String>? memberAudienceKeys,
-  }) =>
-      _audienceKeysForUser(
-        authUid,
-        clubAudienceId: clubAudienceId,
-        memberAudienceKeys: memberAudienceKeys,
-      ).any(teamMemberIds.contains);
+  }) => _audienceKeysForUser(
+    authUid,
+    clubAudienceId: clubAudienceId,
+    memberAudienceKeys: memberAudienceKeys,
+  ).any(teamMemberIds.contains);
 
   RsvpStatus rsvpStatusForUser(
     String authUid, {
@@ -270,8 +270,11 @@ class ClubEvent {
       'match' => EventTypes.match,
       'tournament' || 'tournoi' => EventTypes.tournament,
       'meeting' || 'réunion' || 'reunion' => EventTypes.meeting,
-      'other' || 'autre' || 'évènement' || 'événement' || 'evenement' =>
-        EventTypes.other,
+      'other' ||
+      'autre' ||
+      'évènement' ||
+      'événement' ||
+      'evenement' => EventTypes.other,
       _ => raw != null && raw.isNotEmpty ? raw : EventTypes.other,
     };
   }
@@ -325,7 +328,8 @@ class ClubEvent {
     return false;
   }
 
-  bool get isUpcoming => !canceled && !date.isBefore(_startOfDay(DateTime.now()));
+  bool get isUpcoming =>
+      !canceled && !date.isBefore(_startOfDay(DateTime.now()));
 
   /// Jour calendaire de l'événement (indépendant du fuseau à la lecture).
   static DateTime calendarDateFromFirestore(Map<String, dynamic> data) {
@@ -341,13 +345,12 @@ class ClubEvent {
     final ts = data[FirestoreFields.date] as Timestamp?;
     if (ts == null) return _startOfDay(DateTime.now());
 
-    final local = ts.toDate();
-    // Legacy : minuit local (ex. Europe) → souvent J-1 à 22h en UTC à la lecture.
-    if (local.hour >= 22) {
-      final next = addCalendarDays(local, 1);
-      return DateTime(next.year, next.month, next.day);
-    }
-    return _startOfDay(local);
+    // Lecture en UTC, jamais dans le fuseau de l'appareil : l'écriture actuelle
+    // est minuit UTC du jour (sinon J-1 dès UTC-3), l'ancienne minuit Europe
+    // (22h/23h UTC la veille) → arrondi au jour UTC le plus proche.
+    final utc = ts.toDate().toUtc();
+    final utcDay = DateTime(utc.year, utc.month, utc.day);
+    return utc.hour >= 12 ? addCalendarDays(utcDay, 1) : utcDay;
   }
 
   factory ClubEvent.fromFirestore({
@@ -375,20 +378,22 @@ class ClubEvent {
       meetingTime: data[FirestoreFields.meetingTime] as String?,
       meetingLocation: data[FirestoreFields.meetingLocation] as String?,
       matchVenue: data[FirestoreFields.matchVenue] as String?,
-      teamIds: (data[FirestoreFields.teamIds] as List<dynamic>?)
+      teamIds:
+          (data[FirestoreFields.teamIds] as List<dynamic>?)
               ?.whereType<String>()
               .toList() ??
           [],
       allTeams: data[FirestoreFields.allTeams] as bool? ?? false,
-      teamMemberIds: (data[FirestoreFields.teamMemberIds] as List<dynamic>?)
+      teamMemberIds:
+          (data[FirestoreFields.teamMemberIds] as List<dynamic>?)
               ?.whereType<String>()
               .toList() ??
           [],
       excludedMemberIds:
           (data[FirestoreFields.excludedMemberIds] as List<dynamic>?)
-                  ?.whereType<String>()
-                  .toList() ??
-              [],
+              ?.whereType<String>()
+              .toList() ??
+          [],
       rsvp: rsvpRaw.map((k, v) => MapEntry(k, v.toString())),
       rsvpUpdatedAt: _parseTimestampMap(rsvpUpdatedAtRaw),
       seenAt: _parseTimestampMap(seenAtRaw),
@@ -399,9 +404,7 @@ class ClubEvent {
   }
 
   /// Map Firestore `memberId → Timestamp` → dates (valeurs invalides ignorées).
-  static Map<String, DateTime> _parseTimestampMap(
-    Map<String, dynamic> raw,
-  ) {
+  static Map<String, DateTime> _parseTimestampMap(Map<String, dynamic> raw) {
     final result = <String, DateTime>{};
     for (final entry in raw.entries) {
       final value = entry.value;
@@ -414,6 +417,5 @@ class ClubEvent {
     return result;
   }
 
-  static DateTime _startOfDay(DateTime d) =>
-      DateTime(d.year, d.month, d.day);
+  static DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
 }

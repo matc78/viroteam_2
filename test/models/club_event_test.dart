@@ -35,23 +35,35 @@ void main() {
       );
     });
 
-    test('sans dateId, timestamp hour >= 22 → jour suivant', () {
-      final eveningUtcLegacy = Timestamp.fromDate(
-        DateTime(2026, 5, 18, 22, 0),
-      );
+    test('sans dateId, minuit UTC → même jour, quel que soit le fuseau', () {
       expect(
         ClubEvent.calendarDateFromFirestore({
-          FirestoreFields.date: eveningUtcLegacy,
+          FirestoreFields.date: Timestamp.fromDate(DateTime.utc(2026, 5, 19)),
         }),
         DateTime(2026, 5, 19),
       );
     });
 
-    test('sans dateId, timestamp matin → même jour', () {
-      final morning = Timestamp.fromDate(DateTime(2026, 5, 19, 9, 0));
+    test(
+      'sans dateId, legacy minuit Europe (22h UTC la veille) → jour suivant',
+      () {
+        expect(
+          ClubEvent.calendarDateFromFirestore({
+            FirestoreFields.date: Timestamp.fromDate(
+              DateTime.utc(2026, 5, 18, 22),
+            ),
+          }),
+          DateTime(2026, 5, 19),
+        );
+      },
+    );
+
+    test('sans dateId, timestamp en matinée UTC → même jour', () {
       expect(
         ClubEvent.calendarDateFromFirestore({
-          FirestoreFields.date: morning,
+          FirestoreFields.date: Timestamp.fromDate(
+            DateTime.utc(2026, 5, 19, 9),
+          ),
         }),
         DateTime(2026, 5, 19),
       );
@@ -72,9 +84,7 @@ void main() {
     });
 
     test('ne reprend pas le RSVP d\'un autre joueur', () {
-      final event = _event(
-        rsvp: {'playerB': 'yes'},
-      );
+      final event = _event(rsvp: {'playerB': 'yes'});
       expect(
         event.rsvpStatusForUser(
           'coachUid',
@@ -86,9 +96,7 @@ void main() {
     });
 
     test('lit le RSVP sous la clé membre du club', () {
-      final event = _event(
-        rsvp: {'coachMemberId': 'yes'},
-      );
+      final event = _event(rsvp: {'coachMemberId': 'yes'});
       expect(
         event.rsvpStatusForUser(
           'coachUid',
@@ -101,16 +109,10 @@ void main() {
 
     test('lit la présence legacy v1 pour l\'utilisateur uniquement', () {
       final event = _event(
-        legacyAttendance: {
-          'coachMemberId': 'none',
-          'playerB': 'present',
-        },
+        legacyAttendance: {'coachMemberId': 'none', 'playerB': 'present'},
       );
       expect(
-        event.rsvpStatusForUser(
-          'coachUid',
-          clubAudienceId: 'coachMemberId',
-        ),
+        event.rsvpStatusForUser('coachUid', clubAudienceId: 'coachMemberId'),
         RsvpStatus.none,
       );
     });
@@ -149,19 +151,13 @@ void main() {
 
     test('retrouve la vue sous un alias du membre', () {
       final event = _event(seenAt: {'playerA': seen});
-      expect(
-        event.seenAtForUser('uidA', clubAudienceId: 'playerA'),
-        seen,
-      );
+      expect(event.seenAtForUser('uidA', clubAudienceId: 'playerA'), seen);
       expect(event.awaitsSeenBy('uidA', clubAudienceId: 'playerA'), isFalse);
     });
 
     test('awaitsSeenBy : vrai sans réponse ni vue, faux après réponse', () {
       expect(_event().awaitsSeenBy('playerA'), isTrue);
-      expect(
-        _event(rsvp: {'playerA': 'yes'}).awaitsSeenBy('playerA'),
-        isFalse,
-      );
+      expect(_event(rsvp: {'playerA': 'yes'}).awaitsSeenBy('playerA'), isFalse);
     });
   });
 }

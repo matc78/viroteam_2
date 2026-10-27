@@ -14,6 +14,9 @@ abstract final class ViroIcons {
   static IconData get arrowDown => PhosphorIconsRegular.arrowDown;
   static IconData get chevronRight => PhosphorIconsRegular.caretRight;
   static IconData get chevronLeft => PhosphorIconsRegular.caretLeft;
+  static IconData get chevronDown => PhosphorIconsRegular.caretDown;
+  static IconData get chevronUp => PhosphorIconsRegular.caretUp;
+  static IconData get club => PhosphorIconsRegular.buildings;
   static IconData get close => PhosphorIconsRegular.x;
   static IconData get appUpdate => PhosphorIconsRegular.downloadSimple;
 
@@ -46,6 +49,7 @@ abstract final class ViroIcons {
   static IconData get xCircle => PhosphorIconsFill.xCircle;
   static IconData get search => PhosphorIconsRegular.magnifyingGlass;
   static IconData get copy => PhosphorIconsRegular.copy;
+  static IconData get download => PhosphorIconsRegular.downloadSimple;
   static IconData get envelope => PhosphorIconsRegular.envelopeSimple;
   static IconData get moreVertical => PhosphorIconsRegular.dotsThreeVertical;
   static IconData get eye => PhosphorIconsRegular.eye;
@@ -76,6 +80,10 @@ abstract final class ViroIcons {
   static IconData get google => PhosphorIconsFill.googleLogo;
   static IconData get share => PhosphorIconsRegular.shareNetwork;
   static IconData get calendarPlus => PhosphorIconsRegular.calendarPlus;
+  /// Synchro du planning avec l'agenda du téléphone (distinct du « + »).
+  static IconData get calendarSync => PhosphorIconsRegular.arrowsClockwise;
+  /// Retour au jour courant dans un planning.
+  static IconData get today => PhosphorIconsRegular.calendarDot;
 
   // Messagerie (menu conversation / actions)
   static IconData get mute => PhosphorIconsRegular.bellSlash;
@@ -108,6 +116,8 @@ abstract final class ViroIcons {
             ('add', add),
             ('arrowUp', arrowUp),
             ('chevronRight', chevronRight),
+            ('chevronDown', chevronDown),
+            ('club', club),
             ('close', close),
             ('appUpdate', appUpdate),
           ],
@@ -145,6 +155,7 @@ abstract final class ViroIcons {
             ('xCircle', xCircle),
             ('search', search),
             ('copy', copy),
+            ('download', download),
             ('info', info),
             ('poll', poll),
           ],

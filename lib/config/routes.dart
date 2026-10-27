@@ -60,6 +60,11 @@ import 'package:viro_team_v2/features/join/screens/join_code_screen.dart';
 
 import 'package:viro_team_v2/features/join/screens/request_role_screen.dart';
 
+import 'package:viro_team_v2/features/settings/screens/account_settings_screen.dart';
+import 'package:viro_team_v2/features/settings/screens/appearance_settings_screen.dart';
+import 'package:viro_team_v2/features/settings/screens/delete_account_screen.dart';
+import 'package:viro_team_v2/features/settings/screens/notification_settings_screen.dart';
+import 'package:viro_team_v2/features/settings/screens/privacy_settings_screen.dart';
 import 'package:viro_team_v2/features/settings/screens/user_settings_screen.dart';
 
 import 'package:viro_team_v2/providers/session_provider.dart';
@@ -95,6 +100,16 @@ abstract final class AppRoutes {
   static const profile = '/profile';
 
   static const userSettings = '/settings';
+
+  static const settingsAccount = '/settings/account';
+
+  static const settingsDeleteAccount = '/settings/account/delete';
+
+  static const settingsNotifications = '/settings/notifications';
+
+  static const settingsAppearance = '/settings/appearance';
+
+  static const settingsPrivacy = '/settings/privacy';
 
   static const clubs = '/clubs';
 
@@ -651,6 +666,46 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.userSettings,
 
         builder: (context, state) => const UserSettingsScreen(),
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.settingsAccount,
+
+        builder: (context, state) => const AccountSettingsScreen(),
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.settingsDeleteAccount,
+
+        builder: (context, state) => const DeleteAccountScreen(),
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.settingsNotifications,
+
+        builder: (context, state) => const NotificationSettingsScreen(),
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.settingsAppearance,
+
+        builder: (context, state) => const AppearanceSettingsScreen(),
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.settingsPrivacy,
+
+        builder: (context, state) => const PrivacySettingsScreen(),
 
       ),
 

@@ -6,8 +6,6 @@ final class AppCopySettings {
 
   String get screenTitle => 'Paramètres';
   String get myAccount => 'Mon compte';
-  String get myAccountSubtitle =>
-      'Avatar, identité et sécurité de ton compte ViroTeam.';
   String get editProfile => 'Modifier le profil';
   String get email => 'E-mail';
   String get password => 'Mot de passe';
@@ -22,6 +20,17 @@ final class AppCopySettings {
       'Aucun club pour l’instant — crée le tien ou rejoins-en un.';
   String get loadProfileError => 'Impossible de charger le profil';
   String get loadClubsError => 'Impossible de charger les clubs';
+
+  String get categoryAccount => 'Compte et sécurité';
+  String get categoryAccountSubtitle => 'Profil, e-mail, mot de passe';
+  String get categoryNotifications => 'Notifications';
+  String get categoryNotificationsSubtitle =>
+      'Convocations, annonces, messages';
+  String get categoryAppearance => 'Apparence';
+  String get categoryPrivacy => 'Confidentialité';
+  String get categoryPrivacySubtitle =>
+      'Mesure d’audience et documents légaux';
+  String appVersionLabel(String version) => 'ViroTeam $version';
 
   String get appearanceSection => 'Apparence';
   String get appearanceSubtitle =>
@@ -96,27 +105,38 @@ final class AppCopySettings {
   String get notifOffWarningDefault =>
       'Tu ne recevras plus ce type de notification.';
 
-  String get sessionSection => 'Session';
-  String get sessionSubtitle =>
-      'Actions sensibles — une confirmation te sera demandée.';
   String get signOut => 'Se déconnecter';
-  String get signOutSubtitle => 'Quitter la session sur cet appareil';
   String get signOutDialogBody => 'Tu quittes la session sur cet appareil. '
       'Tu pourras te reconnecter à tout moment avec le même compte.';
   String get signOutFailed => 'Déconnexion impossible';
-  String get deleteAccountTitle => 'Supprimer le compte';
-  String get deleteAccountAction => 'Supprimer';
+
+  String get dangerZoneSection => 'Zone sensible';
+  String get dangerZoneSubtitle => 'Ces actions sont définitives.';
   String get deleteMyAccount => 'Supprimer mon compte';
-  String get deleteAccountSubtitle => 'Action irréversible';
-  String get deleteAccountDialogBody =>
-      'Action irréversible. Ton compte Auth sera supprimé. '
-      'Les données club ne sont pas purgées automatiquement.';
-  String get deleteAccountConfirmCheckbox =>
-      'Je confirme vouloir supprimer mon compte';
+  String get deleteAccountSubtitle =>
+      'Efface ton compte et tes données personnelles';
+  String get deleteAccountIntro =>
+      'La suppression est définitive : ton compte ne pourra pas être récupéré.';
+  String get deleteAccountWhatHappens => 'Ce qui va se passer';
+  String get deletePointProfile =>
+      'Ton profil, ton avatar et tes préférences sont effacés.';
+  String get deletePointClubs =>
+      'Dans tes clubs, ta fiche est anonymisée : ton nom disparaît, '
+      'l’historique des événements reste.';
+  String get deletePointLinks =>
+      'Tes invitations en attente sont annulées et tes liens parent retirés.';
+  String get deletePointSignIn =>
+      'Tu ne pourras plus te connecter avec ce compte.';
+  String get deleteAccountAdminWarning =>
+      'Tu es admin d’un club. Si tu es le seul, nomme d’abord un autre admin : '
+      'sinon la suppression sera refusée.';
+  String get deleteConfirmWord => 'SUPPRIMER';
+  String get deleteConfirmLabel => 'Tape SUPPRIMER pour confirmer';
+  String get deleteAccountFinalAction => 'Supprimer définitivement';
   String get googleConfirmWindow =>
-      'Une fenêtre Google s’ouvrira pour confirmer.';
+      'Une fenêtre Google s’ouvrira pour confirmer ton identité.';
   String get appleConfirmWindow =>
-      'Une fenêtre Apple s’ouvrira pour confirmer.';
+      'Une fenêtre Apple s’ouvrira pour confirmer ton identité.';
   String get currentPassword => 'Mot de passe actuel';
   String get wrongPassword => 'Mot de passe incorrect';
   String get deleteFailed => 'Suppression impossible';

@@ -9,8 +9,12 @@ import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/lists/settings_list_tile.dart';
 
 /// Section paramètres : choix du thème (Système / Clair / Sombre).
+///
+/// [showTitle] à `false` quand l'AppBar porte déjà le titre (sous-page).
 class AppearanceSettingsSection extends ConsumerWidget {
-  const AppearanceSettingsSection({super.key});
+  const AppearanceSettingsSection({super.key, this.showTitle = true});
+
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,14 +50,16 @@ class AppearanceSettingsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          AppCopy.settings.appearanceSection,
-          style: theme.titleSmall?.copyWith(
-            color: palette.brandText,
-            fontWeight: FontWeight.w700,
+        if (showTitle) ...[
+          Text(
+            AppCopy.settings.appearanceSection,
+            style: theme.titleSmall?.copyWith(
+              color: palette.brandText,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(height: ViroSpacing.xs),
+          const SizedBox(height: ViroSpacing.xs),
+        ],
         Text(
           AppCopy.settings.appearanceSubtitle,
           style: theme.bodySmall?.copyWith(color: palette.textSecondary),

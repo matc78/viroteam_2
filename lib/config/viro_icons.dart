@@ -55,6 +55,8 @@ abstract final class ViroIcons {
   // Compte
   static IconData get user => PhosphorIconsRegular.user;
   static IconData get logout => PhosphorIconsRegular.signOut;
+  static IconData get privacy => PhosphorIconsRegular.shieldCheck;
+  static IconData get warning => PhosphorIconsRegular.warning;
   static IconData get bell => PhosphorIconsRegular.bell;
   static IconData get payments => PhosphorIconsRegular.currencyEur;
   static IconData get image => PhosphorIconsRegular.image;
@@ -169,6 +171,8 @@ abstract final class ViroIcons {
           icons: [
             ('user', user),
             ('logout', logout),
+            ('privacy', privacy),
+            ('warning', warning),
             ('bell', bell),
             ('image', image),
             ('themeLight', themeLight),

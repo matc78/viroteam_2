@@ -3,6 +3,8 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 
 /// Tuile standard pour les listes de paramètres (icône, titre, chevron).
+///
+/// [destructive] colore icône et titre en rouge (actions définitives).
 class SettingsListTile extends StatelessWidget {
   const SettingsListTile({
     super.key,
@@ -12,6 +14,7 @@ class SettingsListTile extends StatelessWidget {
     this.onTap,
     this.showDivider = true,
     this.trailing,
+    this.destructive = false,
   });
 
   final String title;
@@ -20,11 +23,13 @@ class SettingsListTile extends StatelessWidget {
   final VoidCallback? onTap;
   final bool showDivider;
   final Widget? trailing;
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
+    final foreground = destructive ? palette.errorText : palette.brandText;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -34,9 +39,14 @@ class SettingsListTile extends StatelessWidget {
           child: ListTile(
             contentPadding: EdgeInsets.zero,
             leading: icon != null
-                ? ViroIcon(icon!, color: palette.brandText, size: 22)
+                ? ViroIcon(icon!, color: foreground, size: 22)
                 : null,
-            title: Text(title),
+            title: Text(
+              title,
+              style: destructive
+                  ? TextStyle(color: foreground, fontWeight: FontWeight.w600)
+                  : null,
+            ),
             subtitle: subtitle != null
                 ? Text(
                     subtitle!,

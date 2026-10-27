@@ -24,6 +24,14 @@ void main() {
       expect(AppRoutes.userSettings, '/settings');
       expect(AppRoutes.profile, '/profile');
     });
+
+    test('les sous-pages vivent sous /settings', () {
+      expect(AppRoutes.settingsAccount, '/settings/account');
+      expect(AppRoutes.settingsDeleteAccount, '/settings/account/delete');
+      expect(AppRoutes.settingsNotifications, '/settings/notifications');
+      expect(AppRoutes.settingsAppearance, '/settings/appearance');
+      expect(AppRoutes.settingsPrivacy, '/settings/privacy');
+    });
   });
 
   group('AppRoutes mise à jour obligatoire', () {

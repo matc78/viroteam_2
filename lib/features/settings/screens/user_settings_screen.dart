@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
@@ -8,17 +9,11 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
-import 'package:viro_team_v2/features/settings/widgets/account_session_section.dart';
-import 'package:viro_team_v2/features/settings/widgets/analytics_settings_section.dart';
-import 'package:viro_team_v2/features/settings/widgets/appearance_settings_section.dart';
-import 'package:viro_team_v2/features/settings/widgets/change_email_sheet.dart';
-import 'package:viro_team_v2/features/settings/widgets/change_password_sheet.dart';
-import 'package:viro_team_v2/features/settings/widgets/edit_profile_sheet.dart';
-import 'package:viro_team_v2/features/settings/widgets/notification_preferences_section.dart';
+import 'package:viro_team_v2/features/settings/providers/theme_mode_provider.dart';
+import 'package:viro_team_v2/features/settings/widgets/settings_section_header.dart';
+import 'package:viro_team_v2/features/settings/widgets/sign_out_button.dart';
 import 'package:viro_team_v2/features/settings/widgets/user_settings_avatar.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
-import 'package:viro_team_v2/services/account_service.dart';
-import 'package:viro_team_v2/utils/portal_links.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
@@ -26,7 +21,8 @@ import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/club_list_tile.dart';
 import 'package:viro_team_v2/widgets/lists/settings_list_tile.dart';
 
-/// Hub paramètres utilisateur : compte, clubs, légal, session.
+/// Hub paramètres utilisateur : profil, catégories (sous-pages), clubs,
+/// puis déconnexion discrète en bas.
 class UserSettingsScreen extends ConsumerStatefulWidget {
   const UserSettingsScreen({super.key});
 
@@ -56,15 +52,8 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
     final palette = context.viroPalette;
     final userAsync = ref.watch(viroUserProvider);
     final clubsAsync = ref.watch(userClubsProvider);
+    final themeMode = ref.watch(themeModeProvider);
     final theme = Theme.of(context).textTheme;
-    final firebaseUser = ref.watch(authStateProvider).value;
-    final passwordAccount = firebaseUser != null &&
-        AccountService.userHasPasswordProvider(firebaseUser);
-    final reauthWithApple = firebaseUser != null &&
-        AccountService.reauthUsesApple(firebaseUser);
-    final providerLabels = firebaseUser != null
-        ? AccountService.authProviderLabels(firebaseUser)
-        : const <String>[];
 
     return ViroScaffold(
       fallbackRoute: AppRoutes.home,
@@ -141,20 +130,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: ViroSpacing.xl),
-                Text(
-                  AppCopy.settings.myAccount,
-                  style: theme.titleSmall?.copyWith(
-                    color: palette.brandText,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: ViroSpacing.xs),
-                Text(
-                  AppCopy.settings.myAccountSubtitle,
-                  style: theme.bodySmall?.copyWith(color: palette.textSecondary),
-                ),
-                const SizedBox(height: ViroSpacing.sm),
+                const SizedBox(height: ViroSpacing.lg),
                 ViroCard(
                   padding: const EdgeInsets.symmetric(
                     horizontal: ViroSpacing.md,
@@ -163,51 +139,38 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                   child: Column(
                     children: [
                       SettingsListTile(
-                        title: AppCopy.settings.editProfile,
-                        icon: ViroIcons.edit,
-                        onTap: () => showEditProfileSheet(context, user: user),
+                        title: AppCopy.settings.categoryAccount,
+                        subtitle: AppCopy.settings.categoryAccountSubtitle,
+                        icon: ViroIcons.user,
+                        onTap: () => context.push(AppRoutes.settingsAccount),
                       ),
                       SettingsListTile(
-                        title: AppCopy.settings.email,
-                        subtitle: user.email,
-                        icon: ViroIcons.envelope,
-                        onTap: () => showChangeEmailSheet(
-                          context,
-                          user: user,
-                          passwordAccount: passwordAccount,
-                          reauthWithApple: reauthWithApple,
-                        ),
+                        title: AppCopy.settings.categoryNotifications,
+                        subtitle:
+                            AppCopy.settings.categoryNotificationsSubtitle,
+                        icon: ViroIcons.bell,
+                        onTap: () =>
+                            context.push(AppRoutes.settingsNotifications),
                       ),
-                      if (passwordAccount)
-                        SettingsListTile(
-                          title: AppCopy.settings.password,
-                          icon: ViroIcons.key,
-                          onTap: () => showChangePasswordSheet(context),
-                        ),
                       SettingsListTile(
-                        title: AppCopy.settings.connectionType,
-                        subtitle: providerLabels.join(' · '),
+                        title: AppCopy.settings.categoryAppearance,
+                        subtitle: _themeModeLabel(themeMode),
+                        icon: ViroIcons.themeSystem,
+                        onTap: () =>
+                            context.push(AppRoutes.settingsAppearance),
+                      ),
+                      SettingsListTile(
+                        title: AppCopy.settings.categoryPrivacy,
+                        subtitle: AppCopy.settings.categoryPrivacySubtitle,
+                        icon: ViroIcons.privacy,
                         showDivider: false,
-                        trailing: const SizedBox.shrink(),
+                        onTap: () => context.push(AppRoutes.settingsPrivacy),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: ViroSpacing.xl),
-                NotificationPreferencesSection(user: user),
-                const SizedBox(height: ViroSpacing.xl),
-                const AppearanceSettingsSection(),
-                const SizedBox(height: ViroSpacing.xl),
-                const AnalyticsSettingsSection(),
-                const SizedBox(height: ViroSpacing.xl),
-                Text(
-                  AppCopy.settings.myClubs,
-                  style: theme.titleSmall?.copyWith(
-                    color: palette.brandText,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: ViroSpacing.sm),
+                SettingsSectionHeader(title: AppCopy.settings.myClubs),
                 clubsAsync.when(
                   loading: () => const Padding(
                     padding: EdgeInsets.all(ViroSpacing.md),
@@ -237,42 +200,13 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                   },
                 ),
                 const SizedBox(height: ViroSpacing.xl),
+                const SignOutButton(),
+                const SizedBox(height: ViroSpacing.xs),
                 Text(
-                  AppCopy.settings.legalSection,
-                  style: theme.titleSmall?.copyWith(
-                    color: palette.brandText,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  AppCopy.settings.appVersionLabel(ProjectConfig.appVersionName),
+                  textAlign: TextAlign.center,
+                  style: theme.bodySmall?.copyWith(color: palette.textMuted),
                 ),
-                const SizedBox(height: ViroSpacing.sm),
-                ViroCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: ViroSpacing.md,
-                    vertical: ViroSpacing.xs,
-                  ),
-                  child: Column(
-                    children: [
-                      SettingsListTile(
-                        title: AppCopy.settings.termsOfService,
-                        onTap: () =>
-                            openPortalUrl(portalPageUrl('/legal/cgu')),
-                      ),
-                      SettingsListTile(
-                        title: AppCopy.settings.privacy,
-                        onTap: () =>
-                            openPortalUrl(portalPageUrl('/legal/privacy')),
-                      ),
-                      SettingsListTile(
-                        title: AppCopy.settings.legalMentions,
-                        showDivider: false,
-                        onTap: () =>
-                            openPortalUrl(portalPageUrl('/legal/mentions')),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: ViroSpacing.xl),
-                const AccountSessionSection(),
               ],
             ),
           );
@@ -280,4 +214,10 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
       ),
     );
   }
+
+  String _themeModeLabel(ThemeMode mode) => switch (mode) {
+        ThemeMode.system => AppCopy.settings.themeSystem,
+        ThemeMode.light => AppCopy.settings.themeLight,
+        ThemeMode.dark => AppCopy.settings.themeDark,
+      };
 }

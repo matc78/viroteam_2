@@ -17,10 +17,17 @@ import 'package:viro_team_v2/widgets/common/viro_card.dart';
 
 /// Section paramètres : toggles push (convocations / récap / réponses /
 /// annonces / cotisations / chat) et moment du bilan des réponses (coachs).
+///
+/// [showTitle] à `false` quand l'AppBar porte déjà le titre (sous-page).
 class NotificationPreferencesSection extends ConsumerWidget {
-  const NotificationPreferencesSection({super.key, required this.user});
+  const NotificationPreferencesSection({
+    super.key,
+    required this.user,
+    this.showTitle = true,
+  });
 
   final ViroUser user;
+  final bool showTitle;
 
   Future<void> _setPreference({
     required BuildContext context,
@@ -136,14 +143,16 @@ class NotificationPreferencesSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          AppCopy.settings.notificationsSection,
-          style: theme.titleSmall?.copyWith(
-            color: palette.brandText,
-            fontWeight: FontWeight.w700,
+        if (showTitle) ...[
+          Text(
+            AppCopy.settings.notificationsSection,
+            style: theme.titleSmall?.copyWith(
+              color: palette.brandText,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(height: ViroSpacing.xs),
+          const SizedBox(height: ViroSpacing.xs),
+        ],
         Text(
           AppCopy.settings.notificationsSubtitle,
           style: theme.bodySmall?.copyWith(color: palette.textSecondary),

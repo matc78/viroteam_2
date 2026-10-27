@@ -14,6 +14,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Paramètres : le hub ne montre plus que le profil, quatre catégories en sous-pages (Compte et sécurité, Notifications, Apparence, Confidentialité), les clubs et un bouton « Se déconnecter » discret en bas, avec la version de l’app
+- Suppression du compte : sortie du hub, elle est rangée dans la « Zone sensible » en bas de Compte et sécurité et passe par un écran dédié. Il explique ce qui est effacé ou anonymisé, prévient les admins de club et demande de taper « SUPPRIMER ». Il remplace la boîte de dialogue, dont le texte était inexact (« données club non purgées »).
 - Accueil : avec un seul club, l’accès au club en bas d’écran devient une grande pastille (logo, nom du club, « Ouvrir le club ») au lieu du petit logo à côté du +
 - Notifications « événement modifié » : les corrections sont regroupées pendant 10 min au lieu de 2 (2 min si l’événement a lieu le jour même)
 - Bilan des réponses pour les coachs : envoyé par défaut la veille au soir au lieu de 2 jours avant

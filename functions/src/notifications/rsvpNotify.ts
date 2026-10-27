@@ -15,6 +15,11 @@ import {
 import type { RsvpStatusChange } from "./eventChange";
 import { flushDueEventModifiedNotifications } from "./eventModifiedNotify";
 import {
+  clubIdOfEvent,
+  isClubEventDoc,
+  logScheduledFailure,
+} from "./clubEvents";
+import {
   contextForEntry,
   eventPushContext,
   sendEventPushToAudience,
@@ -254,33 +259,29 @@ async function flushEventRsvpNotifications(params: {
 export async function flushDueNotifications(): Promise<void> {
   const firestore = db();
   const now = admin.firestore.Timestamp.now();
-  const clubsSnap = await firestore.collection("clubs").select().get();
+  // Une requête collection group par minute (avant : deux par club).
+  const eventsSnap = await firestore
+    .collectionGroup("events")
+    .where("rsvpNotifyDueAt", "<=", now)
+    .limit(200)
+    .get();
 
-  for (const clubDoc of clubsSnap.docs) {
-    const eventsSnap = await firestore
-      .collection("clubs")
-      .doc(clubDoc.id)
-      .collection("events")
-      .where("rsvpNotifyDueAt", "<=", now)
-      .limit(40)
-      .get();
-
-    for (const eventDoc of eventsSnap.docs) {
+  for (const eventDoc of eventsSnap.docs.filter(isClubEventDoc)) {
+    const clubId = clubIdOfEvent(eventDoc.ref);
+    try {
       await flushEventRsvpNotifications({
         firestore,
-        clubId: clubDoc.id,
+        clubId,
         eventId: eventDoc.id,
         eventData: eventDoc.data(),
         nowMs: now.toMillis(),
       });
+    } catch (error) {
+      logScheduledFailure("push RSVP", { clubId, eventId: eventDoc.id, error });
     }
-
-    await flushDueEventModifiedNotifications({
-      firestore,
-      clubId: clubDoc.id,
-      now,
-    });
   }
+
+  await flushDueEventModifiedNotifications({ firestore, now });
 }
 
 function readPendingMap(raw: unknown): Record<string, RsvpNotifyPendingEntry> {

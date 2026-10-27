@@ -41,6 +41,13 @@ class EventDateHelpers {
   /// Fenêtre « Planning à venir » : 14 jours calendaires à partir d'aujourd'hui.
   static const int upcomingPlanningHorizonDays = 14;
 
+  /// Borne haute Firestore de la fenêtre planning (exclue) : un jour de marge
+  /// pour les dates stockées à minuit UTC. Sans elle, chaque listener lisait
+  /// tous les événements futurs du club avant le filtre client.
+  static Timestamp get upcomingQueryUpperBound => Timestamp.fromDate(
+        addCalendarDays(startOfToday(), upcomingPlanningHorizonDays + 1),
+      );
+
   /// Indique si [eventDate] est dans la fenêtre planning à venir.
   static bool isWithinUpcomingPlanningWindow(DateTime eventDate) {
     final start = startOfToday();

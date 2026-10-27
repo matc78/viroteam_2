@@ -27,6 +27,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Modifié
 
 - Membres : plus de réparation `teamIds` / rosters en arrière-plan à chaque session admin, la synchro est faite côté serveur.
+- Tableaux de bord : l’écoute temps réel des événements commence à hier et celle du journal d’activité se limite à la dernière entrée, au lieu de relire tout l’historique.
 
 ## [1.10.0] - 2026-10-23
 

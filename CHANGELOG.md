@@ -17,6 +17,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Notifications « événement modifié » : les corrections sont regroupées pendant 10 min au lieu de 2 (2 min si l’événement a lieu le jour même)
 - Bilan des réponses pour les coachs : envoyé par défaut la veille au soir au lieu de 2 jours avant
 - Équipes : `members.teamIds` est maintenu côté serveur à chaque écriture d’équipe (Function `onTeamWritten`). L’app ne répare plus les rosters à l’ouverture de l’ajout de membre ; rattrapage des anciennes données via `tool/backfill_member_team_ids.mjs`.
+- Planning membre : requêtes bornées à la fenêtre de 14 jours et équipes du joueur lues par requête ciblée, au lieu d’écouter toute la collection `teams` et tous les événements futurs.
+- Rappels de cotisation sur l’accueil : le prénom de l’enfant n’est plus relu à chaque mise à jour de la cotisation.
 
 ### Corrigé
 
@@ -32,6 +34,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Rejoindre par code : la flèche retour ne plante plus quand l’écran est ouvert par un lien (retour à l’accueil).
 - RSVP depuis l’accueil et le planning : une erreur réseau affiche un message au lieu d’échouer en silence, sans lecture Firestore en plus ni rechargement complet du planning.
 - Fiche club et détail membre : plus d’erreur quand l’écran est fermé pendant une action en cours.
+- Notifications planifiées (rappels, récap hebdo, cotisations, push RSVP / « modifié ») : une requête collection group par passage au lieu d’une par club ; un club ou un événement en erreur n’arrête plus la tournée ; rappels marqués avant l’envoi (pas de doublon) ; récap hebdo et rappels cotisation envoyés une seule fois par semaine ; délai max porté à 9 min. Nouveaux index `fieldOverrides` à déployer avant les Functions.
 
 ### Sécurité
 

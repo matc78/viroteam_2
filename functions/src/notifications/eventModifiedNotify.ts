@@ -1,7 +1,17 @@
 import * as admin from "firebase-admin";
-import type { DocumentData, Firestore } from "firebase-admin/firestore";
+import type {
+  DocumentData,
+  Firestore,
+  QueryDocumentSnapshot,
+} from "firebase-admin/firestore";
 import { stringArray } from "../common";
 import { ClubDirectory, resolveEventAudience } from "./audience";
+import {
+  clubDirectoryCache,
+  clubIdOfEvent,
+  isClubEventDoc,
+  logScheduledFailure,
+} from "./clubEvents";
 import { eventModifiedCopy } from "./copy";
 import { describeChanges, type ModifiedEventField } from "./eventChange";
 import {
@@ -75,49 +85,65 @@ export async function scheduleEventModifiedNotify(params: {
 /** Envoie les push « modifié » dont le délai de regroupement est échu. */
 export async function flushDueEventModifiedNotifications(params: {
   firestore: Firestore;
-  clubId: string;
   now: admin.firestore.Timestamp;
 }): Promise<void> {
   const eventsSnap = await params.firestore
-    .collection("clubs")
-    .doc(params.clubId)
-    .collection("events")
+    .collectionGroup("events")
     .where("modifiedNotifyDueAt", "<=", params.now)
-    .limit(40)
+    .limit(200)
     .get();
   if (eventsSnap.empty) return;
 
-  const directory = new ClubDirectory(params.firestore, params.clubId);
-  for (const eventDoc of eventsSnap.docs) {
-    // Claim transactionnel : un seul cron envoie.
-    const claimed = await params.firestore.runTransaction(async (tx) => {
-      const snap = await tx.get(eventDoc.ref);
-      if (!snap.exists || snap.data()?.modifiedNotifyDueAt == null) return null;
-      const data = snap.data()!;
-      tx.update(eventDoc.ref, {
-        modifiedNotifyPending: admin.firestore.FieldValue.delete(),
-        modifiedNotifyDueAt: admin.firestore.FieldValue.delete(),
+  const directoryFor = clubDirectoryCache(params.firestore);
+  for (const eventDoc of eventsSnap.docs.filter(isClubEventDoc)) {
+    const clubId = clubIdOfEvent(eventDoc.ref);
+    try {
+      await flushEventModified({
+        firestore: params.firestore,
+        directory: directoryFor(clubId),
+        eventDoc,
       });
-      return data;
-    });
-    if (!claimed || claimed.canceled === true) continue;
-
-    const pending = (claimed.modifiedNotifyPending ?? {}) as DocumentData;
-    const changes = describeChanges(claimed, stringArray(pending.fields));
-    if (changes.length === 0) continue;
-
-    const base = eventPushContext(claimed);
-    const entries = await resolveEventAudience(directory, claimed);
-    await sendEventPushToAudience({
-      firestore: params.firestore,
-      clubId: params.clubId,
-      eventId: eventDoc.id,
-      eventData: claimed,
-      type: "event_modified",
-      entries,
-      excludeUids: stringArray(pending.excludeUids),
-      copyFor: (entry) =>
-        eventModifiedCopy({ ...contextForEntry(base, entry), changes }),
-    });
+    } catch (error) {
+      logScheduledFailure("push « modifié »", { clubId, eventId: eventDoc.id, error });
+    }
   }
+}
+
+/** Envoie la push « modifié » d'un événement dont le regroupement est échu. */
+async function flushEventModified(params: {
+  firestore: Firestore;
+  directory: ClubDirectory;
+  eventDoc: QueryDocumentSnapshot;
+}): Promise<void> {
+  const { eventDoc, directory } = params;
+  // Claim transactionnel : un seul cron envoie.
+  const claimed = await params.firestore.runTransaction(async (tx) => {
+    const snap = await tx.get(eventDoc.ref);
+    if (!snap.exists || snap.data()?.modifiedNotifyDueAt == null) return null;
+    const data = snap.data()!;
+    tx.update(eventDoc.ref, {
+      modifiedNotifyPending: admin.firestore.FieldValue.delete(),
+      modifiedNotifyDueAt: admin.firestore.FieldValue.delete(),
+    });
+    return data;
+  });
+  if (!claimed || claimed.canceled === true) return;
+
+  const pending = (claimed.modifiedNotifyPending ?? {}) as DocumentData;
+  const changes = describeChanges(claimed, stringArray(pending.fields));
+  if (changes.length === 0) return;
+
+  const base = eventPushContext(claimed);
+  const entries = await resolveEventAudience(directory, claimed);
+  await sendEventPushToAudience({
+    firestore: params.firestore,
+    clubId: directory.clubId,
+    eventId: eventDoc.id,
+    eventData: claimed,
+    type: "event_modified",
+    entries,
+    excludeUids: stringArray(pending.excludeUids),
+    copyFor: (entry) =>
+      eventModifiedCopy({ ...contextForEntry(base, entry), changes }),
+  });
 }

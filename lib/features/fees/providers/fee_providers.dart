@@ -123,6 +123,9 @@ final homeFeeRemindersProvider =
     if (entry.hasFamilyLinks) {
       final guardianService = ref.read(guardianServiceProvider);
       for (final link in entry.parentLinks) {
+        // Lecture de la fiche enfant au plus une fois par flux (avant : à
+        // chaque émission de la cotisation).
+        Future<String?>? fallbackChildName;
         clubStreams.add(
           feeService
               .watchActiveMemberFee(
@@ -133,16 +136,10 @@ final homeFeeRemindersProvider =
                 var childName = _firstNameFromDisplayName(
                   data.fee?.memberDisplayName,
                 );
-                if (childName == null) {
-                  try {
-                    childName = await guardianService.childFirstName(
-                      clubId: club.id,
-                      memberId: link.memberId,
-                    );
-                  } catch (_) {
-                    childName = null;
-                  }
-                }
+                childName ??= await (fallbackChildName ??= guardianService
+                    .childFirstName(clubId: club.id, memberId: link.memberId)
+                    .then<String?>((name) => name)
+                    .catchError((Object _) => null));
                 return _reminderFromFee(
                   club: club,
                   data: data,

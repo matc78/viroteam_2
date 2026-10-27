@@ -62,6 +62,10 @@ class EventUpcomingQueries {
         .events(clubId)
         .where(FirestoreFields.teamMemberIds, arrayContains: uid)
         .where(FirestoreFields.date, isGreaterThanOrEqualTo: lowerBound)
+        .where(
+          FirestoreFields.date,
+          isLessThan: EventDateHelpers.upcomingQueryUpperBound,
+        )
         .orderBy(FirestoreFields.date)
         .snapshots()
         .map(
@@ -96,6 +100,10 @@ class EventUpcomingQueries {
             .where(
               FirestoreFields.date,
               isGreaterThanOrEqualTo: lowerBound,
+            )
+            .where(
+              FirestoreFields.date,
+              isLessThan: EventDateHelpers.upcomingQueryUpperBound,
             )
             .orderBy(FirestoreFields.date)
             .snapshots()
@@ -162,21 +170,22 @@ class EventUpcomingQueries {
     required String audienceId,
     required String authUid,
   }) {
-    return _paths.teams(clubId).snapshots().switchMap((teamsSnap) {
+    // Seulement les équipes du joueur (avant : toute la collection `teams`).
+    return _paths
+        .teams(clubId)
+        .where(
+          FirestoreFields.playerIds,
+          arrayContainsAny: {audienceId, authUid}.toList(),
+        )
+        .snapshots()
+        .switchMap((teamsSnap) {
       final playerTeamIds = <String>[];
       final playerTeamNames = <String>{};
 
       for (final doc in teamsSnap.docs) {
-        final data = doc.data();
-        final playerIds =
-            (data[FirestoreFields.playerIds] as List<dynamic>?)
-                    ?.whereType<String>() ??
-                [];
-        if (playerIds.contains(audienceId) || playerIds.contains(authUid)) {
-          playerTeamIds.add(doc.id);
-          final name = data[FirestoreFields.name] as String?;
-          if (name != null && name.isNotEmpty) playerTeamNames.add(name);
-        }
+        playerTeamIds.add(doc.id);
+        final name = doc.data()[FirestoreFields.name] as String?;
+        if (name != null && name.isNotEmpty) playerTeamNames.add(name);
       }
 
       if (playerTeamIds.isEmpty) return Stream.value(<ClubEvent>[]);
@@ -190,6 +199,10 @@ class EventUpcomingQueries {
               .events(clubId)
               .where(FirestoreFields.teamIds, arrayContains: teamId)
               .where(FirestoreFields.date, isGreaterThanOrEqualTo: lowerBound)
+              .where(
+                FirestoreFields.date,
+                isLessThan: EventDateHelpers.upcomingQueryUpperBound,
+              )
               .orderBy(FirestoreFields.date)
               .snapshots()
               .map(
@@ -210,6 +223,10 @@ class EventUpcomingQueries {
           _paths
               .events(clubId)
               .where(FirestoreFields.date, isGreaterThanOrEqualTo: lowerBound)
+              .where(
+                FirestoreFields.date,
+                isLessThan: EventDateHelpers.upcomingQueryUpperBound,
+              )
               .orderBy(FirestoreFields.date)
               .snapshots()
               .map(
@@ -222,7 +239,8 @@ class EventUpcomingQueries {
                                   ?.whereType<String>() ??
                               [];
                       if (teamIds.isNotEmpty) return false;
-                      final legacyName = data['teamName'] as String?;
+                      final legacyName =
+                          data[FirestoreFields.teamName] as String?;
                       if (legacyName == null ||
                           !playerTeamNames.contains(legacyName)) {
                         return false;
@@ -255,6 +273,10 @@ class EventUpcomingQueries {
         .events(clubId)
         .where(FirestoreFields.teamIds, arrayContains: teamId)
         .where(FirestoreFields.date, isGreaterThanOrEqualTo: lowerBound)
+        .where(
+          FirestoreFields.date,
+          isLessThan: EventDateHelpers.upcomingQueryUpperBound,
+        )
         .orderBy(FirestoreFields.date)
         .snapshots()
         .map(

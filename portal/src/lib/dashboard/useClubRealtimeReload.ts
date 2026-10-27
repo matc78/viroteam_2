@@ -5,11 +5,18 @@ import { usePathname } from "next/navigation";
 import {
   collection,
   doc,
+  limit,
   onSnapshot,
+  orderBy,
+  query,
+  Timestamp,
+  where,
+  type CollectionReference,
+  type Query,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getAppFirestore } from "@/lib/firebase/app";
-import { Collections } from "@/lib/firebase/constants";
+import { Collections, Fields } from "@/lib/firebase/constants";
 import { getActiveSeason } from "@/lib/firebase/feeService";
 
 const DEFAULT_DEBOUNCE_MS = 350;
@@ -41,6 +48,29 @@ export type ClubRealtimeReloadOptions = {
   enabled?: boolean;
   debounceMs?: number;
 };
+
+/**
+ * Requête écoutée pour une collection club. Les collections qui grossissent
+ * sans fin sont bornées (sinon chaque snapshot initial relit tout
+ * l'historique) :
+ * - `events` : à partir d'hier (les tableaux de bord n'affichent que l'à venir) ;
+ * - `activity_events` (append-only) : la dernière entrée suffit à détecter un ajout.
+ */
+function realtimeQuery(
+  ref: CollectionReference,
+  relativePath: string,
+): Query | CollectionReference {
+  if (relativePath === Collections.events) {
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - 1);
+    return query(ref, where(Fields.date, ">=", Timestamp.fromDate(since)));
+  }
+  if (relativePath === Collections.activityEvents) {
+    return query(ref, orderBy(Fields.createdAt, "desc"), limit(1));
+  }
+  return ref;
+}
 
 /** Log listener Firestore sans overlay Next (`console.error` = erreur runtime en dev). */
 function logRealtimeError(
@@ -128,7 +158,7 @@ export function useClubRealtimeReload({
       );
       unsubscribes.push(
         onSnapshot(
-          ref,
+          realtimeQuery(ref, relativePath),
           () => scheduleReload(key),
           (error) => {
             logRealtimeError(

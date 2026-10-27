@@ -11,17 +11,20 @@ final authStateProvider = StreamProvider<User?>((ref) {
 ///
 /// Évite les `PERMISSION_DENIED` au cold start quand [authStateChanges]
 /// émet l'utilisateur avant que Firestore n'ait reçu le jeton.
+///
+/// Pas de retry : un refus (App Check, règles) doit rester une erreur.
+/// Sinon Riverpod repasse `isLoading` et le routeur renvoie sur `/loading`.
 final firestoreAuthReadyProvider = StreamProvider<User?>((ref) {
-  return ref
-      .watch(authServiceProvider)
-      .authStateChanges()
-      .asyncMap((user) async {
+  return ref.watch(authServiceProvider).authStateChanges().asyncMap((
+    user,
+  ) async {
     if (user == null) return null;
     await user.getIdToken();
     return user;
   });
-});
+}, retry: _keepStartupFailure);
 
+/// Profil `users/{uid}`. Même règle : un refus ne relance pas le flux.
 final viroUserProvider = StreamProvider<ViroUser?>((ref) {
   final auth = ref.watch(firestoreAuthReadyProvider);
   return auth.when(
@@ -32,7 +35,10 @@ final viroUserProvider = StreamProvider<ViroUser?>((ref) {
     loading: () => Stream.value(null),
     error: (error, stackTrace) => Stream.value(null),
   );
-});
+}, retry: _keepStartupFailure);
+
+/// Empêche le retry automatique de Riverpod sur les flux de démarrage.
+Duration? _keepStartupFailure(int retryCount, Object error) => null;
 
 final viroUserFutureProvider = FutureProvider<ViroUser?>((ref) async {
   final auth = ref.watch(firestoreAuthReadyProvider).value;
@@ -51,8 +57,8 @@ class SignUpIntentNotifier extends Notifier<SignUpIntent> {
 
 final signUpIntentProvider =
     NotifierProvider<SignUpIntentNotifier, SignUpIntent>(
-  SignUpIntentNotifier.new,
-);
+      SignUpIntentNotifier.new,
+    );
 
 class PendingInviteCodeNotifier extends Notifier<String?> {
   @override
@@ -63,5 +69,5 @@ class PendingInviteCodeNotifier extends Notifier<String?> {
 
 final pendingInviteCodeProvider =
     NotifierProvider<PendingInviteCodeNotifier, String?>(
-  PendingInviteCodeNotifier.new,
-);
+      PendingInviteCodeNotifier.new,
+    );

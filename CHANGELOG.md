@@ -25,6 +25,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Démarrage : un refus Firestore ou App Check (Play Integrity, Enforce) n’enchaîne plus l’écran de chargement. Écran stable avec réessai, et erreur lisible dans Crashlytics (`startup_session_blocked`, code + message)
 - Onboarding / invitation : « Se déconnecter » / « Utiliser un autre compte » sur club-setup, preview d’invitation et entry quand on est déjà connecté — évite d’être coincé sans club (mauvais e-mail vs invitation)
 - Connexion depuis une invitation : conserve l’intent `join` pour ne plus forcer le wizard création de club
 - Sécurité (règles Firestore) : un coach ne peut plus obtenir les droits admin. Une fiche qu’il pré-crée est plafonnée à joueur ou coach, sans compte lié. Le rôle d’une invitation ne se modifie plus après sa création, un coach ne touche plus aux invitations admin, et les invitations parent ne se modifient plus côté client.

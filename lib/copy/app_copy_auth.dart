@@ -15,6 +15,10 @@ final class AppCopyAuth {
   String get alreadyHaveAccount => 'Déjà un compte ? Se connecter';
   String get signOut => 'Se déconnecter';
 
+  /// Refus Firestore / App Check au démarrage. Ton sérieux, pas d'humour.
+  String get startupBlockedBody =>
+      'On n’arrive pas à ouvrir ton compte. Réessaie dans un instant.';
+
   String get orphanAccountTitle => 'Compte ViroTeam introuvable';
   String get orphanAccountHint =>
       'Tu es connecté(e) mais tu n’as pas encore de '

@@ -7,6 +7,7 @@ import 'package:posthog_flutter/posthog_flutter.dart';
 
 import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/config/router_refresh.dart';
+import 'package:viro_team_v2/config/startup_session_gate.dart';
 
 import 'package:viro_team_v2/config/feature_flags.dart';
 
@@ -17,6 +18,7 @@ import 'package:viro_team_v2/features/app_update/screens/app_update_required_scr
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 
 import 'package:viro_team_v2/features/auth/screens/auth_loading_screen.dart';
+import 'package:viro_team_v2/features/auth/screens/startup_blocked_screen.dart';
 
 import 'package:viro_team_v2/features/auth/screens/login_screen.dart';
 
@@ -78,6 +80,9 @@ abstract final class AppRoutes {
   static const entry = '/';
 
   static const loading = '/loading';
+
+  /// Session Auth ouverte, Firestore ou App Check a refusé le démarrage.
+  static const startupBlocked = '/startup-blocked';
 
   static const updateRequired = '/update-required';
 
@@ -319,12 +324,33 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       final user = profile.maybeWhen(data: (u) => u, orElse: () => null);
 
+      // Refus Firestore / App Check : écran stable, pas le chargement en
+      // boucle et pas Bienvenue (ça ressemblerait à une déconnexion).
+      final startupFailure = StartupSessionGate.blockFailure(
+        firestoreAuth: firestoreAuth,
+        profile: profile,
+      );
+      final startupBlocked = isAuth && startupFailure != null;
+      if (startupBlocked) {
+        return path == AppRoutes.startupBlocked
+            ? null
+            : AppRoutes.startupBlocked;
+      }
+      if (path == AppRoutes.startupBlocked) {
+        return AppRoutes.loading;
+      }
+
       // Tant que la version minimale n'est pas connue (au plus
       // `appUpdateCheckTimeout`), on reste sur le chargement : un utilisateur
       // à bloquer ne doit pas entrevoir l'accueil.
-      final sessionResolving = !updateCheck.hasValue ||
-          auth.isLoading ||
-          (isAuth && (firestoreAuth.isLoading || profile.isLoading));
+      final sessionResolving = StartupSessionGate.stillResolving(
+        updateKnown: updateCheck.hasValue,
+        authLoading: auth.isLoading,
+        signedIn: isAuth,
+        firestoreAuthLoading: firestoreAuth.isLoading,
+        profileLoading: profile.isLoading,
+        blocked: startupBlocked,
+      );
 
 
 
@@ -521,6 +547,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.loading,
 
         builder: (context, state) => const AuthLoadingScreen(),
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.startupBlocked,
+
+        builder: (context, state) => const StartupBlockedScreen(),
 
       ),
 

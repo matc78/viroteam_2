@@ -14,6 +14,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Accueil : avec un seul club, l’accès au club en bas d’écran devient une grande pastille (logo, nom du club, « Ouvrir le club ») au lieu du petit logo à côté du +
 - Notifications « événement modifié » : les corrections sont regroupées pendant 10 min au lieu de 2 (2 min si l’événement a lieu le jour même)
 - Bilan des réponses pour les coachs : envoyé par défaut la veille au soir au lieu de 2 jours avant
 - Équipes : `members.teamIds` est maintenu côté serveur à chaque écriture d’équipe (Function `onTeamWritten`). L’app ne répare plus les rosters à l’ouverture de l’ajout de membre ; rattrapage des anciennes données via `tool/backfill_member_team_ids.mjs`.

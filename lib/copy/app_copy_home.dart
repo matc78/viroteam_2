@@ -29,6 +29,7 @@ final class AppCopyHome {
   String get upcomingPlanningTitle => 'Planning à venir';
   String get seeAllPlanning => 'Voir mes 14 prochains jours';
   String get addClub => 'Ajouter un club';
+  String get openClub => 'Ouvrir le club';
   String get createOrJoinClub => 'Créer ou rejoindre un club';
   String get joinClubForPlanning =>
       'Rejoins un club pour voir ton planning';

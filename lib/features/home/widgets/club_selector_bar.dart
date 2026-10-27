@@ -70,6 +70,23 @@ class ClubSelectorBar extends ConsumerWidget {
     }).toList();
 
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final chatButton = onOpenChat != null
+        ? _ChatBarItem(
+            badgeCount: chatUnread > 0 ? chatUnread : null,
+            onTap: onOpenChat!,
+          )
+        : null;
+
+    // Un seul club : le logo seul passe inaperçu à côté du +, on affiche
+    // une pastille large (logo + nom) pour rendre l’accès au club évident.
+    if (items.length == 1) {
+      return _SingleClubBar(
+        clubItem: items.single,
+        bottomInset: bottomInset,
+        onAddClub: onAddClub,
+        chatButton: chatButton,
+      );
+    }
 
     return SizedBox(
       height: barHeight + bottomInset,
@@ -107,17 +124,12 @@ class ClubSelectorBar extends ConsumerWidget {
                 },
               ),
             ),
-            if (onOpenChat != null)
+            if (chatButton != null)
               Positioned(
                 right: ViroSpacing.screenHorizontal,
                 top: 0,
                 bottom: 0,
-                child: Center(
-                  child: _ChatBarItem(
-                    badgeCount: chatUnread > 0 ? chatUnread : null,
-                    onTap: onOpenChat!,
-                  ),
-                ),
+                child: Center(child: chatButton),
               ),
           ],
         ),
@@ -131,10 +143,172 @@ class ClubSelectorBar extends ConsumerWidget {
   }
 }
 
+/// Barre du bas quand l’utilisateur n’a qu’un club : pastille club large,
+/// centrée en réservant la place du bouton chat de chaque côté.
+class _SingleClubBar extends StatelessWidget {
+  const _SingleClubBar({
+    required this.clubItem,
+    required this.bottomInset,
+    this.onAddClub,
+    this.chatButton,
+  });
+
+  final _ClubBarItem clubItem;
+  final double bottomInset;
+  final VoidCallback? onAddClub;
+  final Widget? chatButton;
+
+  @override
+  Widget build(BuildContext context) {
+    // Marge symétrique : la pastille reste centrée sans passer sous le chat.
+    final sidePad =
+        ViroSpacing.screenHorizontal +
+        (chatButton != null
+            ? ClubSelectorBar._chatButtonSize + ViroSpacing.sm
+            : 0);
+
+    return SizedBox(
+      height: ClubSelectorBar.barHeight + bottomInset,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: sidePad),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(child: _ClubBarHighlightItem(item: clubItem)),
+                    if (onAddClub != null)
+                      _AddClubBarItem(onTap: onAddClub!, showLabelSpace: false),
+                  ],
+                ),
+              ),
+            ),
+            if (chatButton != null)
+              Positioned(
+                right: ViroSpacing.screenHorizontal,
+                top: 0,
+                bottom: 0,
+                child: Center(child: chatButton),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Pastille large d’accès au club (logo, nom complet, invite « Ouvrir »).
+class _ClubBarHighlightItem extends StatelessWidget {
+  const _ClubBarHighlightItem({required this.item});
+
+  final _ClubBarItem item;
+
+  static const double _height = 60;
+  static const double _avatarSize = 44;
+  static const double _maxWidth = 280;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.viroPalette;
+    final theme = Theme.of(context).textTheme;
+    final color = item.accentColor ?? palette.accentFill;
+    final readableColor = palette.readableAccent(color);
+    final badgeCount = item.badgeCount;
+
+    final semanticParts = <String>[
+      AppCopy.home.openClub,
+      item.club.name,
+      if (badgeCount != null && badgeCount > 0)
+        '$badgeCount ${AppCopy.common.pending}',
+    ];
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _maxWidth),
+      child: ViroPressable(
+        onTap: item.onTap,
+        floating: false,
+        borderRadius: BorderRadius.circular(_height / 2),
+        label: semanticParts.join(', '),
+        child: Container(
+          height: _height,
+          padding: const EdgeInsets.only(
+            left: (_height - _avatarSize) / 2,
+            right: ViroSpacing.md,
+          ),
+          decoration: BoxDecoration(
+            color: palette.surfaceCard,
+            borderRadius: BorderRadius.circular(_height / 2),
+            border: Border.all(color: readableColor, width: 1.5),
+            boxShadow: ViroMotion.floatingShadow(
+              palette,
+              opacity: 0.16,
+              blur: 12,
+              y: 4,
+            ),
+          ),
+          child: ExcludeSemantics(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ClubBarAvatar(
+                  club: item.club,
+                  accentColor: color,
+                  size: _avatarSize,
+                  role: item.role,
+                  badgeCount: badgeCount,
+                ),
+                const SizedBox(width: ViroSpacing.sm),
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.club.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.titleSmall?.copyWith(
+                          color: palette.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        AppCopy.home.openClub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.labelSmall?.copyWith(
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: ViroSpacing.sm),
+                ViroIcon(
+                  ViroIcons.chevronRight,
+                  size: 18,
+                  color: readableColor,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AddClubBarItem extends StatelessWidget {
-  const _AddClubBarItem({required this.onTap});
+  const _AddClubBarItem({required this.onTap, this.showLabelSpace = true});
 
   final VoidCallback onTap;
+
+  /// Réserve la hauteur du libellé des logos (barre multi-clubs) pour
+  /// aligner le + sur les avatars ; inutile à côté de la pastille mono-club.
+  final bool showLabelSpace;
 
   static const double _size = ClubSelectorBar._addButtonSize;
 
@@ -185,8 +359,10 @@ class _AddClubBarItem extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
-              const SizedBox(width: _size, height: 14),
+              if (showLabelSpace) ...[
+                const SizedBox(height: 4),
+                const SizedBox(width: _size, height: 14),
+              ],
             ],
           ),
         ),
@@ -252,7 +428,8 @@ class _ChatBarItem extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: ViroColors.error,
                     shape: BoxShape.circle,
-                    boxShadow: ViroMotion.floatingShadow(context.viroPalette,
+                    boxShadow: ViroMotion.floatingShadow(
+                      context.viroPalette,
                       opacity: 0.18,
                       blur: 8,
                       y: 2,
@@ -295,8 +472,9 @@ class _ChatCirclePainter extends CustomPainter {
       center.translate(0, 3),
       radius,
       Paint()
-        ..color = palette.shadowTint
-            .withValues(alpha: 0.12 * palette.shadowStrength)
+        ..color = palette.shadowTint.withValues(
+          alpha: 0.12 * palette.shadowStrength,
+        )
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
     canvas.drawCircle(
@@ -374,60 +552,12 @@ class _ClubBarItem extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: ViroMotion.floatingShadow(context.viroPalette,
-                        opacity: 0.16,
-                        blur: 12,
-                        y: 4,
-                      ),
-                    ),
-                    child: ClubContextAvatar(
-                      club: club,
-                      accentColor: color,
-                      size: _logoSize,
-                      borderRadius: _logoSize / 2,
-                      enableZoom: false,
-                    ),
-                  ),
-                  if (badgeCount != null)
-                    Positioned(
-                      top: -2,
-                      right: -2,
-                      child: ExcludeSemantics(
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: ViroColors.error,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 18,
-                            minHeight: 18,
-                          ),
-                          child: Text(
-                            '$badgeCount',
-                            textAlign: TextAlign.center,
-                            style: theme.labelSmall?.copyWith(
-                              color: ViroColors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (role != null)
-                    Positioned(
-                      bottom: -2,
-                      right: -2,
-                      child: ViroRoleSatelliteBadge(role: role!),
-                    ),
-                ],
+              _ClubBarAvatar(
+                club: club,
+                accentColor: color,
+                size: _logoSize,
+                role: role,
+                badgeCount: badgeCount,
               ),
               const SizedBox(height: 4),
               ExcludeSemantics(
@@ -452,6 +582,81 @@ class _ClubBarItem extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Logo club rond avec ombre, pastille d’attente et badge de rôle.
+class _ClubBarAvatar extends StatelessWidget {
+  const _ClubBarAvatar({
+    required this.club,
+    required this.accentColor,
+    required this.size,
+    this.role,
+    this.badgeCount,
+  });
+
+  final Club club;
+  final Color accentColor;
+  final double size;
+  final ViroRole? role;
+  final int? badgeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: ViroMotion.floatingShadow(
+              context.viroPalette,
+              opacity: 0.16,
+              blur: 12,
+              y: 4,
+            ),
+          ),
+          child: ClubContextAvatar(
+            club: club,
+            accentColor: accentColor,
+            size: size,
+            borderRadius: size / 2,
+            enableZoom: false,
+          ),
+        ),
+        if (badgeCount != null)
+          Positioned(
+            top: -2,
+            right: -2,
+            child: ExcludeSemantics(
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: ViroColors.error,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                child: Text(
+                  '$badgeCount',
+                  textAlign: TextAlign.center,
+                  style: theme.labelSmall?.copyWith(
+                    color: ViroColors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (role != null)
+          Positioned(
+            bottom: -2,
+            right: -2,
+            child: ViroRoleSatelliteBadge(role: role!),
+          ),
+      ],
     );
   }
 }

@@ -22,6 +22,12 @@ rules_version = '2';
 //   serveur, `reactions` / `pollVotes` vides, texte ≤ 4000, médias image
 //   obligatoirement dans le bucket du projet sous `…/chat/{conv}/{auth.uid}/`.
 // - `activity_events` : `type` parmi la liste connue, `summary` ≤ 200.
+//
+// Lot 3 (escalade coach → admin, 27 oct. 2026) :
+// - Fiche pré-créée par le staff : `memberId` = id du doc, sans compte lié,
+//   rôle `admin` réservé aux admins.
+// - Invitation : `role` figé après création ; un coach ne modifie plus une
+//   invitation admin ; `guardian` / `team` réservées aux Cloud Functions.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -213,6 +219,37 @@ service cloud.firestore {
         ]);
     }
 
+    /// Rôle qu'un coach/admin peut attribuer : joueur ou coach, admin réservé
+    /// aux admins (même plafond que la création d'invitation).
+    function canGrantRole(clubId, role) {
+      return role in ['player', 'coach']
+        || (isClubAdmin(clubId) && role == 'admin');
+    }
+
+    /// Fiche pré-créée par un coach/admin : `memberId` = id du doc, aucun compte
+    /// lié (la liaison passe par `acceptInvitation`), rôle plafonné. Sans ça,
+    /// un coach créait `members/{uidQuelconque}` en `admin` et ce compte
+    /// devenait admin via le repli `memberDocRef` → `members/{auth.uid}`.
+    function isPreCreatedMemberCreate(clubId, memberId) {
+      return request.resource.data.get('memberId', memberId) == memberId
+        && !request.resource.data.keys().hasAny(['accountUid', 'userId'])
+        && canGrantRole(clubId, request.resource.data.get('role', ''));
+    }
+
+    /// Mise à jour d'une invitation membre par le staff : `role`, `type`,
+    /// `memberId` figés (le rôle vient de la fiche, via `acceptInvitation`),
+    /// pas d'acceptation côté client. Un coach ne touche pas aux invitations
+    /// admin (sinon il réécrit `email` pour s'en emparer). Les invitations
+    /// `team` et `guardian` ne se modifient que via les Cloud Functions.
+    function isStaffInvitationUpdate(clubId) {
+      return isClubCoachOrAdmin(clubId)
+        && resource.data.get('type', 'member') == 'member'
+        && request.resource.data.get('type', 'member') == 'member'
+        && request.resource.data.get('status', '') != 'accepted'
+        && !affectedKeys().hasAny(['memberId', 'type', 'role'])
+        && canGrantRole(clubId, resource.data.get('role', ''));
+    }
+
     /// L'invité (même e-mail) décline son invitation.
     function isInviteeDeclining() {
       return isSignedIn()
@@ -286,7 +323,8 @@ service cloud.firestore {
         // L'arrivée d'un invité passe par la callable `acceptInvitation`.
         // Fondateur : `isInClubAdminIdsAfter` couvre la transaction atomique
         // club + membre (sinon get() ne voit pas encore le club).
-        allow create: if isClubCoachOrAdmin(clubId)
+        allow create: if (isClubCoachOrAdmin(clubId)
+            && isPreCreatedMemberCreate(clubId, memberId))
           || (isOwner(memberId) && isInClubAdminIds(clubId))
           || (isOwner(memberId)
             && request.resource.data.get('role', '') == 'admin'
@@ -334,11 +372,7 @@ service cloud.firestore {
             request.resource.data.get('role', '') in ['player', 'coach']
             || (isClubAdmin(clubId) && request.resource.data.get('role', '') == 'admin')
           );
-        allow update: if (isClubCoachOrAdmin(clubId)
-            && resource.data.get('type', 'member') != 'team'
-            && request.resource.data.get('type', 'member') != 'team'
-            && request.resource.data.get('status', '') != 'accepted'
-            && !affectedKeys().hasAny(['memberId', 'type']))
+        allow update: if isStaffInvitationUpdate(clubId)
           || isInviteeDeclining();
         allow delete: if isClubAdmin(clubId);
       }

@@ -505,6 +505,144 @@ test("les invitations parent (guardian) ne se créent pas côté client", async 
 });
 
 // ————————————————————————————————————————————————————————————————
+// Lot 3 : escalade coach → admin (fiche pré-créée, invitation modifiée)
+// ————————————————————————————————————————————————————————————————
+
+/** Fiche pré-créée telle qu'écrite par l'app et le portail. */
+function preCreatedMember(memberId, role, extra = {}) {
+  return {
+    memberId,
+    role,
+    status: "active",
+    firstName: "Nina",
+    lastName: "Nouvelle",
+    teamIds: [],
+    snapshot: { displayName: "Nina Nouvelle", email: "nina@club.fr" },
+    activeInvitationId: "invNina",
+    joinedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...extra,
+  };
+}
+
+test("un coach pré-crée une fiche joueur ou coach", async () => {
+  await assertSucceeds(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/members/pre2`), preCreatedMember("pre2", "player")),
+  );
+  await assertSucceeds(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/members/pre3`), preCreatedMember("pre3", "coach")),
+  );
+});
+
+test("un coach ne crée pas de fiche admin, un admin oui", async () => {
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/members/pre4`), preCreatedMember("pre4", "admin")),
+  );
+  await assertSucceeds(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/members/pre5`), preCreatedMember("pre5", "admin")),
+  );
+});
+
+test("un coach ne rend pas admin un compte tiers via members/{uid}", async () => {
+  await assertFails(
+    setDoc(
+      doc(as(COACH), `clubs/${CLUB}/members/${STRANGER.uid}`),
+      preCreatedMember(STRANGER.uid, "admin"),
+    ),
+  );
+  // Le compte tiers ne gagne aucun droit admin sur le club.
+  await assertFails(
+    updateDoc(doc(as(STRANGER), `clubs/${CLUB}`), { name: "Pris" }),
+  );
+});
+
+test("une fiche pré-créée ne porte ni compte lié ni memberId divergent", async () => {
+  await assertFails(
+    setDoc(
+      doc(as(ADMIN), `clubs/${CLUB}/members/pre6`),
+      preCreatedMember("pre6", "player", { accountUid: STRANGER.uid }),
+    ),
+  );
+  await assertFails(
+    setDoc(
+      doc(as(ADMIN), `clubs/${CLUB}/members/pre7`),
+      preCreatedMember("pre7", "player", { userId: STRANGER.uid }),
+    ),
+  );
+  await assertFails(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/members/pre8`), preCreatedMember("autre", "player")),
+  );
+  await assertFails(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/members/pre9`), preCreatedMember("pre9", "")),
+  );
+});
+
+test("le rôle d'une invitation est figé, même pour un admin", async () => {
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/inv1`), { role: "admin" }),
+  );
+  await assertFails(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/invitations/inv1`), { role: "admin" }),
+  );
+});
+
+test("un coach ne détourne pas une invitation admin, un admin la corrige", async () => {
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/invAdmin`), {
+      email: COACH.email,
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/invAdmin`), {
+      expiresAt: Timestamp.fromDate(new Date(Date.now() + 7 * 86400000)),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/invitations/invAdmin`), {
+      email: "vrai.admin@club.fr",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("un coach corrige l'e-mail, prolonge ou expire une invitation joueur", async () => {
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/inv1`), {
+      email: "ines@club.fr",
+      expiresAt: Timestamp.fromDate(new Date(Date.now() + 7 * 86400000)),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/inv1`), {
+      status: "expired",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("les invitations parent ne se modifient pas côté client", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/invitations/invGuardian`), {
+      code: "GRD777",
+      status: "pending",
+      role: "player",
+      type: "guardian",
+      memberId: PLAYER.uid,
+      email: "maman@club.fr",
+    });
+  });
+  for (const actor of [COACH, ADMIN]) {
+    await assertFails(
+      updateDoc(doc(as(actor), `clubs/${CLUB}/invitations/invGuardian`), {
+        email: actor.email,
+      }),
+    );
+  }
+});
+
+// ————————————————————————————————————————————————————————————————
 // Fiches pré-créées et club : plus de lecture publique
 // ————————————————————————————————————————————————————————————————
 

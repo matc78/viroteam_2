@@ -14,6 +14,7 @@ part 'app_copy_planning.dart';
 part 'app_copy_fees.dart';
 part 'app_copy_teams.dart';
 part 'app_copy_club.dart';
+part 'app_copy_clubs.dart';
 part 'app_copy_activity.dart';
 part 'app_copy_settings.dart';
 part 'app_copy_join.dart';
@@ -35,6 +36,7 @@ abstract final class AppCopy {
   static const fees = AppCopyFees();
   static const teams = AppCopyTeams();
   static const club = AppCopyClub();
+  static const clubs = AppCopyClubs();
   static const activity = AppCopyActivity();
   static const settings = AppCopySettings();
   static const join = AppCopyJoin();

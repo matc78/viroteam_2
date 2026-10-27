@@ -19,6 +19,7 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/features/clubs/widgets/add_club_sheet.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
+import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/email_verification_dialog.dart';
@@ -41,11 +42,15 @@ class ClubSelectorScreen extends ConsumerWidget {
       body: SafeArea(
         child: clubsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, __) => const ViroErrorState(),
+          error: (_, _) => ViroErrorState(
+            onRetry: () => ref.invalidate(userClubsWithEventsProvider),
+          ),
           data: (clubs) {
             return invitationsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const ViroErrorState(),
+              error: (_, _) => ViroErrorState(
+                onRetry: () => ref.invalidate(pendingInvitationsProvider),
+              ),
               data: (invitations) => ViroRefreshIndicator(
                 onRefresh: () async {
                   await Future.wait([
@@ -88,9 +93,7 @@ class _ClubSelectorBody extends ConsumerWidget {
       return ListView(
         physics: ViroRefreshIndicator.scrollPhysics,
         children: [
-          _EmptyStateWidget(
-            onAdd: () => showAddClubSheet(context, ref),
-          ),
+          _EmptyStateWidget(onAdd: () => showAddClubSheet(context, ref)),
         ],
       );
     }
@@ -100,11 +103,41 @@ class _ClubSelectorBody extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (hasClubs) ...[
+          // Invitations en tête : c'est l'action qui attend une réponse.
+          if (hasInvitations) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 ViroSpacing.lg,
                 ViroSpacing.lg,
+                ViroSpacing.lg,
+                ViroSpacing.sm,
+              ),
+              child: Text(
+                AppCopy.club.pendingInvitesCount(invitations.length),
+                style: theme.titleSmall?.copyWith(
+                  color: palette.brandText,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.lg),
+              child: Column(
+                children: [
+                  for (var i = 0; i < invitations.length; i++) ...[
+                    if (i > 0) const SizedBox(height: ViroSpacing.md),
+                    _InvitationCard(invitation: invitations[i]),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: ViroSpacing.lg),
+          ],
+          if (hasClubs) ...[
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                ViroSpacing.lg,
+                hasInvitations ? 0 : ViroSpacing.lg,
                 ViroSpacing.lg,
                 ViroSpacing.sm,
               ),
@@ -127,42 +160,12 @@ class _ClubSelectorBody extends ConsumerWidget {
                       onTap: () {
                         final club = clubs[i].club;
                         final membership = clubs[i].membership;
-                        ref.read(sessionProvider.notifier).setActiveClub(
-                              club.id,
-                              role: membership?.role,
-                            );
+                        ref
+                            .read(sessionProvider.notifier)
+                            .setActiveClub(club.id, role: membership?.role);
                         context.push(AppRoutes.clubDetailPath(club.id));
                       },
                     ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: ViroSpacing.lg),
-          ],
-          if (hasInvitations) ...[
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                ViroSpacing.lg,
-                hasClubs ? 0 : ViroSpacing.lg,
-                ViroSpacing.lg,
-                ViroSpacing.sm,
-              ),
-              child: Text(
-                AppCopy.club.pendingInvitesCount(invitations.length),
-                style: theme.titleSmall?.copyWith(
-                  color: palette.brandText,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: ViroSpacing.lg),
-              child: Column(
-                children: [
-                  for (var i = 0; i < invitations.length; i++) ...[
-                    if (i > 0) const SizedBox(height: ViroSpacing.md),
-                    _InvitationCard(invitation: invitations[i]),
                   ],
                 ],
               ),
@@ -201,10 +204,8 @@ class _EmptyStateWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: ViroSpacing.xl),
-          Text(
-            '🏛️',
-            textAlign: TextAlign.center,
-            style: theme.displayMedium,
+          Center(
+            child: ViroIcon(ViroIcons.club, size: 56, color: palette.accent),
           ),
           const SizedBox(height: ViroSpacing.lg),
           Text(
@@ -234,10 +235,7 @@ class _EmptyStateWidget extends StatelessWidget {
 }
 
 class _ClubCard extends ConsumerWidget {
-  const _ClubCard({
-    required this.entry,
-    required this.onTap,
-  });
+  const _ClubCard({required this.entry, required this.onTap});
 
   final UserClubWithEvent entry;
   final VoidCallback onTap;
@@ -258,106 +256,92 @@ class _ClubCard extends ConsumerWidget {
         : AppCopy.club.memberPlural;
     final familyChild = ref.watch(familyPrimaryChildProvider(club.id)).value;
 
-    return GestureDetector(
+    return ViroCard(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(ViroSpacing.md),
-        decoration: BoxDecoration(
-          color: palette.surfaceCard,
-          border: Border.all(color: palette.border),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                ClubContextAvatar(
-                  club: club,
-                  accentColor: accentColor,
-                  childMember: familyChild,
-                  enableZoom: false,
-                ),
-                const SizedBox(width: ViroSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        club.name,
-                        style: theme.titleSmall?.copyWith(
-                          color: readableAccent,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '${club.sport} • ${club.memberCount} $memberLabel',
-                        style: theme.bodySmall?.copyWith(
-                          color: palette.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: ViroSpacing.md),
-            if (membership != null) ...[
-              Wrap(
-                spacing: ViroSpacing.sm,
-                runSpacing: ViroSpacing.sm,
-                children: _roleBadgesFor(membership.role),
+      semanticLabel: AppCopy.clubs.openClubLabel(club.name),
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.all(ViroSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ClubContextAvatar(
+                club: club,
+                accentColor: accentColor,
+                childMember: familyChild,
+                enableZoom: false,
               ),
-              const SizedBox(height: ViroSpacing.md),
-            ] else if (entry.parentLinks.isNotEmpty) ...[
-              const Wrap(
-                spacing: ViroSpacing.sm,
-                runSpacing: ViroSpacing.sm,
-                children: [
-                  ViroRoleBadge(role: ViroRole.parent, compact: true),
-                ],
-              ),
-              const SizedBox(height: ViroSpacing.md),
-            ] else
-              const SizedBox(height: ViroSpacing.sm),
-            if (entry.highlightEvent != null)
-              Row(
-                children: [
-                  Icon(
-                    ViroIcons.calendar,
-                    size: 16,
-                    color: palette.textSecondary,
-                  ),
-                  const SizedBox(width: ViroSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      _eventHighlightLabel(entry.highlightEvent!),
+              const SizedBox(width: ViroSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      club.name,
+                      style: theme.titleSmall?.copyWith(
+                        color: readableAccent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      '${club.sport} • ${club.memberCount} $memberLabel',
                       style: theme.bodySmall?.copyWith(
                         color: palette.textSecondary,
                       ),
                     ),
-                  ),
-                ],
-              )
-            else
-              Text(
-                AppCopy.planning.noUpcomingClub,
-                style: theme.bodySmall?.copyWith(
-                  color: palette.textMuted,
-                  fontStyle: FontStyle.italic,
+                  ],
                 ),
               ),
+              const SizedBox(width: ViroSpacing.sm),
+              ViroIcon(ViroIcons.chevronRight, size: 20, color: readableAccent),
+            ],
+          ),
+          const SizedBox(height: ViroSpacing.md),
+          if (membership != null) ...[
+            Wrap(
+              spacing: ViroSpacing.sm,
+              runSpacing: ViroSpacing.sm,
+              children: _roleBadgesFor(membership.role),
+            ),
+            const SizedBox(height: ViroSpacing.md),
+          ] else if (entry.parentLinks.isNotEmpty) ...[
+            const Wrap(
+              spacing: ViroSpacing.sm,
+              runSpacing: ViroSpacing.sm,
+              children: [ViroRoleBadge(role: ViroRole.parent, compact: true)],
+            ),
+            const SizedBox(height: ViroSpacing.md),
+          ] else
             const SizedBox(height: ViroSpacing.sm),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Icon(
-                ViroIcons.chevronRight,
-                size: 20,
-                color: readableAccent,
+          if (entry.highlightEvent != null)
+            Row(
+              children: [
+                ViroIcon(
+                  ViroIcons.calendar,
+                  size: 16,
+                  color: palette.textSecondary,
+                ),
+                const SizedBox(width: ViroSpacing.sm),
+                Expanded(
+                  child: Text(
+                    _eventHighlightLabel(entry.highlightEvent!),
+                    style: theme.bodySmall?.copyWith(
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            Text(
+              AppCopy.planning.noUpcomingClub,
+              style: theme.bodySmall?.copyWith(
+                color: palette.textMuted,
+                fontStyle: FontStyle.italic,
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -392,11 +376,11 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
   String? _error;
 
   String _roleLabel(String role) => switch (role) {
-        MemberRoles.coach => AppCopy.common.roleCoach,
-        MemberRoles.admin => AppCopy.common.roleAdmin,
-        MemberRoles.player => AppCopy.common.rolePlayer,
-        _ => role,
-      };
+    MemberRoles.coach => AppCopy.common.roleCoach,
+    MemberRoles.admin => AppCopy.common.roleAdmin,
+    MemberRoles.player => AppCopy.common.rolePlayer,
+    _ => role,
+  };
 
   Future<void> _accept() async {
     final user = ref.read(viroUserProvider).value;
@@ -411,19 +395,22 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
     });
     try {
       if (widget.invitation.isGuardian) {
-        await ref.read(guardianServiceProvider).linkGuardian(
+        await ref
+            .read(guardianServiceProvider)
+            .linkGuardian(
               clubId: widget.invitation.clubId,
               invitationId: widget.invitation.id,
             );
-        ref.read(sessionProvider.notifier).setActiveClub(
-              widget.invitation.clubId,
-            );
+        ref
+            .read(sessionProvider.notifier)
+            .setActiveClub(widget.invitation.clubId);
       } else {
-        await ref.read(invitationServiceProvider).acceptInvitation(
-              invitation: widget.invitation,
-              user: user,
-            );
-        ref.read(sessionProvider.notifier).setActiveClub(
+        await ref
+            .read(invitationServiceProvider)
+            .acceptInvitation(invitation: widget.invitation, user: user);
+        ref
+            .read(sessionProvider.notifier)
+            .setActiveClub(
               widget.invitation.clubId,
               role: widget.invitation.role,
             );
@@ -459,7 +446,35 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
     }
   }
 
+  /// Demande confirmation avant de refuser : le refus n'est pas réversible
+  /// sans nouvelle invitation.
+  Future<bool> _confirmDecline() async {
+    final clubName = widget.invitation.clubName ?? AppCopy.club.aClubFallback;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppCopy.clubs.declineConfirmTitle),
+        content: Text(AppCopy.clubs.declineConfirmBody(clubName)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(AppCopy.common.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              AppCopy.club.declineInvite,
+              style: TextStyle(color: ctx.viroPalette.errorText),
+            ),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   Future<void> _decline() async {
+    if (!await _confirmDecline() || !mounted) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -496,7 +511,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('✉️', style: theme.headlineSmall),
+              ViroIcon(ViroIcons.envelope, size: 28, color: palette.accent),
               const SizedBox(width: ViroSpacing.md),
               Expanded(
                 child: Column(
@@ -512,17 +527,16 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                     Text(
                       invite.isGuardian
                           ? (invite.firstName != null &&
-                                  invite.firstName!.trim().isNotEmpty
-                              ? AppCopy.club.followChildNamed(
-                                  invite.firstName!.trim(),
-                                )
-                              : AppCopy.club.followChildGeneric)
+                                    invite.firstName!.trim().isNotEmpty
+                                ? AppCopy.club.followChildNamed(
+                                    invite.firstName!.trim(),
+                                  )
+                                : AppCopy.club.followChildGeneric)
                           : AppCopy.club.roleColon(_roleLabel(invite.role)),
-                      style: theme.bodySmall?.copyWith(
-                        color: palette.accent,
-                      ),
+                      style: theme.bodySmall?.copyWith(color: palette.accent),
                     ),
-                    if (invite.clubSport != null && invite.clubSport!.isNotEmpty)
+                    if (invite.clubSport != null &&
+                        invite.clubSport!.isNotEmpty)
                       Text(
                         invite.clubSport!,
                         style: theme.bodySmall?.copyWith(
@@ -545,63 +559,22 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
           Row(
             children: [
               Expanded(
-                child: GestureDetector(
-                  onTap: _loading ? null : _decline,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: ViroSpacing.sm,
-                    ),
-                    decoration: BoxDecoration(
-                      color: palette.surfaceCard,
-                      border: Border.all(color: palette.accentMid),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      AppCopy.club.declineInvite,
-                      textAlign: TextAlign.center,
-                      style: theme.bodySmall?.copyWith(
-                        color: palette.accent,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                child: OutlinedButton(
+                  onPressed: _loading ? null : _decline,
+                  child: Text(AppCopy.club.declineInvite),
                 ),
               ),
               const SizedBox(width: ViroSpacing.md),
               Expanded(
-                child: GestureDetector(
-                  onTap: _loading ? null : _accept,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: ViroSpacing.sm,
-                    ),
-                    decoration: BoxDecoration(
-                      color: palette.accentFill,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: _loading
-                        ? SizedBox(
-                            height: 18,
-                            child: Center(
-                              child: SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: palette.onAccent,
-                                ),
-                              ),
-                            ),
-                          )
-                        : Text(
-                            AppCopy.club.acceptInvite,
-                            textAlign: TextAlign.center,
-                            style: theme.bodySmall?.copyWith(
-                              color: palette.onAccent,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _accept,
+                  child: _loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(AppCopy.club.acceptInvite),
                 ),
               ),
             ],
@@ -646,6 +619,8 @@ String _relativeDate(DateTime date) {
   if (diff.inDays == 0) return AppCopy.planning.todayRelative;
   if (diff.inDays == 1) return AppCopy.planning.yesterdayRelative;
   if (diff.inDays < 7) return AppCopy.planning.daysAgo(diff.inDays);
-  if (diff.inDays < 30) return AppCopy.planning.weeksAgo((diff.inDays / 7).floor());
+  if (diff.inDays < 30) {
+    return AppCopy.planning.weeksAgo((diff.inDays / 7).floor());
+  }
   return AppCopy.planning.monthsAgo((diff.inDays / 30).floor());
 }

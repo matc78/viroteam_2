@@ -28,9 +28,7 @@ import 'package:viro_team_v2/features/home/widgets/home_quiet_content.dart';
 import 'package:viro_team_v2/features/home/widgets/notification_soft_ask_sheet.dart';
 import 'package:viro_team_v2/features/settings/widgets/analytics_consent_sheet.dart';
 import 'package:viro_team_v2/models/club_event.dart';
-import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
-import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
@@ -134,32 +132,14 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
     );
   }
 
-  Future<void> _setRsvp(ClubEvent event, RsvpStatus status) async {
-    final authUid = ref.read(authStateProvider).value?.uid;
-    if (authUid == null) return;
-
-    final eventService = ref.read(eventServiceProvider);
-    final audienceId = await eventService.resolveAudienceId(
-      clubId: event.clubId,
-      authUid: authUid,
-    );
-
-    // Optimistic : invalide après succès ; snackbar + rechargement si échec.
-    try {
-      await eventService.updateRsvp(
-        clubId: event.clubId,
-        eventId: event.id,
-        uid: audienceId,
+  Future<void> _setRsvp(ClubEvent event, RsvpStatus status) =>
+      setMemberEventRsvp(
+        ref: ref,
+        context: context,
+        event: event,
         status: status,
+        failureMessage: AppCopy.home.rsvpFailed,
       );
-      ref.invalidate(memberEventsProvider);
-    } catch (_) {
-      ref.invalidate(memberEventsProvider);
-      if (mounted) {
-        ViroSnackBar.show(context, AppCopy.home.rsvpFailed);
-      }
-    }
-  }
 
   /// Recharge la home sans bloquer indéfiniment sur les StreamProviders.
   Future<void> _refreshHome(WidgetRef ref) async {

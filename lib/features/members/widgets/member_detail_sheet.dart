@@ -284,7 +284,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
         );
       },
     );
-    if (saved != true) {
+    if (saved != true || !mounted) {
       controller.dispose();
       return;
     }
@@ -298,6 +298,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
           );
       if (!mounted) return;
       await _loadExtras();
+      if (!mounted) return;
       ViroSnackBar.show(context, AppCopy.members.licenseUpdated);
     } catch (error) {
       if (!mounted) return;

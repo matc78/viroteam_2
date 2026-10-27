@@ -29,6 +29,9 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Cotisations (admin) : ajustement, aides et statut sont relus au moment d’enregistrer, une écriture concurrente n’est plus écrasée.
 - Suppression de compte : refusée pour le dernier admin d’un club. En cas d’échec partiel, le compte est conservé et la suppression peut être relancée, au lieu de laisser des données orphelines. Les sous-collections du profil sont aussi supprimées.
 - Invitations en attente (sélecteur de club) : message d’erreur lisible, plus d’exception brute.
+- Rejoindre par code : la flèche retour ne plante plus quand l’écran est ouvert par un lien (retour à l’accueil).
+- RSVP depuis l’accueil et le planning : une erreur réseau affiche un message au lieu d’échouer en silence, sans lecture Firestore en plus ni rechargement complet du planning.
+- Fiche club et détail membre : plus d’erreur quand l’écran est fermé pendant une action en cours.
 
 ### Sécurité
 

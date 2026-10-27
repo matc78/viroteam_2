@@ -76,16 +76,18 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
 
     final target = ref.read(selectedClubAudienceProvider(widget.clubId));
     final eventService = ref.read(eventServiceProvider);
-    final audienceId = target?.memberId ??
-        await eventService.resolveAudienceId(
-          clubId: event.clubId,
-          authUid: authUid,
-        );
     final viaCallable = target?.isChild == true;
 
+    // Optimistic : l'événement quitte « à répondre » tout de suite, et y
+    // revient si la résolution d'audience ou l'écriture échoue.
     setState(() => _hiddenPendingIds.add(event.id));
 
     try {
+      final audienceId = target?.memberId ??
+          await eventService.resolveAudienceId(
+            clubId: event.clubId,
+            authUid: authUid,
+          );
       await eventService.updateRsvp(
         clubId: event.clubId,
         eventId: event.id,

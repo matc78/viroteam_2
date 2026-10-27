@@ -16,6 +16,7 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/viro_snackbar.dart';
 
 /// Limite d'événements affichés en aperçu sur la home membre.
 const memberHomePlanningPreviewLimit = 5;
@@ -30,6 +31,35 @@ final memberEventAudienceIdProvider =
         authUid: uid,
       );
 });
+
+/// RSVP du membre connecté sur un événement de son planning (home, planning).
+///
+/// La clé d'audience vient de [memberEventAudienceIdProvider] (même cache que
+/// la carte, pas de lecture en plus) et est lue dans le `try` : une erreur
+/// réseau affiche [failureMessage]. L'écriture directe est reflétée tout de
+/// suite par le flux Firestore (latence compensée) et annulée par Firestore
+/// si le serveur la refuse : pas besoin d'invalider le planning.
+Future<void> setMemberEventRsvp({
+  required WidgetRef ref,
+  required BuildContext context,
+  required ClubEvent event,
+  required RsvpStatus status,
+  required String failureMessage,
+}) async {
+  try {
+    final audienceId =
+        await ref.read(memberEventAudienceIdProvider(event.clubId).future);
+    if (audienceId == null) return;
+    await ref.read(eventServiceProvider).updateRsvp(
+          clubId: event.clubId,
+          eventId: event.id,
+          uid: audienceId,
+          status: status,
+        );
+  } catch (_) {
+    if (context.mounted) ViroSnackBar.show(context, failureMessage);
+  }
+}
 
 /// Liste groupée par jour des événements à venir d'un membre (multi-clubs).
 class MemberUpcomingEventsList extends ConsumerWidget {

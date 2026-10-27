@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
@@ -15,9 +14,7 @@ import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_she
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
-import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
-import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
@@ -45,31 +42,14 @@ class MemberPlanningScreen extends ConsumerWidget {
     BuildContext context,
     ClubEvent event,
     RsvpStatus status,
-  ) async {
-    final authUid = ref.read(authStateProvider).value?.uid;
-    if (authUid == null) return;
-
-    final eventService = ref.read(eventServiceProvider);
-    final audienceId = await eventService.resolveAudienceId(
-      clubId: event.clubId,
-      authUid: authUid,
-    );
-
-    try {
-      await eventService.updateRsvp(
-        clubId: event.clubId,
-        eventId: event.id,
-        uid: audienceId,
+  ) =>
+      setMemberEventRsvp(
+        ref: ref,
+        context: context,
+        event: event,
         status: status,
+        failureMessage: AppCopy.planning.rsvpFailed,
       );
-      ref.invalidate(memberEventsProvider);
-    } catch (_) {
-      ref.invalidate(memberEventsProvider);
-      if (context.mounted) {
-        ViroSnackBar.show(context, AppCopy.planning.rsvpFailed);
-      }
-    }
-  }
 
   void _showEventDetail({
     required BuildContext context,

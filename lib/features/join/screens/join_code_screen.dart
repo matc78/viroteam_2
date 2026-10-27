@@ -76,12 +76,11 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
     final theme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
 
+    // Ouvert par deep link (`/join?code=`, `router.go`) : la pile peut être vide.
     return ViroScaffold(
+      fallbackRoute: AppRoutes.home,
       appBar: ViroAppBar(
-        leading: IconButton(
-          icon: ViroIcon(ViroIcons.chevronLeft),
-          onPressed: () => context.pop(),
-        ),
+        fallbackRoute: AppRoutes.home,
         title: Text(AppCopy.join.joinClubTitle),
       ),
       body: SafeArea(

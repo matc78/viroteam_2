@@ -12,8 +12,45 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 - Notifications : chaque coach choisit quand recevoir le bilan des réponses (Paramètres > Notifications) : 2 jours avant, la veille au soir (par défaut) ou avec le rappel du jour J
 
+### Ajouté
+
+- Demandes de rôle : les admins voient enfin les demandes « changer de rôle » envoyées depuis une invitation.
+  - Dans « À faire », une seule ligne résume les demandes (« 2 demandes de rôle à regarder »). Un écran dédié permet ensuite d’accepter ou de refuser chacune d’un tap.
+  - Seules les demandes traitables tout de suite sont affichées : le demandeur a rejoint le club et son rôle diffère.
+  - Le traitement passe par la nouvelle callable `resolveJoinRequest` (`resolveJoinRequestDev`), qui applique le rôle et le statut dans une même transaction et garde la protection « dernier admin ».
+  - Les règles Firestore interdisent désormais au client de modifier une demande.
+- Planning : les parents sans fiche membre ont aussi les vues semaine et mois, limitées aux équipes de leur enfant (une requête par équipe, comme la vue jour)
+- Planning membre : avec plusieurs clubs, l’état vide propose « Voir le planning d’un club » via une feuille de choix du club
+
+### Corrigé
+
+- Fiche club joueur : « Impossible de charger le parent » quand aucun parent n’était lié — la lecture des invitations était refusée au joueur ; il peut maintenant lire celles de sa propre fiche, et l’app tolère un refus résiduel
+
 ### Modifié
 
+- Dark mode : les cartes et tuiles à accent (bordure ou bandeau club) ont un halo teinté discret pour mieux se détacher du fond ; rendu clair inchangé
+- Fiche club :
+  - un vrai aperçu remplace la grille de tuiles. On y trouve un en-tête aux couleurs du club (logo, rôle, chiffres clés), le prochain événement toujours visible avec le RSVP, et une section « À faire » (autres convocations, cotisation à régler).
+  - les raccourcis affichent une info utile (événements de la semaine, équipes, état de la cotisation, dernière annonce) avec titre et icône sur la même ligne ; la zone staff s’appelle « Côté admin » / « Côté coach » et ses tuiles reprennent les couleurs du club
+  - l’en-tête (logo, nom, rôle, chips) est centré et compact ; les chips d’info sont plus petites que le badge de rôle ; un admin ouvre l’apparence en tapant le bloc identité (plus d’icône crayon)
+  - le titre affiche le nom du club
+- Paramètres club : un seul bouton « Enregistrer », une confirmation avant de quitter avec des modifications, des erreurs lisibles et un message clair pour les non-admins
+- Équipes : retirer un joueur, un coach ou un membre en attente demande confirmation et affiche un message de succès. Les cartes résument l’effectif, les boutons d’ajout ont des libellés distincts et les états vides proposent de créer une équipe.
+- Membres :
+  - les sections Membres / Parents deviennent un sélecteur segmenté et « Gérer les équipes » une ligne à part
+  - un message de succès s’affiche au changement de rôle et à la suppression
+  - l’état vide propose d’ajouter un membre
+- Cotisations admin : « Marquer payé » (unitaire et en masse) demande confirmation, avec la progression en masse. Une carte de suivi montre le taux payé, l’encaissé et le restant. « Exporter CSV » devient « Copier en CSV ».
+- Ma cotisation : le bouton « Payer en ligne » est placé sous le montant dû, la saison a un vrai titre, l’attestation a une icône de téléchargement et les admins ont un raccourci vers la configuration quand la saison est vide
+- Planning club : la synchro agenda a sa propre icône. Les joueurs ont aussi les vues semaine et mois, en lecture seule. Un jour vide propose « Aller au prochain événement ».
+- Ajout d’événement : la date passe juste après le type, la raison du blocage s’affiche sous le bouton, quitter un formulaire modifié demande confirmation, et l’accès refusé affiche un message au lieu de se fermer tout seul
+- Mes clubs : les invitations s’affichent en tête, refuser demande confirmation, les boutons suivent le thème et les emojis sont remplacés par des icônes
+- Annonces :
+  - les annonces actives et clôturées sont séparées (section repliable)
+  - l’édition réutilise la feuille de création
+  - « Supprimer » est en rouge
+  - l’état vide propose de publier
+- Erreurs : un bouton « Réessayer » sur les écrans planning, membres, équipes, cotisations, annonces et clubs
 - Paramètres : le hub ne montre plus que le profil, quatre catégories en sous-pages (Compte et sécurité, Notifications, Apparence, Confidentialité), les clubs et un bouton « Se déconnecter » discret en bas, avec la version de l’app
 - Suppression du compte : sortie du hub, elle est rangée dans la « Zone sensible » en bas de Compte et sécurité et passe par un écran dédié. Il explique ce qui est effacé ou anonymisé, prévient les admins de club et demande de taper « SUPPRIMER ». Il remplace la boîte de dialogue, dont le texte était inexact (« données club non purgées »).
 - Accueil : avec un seul club, l’accès au club en bas d’écran devient une grande pastille (logo, nom du club, « Ouvrir le club ») au lieu du petit logo à côté du +

@@ -35,6 +35,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Règles Firestore : le compte Stripe du club et les champs de rapprochement CB ne s’écrivent plus que par les Cloud Functions ; une entrée du journal de cotisation est signée par son auteur, horodatée serveur et cohérente avec la fiche.
 - Profils `users` : lisibles seulement par leur titulaire et par les comptes qui partagent un club avec lui (membre ou parent), plus par n’importe quel compte connecté. Nouveau champ serveur `memberClubIds` (trigger `onUserWrittenSyncClubIds`, rattrapage `tool/backfill_member_club_ids.mjs`).
 - Invitations nominatives et liens parent : acceptés seulement avec un e-mail confirmé. L’app propose d’envoyer le lien de confirmation puis relance l’acceptation.
+- Règles Firestore, droits des coachs : le réglage « inviter des joueurs » s’applique aussi aux invitations et fiches créées directement ; un coach ne crée plus d’équipe, ne modifie que les équipes qu’il encadre, ne touche plus à la liste des coachs, et son roster joueurs suit le réglage « gérer les effectifs ».
 
 ## [2.2.11] - 2026-10-23
 

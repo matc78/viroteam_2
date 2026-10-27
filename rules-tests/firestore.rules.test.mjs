@@ -211,7 +211,11 @@ beforeEach(async () => {
       reactions: {},
     });
     // Équipes et contenus.
-    await setDoc(doc(db, `clubs/${CLUB}/teams/teamA`), { name: "Équipe A", playerIds: [PLAYER.uid] });
+    await setDoc(doc(db, `clubs/${CLUB}/teams/teamA`), {
+      name: "Équipe A",
+      playerIds: [PLAYER.uid],
+      coachIds: [COACH.uid],
+    });
     await setDoc(doc(db, `clubs/${CLUB}/teams/teamB`), { name: "Équipe B", playerIds: [] });
     await setDoc(doc(db, `clubs/${CLUB}/events/evA`), { title: "Entraînement A", teamIds: ["teamA"] });
     await setDoc(doc(db, `clubs/${CLUB}/events/evB`), { title: "Match B", teamIds: ["teamB"] });
@@ -1271,5 +1275,76 @@ test("un compte ne s'ajoute pas lui-même à memberClubIds", async () => {
       email: "n@x.fr",
       memberClubIds: [CLUB],
     }),
+  );
+});
+
+// ————————————————————————————————————————————————————————————————
+// Droits des coachs : invitations et équipes
+// ————————————————————————————————————————————————————————————————
+
+async function setCoachPermissions(permissions) {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), `clubs/${CLUB}`), { coachPermissions: permissions });
+  });
+}
+
+const PLAYER_INVITE = {
+  code: "NEW777",
+  status: "pending",
+  role: "player",
+  type: "member",
+  email: "recrue@club.fr",
+};
+
+test("un coach sans le droit d'inviter ne crée ni invitation ni fiche", async () => {
+  await setCoachPermissions({ canInvitePlayers: false });
+  await assertFails(setDoc(doc(as(COACH), `clubs/${CLUB}/invitations/new7`), PLAYER_INVITE));
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/members/pre10`), {
+      memberId: "pre10",
+      role: "player",
+      status: "active",
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/inv1`), { status: "expired" }),
+  );
+  // L'admin n'est pas concerné par le réglage.
+  await assertSucceeds(setDoc(doc(as(ADMIN), `clubs/${CLUB}/invitations/new8`), PLAYER_INVITE));
+});
+
+test("le droit d'inviter est accordé par défaut au coach", async () => {
+  await assertSucceeds(setDoc(doc(as(COACH), `clubs/${CLUB}/invitations/new9`), PLAYER_INVITE));
+});
+
+test("un coach ne crée pas d'équipe et ne s'ajoute pas aux coachs", async () => {
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamC`), { name: "C", coachIds: [COACH.uid] }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamB`), { coachIds: [COACH.uid] }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), {
+      coachIds: [COACH.uid, OTHER_PLAYER.uid],
+    }),
+  );
+});
+
+test("un coach gère le roster de son équipe seulement, selon son droit", async () => {
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), {
+      playerIds: [PLAYER.uid, OTHER_PLAYER.uid],
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamB`), { playerIds: [OTHER_PLAYER.uid] }),
+  );
+  await setCoachPermissions({ canManageTeamRoster: false });
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), { playerIds: [PLAYER.uid] }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), { messagingLink: "https://chat.example" }),
   );
 });

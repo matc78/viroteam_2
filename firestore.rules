@@ -107,6 +107,38 @@ service cloud.firestore {
       return isClubAdmin(clubId) || isClubCoach(clubId);
     }
 
+    /// Droit coach du club (`clubs/{clubId}.coachPermissions`, réglé par
+    /// l'admin), avec la même valeur par défaut que l'app et les Functions.
+    function coachPermission(clubId, key, defaultValue) {
+      return get(/databases/$(database)/documents/clubs/$(clubId)).data
+        .get('coachPermissions', {}).get(key, defaultValue) == true;
+    }
+
+    /// Admin, ou coach autorisé à inviter (`canInvitePlayers`, vrai par défaut).
+    function canInviteMembers(clubId) {
+      return isClubAdmin(clubId)
+        || (isClubCoach(clubId) && coachPermission(clubId, 'canInvitePlayers', true));
+    }
+
+    /// Identifiants roster du compte connecté : uid, et fiche liée si indexée.
+    function myRosterIds(clubId) {
+      let accountIndex = /databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid);
+      return exists(accountIndex)
+        ? [request.auth.uid, get(accountIndex).data.memberId]
+        : [request.auth.uid];
+    }
+
+    /// Un coach ne modifie que les équipes qu'il encadre, sans toucher à la
+    /// liste des coachs (réservée à l'admin) ; le roster joueurs suit le droit
+    /// `canManageTeamRoster` (vrai par défaut).
+    function isCoachTeamUpdate(clubId) {
+      return isClubCoach(clubId)
+        && resource.data.get('coachIds', []).hasAny(myRosterIds(clubId))
+        && !affectedKeys().hasAny(['coachIds'])
+        && (!affectedKeys().hasAny(['playerIds', 'pendingPlayerIds'])
+          || coachPermission(clubId, 'canManageTeamRoster', true));
+    }
+
     /// Le compte connecté est le titulaire de la fiche `memberId`
     /// (fiche à son uid, ou index `member_accounts` qui pointe vers elle).
     function ownsMemberDoc(clubId, memberId) {
@@ -239,7 +271,8 @@ service cloud.firestore {
     /// un coach créait `members/{uidQuelconque}` en `admin` et ce compte
     /// devenait admin via le repli `memberDocRef` → `members/{auth.uid}`.
     function isPreCreatedMemberCreate(clubId, memberId) {
-      return request.resource.data.get('memberId', memberId) == memberId
+      return canInviteMembers(clubId)
+        && request.resource.data.get('memberId', memberId) == memberId
         && !request.resource.data.keys().hasAny(['accountUid', 'userId'])
         && canGrantRole(clubId, request.resource.data.get('role', ''));
     }
@@ -250,7 +283,7 @@ service cloud.firestore {
     /// admin (sinon il réécrit `email` pour s'en emparer). Les invitations
     /// `team` et `guardian` ne se modifient que via les Cloud Functions.
     function isStaffInvitationUpdate(clubId) {
-      return isClubCoachOrAdmin(clubId)
+      return canInviteMembers(clubId)
         && resource.data.get('type', 'member') == 'member'
         && request.resource.data.get('type', 'member') == 'member'
         && request.resource.data.get('status', '') != 'accepted'
@@ -389,7 +422,9 @@ service cloud.firestore {
       match /invitations/{inviteId} {
         allow get, list: if isClubCoachOrAdmin(clubId) || isInvitee();
         // E-mail obligatoire pour member ; team/guardian uniquement via Cloud Functions.
-        allow create: if isClubCoachOrAdmin(clubId)
+        // Coach : seulement avec le droit `canInvitePlayers` (aligné sur
+        // `createTeamInvite`), sinon il contournait le réglage de l'admin.
+        allow create: if canInviteMembers(clubId)
           && request.resource.data.get('type', 'member') != 'guardian'
           && request.resource.data.get('type', 'member') != 'team'
           && request.resource.data.get('email', '') is string
@@ -423,7 +458,11 @@ service cloud.firestore {
       match /teams/{teamId} {
         allow read: if isClubMember(clubId)
           || guardianCanSeeTeams(clubId, [teamId]);
-        allow create, update: if isClubCoachOrAdmin(clubId);
+        // Création : admin (comme l'app et le portail). Un coach ne pouvait
+        // plus seulement s'ajouter à `coachIds` et contourner
+        // `assertCallerCoachesTeam` des Functions.
+        allow create: if isClubAdmin(clubId);
+        allow update: if isClubAdmin(clubId) || isCoachTeamUpdate(clubId);
         allow delete: if isClubAdmin(clubId);
       }
 

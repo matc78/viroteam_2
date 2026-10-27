@@ -278,18 +278,33 @@ service cloud.firestore {
     // users
     // ————————————————————————————————————————————————————————————
 
+    /// Clubs d'un profil `users` (membre ou parent), maintenus côté serveur.
+    function profileClubIds(data) {
+      return data.get('memberClubIds', []).concat(data.get('parentClubIds', []));
+    }
+
     match /users/{uid} {
-      // get pour afficher coéquipiers ; pas de list global (scraping).
-      allow get: if isSignedIn();
+      // get : le titulaire, ou un compte qui partage au moins un club avec lui
+      // (membre ou parent) — e-mail, téléphone et liens parent ne sont plus
+      // lisibles par n'importe quel compte connecté. `memberClubIds` est
+      // recalculé par la Function `onUserWrittenSyncClubIds` (backfill :
+      // `tool/backfill_member_club_ids.mjs`, à lancer avant de déployer ces
+      // règles). Pas de list global (scraping).
+      allow get: if isOwner(uid)
+        || (isSignedIn()
+          && profileClubIds(resource.data).hasAny(profileClubIds(get(userDoc()).data)));
       allow list: if false;
       allow create: if isOwner(uid)
         && request.resource.data.get('parentLinks', []) == []
         && request.resource.data.get('parentClubIds', []) == []
-        && request.resource.data.get('parentTeamIds', []) == [];
-      // Les index parent sont maintenus par les Cloud Functions.
+        && request.resource.data.get('parentTeamIds', []) == []
+        && request.resource.data.get('memberClubIds', []) == [];
+      // Les index parent et clubs sont maintenus par les Cloud Functions.
       // `legal` est write-once à la création (preuve d’acceptation CGU).
       allow update: if isOwner(uid)
-        && !affectedKeys().hasAny(['parentLinks', 'parentClubIds', 'parentTeamIds', 'deleted', 'legal']);
+        && !affectedKeys().hasAny([
+          'parentLinks', 'parentClubIds', 'parentTeamIds', 'memberClubIds', 'deleted', 'legal'
+        ]);
       // Suppression de compte : callable `deleteMyAccount` (anonymisation).
       allow delete: if false;
 

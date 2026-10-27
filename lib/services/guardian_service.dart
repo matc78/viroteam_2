@@ -46,6 +46,18 @@ class GuardianService {
           .collection(ProjectConfig.membersSubcollection)
           .doc(memberId);
 
+  /// Profil `users/{uid}`, ou null si les règles le refusent.
+  Future<DocumentSnapshot<Map<String, dynamic>>?> _readUserOrNull(
+    String uid,
+  ) async {
+    try {
+      return await _db.collection(ProjectConfig.usersCollection).doc(uid).get();
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') return null;
+      rethrow;
+    }
+  }
+
   /// Charge le parent V1 (0 ou 1) d’une fiche : guardian active/pending, sinon invitation.
   Future<MemberGuardianView> getMemberGuardian({
     required String clubId,
@@ -72,11 +84,10 @@ class GuardianService {
           : GuardianStatuses.pending;
       String? displayName;
       String? email;
-      final userSnap = await _db
-          .collection(ProjectConfig.usersCollection)
-          .doc(occupying.id)
-          .get();
-      if (userSnap.exists) {
+      // Profil illisible (parent encore en attente : pas de club commun dans
+      // les règles `users`) → l'uid seul, sans nom ni e-mail.
+      final userSnap = await _readUserOrNull(occupying.id);
+      if (userSnap != null && userSnap.exists) {
         final user = userSnap.data()!;
         displayName =
             (user[FirestoreFields.displayName] as String?)?.trim() ?? '';

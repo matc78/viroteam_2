@@ -52,6 +52,12 @@ export function parseRemoveMemberArgs(data: unknown): {
   };
 }
 
+/** `accountUid` (ou `userId` en compat v1) d'une fiche, sinon null. */
+export function accountUidOf(member: { accountUid?: unknown; userId?: unknown }): string | null {
+  const accountUid = String(member.accountUid ?? member.userId ?? "").trim();
+  return accountUid.length > 0 ? accountUid : null;
+}
+
 export type AdminMemberRef = {
   memberId: string;
   accountUid: string | null;

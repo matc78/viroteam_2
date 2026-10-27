@@ -26,10 +26,14 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Dates des anciens événements (sans `dateId`) : jour lu en UTC, plus dans le fuseau du téléphone (affichage la veille à partir de UTC-3).
 - Paiement CB : un seul paiement ouvert par cotisation (le précédent est annulé), crédit borné au reste dû, et remboursement automatique d’un paiement arrivé après le solde. Les aides en attente redéclarées remplacent l’ancienne au lieu de s’empiler.
 - Cotisations (admin) : ajustement, aides et statut sont relus au moment d’enregistrer, une écriture concurrente n’est plus écrasée.
+- Suppression de compte : refusée pour le dernier admin d’un club. En cas d’échec partiel, le compte est conservé et la suppression peut être relancée, au lieu de laisser des données orphelines. Les sous-collections du profil sont aussi supprimées.
+- Invitations en attente (sélecteur de club) : message d’erreur lisible, plus d’exception brute.
 
 ### Sécurité
 
 - Règles Firestore : le compte Stripe du club et les champs de rapprochement CB ne s’écrivent plus que par les Cloud Functions ; une entrée du journal de cotisation est signée par son auteur, horodatée serveur et cohérente avec la fiche.
+- Profils `users` : lisibles seulement par leur titulaire et par les comptes qui partagent un club avec lui (membre ou parent), plus par n’importe quel compte connecté. Nouveau champ serveur `memberClubIds` (trigger `onUserWrittenSyncClubIds`, rattrapage `tool/backfill_member_club_ids.mjs`).
+- Invitations nominatives et liens parent : acceptés seulement avec un e-mail confirmé. L’app propose d’envoyer le lien de confirmation puis relance l’acceptation.
 
 ## [2.2.11] - 2026-10-23
 

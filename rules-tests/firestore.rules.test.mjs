@@ -168,7 +168,15 @@ beforeEach(async () => {
       firstName: "Léa",
       lastName: "Autre",
     });
-    for (const u of [ADMIN, COACH, PLAYER, OTHER_PLAYER, STRANGER, INVITEE]) {
+    // `memberClubIds` : maintenu par la Function `onUserWrittenSyncClubIds`.
+    for (const u of [ADMIN, COACH, PLAYER, OTHER_PLAYER]) {
+      await setDoc(doc(db, `users/${u.uid}`), {
+        email: u.email,
+        emailNorm: u.email,
+        memberClubIds: [CLUB],
+      });
+    }
+    for (const u of [STRANGER, INVITEE]) {
       await setDoc(doc(db, `users/${u.uid}`), { email: u.email, emailNorm: u.email });
     }
     for (const u of [ADMIN, COACH, PLAYER, OTHER_PLAYER]) {
@@ -1234,6 +1242,34 @@ test("les champs de rapprochement CB sont réservés aux Functions", async () =>
       tierId: "t1",
       amountPaidCents: 0,
       paymentIntentId: "pi_x",
+    }),
+  );
+});
+
+// ————————————————————————————————————————————————————————————————
+// Données personnelles : profils `users`
+// ————————————————————————————————————————————————————————————————
+
+test("un compte d'un autre club ne lit pas le profil d'un membre", async () => {
+  await assertFails(getDoc(doc(as(STRANGER), `users/${ADMIN.uid}`)));
+  await assertFails(getDoc(doc(as(STRANGER), `users/${PARENT.uid}`)));
+});
+
+test("membres et parents d'un même club lisent leurs profils", async () => {
+  await assertSucceeds(getDoc(doc(as(COACH), `users/${PLAYER.uid}`)));
+  await assertSucceeds(getDoc(doc(as(ADMIN), `users/${PARENT.uid}`)));
+  await assertSucceeds(getDoc(doc(as(PARENT), `users/${COACH.uid}`)));
+  await assertSucceeds(getDoc(doc(as(STRANGER), `users/${STRANGER.uid}`)));
+});
+
+test("un compte ne s'ajoute pas lui-même à memberClubIds", async () => {
+  await assertFails(
+    updateDoc(doc(as(STRANGER), `users/${STRANGER.uid}`), { memberClubIds: [CLUB] }),
+  );
+  await assertFails(
+    setDoc(doc(as({ uid: "nouveau1", email: "n@x.fr" }), "users/nouveau1"), {
+      email: "n@x.fr",
+      memberClubIds: [CLUB],
     }),
   );
 });

@@ -44,6 +44,25 @@ class AccountService {
   final AppleSignInHelper _appleSignIn;
   final FirebaseFunctions _functions;
 
+  /// Envoie le lien de confirmation d'adresse e-mail au compte connecté.
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError(AppCopy.settings.notConnected);
+    await user.sendEmailVerification();
+  }
+
+  /// Recharge le compte et force un nouveau jeton pour que les Functions
+  /// voient `email_verified`. Retourne `true` si l'adresse est confirmée.
+  Future<bool> refreshEmailVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    final refreshed = _auth.currentUser;
+    if (refreshed == null || !refreshed.emailVerified) return false;
+    await refreshed.getIdToken(true);
+    return true;
+  }
+
   /// Indique si le compte a le provider email / mot de passe.
   static bool userHasPasswordProvider(User user) =>
       user.providerData.any((p) => p.providerId == 'password');

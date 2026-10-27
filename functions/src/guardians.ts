@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
+import { requireVerifiedEmail } from "./common";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import type { DocumentData, DocumentReference } from "firebase-admin/firestore";
 import {
@@ -646,6 +647,7 @@ export const {
       "E-mail du compte introuvable — reconnecte-toi avec un compte e-mail",
     );
   }
+  requireVerifiedEmail(request);
   const email = normalizeEmail(tokenEmail);
 
   const clubIdArg =

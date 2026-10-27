@@ -6,7 +6,12 @@ import type {
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable } from "./db";
 import { authEmailOf, normalizeEmail, requireUid, stringArray, uniq } from "./common";
-import { decrementCount } from "./memberAdminUtils";
+import {
+  accountUidOf,
+  decrementCount,
+  isLastAdmin,
+  type AdminMemberRef,
+} from "./memberAdminUtils";
 import { activeGuardianUids, recomputeParentTeamIdsSafe } from "./parentTeams";
 
 const MEMBER_STATUS_ARCHIVED = "archived";
@@ -20,7 +25,19 @@ function serverTimestamp() {
   return admin.firestore.FieldValue.serverTimestamp();
 }
 
-function logStep(step: string, details: Record<string, unknown>): void {
+/**
+ * Étapes en échec pendant une suppression. Tant qu'il en reste, le compte
+ * Auth n'est pas supprimé : l'utilisateur peut relancer (étapes idempotentes)
+ * au lieu de laisser des données personnelles orphelines.
+ */
+type FailedSteps = string[];
+
+function logStep(
+  failures: FailedSteps,
+  step: string,
+  details: Record<string, unknown>,
+): void {
+  failures.push(step);
   console.error(`deleteMyAccount: ${step} échoué`, details);
 }
 
@@ -104,18 +121,64 @@ async function removeFromTeams(
 }
 
 /**
- * Étape 1 : fiches membres → anonymisation + nettoyage club/équipes/index.
+ * Refuse la suppression si le compte est le dernier admin d'un club (même
+ * garde que `removeMember`) : le club resterait sans personne pour le gérer.
+ * Les fiches déjà anonymisées (archivées) ne comptent pas comme admin.
+ */
+async function assertNotLastAdmin(
+  uid: string,
+  memberDocs: QueryDocumentSnapshot[],
+): Promise<void> {
+  const targetByClub = new Map<string, AdminMemberRef>();
+  const clubIds = new Set<string>();
+  for (const memberDoc of memberDocs) {
+    const clubId = memberDoc.ref.parent.parent!.id;
+    targetByClub.set(clubId, { memberId: memberDoc.id, accountUid: uid });
+    if (memberDoc.data().role === "admin") clubIds.add(clubId);
+  }
+  const adminClubs = await db()
+    .collection("clubs")
+    .where("adminIds", "array-contains", uid)
+    .get();
+  for (const clubDoc of adminClubs.docs) clubIds.add(clubDoc.id);
+
+  for (const clubId of clubIds) {
+    const clubRef = db().collection("clubs").doc(clubId);
+    const [clubSnap, adminsSnap] = await Promise.all([
+      clubRef.get(),
+      clubRef.collection("members").where("role", "==", "admin").get(),
+    ]);
+    const adminMembers = adminsSnap.docs
+      .filter((doc) => doc.data().status !== MEMBER_STATUS_ARCHIVED)
+      .map((doc) => ({ memberId: doc.id, accountUid: accountUidOf(doc.data()) }));
+    const target = targetByClub.get(clubId) ?? { memberId: uid, accountUid: uid };
+    if (
+      isLastAdmin({
+        adminIds: stringArray(clubSnap.data()?.adminIds),
+        adminMembers,
+        target,
+      })
+    ) {
+      const clubName = String(clubSnap.data()?.name ?? "").trim() || clubId;
+      throw new HttpsError(
+        "failed-precondition",
+        `Tu es le dernier administrateur de « ${clubName} » : nomme un autre admin avant de supprimer ton compte.`,
+      );
+    }
+  }
+}
+
+/**
+ * Étape 1 : fiches membres → nettoyage club/équipes/index, puis anonymisation
+ * (en dernier : une fiche anonymisée n'est plus retrouvée, donc un nouvel
+ * appel rejoue le nettoyage d'une fiche restée en échec).
  * Retourne le nombre de fiches anonymisées.
  */
-async function anonymizeMemberships(uid: string): Promise<number> {
-  let memberDocs: QueryDocumentSnapshot[] = [];
-  try {
-    memberDocs = await findMemberDocs(uid);
-  } catch (error) {
-    logStep("recherche des fiches", { uid, error });
-    return 0;
-  }
-
+async function anonymizeMemberships(
+  uid: string,
+  memberDocs: QueryDocumentSnapshot[],
+  failures: FailedSteps,
+): Promise<number> {
   let anonymized = 0;
   for (const memberDoc of memberDocs) {
     const memberId = memberDoc.id;
@@ -128,32 +191,35 @@ async function anonymizeMemberships(uid: string): Promise<number> {
     try {
       guardianUids = await activeGuardianUids(db(), clubId, memberId);
     } catch (error) {
-      logStep("lecture guardians de la fiche", { ...context, error });
+      logStep(failures, "lecture guardians de la fiche", { ...context, error });
     }
 
-    try {
-      await anonymizeMember(memberDoc);
-      anonymized += 1;
-    } catch (error) {
-      logStep("anonymisation fiche", { ...context, error });
-    }
-
+    const failuresBefore = failures.length;
     try {
       await detachFromClub(clubRef, uid);
     } catch (error) {
-      logStep("mise à jour club (adminIds/memberCount)", { ...context, error });
+      logStep(failures, "mise à jour club (adminIds/memberCount)", { ...context, error });
     }
 
     try {
       await clubRef.collection("member_accounts").doc(uid).delete();
     } catch (error) {
-      logStep("suppression member_accounts", { ...context, error });
+      logStep(failures, "suppression member_accounts", { ...context, error });
     }
 
     try {
       await removeFromTeams(clubRef, uniq([memberId, uid]));
     } catch (error) {
-      logStep("retrait des équipes", { ...context, error });
+      logStep(failures, "retrait des équipes", { ...context, error });
+    }
+
+    if (failures.length === failuresBefore) {
+      try {
+        await anonymizeMember(memberDoc);
+        anonymized += 1;
+      } catch (error) {
+        logStep(failures, "anonymisation fiche", { ...context, error });
+      }
     }
 
     for (const parentUid of guardianUids) {
@@ -198,21 +264,35 @@ async function deleteGuardianLinks(uid: string): Promise<void> {
 }
 
 /** E-mail du compte : token Auth, sinon fiche Auth. */
-async function resolveAccountEmail(request: CallableRequest, uid: string): Promise<string> {
+async function resolveAccountEmail(
+  request: CallableRequest,
+  uid: string,
+  failures: FailedSteps,
+): Promise<string> {
   const fromToken = authEmailOf(request);
   if (fromToken) return fromToken;
   try {
     const user = await admin.auth().getUser(uid);
     return normalizeEmail(user.email);
   } catch (error) {
-    logStep("lecture e-mail Auth", { uid, error });
+    logStep(failures, "lecture e-mail Auth", { uid, error });
     return "";
   }
 }
 
+/** Étape 4a : sous-collections du profil (`fcmTokens`, `chatState`…). */
+async function deleteUserSubcollections(uid: string): Promise<void> {
+  const userRef = db().collection("users").doc(uid);
+  for (const subcollection of await userRef.listCollections()) {
+    await db().recursiveDelete(subcollection);
+  }
+}
+
 /**
- * Suppression de compte : anonymisation en cascade (tolérante aux erreurs
- * partielles, chaque étape loggée) puis suppression Firebase Auth.
+ * Suppression de compte : anonymisation en cascade puis suppression Firebase
+ * Auth. Refusée si le compte est le dernier admin d'un club. Chaque étape est
+ * loggée ; si l'une échoue, le compte Auth est conservé et l'appel renvoie une
+ * erreur (relance idempotente).
  * Le client réauthentifie, appelle cette callable, puis `signOut`.
  * Prod → v2-prod ; `deleteMyAccountDev` → v2-dev.
  */
@@ -220,26 +300,45 @@ async function handleDeleteMyAccount(
   request: CallableRequest,
 ): Promise<DeleteMyAccountResponse> {
   const uid = requireUid(request);
-  const emailNorm = await resolveAccountEmail(request, uid);
+  const failures: FailedSteps = [];
+  const emailNorm = await resolveAccountEmail(request, uid, failures);
+
+  // 0. Fiches du compte (sans elles, impossible d'anonymiser : on s'arrête).
+  let memberDocs: QueryDocumentSnapshot[];
+  try {
+    memberDocs = await findMemberDocs(uid);
+  } catch (error) {
+    console.error("deleteMyAccount: recherche des fiches échouée", { uid, error });
+    throw new HttpsError(
+      "unavailable",
+      "Suppression impossible pour le moment — réessaie dans un instant",
+    );
+  }
+  await assertNotLastAdmin(uid, memberDocs);
 
   // 1. Fiches membres.
-  const anonymizedMembers = await anonymizeMemberships(uid);
+  const anonymizedMembers = await anonymizeMemberships(uid, memberDocs, failures);
 
   // 2. Invitations pending.
   try {
     await revokePendingInvitations(emailNorm);
   } catch (error) {
-    logStep("révocation invitations", { uid, error });
+    logStep(failures, "révocation invitations", { uid, error });
   }
 
   // 3. Liens guardian.
   try {
     await deleteGuardianLinks(uid);
   } catch (error) {
-    logStep("suppression guardians", { uid, error });
+    logStep(failures, "suppression guardians", { uid, error });
   }
 
-  // 4. Profil user → marqueur de suppression (set sans merge).
+  // 4. Profil user : sous-collections, puis marqueur de suppression (set sans merge).
+  try {
+    await deleteUserSubcollections(uid);
+  } catch (error) {
+    logStep(failures, "suppression sous-collections users/{uid}", { uid, error });
+  }
   try {
     await db().collection("users").doc(uid).set({
       deleted: true,
@@ -247,7 +346,15 @@ async function handleDeleteMyAccount(
       flags: { disabled: true },
     });
   } catch (error) {
-    logStep("écrasement users/{uid}", { uid, error });
+    logStep(failures, "écrasement users/{uid}", { uid, error });
+  }
+
+  if (failures.length > 0) {
+    throw new HttpsError(
+      "internal",
+      "Suppression incomplète — réessaie dans un instant",
+      { failedSteps: uniq(failures) },
+    );
   }
 
   // 5. Compte Auth. Échec ⇒ erreur explicite (les données sont déjà
@@ -257,7 +364,7 @@ async function handleDeleteMyAccount(
   } catch (error) {
     const code = (error as { code?: string }).code;
     if (code !== "auth/user-not-found") {
-      logStep("suppression Auth", { uid, error });
+      console.error("deleteMyAccount: suppression Auth échouée", { uid, error });
       throw new HttpsError(
         "internal",
         "Données anonymisées mais suppression du compte échouée — réessaie",

@@ -13,12 +13,15 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
+import 'package:viro_team_v2/services/invitation_service.dart';
+import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/features/clubs/widgets/add_club_sheet.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/widgets/common/email_verification_dialog.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -432,8 +435,25 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
       if (mounted) {
         context.push(AppRoutes.clubDetailPath(widget.invitation.clubId));
       }
-    } catch (e) {
-      setState(() => _error = e.toString());
+    } on InvitationAcceptException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (error) {
+      if (!mounted) return;
+      if (isEmailNotVerifiedError(error)) {
+        setState(() => _loading = false);
+        final verified = await showEmailVerificationDialog(
+          context: context,
+          email: user.email,
+        );
+        if (verified && mounted) await _accept();
+        return;
+      }
+      setState(
+        () => _error = callableErrorMessage(
+          error,
+          fallback: AppCopy.join.inviteAcceptFailed,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -449,8 +469,8 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
           .read(invitationServiceProvider)
           .declineInvitation(widget.invitation);
       ref.invalidate(pendingInvitationsProvider);
-    } catch (e) {
-      setState(() => _error = e.toString());
+    } catch (_) {
+      if (mounted) setState(() => _error = AppCopy.join.inviteDeclineFailed);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

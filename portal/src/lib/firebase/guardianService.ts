@@ -98,12 +98,16 @@ export async function getMemberGuardian(
       GuardianStatuses.active
         ? "active"
         : "pending";
+    // Parent en attente : pas de club commun → profil refusé par les règles.
     const userSnap = await getDoc(
       doc(getAppFirestore(), Collections.users, occupying.id),
-    );
+    ).catch((error: unknown) => {
+      if ((error as { code?: string })?.code === "permission-denied") return null;
+      throw error;
+    });
     let displayName: string | null = null;
     let email: string | null = null;
-    if (userSnap.exists()) {
+    if (userSnap?.exists()) {
       const user = userSnap.data() as Record<string, unknown>;
       displayName =
         String(user[Fields.displayName] ?? "").trim() ||

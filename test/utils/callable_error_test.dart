@@ -64,4 +64,27 @@ void main() {
       }
     });
   });
+
+  group('isEmailNotVerifiedError', () {
+    test('failed-precondition + reason email_not_verified → vrai', () {
+      // ignore: invalid_use_of_protected_member
+      final error = FirebaseFunctionsException(
+        code: 'failed-precondition',
+        message: 'Confirme ton adresse e-mail',
+        details: {'reason': emailNotVerifiedReason},
+      );
+      expect(isEmailNotVerifiedError(error), isTrue);
+    });
+
+    test('autre raison ou autre erreur → faux', () {
+      // ignore: invalid_use_of_protected_member
+      final other = FirebaseFunctionsException(
+        code: 'failed-precondition',
+        message: 'Autre',
+        details: {'reason': 'autre'},
+      );
+      expect(isEmailNotVerifiedError(other), isFalse);
+      expect(isEmailNotVerifiedError(StateError('x')), isFalse);
+    });
+  });
 }

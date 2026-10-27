@@ -5,9 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
 import { AuthShell } from "@/components/auth/AuthShell";
+import { EmailVerificationPanel } from "@/components/auth/EmailVerificationPanel";
 import { isInvitationAlreadyProcessed } from "@/lib/auth/invitationAcceptErrors";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { linkGuardian } from "@/lib/firebase/callableService";
+import {
+  isEmailNotVerifiedError,
+  linkGuardian,
+} from "@/lib/firebase/callableService";
 import { InvitationTypes } from "@/lib/firebase/constants";
 import type { InvitationLookupResult } from "@/lib/firebase/invitationService";
 import deniedStyles from "./AccessDenied.module.css";
@@ -27,6 +31,9 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
+  /** Incrémenté pour relancer le rattachement après confirmation de l’e-mail. */
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -35,6 +42,7 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
     let cancelled = false;
     setBusy(true);
     setError(null);
+    setNeedsEmailVerification(false);
 
     void linkGuardian({
       clubId: invitation.clubId,
@@ -47,6 +55,11 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
       .catch(async (err: unknown) => {
         if (cancelled) return;
         await refreshProfile();
+        if (isEmailNotVerifiedError(err)) {
+          setNeedsEmailVerification(true);
+          setBusy(false);
+          return;
+        }
         const message =
           err instanceof Error
             ? err.message
@@ -63,6 +76,7 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
       cancelled = true;
     };
   }, [
+    attempt,
     invitation.clubId,
     invitation.invitationId,
     refreshProfile,
@@ -94,6 +108,19 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
             Créer un compte
           </Link>
         </div>
+      </AuthShell>
+    );
+  }
+
+  if (needsEmailVerification) {
+    return (
+      <AuthShell
+        accent="cyan"
+        eyebrow="Espace famille"
+        title="Confirme ton e-mail"
+        lead={`Dernière étape avant de suivre ${invitation.clubName}.`}
+      >
+        <EmailVerificationPanel onVerified={() => setAttempt((n) => n + 1)} />
       </AuthShell>
     );
   }

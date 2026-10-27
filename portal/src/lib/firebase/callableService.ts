@@ -16,13 +16,37 @@ function cloudCallableName(name: string): string {
   return getFirestoreDatabaseId() === "v2-prod" ? name : `${name}Dev`;
 }
 
+/** `details.reason` des Functions quand l’e-mail du compte n’est pas confirmé. */
+export const EMAIL_NOT_VERIFIED_REASON = "email_not_verified";
+
+/** Erreur de callable avec la raison métier éventuelle (`details.reason`). */
+export class CallableError extends Error {
+  constructor(
+    message: string,
+    readonly reason: string | null,
+  ) {
+    super(message);
+    this.name = "CallableError";
+  }
+}
+
+/** Vrai si la callable a refusé l’action faute d’e-mail confirmé. */
+export function isEmailNotVerifiedError(error: unknown): boolean {
+  return error instanceof CallableError && error.reason === EMAIL_NOT_VERIFIED_REASON;
+}
+
 function unwrapCallableError(error: unknown): Error {
   if (error instanceof FirebaseError) {
     const message = error.message
       .replace(/^Firebase:\s*/i, "")
       .replace(/\s*\([^)]*\)\.?$/, "")
       .trim();
-    return new Error(message || "Action impossible.");
+    const details = (error as FirebaseError & { details?: unknown }).details;
+    const reason =
+      details && typeof details === "object" && "reason" in details
+        ? String((details as { reason?: unknown }).reason ?? "") || null
+        : null;
+    return new CallableError(message || "Action impossible.", reason);
   }
   if (error instanceof Error) return error;
   return new Error("Action impossible.");

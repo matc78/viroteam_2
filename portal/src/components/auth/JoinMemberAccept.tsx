@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
 import { AuthShell } from "@/components/auth/AuthShell";
+import { EmailVerificationPanel } from "@/components/auth/EmailVerificationPanel";
 import { isInvitationAlreadyProcessed } from "@/lib/auth/invitationAcceptErrors";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { isEmailNotVerifiedError } from "@/lib/firebase/callableService";
 import { MemberRoles, InvitationTypes } from "@/lib/firebase/constants";
 import type {
   InvitationLookupResult,
@@ -43,6 +45,9 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
+  /** Incrémenté pour relancer l’acceptation après confirmation de l’e-mail. */
+  const [attempt, setAttempt] = useState(0);
   const roleLabel = memberRoleLabel(invitation.role);
   const userRef = useRef(user);
   const profileRef = useRef(profile);
@@ -56,6 +61,7 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
     let cancelled = false;
     setBusy(true);
     setError(null);
+    setNeedsEmailVerification(false);
 
     void (async () => {
       try {
@@ -89,6 +95,11 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
       } catch (err: unknown) {
         if (cancelled) return;
         await refreshProfile();
+        if (isEmailNotVerifiedError(err)) {
+          setNeedsEmailVerification(true);
+          setBusy(false);
+          return;
+        }
         const message =
           err instanceof Error
             ? err.message
@@ -106,6 +117,7 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
       cancelled = true;
     };
   }, [
+    attempt,
     invitation.clubId,
     invitation.firstName,
     invitation.invitationId,
@@ -144,6 +156,19 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
             Invitation destinée à {invitation.emailHint}
           </p>
         ) : null}
+      </AuthShell>
+    );
+  }
+
+  if (needsEmailVerification) {
+    return (
+      <AuthShell
+        accent="cyan"
+        eyebrow="Rejoindre un club"
+        title="Confirme ton e-mail"
+        lead={`Dernière étape avant de rejoindre ${invitation.clubName}.`}
+      >
+        <EmailVerificationPanel onVerified={() => setAttempt((n) => n + 1)} />
       </AuthShell>
     );
   }

@@ -8,6 +8,20 @@ final class AppCopyJoin {
   const AppCopyJoin();
 
   String get inviteAcceptFailed => 'Impossible d\'accepter l\'invitation.';
+  String get inviteDeclineFailed =>
+      'Impossible de refuser l\'invitation pour le moment. Réessaie dans un instant.';
+  String get verifyEmailTitle => 'Confirme ton e-mail';
+  String verifyEmailBody(String email) =>
+      'Pour accepter l\'invitation, confirme d\'abord que $email est bien à toi : '
+      'clique sur le lien qu\'on t\'envoie, puis reviens ici.';
+  String get verifyEmailSend => 'Envoyer le lien';
+  String get verifyEmailResend => 'Renvoyer le lien';
+  String get verifyEmailSent => 'Lien envoyé, jette un œil à ta boîte mail.';
+  String get verifyEmailDone => 'C\'est fait';
+  String get verifyEmailStillPending =>
+      'Ton e-mail n\'est pas encore confirmé. Clique sur le lien reçu, puis réessaie.';
+  String get verifyEmailSendFailed =>
+      'Impossible d\'envoyer le lien pour le moment. Réessaie dans un instant.';
   String get reservedForOtherEmail =>
       'Cette invitation est réservée à un autre e-mail. '
       'Demande à l\'administrateur du club de renvoyer un code à ton adresse.';

@@ -3,6 +3,7 @@ import type {
   DocumentReference,
   QueryDocumentSnapshot,
 } from "firebase-admin/firestore";
+import { requireVerifiedEmail } from "./common";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
 import { buildEventAudienceMigrationPatch } from "./eventAudienceMigrate";
@@ -238,6 +239,7 @@ async function handleAcceptInvitation(
       "E-mail du compte introuvable — reconnecte-toi avec un compte e-mail",
     );
   }
+  requireVerifiedEmail(request);
   const { clubId, invitationId } = parseAcceptInvitationArgs(request.data);
 
   const clubRef = db().collection("clubs").doc(clubId);

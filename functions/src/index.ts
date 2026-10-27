@@ -71,6 +71,11 @@ export {
 } from "./analyticsTriggers";
 
 export {
+  onUserWrittenSyncClubIds,
+  onUserWrittenSyncClubIdsDev,
+} from "./userClubIds";
+
+export {
   updateEventConvocations,
   updateEventConvocationsDev,
 } from "./eventConvocations";

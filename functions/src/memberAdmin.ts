@@ -1,6 +1,5 @@
 import * as admin from "firebase-admin";
 import type {
-  DocumentData,
   DocumentReference,
   Query,
   Transaction,
@@ -12,6 +11,7 @@ import { assertClubAdmin } from "./guardians";
 import {
   adminIdsWithout,
   decrementCount,
+  accountUidOf,
   isLastAdmin,
   nextAdminIds,
   parseRemoveMemberArgs,
@@ -38,12 +38,6 @@ const TEAM_ROSTER_FIELDS = ["playerIds", "coachIds", "pendingPlayerIds"] as cons
 
 function serverTimestamp() {
   return admin.firestore.FieldValue.serverTimestamp();
-}
-
-/** `accountUid` (ou `userId` en compat v1) d'une fiche, sinon null. */
-function accountUidOf(member: DocumentData): string | null {
-  const accountUid = String(member.accountUid ?? member.userId ?? "").trim();
-  return accountUid.length > 0 ? accountUid : null;
 }
 
 /** Fiches `role == admin` du club (lues dans la transaction). */

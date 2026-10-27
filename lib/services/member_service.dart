@@ -530,13 +530,22 @@ class MemberService {
     // Users parents en parallèle (uids uniques).
     final usersById = <String, Map<String, dynamic>>{};
     if (parentUids.isNotEmpty) {
+      // Parent en attente : pas de club commun → profil refusé par les règles.
       final userSnaps = await Future.wait(
-        parentUids.map(
-          (uid) => _db.collection(ProjectConfig.usersCollection).doc(uid).get(),
-        ),
+        parentUids.map((uid) async {
+          try {
+            return await _db
+                .collection(ProjectConfig.usersCollection)
+                .doc(uid)
+                .get();
+          } on FirebaseException catch (error) {
+            if (error.code == 'permission-denied') return null;
+            rethrow;
+          }
+        }),
       );
       for (final userSnap in userSnaps) {
-        if (userSnap.exists && userSnap.data() != null) {
+        if (userSnap != null && userSnap.exists && userSnap.data() != null) {
           usersById[userSnap.id] = userSnap.data()!;
         }
       }

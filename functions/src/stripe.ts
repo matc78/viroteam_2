@@ -21,6 +21,7 @@ import {
 import { requireString, requireUid } from "./common";
 import {
   boundedNetCents,
+  CANCELABLE_PAYMENT_INTENT_STATUSES,
   CHECKOUT_CURRENCY,
   mergeFeeAids,
   normalizeAidInputs,
@@ -523,6 +524,13 @@ export const {
       };
     }
 
+    const stripe = stripeClient();
+    await releasePreviousPaymentIntent({
+      stripe,
+      fee,
+      feeRef,
+    });
+
     const grossCents = cardGrossCentsFromNet(netCents);
     const applicationFeeCents = cardFeeCentsFromNet(netCents);
 
@@ -534,7 +542,6 @@ export const {
       );
     }
 
-    const stripe = stripeClient();
     const clubName =
       typeof club.name === "string" && club.name.trim()
         ? club.name.trim()
@@ -663,7 +670,7 @@ export const {
 
       if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        await handlePaymentIntentSucceeded(paymentIntent);
+        await handlePaymentIntentSucceeded(stripe, paymentIntent);
         res.json({ ok: true });
         return;
       }
@@ -675,6 +682,101 @@ export const {
     }
   },
 );
+
+/**
+ * Un seul PaymentIntent ouvert par cotisation : avant d'en créer un nouveau,
+ * annule le précédent s'il n'a rien débité. Refuse si le précédent est en
+ * cours de traitement ou réussi mais pas encore crédité (webhook en route),
+ * sinon les deux pourraient être encaissés.
+ */
+async function releasePreviousPaymentIntent(params: {
+  stripe: Stripe;
+  fee: admin.firestore.DocumentData;
+  feeRef: admin.firestore.DocumentReference;
+}): Promise<void> {
+  const { stripe, fee, feeRef } = params;
+  const previousId = String(fee.paymentIntentId ?? "").trim();
+  if (!previousId) return;
+  const applied = (fee.appliedExternalPaymentIds as string[] | undefined) ?? [];
+  if (applied.includes(previousId)) return;
+
+  const previous = await stripe.paymentIntents.retrieve(previousId);
+  if (previous.status === "canceled") return;
+  if (CANCELABLE_PAYMENT_INTENT_STATUSES.has(previous.status)) {
+    await stripe.paymentIntents.cancel(previousId, {
+      cancellation_reason: "duplicate",
+    });
+    const previousSessionId = String(previous.metadata?.sessionId ?? "").trim();
+    if (previousSessionId) {
+      await feeRef.parent.parent!
+        .collection("payment_sessions")
+        .doc(previousSessionId)
+        .set(
+          {
+            status: "canceled",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+    }
+    return;
+  }
+  throw new HttpsError(
+    "failed-precondition",
+    "Un paiement est déjà en cours de traitement pour cette cotisation",
+  );
+}
+
+/**
+ * Rembourse intégralement un PaymentIntent dont rien n'a été crédité
+ * (cotisation déjà réglée entre-temps). Idempotent : clé Stripe dédiée, et
+ * la session reste `refund_pending` tant que le remboursement n'a pas
+ * abouti, donc un rejeu du webhook le retente.
+ */
+async function refundUncreditedPaymentIntent(params: {
+  stripe: Stripe;
+  paymentIntent: Stripe.PaymentIntent;
+  clubId: string;
+  seasonId: string;
+  sessionId: string;
+}): Promise<void> {
+  const { stripe, paymentIntent, clubId, seasonId, sessionId } = params;
+  if (!sessionId) {
+    console.error("stripe overpayment without session, refund manually", {
+      paymentIntentId: paymentIntent.id,
+      clubId,
+      seasonId,
+    });
+    return;
+  }
+  const sessionRef = db()
+    .collection("clubs")
+    .doc(clubId)
+    .collection("fee_seasons")
+    .doc(seasonId)
+    .collection("payment_sessions")
+    .doc(sessionId);
+  const sessionSnap = await sessionRef.get();
+  if (sessionSnap.data()?.status !== "refund_pending") return;
+
+  const refund = await stripe.refunds.create(
+    {
+      payment_intent: paymentIntent.id,
+      reason: "duplicate",
+      refund_application_fee: true,
+      reverse_transfer: true,
+    },
+    { idempotencyKey: `overpayment_refund_${paymentIntent.id}` },
+  );
+  await sessionRef.set(
+    {
+      status: "refunded",
+      refundId: refund.id,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
 
 /** Met à jour le statut Connect du club lié au compte Stripe. */
 async function handleAccountUpdated(account: Stripe.Account): Promise<void> {
@@ -709,6 +811,7 @@ async function handleAccountUpdated(account: Stripe.Account): Promise<void> {
 
 /** Crédite la cotisation après PaymentIntent réussi. */
 async function handlePaymentIntentSucceeded(
+  stripe: Stripe,
   paymentIntent: Stripe.PaymentIntent,
 ): Promise<void> {
   const metadata = paymentIntent.metadata ?? {};
@@ -759,7 +862,7 @@ async function handlePaymentIntentSucceeded(
       paymentIntent.amount_received || paymentIntent.amount || 0,
     );
   }
-  const { creditedCents } = await creditMemberFeeFromCardPayment({
+  const { creditedCents, excessCents } = await creditMemberFeeFromCardPayment({
     clubId,
     seasonId,
     memberId,
@@ -769,7 +872,28 @@ async function handlePaymentIntentSucceeded(
     provider: "stripe",
   });
 
-  if (creditedCents <= 0) return;
+  if (excessCents > 0) {
+    console.error("stripe payment exceeds remaining due", {
+      paymentIntentId: paymentIntent.id,
+      clubId,
+      seasonId,
+      memberId,
+      creditedCents,
+      excessCents,
+    });
+  }
+  // Rejoué aussi quand le crédit a déjà été appliqué (retry webhook après un
+  // remboursement en échec) : la session porte l'état `refund_pending`.
+  if (creditedCents <= 0) {
+    await refundUncreditedPaymentIntent({
+      stripe,
+      paymentIntent,
+      clubId,
+      seasonId,
+      sessionId,
+    });
+    return;
+  }
 
   try {
     const feeRef = db()

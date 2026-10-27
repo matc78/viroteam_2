@@ -25,60 +25,59 @@ class FeeMemberOperations {
     if (uid == null) throw StateError('Non connecté');
 
     final feeRef = _paths.memberFeesCol(clubId, seasonId).doc(memberId);
-    final existingSnap = await feeRef.get();
-    final previousPaid = existingSnap.exists
-        ? MemberFee.fromFirestore(memberId, existingSnap).amountPaidCents
-        : 0;
-    final previousStatus = existingSnap.exists
-        ? MemberFee.fromFirestore(memberId, existingSnap).status
-        : null;
+    await _paths.db.runTransaction((tx) async {
+      final existingSnap = await tx.get(feeRef);
+      final existing = existingSnap.exists
+          ? MemberFee.fromFirestore(memberId, existingSnap)
+          : null;
+      final previousPaid = existing?.amountPaidCents ?? 0;
+      final previousStatus = existing?.status;
 
-    final data = <String, dynamic>{
-      FirestoreFields.feeStatus: status.firestoreValue,
-      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      FirestoreFields.markedBy: uid,
-    };
+      final data = <String, dynamic>{
+        FirestoreFields.feeStatus: status.firestoreValue,
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+        FirestoreFields.markedBy: uid,
+      };
 
-    if (status == MemberFeeStatus.paye) {
-      data[FirestoreFields.paidAt] = FieldValue.serverTimestamp();
-      data[FirestoreFields.paidVia] = FeePaidVia.manual;
-    } else {
-      data[FirestoreFields.paidAt] = FieldValue.delete();
-    }
+      if (status == MemberFeeStatus.paye) {
+        data[FirestoreFields.paidAt] = FieldValue.serverTimestamp();
+        data[FirestoreFields.paidVia] = FeePaidVia.manual;
+      } else {
+        data[FirestoreFields.paidAt] = FieldValue.delete();
+      }
 
-    if (status == MemberFeeStatus.exonere) {
-      data[FirestoreFields.tierId] = FieldValue.delete();
-    }
+      if (status == MemberFeeStatus.exonere) {
+        data[FirestoreFields.tierId] = FieldValue.delete();
+      }
 
-    final batch = _paths.db.batch();
-    batch.set(feeRef, data, SetOptions(merge: true));
+      tx.set(feeRef, data, SetOptions(merge: true));
 
-    final eventType = status == MemberFeeStatus.exonere
-        ? FeePaymentEventTypes.exempted
-        : status == MemberFeeStatus.paye
-            ? FeePaymentEventTypes.markedPaid
-            : previousStatus == MemberFeeStatus.exonere
-                ? FeePaymentEventTypes.unexempted
-                : null;
-    if (eventType != null) {
-      _paths.appendPaymentEvent(
-        batch: batch,
-        clubId: clubId,
-        seasonId: seasonId,
-        memberId: memberId,
-        payload: feePaymentEventPayload(
-          type: eventType,
-          deltaCents: 0,
-          amountPaidCentsBefore: previousPaid,
-          amountPaidCentsAfter: previousPaid,
-          statusAfter: status.firestoreValue,
-          actorUid: uid,
-          paidVia: FeePaidVia.manual,
-        ),
-      );
-    }
+      final eventType = status == MemberFeeStatus.exonere
+          ? FeePaymentEventTypes.exempted
+          : status == MemberFeeStatus.paye
+              ? FeePaymentEventTypes.markedPaid
+              : previousStatus == MemberFeeStatus.exonere
+                  ? FeePaymentEventTypes.unexempted
+                  : null;
+      if (eventType != null) {
+        _paths.appendPaymentEventInTransaction(
+          tx: tx,
+          clubId: clubId,
+          seasonId: seasonId,
+          memberId: memberId,
+          payload: feePaymentEventPayload(
+            type: eventType,
+            deltaCents: 0,
+            amountPaidCentsBefore: previousPaid,
+            amountPaidCentsAfter: previousPaid,
+            statusAfter: status.firestoreValue,
+            actorUid: uid,
+            paidVia: FeePaidVia.manual,
+          ),
+        );
+      }
 
-    await batch.commit();
+    });
   }
 
   /// Valide un paiement hors-ligne et l'ajoute au ledger de façon atomique.
@@ -170,78 +169,77 @@ class FeeMemberOperations {
     if (amountPaidCents < 0) throw ArgumentError('Montant invalide');
 
     final feeRef = _paths.memberFeesCol(clubId, seasonId).doc(memberId);
-    final fee = currentFee ??
-        await feeRef.get().then(
-          (snap) =>
-              snap.exists ? MemberFee.fromFirestore(memberId, snap) : null,
-        );
-    if (fee == null) throw StateError('Fiche cotisation introuvable');
-    if (fee.status == MemberFeeStatus.exonere) {
-      throw StateError('Membre exonere - ajustement impossible');
-    }
-    if (fee.tierId == null || fee.tierId!.isEmpty) {
-      throw StateError('Aucune cotisation assignee pour ce membre');
-    }
+    // Relue au commit : la fiche en cache (`currentFee`) peut être périmée
+    // (paiement CB ou autre admin entre-temps).
+    await _paths.db.runTransaction((tx) async {
+      final snap = await tx.get(feeRef);
+      final fee = snap.exists ? MemberFee.fromFirestore(memberId, snap) : null;
+      if (fee == null) throw StateError('Fiche cotisation introuvable');
+      if (fee.status == MemberFeeStatus.exonere) {
+        throw StateError('Membre exonere - ajustement impossible');
+      }
+      if (fee.tierId == null || fee.tierId!.isEmpty) {
+        throw StateError('Aucune cotisation assignee pour ce membre');
+      }
 
-    final resolution = resolveMemberFeePaymentStatus(
-      isExempt: false,
-      dueCents: fee.amountDueCents(season),
-      amountPaidCents: amountPaidCents,
-      validatedAidsCents: fee.validatedAidsCents,
-      hasPendingAids: fee.aids.any((aid) => aid.isPendingProof),
-    );
-
-    final data = <String, dynamic>{
-      FirestoreFields.amountPaidCents: amountPaidCents,
-      FirestoreFields.feeStatus: resolution.statusValue,
-      FirestoreFields.markedBy: uid,
-      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      if (resolution.isFullyPaid)
-        FirestoreFields.paidAt: FieldValue.serverTimestamp(),
-      if (resolution.clearPaidAt) FirestoreFields.paidAt: FieldValue.delete(),
-    };
-
-    if (amountPaidCents == 0) {
-      data[FirestoreFields.paidVia] = FieldValue.delete();
-      data[FirestoreFields.offlineMethod] = FieldValue.delete();
-      data[FirestoreFields.paymentProvider] = FieldValue.delete();
-    } else if (amountPaidCents != fee.amountPaidCents) {
-      data[FirestoreFields.paidVia] = FeePaidVia.manual;
-      data[FirestoreFields.offlineMethod] = FieldValue.delete();
-      data[FirestoreFields.paymentProvider] = FieldValue.delete();
-    }
-
-    final trimmedNote = note?.trim();
-    if (trimmedNote != null && trimmedNote.isNotEmpty) {
-      final previous = (fee.notesAdmin ?? '').trim();
-      data[FirestoreFields.notesAdmin] = previous.isEmpty
-          ? trimmedNote
-          : '$previous\n$trimmedNote';
-    }
-
-    final batch = _paths.db.batch();
-    batch.set(feeRef, data, SetOptions(merge: true));
-
-    if (amountPaidCents != fee.amountPaidCents) {
-      _paths.appendPaymentEvent(
-        batch: batch,
-        clubId: clubId,
-        seasonId: seasonId,
-        memberId: memberId,
-        payload: feePaymentEventPayload(
-          type: FeePaymentEventTypes.adjustAbsolute,
-          deltaCents: amountPaidCents - fee.amountPaidCents,
-          amountPaidCentsBefore: fee.amountPaidCents,
-          amountPaidCentsAfter: amountPaidCents,
-          statusAfter: resolution.statusValue,
-          actorUid: uid,
-          paidVia: amountPaidCents == 0 ? null : FeePaidVia.manual,
-          note: trimmedNote,
-        ),
+      final resolution = resolveMemberFeePaymentStatus(
+        isExempt: false,
+        dueCents: fee.amountDueCents(season),
+        amountPaidCents: amountPaidCents,
+        validatedAidsCents: fee.validatedAidsCents,
+        hasPendingAids: fee.aids.any((aid) => aid.isPendingProof),
       );
-    }
 
-    await batch.commit();
+      final data = <String, dynamic>{
+        FirestoreFields.amountPaidCents: amountPaidCents,
+        FirestoreFields.feeStatus: resolution.statusValue,
+        FirestoreFields.markedBy: uid,
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+        if (resolution.isFullyPaid)
+          FirestoreFields.paidAt: FieldValue.serverTimestamp(),
+        if (resolution.clearPaidAt) FirestoreFields.paidAt: FieldValue.delete(),
+      };
+
+      if (amountPaidCents == 0) {
+        data[FirestoreFields.paidVia] = FieldValue.delete();
+        data[FirestoreFields.offlineMethod] = FieldValue.delete();
+        data[FirestoreFields.paymentProvider] = FieldValue.delete();
+      } else if (amountPaidCents != fee.amountPaidCents) {
+        data[FirestoreFields.paidVia] = FeePaidVia.manual;
+        data[FirestoreFields.offlineMethod] = FieldValue.delete();
+        data[FirestoreFields.paymentProvider] = FieldValue.delete();
+      }
+
+      final trimmedNote = note?.trim();
+      if (trimmedNote != null && trimmedNote.isNotEmpty) {
+        final previous = (fee.notesAdmin ?? '').trim();
+        data[FirestoreFields.notesAdmin] = previous.isEmpty
+            ? trimmedNote
+            : '$previous\n$trimmedNote';
+      }
+
+      tx.set(feeRef, data, SetOptions(merge: true));
+
+      if (amountPaidCents != fee.amountPaidCents) {
+        _paths.appendPaymentEventInTransaction(
+          tx: tx,
+          clubId: clubId,
+          seasonId: seasonId,
+          memberId: memberId,
+          payload: feePaymentEventPayload(
+            type: FeePaymentEventTypes.adjustAbsolute,
+            deltaCents: amountPaidCents - fee.amountPaidCents,
+            amountPaidCentsBefore: fee.amountPaidCents,
+            amountPaidCentsAfter: amountPaidCents,
+            statusAfter: resolution.statusValue,
+            actorUid: uid,
+            paidVia: amountPaidCents == 0 ? null : FeePaidVia.manual,
+            note: trimmedNote,
+          ),
+        );
+      }
+
+    });
   }
 
   /// Valide ou refuse un justificatif d'aide (Pass'Sport, ANCV, etc.).
@@ -262,77 +260,76 @@ class FeeMemberOperations {
     }
 
     final feeRef = _paths.memberFeesCol(clubId, seasonId).doc(memberId);
-    final fee = currentFee ??
-        await feeRef.get().then(
-          (snap) =>
-              snap.exists ? MemberFee.fromFirestore(memberId, snap) : null,
+    // Relue au commit : la fiche en cache (`currentFee`) peut être périmée
+    // (paiement CB ou autre admin entre-temps).
+    await _paths.db.runTransaction((tx) async {
+      final snap = await tx.get(feeRef);
+      final fee = snap.exists ? MemberFee.fromFirestore(memberId, snap) : null;
+      if (fee == null) throw StateError('Fiche cotisation introuvable');
+
+      final now = DateTime.now();
+      FeeAid? touchedAid;
+      final updatedAids = fee.aids.map((aid) {
+        if (aid.id != aidId) return aid;
+        touchedAid = aid;
+        return aid.copyWithValidation(
+          status: aidStatus,
+          validatedBy: uid,
+          validatedAt: now,
         );
-    if (fee == null) throw StateError('Fiche cotisation introuvable');
+      }).toList();
 
-    final now = DateTime.now();
-    FeeAid? touchedAid;
-    final updatedAids = fee.aids.map((aid) {
-      if (aid.id != aidId) return aid;
-      touchedAid = aid;
-      return aid.copyWithValidation(
-        status: aidStatus,
-        validatedBy: uid,
-        validatedAt: now,
+      final validatedAids = updatedAids
+          .where((aid) => aid.isValidated)
+          .fold<int>(0, (total, aid) => total + aid.amountCents);
+      final hasPendingAids = updatedAids.any((aid) => aid.isPendingProof);
+      final resolution = resolveMemberFeePaymentStatus(
+        isExempt: fee.status == MemberFeeStatus.exonere,
+        dueCents: fee.amountDueCents(season),
+        amountPaidCents: fee.amountPaidCents,
+        validatedAidsCents: validatedAids,
+        hasPendingAids: hasPendingAids,
       );
-    }).toList();
 
-    final validatedAids = updatedAids
-        .where((aid) => aid.isValidated)
-        .fold<int>(0, (total, aid) => total + aid.amountCents);
-    final hasPendingAids = updatedAids.any((aid) => aid.isPendingProof);
-    final resolution = resolveMemberFeePaymentStatus(
-      isExempt: fee.status == MemberFeeStatus.exonere,
-      dueCents: fee.amountDueCents(season),
-      amountPaidCents: fee.amountPaidCents,
-      validatedAidsCents: validatedAids,
-      hasPendingAids: hasPendingAids,
-    );
-
-    final batch = _paths.db.batch();
-    batch.set(
-      feeRef,
-      {
-        FirestoreFields.aids: updatedAids.map((aid) => aid.toMap()).toList(),
-        FirestoreFields.feeStatus: resolution.statusValue,
-        if (resolution.isFullyPaid)
-          FirestoreFields.paidAt: FieldValue.serverTimestamp(),
-        if (resolution.clearPaidAt)
-          FirestoreFields.paidAt: FieldValue.delete(),
-        FirestoreFields.markedBy: uid,
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
-
-    final aid = touchedAid;
-    if (aid != null) {
-      _paths.appendPaymentEvent(
-        batch: batch,
-        clubId: clubId,
-        seasonId: seasonId,
-        memberId: memberId,
-        payload: feePaymentEventPayload(
-          type: aidStatus == FeeAidStatuses.validated
-              ? FeePaymentEventTypes.aidValidated
-              : FeePaymentEventTypes.aidRejected,
-          deltaCents: 0,
-          amountPaidCentsBefore: fee.amountPaidCents,
-          amountPaidCentsAfter: fee.amountPaidCents,
-          statusAfter: resolution.statusValue,
-          actorUid: uid,
-          aidId: aid.id,
-          aidLabel: aid.label,
-          aidAmountCents: aid.amountCents,
-        ),
+      tx.set(
+        feeRef,
+        {
+          FirestoreFields.aids: updatedAids.map((aid) => aid.toMap()).toList(),
+          FirestoreFields.feeStatus: resolution.statusValue,
+          if (resolution.isFullyPaid)
+            FirestoreFields.paidAt: FieldValue.serverTimestamp(),
+          if (resolution.clearPaidAt)
+            FirestoreFields.paidAt: FieldValue.delete(),
+          FirestoreFields.markedBy: uid,
+          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
       );
-    }
 
-    await batch.commit();
+      final aid = touchedAid;
+      if (aid != null) {
+        _paths.appendPaymentEventInTransaction(
+          tx: tx,
+          clubId: clubId,
+          seasonId: seasonId,
+          memberId: memberId,
+          payload: feePaymentEventPayload(
+            type: aidStatus == FeeAidStatuses.validated
+                ? FeePaymentEventTypes.aidValidated
+                : FeePaymentEventTypes.aidRejected,
+            deltaCents: 0,
+            amountPaidCentsBefore: fee.amountPaidCents,
+            amountPaidCentsAfter: fee.amountPaidCents,
+            statusAfter: resolution.statusValue,
+            actorUid: uid,
+            aidId: aid.id,
+            aidLabel: aid.label,
+            aidAmountCents: aid.amountCents,
+          ),
+        );
+      }
+
+    });
   }
 
   /// Assigne un palier et recalcule le statut selon le déjà payé.
@@ -348,66 +345,65 @@ class FeeMemberOperations {
     if (uid == null) throw StateError('Non connecté');
 
     final feeRef = _paths.memberFeesCol(clubId, seasonId).doc(memberId);
-    final fee = currentFee ??
-        await feeRef.get().then(
-          (snap) =>
-              snap.exists ? MemberFee.fromFirestore(memberId, snap) : null,
-        );
+    // Relue au commit : la fiche en cache (`currentFee`) peut être périmée
+    // (paiement CB ou autre admin entre-temps).
+    await _paths.db.runTransaction((tx) async {
+      final snap = await tx.get(feeRef);
+      final fee = snap.exists ? MemberFee.fromFirestore(memberId, snap) : null;
 
-    final data = <String, dynamic>{
-      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      FirestoreFields.markedBy: uid,
-    };
+      final data = <String, dynamic>{
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+        FirestoreFields.markedBy: uid,
+      };
 
-    String? statusAfter;
-    final wasExempt = fee?.status == MemberFeeStatus.exonere;
+      String? statusAfter;
+      final wasExempt = fee?.status == MemberFeeStatus.exonere;
 
-    if (tierId != null && tierId.isNotEmpty) {
-      data[FirestoreFields.tierId] = tierId;
-      final resolution = resolveMemberFeePaymentStatus(
-        isExempt: false,
-        dueCents: amountDueCentsForTier(
-          season: season,
-          tierId: tierId,
+      if (tierId != null && tierId.isNotEmpty) {
+        data[FirestoreFields.tierId] = tierId;
+        final resolution = resolveMemberFeePaymentStatus(
           isExempt: false,
-        ),
-        amountPaidCents: fee?.amountPaidCents ?? 0,
-        validatedAidsCents: fee?.validatedAidsCents ?? 0,
-        hasPendingAids: fee?.aids.any((aid) => aid.isPendingProof) ?? false,
-      );
-      data[FirestoreFields.feeStatus] = resolution.statusValue;
-      statusAfter = resolution.statusValue;
-      if (resolution.isFullyPaid) {
-        data[FirestoreFields.paidAt] = FieldValue.serverTimestamp();
+          dueCents: amountDueCentsForTier(
+            season: season,
+            tierId: tierId,
+            isExempt: false,
+          ),
+          amountPaidCents: fee?.amountPaidCents ?? 0,
+          validatedAidsCents: fee?.validatedAidsCents ?? 0,
+          hasPendingAids: fee?.aids.any((aid) => aid.isPendingProof) ?? false,
+        );
+        data[FirestoreFields.feeStatus] = resolution.statusValue;
+        statusAfter = resolution.statusValue;
+        if (resolution.isFullyPaid) {
+          data[FirestoreFields.paidAt] = FieldValue.serverTimestamp();
+        }
+        if (resolution.clearPaidAt) {
+          data[FirestoreFields.paidAt] = FieldValue.delete();
+        }
+      } else {
+        data[FirestoreFields.tierId] = FieldValue.delete();
       }
-      if (resolution.clearPaidAt) {
-        data[FirestoreFields.paidAt] = FieldValue.delete();
+
+      tx.set(feeRef, data, SetOptions(merge: true));
+
+      if (wasExempt && tierId != null && tierId.isNotEmpty && statusAfter != null) {
+        _paths.appendPaymentEventInTransaction(
+          tx: tx,
+          clubId: clubId,
+          seasonId: seasonId,
+          memberId: memberId,
+          payload: feePaymentEventPayload(
+            type: FeePaymentEventTypes.unexempted,
+            deltaCents: 0,
+            amountPaidCentsBefore: fee?.amountPaidCents ?? 0,
+            amountPaidCentsAfter: fee?.amountPaidCents ?? 0,
+            statusAfter: statusAfter,
+            actorUid: uid,
+          ),
+        );
       }
-    } else {
-      data[FirestoreFields.tierId] = FieldValue.delete();
-    }
 
-    final batch = _paths.db.batch();
-    batch.set(feeRef, data, SetOptions(merge: true));
-
-    if (wasExempt && tierId != null && tierId.isNotEmpty && statusAfter != null) {
-      _paths.appendPaymentEvent(
-        batch: batch,
-        clubId: clubId,
-        seasonId: seasonId,
-        memberId: memberId,
-        payload: feePaymentEventPayload(
-          type: FeePaymentEventTypes.unexempted,
-          deltaCents: 0,
-          amountPaidCentsBefore: fee?.amountPaidCents ?? 0,
-          amountPaidCentsAfter: fee?.amountPaidCents ?? 0,
-          statusAfter: statusAfter,
-          actorUid: uid,
-        ),
-      );
-    }
-
-    await batch.commit();
+    });
   }
 
   /// Met à jour la note admin de la fiche cotisation.

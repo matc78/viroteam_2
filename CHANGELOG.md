@@ -24,6 +24,12 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Sécurité (règles Firestore) : un coach ne peut plus obtenir les droits admin. Une fiche qu’il pré-crée est plafonnée à joueur ou coach, sans compte lié. Le rôle d’une invitation ne se modifie plus après sa création, un coach ne touche plus aux invitations admin, et les invitations parent ne se modifient plus côté client.
 - Planning, accueil, annonces, cotisations : les listes suivent à nouveau les changements en direct (ajout à une équipe, nouvelle saison, compte lié). Les flux imbriqués restaient figés sur leur première valeur.
 - Dates des anciens événements (sans `dateId`) : jour lu en UTC, plus dans le fuseau du téléphone (affichage la veille à partir de UTC-3).
+- Paiement CB : un seul paiement ouvert par cotisation (le précédent est annulé), crédit borné au reste dû, et remboursement automatique d’un paiement arrivé après le solde. Les aides en attente redéclarées remplacent l’ancienne au lieu de s’empiler.
+- Cotisations (admin) : ajustement, aides et statut sont relus au moment d’enregistrer, une écriture concurrente n’est plus écrasée.
+
+### Sécurité
+
+- Règles Firestore : le compte Stripe du club et les champs de rapprochement CB ne s’écrivent plus que par les Cloud Functions ; une entrée du journal de cotisation est signée par son auteur, horodatée serveur et cohérente avec la fiche.
 
 ## [2.2.11] - 2026-10-23
 

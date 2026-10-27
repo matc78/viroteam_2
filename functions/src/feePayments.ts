@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import { getStorage } from "firebase-admin/storage";
 import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
 import { db } from "./db";
+import { remainingDueCents, splitCardCredit } from "./stripeCheckoutUtils";
 
 const RECEIPT_SIGNED_URL_TTL_MS = 60 * 60 * 1000;
 
@@ -25,7 +26,10 @@ export function aidLabel(type: string): string {
 
 /**
  * Crédite une cotisation après confirmation serveur (webhook).
- * Idempotent via `appliedExternalPaymentIds`.
+ * Idempotent via `appliedExternalPaymentIds`. Le crédit est borné au reste
+ * dû : l'excédent (`excessCents`) n'est pas compté comme payé, il est tracé
+ * dans `payment_events` (`card_overpayment`) et, s'il couvre tout le
+ * paiement, la session passe en `refund_pending` pour remboursement.
  */
 export async function creditMemberFeeFromCardPayment(params: {
   clubId: string;
@@ -36,7 +40,7 @@ export async function creditMemberFeeFromCardPayment(params: {
   externalPaymentId: string;
   externalOrderId?: string;
   provider: FeePaymentProvider;
-}): Promise<{ status: string; creditedCents: number }> {
+}): Promise<{ status: string; creditedCents: number; excessCents: number }> {
   const {
     clubId,
     seasonId,
@@ -62,6 +66,7 @@ export async function creditMemberFeeFromCardPayment(params: {
 
   let nextStatus = "a_payer";
   let creditedCents = 0;
+  let excessCents = 0;
 
   await db().runTransaction(async (tx) => {
     const feeSnap = await tx.get(feeRef);
@@ -106,10 +111,20 @@ export async function creditMemberFeeFromCardPayment(params: {
       credit = Number(sessionSnap.data()?.amountCents ?? 0);
     }
 
-    creditedCents = Math.max(0, credit);
-    const newPaid = previousPaid + creditedCents;
     const aids =
       (fee.aids as { status: string; amountCents: number }[]) ?? [];
+    const split = splitCardCredit(
+      credit,
+      remainingDueCents({
+        tierAmountCents: tier?.amountCents,
+        feeStatus: typeof fee.status === "string" ? fee.status : undefined,
+        amountPaidCents: previousPaid,
+        aids,
+      }),
+    );
+    creditedCents = split.creditCents;
+    excessCents = split.excessCents;
+    const newPaid = previousPaid + creditedCents;
     const validatedAids = aids
       .filter((a) => a.status === "validated")
       .reduce((s, a) => s + Number(a.amountCents ?? 0), 0);
@@ -134,6 +149,9 @@ export async function creditMemberFeeFromCardPayment(params: {
         externalPaymentId,
         externalOrderId: externalOrderId ?? null,
         appliedExternalPaymentIds: [...appliedIds, externalPaymentId],
+        ...(excessCents > 0
+          ? { overpaidCents: admin.firestore.FieldValue.increment(excessCents) }
+          : {}),
         paidAt:
           nextStatus === "paye"
             ? admin.firestore.FieldValue.serverTimestamp()
@@ -160,6 +178,23 @@ export async function creditMemberFeeFromCardPayment(params: {
       });
     }
 
+    if (excessCents > 0) {
+      tx.set(feeRef.collection("payment_events").doc(), {
+        type: "card_overpayment",
+        deltaCents: 0,
+        excessCents,
+        amountPaidCentsBefore: previousPaid,
+        amountPaidCentsAfter: newPaid,
+        statusAfter: nextStatus,
+        actorUid: "system",
+        paidVia: provider,
+        paymentProvider: provider,
+        externalPaymentId,
+        sessionId: sessionId || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
     if (sessionId) {
       const sessionRef = db()
         .collection("clubs")
@@ -171,7 +206,13 @@ export async function creditMemberFeeFromCardPayment(params: {
       tx.set(
         sessionRef,
         {
-          status: nextStatus === "paye" ? "completed" : "partial",
+          status:
+            creditedCents === 0 && excessCents > 0
+              ? "refund_pending"
+              : nextStatus === "paye"
+                ? "completed"
+                : "partial",
+          excessCents,
           lastExternalPaymentId: externalPaymentId,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
@@ -193,7 +234,7 @@ export async function creditMemberFeeFromCardPayment(params: {
     });
   }
 
-  return { status: nextStatus, creditedCents };
+  return { status: nextStatus, creditedCents, excessCents };
 }
 
 /**

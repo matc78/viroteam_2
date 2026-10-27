@@ -1143,3 +1143,97 @@ test("app_config/mobile est lisible sans connexion mais jamais modifiable par un
     updateDoc(doc(as(ADMIN), "app_config/mobile"), { minVersionIos: "0.0.1" }),
   );
 });
+
+// ————————————————————————————————————————————————————————————————
+// Paiements : champs Stripe du club, journal de cotisation
+// ————————————————————————————————————————————————————————————————
+
+const FEE_PATH = `clubs/${CLUB}/fee_seasons/s1/member_fees/${PLAYER.uid}`;
+
+/** Fiche cotisation du joueur : 50 € payés sur 150 €. */
+async function seedMemberFee() {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, `clubs/${CLUB}/fee_seasons/s1`), {
+      active: true,
+      tiers: [{ tierId: "t1", amountCents: 15000 }],
+    });
+    await setDoc(doc(db, FEE_PATH), {
+      tierId: "t1",
+      amountPaidCents: 5000,
+      status: "partiel",
+    });
+  });
+}
+
+/** Paiement hors ligne tel qu'écrit par l'app / le portail (fiche + journal). */
+function offlineCreditBatch(user, { after = 8000, eventOverrides = {} } = {}) {
+  const db = as(user);
+  const batch = writeBatch(db);
+  batch.update(doc(db, FEE_PATH), {
+    amountPaidCents: after,
+    paidVia: "offline",
+    offlineMethod: "cheque",
+    updatedAt: serverTimestamp(),
+  });
+  batch.set(doc(collection(db, `${FEE_PATH}/payment_events`)), {
+    type: "offline_credit",
+    deltaCents: after - 5000,
+    amountPaidCentsBefore: 5000,
+    amountPaidCentsAfter: after,
+    statusAfter: "partiel",
+    actorUid: user.uid,
+    createdAt: serverTimestamp(),
+    ...eventOverrides,
+  });
+  return batch.commit();
+}
+
+test("un admin ne modifie pas le compte Stripe du club", async () => {
+  await assertFails(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}`), { stripeConnectStatus: "complete" }),
+  );
+  await assertFails(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}`), { stripeConnectedAccountId: "acct_autre" }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}`), { onlinePaymentEnabled: true }),
+  );
+});
+
+test("un admin enregistre un paiement hors ligne avec son entrée de journal", async () => {
+  await seedMemberFee();
+  await assertSucceeds(offlineCreditBatch(ADMIN));
+});
+
+test("le journal refuse un auteur, un type CB ou un montant incohérents", async () => {
+  await seedMemberFee();
+  await assertFails(offlineCreditBatch(ADMIN, { eventOverrides: { actorUid: COACH.uid } }));
+  await assertFails(offlineCreditBatch(ADMIN, { eventOverrides: { type: "card_credit" } }));
+  await assertFails(offlineCreditBatch(ADMIN, { eventOverrides: { amountPaidCentsAfter: 15000 } }));
+  await assertFails(
+    offlineCreditBatch(ADMIN, {
+      eventOverrides: { createdAt: Timestamp.fromDate(new Date(2020, 0, 1)) },
+    }),
+  );
+});
+
+test("un coach n'écrit ni la fiche ni le journal de cotisation", async () => {
+  await seedMemberFee();
+  await assertFails(offlineCreditBatch(COACH));
+});
+
+test("les champs de rapprochement CB sont réservés aux Functions", async () => {
+  await seedMemberFee();
+  await assertFails(
+    updateDoc(doc(as(ADMIN), FEE_PATH), { appliedExternalPaymentIds: ["pi_x"] }),
+  );
+  await assertFails(updateDoc(doc(as(ADMIN), FEE_PATH), { overpaidCents: 0 }));
+  await assertFails(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/fee_seasons/s1/member_fees/precreated1`), {
+      tierId: "t1",
+      amountPaidCents: 0,
+      paymentIntentId: "pi_x",
+    }),
+  );
+});

@@ -96,9 +96,14 @@ export function normalizeAidInputs(raw: unknown, remainingCents: number): Normal
 }
 
 /**
- * Fusionne les aides d'une session dans `member_fees.aids` : les entrées
- * déjà présentes pour cette session (retry du checkout) sont remplacées,
- * jamais dupliquées. L'id d'une aide est `${sessionId}_${index}`.
+ * Fusionne les aides d'une session dans `member_fees.aids`. Sont remplacées,
+ * jamais dupliquées :
+ * - les entrées déjà présentes pour cette session (retry du checkout) ;
+ * - les aides `pending_proof` d'un type redéclaré (un seul Pass'Sport en
+ *   attente à la fois), pour que des checkouts répétés ne gonflent pas le
+ *   tableau jusqu'à la limite de taille du document.
+ * Les aides validées ou refusées par l'admin sont conservées. L'id d'une aide
+ * est `${sessionId}_${index}`.
  */
 export function mergeFeeAids(
   existing: unknown,
@@ -106,11 +111,39 @@ export function mergeFeeAids(
   sessionId: string,
 ): Record<string, unknown>[] {
   const prefix = `${sessionId}_`;
+  const redeclaredTypes = new Set(incoming.map((a) => String(a.type ?? "")));
   const kept = (Array.isArray(existing) ? existing : []).filter(
-    (a): a is Record<string, unknown> =>
-      !!a &&
-      typeof a === "object" &&
-      !String((a as { id?: unknown }).id ?? "").startsWith(prefix),
+    (a): a is Record<string, unknown> => {
+      if (!a || typeof a !== "object") return false;
+      const aid = a as { id?: unknown; status?: unknown; type?: unknown };
+      if (String(aid.id ?? "").startsWith(prefix)) return false;
+      return !(
+        aid.status === "pending_proof" && redeclaredTypes.has(String(aid.type ?? ""))
+      );
+    },
   );
   return [...kept, ...incoming];
 }
+
+/**
+ * Part d'un paiement CB réellement créditée : bornée au reste dû au moment
+ * du crédit. L'excédent (deux PaymentIntents payés pour la même cotisation)
+ * n'est jamais compté comme payé ; il est remboursé ou signalé à l'admin.
+ */
+export function splitCardCredit(
+  amountCents: number,
+  remainingCents: number,
+): { creditCents: number; excessCents: number } {
+  const amount = Math.max(0, Math.round(Number(amountCents) || 0));
+  const remaining = Math.max(0, Math.round(Number(remainingCents) || 0));
+  const creditCents = Math.min(amount, remaining);
+  return { creditCents, excessCents: amount - creditCents };
+}
+
+/** Statuts d'un PaymentIntent encore annulable (rien n'a été débité). */
+export const CANCELABLE_PAYMENT_INTENT_STATUSES = new Set([
+  "requires_payment_method",
+  "requires_confirmation",
+  "requires_action",
+  "requires_capture",
+]);

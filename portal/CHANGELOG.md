@@ -16,6 +16,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Corrigé
 
 - Planning et accueil : le jour d’un événement vient de `dateId` (ou du jour UTC), plus du fuseau du navigateur. Avant, il s’affichait la veille à partir de UTC-3 (Antilles, Guyane, Québec).
+- Cotisations : paiement hors ligne, ajustement, aides et statut passent par une transaction ; deux validations simultanées ne s’écrasent plus.
 
 ## [1.10.0] - 2026-10-23
 

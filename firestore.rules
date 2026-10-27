@@ -179,6 +179,14 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    /// Champs de `member_fees` réservés au crédit CB (Cloud Functions).
+    function cardOnlyFeeFields() {
+      return [
+        'appliedExternalPaymentIds', 'externalPaymentId', 'externalOrderId',
+        'paymentIntentId', 'overpaidCents'
+      ];
+    }
+
     /// Map `memberId → Timestamp` : seule la clé `ownId` change, et sa valeur
     /// est l'horodatage serveur (`serverTimestamp()` côté client).
     function ownServerTimestampOk(field, ownId) {
@@ -306,7 +314,11 @@ service cloud.firestore {
         || (isSignedIn() && request.auth.uid in resource.data.get('adminIds', []));
       // `adminIds` n'est modifié que par les Cloud Functions (rôles, retrait, suppression).
       // Un coach qui pré-crée une fiche ne touche qu'au compteur.
-      allow update: if (isClubAdmin(clubId) && !affectedKeys().hasAny(['adminIds']))
+      // Compte Stripe Connect : écrit uniquement par les Functions (onboarding,
+      // webhook `account.updated`) ; sinon un admin forçait `complete` ou
+      // pointait vers le compte d'un autre club.
+      allow update: if (isClubAdmin(clubId)
+          && !affectedKeys().hasAny(['adminIds', 'stripeConnectedAccountId', 'stripeConnectStatus']))
         || (isClubCoach(clubId) && affectedKeys().hasOnly(['memberCount', 'updatedAt']));
       allow delete: if false;
 
@@ -932,14 +944,32 @@ service cloud.firestore {
             || ownsMemberDoc(clubId, memberId)
             || isActiveGuardianOf(clubId, memberId);
           // Admin manuel (hors-ligne / aides) ; CB via Cloud Functions (Admin SDK).
-          allow write: if isClubAdmin(clubId);
+          // Les champs de rapprochement CB (idempotence webhook, excédent) ne
+          // sont écrits que par les Functions.
+          allow create: if isClubAdmin(clubId)
+            && !request.resource.data.keys().hasAny(cardOnlyFeeFields());
+          allow update: if isClubAdmin(clubId)
+            && !affectedKeys().hasAny(cardOnlyFeeFields());
+          allow delete: if isClubAdmin(clubId);
 
-          // Ledger immuable : create admin, update/delete interdits.
+          // Ledger immuable : create admin, update/delete interdits. L'entrée
+          // est signée par son auteur, horodatée serveur, d'un type manuel
+          // (`card_*` = Functions) et cohérente avec la fiche après écriture
+          // (même batch / transaction que la mise à jour de `member_fees`).
           match /payment_events/{eventId} {
             allow read: if isClubCoachOrAdmin(clubId)
               || ownsMemberDoc(clubId, memberId)
               || isActiveGuardianOf(clubId, memberId);
-            allow create: if isClubAdmin(clubId);
+            allow create: if isClubAdmin(clubId)
+              && request.resource.data.get('actorUid', '') == request.auth.uid
+              && request.resource.data.get('createdAt', null) == request.time
+              && request.resource.data.get('type', '') in [
+                'offline_credit', 'adjust_absolute', 'aid_validated',
+                'aid_rejected', 'marked_paid', 'exempted', 'unexempted'
+              ]
+              && request.resource.data.get('amountPaidCentsAfter', -1)
+                == getAfter(/databases/$(database)/documents/clubs/$(clubId)/fee_seasons/$(seasonId)/member_fees/$(memberId))
+                  .data.get('amountPaidCents', 0);
             allow update, delete: if false;
           }
         }

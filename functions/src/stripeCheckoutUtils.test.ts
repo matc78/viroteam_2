@@ -5,6 +5,7 @@ import {
   mergeFeeAids,
   normalizeAidInputs,
   remainingDueCents,
+  splitCardCredit,
 } from "./stripeCheckoutUtils";
 
 describe("remainingDueCents", () => {
@@ -90,5 +91,47 @@ describe("mergeFeeAids", () => {
       { id: "s1_0", amountCents: 100 },
       { id: "s2_0", amountCents: 250 },
     ]);
+  });
+});
+
+describe("mergeFeeAids — aides en attente", () => {
+  it("remplace l'aide en attente d'un type redéclaré, garde les validées", () => {
+    const existing = [
+      { id: "s1_0", type: "pass_sport", status: "pending_proof", amountCents: 5000 },
+      { id: "s1_1", type: "ancv", status: "pending_proof", amountCents: 2000 },
+      { id: "s0_0", type: "pass_sport", status: "validated", amountCents: 5000 },
+    ];
+    const merged = mergeFeeAids(
+      existing,
+      [{ id: "s2_0", type: "pass_sport", status: "pending_proof", amountCents: 5000 }],
+      "s2",
+    );
+    assert.deepEqual(
+      merged.map((a) => a.id),
+      ["s1_1", "s0_0", "s2_0"],
+    );
+  });
+
+  it("des checkouts répétés ne font pas grossir le tableau", () => {
+    let aids: Record<string, unknown>[] = [];
+    for (let i = 0; i < 50; i++) {
+      aids = mergeFeeAids(
+        aids,
+        [{ id: `s${i}_0`, type: "pass_sport", status: "pending_proof", amountCents: 5000 }],
+        `s${i}`,
+      );
+    }
+    assert.equal(aids.length, 1);
+  });
+});
+
+describe("splitCardCredit", () => {
+  it("crédite au plus le reste dû", () => {
+    assert.deepEqual(splitCardCredit(5000, 8000), { creditCents: 5000, excessCents: 0 });
+    assert.deepEqual(splitCardCredit(5000, 3000), { creditCents: 3000, excessCents: 2000 });
+  });
+
+  it("cotisation déjà réglée : tout est excédent", () => {
+    assert.deepEqual(splitCardCredit(5000, 0), { creditCents: 0, excessCents: 5000 });
   });
 });

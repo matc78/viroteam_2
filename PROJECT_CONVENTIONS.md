@@ -96,6 +96,7 @@ Scaffold(
 
 - Durées et courbes → **`ViroMotion`** uniquement.
 - Ombres cartes → `ViroMotion.cardShadow(palette)` (douce, teintée bleu en clair — pas d’ombre noire dure ; plus dense et neutre en sombre).
+- Cartes / tuiles à accent ou bordure colorée → `ViroMotion.accentBorderTileShadow(palette, borderColor)` (halo teinté **en dark seulement** ; en clair = `cardShadow`). Passé automatiquement par `ViroCard` si `borderColor` ou `accentColor` est défini ; sinon brancher le helper sur le `DecoratedBox`.
 - Boutons icône, menus, FAB → **`ViroPressable`** ou widgets flottants dédiés.
 - Menus / sheets / dialogs → thème Material (`ViroMotion.elevationMenu`).
 - Transitions d’écran : fade / Cupertino, pas de slides lourds.

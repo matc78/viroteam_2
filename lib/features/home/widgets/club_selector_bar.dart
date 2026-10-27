@@ -242,12 +242,15 @@ class _ClubBarHighlightItem extends StatelessWidget {
             color: palette.surfaceCard,
             borderRadius: BorderRadius.circular(_height / 2),
             border: Border.all(color: readableColor, width: 1.5),
-            boxShadow: ViroMotion.floatingShadow(
-              palette,
-              opacity: 0.16,
-              blur: 12,
-              y: 4,
-            ),
+            boxShadow: [
+              ...ViroMotion.floatingShadow(
+                palette,
+                opacity: 0.16,
+                blur: 12,
+                y: 4,
+              ),
+              ...palette.neonBoxGlow(readableColor, blur: 10, alpha: 0.28),
+            ],
           ),
           child: ExcludeSemantics(
             child: Row(
@@ -259,6 +262,7 @@ class _ClubBarHighlightItem extends StatelessWidget {
                   size: _avatarSize,
                   role: item.role,
                   badgeCount: badgeCount,
+                  neonGlow: false,
                 ),
                 const SizedBox(width: ViroSpacing.sm),
                 Flexible(
@@ -342,19 +346,21 @@ class _AddClubBarItem extends StatelessWidget {
                       color: palette.accentSofter,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: palette.isDark
-                            ? palette.accent
-                            : palette.accentMid,
-                        width: palette.isDark ? 1.5 : 1,
+                        color: palette.accentSoft,
+                        width: 1,
                       ),
-                      boxShadow: palette.neonBoxGlow(palette.accent),
+                      boxShadow: ViroMotion.floatingShadow(
+                        palette,
+                        opacity: 0.1,
+                        blur: 8,
+                        y: 2,
+                      ),
                     ),
                     alignment: Alignment.center,
                     child: ViroIcon(
                       ViroIcons.add,
                       size: 14,
                       color: palette.accent,
-                      shadows: palette.neonGlow(palette.accent, blur: 6),
                     ),
                   ),
                 ),
@@ -572,8 +578,8 @@ class _ClubBarItem extends StatelessWidget {
                     style: theme.labelSmall?.copyWith(
                       fontSize: 10,
                       height: 1.1,
-                      color: palette.textSecondary,
-                      fontWeight: FontWeight.w400,
+                      color: palette.textPrimary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -594,6 +600,7 @@ class _ClubBarAvatar extends StatelessWidget {
     required this.size,
     this.role,
     this.badgeCount,
+    this.neonGlow = true,
   });
 
   final Club club;
@@ -602,25 +609,35 @@ class _ClubBarAvatar extends StatelessWidget {
   final ViroRole? role;
   final int? badgeCount;
 
+  /// Halo néon couleur club (barre multi-clubs). Désactivé dans la pastille
+  /// mono-club, déjà bordée / glowée au niveau du conteneur.
+  final bool neonGlow;
+
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
+    final readable = palette.readableAccent(accentColor);
     return Stack(
       clipBehavior: Clip.none,
       children: [
         Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: ViroMotion.floatingShadow(
-              context.viroPalette,
-              opacity: 0.16,
-              blur: 12,
-              y: 4,
-            ),
+            boxShadow: [
+              ...ViroMotion.floatingShadow(
+                palette,
+                opacity: 0.18,
+                blur: 12,
+                y: 4,
+              ),
+              if (neonGlow)
+                ...palette.neonBoxGlow(readable, blur: 10, alpha: 0.28),
+            ],
           ),
           child: ClubContextAvatar(
             club: club,
-            accentColor: accentColor,
+            accentColor: readable,
             size: size,
             borderRadius: size / 2,
             enableZoom: false,

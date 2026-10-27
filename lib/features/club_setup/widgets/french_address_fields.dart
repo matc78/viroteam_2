@@ -312,7 +312,11 @@ class _AddressSuggestionPanel extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: radius,
         border: Border.all(color: accent.withValues(alpha: 0.45)),
-        boxShadow: ViroMotion.cardShadow(palette, elevated: false),
+        boxShadow: ViroMotion.accentBorderTileShadow(
+          palette,
+          accent.withValues(alpha: 0.45),
+          elevated: false,
+        ),
       ),
       child: Material(
         color: palette.surfaceCard,

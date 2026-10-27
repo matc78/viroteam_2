@@ -138,9 +138,15 @@ class ViroPalette extends ThemeExtension<ViroPalette> {
   }
 
   /// Équivalent de [neonGlow] pour une boîte (bouton rond, pastille).
-  List<BoxShadow> neonBoxGlow(Color color, {double blur = 12}) {
+  List<BoxShadow> neonBoxGlow(
+    Color color, {
+    double blur = 12,
+    double alpha = 0.45,
+  }) {
     if (!isDark) return const [];
-    return [BoxShadow(color: color.withValues(alpha: 0.45), blurRadius: blur)];
+    return [
+      BoxShadow(color: color.withValues(alpha: alpha), blurRadius: blur),
+    ];
   }
 
   static const ViroPalette light = ViroPalette(

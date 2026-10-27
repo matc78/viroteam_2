@@ -78,4 +78,23 @@ abstract final class ViroMotion {
       ),
     ];
   }
+
+  /// Ombre de tuile à bordure accentuée (fiche club) : [cardShadow] + halo
+  /// léger de [borderColor] en sombre pour détacher la tuile du fond bleu nuit.
+  static List<BoxShadow> accentBorderTileShadow(
+    ViroPalette palette,
+    Color borderColor, {
+    bool elevated = true,
+  }) {
+    if (!palette.isDark) {
+      return cardShadow(palette, elevated: elevated);
+    }
+    return [
+      ...cardShadow(palette, elevated: elevated),
+      BoxShadow(
+        color: borderColor.withValues(alpha: 0.32),
+        blurRadius: 16,
+      ),
+    ];
+  }
 }

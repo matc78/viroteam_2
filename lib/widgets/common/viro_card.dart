@@ -34,6 +34,20 @@ class ViroCard extends StatelessWidget {
   /// Libellé lecteur d’écran quand la carte est interactive.
   final String? semanticLabel;
 
+  /// Ombre de la carte : halo teinté en dark si bordure ou bandeau accent.
+  List<BoxShadow> _tileShadow(ViroPalette palette) {
+    final glowColor = borderColor ??
+        (accentColor != null ? ClubAccentStyle(accentColor!).border : null);
+    if (glowColor != null) {
+      return ViroMotion.accentBorderTileShadow(
+        palette,
+        glowColor,
+        elevated: elevated,
+      );
+    }
+    return ViroMotion.cardShadow(palette, elevated: elevated);
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
@@ -48,7 +62,7 @@ class ViroCard extends StatelessWidget {
           color: borderColor ?? palette.cardBorder,
           width: 1,
         ),
-        boxShadow: ViroMotion.cardShadow(palette, elevated: elevated),
+        boxShadow: _tileShadow(palette),
       ),
       child: Material(
         color: palette.surfaceCard,

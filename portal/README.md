@@ -25,16 +25,16 @@ Même projet que l’app mobile : **`viroteam-75303`**.
 
 **Important** : jamais la base Firestore default — toujours `v2-dev` / `v2-prod` (miroir `appFirestore` Flutter).
 
-### Dev local — connexion sans limite
+### Dev local — aperçu du wizard
 
-En local (`NEXT_PUBLIC_DEV_AUTH_BYPASS=true`, activé dans `.env.local.example`), la connexion e-mail passe par un **custom token** Admin SDK au lieu de `signInWithEmailAndPassword`, ce qui évite l’erreur Firebase `auth/too-many-requests`.
+`NEXT_PUBLIC_CLUB_SETUP_PREVIEW=true` (activé dans `.env.local.example`) affiche le wizard de création de club sans compte, jamais sur `v2-prod`.
 
-Credentials Admin (une des deux options) :
+La connexion locale passe par Firebase Auth comme en prod (e-mail / mot de passe vérifiés). L'ancien contournement par custom token (`NEXT_PUBLIC_DEV_AUTH_BYPASS`) est supprimé : il émettait, sans mot de passe, un jeton valable aussi sur `v2-prod` (projet Auth commun).
+
+Credentials Admin (route `/api/club-setup/places`, une des deux options) :
 
 1. **Compte de service** dans `.env.local` : `FIREBASE_ADMIN_CLIENT_EMAIL` + `FIREBASE_ADMIN_PRIVATE_KEY` (Console Firebase → Paramètres → Comptes de service → Générer une nouvelle clé privée).
 2. **ADC** : `gcloud auth application-default login` (compte Google avec droits Admin sur le projet).
-
-Le mot de passe saisi n’est **pas vérifié** en mode dev bypass — seul l’e-mail doit exister dans Firebase Auth. Désactiver avec `NEXT_PUBLIC_DEV_AUTH_BYPASS=false` ou en prod (`v2-prod`).
 
 ### Accès
 

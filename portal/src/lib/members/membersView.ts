@@ -13,7 +13,6 @@ import {
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
 import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
-import { scheduleMemberTeamIdsRepair } from "@/lib/firebase/teamService";
 
 /** Ligne membre enrichie pour le tableau portail. */
 export type MemberRow = ClubMemberRecord & {
@@ -137,7 +136,6 @@ export async function loadMembersPageData(
   const rosterOnly = options.rosterOnly === true;
   const canListFees =
     !rosterOnly && (role === MemberRoles.admin || role === MemberRoles.coach);
-  const canReconcileTeamIds = canListFees;
 
   const [members, teams, season] = await Promise.all([
     listClubMembers(club.id),
@@ -145,17 +143,6 @@ export async function loadMembersPageData(
     rosterOnly ? Promise.resolve(null) : getActiveSeason(club.id),
   ]);
 
-  // Réparation hors chemin critique : le listener members/teams recharge la page.
-  if (canReconcileTeamIds) {
-    scheduleMemberTeamIdsRepair(club.id, {
-      members: members.map((member) => ({
-        memberId: member.memberId,
-        accountUid: member.accountUid,
-        teamIds: member.teamIds,
-      })),
-      teams,
-    });
-  }
   const membersForRows = members;
   const teamsForRows = teams;
 

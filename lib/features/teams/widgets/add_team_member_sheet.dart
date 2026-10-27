@@ -11,7 +11,6 @@ import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
-import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
@@ -25,10 +24,6 @@ Future<void> showAddTeamMemberSheet({
   required TeamRosterSlot slot,
   required Future<void> Function(String id) onAdd,
 }) async {
-  await ref.read(teamServiceProvider).reconcileStaleRosterIds(clubId);
-
-  if (!context.mounted) return;
-
   final accent = ref.read(clubMemberAccentProvider(clubId));
 
   return showModalBottomSheet<void>(

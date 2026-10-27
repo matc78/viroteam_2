@@ -173,15 +173,59 @@ export async function activeGuardianUids(
   ).filter((uid) => uid.length > 0);
 }
 
+/**
+ * Maintient `members.teamIds` depuis les rosters (l'équipe fait foi) pour
+ * les fiches dont la présence a changé. Remplace les réparations côté client
+ * (`reconcileMemberTeamIds` portail, `reconcileStaleRosterIds` app).
+ */
+async function syncMemberTeamIds(params: {
+  firestore: Firestore;
+  clubId: string;
+  teamId: string;
+  changedRosterIds: string[];
+  remainingRosterIds: string[];
+}): Promise<void> {
+  const { firestore, clubId, teamId, changedRosterIds } = params;
+  const remaining = new Set(params.remainingRosterIds);
+  const membersCol = firestore.collection("clubs").doc(clubId).collection("members");
+  const handled = new Set<string>();
+
+  for (const rosterId of changedRosterIds) {
+    try {
+      const memberId = await resolveMemberId(firestore, clubId, rosterId);
+      if (!memberId || handled.has(memberId)) continue;
+      handled.add(memberId);
+      const memberRef = membersCol.doc(memberId);
+      const memberSnap = await memberRef.get();
+      if (!memberSnap.exists) continue;
+      const member = memberSnap.data()!;
+      const onTeam = rosterIdsOf(memberId, member).some((id) => remaining.has(id));
+      if (onTeam === stringArray(member.teamIds).includes(teamId)) continue;
+      await memberRef.update({
+        teamIds: onTeam
+          ? admin.firestore.FieldValue.arrayUnion(teamId)
+          : admin.firestore.FieldValue.arrayRemove(teamId),
+      });
+    } catch (error) {
+      console.error("onTeamWritten: synchro members.teamIds échouée", {
+        clubId,
+        teamId,
+        rosterId,
+        error,
+      });
+    }
+  }
+}
+
 type TeamWrittenEvent = FirestoreEvent<
   Change<DocumentSnapshot> | undefined,
   { clubId: string; teamId: string }
 >;
 
 /**
- * Sur chaque écriture d'équipe : synchronise les convocations des events à
- * venir (joueurs **et** coachs), puis recalcule `parentTeamIds` des guardians
- * pour les changements de `playerIds` uniquement.
+ * Sur chaque écriture d'équipe : synchronise `members.teamIds` et les
+ * convocations des events à venir (joueurs **et** coachs), puis recalcule
+ * `parentTeamIds` des guardians pour les changements de `playerIds` uniquement.
  */
 async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
   const before = event.data?.before?.exists ? event.data.before.data() : undefined;
@@ -207,6 +251,14 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
       ...coachIdsOf(after),
     ]),
     removed: audienceRemovedRaw,
+  });
+
+  await syncMemberTeamIds({
+    firestore,
+    clubId,
+    teamId,
+    changedRosterIds: uniq([...audienceAdded, ...audienceRemovedRaw]),
+    remainingRosterIds: uniq([...playerIdsOf(after), ...coachIdsOf(after)]),
   });
 
   if (audienceAdded.length > 0 || audienceRemoved.length > 0) {

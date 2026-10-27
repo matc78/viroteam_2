@@ -21,6 +21,12 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Sécurité
 
 - Rejoindre un club / suivi parent : si l’e-mail du compte n’est pas confirmé, le portail propose d’envoyer le lien de confirmation puis relance l’acceptation.
+- En-têtes HTTP sur toutes les pages : `frame-ancestors 'none'` / `X-Frame-Options: DENY` (plus de chargement du bureau dans une iframe), HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
+- Suppression de la connexion dev sans mot de passe (`/api/dev/auth/token`, `NEXT_PUBLIC_DEV_AUTH_BYPASS`), qui émettait un jeton valable aussi en prod. L’aperçu du wizard sans compte passe par `NEXT_PUBLIC_CLUB_SETUP_PREVIEW`.
+
+### Modifié
+
+- Membres : plus de réparation `teamIds` / rosters en arrière-plan à chaque session admin, la synchro est faite côté serveur.
 
 ## [1.10.0] - 2026-10-23
 

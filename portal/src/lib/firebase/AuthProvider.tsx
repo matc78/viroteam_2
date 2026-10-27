@@ -5,7 +5,6 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
-  signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
@@ -26,7 +25,6 @@ import {
   passwordResetErrorMessage,
   toAuthActionError,
 } from "@/lib/firebase/authErrors";
-import { isDevAuthBypassEnabled } from "@/lib/firebase/devAuth";
 import {
   EmailUsedWithPasswordError,
   GOOGLE_SIGN_IN_CANCELLED,
@@ -388,27 +386,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
-      if (isDevAuthBypassEnabled()) {
-        const response = await fetch("/api/dev/auth/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
-        });
-        const payload = (await response.json()) as {
-          token?: string;
-          error?: string;
-          code?: string;
-        };
-        if (!response.ok || !payload.token) {
-          throw toAuthActionError({
-            message: payload.error ?? "Connexion dev impossible.",
-            code: payload.code,
-          });
-        }
-        await signInWithCustomToken(getFirebaseAuth(), payload.token);
-        return;
-      }
-
       await signInWithEmailAndPassword(
         getFirebaseAuth(),
         email.trim(),

@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
-import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
@@ -40,7 +39,7 @@ import 'package:viro_team_v2/utils/calendar_days.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
-import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
+import 'package:viro_team_v2/widgets/common/section_shimmer.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
@@ -76,7 +75,8 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   /// Event mis en avant ; oublié dès que l’utilisateur change de jour.
   String? _focusEventId;
 
-  /// Vue choisie (coach-admin) ; les autres profils restent en vue jour.
+  /// Vue choisie ; un parent sans fiche reste en vue jour (cf.
+  /// [memberClubPlanningRangeEventsProvider]).
   PlanningViewMode _viewMode = PlanningViewMode.day;
 
   @override
@@ -145,9 +145,11 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     });
   }
 
-  /// Vue effective : semaine / mois réservées à ceux qui gèrent le planning.
-  PlanningViewMode _effectiveViewMode({required bool canManage}) =>
-      canManage ? _viewMode : PlanningViewMode.day;
+  /// Vue effective : semaine / mois pour tout membre du club (lecture seule
+  /// hors gestionnaires) ; un parent sans fiche ne peut pas lire la période
+  /// entière (rules) et reste en vue jour.
+  PlanningViewMode _effectiveViewMode({required bool canBrowsePeriods}) =>
+      canBrowsePeriods ? _viewMode : PlanningViewMode.day;
 
   ({String clubId, DateTime start, DateTime endExclusive}) _rangeParams(
     PlanningViewMode mode,
@@ -178,16 +180,36 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     });
   }
 
+  /// Peut basculer en vue semaine / mois : gestionnaire, membre avec fiche
+  /// ou parent sans fiche (lecture limitée aux équipes de l'enfant).
+  bool _canBrowsePeriods({required bool canManage}) =>
+      canManage ||
+      ref.read(clubMemberProvider(widget.clubId)).value != null ||
+      ref.read(isGuardianOnlyInClubProvider(widget.clubId));
+
+  /// Source brute de la période affichée (club entier, ou équipes de
+  /// l'enfant pour un parent sans fiche).
+  StreamProvider<List<ClubEvent>> _rangeSource(
+    PlanningViewMode mode,
+  ) {
+    final params = _rangeParams(mode);
+    return ref.read(isGuardianOnlyInClubProvider(widget.clubId))
+        ? guardianClubPlanningRangeEventsProvider(params)
+        : clubPlanningRangeEventsProvider(params);
+  }
+
   /// Relance le stream du planning affiché (jour ou période).
   void _invalidateEvents({required bool canManage}) {
-    final mode = _effectiveViewMode(canManage: canManage);
+    final mode = _effectiveViewMode(
+      canBrowsePeriods: _canBrowsePeriods(canManage: canManage),
+    );
     final dayParams = (clubId: widget.clubId, day: _selectedDay);
     if (mode != PlanningViewMode.day) {
-      ref.invalidate(clubPlanningRangeEventsProvider(_rangeParams(mode)));
+      ref.invalidate(_rangeSource(mode));
     } else if (canManage) {
       ref.invalidate(clubPlanningEventsProvider(dayParams));
     } else {
-      ref.invalidate(memberClubPlanningEventsProvider(dayParams));
+      ref.invalidate(memberClubUpcomingPlanningEventsProvider(widget.clubId));
     }
   }
 
@@ -215,7 +237,9 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   Future<void> _refreshPlanning({required bool canManage}) async {
     final clubId = widget.clubId;
     final dayParams = (clubId: clubId, day: _selectedDay);
-    final mode = _effectiveViewMode(canManage: canManage);
+    final mode = _effectiveViewMode(
+      canBrowsePeriods: _canBrowsePeriods(canManage: canManage),
+    );
 
     _invalidateEvents(canManage: canManage);
     ref.invalidate(clubTeamsProvider(clubId));
@@ -225,11 +249,11 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
 
     final streamWaits = <Future<Object?>>[
       if (mode != PlanningViewMode.day)
-        ref.read(clubPlanningRangeEventsProvider(_rangeParams(mode)).future)
+        ref.read(_rangeSource(mode).future)
       else if (canManage)
         ref.read(clubPlanningEventsProvider(dayParams).future)
       else
-        ref.read(memberClubPlanningEventsProvider(dayParams).future),
+        ref.read(memberClubUpcomingPlanningEventsProvider(clubId).future),
       ref.read(clubTeamsProvider(clubId).future),
     ];
 
@@ -309,14 +333,29 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           isAdmin: member.role == MemberRoles.admin,
           isCoach: member.role == MemberRoles.coach,
         );
-    final viewMode = _effectiveViewMode(canManage: canManage);
+    final canBrowsePeriods = canManage ||
+        member != null ||
+        ref.watch(isGuardianOnlyInClubProvider(clubId));
+    final viewMode = _effectiveViewMode(canBrowsePeriods: canBrowsePeriods);
     final dayParams = (clubId: clubId, day: _selectedDay);
     final eventsAsync = switch (viewMode) {
       PlanningViewMode.day => canManage
           ? ref.watch(clubPlanningEventsProvider(dayParams))
           : ref.watch(memberClubPlanningEventsProvider(dayParams)),
-      _ => ref.watch(clubPlanningRangeEventsProvider(_rangeParams(viewMode))),
+      _ => canManage
+          ? ref.watch(clubPlanningRangeEventsProvider(_rangeParams(viewMode)))
+          : ref.watch(
+              memberClubPlanningRangeEventsProvider(_rangeParams(viewMode)),
+            ),
     };
+    // Vue jour vide côté membre : raccourci vers le prochain jour chargé.
+    final nextEventDay = !canManage && viewMode == PlanningViewMode.day
+        ? ref.watch(
+            memberClubNextEventDayProvider(
+              (clubId: clubId, after: _selectedDay),
+            ),
+          )
+        : null;
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
     final clubMembers = member != null
         ? ref.watch(clubMembersProvider(clubId)).value
@@ -412,9 +451,10 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         fallbackRoute: AppRoutes.clubDetailPath(clubId),
         title: Text(AppCopy.planning.clubScreenTitle),
         actions: [
+          // Icône distincte du « + » de création (FAB) : synchro agenda.
           IconButton(
-            icon: ViroIcon(ViroIcons.calendarPlus),
-            tooltip: AppCopy.planning.addToCalendarTooltip,
+            icon: ViroIcon(ViroIcons.calendarSync),
+            tooltip: AppCopy.planning.syncCalendarTooltip,
             onPressed: () => context.push(
               AppRoutes.clubCalendarSyncPath(clubId),
             ),
@@ -427,30 +467,15 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           if (!DateUtils.isSameDay(_selectedDay, DateTime.now()))
             Padding(
               padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
-              child: ViroPressable(
-                label: AppCopy.planning.goToTodayTooltip,
-                onTap: () => _selectDay(
-                  DateTime(DateTime.now().year, DateTime.now().month,
-                      DateTime.now().day),
-                ),
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: palette.surfaceCard,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: palette.readableAccent(clubColor ?? palette.accent),
-                      width: 2,
-                    ),
-                    boxShadow: ViroMotion.floatingShadow(palette,
-                        opacity: 0.16, blur: 18, y: 5),
-                  ),
-                  child: _TodayCalendarIcon(
-                    day: DateTime.now().day,
-                    color: palette.readableAccent(clubColor ?? palette.accent),
-                  ),
-                ),
+              child: ViroFloatingIconButton(
+                icon: ViroIcons.today,
+                tooltip: AppCopy.planning.goToTodayTooltip,
+                foregroundColor:
+                    palette.readableAccent(clubColor ?? palette.accent),
+                onPressed: () {
+                  final now = DateTime.now();
+                  _selectDay(DateTime(now.year, now.month, now.day));
+                },
               ),
             ),
           if (canManage)
@@ -469,7 +494,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
         children: [
           ClubAudienceSwitcher(clubId: clubId),
           const SizedBox(height: ViroSpacing.sm),
-          if (canManage) ...[
+          if (canBrowsePeriods) ...[
             PlanningViewModeSwitcher(
               mode: viewMode,
               onChanged: _setViewMode,
@@ -479,10 +504,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           if (viewMode != PlanningViewMode.day)
             _buildPeriodHeader(viewMode)
           else if (!_daysReady)
-            const SizedBox(
-              height: 100,
-              child: Center(child: CircularProgressIndicator()),
-            )
+            const _DayPickerShimmer()
           else if (_days.isNotEmpty)
             PlanningDayPicker(
               days: _days,
@@ -503,10 +525,12 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                     eventsAsync: eventsAsync,
                     buildEventTile: buildEventTile,
                     accentColor: clubColor,
+                    canManage: canManage,
                   ),
                 PlanningViewMode.week => eventsAsync.when(
                     loading: _buildLoadingList,
-                    error: (error, stackTrace) => _buildErrorList(),
+                    error: (error, stackTrace) =>
+                        _buildErrorList(canManage: canManage),
                     data: (events) => PlanningWeekAgenda(
                       weekStart: planningStartOfWeek(_selectedDay),
                       events: events,
@@ -517,12 +541,14 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
                   ),
                 PlanningViewMode.day => eventsAsync.when(
                     loading: _buildLoadingList,
-                    error: (error, stackTrace) => _buildErrorList(),
+                    error: (error, stackTrace) =>
+                        _buildErrorList(canManage: canManage),
                     data: (events) => events.isEmpty
-                        ? _buildMessageList(
-                            canManage
+                        ? _buildEmptyDayList(
+                            message: canManage
                                 ? AppCopy.planning.emptyDayAdmin
                                 : AppCopy.planning.emptyDay,
+                            nextEventDay: nextEventDay,
                           )
                         : ListView.separated(
                             physics: ViroRefreshIndicator.scrollPhysics,
@@ -570,6 +596,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
   Widget _buildMonthView({
     required AsyncValue<List<ClubEvent>> eventsAsync,
     required Widget Function(ClubEvent event) buildEventTile,
+    required bool canManage,
     Color? accentColor,
   }) {
     final eventsByDay =
@@ -578,15 +605,17 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
 
     final Widget dayContent;
     if (!eventsAsync.hasValue && eventsAsync.hasError) {
-      dayContent = const SizedBox(height: 160, child: ViroErrorState());
-    } else if (!eventsAsync.hasValue) {
-      dayContent = const Padding(
-        padding: EdgeInsets.all(ViroSpacing.lg),
-        child: Center(child: CircularProgressIndicator()),
+      dayContent = SizedBox(
+        height: 220,
+        child: ViroErrorState(
+          onRetry: () => _invalidateEvents(canManage: canManage),
+        ),
       );
+    } else if (!eventsAsync.hasValue) {
+      dayContent = const SectionShimmer(itemCount: 1);
     } else if (dayEvents.isEmpty) {
       dayContent = Text(
-        AppCopy.planning.emptyDayAdmin,
+        canManage ? AppCopy.planning.emptyDayAdmin : AppCopy.planning.emptyDay,
         style: Theme.of(context)
             .textTheme
             .bodyMedium
@@ -656,86 +685,67 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
 
   Widget _buildLoadingList() => ListView(
         physics: ViroRefreshIndicator.scrollPhysics,
-        children: const [
+        padding: const EdgeInsets.all(ViroSpacing.screenHorizontal),
+        children: const [SectionShimmer(itemCount: 3)],
+      );
+
+  Widget _buildErrorList({required bool canManage}) => ListView(
+        physics: ViroRefreshIndicator.scrollPhysics,
+        children: [
           SizedBox(
-            height: 240,
-            child: Center(child: CircularProgressIndicator()),
+            height: MediaQuery.sizeOf(context).height * 0.35,
+            child: ViroErrorState(
+              message: AppCopy.planning.loadPlanningError,
+              onRetry: () => _invalidateEvents(canManage: canManage),
+            ),
           ),
         ],
       );
 
-  Widget _buildErrorList() => ListView(
+  /// Vue jour vide ; si [nextEventDay] est connu, bouton pour y sauter.
+  Widget _buildEmptyDayList({
+    required String message,
+    DateTime? nextEventDay,
+  }) =>
+      ListView(
         physics: ViroRefreshIndicator.scrollPhysics,
-        children: const [
-          SizedBox(height: 240, child: ViroErrorState()),
-        ],
-      );
-
-  Widget _buildMessageList(String message) => ListView(
-        physics: ViroRefreshIndicator.scrollPhysics,
-        padding: const EdgeInsets.all(ViroSpacing.xl),
         children: [
           SizedBox(
-            height: MediaQuery.sizeOf(context).height * 0.35,
-            child: Center(
-              child: Text(
-                message,
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: context.viroPalette.textSecondary),
-              ),
+            height: MediaQuery.sizeOf(context).height * 0.4,
+            child: ViroEmptyState(
+              icon: ViroIcons.calendar,
+              message: message,
+              actionLabel:
+                  nextEventDay != null ? AppCopy.planning.goToNextEvent : null,
+              onAction:
+                  nextEventDay != null ? () => _selectDay(nextEventDay) : null,
             ),
           ),
         ],
       );
 }
 
-class _TodayCalendarIcon extends StatelessWidget {
-  const _TodayCalendarIcon({required this.day, required this.color});
+/// Placeholder du bandeau de jours (même hauteur que [PlanningDayPicker]).
+class _DayPickerShimmer extends StatelessWidget {
+  const _DayPickerShimmer();
 
-  final int day;
-  final Color color;
+  static const double _height = 100;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 22,
-      height: 22,
-      child: Column(
-        children: [
-          Container(
-            height: 5,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+    return const SizedBox(
+      height: _height,
+      child: ClipRect(
+        child: OverflowBox(
+          alignment: Alignment.topCenter,
+          maxHeight: double.infinity,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: ViroSpacing.screenHorizontal,
             ),
+            child: SectionShimmer(itemCount: 1),
           ),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(color: color, width: 1.5),
-                  right: BorderSide(color: color, width: 1.5),
-                  bottom: BorderSide(color: color, width: 1.5),
-                ),
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(3)),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '$day',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

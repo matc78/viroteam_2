@@ -755,6 +755,16 @@ test("un parent liste les événements filtrés sur l'équipe de son enfant", as
   assert.equal(snap.size, 1);
 });
 
+test("un parent liste une période (semaine / mois) sur l'équipe de son enfant", async () => {
+  const period = query(
+    collection(as(PARENT), `clubs/${CLUB}/events`),
+    where("teamIds", "array-contains", "teamA"),
+    where("date", ">=", Timestamp.fromDate(new Date("2026-11-01"))),
+    where("date", "<", Timestamp.fromDate(new Date("2026-12-01"))),
+  );
+  await assertSucceeds(getDocs(period));
+});
+
 test("un parent ne liste pas tous les événements du club", async () => {
   await assertFails(getDocs(collection(as(PARENT), `clubs/${CLUB}/events`)));
 });

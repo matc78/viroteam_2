@@ -50,6 +50,19 @@ class AddEventFormController extends ChangeNotifier {
   /// True dès que le coach coche / décoche lui-même le rappel J-7.
   bool importantReminderManuallyEdited = false;
   bool saving = false;
+
+  /// Vrai dès qu'un choix est fait par le coach (hors préremplissages).
+  bool _userEdited = false;
+
+  /// Formulaire modifié par le coach : texte saisi ou choix changé.
+  /// Sert à confirmer l'abandon avant de quitter l'écran.
+  bool get hasUserEdits =>
+      _userEdited ||
+      titleController.text.trim().isNotEmpty ||
+      locationController.text.trim().isNotEmpty ||
+      awayCityController.text.trim().isNotEmpty ||
+      awayPostalController.text.trim().isNotEmpty ||
+      awayAddressController.text.trim().isNotEmpty;
   int? selectedLocationIndex;
   int? selectedMeetingLocationIndex;
   bool locationDefaultsApplied = false;
@@ -97,6 +110,7 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Met à jour le type et réinitialise les champs dépendants.
   void onTypeChanged(String? value) {
+    _userEdited = true;
     final nextType = value ?? EventTypes.training;
     type = nextType;
     excludedPlayerIds.clear();
@@ -119,12 +133,14 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Convoque tout le club ([wholeClub]) ou une sélection d'équipes.
   void setAudienceWholeClub(bool wholeClub) {
+    _userEdited = true;
     audienceWholeClub = wholeClub;
     notifyListeners();
   }
 
   /// Ajoute / retire [teamId] des équipes convoquées.
   void toggleAudienceTeam(String teamId) {
+    _userEdited = true;
     if (!audienceTeamIds.remove(teamId)) audienceTeamIds.add(teamId);
     notifyListeners();
   }
@@ -143,6 +159,7 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Met à jour domicile / extérieur et nettoie le lieu si besoin.
   void onMatchVenueChanged(String? venue) {
+    _userEdited = true;
     matchVenue = venue;
     if (venue == MatchVenues.home) {
       locationController.clear();
@@ -160,6 +177,7 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Met à jour l’heure de début et recalcule le RDV si non édité manuellement.
   void setStartTime(TimeOfDay value) {
+    _userEdited = true;
     start = value;
     if (!meetingTimeManuallyEdited) {
       meetingTime = addEventMeetingTimeFromStart(value);
@@ -169,12 +187,14 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Met à jour l’heure de fin.
   void setEndTime(TimeOfDay value) {
+    _userEdited = true;
     end = value;
     notifyListeners();
   }
 
   /// Met à jour l’heure de RDV (marque comme édition manuelle).
   void setMeetingTime(TimeOfDay value) {
+    _userEdited = true;
     meetingTimeManuallyEdited = true;
     meetingTime = value;
     notifyListeners();
@@ -182,6 +202,7 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Met à jour la date de l’événement et bornes la fin de récurrence.
   void setDate(DateTime value, {Club? club}) {
+    _userEdited = true;
     date = value;
     if (recurrenceEndDate != null && recurrenceEndDate!.isBefore(date)) {
       recurrenceEndDate = addEventSeasonRecurrenceEnd(club, date);
@@ -191,6 +212,7 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Active / désactive la récurrence hebdo (préremplit la fin de saison).
   void setRecurring(bool value, {Club? club}) {
+    _userEdited = true;
     isRecurring = value;
     if (value && recurrenceEndDate == null) {
       recurrenceEndDate = addEventSeasonRecurrenceEnd(club, date);
@@ -200,6 +222,7 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Active / désactive le rappel 7 jours avant (choix manuel du coach).
   void setImportantReminder(bool value) {
+    _userEdited = true;
     importantReminderManuallyEdited = true;
     importantReminder = value;
     notifyListeners();
@@ -207,12 +230,14 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Met à jour la date de fin de récurrence.
   void setRecurrenceEndDate(DateTime value) {
+    _userEdited = true;
     recurrenceEndDate = value;
     notifyListeners();
   }
 
   /// Met à jour l’équipe sélectionnée (les joueurs décochés repartent à zéro).
   void setTeamId(String? value) {
+    _userEdited = true;
     if (value != teamId) excludedPlayerIds.clear();
     teamId = value;
     notifyListeners();
@@ -220,18 +245,21 @@ class AddEventFormController extends ChangeNotifier {
 
   /// Match : décoche / recoche le joueur [playerId] des convoqués.
   void togglePlayerConvoked(String playerId) {
+    _userEdited = true;
     if (!excludedPlayerIds.remove(playerId)) excludedPlayerIds.add(playerId);
     notifyListeners();
   }
 
   /// Met à jour l’index du lieu de pratique.
   void setSelectedLocationIndex(int? value) {
+    _userEdited = true;
     selectedLocationIndex = value;
     notifyListeners();
   }
 
   /// Met à jour l’index du lieu de RDV.
   void setSelectedMeetingLocationIndex(int? value) {
+    _userEdited = true;
     selectedMeetingLocationIndex = value;
     notifyListeners();
   }
@@ -267,38 +295,56 @@ class AddEventFormController extends ChangeNotifier {
   /// Indique si tous les champs requis sont renseignés pour activer Créer.
   ///
   /// [matchPlayerIds] : joueurs de l'équipe du match (au moins un convoqué).
-  bool canCreate(Club? club, {List<String> matchPlayerIds = const []}) {
+  bool canCreate(Club? club, {List<String> matchPlayerIds = const []}) =>
+      blockingReason(club, matchPlayerIds: matchPlayerIds) == null;
+
+  /// Première raison qui empêche d'activer Créer (affichée sous le bouton),
+  /// ou `null` si le formulaire est complet. Source unique de [canCreate].
+  String? blockingReason(
+    Club? club, {
+    List<String> matchPlayerIds = const [],
+  }) {
     if (!EventTypes.isTeamless(type) && (teamId == null || teamId!.isEmpty)) {
-      return false;
+      return AppCopy.planning.chooseTeamSnack;
     }
     if (type == EventTypes.other && titleController.text.trim().isEmpty) {
-      return false;
+      return AppCopy.planning.titleRequired;
     }
-    if (_missingAudienceTeams) return false;
-    if (_noPlayerConvoked(matchPlayerIds)) return false;
-    if (isMatch && matchVenue == null) return false;
+    if (_missingAudienceTeams) return AppCopy.planning.chooseAudienceTeams;
+    if (_noPlayerConvoked(matchPlayerIds)) {
+      return AppCopy.planning.keepOnePlayerConvoked;
+    }
+    if (isMatch && matchVenue == null) {
+      return AppCopy.planning.indicateHomeOrAway;
+    }
 
     final location = resolveLocation(club);
-    if (location == null || location.isEmpty) return false;
+    if (location == null || location.isEmpty) {
+      return useAwayLocationField
+          ? AppCopy.planning.matchAddressRequired
+          : AppCopy.planning.locationRequired;
+    }
 
     if (!isMatch) {
       final startMin = start.hour * 60 + start.minute;
       final endMin = end.hour * 60 + end.minute;
-      if (endMin <= startMin) return false;
+      if (endMin <= startMin) return AppCopy.planning.endTimeAfterStart;
     }
 
     if (isTraining && isRecurring) {
-      if (recurrenceEndDate == null) return false;
-      if (recurrenceEndDate!.isBefore(date)) return false;
+      if (recurrenceEndDate == null) return AppCopy.planning.chooseEndDate;
+      if (recurrenceEndDate!.isBefore(date)) {
+        return AppCopy.planning.endDateAfterStart;
+      }
     }
 
     final practiceLocations =
         club?.practiceLocations ?? const <PracticeLocation>[];
     if (practiceLocations.isNotEmpty && resolveMeetingLocation(club) == null) {
-      return false;
+      return AppCopy.planning.meetingLocationRequired;
     }
 
-    return true;
+    return null;
   }
 
   /// Message de validation à afficher, ou `null` si le formulaire est valide.

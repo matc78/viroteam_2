@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -9,6 +10,7 @@ import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
+import 'package:viro_team_v2/features/planning/widgets/club_planning_picker_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
@@ -92,8 +94,11 @@ class MemberPlanningScreen extends ConsumerWidget {
         title: Text(AppCopy.planning.memberScreenTitle),
       ),
       body: clubsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => ViroErrorState(
+        loading: () => const Padding(
+          padding: EdgeInsets.all(ViroSpacing.screenHorizontal),
+          child: SectionShimmer(itemCount: 5),
+        ),
+        error: (_, _) => ViroErrorState(
           message: AppCopy.planning.loadClubsError,
           onRetry: () => ref.invalidate(userClubsProvider),
         ),
@@ -106,7 +111,7 @@ class MemberPlanningScreen extends ConsumerWidget {
               padding: EdgeInsets.all(ViroSpacing.screenHorizontal),
               child: SectionShimmer(itemCount: 5),
             ),
-            error: (_, __) => ViroErrorState(
+            error: (_, _) => ViroErrorState(
               message: AppCopy.planning.loadPlanningError,
               onRetry: () => ref.invalidate(memberEventsProvider),
             ),
@@ -119,27 +124,36 @@ class MemberPlanningScreen extends ConsumerWidget {
               }
 
               if (state.upcoming.isEmpty) {
+                // Le planning complet d'un club (au-delà des 14 jours, vues
+                // semaine / mois) est la suite logique ; avec plusieurs
+                // clubs, on demande lequel.
+                final singleClubId =
+                    clubs.length == 1 ? clubs.single.club.id : null;
                 return ViroRefreshIndicator(
                   onRefresh: refreshPlanning,
                   child: ListView(
                     physics: ViroRefreshIndicator.scrollPhysics,
                     children: [
                       SizedBox(
-                        height: MediaQuery.sizeOf(context).height * 0.4,
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(ViroSpacing.lg),
-                            child: Text(
-                              AppCopy.planning.emptyMember14d,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.copyWith(
-                                    color: context.viroPalette.textSecondary,
-                                  ),
-                            ),
-                          ),
+                        height: MediaQuery.sizeOf(context).height * 0.5,
+                        child: ViroEmptyState(
+                          icon: ViroIcons.calendar,
+                          message: AppCopy.planning.emptyMember14d,
+                          actionLabel: switch (clubs.length) {
+                            0 => null,
+                            1 => AppCopy.planning.openClubPlanning,
+                            _ => AppCopy.planning.openClubsPlanning,
+                          },
+                          onAction: switch (clubs.length) {
+                            0 => null,
+                            1 => () => context.push(
+                                  AppRoutes.clubPlanningPath(singleClubId!),
+                                ),
+                            _ => () => showClubPlanningPickerSheet(
+                                  context,
+                                  clubs: clubs,
+                                ),
+                          },
                         ),
                       ),
                     ],

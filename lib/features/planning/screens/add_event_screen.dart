@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/navigation_fallback.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -153,7 +154,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
       );
       if (count == null || !mounted) return;
       ViroSnackBar.show(context, AppCopy.planning.eventsCreated(count));
-      context.pop();
+      _leave();
     } catch (e) {
       if (mounted) {
         ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
@@ -161,16 +162,57 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
     }
   }
 
+  /// Écran parent logique si la pile est vide (deep link).
+  String get _fallbackRoute => AppRoutes.clubPlanningPath(widget.clubId);
+
+  /// Quitte l'écran sans confirmation (après création ou abandon confirmé).
+  void _leave() => popOrGo(context, _fallbackRoute);
+
+  /// Retour (AppBar ou système) : confirme l'abandon si le formulaire a été
+  /// touché, sinon quitte directement.
+  Future<void> _requestLeave() async {
+    if (_form.saving) return;
+    if (!_form.hasUserEdits) {
+      _leave();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppCopy.planning.discardEventTitle),
+        content: Text(AppCopy.planning.discardEventBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(AppCopy.planning.keepEditing),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(AppCopy.planning.discardEventConfirm),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && mounted) _leave();
+  }
+
   @override
   Widget build(BuildContext context) {
     final member = ref.watch(clubMemberProvider(widget.clubId)).value;
     if (member != null &&
         !MemberRoleHierarchy.isCoachOrAbove(member.role)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.pop();
-      });
       return ViroScaffold(
-        body: Center(child: Text(AppCopy.planning.reservedToCoachesAdmins)),
+        fallbackRoute: _fallbackRoute,
+        appBar: ViroAppBar(
+          fallbackRoute: _fallbackRoute,
+          title: Text(AppCopy.planning.newEventTitle),
+        ),
+        body: ViroEmptyState(
+          icon: ViroIcons.block,
+          message: AppCopy.planning.reservedToCoachesAdmins,
+          actionLabel: AppCopy.common.back,
+          onAction: _leave,
+        ),
       );
     }
 
@@ -184,26 +226,36 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
     );
     final onAccent = ClubAccentTheme.onAccentFor(accent, palette);
 
-    return ClubAccentTheme(
-      accentColor: accent,
-      child: ViroScaffold(
-        appBar: ViroAppBar(
-          leading: IconButton(
-            tooltip: AppCopy.common.back,
-            icon: ViroIcon(ViroIcons.chevronLeft),
-            onPressed: _form.saving ? null : () => context.pop(),
+    // Retour système : intercepté pour confirmer l'abandon d'une saisie.
+    // (`context.pop()` / `popOrGo` forcent le pop et ne passent pas ici.)
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _requestLeave();
+      },
+      child: ClubAccentTheme(
+        accentColor: accent,
+        child: ViroScaffold(
+          appBar: ViroAppBar(
+            leading: IconButton(
+              tooltip: AppCopy.common.back,
+              icon: ViroIcon(ViroIcons.chevronLeft),
+              onPressed: _form.saving ? null : _requestLeave,
+            ),
+            title: Text(AppCopy.planning.newEventTitle),
           ),
-          title: Text(AppCopy.planning.newEventTitle),
-        ),
-        body: teamsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => const ViroErrorState(),
-          data: (teams) => _buildForm(
-            teams: teams,
-            club: clubAsync.value,
-            member: member,
-            accent: accent,
-            onAccent: onAccent,
+          body: teamsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stackTrace) => ViroErrorState(
+              onRetry: () => ref.invalidate(clubTeamsProvider(widget.clubId)),
+            ),
+            data: (teams) => _buildForm(
+              teams: teams,
+              club: clubAsync.value,
+              member: member,
+              accent: accent,
+              onAccent: onAccent,
+            ),
           ),
         ),
       ),
@@ -238,8 +290,20 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
     final practiceLocations =
         club?.practiceLocations ?? const <PracticeLocation>[];
     final enabled = !_form.saving;
-    final saveBarHeight = AddEventSaveBar.reservedHeight(context);
     final matchPlayers = _watchMatchPlayers();
+    final blockingReason = _form.blockingReason(
+      club,
+      matchPlayerIds: _matchPlayerIds(matchPlayers),
+    );
+    final canSubmit = blockingReason == null;
+    final saveBarHeight = AddEventSaveBar.reservedHeight(
+      context,
+      showsReason: AddEventSaveBar.showsReasonFor(
+        isLoading: _form.saving,
+        canSubmit: canSubmit,
+        blockingReason: blockingReason,
+      ),
+    );
 
     return Stack(
       children: [
@@ -262,6 +326,21 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
               onTypeChanged: _form.onTypeChanged,
               onTeamChanged: _form.setTeamId,
             ),
+            // Quand ? juste après quoi / qui : l'info la plus attendue.
+            AddEventScheduleCard(
+              isMatch: _form.isMatch,
+              date: _form.date,
+              start: _form.start,
+              end: _form.end,
+              accentColor: accent,
+              enabled: enabled,
+              onPickDate: () => _pickDate(isRecurrenceEnd: false),
+              onPickStart: () =>
+                  _pickTime(initial: _form.start, onPicked: _form.setStartTime),
+              onPickEnd: () =>
+                  _pickTime(initial: _form.end, onPicked: _form.setEndTime),
+            ),
+            const SizedBox(height: ViroSpacing.md),
             if (_form.isMatch && _form.teamId != null)
               AddEventConvocationSection(
                 players: matchPlayers,
@@ -297,24 +376,6 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
               onMatchVenueChanged: _form.onMatchVenueChanged,
               onLocationIndexChanged: _form.setSelectedLocationIndex,
             ),
-            AddEventScheduleCard(
-              isMatch: _form.isMatch,
-              date: _form.date,
-              start: _form.start,
-              end: _form.end,
-              accentColor: accent,
-              enabled: enabled,
-              onPickDate: () => _pickDate(isRecurrenceEnd: false),
-              onPickStart: () => _pickTime(
-                initial: _form.start,
-                onPicked: _form.setStartTime,
-              ),
-              onPickEnd: () => _pickTime(
-                initial: _form.end,
-                onPicked: _form.setEndTime,
-              ),
-            ),
-            const SizedBox(height: ViroSpacing.md),
             AddEventMoreOptionsSection(
               isMatch: _form.isMatch,
               isTraining: _form.isTraining,
@@ -345,10 +406,8 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
           child: AddEventSaveBar(
             isRecurringSeries: _form.isRecurring && _form.isTraining,
             isLoading: _form.saving,
-            canSubmit: _form.canCreate(
-              club,
-              matchPlayerIds: _matchPlayerIds(matchPlayers),
-            ),
+            canSubmit: canSubmit,
+            blockingReason: blockingReason,
             onSubmit: _save,
           ),
         ),

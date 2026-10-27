@@ -3,19 +3,14 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/event/event_paths.dart';
-import 'package:viro_team_v2/services/event/event_upcoming_queries.dart';
+import 'package:viro_team_v2/utils/stream_combine.dart';
 
 /// Requêtes planning jour, dates bornes et highlights club / parent.
 class EventDayQueries {
   /// Crée le module planning jour / highlights.
-  EventDayQueries({
-    required EventPaths paths,
-    required EventUpcomingQueries upcoming,
-  })  : _paths = paths,
-        _upcoming = upcoming;
+  EventDayQueries({required EventPaths paths}) : _paths = paths;
 
   final EventPaths _paths;
-  final EventUpcomingQueries _upcoming;
 
   /// Tous les événements d'un jour (vue planning club).
   Stream<List<ClubEvent>> watchClubEventsOnDay({
@@ -92,26 +87,56 @@ class EventDayQueries {
         );
   }
 
-  /// Événements d'un jour pour un membre (mêmes sources que l'accueil joueur).
-  Stream<List<ClubEvent>> watchMemberEventsOnDay({
+  /// Vues semaine / mois d'un parent sans fiche : événements des équipes de
+  /// l'enfant ([childTeamIds]) dont le jour est entre [start] inclus et
+  /// [endExclusive] exclu. Une requête `array-contains` par équipe — seul
+  /// chemin lisible par un parent selon les rules. Sans les événements
+  /// annulés ni ceux dont l'enfant ([childAudienceKeys]) a été retiré.
+  Stream<List<ClubEvent>> watchGuardianEventsInRange({
     required String clubId,
-    required DateTime day,
-    required String audienceId,
-    required String authUid,
+    required List<String> childTeamIds,
+    Set<String> childAudienceKeys = const {},
+    required DateTime start,
+    required DateTime endExclusive,
   }) {
-    return _upcoming
-        .watchUpcomingEventsForClubMember(
-          clubId: clubId,
-          audienceId: audienceId,
-          authUid: authUid,
-        )
-        .map(
-          (events) => EventDateHelpers.sortedByDate(
-            events.where(
-              (e) => EventDateHelpers.sameCalendarDay(e.date, day),
-            ),
-          ),
-        );
+    final teamIds = childTeamIds.where((id) => id.isNotEmpty).toSet();
+    if (teamIds.isEmpty) return Stream.value(<ClubEvent>[]);
+
+    final rangeStart = EventDateHelpers.startOfDay(start);
+    final rangeEnd = EventDateHelpers.startOfDay(endExclusive);
+    // Fenêtre élargie + filtre calendaire : évite les ratés timezone / Timestamp.
+    final queryFrom = rangeStart.subtract(const Duration(hours: 14));
+    final queryTo = rangeEnd.add(const Duration(hours: 14));
+
+    final streams = teamIds.map((teamId) {
+      return _paths
+          .events(clubId)
+          .where(FirestoreFields.teamIds, arrayContains: teamId)
+          .where(
+            FirestoreFields.date,
+            isGreaterThanOrEqualTo: Timestamp.fromDate(queryFrom),
+          )
+          .where(FirestoreFields.date, isLessThan: Timestamp.fromDate(queryTo))
+          .orderBy(FirestoreFields.date)
+          .snapshots()
+          .map(
+            (snap) => snap.docs
+                .map((d) => ClubEvent.fromFirestore(clubId: clubId, doc: d))
+                .toList(),
+          );
+    }).toList();
+
+    return combineLatestListStreams(streams).map(
+      (events) => EventDateHelpers.sortedByDate(
+        EventDateHelpers.dedupeEvents(events).where((event) {
+          if (event.canceled || event.isExcludedFor(childAudienceKeys)) {
+            return false;
+          }
+          final day = EventDateHelpers.startOfDay(event.date);
+          return !day.isBefore(rangeStart) && day.isBefore(rangeEnd);
+        }),
+      ),
+    );
   }
 
   /// Première date d'événement du club (lecture globale : membres uniquement).

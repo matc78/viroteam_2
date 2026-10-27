@@ -16,8 +16,14 @@ final class AppCopyPlanning {
       'Terrain libre sur les 14 prochains jours — profite-en.';
   String get noMembersCalled => 'Personne de convoqué pour l’instant';
   String get notRegisteredYet => 'Pas encore inscrit';
-  String get addToCalendarTooltip =>
-      'Ajouter le calendrier dynamique à mon agenda';
+  /// Action AppBar du planning club → écran de synchro calendrier.
+  String get syncCalendarTooltip => 'Synchroniser avec mon agenda';
+  /// État vide (vue jour) quand un événement existe plus loin.
+  String get goToNextEvent => 'Aller au prochain événement';
+  /// État vide du planning membre (un seul club) : vers le planning du club.
+  String get openClubPlanning => 'Voir le planning du club';
+  String get openClubsPlanning => 'Voir le planning d’un club';
+  String get pickClubPlanningTitle => 'Quel club ?';
   String get goToTodayTooltip => 'Aller à aujourd’hui';
   String get addEventTooltip => 'Créer un événement';
   String get noUpcomingClub => 'Rien à venir au planning';
@@ -75,6 +81,13 @@ final class AppCopyPlanning {
   String get newEventTitle => 'Nouvel événement';
   String get reservedToCoachesAdmins =>
       'Réservé aux coachs et admins';
+  /// Raison du bouton Créer désactivé : lieu du RDV manquant.
+  String get meetingLocationRequired => 'Choisis le lieu du RDV';
+  /// Confirmation de sortie du formulaire d'événement modifié.
+  String get discardEventTitle => 'Abandonner la saisie ?';
+  String get discardEventBody => 'Ce que tu as rempli sera perdu.';
+  String get discardEventConfirm => 'Abandonner';
+  String get keepEditing => 'Continuer';
   String get fieldType => 'Type';
   String get fieldTeam => 'Équipe';
   String get chooseTeam => 'Choisir une équipe';
@@ -197,7 +210,7 @@ final class AppCopyPlanning {
   String weeksAgo(int weeks) => 'il y a ${weeks}sem';
   String monthsAgo(int months) => 'il y a ${months}m';
 
-  // Vues jour / semaine / mois (coach-admin).
+  // Vues jour / semaine / mois (membres ; parent sans fiche : jour seul).
   String get viewModeDay => 'Jour';
   String get viewModeWeek => 'Semaine';
   String get viewModeMonth => 'Mois';

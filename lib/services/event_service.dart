@@ -33,7 +33,7 @@ class EventService {
       watchClubMember: _rsvp.watchClubMember,
       rosterAudienceId: _rsvp.rosterAudienceId,
     );
-    _day = EventDayQueries(paths: paths, upcoming: _upcoming);
+    _day = EventDayQueries(paths: paths);
     _mutations = EventMutations(paths: paths, activity: _activity);
   }
 
@@ -185,18 +185,20 @@ class EventService {
         endExclusive: endExclusive,
       );
 
-  /// Événements d'un jour pour un membre (mêmes sources que l'accueil joueur).
-  Stream<List<ClubEvent>> watchMemberEventsOnDay({
+  /// Vues semaine / mois d'un parent sans fiche (équipes de l'enfant).
+  Stream<List<ClubEvent>> watchGuardianEventsInRange({
     required String clubId,
-    required DateTime day,
-    required String audienceId,
-    required String authUid,
+    required List<String> childTeamIds,
+    Set<String> childAudienceKeys = const {},
+    required DateTime start,
+    required DateTime endExclusive,
   }) =>
-      _day.watchMemberEventsOnDay(
+      _day.watchGuardianEventsInRange(
         clubId: clubId,
-        day: day,
-        audienceId: audienceId,
-        authUid: authUid,
+        childTeamIds: childTeamIds,
+        childAudienceKeys: childAudienceKeys,
+        start: start,
+        endExclusive: endExclusive,
       );
 
   /// Première date d'événement du club (lecture globale : membres uniquement).

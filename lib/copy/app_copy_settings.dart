@@ -30,7 +30,6 @@ final class AppCopySettings {
   String get categoryPrivacy => 'Confidentialité';
   String get categoryPrivacySubtitle =>
       'Mesure d’audience et documents légaux';
-  String appVersionLabel(String version) => 'ViroTeam $version';
 
   String get appearanceSection => 'Apparence';
   String get appearanceSubtitle =>

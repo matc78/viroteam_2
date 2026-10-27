@@ -9,6 +9,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/widgets/common/viro_app_version_label.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -149,6 +150,8 @@ class OnboardingEntryScreen extends ConsumerWidget {
                               onPressed: () => context.push(AppRoutes.login),
                               child: Text(AppCopy.auth.alreadyHaveAccount),
                             ),
+                          const SizedBox(height: ViroSpacing.md),
+                          const ViroAppVersionLabel(),
                         ],
                       ),
                     ],

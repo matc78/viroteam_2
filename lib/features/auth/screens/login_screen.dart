@@ -10,6 +10,7 @@ import 'package:viro_team_v2/features/auth/widgets/forgot_password_sheet.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/auth_exceptions.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/viro_app_version_label.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -237,6 +238,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: isBusy ? null : _signInWithApple,
                   ),
                 ],
+                const SizedBox(height: ViroSpacing.xl),
+                const ViroAppVersionLabel(),
               ],
             ),
           ),

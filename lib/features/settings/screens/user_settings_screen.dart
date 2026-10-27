@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
@@ -14,6 +13,7 @@ import 'package:viro_team_v2/features/settings/widgets/settings_section_header.d
 import 'package:viro_team_v2/features/settings/widgets/sign_out_button.dart';
 import 'package:viro_team_v2/features/settings/widgets/user_settings_avatar.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
+import 'package:viro_team_v2/widgets/common/viro_app_version_label.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
@@ -202,11 +202,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 const SizedBox(height: ViroSpacing.xl),
                 const SignOutButton(),
                 const SizedBox(height: ViroSpacing.xs),
-                Text(
-                  AppCopy.settings.appVersionLabel(ProjectConfig.appVersionName),
-                  textAlign: TextAlign.center,
-                  style: theme.bodySmall?.copyWith(color: palette.textMuted),
-                ),
+                const ViroAppVersionLabel(),
               ],
             ),
           );

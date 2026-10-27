@@ -68,4 +68,7 @@ final class AppCopyCommon {
   String get seen => 'Vu';
   String get notSeenYet => 'Pas encore vu';
   String get seenTooltip => 'Rien ne lui échappe 👀';
+
+  /// Version installée affichée en footer (pré-login, paramètres).
+  String appVersionLabel(String version) => 'ViroTeam $version';
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/startup_session_gate.dart';
+import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/services/startup_session_failure.dart';
+import 'package:viro_team_v2/widgets/common/viro_app_version_label.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -54,7 +56,19 @@ class _StartupBlockedScreenState extends ConsumerState<StartupBlockedScreen> {
     return PopScope(
       canPop: false,
       child: ViroScaffold(
-        body: ViroErrorState(message: message, onRetry: _retry),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: ViroErrorState(message: message, onRetry: _retry),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(bottom: ViroSpacing.lg),
+                child: ViroAppVersionLabel(),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

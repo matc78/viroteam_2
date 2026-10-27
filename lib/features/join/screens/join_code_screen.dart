@@ -9,6 +9,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/join/providers/pending_invitation_provider.dart';
+import 'package:viro_team_v2/widgets/common/viro_app_version_label.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
@@ -202,6 +203,8 @@ class _JoinCodeScreenState extends ConsumerState<JoinCodeScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: ViroSpacing.xl),
+              const ViroAppVersionLabel(),
             ],
           ),
         ),

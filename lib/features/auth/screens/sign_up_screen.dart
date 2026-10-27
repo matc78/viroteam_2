@@ -21,6 +21,7 @@ import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/password_policy.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
 import 'package:viro_team_v2/utils/portal_links.dart';
+import 'package:viro_team_v2/widgets/common/viro_app_version_label.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -531,6 +532,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     child: Text(AppCopy.auth.useAnotherAccount),
                   ),
                 ],
+                const SizedBox(height: ViroSpacing.xl),
+                const ViroAppVersionLabel(),
               ],
             ),
           ),

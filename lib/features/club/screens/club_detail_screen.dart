@@ -14,21 +14,33 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_overview_providers.dart';
+import 'package:viro_team_v2/features/club/providers/role_requests_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
+import 'package:viro_team_v2/features/club/widgets/club_hero_header.dart';
+import 'package:viro_team_v2/features/club/widgets/club_management_list.dart';
+import 'package:viro_team_v2/features/club/widgets/club_shortcuts_grid.dart';
+import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
+import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/members/widgets/my_parent_section.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/club/widgets/announcement_preview.dart';
-import 'package:viro_team_v2/features/club/widgets/club_stats_row.dart';
 import 'package:viro_team_v2/features/club/widgets/quick_actions_grid.dart';
 import 'package:viro_team_v2/features/home/widgets/event_rsvp_card.dart';
+import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
+import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
+import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
+import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
+import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -44,6 +56,9 @@ import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
+/// Fiche club : aperçu vivant (en-tête, prochain événement, à faire,
+/// raccourcis informatifs, gestion) ou vue famille quand un enfant est
+/// sélectionné.
 class ClubDetailScreen extends ConsumerStatefulWidget {
   const ClubDetailScreen({super.key, required this.clubId});
 
@@ -103,6 +118,29 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     }
   }
 
+  /// Ouvre le détail d'un événement (même feuille que l'accueil).
+  void _showEventDetail({
+    required ClubEvent event,
+    required Map<String, ClubTeam> teams,
+    required bool canManageEvents,
+  }) {
+    final members = ref.read(clubMembersProvider(event.clubId)).value;
+    PlanningEventDetailSheet.show(
+      context: context,
+      clubId: event.clubId,
+      event: event,
+      teamLabel: PlanningEventDisplay.teamLabel(event, teams),
+      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(
+        event,
+        teams,
+        membersByUid: members != null ? indexClubMembersByUid(members) : null,
+      ),
+      canManageEvents: canManageEvents,
+      onCanceled: () {},
+      onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
+    );
+  }
+
   /// Recharge la fiche club sans bloquer indéfiniment sur les StreamProviders.
   Future<void> _refreshClub() async {
     final clubId = widget.clubId;
@@ -112,6 +150,8 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     ref.invalidate(clubMemberProvider(clubId));
     ref.invalidate(memberEventsProvider);
     ref.invalidate(clubAnnouncementsProvider(clubId));
+    ref.invalidate(myTeamsProvider(clubId));
+    ref.invalidate(homeClubTeamsProvider);
     if (isChildView && selected != null) {
       ref.invalidate(
         clubEventsForMemberProvider(
@@ -169,9 +209,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         : ref.watch(clubEventsProvider(clubId));
     final announcementsAsync =
         ref.watch(visibleClubAnnouncementsProvider(clubId));
-    final attendanceAsync = ref.watch(clubAttendanceRateProvider(clubId));
-    final pitchAttendanceAsync =
-        ref.watch(clubPitchAttendanceRateProvider(clubId));
     final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
 
     return ClubAccentTheme(
@@ -180,12 +217,14 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       fallbackRoute: AppRoutes.home,
       appBar: ViroAppBar(
         fallbackRoute: AppRoutes.home,
-        title: const Text(ProjectConfig.appName),
+        title: Text(clubAsync.value?.name ?? ProjectConfig.appName),
         onTitleTap: () => context.go(AppRoutes.home),
       ),
       body: clubAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const ViroErrorState(),
+        error: (_, __) => ViroErrorState(
+          onRetry: () => ref.invalidate(clubProvider(clubId)),
+        ),
         data: (club) {
           if (club == null) {
             return Center(child: Text(AppCopy.common.clubNotFound));
@@ -203,31 +242,23 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             child: CustomScrollView(
             physics: ViroRefreshIndicator.scrollPhysics,
             slivers: [
-              SliverToBoxAdapter(
-                child: _ClubHeader(
-                  club: club,
-                  member: isChildView ? null : memberAsync.value,
-                  familyChild: familyChildAsync.value,
-                  accent: memberAccent,
-                  onAvatarLongPress: memberAsync.value?.role ==
-                          MemberRoles.admin
-                      ? () => context.push(
-                            AppRoutes.clubAppearancePath(clubId),
-                          )
-                      : null,
+              if (isChildView && selected != null) ...[
+                SliverToBoxAdapter(
+                  child: _ClubHeader(
+                    club: club,
+                    familyChild: familyChildAsync.value,
+                    accent: memberAccent,
+                  ),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: ClubAudienceSwitcher(clubId: clubId),
-              ),
-              if (isChildView && selected != null)
+                SliverToBoxAdapter(
+                  child: ClubAudienceSwitcher(clubId: clubId),
+                ),
                 SliverToBoxAdapter(
                   child: _FamilyContextBanner(
                     childLabel: selected.label,
                     accent: memberAccent,
                   ),
                 ),
-              if (isChildView && selected != null)
                 ..._buildFamilySlivers(
                   club: club,
                   memberAccent: memberAccent,
@@ -237,129 +268,324 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                   childLabel: selected.label,
                   eventsAsync: eventsAsync,
                   announcementsAsync: announcementsAsync,
-                )
-              else ...[
-                ..._buildEventsSlivers(
-                  eventsAsync: eventsAsync,
-                  club: club,
-                  accent: memberAccent,
-                  accentSecondary: brandColors.secondary,
                 ),
-                ..._buildStatsSlivers(
-                  attendanceAsync: attendanceAsync,
-                  pitchAttendanceAsync: pitchAttendanceAsync,
-                  eventsAsync: eventsAsync,
+              ] else
+                ..._buildMemberSlivers(
                   club: club,
                   member: memberAsync.value,
-                  accent: memberAccent,
+                  eventsAsync: eventsAsync,
+                  announcementsAsync: announcementsAsync,
+                  memberAccent: memberAccent,
+                  managementAccent: managementAccent,
+                  accentSecondary: brandColors.secondary,
                 ),
-                ..._buildAnnouncementsSlivers(
-                  announcementsAsync,
-                  clubId: clubId,
-                  accent: memberAccent,
-                ),
-                SliverToBoxAdapter(
-                  child: memberAsync.when(
-                    data: (m) {
-                      if (m == null) return const SizedBox.shrink();
-
-                      final hasActiveSeason = ref
-                              .watch(activeSeasonProvider(clubId))
-                              .value !=
-                          null;
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _SectionTitle(
-                            title: AppCopy.club.quickAccessSection,
-                            accentColor: memberAccent,
-                          ),
-                          MemberQuickActionsGrid(
-                            accentColor: memberAccent,
-                            onPlanning: () => context.push(
-                              AppRoutes.clubPlanningPath(clubId),
-                            ),
-                            onMyTeams: () => context.push(
-                              AppRoutes.clubMyTeamsPath(clubId),
-                            ),
-                            onAnnouncements: () => context.push(
-                              AppRoutes.clubAnnouncementsPath(clubId),
-                            ),
-                            onMyFee: hasActiveSeason
-                                ? () => context.push(
-                                      AppRoutes.clubMyFeePath(clubId),
-                                    )
-                                : null,
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: ViroSpacing.screenHorizontal,
-                            ),
-                            child: m.role == MemberRoles.player
-                                ? MyParentSection(
-                                    club: club,
-                                    member: m,
-                                    accentColor: memberAccent,
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                          if (MemberRoleHierarchy.isCoachOrAbove(m.role)) ...[
-                            _SectionTitle(
-                              title: AppCopy.club.clubManagementSection,
-                              accentColor: managementAccent,
-                            ),
-                            ClubManagementActionsGrid(
-                              role: m.role,
-                              accentColor: managementAccent,
-                              onManageMembers: () => context.push(
-                                AppRoutes.clubMembersPath(clubId),
-                              ),
-                              onActivity: () => context.push(
-                                AppRoutes.clubActivityPath(clubId),
-                              ),
-                              onFees: m.role == MemberRoles.admin
-                                  ? () => context.push(
-                                        AppRoutes.clubFeesPath(clubId),
-                                      )
-                                  : null,
-                              onAppearance: m.role == MemberRoles.admin
-                                  ? () => context.push(
-                                        AppRoutes.clubAppearancePath(clubId),
-                                      )
-                                  : null,
-                              onEquipment: m.role == MemberRoles.admin
-                                  ? () => context.push(
-                                        AppRoutes.clubEquipmentPath(clubId),
-                                      )
-                                  : null,
-                              onLocations: m.role == MemberRoles.admin
-                                  ? () => context.push(
-                                        AppRoutes.clubLocationsPath(clubId),
-                                      )
-                                  : null,
-                              onSettings: m.role == MemberRoles.admin
-                                  ? () => context.push(
-                                        AppRoutes.clubSettingsPath(clubId),
-                                      )
-                                  : null,
-                            ),
-                          ],
-                          const SizedBox(height: ViroSpacing.xl),
-                        ],
-                      );
-                    },
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                  ),
-                ),
-              ],
             ],
           ),
           );
         },
       ),
       ),
+    );
+  }
+
+  /// Vue membre : en-tête, prochain événement, à faire, raccourcis, gestion.
+  List<Widget> _buildMemberSlivers({
+    required Club club,
+    required ClubMember? member,
+    required AsyncValue<ClubEventsState> eventsAsync,
+    required AsyncValue<List<ClubAnnouncement>> announcementsAsync,
+    required Color memberAccent,
+    required Color managementAccent,
+    Color? accentSecondary,
+  }) {
+    final clubId = club.id;
+    final role = member?.role;
+    final isCoachOrAbove =
+        role != null && MemberRoleHierarchy.isCoachOrAbove(role);
+    final isAdmin = role == MemberRoles.admin;
+    final summary = ref.watch(clubShortcutsSummaryProvider(clubId));
+    final attendanceRate = ref.watch(clubAttendanceRateProvider(clubId)).value;
+    final pitchRate = ref.watch(clubPitchAttendanceRateProvider(clubId)).value;
+    final hasActiveSeason =
+        ref.watch(activeSeasonProvider(clubId)).value != null;
+    final pendingCount = isCoachOrAbove
+        ? ref.watch(pendingTeamMembersProvider(clubId)).value?.length ?? 0
+        : 0;
+    final latestAnnouncement = announcementsAsync.value?.firstOrNull;
+    final roleRequestCount = isAdmin
+        ? ref.watch(actionableRoleRequestsProvider(clubId)).value?.length ?? 0
+        : 0;
+
+    final heroStats = [
+      if (club.memberCount > 0)
+        ClubHeroStat(
+          icon: ViroIcons.groups,
+          label: AppCopy.club.membersCount(club.memberCount),
+          onTap: isCoachOrAbove
+              ? () => context.push(AppRoutes.clubMembersPath(clubId))
+              : null,
+        ),
+      if (summary.teamNames != null && summary.teamNames!.isNotEmpty)
+        ClubHeroStat(
+          icon: ViroIcons.users,
+          label: AppCopy.club.heroTeams(summary.teamNames!.length),
+          onTap: () => context.push(AppRoutes.clubMyTeamsPath(clubId)),
+        ),
+      if (attendanceRate != null)
+        ClubHeroStat(
+          icon: ViroIcons.checkCircle,
+          label: AppCopy.club.heroAttendance(attendanceRate.round()),
+        ),
+      if (pitchRate != null)
+        ClubHeroStat(
+          icon: ViroIcons.whistle,
+          label: AppCopy.club.heroPitchAttendance(pitchRate.round()),
+        ),
+    ];
+
+    return [
+      SliverToBoxAdapter(
+        child: ClubHeroHeader(
+          club: club,
+          accent: memberAccent,
+          accentSecondary: accentSecondary,
+          role: role,
+          stats: heroStats,
+          onEditAppearance: isAdmin
+              ? () => context.push(AppRoutes.clubAppearancePath(clubId))
+              : null,
+        ),
+      ),
+      SliverToBoxAdapter(child: ClubAudienceSwitcher(clubId: clubId)),
+      ..._buildNextEventAndTodoSlivers(
+        club: club,
+        eventsAsync: eventsAsync,
+        fee: summary.fee,
+        roleRequestCount: roleRequestCount,
+        accent: memberAccent,
+        accentSecondary: accentSecondary,
+      ),
+      if (member != null) ...[
+        SliverToBoxAdapter(
+          child: _SectionTitle(
+            title: AppCopy.club.shortcutsSection,
+            accentColor: memberAccent,
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: ClubShortcutsGrid(
+            accentColor: memberAccent,
+            shortcuts: buildMemberShortcuts(
+              summary: summary,
+              latestAnnouncementTitle: latestAnnouncement == null
+                  ? null
+                  : _announcementHeadline(latestAnnouncement),
+              onPlanning: () =>
+                  context.push(AppRoutes.clubPlanningPath(clubId)),
+              onTeams: () => context.push(AppRoutes.clubMyTeamsPath(clubId)),
+              onAnnouncements: () =>
+                  context.push(AppRoutes.clubAnnouncementsPath(clubId)),
+              onMyFee: hasActiveSeason
+                  ? () => context.push(AppRoutes.clubMyFeePath(clubId))
+                  : null,
+            ),
+          ),
+        ),
+        if (member.role == MemberRoles.player)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: ViroSpacing.screenHorizontal,
+              ),
+              child: MyParentSection(
+                club: club,
+                member: member,
+                accentColor: memberAccent,
+              ),
+            ),
+          ),
+        if (isCoachOrAbove) ...[
+          SliverToBoxAdapter(
+            child: _SectionTitle(
+              title: AppCopy.club.clubStaffSection(member.role),
+              accentColor: managementAccent,
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: ClubManagementList(
+              role: member.role,
+              accentColor: managementAccent,
+              memberCount: club.memberCount,
+              pendingCount: pendingCount,
+              onMembers: () => context.push(AppRoutes.clubMembersPath(clubId)),
+              onActivity: () =>
+                  context.push(AppRoutes.clubActivityPath(clubId)),
+              onFees: () => context.push(AppRoutes.clubFeesPath(clubId)),
+              onAppearance: () =>
+                  context.push(AppRoutes.clubAppearancePath(clubId)),
+              onLocations: () =>
+                  context.push(AppRoutes.clubLocationsPath(clubId)),
+              onEquipment: () =>
+                  context.push(AppRoutes.clubEquipmentPath(clubId)),
+              onSettings: () =>
+                  context.push(AppRoutes.clubSettingsPath(clubId)),
+            ),
+          ),
+        ],
+      ],
+      const SliverToBoxAdapter(child: SizedBox(height: ViroSpacing.xl)),
+    ];
+  }
+
+  /// Première ligne d'une annonce, pour la carte de raccourci.
+  String _announcementHeadline(ClubAnnouncement announcement) =>
+      announcement.message.trim().split('\n').first;
+
+  /// « Prochain événement » (toujours visible, RSVP intégré) puis « À faire »
+  /// (autres convocations sans réponse, cotisation à régler) s'il y a lieu.
+  List<Widget> _buildNextEventAndTodoSlivers({
+    required Club club,
+    required AsyncValue<ClubEventsState> eventsAsync,
+    required ClubFeeSummary? fee,
+    required int roleRequestCount,
+    required Color accent,
+    Color? accentSecondary,
+  }) {
+    final clubId = club.id;
+    final feeDue = fee != null && fee.kind == ClubFeeSummaryKind.due;
+    final hasRoleRequests = roleRequestCount > 0;
+
+    return eventsAsync.when(
+      loading: () => [
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.all(ViroSpacing.screenHorizontal),
+            child: SectionShimmer(itemCount: 1),
+          ),
+        ),
+      ],
+      error: (_, __) => [
+        SliverToBoxAdapter(
+          child: ViroErrorState(
+            onRetry: () => ref.invalidate(memberEventsProvider),
+          ),
+        ),
+      ],
+      data: (state) {
+        final next = state.upcoming.where((e) => !e.canceled).firstOrNull;
+        final otherPending = state.pending
+            .where((e) => e.id != next?.id && !_hiddenPendingIds.contains(e.id))
+            .toList();
+        final teamsByClub = ref.watch(homeClubTeamsProvider).value ??
+            const <String, Map<String, ClubTeam>>{};
+
+        return [
+          SliverToBoxAdapter(
+            child: _SectionTitle(
+              title: AppCopy.club.nextEventSection,
+              accentColor: accent,
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: ViroSpacing.screenHorizontal,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: next == null
+                  ? ViroCard(
+                      elevated: false,
+                      child: Text(
+                        AppCopy.club.noUpcomingEvent,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: context.viroPalette.textSecondary,
+                            ),
+                      ),
+                    )
+                  : MemberUpcomingEventsList(
+                      events: [next],
+                      maxEvents: 1,
+                      clubNames: {clubId: club.name},
+                      clubColors: {clubId: accent},
+                      clubSecondaryColors: {clubId: accentSecondary},
+                      teamsByClub: teamsByClub,
+                      onShowDetail: _showEventDetail,
+                      onSetRsvp: (event, status) => setMemberEventRsvp(
+                        ref: ref,
+                        context: context,
+                        event: event,
+                        status: status,
+                        failureMessage: AppCopy.club.rsvpFailed,
+                      ),
+                    ),
+            ),
+          ),
+          if (otherPending.isNotEmpty || feeDue || hasRoleRequests) ...[
+            SliverToBoxAdapter(
+              child: _SectionTitle(
+                title: AppCopy.club.todoSection,
+                accentColor: accent,
+              ),
+            ),
+            if (hasRoleRequests)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  ViroSpacing.screenHorizontal,
+                  0,
+                  ViroSpacing.screenHorizontal,
+                  ViroSpacing.md,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: _TodoLinkCard(
+                    icon: ViroIcons.users,
+                    title: AppCopy.club.roleRequestsTodo(roleRequestCount),
+                    subtitle: AppCopy.club.roleRequestsTodoHint,
+                    accent: accent,
+                    onTap: () =>
+                        context.push(AppRoutes.clubRoleRequestsPath(clubId)),
+                  ),
+                ),
+              ),
+            if (feeDue)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  ViroSpacing.screenHorizontal,
+                  0,
+                  ViroSpacing.screenHorizontal,
+                  ViroSpacing.md,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: _FeeDueBanner(
+                    title: AppCopy.club.feeDueTodo(
+                      formatFeeAmountCents(fee.remainingCents),
+                    ),
+                    onTap: () => context.push(AppRoutes.clubMyFeePath(clubId)),
+                  ),
+                ),
+              ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: ViroSpacing.screenHorizontal,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final event = otherPending[index];
+                    return EventRsvpCard(
+                      event: event,
+                      clubName: club.name,
+                      clubColor: accent,
+                      clubColorSecondary: accentSecondary,
+                      onPresent: () => _setRsvp(event, RsvpStatus.yes),
+                      onAbsent: () => _setRsvp(event, RsvpStatus.no),
+                    );
+                  },
+                  childCount: otherPending.length,
+                ),
+              ),
+            ),
+          ],
+        ];
+      },
     );
   }
 
@@ -462,9 +688,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                   ViroSpacing.screenHorizontal,
                   0,
                 ),
-                child: _FamilyFeeBanner(
-                  label: childLabel,
-                  amountLabel: formatFeeAmountCents(remaining),
+                child: _FeeDueBanner(
+                  title: AppCopy.club.familyFeeBanner(childLabel),
+                  subtitle: AppCopy.club.remainingDue(
+                    formatFeeAmountCents(remaining),
+                  ),
                   onTap: () => context.push(AppRoutes.clubMyFeePath(clubId)),
                 ),
               ),
@@ -500,111 +728,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         ),
       ),
     ];
-  }
-
-  List<Widget> _buildEventsSlivers({
-    required AsyncValue<ClubEventsState> eventsAsync,
-    required Club club,
-    required Color accent,
-    Color? accentSecondary,
-  }) {
-    return eventsAsync.when(
-      loading: () => [
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.all(ViroSpacing.screenHorizontal),
-            child: SectionShimmer(itemCount: 2),
-          ),
-        ),
-      ],
-      error: (e, _) => [
-        const SliverToBoxAdapter(child: ViroErrorState()),
-      ],
-      data: (state) {
-        final pending = state.pending
-            .where((e) => !_hiddenPendingIds.contains(e.id))
-            .toList();
-        return [
-          if (pending.isNotEmpty) ...[
-            SliverToBoxAdapter(
-              child: _SectionTitle(title: AppCopy.club.toRespondSection, accentColor: accent),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: ViroSpacing.screenHorizontal,
-              ),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final event = pending[index];
-                    return EventRsvpCard(
-                      event: event,
-                      clubName: club.name,
-                      clubColor: accent,
-                      clubColorSecondary: accentSecondary,
-                      onPresent: () => _setRsvp(event, RsvpStatus.yes),
-                      onAbsent: () => _setRsvp(event, RsvpStatus.no),
-                    );
-                  },
-                  childCount: pending.length,
-                ),
-              ),
-            ),
-          ],
-        ];
-      },
-    );
-  }
-
-  List<Widget> _buildStatsSlivers({
-    required AsyncValue<double?> attendanceAsync,
-    required AsyncValue<double?> pitchAttendanceAsync,
-    required AsyncValue<ClubEventsState> eventsAsync,
-    required Club club,
-    required ClubMember? member,
-    required Color accent,
-  }) {
-    final clubId = club.id;
-    final canOpenMembers = member != null &&
-        (member.role == MemberRoles.admin || member.role == MemberRoles.coach);
-
-    ClubStatsRow buildRow({
-      required double? rate,
-      required double? pitchRate,
-      required ClubEvent? next,
-    }) {
-      return ClubStatsRow(
-        attendanceRate: rate,
-        pitchAttendanceRate: pitchRate,
-        nextEvent: next,
-        club: club,
-        accentColor: accent,
-        onMembersTap: canOpenMembers
-            ? () => context.push(AppRoutes.clubMembersPath(clubId))
-            : null,
-      );
-    }
-
-    final pitchRate = pitchAttendanceAsync.value;
-    return attendanceAsync.when(
-      loading: () => const [],
-      error: (_, __) {
-        final next = eventsAsync.value?.upcoming.firstOrNull;
-        return [
-          SliverToBoxAdapter(
-            child: buildRow(rate: null, pitchRate: pitchRate, next: next),
-          ),
-        ];
-      },
-      data: (rate) {
-        final next = eventsAsync.value?.upcoming.firstOrNull;
-        return [
-          SliverToBoxAdapter(
-            child: buildRow(rate: rate, pitchRate: pitchRate, next: next),
-          ),
-        ];
-      },
-    );
   }
 
   List<Widget> _buildAnnouncementsSlivers(
@@ -662,20 +785,17 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   }
 }
 
+/// En-tête de la vue famille (enfant sélectionné).
 class _ClubHeader extends StatelessWidget {
   const _ClubHeader({
     required this.club,
-    required this.member,
     required this.accent,
     this.familyChild,
-    this.onAvatarLongPress,
   });
 
   final Club club;
-  final ClubMember? member;
   final ClubMember? familyChild;
   final Color accent;
-  final VoidCallback? onAvatarLongPress;
 
   String get _familyChildTitle {
     final child = familyChild;
@@ -711,14 +831,11 @@ class _ClubHeader extends StatelessWidget {
               showAccentBorder: true,
             )
           else
-            GestureDetector(
-              onLongPress: onAvatarLongPress,
-              child: ClubContextAvatar(
-                club: club,
-                accentColor: accent,
-                size: 72,
-                borderRadius: 18,
-              ),
+            ClubContextAvatar(
+              club: club,
+              accentColor: accent,
+              size: 72,
+              borderRadius: 18,
             ),
           const SizedBox(height: ViroSpacing.md),
           Text(
@@ -748,12 +865,6 @@ class _ClubHeader extends StatelessWidget {
             textAlign: TextAlign.center,
             style: theme.bodySmall?.copyWith(color: palette.textSecondary),
           ),
-          if (!isFamilyView && member != null) ...[
-            const SizedBox(height: ViroSpacing.sm),
-            ViroRoleBadge(
-              role: viroRoleFromMemberRole(member!.role),
-            ),
-          ],
         ],
       ),
     );
@@ -876,15 +987,16 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _FamilyFeeBanner extends StatelessWidget {
-  const _FamilyFeeBanner({
-    required this.label,
-    required this.amountLabel,
+/// Bandeau orange « cotisation à régler » (vue membre et vue famille).
+class _FeeDueBanner extends StatelessWidget {
+  const _FeeDueBanner({
+    required this.title,
+    this.subtitle,
     required this.onTap,
   });
 
-  final String label;
-  final String amountLabel;
+  final String title;
+  final String? subtitle;
   final VoidCallback onTap;
 
   @override
@@ -911,18 +1023,19 @@ class _FamilyFeeBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppCopy.club.familyFeeBanner(label),
+                      title,
                       style: theme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: palette.warningText,
                       ),
                     ),
-                    Text(
-                      AppCopy.club.remainingDue(amountLabel),
-                      style: theme.bodyMedium?.copyWith(
-                        color: palette.textSecondary,
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: theme.bodyMedium?.copyWith(
+                          color: palette.textSecondary,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -934,6 +1047,65 @@ class _FamilyFeeBanner extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Ligne « à regarder » discrète (ex. demandes de rôle) : une seule entrée
+/// résumée, jamais la liste complète, pour ne pas charger la fiche.
+class _TodoLinkCard extends StatelessWidget {
+  const _TodoLinkCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final palette = context.viroPalette;
+    final iconColor = palette.readableAccent(accent);
+
+    return ViroCard(
+      margin: EdgeInsets.zero,
+      onTap: onTap,
+      semanticLabel: title,
+      padding: const EdgeInsets.all(ViroSpacing.md),
+      child: Row(
+        children: [
+          ViroIcon(icon, color: iconColor, size: 22),
+          const SizedBox(width: ViroSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.titleSmall?.copyWith(
+                    color: palette.brandText,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: theme.bodySmall?.copyWith(
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ViroIcon(ViroIcons.chevronRight, color: palette.textMuted, size: 20),
+        ],
       ),
     );
   }

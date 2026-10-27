@@ -32,13 +32,20 @@ final class AppCopyClub {
   String seasonEndAfterMax(String dateLabel) =>
       'La fin de saison ne peut pas dépasser le $dateLabel (31 juillet).';
   String get invalidDate => 'Date invalide.';
-  String get seasonEndSaved => 'Fin de saison enregistrée';
-  String get saveSeasonEnd => 'Enregistrer la fin de saison';
   String get coachRightsSectionTitle => 'Droits coachs';
   String get coachRightsHelper =>
-      'Contrôle des actions visibles pour les coachs du club.';
-  String get coachRightsSaved => 'Droits coachs enregistrés';
-  String get saveCoachRights => 'Enregistrer les droits coachs';
+      'Contrôle des actions visibles pour les coachs du club. '
+      'Les changements s’appliquent à l’enregistrement.';
+  String get settingsSaved => 'Paramètres du club enregistrés';
+  String get settingsSaveFailed => 'Enregistrement impossible, réessaie.';
+  String get saveSettings => 'Enregistrer les modifications';
+  String get settingsUpToDate => 'Tout est enregistré';
+  String get settingsAdminOnly =>
+      'Seuls les admins du club peuvent modifier ces paramètres.';
+  String get backToClub => 'Retour au club';
+  String get discardChangesTitle => 'Quitter sans enregistrer ?';
+  String get discardChangesBody => 'Tes modifications seront perdues.';
+  String get discardChangesAction => 'Quitter';
 
   String get permCreateEventsLabel => 'Créer des événements';
   String get permCreateEventsDesc =>
@@ -96,6 +103,11 @@ final class AppCopyClub {
 
   String get quickAccessSection => 'Accès rapides';
   String get clubManagementSection => 'Gestion du club';
+
+  /// Titre de la zone staff sur la fiche club, selon le rôle du membre.
+  String clubStaffSection(String role) =>
+      role == MemberRoles.admin ? 'Côté admin' : 'Côté coach';
+
   String get nextEventSection => 'Prochain événement';
   String get toRespondSection => 'À répondre';
   String get announcementsSection => 'Annonces';
@@ -112,22 +124,13 @@ final class AppCopyClub {
   String get familyAccessHint =>
       'Planning, convocations et cotisation — tu gères pour ton enfant.';
 
-  String get statResponses30d => 'Réponses (30 j)';
-  String get statRsvpPositive => 'Réponses positives';
-  String get statPitchAttendance => 'Présence terrain';
-  String get statPitchAttendanceSubtitle => 'Appels sur 30 j';
-  String get statNextEvent => 'Prochain event';
-  String get statMembers => 'Membres';
 
   String get actionPlanning => 'Planning';
   String get actionMyTeams => 'Équipes';
-  String get actionTeams => 'Équipes';
   String get actionAnnouncements => 'Annonces';
   String get actionMyFee => 'Ma cotisation';
-  String get actionPortal => 'Espace club';
   String get actionFee => 'Cotisation';
   String get actionInfos => 'Infos';
-  String get actionManageTeams => 'Gérer les équipes';
   String get actionManageMembers => 'Gérer les membres';
   String get actionRecentActivity => 'Dernières actions';
   String get actionFeesTracking => 'Suivi cotisations';
@@ -135,6 +138,63 @@ final class AppCopyClub {
   String get actionEquipment => 'Équipements';
   String get actionLocations => 'Lieux';
   String get actionSettings => 'Paramètres';
+
+  String get todoSection => 'À faire';
+  String get shortcutsSection => 'Ton club';
+  String get noUpcomingEvent => 'Rien de prévu pour l’instant. Repos !';
+  String weekEventsCount(int count) => switch (count) {
+        0 => 'Rien cette semaine',
+        1 => '1 événement cette semaine',
+        _ => '$count événements cette semaine',
+      };
+  String get noTeamYet => 'Pas encore d’équipe';
+  String teamsSummary(List<String> names) => names.length <= 2
+      ? names.join(', ')
+      : '${names.take(2).join(', ')} +${names.length - 2}';
+  String get feeUpToDate => 'À jour';
+  String feeRemaining(String amountLabel) => '$amountLabel restants';
+  String get feeNotSet => 'Pas de cotisation en cours';
+  String get announcementsNone => 'Aucune annonce en cours';
+  String feeDueTodo(String amountLabel) =>
+      'Cotisation : $amountLabel à régler';
+  String get loadingShort => '…';
+
+  String get managementPeopleGroup => 'Membres et activité';
+  String get managementClubGroup => 'Club';
+  String membersCount(int count) =>
+      count <= 1 ? '$count membre' : '$count membres';
+  String membersWithPending(int count, int pending) =>
+      '${membersCount(count)} · $pending en attente';
+  String get activitySubtitle => 'Qui a fait quoi récemment';
+  String get feesTrackingSubtitle => 'Saison, paiements et relances';
+  String get appearanceSubtitle => 'Logo et couleurs du club';
+  String get locationsSubtitle => 'Terrains et salles';
+  String get equipmentSubtitle => 'Matériel du club';
+  String get settingsSubtitle => 'Droits des coachs, infos du club';
+  String roleRequestsTodo(int count) => count <= 1
+      ? '1 demande de rôle à regarder'
+      : '$count demandes de rôle à regarder';
+  String get roleRequestsTodoHint => 'Rien d’urgent, un tap par demande.';
+  String get roleRequestsTitle => 'Demandes de rôle';
+  String get roleRequestsIntro =>
+      'Des membres aimeraient changer de rôle. Pas d’urgence : accepte ou '
+      'refuse quand tu as deux minutes, le rôle s’applique tout seul.';
+  String get roleRequestsEmpty => 'Rien à traiter, tu peux souffler.';
+  String roleRequestAsk(String roleLabel, String currentRoleLabel) =>
+      'Souhaite passer $roleLabel (aujourd’hui $currentRoleLabel)';
+  String get roleRequestAccept => 'Accepter';
+  String get roleRequestRefuse => 'Refuser';
+  String roleRequestAccepted(String name) => 'C’est fait, $name a son nouveau rôle.';
+  String roleRequestRefused(String name) => 'Demande de $name refusée.';
+  String get roleRequestRefuseTitle => 'Refuser la demande ?';
+  String roleRequestRefuseBody(String name) =>
+      '$name garde son rôle actuel et pourra refaire une demande plus tard.';
+  String get roleRequestFailed => 'Impossible de traiter la demande, réessaie.';
+  String get roleRequestsLoadError => 'Impossible de charger les demandes';
+  String get roleRequestFallbackName => 'Un membre';
+  String heroAttendance(int percent) => '$percent % de oui';
+  String heroPitchAttendance(int percent) => '$percent % présents (appel)';
+  String heroTeams(int count) => count <= 1 ? '$count équipe' : '$count équipes';
 
   String get myClubsTitle => 'Mes clubs';
   String myClubsCount(int count) => 'Mes clubs ($count)';

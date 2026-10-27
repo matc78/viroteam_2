@@ -32,6 +32,7 @@ import 'package:viro_team_v2/features/club/providers/club_audience_providers.dar
 import 'package:viro_team_v2/features/club/screens/club_appearance_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_activity_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_locations_screen.dart';
+import 'package:viro_team_v2/features/club/screens/club_role_requests_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_settings_screen.dart';
 import 'package:viro_team_v2/features/equipment/screens/club_equipment_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_detail_screen.dart';
@@ -148,6 +149,8 @@ abstract final class AppRoutes {
 
   static const clubSettings = '/club/:clubId/settings';
 
+  static const clubRoleRequests = '/club/:clubId/role-requests';
+
   static const clubLocations = '/club/:clubId/locations';
 
   static const conversations = '/conversations';
@@ -214,6 +217,10 @@ abstract final class AppRoutes {
   static String clubActivityPath(String clubId) => '/club/$clubId/activity';
 
   static String clubSettingsPath(String clubId) => '/club/$clubId/settings';
+
+  static String clubRoleRequestsPath(String clubId) =>
+
+      '/club/$clubId/role-requests';
 
   static String clubLocationsPath(String clubId) => '/club/$clubId/locations';
 
@@ -1000,6 +1007,20 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final clubId = state.pathParameters['clubId']!;
 
           return ClubSettingsScreen(clubId: clubId);
+
+        },
+
+      ),
+
+      GoRoute(
+
+        path: AppRoutes.clubRoleRequests,
+
+        builder: (_, state) {
+
+          final clubId = state.pathParameters['clubId']!;
+
+          return ClubRoleRequestsScreen(clubId: clubId);
 
         },
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
@@ -93,7 +92,8 @@ class _QuickActionCell extends StatelessWidget {
           color: palette.surfaceCard,
           borderRadius: radius,
           border: Border.all(color: borderColor),
-          boxShadow: ViroMotion.cardShadow(palette),
+          boxShadow:
+              ViroMotion.accentBorderTileShadow(palette, borderColor),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -121,64 +121,6 @@ class _QuickActionCell extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// Accès rapides membre : Planning, Mes équipes.
-class MemberQuickActionsGrid extends StatelessWidget {
-  const MemberQuickActionsGrid({
-    super.key,
-    this.accentColor,
-    this.onPlanning,
-    this.onMyTeams,
-    this.onAnnouncements,
-    this.onMyFee,
-    this.onPortal,
-  });
-
-  final Color? accentColor;
-  final VoidCallback? onPlanning;
-  final VoidCallback? onMyTeams;
-  final VoidCallback? onAnnouncements;
-  final VoidCallback? onMyFee;
-  final VoidCallback? onPortal;
-
-  @override
-  Widget build(BuildContext context) {
-    return _QuickActionsGridBase(
-      accentColor: accentColor,
-      actions: [
-        if (onPlanning != null)
-          QuickAction(
-            label: AppCopy.club.actionPlanning,
-            icon: ViroIcons.calendar,
-            onTap: onPlanning,
-          ),
-        QuickAction(
-          label: AppCopy.club.actionMyTeams,
-          icon: ViroIcons.users,
-          onTap: onMyTeams,
-        ),
-        if (onAnnouncements != null)
-          QuickAction(
-            label: AppCopy.club.actionAnnouncements,
-            icon: ViroIcons.bell,
-            onTap: onAnnouncements,
-          ),
-        if (onMyFee != null)
-          QuickAction(
-            label: AppCopy.club.actionMyFee,
-            icon: ViroIcons.payments,
-            onTap: onMyFee,
-          ),
-        if (onPortal != null)
-          QuickAction(
-            label: AppCopy.club.actionPortal,
-            icon: ViroIcons.roleAdmin,
-            onTap: onPortal,
-          ),
-      ],
     );
   }
 }
@@ -223,105 +165,3 @@ class FamilyQuickActionsGrid extends StatelessWidget {
   }
 }
 
-/// Gestion du club (coach + admin).
-class ClubManagementActionsGrid extends StatelessWidget {
-  const ClubManagementActionsGrid({
-    super.key,
-    required this.role,
-    this.accentColor,
-    this.onPlanning,
-    this.onManageTeams,
-    this.onManageMembers,
-    this.onActivity,
-    this.onFees,
-    this.onPortal,
-    this.onAppearance,
-    this.onEquipment,
-    this.onSettings,
-    this.onLocations,
-  });
-
-  final String role;
-  final Color? accentColor;
-  final VoidCallback? onPlanning;
-  final VoidCallback? onManageTeams;
-  final VoidCallback? onManageMembers;
-  final VoidCallback? onActivity;
-  final VoidCallback? onFees;
-  final VoidCallback? onPortal;
-  final VoidCallback? onAppearance;
-  final VoidCallback? onEquipment;
-  final VoidCallback? onSettings;
-  final VoidCallback? onLocations;
-
-  List<QuickAction> get _actions {
-    return [
-      if (onPlanning != null)
-        QuickAction(
-          label: AppCopy.club.actionPlanning,
-          icon: ViroIcons.calendar,
-          onTap: onPlanning,
-        ),
-      if (onManageTeams != null)
-        QuickAction(
-          label: AppCopy.club.actionManageTeams,
-          icon: ViroIcons.users,
-          onTap: onManageTeams,
-        ),
-      if (role == MemberRoles.admin || role == MemberRoles.coach)
-        QuickAction(
-          label: AppCopy.club.actionManageMembers,
-          icon: ViroIcons.user,
-          onTap: onManageMembers,
-        ),
-      if ((role == MemberRoles.admin || role == MemberRoles.coach) &&
-          onActivity != null)
-        QuickAction(
-          label: AppCopy.club.actionRecentActivity,
-          icon: ViroIcons.clock,
-          onTap: onActivity,
-        ),
-      if (role == MemberRoles.admin && onFees != null)
-        QuickAction(
-          label: AppCopy.club.actionFeesTracking,
-          icon: ViroIcons.payments,
-          onTap: onFees,
-        ),
-      if (role == MemberRoles.admin && onAppearance != null)
-        QuickAction(
-          label: AppCopy.club.actionAppearance,
-          icon: ViroIcons.settings,
-          onTap: onAppearance,
-        ),
-      if (role == MemberRoles.admin && onEquipment != null)
-        QuickAction(
-          label: AppCopy.club.actionEquipment,
-          icon: ViroIcons.ball,
-          onTap: onEquipment,
-        ),
-      if (role == MemberRoles.admin && onLocations != null)
-        QuickAction(
-          label: AppCopy.club.actionLocations,
-          icon: ViroIcons.place,
-          onTap: onLocations,
-        ),
-      if (role == MemberRoles.admin && onSettings != null)
-        QuickAction(
-          label: AppCopy.club.actionSettings,
-          icon: ViroIcons.key,
-          onTap: onSettings,
-        ),
-      if (onPortal != null)
-        QuickAction(
-          label: AppCopy.club.actionPortal,
-          icon: ViroIcons.roleAdmin,
-          onTap: onPortal,
-        ),
-    ];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _QuickActionsGridBase(actions: _actions, accentColor: accentColor);
-  }
-}

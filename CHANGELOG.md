@@ -8,12 +8,11 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.2.12] - 2026-10-27
+
 ### Ajouté
 
 - Notifications : chaque coach choisit quand recevoir le bilan des réponses (Paramètres > Notifications) : 2 jours avant, la veille au soir (par défaut) ou avec le rappel du jour J
-
-### Ajouté
-
 - Demandes de rôle : les admins voient enfin les demandes « changer de rôle » envoyées depuis une invitation.
   - Dans « À faire », une seule ligne résume les demandes (« 2 demandes de rôle à regarder »). Un écran dédié permet ensuite d’accepter ou de refuser chacune d’un tap.
   - Seules les demandes traitables tout de suite sont affichées : le demandeur a rejoint le club et son rôle diffère.
@@ -83,6 +82,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Profils `users` : lisibles seulement par leur titulaire et par les comptes qui partagent un club avec lui (membre ou parent), plus par n’importe quel compte connecté. Nouveau champ serveur `memberClubIds` (trigger `onUserWrittenSyncClubIds`, rattrapage `tool/backfill_member_club_ids.mjs`).
 - Invitations nominatives et liens parent : acceptés seulement avec un e-mail confirmé. L’app propose d’envoyer le lien de confirmation puis relance l’acceptation.
 - Règles Firestore, droits des coachs : le réglage « inviter des joueurs » s’applique aussi aux invitations et fiches créées directement ; un coach ne crée plus d’équipe, ne modifie que les équipes qu’il encadre, ne touche plus à la liste des coachs, et son roster joueurs suit le réglage « gérer les effectifs ».
+
+### Note
+
+- Version app : `pubspec.yaml` / `ProjectConfig` en `2.2.12+18`
 
 ## [2.2.11] - 2026-10-23
 

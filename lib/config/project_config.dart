@@ -9,11 +9,11 @@ abstract final class ProjectConfig {
   static const String appName = 'ViroTeam';
 
   // —— Version app (doit matcher `pubspec.yaml` et les tags `v*` / `release-v*`) ——
-  /// Nom marketing (ex. `2.2.11`). Vérifié en CI contre le tag de release.
-  static const String appVersionName = '2.2.11';
+  /// Nom marketing (ex. `2.2.12`). Vérifié en CI contre le tag de release.
+  static const String appVersionName = '2.2.12';
 
   /// Build number local (`+N` du pubspec). La CI release peut le surcharger.
-  static const int appVersionCode = 17;
+  static const int appVersionCode = 18;
 
   // —— Firestore ——
   static const String firestoreDevDatabaseId = 'v2-dev';

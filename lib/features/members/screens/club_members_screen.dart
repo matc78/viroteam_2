@@ -12,6 +12,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
+import 'package:viro_team_v2/config/navigation_fallback.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/utils/parent_status_for_member.dart';
@@ -21,6 +22,7 @@ import 'package:viro_team_v2/features/members/widgets/change_role_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_bulk_action_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_invite_progress_overlay.dart';
+import 'package:viro_team_v2/features/members/widgets/members_section_header.dart';
 import 'package:viro_team_v2/services/member_invite_service.dart';
 import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/pending_member_sheet.dart';
@@ -54,8 +56,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   String _search = '';
   String? _roleFilter;
 
-  /// `roster` | `teams` | `parents`
-  String _section = 'roster';
+  MembersScreenSection _section = MembersScreenSection.roster;
   bool _selectionMode = false;
   final _selectedMemberIds = <String>{};
   bool _inviteAllBusy = false;
@@ -267,6 +268,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
             memberId: member.memberId,
             newRole: newRole,
           );
+      if (mounted) ViroSnackBar.show(context, AppCopy.members.roleUpdated);
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(
@@ -310,6 +312,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
             clubId: widget.clubId,
             memberId: member.memberId,
           );
+      if (mounted) ViroSnackBar.show(context, AppCopy.members.memberRemoved);
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(
@@ -551,7 +554,6 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.viroPalette;
     final clubId = widget.clubId;
     final membersAsync = ref.watch(clubMembersWithInvitesProvider(clubId));
     final clubAsync = ref.watch(clubForMembersProvider(clubId));
@@ -569,10 +571,17 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
         child: Stack(
           children: [
             ViroScaffold(
+              fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
               appBar: ViroAppBar(
                 leading: IconButton(
+                  tooltip: AppCopy.common.back,
                   icon: ViroIcon(ViroIcons.chevronLeft),
-                  onPressed: _inviteAllBusy ? null : () => context.pop(),
+                  onPressed: _inviteAllBusy
+                      ? null
+                      : () => popOrGo(
+                            context,
+                            AppRoutes.clubDetailPath(widget.clubId),
+                          ),
                 ),
                 title: Text(AppCopy.members.manageTitle),
                 actions: [
@@ -593,15 +602,21 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                 ],
               ),
               floatingActionButton:
-                  _canAdd && _section == 'roster' && !_inviteAllBusy
+                  _canAdd &&
+                          _section == MembersScreenSection.roster &&
+                          !_inviteAllBusy
                       ? ViroFloatingActionButton(
                           icon: ViroIcons.add,
+                          semanticLabel: AppCopy.members.addMemberTitle,
                           onPressed: _addMember,
                         )
                       : null,
               body: clubAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, stackTrace) => const ViroErrorState(),
+                error: (error, stackTrace) => ViroErrorState(
+                  onRetry: () =>
+                      ref.invalidate(clubForMembersProvider(clubId)),
+                ),
                 data: (club) {
                   if (club == null) {
                     return Center(child: Text(AppCopy.members.clubNotFound));
@@ -610,7 +625,11 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                   return membersAsync.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
-                    error: (error, stackTrace) => const ViroErrorState(),
+                    error: (error, stackTrace) => ViroErrorState(
+                      onRetry: () => ref.invalidate(
+                        clubMembersWithInvitesProvider(clubId),
+                      ),
+                    ),
                     data: (members) {
                       final viewerRole =
                           ref.watch(clubMemberProvider(clubId)).value?.role ??
@@ -642,43 +661,16 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                           slivers: [
                             if (_isAdmin)
                               SliverToBoxAdapter(
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.fromLTRB(
-                                    ViroSpacing.screenHorizontal,
-                                    ViroSpacing.md,
-                                    ViroSpacing.screenHorizontal,
-                                    ViroSpacing.xs,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      _roleFilterChip(
-                                        label: AppCopy.members.tabMembers,
-                                        selected: _section == 'roster',
-                                        accentColor: accent,
-                                        onSelected: (_) =>
-                                            setState(() => _section = 'roster'),
-                                      ),
-                                      const SizedBox(width: ViroSpacing.xs),
-                                      _roleFilterChip(
-                                        label: AppCopy.members.tabTeams,
-                                        selected: false,
-                                        accentColor: accent,
-                                        onSelected: (_) => _openManageTeams(),
-                                      ),
-                                      const SizedBox(width: ViroSpacing.xs),
-                                      _roleFilterChip(
-                                        label: AppCopy.members.tabParents,
-                                        selected: _section == 'parents',
-                                        accentColor: accent,
-                                        onSelected: (_) => setState(
-                                            () => _section = 'parents'),
-                                      ),
-                                    ],
-                                  ),
+                                child: MembersSectionHeader(
+                                  section: _section,
+                                  accentColor: accent,
+                                  onSectionChanged: (section) =>
+                                      setState(() => _section = section),
+                                  onOpenTeams: _openManageTeams,
                                 ),
                               ),
-                            if (_section == 'parents' && _isAdmin)
+                            if (_section == MembersScreenSection.parents &&
+                                _isAdmin)
                               SliverToBoxAdapter(
                                 child: ParentsSection(
                                   clubId: clubId,
@@ -802,19 +794,20 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                               if (filtered.isEmpty)
                                 SliverFillRemaining(
                                   hasScrollBody: false,
-                                  child: Center(
-                                    child: Text(
-                                      _search.isNotEmpty
-                                          ? AppCopy.members.emptySearch
-                                          : AppCopy.members.empty,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: palette.textSecondary,
-                                          ),
-                                    ),
-                                  ),
+                                  child: _search.isNotEmpty ||
+                                          _roleFilter != null
+                                      ? ViroEmptyState(
+                                          message: AppCopy.members.emptySearch,
+                                          icon: ViroIcons.search,
+                                        )
+                                      : ViroEmptyState(
+                                          message: AppCopy.members.empty,
+                                          actionLabel: _canAdd
+                                              ? AppCopy.members.addMemberTitle
+                                              : null,
+                                          onAction:
+                                              _canAdd ? _addMember : null,
+                                        ),
                                 )
                               else
                                 SliverPadding(

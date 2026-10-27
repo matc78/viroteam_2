@@ -15,6 +15,7 @@ import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/lists/parent_list_tile.dart';
 
 /// Liste club-wide des parents avec filtres et actions admin.
@@ -374,9 +375,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
         padding: EdgeInsets.all(ViroSpacing.xl),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (error, stackTrace) => Padding(
-        padding: const EdgeInsets.all(ViroSpacing.lg),
-        child: Text(AppCopy.members.loadParentsError),
+      error: (error, stackTrace) => ViroErrorState(
+        message: AppCopy.members.loadParentsError,
+        onRetry: () => ref.invalidate(clubParentsProvider(widget.clubId)),
       ),
       data: (parents) {
         final filtered = _filter(parents);

@@ -6,6 +6,9 @@ final class AppCopyTeams {
 
   String get emptyClub =>
       'Aucune équipe pour l’instant — crée la première.';
+  /// Variante sans appel à l’action (le viewer ne peut pas créer d’équipe).
+  String get emptyClubReadOnly =>
+      'Aucune équipe pour l’instant — un admin du club va s’en occuper.';
   String get noMembers => 'Aucun membre';
   String get coachesSection => 'Coachs';
   String get coachesAndAdmins => 'Coachs et admins';
@@ -25,6 +28,9 @@ final class AppCopyTeams {
   String get teamCreated => 'Équipe créée — c’est parti.';
   String get emptyMyTeams =>
       'Tu n\'es encore dans aucune équipe — le coach t\'y mettra bientôt.';
+  /// « Mes équipes » vide pour qui peut créer une équipe (admin).
+  String get emptyMyTeamsCanCreate =>
+      'Tu n’es dans aucune équipe pour l’instant — crée-en une pour lancer la saison.';
   String get newTeamTitle => 'Nouvelle équipe';
   String get teamNameHint => 'ex : Équipe A';
   String get categoryLabel => 'Catégorie';
@@ -51,4 +57,35 @@ final class AppCopyTeams {
   String get addWhatsappLinks => 'Ajouter les liens WhatsApp';
   String get pendingSection => 'En attente';
   String get saveFailed => 'Enregistrement impossible.';
+
+  /// Résumé compact d’une carte d’équipe repliée (en attente masqué si 0).
+  String rosterSummary({
+    required int players,
+    required int coaches,
+    required int pending,
+  }) {
+    final parts = <String>[
+      '$players joueur${players > 1 ? 's' : ''}',
+      '$coaches coach${coaches > 1 ? 's' : ''}',
+      if (pending > 0) '$pending en attente',
+    ];
+    return parts.join(' · ');
+  }
+
+  String get removeFromTeamTitle => 'Retirer de l’équipe ?';
+
+  /// Corps de la confirmation de retrait d’un membre du roster.
+  String removeFromTeamBody({
+    required String memberName,
+    required String teamName,
+  }) =>
+      '$memberName ne fera plus partie de $teamName.';
+  String get removeFromTeamAction => 'Retirer';
+
+  /// Snackbar après retrait réussi d’un membre du roster.
+  String removedFromTeam({
+    required String memberName,
+    required String teamName,
+  }) =>
+      '$memberName a été retiré(e) de $teamName.';
 }

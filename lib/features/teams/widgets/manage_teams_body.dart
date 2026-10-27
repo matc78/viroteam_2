@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_palette.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -55,7 +55,6 @@ class ManageTeamsBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final palette = context.viroPalette;
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
     final clubAsync = ref.watch(clubProvider(clubId));
     final memberAsync = ref.watch(clubMemberProvider(clubId));
@@ -71,7 +70,9 @@ class ManageTeamsBody extends ConsumerWidget {
 
     return clubAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => const ViroErrorState(),
+      error: (error, stackTrace) => ViroErrorState(
+        onRetry: () => ref.invalidate(clubProvider(clubId)),
+      ),
       data: (club) {
         if (club == null) {
           return Center(child: Text(AppCopy.common.clubNotFound));
@@ -81,7 +82,9 @@ class ManageTeamsBody extends ConsumerWidget {
 
         return teamsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => const ViroErrorState(),
+          error: (error, stackTrace) => ViroErrorState(
+            onRetry: () => ref.invalidate(clubTeamsProvider(clubId)),
+          ),
           data: (teams) {
             return ViroRefreshIndicator(
               onRefresh: () async {
@@ -94,22 +97,28 @@ class ManageTeamsBody extends ConsumerWidget {
               child: teams.isEmpty
                   ? ListView(
                       physics: ViroRefreshIndicator.scrollPhysics,
-                      padding: const EdgeInsets.all(ViroSpacing.xl),
+                      padding: const EdgeInsets.all(ViroSpacing.md),
                       children: [
-                        SizedBox(
-                          height: MediaQuery.sizeOf(context).height * 0.4,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                AppCopy.teams.emptyClub,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.copyWith(color: palette.textSecondary),
-                              ),
-                            ],
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: MediaQuery.sizeOf(context).height * 0.4,
+                          ),
+                          child: ViroEmptyState(
+                            message: permissions.canCreateTeam()
+                                ? AppCopy.teams.emptyClub
+                                : AppCopy.teams.emptyClubReadOnly,
+                            icon: ViroIcons.groups,
+                            actionLabel: permissions.canCreateTeam()
+                                ? AppCopy.teams.createTeamFab
+                                : null,
+                            onAction: permissions.canCreateTeam()
+                                ? () => createClubTeam(
+                                      context: context,
+                                      ref: ref,
+                                      clubId: clubId,
+                                      sport: club.sport,
+                                    )
+                                : null,
                           ),
                         ),
                       ],

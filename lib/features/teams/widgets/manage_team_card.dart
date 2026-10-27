@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/teams/widgets/add_team_member_sheet.dart';
+import 'package:viro_team_v2/features/teams/widgets/confirm_remove_from_team_dialog.dart';
 import 'package:viro_team_v2/features/teams/widgets/invite_team_sheet.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_messaging_links_section.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -63,11 +64,19 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     });
   }
 
-  Future<void> _run(Future<void> Function() action) async {
+  /// Exécute [action] sous overlay de chargement ; [successMessage] est
+  /// affiché en snackbar si l’action réussit.
+  Future<void> _run(
+    Future<void> Function() action, {
+    String? successMessage,
+  }) async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
       await action();
+      if (mounted && successMessage != null) {
+        ViroSnackBar.show(context, successMessage);
+      }
     } catch (e) {
       if (mounted) {
         ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
@@ -125,11 +134,27 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                       color: palette.readableAccent(widget.accent),
                     ),
               ),
-              subtitle: Text(
-                team.categoryLabel,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: palette.textSecondary,
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    team.categoryLabel,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: palette.textSecondary,
+                        ),
+                  ),
+                  if (!_expanded)
+                    Text(
+                      AppCopy.teams.rosterSummary(
+                        players: team.playerIds.length,
+                        coaches: team.coachIds.length,
+                        pending: team.pendingPlayerIds.length,
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: palette.textMuted,
+                          ),
                     ),
+                ],
               ),
               children: [
                 const Divider(height: 1),
@@ -173,6 +198,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                   _buildRosterSection(
                     title: AppCopy.teams.coachesSection,
                     titleColor: ViroColors.coachBadgeEnd,
+                    addLabel: AppCopy.teams.addCoachTitle,
                     canAdd: canAddCoach,
                     onAdd: canAddCoach
                         ? () => _openAddSheet(TeamRosterSlot.coach)
@@ -187,7 +213,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         accentColor: widget.accent,
                         showClubAdminActions: false,
                         onRemove: canRemoveCoach
-                            ? () => _removeCoach(uid)
+                            ? () => _removeCoach(uid, member)
                             : null,
                       );
                     }),
@@ -195,6 +221,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                   _buildRosterSection(
                     title: AppCopy.teams.playersSection,
                     titleColor: widget.accent,
+                    addLabel: AppCopy.teams.addPlayerTitle,
                     canAdd: canAddPlayer,
                     onAdd: canAddPlayer
                         ? () => _openAddSheet(TeamRosterSlot.player)
@@ -209,7 +236,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         accentColor: widget.accent,
                         showClubAdminActions: false,
                         onRemove: canRemovePlayer
-                            ? () => _removePlayer(uid)
+                            ? () => _removePlayer(uid, member)
                             : null,
                       );
                     }),
@@ -239,7 +266,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                             accentColor: widget.accent,
                             showClubAdminActions: false,
                             onRemove: canRemovePending
-                                ? () => _removePending(p.id)
+                                ? () => _removePending(p)
                                 : null,
                           ),
                         ),
@@ -271,6 +298,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     required String title,
     required Color titleColor,
     required Iterable<Widget> children,
+    String? addLabel,
     bool canAdd = false,
     VoidCallback? onAdd,
   }) {
@@ -297,7 +325,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                 TextButton.icon(
                   onPressed: _busy ? null : onAdd,
                   icon: ViroIcon(ViroIcons.add, size: 18),
-                  label: Text(AppCopy.common.add),
+                  label: Text(addLabel ?? AppCopy.common.add),
                 ),
             ],
           ),
@@ -362,28 +390,75 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     );
   }
 
-  Future<void> _removePlayer(String uid) => _run(() {
+  /// Nom affiché dans la confirmation et le snackbar de retrait.
+  String _displayName(String fullName) {
+    final trimmed = fullName.trim();
+    return trimmed.isNotEmpty ? trimmed : AppCopy.members.unnamed;
+  }
+
+  /// Demande confirmation (nom du membre + de l’équipe) avant un retrait.
+  Future<bool> _confirmRemoval(String memberName) {
+    if (_busy) return Future.value(false);
+    return showConfirmRemoveFromTeamDialog(
+      context,
+      memberName: memberName,
+      teamName: widget.team.name,
+    );
+  }
+
+  String _removedMessage(String memberName) => AppCopy.teams.removedFromTeam(
+        memberName: memberName,
+        teamName: widget.team.name,
+      );
+
+  Future<void> _removePlayer(String uid, ClubMember member) async {
+    final name = _displayName(member.fullName);
+    if (!await _confirmRemoval(name)) return;
+    await _run(
+      () {
         // Sync convocations / RSVP gérée dans [TeamService.removePlayerFromTeam].
         return ref.read(teamServiceProvider).removePlayerFromTeam(
               clubId: widget.team.clubId,
               teamId: widget.team.id,
               uid: uid,
             );
-      });
+      },
+      successMessage: _removedMessage(name),
+    );
+  }
 
-  Future<void> _removeCoach(String uid) => _run(() {
-        return ref.read(teamServiceProvider).removeCoachFromTeam(
+  Future<void> _removeCoach(String uid, ClubMember member) async {
+    final name = _displayName(member.fullName);
+    if (!await _confirmRemoval(name)) return;
+    await _run(
+      () => ref.read(teamServiceProvider).removeCoachFromTeam(
+            clubId: widget.team.clubId,
+            teamId: widget.team.id,
+            uid: uid,
+          ),
+      successMessage: _removedMessage(name),
+    );
+  }
+
+  Future<void> _removePending(PendingTeamMember pending) async {
+    final name = _displayName(pending.fullName);
+    if (!await _confirmRemoval(name)) return;
+    await _run(
+      () async {
+        await ref.read(teamServiceProvider).removePendingPlayerFromTeam(
               clubId: widget.team.clubId,
               teamId: widget.team.id,
-              uid: uid,
+              pendingId: pending.id,
             );
-      });
-
-  Future<void> _removePending(String pendingId) => _run(() {
-        return ref.read(teamServiceProvider).removePendingPlayerFromTeam(
-              clubId: widget.team.clubId,
-              teamId: widget.team.id,
-              pendingId: pendingId,
-            );
-      });
+        // Liste en attente chargée une fois : on retire la ligne localement.
+        if (mounted) {
+          setState(() {
+            _pending =
+                _pending?.where((p) => p.id != pending.id).toList();
+          });
+        }
+      },
+      successMessage: _removedMessage(name),
+    );
+  }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
@@ -94,11 +94,9 @@ class _TeamsHubScreenState extends ConsumerState<TeamsHubScreen> {
     return ClubAccentTheme(
       accentColor: memberAccent,
       child: ViroScaffold(
+        fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
         appBar: ViroAppBar(
-          leading: IconButton(
-            icon: ViroIcon(ViroIcons.chevronLeft),
-            onPressed: () => context.pop(),
-          ),
+          fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
           title: Text(AppCopy.teams.hubTitle),
         ),
         floatingActionButton: effectiveTab == TeamsHubTab.manage &&
@@ -108,6 +106,7 @@ class _TeamsHubScreenState extends ConsumerState<TeamsHubScreen> {
                   if (club == null) return null;
                   return ViroFloatingActionButton(
                     icon: ViroIcons.add,
+                    label: AppCopy.teams.createTeamFab,
                     onPressed: () => createClubTeam(
                       context: context,
                       ref: ref,

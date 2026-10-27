@@ -145,7 +145,9 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
         Expanded(
           child: membersAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, stackTrace) => const ViroErrorState(),
+            error: (error, stackTrace) => ViroErrorState(
+              onRetry: () => ref.invalidate(clubMembersProvider(widget.clubId)),
+            ),
             data: (members) {
               if (widget.slot == TeamRosterSlot.coach) {
                 final coaches = members
@@ -170,7 +172,11 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
 
               return pendingAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, stackTrace) => const ViroErrorState(),
+                error: (error, stackTrace) => ViroErrorState(
+                  onRetry: () => ref.invalidate(
+                    pendingTeamMembersProvider(widget.clubId),
+                  ),
+                ),
                 data: (pending) {
                   final eligible = members
                       .where(_canAddAsPlayer)

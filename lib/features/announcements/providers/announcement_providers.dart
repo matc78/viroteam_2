@@ -29,24 +29,25 @@ class HomeAnnouncementItem {
 
 final clubAnnouncementsProvider =
     StreamProvider.family<List<ClubAnnouncement>, String>((ref, clubId) {
-  final auth = ref.watch(firestoreAuthReadyProvider).value;
-  if (auth == null) return Stream.value([]);
-  // Parent : pas de lecture globale → « Tous les membres » + équipes enfant.
-  if (ref.watch(isGuardianOnlyInClubProvider(clubId))) {
-    return Stream.fromFuture(
-      ref.watch(guardianChildTeamIdsProvider(clubId).future),
-    ).switchMap(
-      (childTeamIds) =>
-          ref.read(announcementServiceProvider).watchAnnouncementsForGuardian(
+      final auth = ref.watch(firestoreAuthReadyProvider).value;
+      if (auth == null) return Stream.value([]);
+      // Parent : pas de lecture globale → « Tous les membres » + équipes enfant.
+      if (ref.watch(isGuardianOnlyInClubProvider(clubId))) {
+        return Stream.fromFuture(
+          ref.watch(guardianChildTeamIdsProvider(clubId).future),
+        ).switchMap(
+          (childTeamIds) => ref
+              .read(announcementServiceProvider)
+              .watchAnnouncementsForGuardian(
                 clubId: clubId,
                 childTeamIds: childTeamIds,
               ),
-    );
-  }
-  return ref.read(announcementServiceProvider).watchAnnouncements(
-        clubId: clubId,
-      );
-});
+        );
+      }
+      return ref
+          .read(announcementServiceProvider)
+          .watchAnnouncements(clubId: clubId);
+    });
 
 AsyncValue<List<ClubAnnouncement>> _filterClubAnnouncements(
   Ref ref,
@@ -90,117 +91,130 @@ AsyncValue<List<ClubAnnouncement>> _filterClubAnnouncements(
 /// Annonces actives pour la cible du club (preview page club / membres).
 final visibleClubAnnouncementsProvider =
     Provider.family<AsyncValue<List<ClubAnnouncement>>, String>((ref, clubId) {
-  return _filterClubAnnouncements(
-    ref,
-    clubId,
-    includeInactiveForStaff: false,
-  );
-});
+      return _filterClubAnnouncements(
+        ref,
+        clubId,
+        includeInactiveForStaff: false,
+      );
+    });
 
 /// Liste écran Annonces : historique complet pour le staff, actives sinon.
 final clubAnnouncementsListProvider =
     Provider.family<AsyncValue<List<ClubAnnouncement>>, String>((ref, clubId) {
-  return _filterClubAnnouncements(
-    ref,
-    clubId,
-    includeInactiveForStaff: true,
-  );
-});
+      return _filterClubAnnouncements(
+        ref,
+        clubId,
+        includeInactiveForStaff: true,
+      );
+    });
+
+/// Écran Annonces : liste [clubAnnouncementsListProvider] séparée en
+/// actives puis clôturées/expirées.
+final clubAnnouncementSectionsProvider =
+    Provider.family<AsyncValue<AnnouncementSections>, String>((ref, clubId) {
+      return ref
+          .watch(clubAnnouncementsListProvider(clubId))
+          .whenData(AnnouncementFilter.splitByStatus);
+    });
 
 /// Bandeau home : annonces non dismissées, tous clubs.
 final homeActiveAnnouncementsProvider =
     StreamProvider<List<HomeAnnouncementItem>>((ref) {
-  final auth = ref.watch(firestoreAuthReadyProvider).value;
-  final clubs = ref.watch(userClubsProvider).value;
-  final teamsByClub = ref.watch(homeClubTeamsProvider).value ?? {};
+      final auth = ref.watch(firestoreAuthReadyProvider).value;
+      final clubs = ref.watch(userClubsProvider).value;
+      final teamsByClub = ref.watch(homeClubTeamsProvider).value ?? {};
 
-  if (auth == null || clubs == null || clubs.isEmpty) {
-    return Stream.value([]);
-  }
+      if (auth == null || clubs == null || clubs.isEmpty) {
+        return Stream.value([]);
+      }
 
-  final authUid = auth.uid;
-  final announcementService = ref.read(announcementServiceProvider);
-  final eventService = ref.read(eventServiceProvider);
-  final guardianService = ref.read(guardianServiceProvider);
+      final authUid = auth.uid;
+      final announcementService = ref.read(announcementServiceProvider);
+      final eventService = ref.read(eventServiceProvider);
+      final guardianService = ref.read(guardianServiceProvider);
 
-  final streams = clubs.map<Stream<List<HomeAnnouncementItem>>>((entry) {
-    final club = entry.club;
+      final streams = clubs.map<Stream<List<HomeAnnouncementItem>>>((entry) {
+        final club = entry.club;
 
-    // Parent sans fiche : annonces filtrées par les équipes de l'enfant,
-    // ciblage évalué sur la fiche du 1er enfant (pas de `watchClubMember`).
-    if (!entry.isLicensed && entry.hasFamilyLinks) {
-      return Stream.fromFuture(
-        guardianService.getClubMember(
-          clubId: club.id,
-          memberId: entry.parentLinks.first.memberId,
-        ),
-      ).switchMap((child) {
-        final childTeamIds = child?.teamIds ?? const <String>[];
-        final teams = teamsByClub[club.id]?.values.toList() ?? [];
-        return announcementService
-            .watchAnnouncementsForGuardian(
+        // Parent sans fiche : annonces filtrées par les équipes de l'enfant,
+        // ciblage évalué sur la fiche du 1er enfant (pas de `watchClubMember`).
+        if (!entry.isLicensed && entry.hasFamilyLinks) {
+          return Stream.fromFuture(
+            guardianService.getClubMember(
               clubId: club.id,
-              childTeamIds: childTeamIds,
-            )
-            .map(
-              (announcements) => AnnouncementFilter.activeForHome(
-                announcements: announcements,
-                member: child,
-                clubTeams: teams,
-                staffSeesAll: false,
-                dismissedIds: child?.dismissedAnnouncementIds.toSet() ?? {},
-              )
-                  .map(
-                    (a) => HomeAnnouncementItem(
-                      clubId: club.id,
-                      clubName: club.name,
-                      brandColorHex: club.brandColorHex,
-                      announcement: a,
-                    ),
-                  )
-                  .toList(),
-            );
-      });
-    }
-
-    return eventService.watchClubMember(clubId: club.id, uid: authUid).switchMap(
-      (member) {
-        final dismissed =
-            member?.dismissedAnnouncementIds.toSet() ?? <String>{};
-        final staff = AnnouncementFilter.isStaffRole(member?.role);
-        final teams = teamsByClub[club.id]?.values.toList() ?? [];
-
-        return announcementService.watchAnnouncements(clubId: club.id).map(
-          (announcements) {
-            final active = AnnouncementFilter.activeForHome(
-              announcements: announcements,
-              member: member,
-              clubTeams: teams,
-              staffSeesAll: staff,
-              dismissedIds: dismissed,
-            );
-            return active
-                .map(
-                  (a) => HomeAnnouncementItem(
-                    clubId: club.id,
-                    clubName: club.name,
-                    brandColorHex: club.brandColorHex,
-                    announcement: a,
-                  ),
+              memberId: entry.parentLinks.first.memberId,
+            ),
+          ).switchMap((child) {
+            final childTeamIds = child?.teamIds ?? const <String>[];
+            final teams = teamsByClub[club.id]?.values.toList() ?? [];
+            return announcementService
+                .watchAnnouncementsForGuardian(
+                  clubId: club.id,
+                  childTeamIds: childTeamIds,
                 )
-                .toList();
-          },
-        );
-      },
-    );
-  }).toList();
+                .map(
+                  (announcements) =>
+                      AnnouncementFilter.activeForHome(
+                            announcements: announcements,
+                            member: child,
+                            clubTeams: teams,
+                            staffSeesAll: false,
+                            dismissedIds:
+                                child?.dismissedAnnouncementIds.toSet() ?? {},
+                          )
+                          .map(
+                            (a) => HomeAnnouncementItem(
+                              clubId: club.id,
+                              clubName: club.name,
+                              brandColorHex: club.brandColorHex,
+                              announcement: a,
+                            ),
+                          )
+                          .toList(),
+                );
+          });
+        }
 
-  return combineLatestListStreams<HomeAnnouncementItem>(streams).map((items) {
-    final all = List<HomeAnnouncementItem>.from(items)
-      ..sort(
-        (a, b) =>
-            b.announcement.createdAt.compareTo(a.announcement.createdAt),
-      );
-    return all.take(5).toList();
-  });
-});
+        return eventService
+            .watchClubMember(clubId: club.id, uid: authUid)
+            .switchMap((member) {
+              final dismissed =
+                  member?.dismissedAnnouncementIds.toSet() ?? <String>{};
+              final staff = AnnouncementFilter.isStaffRole(member?.role);
+              final teams = teamsByClub[club.id]?.values.toList() ?? [];
+
+              return announcementService
+                  .watchAnnouncements(clubId: club.id)
+                  .map((announcements) {
+                    final active = AnnouncementFilter.activeForHome(
+                      announcements: announcements,
+                      member: member,
+                      clubTeams: teams,
+                      staffSeesAll: staff,
+                      dismissedIds: dismissed,
+                    );
+                    return active
+                        .map(
+                          (a) => HomeAnnouncementItem(
+                            clubId: club.id,
+                            clubName: club.name,
+                            brandColorHex: club.brandColorHex,
+                            announcement: a,
+                          ),
+                        )
+                        .toList();
+                  });
+            });
+      }).toList();
+
+      return combineLatestListStreams<HomeAnnouncementItem>(streams).map((
+        items,
+      ) {
+        final all = List<HomeAnnouncementItem>.from(items)
+          ..sort(
+            (a, b) =>
+                b.announcement.createdAt.compareTo(a.announcement.createdAt),
+          );
+        return all.take(5).toList();
+      });
+    });

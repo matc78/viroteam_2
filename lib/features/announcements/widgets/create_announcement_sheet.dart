@@ -9,6 +9,7 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club.dart';
+import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/team_categories.dart';
@@ -17,10 +18,15 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
+/// Ouvre la sheet de création d'annonce du club [clubId].
+///
+/// Avec [announcement], la même sheet passe en mode édition : seul le
+/// message est modifiable (date limite et destinataires restent figés).
 Future<void> showCreateAnnouncementSheet(
   BuildContext context,
   WidgetRef ref, {
   required String clubId,
+  ClubAnnouncement? announcement,
 }) {
   final accent = ref.read(clubMemberAccentProvider(clubId));
 
@@ -36,19 +42,38 @@ Future<void> showCreateAnnouncementSheet(
     builder: (ctx) => ClubAccentTheme(
       accentColor: accent,
       child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+        child: _CreateAnnouncementSheet(
+          clubId: clubId,
+          announcement: announcement,
         ),
-        child: _CreateAnnouncementSheet(clubId: clubId),
       ),
     ),
   );
 }
 
+/// Ouvre la sheet d'annonce en mode édition pour [announcement].
+Future<void> showEditAnnouncementSheet(
+  BuildContext context,
+  WidgetRef ref, {
+  required String clubId,
+  required ClubAnnouncement announcement,
+}) {
+  return showCreateAnnouncementSheet(
+    context,
+    ref,
+    clubId: clubId,
+    announcement: announcement,
+  );
+}
+
 class _CreateAnnouncementSheet extends ConsumerStatefulWidget {
-  const _CreateAnnouncementSheet({required this.clubId});
+  const _CreateAnnouncementSheet({required this.clubId, this.announcement});
 
   final String clubId;
+
+  /// Annonce éditée ; `null` en création.
+  final ClubAnnouncement? announcement;
 
   @override
   ConsumerState<_CreateAnnouncementSheet> createState() =>
@@ -57,17 +82,49 @@ class _CreateAnnouncementSheet extends ConsumerStatefulWidget {
 
 class _CreateAnnouncementSheetState
     extends ConsumerState<_CreateAnnouncementSheet> {
-  final _messageController = TextEditingController();
+  late final TextEditingController _messageController;
   final _selectedIds = <String>{};
   var _isSending = false;
   String? _targetType;
   late DateTime _endsAt;
 
+  bool get _isEditing => widget.announcement != null;
+
   @override
   void initState() {
     super.initState();
+    _messageController = TextEditingController(
+      text: widget.announcement?.message ?? '',
+    );
     final now = DateTime.now();
     _endsAt = DateTime(now.year, now.month, now.day + 7, now.hour);
+  }
+
+  Future<void> _saveEdit(ClubAnnouncement announcement) async {
+    final message = _messageController.text.trim();
+    if (message.isEmpty) {
+      ViroSnackBar.show(context, AppCopy.announcements.messageRequired);
+      return;
+    }
+    setState(() => _isSending = true);
+    try {
+      await ref
+          .read(announcementServiceProvider)
+          .updateAnnouncement(
+            clubId: widget.clubId,
+            announcementId: announcement.id,
+            message: message,
+          );
+      if (!mounted) return;
+      Navigator.pop(context);
+      ViroSnackBar.show(context, AppCopy.announcements.announceUpdated);
+    } catch (e) {
+      if (mounted) {
+        ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
   }
 
   @override
@@ -137,7 +194,9 @@ class _CreateAnnouncementSheetState
     setState(() => _isSending = true);
 
     try {
-      await ref.read(announcementServiceProvider).createAnnouncement(
+      await ref
+          .read(announcementServiceProvider)
+          .createAnnouncement(
             clubId: widget.clubId,
             senderId: auth.uid,
             senderFirstName: user.firstName,
@@ -167,7 +226,9 @@ class _CreateAnnouncementSheetState
     final teamsAsync = ref.watch(clubTeamsProvider(widget.clubId));
     final options = _targetOptions;
     final targetType = _resolveTargetType(options);
-    final endsAtLabel = MaterialLocalizations.of(context).formatFullDate(_endsAt);
+    final endsAtLabel = MaterialLocalizations.of(
+      context,
+    ).formatFullDate(_endsAt);
     final endsAtTime = TimeOfDay.fromDateTime(_endsAt).format(context);
 
     return SafeArea(
@@ -178,7 +239,9 @@ class _CreateAnnouncementSheetState
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              AppCopy.announcements.newAnnouncementTitle,
+              _isEditing
+                  ? AppCopy.announcements.editAnnouncementTitle
+                  : AppCopy.announcements.newAnnouncementTitle,
               style: theme.titleLarge?.copyWith(
                 color: Theme.of(context).appBarTheme.foregroundColor,
                 fontWeight: FontWeight.w700,
@@ -194,54 +257,67 @@ class _CreateAnnouncementSheetState
                 alignLabelWithHint: true,
               ),
             ),
-            const SizedBox(height: ViroSpacing.lg),
-            Text(
-              AppCopy.announcements.deadlineLabel,
-              style: theme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: ViroSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: _isSending ? null : _pickEndsAt,
-              icon: ViroIcon(ViroIcons.calendar, size: 18),
-              label: Text('$endsAtLabel · $endsAtTime'),
-            ),
-            const SizedBox(height: ViroSpacing.lg),
-            Text(
-              AppCopy.announcements.recipientsLabel,
-              style: theme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: ViroSpacing.sm),
-            _TargetTypeRow(
-              options: options,
-              selected: targetType,
-              onSelected: (type) => setState(() {
-                _targetType = type;
-                _selectedIds.clear();
-              }),
-            ),
-            const SizedBox(height: ViroSpacing.md),
-            clubAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (error, stackTrace) => const SizedBox.shrink(),
-              data: (club) => _TargetPicker(
-                club: club,
-                targetType: targetType,
-                teams: teamsAsync.value ?? [],
-                selectedIds: _selectedIds,
-                onToggle: (id, selected) => setState(() {
-                  if (selected) {
-                    _selectedIds.add(id);
-                  } else {
-                    _selectedIds.remove(id);
-                  }
+            if (!_isEditing) ...[
+              const SizedBox(height: ViroSpacing.lg),
+              Text(
+                AppCopy.announcements.deadlineLabel,
+                style: theme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: ViroSpacing.sm),
+              OutlinedButton.icon(
+                onPressed: _isSending ? null : _pickEndsAt,
+                icon: ViroIcon(ViroIcons.calendar, size: 18),
+                label: Text('$endsAtLabel · $endsAtTime'),
+              ),
+              const SizedBox(height: ViroSpacing.lg),
+              Text(
+                AppCopy.announcements.recipientsLabel,
+                style: theme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: ViroSpacing.sm),
+              _TargetTypeRow(
+                options: options,
+                selected: targetType,
+                onSelected: (type) => setState(() {
+                  _targetType = type;
+                  _selectedIds.clear();
                 }),
               ),
-            ),
+              const SizedBox(height: ViroSpacing.md),
+              clubAsync.when(
+                loading: () => const SizedBox.shrink(),
+                error: (error, stackTrace) => const SizedBox.shrink(),
+                data: (club) => _TargetPicker(
+                  club: club,
+                  targetType: targetType,
+                  teams: teamsAsync.value ?? [],
+                  selectedIds: _selectedIds,
+                  onToggle: (id, selected) => setState(() {
+                    if (selected) {
+                      _selectedIds.add(id);
+                    } else {
+                      _selectedIds.remove(id);
+                    }
+                  }),
+                ),
+              ),
+            ],
             const SizedBox(height: ViroSpacing.lg),
             ViroPrimaryButton(
-              label: AppCopy.announcements.publish,
+              label: _isEditing
+                  ? AppCopy.common.save
+                  : AppCopy.announcements.publish,
               isLoading: _isSending,
-              onPressed: _isSending ? null : _publish,
+              onPressed: _isSending
+                  ? null
+                  : () {
+                      final editing = widget.announcement;
+                      if (editing != null) {
+                        _saveEdit(editing);
+                      } else {
+                        _publish();
+                      }
+                    },
             ),
           ],
         ),
@@ -347,9 +423,7 @@ class _TargetPicker extends StatelessWidget {
                   : palette.textPrimary,
               fontWeight: FontWeight.w600,
             ),
-            side: BorderSide(
-              color: isSelected ? accent : palette.border,
-            ),
+            side: BorderSide(color: isSelected ? accent : palette.border),
           );
         }).toList(),
       );
@@ -389,9 +463,7 @@ class _TargetPicker extends StatelessWidget {
                   : palette.textPrimary,
               fontWeight: FontWeight.w600,
             ),
-            side: BorderSide(
-              color: isSelected ? accent : palette.border,
-            ),
+            side: BorderSide(color: isSelected ? accent : palette.border),
           );
         }).toList(),
       );

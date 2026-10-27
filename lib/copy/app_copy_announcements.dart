@@ -29,7 +29,6 @@ final class AppCopyAnnouncements {
   String get deleteConfirmTitle => 'Supprimer l\'annonce ?';
   String get deleteConfirmBody =>
       'Cette annonce sera définitivement supprimée pour tous les membres.';
-  String get closedSuffix => ' · Clôturée';
   String get closedBadge => 'Clôturée';
   String untilDate(String dateLabel) => 'Jusqu’au $dateLabel';
   String get messageRequired => 'Saisis un message.';
@@ -40,6 +39,15 @@ final class AppCopyAnnouncements {
   String get broadcastAllMembersHint =>
       'L\'annonce sera diffusée à tous les membres du club.';
   String get hideFailed => 'Impossible de masquer l\'annonce.';
+  String get publishAnnouncementCta => 'Publier une annonce';
+  String get emptyActive => 'Aucune annonce en cours.';
+
+  /// Titre de la section des annonces clôturées ou expirées.
+  String closedSectionTitle(int count) => 'Clôturées ($count)';
+  String get showClosed => 'Afficher les annonces clôturées';
+  String get hideClosed => 'Masquer les annonces clôturées';
+  String get expiredBadge => 'Expirée';
+  String get moreActionsTooltip => 'Plus d’actions';
 
   String get targetAllMembers => 'Tous les membres';
   String get targetTeams => 'Équipes';

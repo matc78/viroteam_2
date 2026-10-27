@@ -20,7 +20,26 @@ Set<String> memberCategoriesFromTeams({
   return categories;
 }
 
+/// Annonces de l'écran de gestion, séparées par statut.
+typedef AnnouncementSections = ({
+  List<ClubAnnouncement> active,
+  List<ClubAnnouncement> closed,
+});
+
 abstract final class AnnouncementFilter {
+  /// Sépare [announcements] en actives puis clôturées/expirées, en
+  /// conservant l'ordre d'origine dans chaque groupe.
+  static AnnouncementSections splitByStatus(
+    List<ClubAnnouncement> announcements,
+  ) {
+    final active = <ClubAnnouncement>[];
+    final closed = <ClubAnnouncement>[];
+    for (final announcement in announcements) {
+      (announcement.isActive ? active : closed).add(announcement);
+    }
+    return (active: active, closed: closed);
+  }
+
   /// Filtre par ciblage destinataire (sans tenir compte du dismiss).
   ///
   /// Les non-staff ne voient que les annonces encore actives et ciblées.
@@ -70,9 +89,7 @@ abstract final class AnnouncementFilter {
       member: member,
       clubTeams: clubTeams,
       staffSeesAll: staffSeesAll,
-    )
-        .where((a) => !dismissedIds.contains(a.id))
-        .toList();
+    ).where((a) => !dismissedIds.contains(a.id)).toList();
   }
 
   static bool isStaffRole(String? role) {

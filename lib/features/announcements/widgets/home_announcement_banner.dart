@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
+import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/announcements/widgets/announcement_message_sheet.dart';
@@ -123,12 +124,18 @@ class _AnnouncementBannerCard extends StatelessWidget {
     final announcement = item.announcement;
     final palette = context.viroPalette;
     final readableAccent = palette.readableAccent(accent);
+    final borderColor = accent.withValues(alpha: 0.35);
 
     return DecoratedBox(
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
-        border: Border.all(color: accent.withValues(alpha: 0.35)),
+        border: Border.all(color: borderColor),
+        boxShadow: ViroMotion.accentBorderTileShadow(
+          palette,
+          borderColor,
+          elevated: false,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(ViroSpacing.md),

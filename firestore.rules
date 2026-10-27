@@ -1061,9 +1061,8 @@ service cloud.firestore {
       allow read: if isSignedIn()
         && (resource.data.userId == request.auth.uid
           || isClubAdmin(resource.data.clubId));
-      allow update: if isSignedIn()
-        && isClubAdmin(resource.data.clubId);
-      allow delete: if false;
+      // Accepter / refuser : callable resolveJoinRequest (rôle + statut atomiques).
+      allow update, delete: if false;
     }
 
     // « Mes invitations en attente » : uniquement celles adressées à mon e-mail.

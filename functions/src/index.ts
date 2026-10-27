@@ -57,6 +57,8 @@ export {
   setMemberRoleDev,
   removeMember,
   removeMemberDev,
+  resolveJoinRequest,
+  resolveJoinRequestDev,
 } from "./memberAdmin";
 
 export { uploadClubLogo, uploadClubLogoDev } from "./uploadClubLogo";

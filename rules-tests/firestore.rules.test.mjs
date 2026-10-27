@@ -1348,3 +1348,50 @@ test("un coach gère le roster de son équipe seulement, selon son droit", async
     updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), { messagingLink: "https://chat.example" }),
   );
 });
+
+// ————————————————————————————————————————————————————————————————
+// Demandes de rôle (join_requests) : traitées par la callable resolveJoinRequest
+// ————————————————————————————————————————————————————————————————
+
+async function seedJoinRequest() {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "join_requests/req1"), {
+      userId: PLAYER.uid,
+      clubId: CLUB,
+      roleRequested: "coach",
+      status: "pending",
+    });
+  });
+}
+
+test("un membre crée sa demande de rôle, l'admin du club la liste", async () => {
+  await assertSucceeds(
+    setDoc(doc(as(PLAYER), "join_requests/req2"), {
+      userId: PLAYER.uid,
+      clubId: CLUB,
+      roleRequested: "coach",
+      status: "pending",
+    }),
+  );
+  const q = query(
+    collection(as(ADMIN), "join_requests"),
+    where("clubId", "==", CLUB),
+    where("status", "==", "pending"),
+  );
+  await assertSucceeds(getDocs(q));
+});
+
+test("un coach ne liste pas les demandes de rôle du club", async () => {
+  const q = query(
+    collection(as(COACH), "join_requests"),
+    where("clubId", "==", CLUB),
+  );
+  await assertFails(getDocs(q));
+});
+
+test("même l'admin ne valide pas une demande en direct (callable resolveJoinRequest)", async () => {
+  await seedJoinRequest();
+  await assertFails(
+    updateDoc(doc(as(ADMIN), "join_requests/req1"), { status: "accepted" }),
+  );
+});

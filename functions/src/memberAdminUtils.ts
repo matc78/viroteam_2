@@ -173,3 +173,30 @@ export function decrementCount(raw: unknown): number {
   if (!Number.isFinite(current) || current <= 0) return 0;
   return current - 1;
 }
+
+/** Rôles qu'un membre peut demander (jamais admin). */
+export const REQUESTABLE_ROLES = [ROLE_PLAYER, ROLE_COACH] as const;
+export type JoinRequestDecision = "accept" | "refuse";
+
+/** Valide `{ requestId, decision }` pour `resolveJoinRequest`. */
+export function parseResolveJoinRequestArgs(data: unknown): {
+  requestId: string;
+  decision: JoinRequestDecision;
+} {
+  const payload = (data ?? {}) as Record<string, unknown>;
+  const requestId = requireId(payload, "requestId");
+  const decision = payload.decision;
+  if (decision !== "accept" && decision !== "refuse") {
+    throw new HttpsError(
+      "invalid-argument",
+      "decision doit être accept ou refuse",
+    );
+  }
+  return { requestId, decision };
+}
+
+/** Rôle demandé s'il est autorisé (player / coach), sinon `null`. */
+export function requestableRole(raw: unknown): MemberRole | null {
+  const value = typeof raw === "string" ? raw.trim() : "";
+  return REQUESTABLE_ROLES.find((role) => role === value) ?? null;
+}

@@ -15,12 +15,15 @@ import {
   isLastAdmin,
   nextAdminIds,
   parseRemoveMemberArgs,
+  parseResolveJoinRequestArgs,
   parseSetMemberRoleArgs,
+  requestableRole,
   ROLE_ADMIN,
   ROLE_PLAYER,
   withMembershipRole,
   withoutMembership,
   type AdminMemberRef,
+  type MemberRole,
 } from "./memberAdminUtils";
 import { recomputeParentTeamIdsSafe } from "./parentTeams";
 import { ClubActivityTypes, logClubActivity } from "./clubActivity";
@@ -34,6 +37,9 @@ export {
 
 const INVITATION_STATUS_PENDING = "pending";
 const INVITATION_STATUS_REVOKED = "revoked";
+const JOIN_REQUEST_STATUS_PENDING = "pending";
+const JOIN_REQUEST_STATUS_ACCEPTED = "accepted";
+const JOIN_REQUEST_STATUS_REFUSED = "refused";
 const TEAM_ROSTER_FIELDS = ["playerIds", "coachIds", "pendingPlayerIds"] as const;
 
 function serverTimestamp() {
@@ -59,53 +65,53 @@ async function loadAdminMembers(
 }
 
 /**
- * Change le rôle d'un membre. Appelant admin du club. Garde « dernier admin ».
- * Effets : `members/{memberId}.role`, `club.adminIds`, `users/{accountUid}.clubMemberships[].role`.
- * Prod → v2-prod ; `setMemberRoleDev` → v2-dev.
+ * Lit (dans [tx]) tout ce qu'il faut pour passer `memberId` à `newRole`,
+ * applique la garde « dernier admin », puis renvoie les écritures à jouer.
+ * Séparer lectures et écritures permet de combiner ce changement avec
+ * d'autres écritures dans la même transaction (Firestore : lectures d'abord).
  */
-async function handleSetMemberRole(
-  request: CallableRequest,
-): Promise<{ ok: true }> {
-  const callerUid = requireUid(request);
-  const { clubId, memberId, role: newRole } = parseSetMemberRoleArgs(request.data);
-  await assertClubAdmin(clubId, callerUid);
-
+async function prepareRoleChange(
+  tx: Transaction,
+  clubId: string,
+  memberId: string,
+  newRole: MemberRole,
+): Promise<() => void> {
   const clubRef = db().collection("clubs").doc(clubId);
   const memberRef = clubRef.collection("members").doc(memberId);
 
-  await db().runTransaction(async (tx) => {
-    const [memberSnap, clubSnap, adminMembers] = await Promise.all([
-      tx.get(memberRef),
-      tx.get(clubRef),
-      loadAdminMembers(tx, clubId),
-    ]);
-    if (!memberSnap.exists) {
-      throw new HttpsError("not-found", "Membre introuvable");
-    }
-    if (!clubSnap.exists) {
-      throw new HttpsError("not-found", "Club introuvable");
-    }
+  const [memberSnap, clubSnap, adminMembers] = await Promise.all([
+    tx.get(memberRef),
+    tx.get(clubRef),
+    loadAdminMembers(tx, clubId),
+  ]);
+  if (!memberSnap.exists) {
+    throw new HttpsError("not-found", "Membre introuvable");
+  }
+  if (!clubSnap.exists) {
+    throw new HttpsError("not-found", "Club introuvable");
+  }
 
-    const member = memberSnap.data()!;
-    const oldRole = String(member.role ?? ROLE_PLAYER);
-    const accountUid = accountUidOf(member);
-    const adminIds = stringArray(clubSnap.data()?.adminIds);
-    const target: AdminMemberRef = { memberId, accountUid };
+  const member = memberSnap.data()!;
+  const oldRole = String(member.role ?? ROLE_PLAYER);
+  const accountUid = accountUidOf(member);
+  const adminIds = stringArray(clubSnap.data()?.adminIds);
+  const target: AdminMemberRef = { memberId, accountUid };
 
-    if (
-      oldRole === ROLE_ADMIN &&
-      newRole !== ROLE_ADMIN &&
-      isLastAdmin({ adminIds, adminMembers, target })
-    ) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Impossible de retirer le dernier administrateur",
-      );
-    }
+  if (
+    oldRole === ROLE_ADMIN &&
+    newRole !== ROLE_ADMIN &&
+    isLastAdmin({ adminIds, adminMembers, target })
+  ) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Impossible de retirer le dernier administrateur",
+    );
+  }
 
-    const userRef = accountUid ? db().collection("users").doc(accountUid) : null;
-    const userSnap = userRef ? await tx.get(userRef) : null;
+  const userRef = accountUid ? db().collection("users").doc(accountUid) : null;
+  const userSnap = userRef ? await tx.get(userRef) : null;
 
+  return () => {
     if (oldRole !== newRole) {
       tx.update(memberRef, { role: newRole, updatedAt: serverTimestamp() });
     }
@@ -128,6 +134,95 @@ async function handleSetMemberRole(
         updatedAt: serverTimestamp(),
       });
     }
+  };
+}
+
+/**
+ * Change le rôle d'un membre. Appelant admin du club. Garde « dernier admin ».
+ * Effets : `members/{memberId}.role`, `club.adminIds`, `users/{accountUid}.clubMemberships[].role`.
+ * Prod → v2-prod ; `setMemberRoleDev` → v2-dev.
+ */
+async function handleSetMemberRole(
+  request: CallableRequest,
+): Promise<{ ok: true }> {
+  const callerUid = requireUid(request);
+  const { clubId, memberId, role: newRole } = parseSetMemberRoleArgs(request.data);
+  await assertClubAdmin(clubId, callerUid);
+
+  await db().runTransaction(async (tx) => {
+    const commit = await prepareRoleChange(tx, clubId, memberId, newRole);
+    commit();
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Accepte ou refuse une demande de rôle (`join_requests/{requestId}`).
+ * Appelant admin du club de la demande. Accepter applique le rôle demandé
+ * (player / coach) à la fiche du demandeur, dans la même transaction que le
+ * passage de la demande à `accepted` ; refuser la passe à `refused`.
+ * Refusé si la demande n'est plus en attente ou si le demandeur n'est pas
+ * (encore) membre du club.
+ * Prod → v2-prod ; `resolveJoinRequestDev` → v2-dev.
+ */
+async function handleResolveJoinRequest(
+  request: CallableRequest,
+): Promise<{ ok: true }> {
+  const callerUid = requireUid(request);
+  const { requestId, decision } = parseResolveJoinRequestArgs(request.data);
+  const requestRef = db().collection("join_requests").doc(requestId);
+
+  const requestSnap = await requestRef.get();
+  if (!requestSnap.exists) {
+    throw new HttpsError("not-found", "Demande introuvable");
+  }
+  const clubId = String(requestSnap.data()?.clubId ?? "").trim();
+  if (!clubId) {
+    throw new HttpsError("failed-precondition", "Demande sans club");
+  }
+  await assertClubAdmin(clubId, callerUid);
+
+  await db().runTransaction(async (tx) => {
+    const snap = await tx.get(requestRef);
+    const data = snap.data() ?? {};
+    if (String(data.status ?? "") !== JOIN_REQUEST_STATUS_PENDING) {
+      throw new HttpsError("failed-precondition", "Demande déjà traitée");
+    }
+
+    let commitRole: (() => void) | null = null;
+    if (decision === "accept") {
+      const role = requestableRole(data.roleRequested);
+      if (!role) {
+        throw new HttpsError("failed-precondition", "Rôle demandé invalide");
+      }
+      const requesterUid = String(data.userId ?? "").trim();
+      const clubRef = db().collection("clubs").doc(clubId);
+      const accountIndexSnap = await tx.get(
+        clubRef.collection("member_accounts").doc(requesterUid),
+      );
+      const indexedMemberId = String(accountIndexSnap.data()?.memberId ?? "").trim();
+      const memberId = indexedMemberId || requesterUid;
+      const memberSnap = await tx.get(clubRef.collection("members").doc(memberId));
+      if (!requesterUid || !memberSnap.exists) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Cette personne n'a pas encore rejoint le club.",
+        );
+      }
+      commitRole = await prepareRoleChange(tx, clubId, memberId, role);
+    }
+
+    commitRole?.();
+    tx.update(requestRef, {
+      status:
+        decision === "accept"
+          ? JOIN_REQUEST_STATUS_ACCEPTED
+          : JOIN_REQUEST_STATUS_REFUSED,
+      resolvedBy: callerUid,
+      resolvedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   });
 
   return { ok: true };
@@ -376,3 +471,8 @@ export const {
   prod: removeMember,
   dev: removeMemberDev,
 } = defineDualCallable(handleRemoveMember);
+
+export const {
+  prod: resolveJoinRequest,
+  dev: resolveJoinRequestDev,
+} = defineDualCallable(handleResolveJoinRequest);

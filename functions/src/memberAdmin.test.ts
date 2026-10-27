@@ -6,8 +6,10 @@ import {
   isLastAdmin,
   nextAdminIds,
   parseRemoveMemberArgs,
+  parseResolveJoinRequestArgs,
   parseSetMemberRoleArgs,
   remainingAdminIdentities,
+  requestableRole,
   withMembershipRole,
   withoutMembership,
 } from "./memberAdminUtils";
@@ -172,4 +174,27 @@ test("decrementCount ne descend pas sous zéro", () => {
   assert.equal(decrementCount(0), 0);
   assert.equal(decrementCount(undefined), 0);
   assert.equal(decrementCount("abc"), 0);
+});
+
+test("parseResolveJoinRequestArgs valide la décision", () => {
+  assert.deepEqual(
+    parseResolveJoinRequestArgs({ requestId: " r1 ", decision: "accept" }),
+    { requestId: "r1", decision: "accept" },
+  );
+  assert.deepEqual(
+    parseResolveJoinRequestArgs({ requestId: "r1", decision: "refuse" }),
+    { requestId: "r1", decision: "refuse" },
+  );
+  assert.throws(() => parseResolveJoinRequestArgs({}), isInvalidArgument);
+  assert.throws(
+    () => parseResolveJoinRequestArgs({ requestId: "r1", decision: "maybe" }),
+    isInvalidArgument,
+  );
+});
+
+test("requestableRole n'accepte que joueur ou coach", () => {
+  assert.equal(requestableRole("coach"), "coach");
+  assert.equal(requestableRole(" player "), "player");
+  assert.equal(requestableRole("admin"), null);
+  assert.equal(requestableRole(undefined), null);
 });

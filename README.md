@@ -93,7 +93,7 @@ La CI (job Flutter) et Release Android refusent un tag dont la version ≠ `pubs
 | Tag `release-v1.2.3` | idem | APK/AAB → Play Store **production en brouillon** (pas de mise en ligne auto, pas de GitHub Release) |
 | Tag `v1.2.3` / `release-v1.2.3` | [`release-ios.yml`](.github/workflows/release-ios.yml) | IPA signé (clé API App Store Connect) → **TestFlight** — voir [`docs/DEPLOY_IOS.md`](docs/DEPLOY_IOS.md) |
 | Tag `portal-v1.2.3` | [`deploy-portal.yml`](.github/workflows/deploy-portal.yml) | Rollout Firebase App Hosting (`v2-prod`) |
-| Tag `functions-dev-v*` / `functions-v*` | [`deploy-functions.yml`](.github/workflows/deploy-functions.yml) | Deploy Cloud Functions (dual `*Dev` + prod) |
+| Tag `functions-v*` | [`deploy-functions.yml`](.github/workflows/deploy-functions.yml) | Deploy Cloud Functions (dual `*Dev` + prod, un seul tag par version) |
 | Tag `firestore-dev-v*` / `firestore-v*` | [`deploy-firestore.yml`](.github/workflows/deploy-firestore.yml) | Rules + indexes sur `v2-dev` ou `v2-prod` |
 
 ```bash
@@ -106,11 +106,12 @@ git tag release-v1.0.0 && git push origin release-v1.0.0
 # Portail App Hosting
 git tag portal-v0.1.0 && git push origin portal-v0.1.0
 
-# Functions / Firestore (dev puis prod)
-git tag functions-dev-v1.0.0 && git push origin functions-dev-v1.0.0
+# Firestore (dev puis prod)
 git tag firestore-dev-v1.0.0 && git push origin firestore-dev-v1.0.0
-git tag functions-v1.0.0 && git push origin functions-v1.0.0
 git tag firestore-v1.0.0 && git push origin firestore-v1.0.0
+
+# Functions : un seul tag, qui déploie *Dev et prod ensemble
+git tag functions-v1.0.0 && git push origin functions-v1.0.0
 ```
 
 ### Mise à jour obligatoire

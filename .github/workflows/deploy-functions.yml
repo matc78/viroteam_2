@@ -1,9 +1,12 @@
 # Déploie toutes les Cloud Functions (dual *Dev → v2-dev + prod → v2-prod).
 #
+# Un seul tag par version : chaque déploiement pousse déjà les deux variantes.
+# Deux tags en parallèle se disputaient la création des nouvelles functions
+# (409 en boucle jusqu'au timeout).
+#
 # Tags :
-#   functions-dev-v1.2.3 → environment firebase-dev (même projet GCP)
-#   functions-v1.2.3     → environment firebase-prod
-# workflow_dispatch      → input target = dev | prod
+#   functions-v1.2.3 → environment firebase-prod (même projet GCP)
+# workflow_dispatch  → redéploiement manuel sans tag
 
 name: Deploy functions
 
@@ -11,56 +14,23 @@ on:
   push:
     tags:
       - "functions-v*"
-      - "functions-dev-v*"
   workflow_dispatch:
-    inputs:
-      target:
-        description: "Cible processuelle (dev ou prod)"
-        required: true
-        type: choice
-        options:
-          - dev
-          - prod
+
+# Jamais deux déploiements en même temps sur le projet : le suivant attend.
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
 
 permissions:
   contents: read
   id-token: write
 
 jobs:
-  resolve-target:
-    name: Resolve target
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      target: ${{ steps.resolve.outputs.target }}
-      environment: ${{ steps.resolve.outputs.environment }}
-    steps:
-      - name: Resolve deploy target
-        id: resolve
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            target="${{ inputs.target }}"
-          elif [[ "${{ github.ref }}" == refs/tags/functions-dev-v* ]]; then
-            target="dev"
-          elif [[ "${{ github.ref }}" == refs/tags/functions-v* ]]; then
-            target="prod"
-          else
-            echo "Tag ou cible non reconnue."
-            exit 1
-          fi
-          echo "target=${target}" >> "$GITHUB_OUTPUT"
-          if [ "$target" = "prod" ]; then
-            echo "environment=firebase-prod" >> "$GITHUB_OUTPUT"
-          else
-            echo "environment=firebase-dev" >> "$GITHUB_OUTPUT"
-          fi
-
   deploy:
     name: Deploy Cloud Functions
-    needs: resolve-target
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: ${{ needs.resolve-target.outputs.environment }}
+    environment: firebase-prod
     defaults:
       run:
         working-directory: functions
@@ -69,7 +39,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
@@ -104,7 +74,6 @@ jobs:
 
       - name: Deploy all functions (dual Dev + Prod)
         run: |
-          echo "Cible processuelle: ${{ needs.resolve-target.outputs.target }}"
           echo "Un deploy pousse toutes les functions duales (*Dev + prod)."
           firebase deploy --only functions \
             --project viroteam-75303 \

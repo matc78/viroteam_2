@@ -128,4 +128,4 @@ Garder les règles simples (`request.auth != null`, appartenance au club via un 
 - Message : `:<gitmoji>: <description explicite en français>` (ex. `:sparkles: ajoute les codes d'invitation d'équipe multi-usage`). Ne committer que sur demande explicite.
 - Changements notables → `CHANGELOG.md` section `[Unreleased]` (Keep a Changelog, en français) ; le portail a son propre `portal/CHANGELOG.md`.
 - Bump de version app : aligner `pubspec.yaml` (`X.Y.Z+N`) **et** `ProjectConfig.appVersionName`/`appVersionCode`, déplacer `[Unreleased]` dans le CHANGELOG, commit `:bookmark: version app X.Y.Z — changelog, pubspec et ProjectConfig`. La CI refuse un tag dont la version ≠ pubspec.
-- Les déploiements se font par tags depuis `main` vert : `v*` / `release-v*` (Android Play Store **et** iOS TestFlight), `portal-v*`, `functions-dev-v*` / `functions-v*`, `firestore-dev-v*` / `firestore-v*` (voir tableau du README).
+- Les déploiements se font par tags depuis `main` vert : `v*` / `release-v*` (Android Play Store **et** iOS TestFlight), `portal-v*`, `functions-v*` (un seul tag : déploie `*Dev` et prod ensemble), `firestore-dev-v*` / `firestore-v*` (voir tableau du README).

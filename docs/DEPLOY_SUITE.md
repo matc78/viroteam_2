@@ -46,7 +46,7 @@ Voir aussi [`SETUP_LOCAL.md`](../SETUP_LOCAL.md).
 
 - [ ] Secret `SENTRY_AUTH_TOKEN` côté Firebase App Hosting (référencé dans [`portal/apphosting.yaml`](../portal/apphosting.yaml))
 - [ ] Backend `portal`, rollouts **non** automatiques sur chaque push `main`
-- [ ] `NEXT_PUBLIC_DEV_AUTH_BYPASS` **absent** en prod (déjà le cas dans `apphosting.yaml`)
+- [ ] Aucun contournement d’auth dev : `/api/dev/auth/token` et `NEXT_PUBLIC_DEV_AUTH_BYPASS` sont supprimés depuis portal 1.11.0
 - [ ] `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` renseigné dans [`portal/apphosting.yaml`](../portal/apphosting.yaml) (clé site reCAPTCHA Enterprise)
 
 ### App Check (anti-bot Auth — invisible)
@@ -106,9 +106,7 @@ git tag firestore-dev-v1.1.0 && git push origin firestore-dev-v1.1.0
 git tag firestore-v1.1.0 && git push origin firestore-v1.1.0
 
 # 2 — Functions (inclut acceptInvitation, guardians, Brevo, HelloAsso stubs)
-git tag functions-dev-v1.1.0 && git push origin functions-dev-v1.1.0
-# Smoke test callables Dev
-
+# Un seul tag : déploie les callables *Dev et prod ensemble
 git tag functions-v1.1.0 && git push origin functions-v1.1.0
 
 # 3 — Portail

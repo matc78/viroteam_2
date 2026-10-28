@@ -2,7 +2,7 @@
   "name": "viroteam-functions",
   "description": "Cloud Functions ViroTeam — invitations, Stripe Connect checkout/webhook, HelloAsso (dormant), reçus PDF",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "main": "lib/index.js",
   "scripts": {

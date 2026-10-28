@@ -8,6 +8,11 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+
+- Cloud Functions et CI passées en Node.js 22 : Google retire le runtime Node.js 20 des Cloud Functions le 30/10/2026 (plus aucune mise à jour possible après)
+- Déploiement des Functions : un seul tag `functions-v*` (le tag `functions-dev-v*` est supprimé) et un workflow sérialisé. Chaque déploiement pousse déjà les variantes `*Dev` et prod ; les deux tags lancés ensemble se disputaient la création des nouvelles functions (409 en boucle jusqu’au timeout), ce qui a fait échouer le déploiement de la 2.2.12
+
 ## [2.2.12] - 2026-10-27
 
 ### Ajouté

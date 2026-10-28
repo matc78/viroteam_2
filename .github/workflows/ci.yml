@@ -125,13 +125,12 @@ jobs:
       NEXT_PUBLIC_FIREBASE_APP_ID: 1:396501317680:web:93d4f0b325ff9c876fd5f5
       NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-RNK62HGCVT
       NEXT_PUBLIC_FIRESTORE_DATABASE_ID: v2-dev
-      NEXT_PUBLIC_DEV_AUTH_BYPASS: "false"
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: portal/package-lock.json
 
@@ -154,7 +153,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
@@ -175,7 +174,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: rules-tests/package-lock.json
 

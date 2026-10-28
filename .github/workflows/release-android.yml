@@ -8,6 +8,10 @@
 #   release-v1.2.3 → artifacts + Play production en brouillon (pas de mise
 #                    en ligne auto — promotion manuelle dans Play Console)
 # workflow_dispatch → artifacts seulement (pas Play, pas GitHub Release)
+#
+# « Nouveautés » Play (internal comme production) et corps de la GitHub Release :
+# distribution/release-notes/<X.Y.Z>.txt, préfixé de « Version X.Y.Z »
+# (tool/release_notes.mjs). Un tag sans ce fichier échoue avant le build.
 
 name: Release Android
 
@@ -88,6 +92,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: node tool/check_app_version.mjs --tag="${{ steps.version.outputs.name }}"
 
+      - name: Notes de version (Nouveautés Play)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: node tool/release_notes.mjs --out=whatsnew
+
       - run: flutter pub get
 
       - name: Resolve build number
@@ -150,6 +158,7 @@ jobs:
           path: |
             viro-team-v2-${{ steps.version.outputs.name }}.apk
             viro-team-v2-${{ steps.version.outputs.name }}.aab
+            whatsnew/
 
   github-release:
     name: Publish GitHub Release
@@ -170,6 +179,7 @@ jobs:
           files: |
             viro-team-v2-${{ needs.build.outputs.version }}.apk
             viro-team-v2-${{ needs.build.outputs.version }}.aab
+          body_path: whatsnew/whatsnew-fr-FR
           generate_release_notes: true
 
   play-internal:
@@ -193,6 +203,8 @@ jobs:
           releaseFiles: viro-team-v2-${{ needs.build.outputs.version }}.aab
           tracks: internal
           status: completed
+          releaseName: ${{ needs.build.outputs.version }}
+          whatsNewDirectory: whatsnew
 
   play-production-draft:
     name: Upload Play Store (production draft)
@@ -217,3 +229,5 @@ jobs:
           releaseFiles: viro-team-v2-${{ needs.build.outputs.version }}.aab
           tracks: production
           status: draft
+          releaseName: ${{ needs.build.outputs.version }}
+          whatsNewDirectory: whatsnew

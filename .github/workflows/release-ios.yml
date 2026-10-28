@@ -12,6 +12,12 @@ name: Release iOS
 # Le build number = 100 + numéro du run GitHub : toujours croissant, jamais en
 # conflit avec les builds envoyés à la main (≤ 20). Le version name vient du
 # pubspec, contrôlé par tool/check_app_version.mjs comme pour Android.
+#
+# Sur un tag, le job « Notes App Store Connect » attend le traitement de la
+# build puis écrit les notes de distribution/release-notes/<X.Y.Z>.txt :
+#   v*         → « What to Test » TestFlight
+#   release-v* → idem + version App Store X.Y.Z préparée (Nouveautés, build
+#                attachée), sans envoi en review — soumission manuelle.
 
 on:
   push:
@@ -39,12 +45,18 @@ jobs:
     name: Build IPA & upload to App Store Connect
     runs-on: macos-15
     timeout-minutes: 90
+    outputs:
+      build_number: ${{ steps.ver.outputs.number }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Vérifie l'alignement de version (tag ↔ pubspec ↔ ProjectConfig)
         if: startsWith(github.ref, 'refs/tags/')
         run: node tool/check_app_version.mjs --tag="${GITHUB_REF_NAME}"
+
+      - name: Vérifie les notes de version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: node tool/release_notes.mjs
 
       - name: Xcode
         run: |
@@ -152,3 +164,27 @@ jobs:
             build/altool.log
           if-no-files-found: ignore
           retention-days: 14
+
+  store-notes:
+    name: Notes App Store Connect
+    needs: build-upload
+    if: startsWith(github.ref, 'refs/tags/')
+    # Simple attente d'Apple (traitement 10 à 30 min) : runner Linux, pas macOS.
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Notes TestFlight (+ version App Store sur release-v*)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          args="--build-number=${{ needs.build-upload.outputs.build_number }}"
+          if [[ "${GITHUB_REF_NAME}" == release-v* ]]; then args="$args --app-store"; fi
+          node tool/app_store_connect_release.mjs $args

@@ -86,12 +86,18 @@ node tool/check_app_version.mjs --tag=v2.2.2   # simule le tag
 
 La CI (job Flutter) et Release Android refusent un tag dont la version ≠ `pubspec.yaml`.
 
+Notes des stores : `distribution/release-notes/X.Y.Z.txt` (version du `pubspec.yaml`), obligatoire — la CI échoue sans. Le texte publié est « Version X.Y.Z » + ce fichier, 500 caractères max au total (limite Play). Il alimente les « Nouveautés » Play (internal et production), le corps de la GitHub Release, le « What to Test » TestFlight et, sur `release-v*`, les « Nouveautés » de la version App Store.
+
+```bash
+node tool/release_notes.mjs   # vérifie et affiche le texte publié
+```
+
 | Déclencheur | Workflow | Effet |
 |-------------|----------|--------|
 | Push `main` / PR | [`ci.yml`](.github/workflows/ci.yml) | Flutter analyze+test · portal lint+build · functions build (path filters sur PR ; full matrix sur `main`) |
 | Tag `v1.2.3` | [`release-android.yml`](.github/workflows/release-android.yml) | APK/AAB signés → GitHub Release + Play Store **internal** |
 | Tag `release-v1.2.3` | idem | APK/AAB → Play Store **production en brouillon** (pas de mise en ligne auto, pas de GitHub Release) |
-| Tag `v1.2.3` / `release-v1.2.3` | [`release-ios.yml`](.github/workflows/release-ios.yml) | IPA signé (clé API App Store Connect) → **TestFlight** — voir [`docs/DEPLOY_IOS.md`](docs/DEPLOY_IOS.md) |
+| Tag `v1.2.3` / `release-v1.2.3` | [`release-ios.yml`](.github/workflows/release-ios.yml) | IPA signé (clé API App Store Connect) → **TestFlight** avec notes ; `release-v*` prépare en plus la version App Store (Nouveautés + build, sans envoi en review) — voir [`docs/DEPLOY_IOS.md`](docs/DEPLOY_IOS.md) |
 | Tag `portal-v1.2.3` | [`deploy-portal.yml`](.github/workflows/deploy-portal.yml) | Rollout Firebase App Hosting (`v2-prod`) |
 | Tag `functions-v*` | [`deploy-functions.yml`](.github/workflows/deploy-functions.yml) | Deploy Cloud Functions (dual `*Dev` + prod, un seul tag par version) |
 | Tag `firestore-dev-v*` / `firestore-v*` | [`deploy-firestore.yml`](.github/workflows/deploy-firestore.yml) | Rules + indexes sur `v2-dev` ou `v2-prod` |

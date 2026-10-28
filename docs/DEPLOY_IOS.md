@@ -29,7 +29,8 @@ La clé doit avoir le rôle **App Manager** ou **Admin**. Le Team ID (`7W9T8GP8N
 1. `main` vert, version alignée (`node tool/check_app_version.mjs --tag=v2.2.4`).
 2. `git tag v2.2.4 && git push origin v2.2.4` — déclenche Release Android **et** Release iOS.
 3. Actions → **Release iOS** → attendre le vert ; l'IPA et les logs sont en artefacts du run.
-4. App Store Connect → TestFlight : la build est traitée en 10 à 20 min, puis sélectionnable dans la version.
+4. App Store Connect → TestFlight : la build est traitée en 10 à 20 min. Le job **Notes App Store Connect** attend ce traitement puis renseigne « What to Test » avec `distribution/release-notes/X.Y.Z.txt` (précédé de « Version X.Y.Z »).
+5. Tag `release-v2.2.4` : même chose, et le job prépare aussi la version App Store `2.2.4` (créée, ou renommée si une version en préparation n'a jamais été soumise), avec ses Nouveautés et la build attachée. Reste à cliquer « Ajouter pour vérification » dans App Store Connect.
 
 Build number = `100 + numéro du run` (toujours croissant, jamais en conflit avec les builds envoyés à la main). Version = `pubspec.yaml`.
 

@@ -61,6 +61,8 @@ jobs:
               - 'analysis_options.yaml'
               - 'android/**'
               - 'tool/check_app_version.mjs'
+              - 'tool/release_notes.mjs'
+              - 'distribution/**'
               - '.fvmrc'
               - '.fvm/**'
               - '.github/workflows/ci.yml'
@@ -93,6 +95,9 @@ jobs:
           else
             node tool/check_app_version.mjs
           fi
+
+      - name: Verify store release notes (distribution/release-notes)
+        run: node tool/release_notes.mjs
 
       - uses: subosito/flutter-action@v2
         with:

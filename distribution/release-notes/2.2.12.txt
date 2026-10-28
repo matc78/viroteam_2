@@ -1,0 +1,6 @@
+- Fiche club repensée : ton prochain événement, ta réponse et ce qu'il te reste à faire, direct en haut
+- Planning : vues semaine et mois pour tout le monde, parents compris
+- Coachs : choisis quand recevoir le bilan des réponses (Paramètres > Notifications)
+- Admins : les demandes de changement de rôle arrivent dans « À faire », à valider d'un tap
+- Mode sombre plus lisible
+- Corrigé : « Impossible de charger le parent » sur la fiche club

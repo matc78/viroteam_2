@@ -10,19 +10,32 @@ Complète le travail automatisé déjà en place dans le repo (`Info.plist`, `Pr
 
 ## GitHub Actions (tag → TestFlight) — recommandé
 
-Workflow [`.github/workflows/release-ios.yml`](../.github/workflows/release-ios.yml) : sur un tag `v*` ou `release-v*` (ou à la demande dans l'onglet Actions), un runner macOS construit l'IPA, le signe avec la clé API App Store Connect (signature « cloud », aucun certificat ni profil à exporter) et l'envoie sur App Store Connect. La build apparaît dans TestFlight une fois traitée par Apple.
+Workflow [`.github/workflows/release-ios.yml`](../.github/workflows/release-ios.yml) : sur un tag `v*` ou `release-v*` (ou à la demande dans l'onglet Actions), un runner macOS construit l'IPA, le signe avec un certificat Apple Distribution et un profil App Store **fixes** (secrets du dépôt), et l'envoie sur App Store Connect avec la clé API. La build apparaît dans TestFlight une fois traitée par Apple.
 
 ### Une fois — secrets du dépôt
 
-**OK** — `ASC_KEY_ID`, `ASC_ISSUER_ID` et `ASC_API_KEY_P8` sont renseignés dans Settings → Secrets and variables → Actions.
+Settings → Secrets and variables → Actions.
 
 | Secret | Valeur |
 |--------|--------|
 | `ASC_KEY_ID` | ID de la clé API (ex. `29DPBG3FGV`) |
 | `ASC_ISSUER_ID` | Issuer ID (UUID affiché en haut de la page Intégrations → App Store Connect API) |
 | `ASC_API_KEY_P8` | Contenu complet du fichier `AuthKey_<KEY_ID>.p8`, lignes `BEGIN`/`END` comprises |
+| `IOS_DIST_P12_BASE64` | Certificat **Apple Distribution** + clé privée, fichier `.p12` encodé en base64 |
+| `IOS_DIST_P12_PASSWORD` | Mot de passe choisi à l'export du `.p12` |
+| `IOS_APPSTORE_PROFILE_BASE64` | Profil **App Store** de `com.viroteam.viroTeam` (`.mobileprovision`) encodé en base64 |
 
-La clé doit avoir le rôle **App Manager** ou **Admin**. Le Team ID (`7W9T8GP8NG`) et le bundle (`com.viroteam.viroTeam`) sont dans le workflow.
+La clé API doit avoir le rôle **App Manager** ou **Admin**. Le Team ID (`7W9T8GP8NG`) et le bundle (`com.viroteam.viroTeam`) sont dans le workflow.
+
+**Pourquoi un certificat fixe.** Sans les trois secrets `IOS_*`, le workflow retombe sur la signature « cloud » (clé API + `-allowProvisioningUpdates`) : le runner, vierge à chaque run, crée alors un **nouveau certificat Apple Development** et le perd à la fin. Apple en limite le nombre par équipe ; le 28/10/2026 le quota était plein (« Your account has reached the maximum number of certificates ») et plus aucune build iOS ne passait. Avec les secrets, le runner n'écrit plus rien chez Apple.
+
+**Produire les trois secrets depuis un Mac** (Xcode connecté au compte de l'équipe) :
+
+1. Trousseau d'accès → Mes certificats → clic droit sur « Apple Distribution: … (7W9T8GP8NG) » → Exporter… → format `.p12`, choisir un mot de passe → `IOS_DIST_P12_PASSWORD`.
+2. `base64 -i dist.p12 | pbcopy` → `IOS_DIST_P12_BASE64`.
+3. Profil App Store : [developer.apple.com → Profiles](https://developer.apple.com/account/resources/profiles/list) → « ViroTeam App Store 2026-09 » (type App Store, bundle `com.viroteam.viroTeam`, contient le certificat Distribution ci-dessus) → Download, puis `base64 -i *.mobileprovision | pbcopy` → `IOS_APPSTORE_PROFILE_BASE64`.
+
+Le certificat Distribution expire le 08/06/2027 et le profil le 28/09/2027 : à renouveler avant, puis refaire les étapes 1 à 3. Le log du run affiche la date d'expiration du profil à chaque build.
 
 ### À chaque release
 
@@ -34,9 +47,13 @@ La clé doit avoir le rôle **App Manager** ou **Admin**. Le Team ID (`7W9T8GP8N
 
 Build number = `100 + numéro du run` (toujours croissant, jamais en conflit avec les builds envoyés à la main). Version = `pubspec.yaml`.
 
-### Si la signature cloud échoue
+### Si la signature échoue
 
-Message du type « No signing certificate » ou « Provisioning profile … doesn't include » dans `xcodebuild-archive.log` : vérifier le rôle de la clé API, puis que l'App ID `com.viroteam.viroTeam` a bien les capacités Push Notifications et Sign in with Apple (Certificates, IDs & Profiles → Identifiers). En dernier recours, passer en signature manuelle : exporter un certificat Apple Distribution en `.p12` et un profil App Store depuis un Mac, les mettre en secrets, et remplacer l'étape Archive par un import dans le trousseau du runner.
+- « Your account has reached the maximum number of certificates » / « No profiles for 'com.viroteam.viroTeam' were found » : le workflow tourne en signature cloud (secrets `IOS_*` absents) et le quota de certificats Apple Development est plein. Révoquer les certificats « Created via API » dans [Certificates](https://developer.apple.com/account/resources/certificates/list) (ils sont orphelins : leur clé privée est morte avec le runner), puis poser les trois secrets `IOS_*`.
+- « Le .p12 ne contient pas d'identité Apple Distribution valide » : mauvais mot de passe (`IOS_DIST_P12_PASSWORD`) ou export d'un certificat Development au lieu de Distribution.
+- « Le profil … vise … » : le profil téléchargé n'est pas celui de `com.viroteam.viroTeam` (App Store).
+- « Provisioning profile … doesn't include signing certificate » : le profil a été généré avant le certificat ; le régénérer sur developer.apple.com en cochant le certificat Distribution, le retélécharger, refaire le secret.
+- Capacités : l'App ID `com.viroteam.viroTeam` doit avoir Push Notifications et Sign in with Apple (Certificates, IDs & Profiles → Identifiers), sinon l'archive refuse les entitlements.
 
 ---
 

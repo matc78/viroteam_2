@@ -10,6 +10,7 @@ Comment on mesure l'usage, où regarder et à quel rythme. Le plan de taggage of
 | Consentement | Obligatoire (feuille app, bandeau cookies portail) | Non requis : aucune personne identifiée |
 | Rattachement | uid Firebase + groupe `club` | Groupe `club` seulement (`distinct_id` = `club_<id>`), ou anonyme (`server_anonymous`) pour l'inscription |
 | Propriété `surface` | `app` / `portal` | `server` |
+| Propriété `client` | — | `portal` / `app` pour un événement émis pendant une callable (déduit de l'en-tête `Origin`, que seul un navigateur envoie). Absente pour les triggers Firestore (`event_created`, RSVP directs), les webhooks et les tâches planifiées |
 | Fiabilité | Perdu si refus, bloqueur de pub, réseau coupé | Envoyé après l'écriture Firestore, rien ne se perd côté client |
 
 Les événements importants (inscription, club créé, invitations, arrivées, événements, convocations, RSVP, paiement réussi) partent du serveur. Les mesures par club (clubs actifs, entonnoir d'activation, cotisations) reposent dessus. Les mesures par personne (utilisateurs actifs, rétention, plateformes) ne comptent que les personnes qui ont consenti.
@@ -18,7 +19,7 @@ Projet PostHog : la base `v2-prod` envoie au projet « ViroTeam prod », `v2-dev
 
 ## Tableaux de bord (PostHog)
 
-Le script [`tool/posthog_dashboards.mjs`](../tool/posthog_dashboards.mjs) crée les quatre tableaux ci-dessous. Il ne recrée pas un tableau qui existe déjà avec le même nom.
+Le script [`tool/posthog_dashboards.mjs`](../tool/posthog_dashboards.mjs) crée les cinq tableaux ci-dessous (`--only=<nom>` pour n'en créer qu'un, ex. `--only=Portail`). Il ne recrée pas un tableau qui existe déjà avec le même nom.
 
 1. Dans PostHog › Paramètres personnels › Personal API keys, crée une clé avec les droits en écriture sur `dashboard`, `insight` et `action`, et en lecture sur `group`.
 2. Lance d'abord le script sur le projet **dev**, après avoir déployé les Functions dev. Il faut qu'au moins un événement soit rattaché à un club, sinon le type de groupe `club` n'existe pas encore :
@@ -35,6 +36,7 @@ Le script [`tool/posthog_dashboards.mjs`](../tool/posthog_dashboards.mjs) crée 
 | **Activation des clubs** | Entonnoir par club sur 30 jours : `club_created` → `invitation_sent` → arrivée d'un membre avec `member_count ≥ 5` (action « Membre arrivé dans un club ») → `event_created` → `rsvp_set` |
 | **Rétention** | Cohortes hebdomadaires (première identification) et part des personnes qui reviennent sur 8 semaines |
 | **Cotisations** | Entonnoir `fee_payment_started` → `fee_payment_submitted` → `fee_payment_succeeded` par club, et montant encaissé par semaine |
+| **Portail** | Portail web seul (`surface = portal`) : utilisateurs et clubs actifs, pages vues et pages les plus vues, actions serveur faites depuis le portail (`client = portal`) et leur part face à l'app, création de club et paiement des cotisations sur le portail |
 
 Les requêtes SQL (clubs actifs, plateformes) s'affichent en tableau. Pour les voir en courbe : dans l'insight, Visualisation › Line chart.
 

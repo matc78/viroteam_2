@@ -36,6 +36,24 @@ export type ServerAnalyticsEvent =
 
 export type ServerAnalyticsProperties = Record<string, string | number | boolean>;
 
+/**
+ * Client à l'origine d'un appel de callable : `portal` (navigateur) ou
+ * `app` (Flutter natif).
+ */
+export type CallerClient = "portal" | "app";
+
+/**
+ * Déduit le client appelant de l'en-tête `Origin` de la requête callable :
+ * un navigateur l'envoie toujours sur un appel cross-origin, le SDK natif
+ * Flutter jamais.
+ */
+export function callerClientFromOrigin(
+  origin: string | string[] | undefined,
+): CallerClient {
+  const value = Array.isArray(origin) ? origin[0] : origin;
+  return value ? "portal" : "app";
+}
+
 /** `distinct_id` des événements serveur sans club (ex. inscription). */
 export const ANONYMOUS_SERVER_DISTINCT_ID = "server_anonymous";
 
@@ -49,12 +67,14 @@ export function serverDistinctId(clubId?: string): string {
 
 /**
  * Corps de la requête de capture PostHog pour [event], rattaché au groupe
- * `club` [clubId] s'il est fourni, sans profil personne ni PII.
+ * `club` [clubId] s'il est fourni, sans profil personne ni PII. [client]
+ * (propriété `client`) n'est connu que pour les événements d'une callable.
  */
 export function buildServerEventPayload(params: {
   databaseId: FirestoreDatabaseId;
   event: ServerAnalyticsEvent;
   clubId?: string;
+  client?: CallerClient;
   properties?: ServerAnalyticsProperties;
   timestamp?: Date;
 }): Record<string, unknown> {
@@ -68,6 +88,7 @@ export function buildServerEventPayload(params: {
       ...params.properties,
       surface: "server",
       app_env: isProd ? "release" : "debug",
+      ...(params.client ? { client: params.client } : {}),
       ...(params.clubId
         ? { $groups: { [CLUB_GROUP_TYPE]: params.clubId } }
         : {}),

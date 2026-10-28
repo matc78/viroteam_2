@@ -11,6 +11,7 @@ import {
 } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
 import type { Response } from "express";
+import { callerClientFromOrigin, type CallerClient } from "./analyticsUtils";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -22,6 +23,15 @@ setGlobalOptions({ region: "europe-west1" });
 export type FirestoreDatabaseId = "v2-dev" | "v2-prod";
 
 const databaseContext = new AsyncLocalStorage<FirestoreDatabaseId>();
+const callerClientContext = new AsyncLocalStorage<CallerClient>();
+
+/**
+ * Client à l'origine de la callable courante (`portal` / `app`) ;
+ * `undefined` hors callable (triggers, webhooks, tâches planifiées).
+ */
+export function currentCallerClient(): CallerClient | undefined {
+  return callerClientContext.getStore();
+}
 
 /**
  * Exécute [fn] avec [databaseId] comme base Firestore courante pour [db].
@@ -93,7 +103,10 @@ export function defineDualCallable<T = unknown>(
 
   const wrap = (databaseId: FirestoreDatabaseId) =>
     onCall(options, async (request) =>
-      runWithDatabase(databaseId, () => handler(request)),
+      callerClientContext.run(
+        callerClientFromOrigin(request.rawRequest?.headers?.origin),
+        () => runWithDatabase(databaseId, () => handler(request)),
+      ),
     );
 
   return {

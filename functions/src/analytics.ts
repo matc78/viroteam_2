@@ -5,7 +5,7 @@ import {
   type ServerAnalyticsEvent,
   type ServerAnalyticsProperties,
 } from "./analyticsUtils";
-import { currentDatabaseId, db } from "./db";
+import { currentCallerClient, currentDatabaseId, db } from "./db";
 
 export { ServerAnalyticsEvents };
 
@@ -76,6 +76,7 @@ async function sendServerEvent(params: {
       databaseId: currentDatabaseId(),
       event: params.event,
       clubId: params.clubId,
+      client: currentCallerClient(),
       properties: params.properties,
     });
     const response = await fetch(POSTHOG_CAPTURE_URL, {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Crée les tableaux de bord PostHog décrits dans docs/ANALYTICS.md
- * (Santé, Activation, Rétention, Cotisations) via l'API privée PostHog.
+ * (Santé, Activation, Rétention, Cotisations, Portail) via l'API privée PostHog.
  *
  * Variables d'environnement :
  *   POSTHOG_PERSONAL_API_KEY  clé personnelle (scopes : dashboard, insight,
@@ -12,12 +12,15 @@
  * Usage :
  *   node tool/posthog_dashboards.mjs --dry-run   # affiche les requêtes
  *   node tool/posthog_dashboards.mjs             # crée ce qui manque
+ *   node tool/posthog_dashboards.mjs --only=Portail  # un seul tableau
  *
  * Idempotent par nom : un tableau de bord ou une action déjà présents ne
  * sont pas recréés (supprimer le tableau dans PostHog pour le régénérer).
  */
 
 const DRY_RUN = process.argv.includes("--dry-run");
+/** `--only=Portail` : ne traite que le tableau de ce nom. */
+const ONLY = process.argv.find((arg) => arg.startsWith("--only="))?.slice("--only=".length);
 const API_HOST = (process.env.POSTHOG_API_HOST ?? "https://eu.posthog.com").replace(/\/$/, "");
 const API_KEY = process.env.POSTHOG_PERSONAL_API_KEY ?? "";
 const PROJECT_ID = process.env.POSTHOG_PROJECT_ID ?? "";
@@ -98,6 +101,17 @@ async function ensureMemberJoinedAction() {
 }
 
 const notServer = [{ key: "surface", value: ["server"], operator: "is_not", type: "event" }];
+const portalSurface = [{ key: "surface", value: ["portal"], operator: "exact", type: "event" }];
+/** Événements serveur issus d'une callable appelée depuis le portail. */
+const portalClient = [{ key: "client", value: ["portal"], operator: "exact", type: "event" }];
+/** Événements serveur émis par une callable (le client y est connu). */
+const PORTAL_CALLABLE_EVENTS = [
+  "invitation_sent",
+  "invitation_accepted",
+  "join_code_used",
+  "guardian_linked",
+  "rsvp_set",
+];
 const weekly = { interval: "week", dateRange: { date_from: "-12w" } };
 
 function trends(series, extra = {}) {
@@ -266,6 +280,100 @@ ORDER BY semaine, plateforme`),
         },
       ],
     },
+    {
+      name: "Portail",
+      description: "Usage du portail web seul (surface = portal, client = portal pour les actions serveur).",
+      insights: [
+        {
+          name: "Utilisateurs actifs du portail par semaine",
+          description: "Personnes ayant consenti, au moins un événement sur le portail.",
+          query: trends([{ kind: "EventsNode", event: null, name: "All events", math: "dau" }], {
+            properties: portalSurface,
+          }),
+        },
+        {
+          name: "Clubs actifs sur le portail par semaine",
+          query: trends([{ kind: "EventsNode", event: null, name: "All events", ...byClub }], {
+            properties: portalSurface,
+          }),
+        },
+        {
+          name: "Pages vues par semaine",
+          query: trends([{ kind: "EventsNode", event: "$pageview", name: "$pageview", math: "total" }], {
+            properties: portalSurface,
+          }),
+        },
+        {
+          name: "Pages les plus vues (30 jours)",
+          query: {
+            kind: "InsightVizNode",
+            source: {
+              kind: "TrendsQuery",
+              series: [{ kind: "EventsNode", event: "$pageview", name: "$pageview", math: "total" }],
+              properties: portalSurface,
+              dateRange: { date_from: "-30d" },
+              breakdownFilter: { breakdown: "$pathname", breakdown_type: "event", breakdown_limit: 25 },
+              trendsFilter: { display: "ActionsTable" },
+            },
+          },
+        },
+        {
+          name: "Actions faites depuis le portail",
+          description:
+            "Événements serveur dont la callable a été appelée depuis le portail. Les créations d'événements et les RSVP directs passent par des triggers Firestore et ne sont pas attribuables.",
+          query: trends(
+            PORTAL_CALLABLE_EVENTS.map((event) => ({ kind: "EventsNode", event, name: event, math: "total" })),
+            { properties: portalClient },
+          ),
+        },
+        {
+          name: "Part du portail dans les actions serveur (12 semaines)",
+          description: "Événements émis par une callable, répartis par client appelant (app / portal).",
+          query: sql(`SELECT event,
+       countIf(properties.client = 'portal') AS portail,
+       countIf(properties.client = 'app') AS app,
+       round(100 * portail / count(), 1) AS part_portail_pct
+FROM events
+WHERE properties.surface = 'server'
+  AND properties.client IN ('app', 'portal')
+  AND timestamp >= toStartOfWeek(now(), 1) - INTERVAL 12 WEEK
+GROUP BY event
+ORDER BY portail DESC`),
+        },
+        {
+          name: "Création de club sur le portail",
+          query: {
+            kind: "InsightVizNode",
+            source: {
+              kind: "FunnelsQuery",
+              properties: portalSurface,
+              dateRange: { date_from: "-90d" },
+              funnelsFilter: { funnelWindowInterval: 1, funnelWindowIntervalUnit: "day" },
+              series: [
+                { kind: "EventsNode", event: "club_setup_started", name: "club_setup_started" },
+                { kind: "EventsNode", event: "club_setup_completed", name: "club_setup_completed" },
+              ],
+            },
+          },
+        },
+        {
+          name: "Paiement des cotisations sur le portail",
+          query: {
+            kind: "InsightVizNode",
+            source: {
+              kind: "FunnelsQuery",
+              properties: portalSurface,
+              dateRange: { date_from: "-90d" },
+              funnelsFilter: { funnelWindowInterval: 1, funnelWindowIntervalUnit: "day" },
+              series: [
+                { kind: "EventsNode", event: "fee_payment_started", name: "fee_payment_started" },
+                { kind: "EventsNode", event: "fee_payment_submitted", name: "fee_payment_submitted" },
+              ],
+            },
+          },
+        },
+      ],
+    },
   ];
 }
 
@@ -276,6 +384,7 @@ async function main() {
   const existingNames = new Set(existing.filter((d) => !d.deleted).map((d) => d.name));
 
   for (const dashboard of dashboards({ groupIndex, memberJoinedActionId })) {
+    if (ONLY && dashboard.name !== ONLY) continue;
     if (existingNames.has(dashboard.name)) {
       console.log(`= ${dashboard.name} : déjà présent, ignoré`);
       continue;

@@ -5,6 +5,7 @@ import {
   POSTHOG_PROD_API_KEY,
   ServerAnalyticsEvents,
   buildServerEventPayload,
+  callerClientFromOrigin,
 } from "./analyticsUtils";
 
 test("buildServerEventPayload : base prod → projet prod, groupe club sans personne", () => {
@@ -42,6 +43,29 @@ test("buildServerEventPayload : base dev → projet dev, propriétés réservée
   assert.equal(properties.surface, "server");
   assert.equal(properties.app_env, "debug");
   assert.equal(properties.event_type, "match");
+});
+
+test("buildServerEventPayload : client de la callable → propriété client, absente sinon", () => {
+  const fromPortal = buildServerEventPayload({
+    databaseId: "v2-prod",
+    event: ServerAnalyticsEvents.invitationSent,
+    clubId: "c1",
+    client: "portal",
+  });
+  const fromTrigger = buildServerEventPayload({
+    databaseId: "v2-prod",
+    event: ServerAnalyticsEvents.eventCreated,
+    clubId: "c1",
+  });
+  assert.equal((fromPortal.properties as Record<string, unknown>).client, "portal");
+  assert.equal("client" in (fromTrigger.properties as Record<string, unknown>), false);
+});
+
+test("callerClientFromOrigin : en-tête Origin (navigateur) → portal, absent → app", () => {
+  assert.equal(callerClientFromOrigin("https://portal.viroteam.fr"), "portal");
+  assert.equal(callerClientFromOrigin(["http://localhost:3000"]), "portal");
+  assert.equal(callerClientFromOrigin(undefined), "app");
+  assert.equal(callerClientFromOrigin(""), "app");
 });
 
 test("buildServerEventPayload : sans club → distinct_id anonyme, aucun groupe", () => {

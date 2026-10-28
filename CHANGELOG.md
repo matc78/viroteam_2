@@ -8,6 +8,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Analytics : tableau de bord PostHog « Portail » (portail web seul) dans `tool/posthog_dashboards.mjs`, et option `--only=<nom>` pour ne créer qu'un tableau. Les événements serveur émis pendant une callable portent une propriété `client` (`portal` ou `app`), ce qui permet de savoir quelles invitations, arrivées et réponses viennent du portail
+
 ### Modifié
 
 - Releases app : les notes de version (`distribution/release-notes/X.Y.Z.txt`, précédées de « Version X.Y.Z ») sont envoyées à chaque tag dans les « Nouveautés » Play (internal et brouillon production), dans la GitHub Release et dans « What to Test » TestFlight. Un tag `release-v*` prépare aussi la version App Store (Nouveautés, build attachée, sans envoi en review). Sans fichier de notes, la CI échoue.

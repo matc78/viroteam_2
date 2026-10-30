@@ -58,7 +58,7 @@ jobs:
     outputs:
       build_number: ${{ steps.ver.outputs.number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Vérifie l'alignement de version (tag ↔ pubspec ↔ ProjectConfig)
         if: startsWith(github.ref, 'refs/tags/')
@@ -100,7 +100,7 @@ jobs:
           cd ios && (pod install --repo-update || pod update)
 
       - name: Archive Podfile.lock (resync repo si mis à jour)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ios-Podfile.lock
           path: ios/Podfile.lock
@@ -241,7 +241,7 @@ jobs:
 
       - name: Logs et IPA en artefacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ios-${{ steps.ver.outputs.name }}-${{ steps.ver.outputs.number }}
           path: |
@@ -260,7 +260,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:

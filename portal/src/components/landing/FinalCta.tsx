@@ -13,10 +13,10 @@ export function FinalCta() {
     <section className={styles.section} aria-labelledby="final-cta-title">
       <motion.div
         className={styles.frame}
-        initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+        initial={{ opacity: 0, y: 18 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-80px" }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: reduceMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className={styles.frameInner}>
           <div className={styles.panel}>
@@ -32,21 +32,21 @@ export function FinalCta() {
 
             <div className={styles.content}>
               <h2 id="final-cta-title" className={styles.title}>
-                L’app et le portail pour gérer votre club sportif
+                Prêt pour une saison sans relances ?
               </h2>
               <p className={styles.lead}>
-                Téléchargez ViroTeam sur Android et iPhone. Planning, convocations
-                et cotisations : organisez un ou plusieurs clubs depuis le web et
-                l’app.
+                Configurez votre club une fois sur le web, puis laissez ViroTeam
+                gérer convocations, rappels et cotisations. Gratuit pendant la
+                bêta.
               </p>
               <div className={styles.actions}>
-                <StoreBadges />
-                <Link href="/signup?intent=founder" className={styles.clubLink}>
-                  Créer mon club
+                <Link href="/signup?intent=founder" className={styles.primary}>
+                  Créer mon club gratuitement
                 </Link>
                 <Link href="/login" className={styles.clubLink}>
-                  Espace club
+                  Accéder à l’espace club
                 </Link>
+                <StoreBadges className={styles.stores} />
               </div>
             </div>
           </div>

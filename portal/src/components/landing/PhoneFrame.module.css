@@ -1,0 +1,37 @@
+.frame {
+  position: relative;
+  padding: 0.55rem;
+  border-radius: 2.6rem;
+  background: var(--color-primary-900);
+  box-shadow:
+    var(--shadow-soft),
+    0 24px 48px color-mix(in srgb, var(--color-primary-900) 18%, transparent);
+}
+
+/* Îlot de caméra décoratif. */
+.frame::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 1.05rem;
+  left: 50%;
+  width: 28%;
+  height: 0.95rem;
+  border-radius: 999px;
+  background: var(--color-primary-900);
+  transform: translateX(-50%);
+}
+
+.screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2.1rem;
+  background: var(--color-white);
+  padding-top: 1.9rem;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+}

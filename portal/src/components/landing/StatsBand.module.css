@@ -1,0 +1,92 @@
+.band {
+  position: relative;
+  z-index: 1;
+  padding: var(--space-xl) 0;
+  border-block: 1px solid var(--color-gray-200);
+  background: var(--color-white);
+}
+
+.inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
+}
+
+.title {
+  margin: 0 0 var(--space-lg);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-gray-400);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-lg);
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.stat {
+  min-width: 0;
+  padding-left: var(--space-md);
+  border-left: 3px solid var(--color-gray-200);
+}
+
+.statHighlight {
+  border-left-color: var(--color-primary-500);
+}
+
+/* Touches de couleur sport, comme dans l’espace club. */
+.stat:nth-child(2) {
+  border-left-color: var(--color-sport-green);
+}
+
+.stat:nth-child(3) {
+  border-left-color: var(--color-sport-yellow);
+}
+
+.stat:nth-child(4) {
+  border-left-color: var(--color-sport-orange);
+}
+
+.label {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 var(--space-sm);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-brand);
+}
+
+.value {
+  font-size: 2.4rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--color-brand);
+}
+
+.statHighlight .value {
+  color: var(--color-primary-500);
+}
+
+.detail {
+  margin: var(--space-xs) 0 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--color-gray-600);
+}

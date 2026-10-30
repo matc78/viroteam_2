@@ -9,6 +9,27 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-30
+
+### Modifié
+
+- Page d’accueil : refonte autour du message « configurez votre saison une fois, ViroTeam s’occupe du reste ».
+  - Bouton principal « Créer mon club gratuitement » (hero, en-tête, bandeau final) ; les badges stores passent en second, pour joueurs et parents.
+  - Bande de chiffres réels de l’USMV Volley-Ball, dont « 0 relance manuelle ».
+  - Section sur la mise en place en début de saison et les automatismes.
+  - Récit « Une semaine avec ViroTeam » en onglets par jour, calé sur les vrais horaires des notifications.
+  - Espace bureau et Rôles en onglets, avec les vraies captures de l’app dans des cadres de téléphone.
+  - Section Tarifs : gratuit pendant la bêta ; seul le paiement CB des cotisations a un coût, payé par le membre, avec un exemple chiffré.
+  - FAQ réduite à 6 questions, dont le prix et la protection des données ; contact direct du développeur (`site.contactEmail`).
+  - Couleurs : l’indigo du logo (`--color-brand`) domine ; orange, vert, jaune et cyan en touches, comme dans l’espace club.
+  - Mise en page alignée à gauche, sans texte justifié ; confettis géométriques (triangles, anneaux, losanges…) dans les marges des sections blanches ; photos de banque d’images retirées.
+
+### Corrigé
+
+- Page d’accueil : les titres de section ne passent plus sous les captures sur desktop. Ils étaient forcés sur une seule ligne.
+- Page d’accueil : avec « réduire les animations » activé, les sections animées restaient invisibles (`opacity: 0`) à cause d’un écart d’hydratation serveur / client.
+- En-tête et pied de page : les liens de section fonctionnent depuis les pages de connexion (`/#…` au lieu de `#…`).
+
 ## [1.11.0] - 2026-10-28
 
 ### Ajouté

@@ -1,0 +1,301 @@
+.section {
+  position: relative;
+  padding: var(--space-3xl) 0;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--color-scaffold) 55%, transparent) 18%,
+    color-mix(in srgb, var(--color-scaffold) 55%, transparent) 82%,
+    transparent
+  );
+}
+
+.inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
+}
+
+.header {
+  max-width: 42rem;
+  margin-bottom: var(--space-2xl);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary-600);
+}
+
+.title {
+  margin: 0 0 var(--space-md);
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--color-brand);
+  text-wrap: balance;
+}
+
+.lead {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--color-gray-600);
+  text-wrap: pretty;
+}
+
+/* Avant / après */
+
+.compare {
+  display: grid;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-3xl);
+}
+
+@media (min-width: 760px) {
+  .compare {
+    grid-template-columns: 1.3fr 1fr;
+  }
+}
+
+.before,
+.after {
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.before {
+  background: var(--color-white);
+  border: 1px solid var(--color-gray-200);
+}
+
+.after {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--color-brand);
+  color: var(--color-white);
+}
+
+.compareTitle {
+  margin: 0 0 var(--space-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-gray-400);
+}
+
+.after .compareTitle {
+  color: var(--color-primary-100);
+}
+
+.choreList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chore {
+  position: relative;
+  padding-left: 1.6rem;
+  color: var(--color-gray-600);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--color-error) 70%, transparent);
+  text-decoration-thickness: 2px;
+}
+
+.chore::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.3em;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.3rem;
+  background: var(--color-fee-due-soft);
+}
+
+.afterBig {
+  margin: 0 0 var(--space-sm);
+  font-size: clamp(2.4rem, 5vw, 3.4rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-sport-yellow);
+}
+
+.afterStat {
+  margin: 0 0 var(--space-md);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-white);
+}
+
+.afterBody {
+  margin: 0;
+  color: var(--color-primary-50);
+  line-height: 1.55;
+}
+
+/* Frise en deux temps */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xl);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stageHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.stageNumber {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--color-white);
+  border: 2px solid var(--color-primary-200);
+  font-weight: 700;
+  color: var(--color-primary-600);
+}
+
+.stageNumberAuto {
+  border-color: var(--color-primary-500);
+  background: var(--color-primary-500);
+  color: var(--color-white);
+}
+
+.stageTitle {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.stageMeta {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-gray-400);
+}
+
+.setupList {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 760px) {
+  .setupList {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.setupItem {
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-primary-200);
+  background: var(--color-white);
+  color: var(--color-gray-600);
+  line-height: 1.5;
+}
+
+.autoGrid {
+  display: grid;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 600px) {
+  .autoGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 960px) {
+  .autoGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.autoCard {
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  box-shadow: var(--shadow-card);
+}
+
+.autoIcon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: var(--space-sm);
+  border-radius: 0.75rem;
+  background: var(--tone-blue-surface);
+  color: var(--color-primary-500);
+}
+
+/* Une couleur sport par automatisme, en rotation. */
+.autoCard:nth-child(6n + 2) .autoIcon {
+  background: var(--tone-green-surface);
+  color: var(--tone-green);
+}
+
+.autoCard:nth-child(6n + 3) .autoIcon {
+  background: var(--tone-amber-surface);
+  color: var(--tone-amber);
+}
+
+.autoCard:nth-child(6n + 4) .autoIcon {
+  background: var(--tone-orange-surface);
+  color: var(--color-sport-orange);
+}
+
+.autoCard:nth-child(6n + 5) .autoIcon {
+  background: color-mix(in srgb, var(--color-sport-cyan) 12%, white);
+  color: var(--color-sport-cyan);
+}
+
+.autoCard:nth-child(6n + 6) .autoIcon {
+  background: color-mix(in srgb, var(--color-brand) 8%, white);
+  color: var(--color-brand);
+}
+
+.autoIcon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.autoTitle {
+  margin: 0 0 var(--space-xs);
+  font-size: 1rem;
+  color: var(--color-primary-800);
+}
+
+.autoBody {
+  margin: 0;
+  font-size: 0.93rem;
+  line-height: 1.5;
+  color: var(--color-gray-600);
+}
+

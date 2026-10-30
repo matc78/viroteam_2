@@ -1,138 +1,203 @@
 .hero {
   position: relative;
-  min-height: calc(100vh - var(--header-height));
   overflow: hidden;
 }
 
-.phoneWrap {
-  position: absolute;
+.inner {
+  position: relative;
   z-index: 1;
-  right: max(4%, calc((100% - var(--max-width)) / 2 + 0.5rem));
-  top: 12%;
-  bottom: 8%;
-  display: flex;
+  display: grid;
+  gap: var(--space-2xl);
   align-items: center;
-  pointer-events: none;
+  max-width: var(--max-width);
+  min-height: min(calc(100vh - var(--header-height)), 52rem);
+  margin: 0 auto;
+  padding: var(--space-3xl) var(--space-lg);
 }
 
-.phone {
-  width: min(22rem, 42vw);
-  border-radius: 2rem;
-  overflow: hidden;
-  box-shadow: var(--shadow-soft);
-  border: 1px solid color-mix(in srgb, var(--color-primary-200) 50%, transparent);
-}
-
-.phoneImage {
-  display: block;
-  width: 100%;
-  height: auto;
+@media (min-width: 900px) {
+  .inner {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: var(--space-3xl);
+  }
 }
 
 .content {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  min-width: 0;
+}
+
+.badge {
+  display: inline-flex;
   align-items: center;
-  text-align: center;
-  max-width: var(--max-width);
-  width: 100%;
-  min-height: calc(100vh - var(--header-height));
-  margin: 0 auto;
-  padding: var(--space-3xl) var(--space-lg);
-  padding-right: min(48%, 26rem);
-}
-
-.brand {
+  gap: var(--space-sm);
   margin: 0 0 var(--space-lg);
-  line-height: 0;
+  padding: 0.3rem var(--space-md) 0.3rem 0.3rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary-200) 60%, transparent);
+  border-radius: 999px;
+  background: var(--tone-blue-surface);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--tone-blue-text);
 }
 
-.brandLogo {
-  display: block;
-  width: min(16.5rem, 68vw);
-  height: auto;
-  margin-inline: auto;
+.badgeTag {
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: var(--color-brand);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-white);
 }
 
 .headline {
-  margin: 0 0 var(--space-md);
-  font-size: clamp(1.35rem, 2.6vw, 1.95rem);
-  font-weight: 600;
-  color: var(--color-primary-800);
-  white-space: nowrap;
+  margin: 0 0 var(--space-lg);
+  font-size: clamp(2rem, 4.2vw, 3.3rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  color: var(--color-brand);
+  text-wrap: balance;
+}
+
+.headlineAccent {
+  color: var(--color-primary-500);
 }
 
 .support {
-  max-width: 40rem;
+  max-width: 34rem;
   margin: 0 0 var(--space-xl);
-  font-size: 1.125rem;
+  font-size: 1.15rem;
+  line-height: 1.6;
   color: var(--color-gray-600);
+  text-wrap: pretty;
 }
 
 .actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-md);
+  gap: var(--space-md) var(--space-lg);
 }
 
-.clubLink {
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: 0 var(--space-xl);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-500);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary-500) 30%, transparent);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-white);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.primary:hover {
+  transform: translateY(-2px);
+  background: var(--color-primary-600);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--color-primary-500) 36%, transparent);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--color-primary-600);
+  outline-offset: 3px;
+}
+
+.secondary {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--color-primary-600);
   text-decoration: underline;
   text-underline-offset: 0.2em;
-  transition: color 160ms ease;
 }
 
-.clubLink:hover {
+.secondary:hover {
   color: var(--color-primary-800);
 }
 
-.clubLinkSecondary {
-  font-size: 0.88rem;
+.members {
+  margin-top: var(--space-2xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-gray-200);
+}
+
+.membersLabel {
+  margin: 0 0 var(--space-md);
+  font-size: 0.9rem;
+  color: var(--color-gray-600);
+}
+
+.stores {
+  gap: var(--space-sm);
+}
+
+.phones {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  padding-block: var(--space-md);
+}
+
+.phoneFront {
+  position: relative;
+  z-index: 2;
+  width: min(18.5rem, 55vw);
+  transform: translateX(18%);
+}
+
+.phoneBack {
+  position: absolute;
+  z-index: 1;
+  top: 10%;
+  left: 50%;
+  width: min(15.5rem, 45vw);
+  transform: translateX(-95%) rotate(-6deg);
+}
+
+.proof {
+  position: relative;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin: calc(-1 * var(--space-lg)) 0 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-gray-200);
+  border-radius: 999px;
+  background: var(--color-white);
+  box-shadow: var(--shadow-card);
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--color-gray-600);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
 }
 
-.clubLinkSecondary:hover {
-  color: var(--color-primary-700);
+.proofDot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 25%, transparent);
 }
 
-@media (max-width: 900px) {
-  .hero {
+@media (max-width: 899px) {
+  .inner {
     min-height: auto;
-    display: flex;
-    flex-direction: column;
+    padding: var(--space-2xl) var(--space-lg) var(--space-2xl);
   }
 
-  .content {
-    min-height: auto;
-    padding: var(--space-2xl) var(--space-lg) var(--space-lg);
-    padding-right: var(--space-lg);
+  .phoneFront {
+    transform: translateX(14%);
   }
 
-  .headline {
-    white-space: normal;
-  }
-
-  .phoneWrap {
-    position: relative;
-    right: auto;
-    top: auto;
-    bottom: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: var(--space-md) var(--space-lg) var(--space-3xl);
-  }
-
-  .phone {
-    width: min(18rem, 78vw);
+  .phoneBack {
+    transform: translateX(-90%) rotate(-6deg);
   }
 }

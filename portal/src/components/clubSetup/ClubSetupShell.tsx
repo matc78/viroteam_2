@@ -62,7 +62,7 @@ export function ClubSetupShell({
 
   return (
     <div className={styles.page}>
-      <SiteHeader />
+      <SiteHeader showCreateClub={false} />
       <main
         className={[
           styles.main,
@@ -179,7 +179,7 @@ export function ClubSetupShell({
 export function ClubSetupLoadingShell() {
   return (
     <div className={styles.page}>
-      <SiteHeader />
+      <SiteHeader showCreateClub={false} />
       <main className={styles.main}>
         <p className={styles.loadingText}>Chargement…</p>
       </main>

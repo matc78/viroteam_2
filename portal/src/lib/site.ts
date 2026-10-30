@@ -3,6 +3,8 @@ export const site = {
   name: "ViroTeam",
   url: "https://www.viroteam.com",
   tagline: "Organisez. Suivez. Pilotez.",
+  /** Contact public (le développeur, seul sur le projet pendant la bêta). */
+  contactEmail: "matia.cilly@gmail.com",
   logoMark: "/logo-mark.png",
   logoStacked: "/logo.png",
   logoWordmark: "/logo-wordmark.png",

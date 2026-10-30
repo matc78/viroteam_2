@@ -1,0 +1,38 @@
+.frame {
+  overflow: hidden;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-md);
+  background: var(--color-white);
+  box-shadow: var(--shadow-soft);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem var(--space-md);
+  border-bottom: 1px solid var(--color-gray-100);
+  background: var(--color-gray-50);
+}
+
+.dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--color-gray-300);
+}
+
+.address {
+  margin-left: var(--space-md);
+  padding: 0.15rem var(--space-md);
+  border-radius: 999px;
+  background: var(--color-white);
+  font-size: 0.75rem;
+  color: var(--color-gray-400);
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: auto;
+}

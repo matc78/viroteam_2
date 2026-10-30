@@ -4,12 +4,12 @@ import { site } from "@/lib/site";
 import styles from "./SiteFooter.module.css";
 
 const footerLinks = [
-  { href: "#planning", label: "Planning" },
-  { href: "#membres", label: "Membres" },
-  { href: "#cotisations", label: "Cotisations" },
-  { href: "#roles", label: "Rôles" },
-  { href: "#demarrer", label: "Démarrer" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#automatique", label: "Comment ça marche" },
+  { href: "/#semaine", label: "Une semaine" },
+  { href: "/#bureau", label: "Espace bureau" },
+  { href: "/#roles", label: "Rôles" },
+  { href: "/#tarifs", label: "Tarifs" },
+  { href: "/#faq", label: "FAQ" },
 ] as const;
 
 const legalLinks = [
@@ -34,9 +34,9 @@ export function SiteFooter() {
         </div>
         <nav className={styles.links} aria-label="Pied de page">
           {footerLinks.map((item) => (
-            <a key={item.href} href={item.href} className={styles.link}>
+            <Link key={item.href} href={item.href} className={styles.link}>
               {item.label}
-            </a>
+            </Link>
           ))}
           <Link href="/login" className={styles.link}>
             Espace club

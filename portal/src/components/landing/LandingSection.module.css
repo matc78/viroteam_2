@@ -1,0 +1,50 @@
+/* Gabarit commun des sections de la landing : en-tête aligné à gauche. */
+
+.section {
+  position: relative;
+  padding: var(--space-3xl) 0;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
+}
+
+.header {
+  max-width: 42rem;
+  margin-bottom: var(--space-2xl);
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary-600);
+}
+
+.title {
+  margin: 0 0 var(--space-md);
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--color-brand);
+  text-wrap: balance;
+}
+
+.lead {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--color-gray-600);
+  text-wrap: pretty;
+}
+
+.tinted {
+  background: color-mix(in srgb, var(--color-scaffold) 55%, transparent);
+}

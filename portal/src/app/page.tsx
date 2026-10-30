@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import { BureauSpace } from "@/components/landing/BureauSpace";
 import { Faq } from "@/components/landing/Faq";
-import { FeatureShowcase } from "@/components/landing/FeatureShowcase";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { Hero } from "@/components/landing/Hero";
-import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Pricing } from "@/components/landing/Pricing";
 import { Roles } from "@/components/landing/Roles";
+import { SetAndForget } from "@/components/landing/SetAndForget";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { SiteHeader } from "@/components/landing/SiteHeader";
+import { StatsBand } from "@/components/landing/StatsBand";
+import { WeekStory } from "@/components/landing/WeekStory";
 import { JsonLd } from "@/components/JsonLd";
 import { absoluteUrl } from "@/lib/site";
 
@@ -14,84 +17,23 @@ export const metadata: Metadata = {
   alternates: { canonical: absoluteUrl("/") },
 };
 
-/** Landing marketing publique ViroTeam. */
+/**
+ * Landing marketing publique : promesse « configurez une fois », preuve par un
+ * vrai club, récit d'une semaine, espace bureau, rôles, tarifs, FAQ.
+ */
 export default function HomePage() {
   return (
     <>
       <JsonLd />
       <SiteHeader />
-      <main>
+      <main data-landing>
         <Hero />
-        <FeatureShowcase
-          id="planning"
-          eyebrow="Planning"
-          titleId="showcase-planning-title"
-          title="Planning club : entraînements et matchs au même endroit"
-          lead="Le bureau organise séances et matchs, filtre par équipe ou coach. Membres et parents suivent le calendrier du club simplement dans l’app — sans chercher l’info ailleurs."
-          bullets={[
-            "Bureau : créez entraînements et matchs, filtrez par équipe ou coach.",
-            "Membres et parents : la semaine à jour, au même endroit.",
-            "Multiclub : basculez d’un club à l’autre avec le même compte.",
-          ]}
-          screenshots={[
-            {
-              src: "/landing/portal-planning-week.png",
-              alt: "Planning semaine ViroTeam avec filtres équipes et coach",
-              caption: "Vue semaine — espace club",
-            },
-          ]}
-        />
-        <FeatureShowcase
-          id="membres"
-          reverse
-          eyebrow="Membres & équipes"
-          titleId="showcase-members-title"
-          title="Gestion des membres, licences et équipes"
-          lead="Gérez les effectifs du club sportif, les invitations et les licences. Composez vos équipes par catégorie avec joueurs et coachs — sans tableur ni fichiers partagés."
-          bullets={[
-            "Bureau : liste filtrable (rôle, équipe, inscription, cotisation).",
-            "Invitations : envoi et copie du lien depuis le tableau.",
-            "Équipes : catégories, coachs et joueurs en un coup d’œil.",
-          ]}
-          screenshots={[
-            {
-              src: "/landing/portal-members-roster.png",
-              alt: "Tableau des membres ViroTeam avec rôles, équipes et invitations",
-              caption: "Membres — licences et invitations",
-            },
-            {
-              src: "/landing/portal-members-teams.png",
-              alt: "Gestion des équipes ViroTeam par catégorie avec coachs et joueurs",
-              caption: "Équipes — composition par catégorie",
-            },
-          ]}
-        />
-        <FeatureShowcase
-          id="cotisations"
-          eyebrow="Cotisations"
-          titleId="showcase-fees-title"
-          title="Suivi des cotisations du club, restes dus clairs"
-          lead="Configurez la saison et les tarifs de l’association sportive, suivez qui a payé et ce qui reste dû. Membres et parents voient le statut sans demander."
-          bullets={[
-            "Bureau : saison, tarifs, puis suivi (à payer, partiel, reste dû).",
-            "Parents et membres : montant et échéance visibles, simplement.",
-            "Paiement hors-ligne suivi ; paiement en ligne (carte) activable par le club.",
-          ]}
-          screenshots={[
-            {
-              src: "/landing/portal-fees-config.png",
-              alt: "Configuration saison et tarifs des cotisations ViroTeam",
-              caption: "Configuration — saison et tarifs",
-            },
-            {
-              src: "/landing/portal-fees-tracking.png",
-              alt: "Suivi des cotisations avec statuts et restes dus",
-              caption: "Suivi — qui doit quoi",
-            },
-          ]}
-        />
+        <StatsBand />
+        <SetAndForget />
+        <WeekStory />
+        <BureauSpace />
         <Roles />
-        <HowItWorks />
+        <Pricing />
         <Faq />
         <FinalCta />
       </main>

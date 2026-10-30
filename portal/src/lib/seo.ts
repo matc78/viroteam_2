@@ -5,41 +5,31 @@ export const landingFaq = [
   {
     question: "ViroTeam, c’est quoi ?",
     answer:
-      "ViroTeam est l’application de gestion pour clubs sportifs amateurs. Elle centralise planning, convocations, cotisations, membres et équipes. Le bureau pilote depuis le web ; joueurs, coachs et parents suivent dans l’app. Un compte peut rejoindre plusieurs clubs (multiclub).",
+      "L’app de gestion des clubs sportifs amateurs. Le bureau configure la saison une fois sur le web ; ensuite, convocations, rappels, présences, annonces et relances de cotisation partent tout seuls. Joueurs, coachs et parents suivent dans l’app.",
   },
   {
-    question: "Quelle app pour gérer un club sportif amateur ?",
+    question: "Combien coûte ViroTeam ?",
     answer:
-      "ViroTeam est conçue pour ça : planning des entraînements et matchs, convocations avec réponses, suivi des cotisations, licences et composition des équipes — pour le bureau, les coachs, les joueurs et les parents.",
+      "Rien pour le club pendant la bêta. Seul le paiement des cotisations par carte, si le club l’active, a un coût : le membre paie les frais bancaires Stripe et 1 € pour ViroTeam, et le club reçoit exactement le montant fixé.",
   },
   {
-    question: "Comment organiser le planning du club ?",
+    question: "Nos données et celles des enfants sont-elles protégées ?",
     answer:
-      "Le coach ou l’admin crée séances et matchs, filtre par équipe ou coach, et suit les réponses aux convocations. Membres et parents voient le même calendrier dans l’application mobile, sans chercher l’info éparpillée.",
+      "Le club fonctionne sur invitation uniquement et chacun ne voit que ce que son rôle permet. Les paiements passent par Stripe : les numéros de carte ne transitent jamais par ViroTeam. La mesure d’audience est soumise à votre accord, et chaque compte peut être supprimé depuis l’app.",
   },
   {
-    question: "Comment gérer les membres et les équipes ?",
+    question: "Comment les membres rejoignent-ils le club ?",
+    answer: `Le bureau envoie une invitation ou partage un code. Joueurs, coachs et parents installent l’app (Android ou iPhone) ; le bureau utilise l’espace club sur ${site.url.replace("https://", "")}.`,
+  },
+  {
+    question: "Peut-on suivre plusieurs clubs ou plusieurs enfants ?",
     answer:
-      "Le bureau suit licences et invitations, filtre l’effectif, et compose les équipes par catégorie avec joueurs et coachs. Parents et membres rejoignent le club sur invitation uniquement.",
+      "Oui. Un même compte peut appartenir à plusieurs clubs et un parent peut suivre chacun de ses enfants : planning, réponses aux convocations et cotisations.",
   },
   {
-    question: "Comment suivre les cotisations du club ?",
+    question: "ViroTeam convient-il à mon sport ?",
     answer:
-      "Le bureau configure la saison et les tarifs, puis suit qui a payé et les restes dus. Un rappel par e-mail groupé est possible ; parents et membres voient montant et échéance dans l’app. Le paiement en ligne (carte) peut être activé par le club.",
-  },
-  {
-    question: "Peut-on gérer plusieurs clubs avec le même compte ?",
-    answer:
-      "Oui. ViroTeam est multiclub : avec un même compte, vous pouvez appartenir à plusieurs clubs et basculer facilement entre eux.",
-  },
-  {
-    question: "ViroTeam convient-il au volleyball et aux autres sports ?",
-    answer:
-      "Oui. ViroTeam convient aux clubs de volleyball et plus largement aux clubs sportifs amateurs qui ont besoin d’organiser planning, convocations, équipes et cotisations — bureau, coachs, joueurs et parents.",
-  },
-  {
-    question: "Sur quels appareils fonctionne ViroTeam ?",
-    answer: `L’app est disponible sur Google Play et l’App Store. L’espace club (bureau) s’utilise sur le web via ${site.url.replace("https://", "")}.`,
+      "Oui, si votre club a des entraînements, des matchs et des cotisations à gérer. L’USMV Volley-Ball l’utilise déjà chaque semaine, et rien n’est propre au volley : foot, hand, basket, rugby ou tout autre sport collectif amateur.",
   },
 ] as const;
 

@@ -254,6 +254,32 @@ class EventService {
         importantReminder: importantReminder,
       );
 
+  /// Modifie les infos d'une occurrence (seuls les champs non nuls sont écrits).
+  Future<void> updateEventDetails({
+    required String clubId,
+    required String eventId,
+    String? title,
+    DateTime? date,
+    String? startTime,
+    String? endTime,
+    String? meetingTime,
+    String? location,
+    String? meetingLocation,
+    bool clearMeetingLocation = false,
+  }) =>
+      _mutations.updateEventDetails(
+        clubId: clubId,
+        eventId: eventId,
+        title: title,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        meetingTime: meetingTime,
+        location: location,
+        meetingLocation: meetingLocation,
+        clearMeetingLocation: clearMeetingLocation,
+      );
+
   /// Annule un événement (marque `canceled`).
   Future<void> cancelEvent({
     required String clubId,

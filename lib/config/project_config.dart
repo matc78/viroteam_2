@@ -10,10 +10,10 @@ abstract final class ProjectConfig {
 
   // —— Version app (doit matcher `pubspec.yaml` et les tags `v*` / `release-v*`) ——
   /// Nom marketing (ex. `2.2.12`). Vérifié en CI contre le tag de release.
-  static const String appVersionName = '2.2.12';
+  static const String appVersionName = '2.2.13';
 
   /// Build number local (`+N` du pubspec). La CI release peut le surcharger.
-  static const int appVersionCode = 18;
+  static const int appVersionCode = 19;
 
   // —— Firestore ——
   static const String firestoreDevDatabaseId = 'v2-dev';

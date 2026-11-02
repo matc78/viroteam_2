@@ -11,9 +11,14 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
+import type {
+  EditableEventDetails,
+  EventDetailsPatch,
+} from "@/lib/planning/eventDetailsEdit";
 import { getAppFirestore } from "./app";
 import { dedupeInFlight } from "./dedupeInFlight";
 import { Collections, Fields, MemberRoles } from "./constants";
@@ -544,6 +549,78 @@ export async function createClubEvent(
 
   await batch.commit();
   return dates.length;
+}
+
+/** Champ texte rogné d'un document event, ou `null` s'il est vide. */
+function trimmedStringField(
+  data: Record<string, unknown>,
+  field: string,
+): string | null {
+  const value = data[field];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/**
+ * Infos éditables d'un événement (dialog « Modifier »), lues sur le document
+ * brut pour garder les heures exactes. `null` si absent ou annulé.
+ */
+export async function loadEditableEventDetails(
+  clubId: string,
+  eventId: string,
+): Promise<EditableEventDetails | null> {
+  const snap = await getDoc(doc(eventsCollection(clubId), eventId));
+  if (!snap.exists()) return null;
+  const data = snap.data() as Record<string, unknown>;
+  if (data[Fields.canceled] === true) return null;
+  const eventDate = eventCalendarDate(data);
+  if (!eventDate) return null;
+  const type = parseEventType(data[Fields.type]);
+  const isMatch = type === "match";
+  return {
+    type,
+    title: String(data[Fields.title] ?? ""),
+    day: formatDateId(eventDate).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"),
+    startTime: trimmedStringField(data, Fields.startTime) ?? "",
+    endTime: isMatch ? null : (trimmedStringField(data, Fields.endTime) ?? ""),
+    meetingTime: isMatch
+      ? (trimmedStringField(data, Fields.meetingTime) ?? "")
+      : null,
+    location: String(data[Fields.location] ?? ""),
+    meetingLocation: trimmedStringField(data, Fields.meetingLocation),
+  };
+}
+
+/**
+ * Applique un patch d'édition (champs modifiés seulement) sur un événement.
+ * Le trigger push prévient les convoqués (« reporté » si date / heure de
+ * début changent, sinon « modifié »).
+ */
+export async function updateClubEventDetails(
+  clubId: string,
+  eventId: string,
+  patch: EventDetailsPatch,
+): Promise<void> {
+  const update: Record<string, unknown> = {};
+  if (patch.title !== undefined) update[Fields.title] = patch.title;
+  if (patch.day !== undefined) {
+    const [year, month, day] = patch.day.split("-").map(Number);
+    const calendarDay = new Date(year, month - 1, day);
+    update[Fields.date] = Timestamp.fromDate(
+      new Date(Date.UTC(year, month - 1, day)),
+    );
+    update[Fields.dateId] = formatDateId(calendarDay);
+  }
+  if (patch.startTime !== undefined) update[Fields.startTime] = patch.startTime;
+  if (patch.endTime !== undefined) update[Fields.endTime] = patch.endTime;
+  if (patch.meetingTime !== undefined) {
+    update[Fields.meetingTime] = patch.meetingTime;
+  }
+  if (patch.location !== undefined) update[Fields.location] = patch.location;
+  if (patch.meetingLocation !== undefined) {
+    update[Fields.meetingLocation] = patch.meetingLocation ?? deleteField();
+  }
+  if (Object.keys(update).length === 0) return;
+  await updateDoc(doc(eventsCollection(clubId), eventId), update);
 }
 
 /**

@@ -136,7 +136,7 @@ export function EventConvocationsDialog({
             type="button"
             className={dialogStyles.closeButton}
             disabled={saving}
-            aria-label={convocationsCopy.close}
+            aria-label={convocationsCopy.back}
             onClick={requestClose}
           >
             ×
@@ -202,7 +202,7 @@ export function EventConvocationsDialog({
               onClick={requestClose}
               disabled={saving}
             >
-              {convocationsCopy.cancel}
+              {convocationsCopy.back}
             </button>
             <button
               type="submit"

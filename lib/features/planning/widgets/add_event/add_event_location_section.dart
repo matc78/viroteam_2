@@ -50,7 +50,10 @@ class AddEventLocationSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dropdownStyle = Theme.of(context).textTheme.bodyMedium;
+    final palette = context.viroPalette;
+    final dropdownStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: palette.textPrimary,
+        );
     final selectedLocationValid = selectedLocationIndex != null &&
         selectedLocationIndex! >= 0 &&
         selectedLocationIndex! < practiceLocations.length;
@@ -109,9 +112,10 @@ class AddEventLocationSection extends StatelessWidget {
             isDense: true,
             isExpanded: true,
             style: dropdownStyle,
+            iconEnabledColor: palette.textPrimary,
             menuMaxHeight: 240,
             decoration: addEventInputDecoration(
-              palette: context.viroPalette,
+              palette: palette,
               label: AppCopy.planning.fieldLocation,
             ),
             selectedItemBuilder: (context) => [

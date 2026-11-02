@@ -103,6 +103,10 @@ final class AppCopyPlanning {
   String get addressHint => 'Rue, numéro ou lieu…';
   String get fieldLocation => 'Lieu';
   String get locationHint => 'Stade, gymnase…';
+  /// Option dropdown : saisie libre hors lieux du club.
+  String get locationOther => 'Autre';
+  /// Champ texte affiché quand « Autre » est choisi.
+  String get locationSpecify => 'Préciser le lieu';
   String get matchDay => 'Jour du match';
   String get date => 'Date';
   String get matchTime => 'Heure du match';
@@ -144,6 +148,18 @@ final class AppCopyPlanning {
   String get sendNotification => 'Envoyer une notification';
   String get sending => 'Envoi…';
 
+  String get editEventAction => 'Modifier l’événement';
+  /// Libellé compact pour le bouton en rangée (détail événement).
+  String get editEventActionShort => 'Modifier';
+  String get editEventTitle => 'Modifier l’événement';
+  String get editEventSubtitle =>
+      'Si la date, l’heure ou le lieu bougent, les convoqués reçoivent une notif.';
+  String get editSeriesOccurrenceHint =>
+      'Seule cette séance est modifiée, pas le reste de la série.';
+  String get meetingLocationOptional => 'Lieu du RDV (facultatif)';
+  String get eventUpdated => 'Événement mis à jour';
+  String get eventUpdateFailed => 'Mise à jour impossible, réessaie';
+
   String get cancelEventTitle => 'Annuler l\'événement ?';
   String get cancelEventBody =>
       'Les membres ne verront plus cet événement dans leur planning.';
@@ -164,6 +180,8 @@ final class AppCopyPlanning {
   String get keepOnePlayerConvoked => 'Garde au moins un joueur convoqué';
   String get notConvoked => 'Pas convoqué';
   String get manageConvocations => 'Gérer les convoqués';
+  /// Libellé compact pour le bouton en rangée (détail événement).
+  String get manageConvocationsShort => 'Convoqués';
   String get manageConvocationsSubtitle =>
       'Un joueur décoché ne voit plus l’événement et ne reçoit aucune notif.';
   String get convocationScopeTitle => 'Appliquer à quelles séances ?';

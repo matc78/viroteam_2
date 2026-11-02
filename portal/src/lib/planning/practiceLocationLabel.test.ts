@@ -3,6 +3,7 @@ import {
   defaultPracticeLocationSelectValue,
   PRACTICE_LOCATION_OTHER_VALUE,
   practiceLocationLabel,
+  practiceLocationSelectValueFor,
 } from "./practiceLocationLabel";
 
 describe("practiceLocationLabel", () => {
@@ -31,5 +32,28 @@ describe("defaultPracticeLocationSelectValue", () => {
     expect(defaultPracticeLocationSelectValue([])).toBe(
       PRACTICE_LOCATION_OTHER_VALUE,
     );
+  });
+});
+
+describe("practiceLocationSelectValueFor", () => {
+  const locations = [
+    { name: "Gymnase", address: "1 rue A" },
+    { name: "Terrain 2" },
+  ];
+
+  it("reconnaît un libellé club stocké", () => {
+    expect(
+      practiceLocationSelectValueFor(locations, "Gymnase (1 rue A)"),
+    ).toBe("0");
+  });
+
+  it("reconnaît le nom seul", () => {
+    expect(practiceLocationSelectValueFor(locations, "Terrain 2")).toBe("1");
+  });
+
+  it("retombe sur Autre pour une adresse libre", () => {
+    expect(
+      practiceLocationSelectValueFor(locations, "Stade adverse"),
+    ).toBe(PRACTICE_LOCATION_OTHER_VALUE);
   });
 });

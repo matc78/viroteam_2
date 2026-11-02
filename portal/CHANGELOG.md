@@ -9,6 +9,12 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-02
+
+### Ajouté
+
+- Planning : bouton « Modifier » dans le détail d’un événement (admin, ou coach d’une de ses équipes) : date, heures, lieu, lieu de RDV, et titre pour une réunion ou un « autre ». Une seule occurrence est modifiée, même dans une série ; seuls les champs changés sont écrits, et les convoqués sont prévenus par notification (« reporté » ou « modifié »)
+
 ## [1.12.0] - 2026-10-30
 
 ### Modifié

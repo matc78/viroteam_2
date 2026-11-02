@@ -4,7 +4,8 @@
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: 50;
+  /* Au-dessus du popover détail événement (z-index 50). */
+  z-index: 60;
   display: flex;
   align-items: center;
   justify-content: center;

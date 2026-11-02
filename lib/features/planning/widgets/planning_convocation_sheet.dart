@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -193,12 +194,34 @@ class _PlanningConvocationSheetState
                   ViroSpacing.xl,
                 ),
                 children: [
-                  Text(
-                    AppCopy.planning.manageConvocations,
-                    style: theme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: palette.brandText,
-                    ),
+                  Row(
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: ViroSpacing.minTouchTarget,
+                          minHeight: ViroSpacing.minTouchTarget,
+                        ),
+                        tooltip: AppCopy.common.back,
+                        icon: ViroIcon(
+                          ViroIcons.chevronLeft,
+                          color: palette.textSecondary,
+                        ),
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.pop(context, false),
+                      ),
+                      Expanded(
+                        child: Text(
+                          AppCopy.planning.manageConvocations,
+                          style: theme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: palette.brandText,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: ViroSpacing.xs),
                   Text(

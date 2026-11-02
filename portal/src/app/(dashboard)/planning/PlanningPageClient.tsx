@@ -11,6 +11,7 @@ import {
 import { PlanningEventDetailPanel } from "@/components/dashboard/PlanningEventDetailPanel";
 import { PlanningNewEventDialog } from "@/components/dashboard/PlanningNewEventDialog";
 import { EventConvocationsDialog } from "@/components/dashboard/EventConvocationsDialog";
+import { EventDetailsEditDialog } from "@/components/dashboard/EventDetailsEditDialog";
 import { canManageEventConvocations } from "@/lib/planning/eventConvocations";
 import {
   PlanningSidebar,
@@ -88,6 +89,8 @@ function PlanningPageContent() {
   /** Événement dont on gère les convoqués (dialog dédié). */
   const [convocationsEvent, setConvocationsEvent] =
     useState<ClubEventView | null>(null);
+  /** Événement dont on modifie les infos (dialog dédié). */
+  const [editedEvent, setEditedEvent] = useState<ClubEventView | null>(null);
   const [roleScopeReady, setRoleScopeReady] = useState(false);
 
   const range = useMemo(() => {
@@ -191,6 +194,17 @@ function PlanningPageContent() {
     return (
       caps.isCoach &&
       event.teamIds.some((teamId) => creatableTeamIdSet.has(teamId))
+    );
+  }
+
+  /** Admin, ou coach d'une équipe de l'événement (ou événement sans équipe). */
+  function canEditEvent(event: ClubEventView): boolean {
+    if (!activeClub) return false;
+    if (caps.isAdmin) return true;
+    return (
+      caps.isCoach &&
+      (event.teamIds.length === 0 ||
+        event.teamIds.some((teamId) => creatableTeamIdSet.has(teamId)))
     );
   }
 
@@ -305,17 +319,25 @@ function PlanningPageContent() {
     ]);
   }, [data]);
 
-  /** Garde le popover ouvert synchronisé après un reload RSVP. */
+  /** Garde le popover ouvert synchronisé après un reload (RSVP, édition, convocations). */
   useEffect(() => {
     if (!selectedEvent) return;
     const fresh = visibleEvents.find((event) => event.id === selectedEvent.id);
     if (!fresh) return;
     if (
+      fresh.startsAt === selectedEvent.startsAt &&
+      fresh.endsAt === selectedEvent.endsAt &&
+      fresh.title === selectedEvent.title &&
+      fresh.location === selectedEvent.location &&
       fresh.rsvpYes === selectedEvent.rsvpYes &&
       fresh.rsvpNo === selectedEvent.rsvpNo &&
       fresh.rsvpPending === selectedEvent.rsvpPending &&
       JSON.stringify(fresh.rsvpByMemberId) ===
-        JSON.stringify(selectedEvent.rsvpByMemberId)
+        JSON.stringify(selectedEvent.rsvpByMemberId) &&
+      JSON.stringify(fresh.excludedMemberIds) ===
+        JSON.stringify(selectedEvent.excludedMemberIds) &&
+      JSON.stringify(fresh.teamMemberIds) ===
+        JSON.stringify(selectedEvent.teamMemberIds)
     ) {
       return;
     }
@@ -557,14 +579,24 @@ function PlanningPageContent() {
           )}
           onManageConvocations={
             canManageConvocationsOf(selectedEvent)
-              ? () => {
-                  setConvocationsEvent(selectedEvent);
-                  setSelectedEvent(null);
-                  setSelectedEventAnchor(null);
-                  setSelectedEventColor(null);
-                }
+              ? () => setConvocationsEvent(selectedEvent)
               : undefined
           }
+          onEdit={
+            canEditEvent(selectedEvent)
+              ? () => setEditedEvent(selectedEvent)
+              : undefined
+          }
+        />
+      ) : null}
+
+      {editedEvent && activeClub ? (
+        <EventDetailsEditDialog
+          clubId={activeClub.id}
+          event={editedEvent}
+          practiceLocations={activeClub.practiceLocations}
+          onClose={() => setEditedEvent(null)}
+          onSaved={handleRefresh}
         />
       ) : null}
 

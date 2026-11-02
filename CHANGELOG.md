@@ -8,8 +8,11 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.2.13] - 2026-11-02
+
 ### Ajouté
 
+- Planning : un coach / admin peut modifier un événement (détail > « Modifier l’événement ») : date, heures (début / fin, ou heure du match et de RDV), lieu, lieu de RDV, et titre pour une réunion ou un « autre ». Une seule occurrence est modifiée, même dans une série. Seuls les champs changés sont écrits : le trigger existant prévient les convoqués (« reporté » si la date ou l’heure de début bougent, sinon « modifié »). Avant, il fallait annuler puis recréer
 - Analytics : tableau de bord PostHog « Portail » (portail web seul) dans `tool/posthog_dashboards.mjs`, et option `--only=<nom>` pour ne créer qu'un tableau. Les événements serveur émis pendant une callable portent une propriété `client` (`portal` ou `app`), ce qui permet de savoir quelles invitations, arrivées et réponses viennent du portail
 
 ### Modifié

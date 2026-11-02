@@ -121,6 +121,7 @@ export const Fields = {
   startTime: "startTime",
   endTime: "endTime",
   meetingTime: "meetingTime",
+  meetingLocation: "meetingLocation",
   matchVenue: "matchVenue",
   teamIds: "teamIds",
   allTeams: "allTeams",

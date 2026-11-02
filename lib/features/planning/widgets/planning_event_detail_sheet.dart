@@ -28,6 +28,7 @@ import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_convocation_sheet.dart';
+import 'package:viro_team_v2/features/planning/widgets/planning_edit_event_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_roll_call_sheet.dart';
 
 enum _CancelScope { single, series }
@@ -179,6 +180,25 @@ class _PlanningEventDetailSheetState
 
   Future<void> _openConvocations() async {
     final saved = await PlanningConvocationSheet.show(
+      context: context,
+      clubId: widget.clubId,
+      event: _event,
+    );
+    if (!saved || !mounted) return;
+    final fresh = await ref.read(eventServiceProvider).getEvent(
+          clubId: widget.clubId,
+          eventId: _event.id,
+        );
+    if (!mounted) return;
+    if (fresh != null) setState(() => _event = fresh);
+    widget.onRsvpUpdated?.call();
+  }
+
+  /// Coach / admin : infos d'un événement non annulé modifiables.
+  bool get _canEditEvent => widget.canManageEvents && !_event.canceled;
+
+  Future<void> _openEditEvent() async {
+    final saved = await PlanningEditEventSheet.show(
       context: context,
       clubId: widget.clubId,
       event: _event,
@@ -741,17 +761,47 @@ class _PlanningEventDetailSheetState
                   ),
                 ),
               ],
-              if (_canManageConvocations) ...[
+              if (_canEditEvent || _canManageConvocations) ...[
                 const SizedBox(height: ViroSpacing.sm),
-                OutlinedButton.icon(
-                  onPressed: _openConvocations,
-                  icon: ViroIcon(ViroIcons.users, size: 18),
-                  label: Text(AppCopy.planning.manageConvocations),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(
-                      ViroSpacing.buttonHeightMedium,
-                    ),
-                  ),
+                Row(
+                  children: [
+                    if (_canEditEvent)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _openEditEvent,
+                          icon: ViroIcon(ViroIcons.edit, size: 18),
+                          label: Text(AppCopy.planning.editEventActionShort),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(
+                              ViroSpacing.buttonHeightMedium,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: ViroSpacing.sm,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (_canEditEvent && _canManageConvocations)
+                      const SizedBox(width: ViroSpacing.sm),
+                    if (_canManageConvocations)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _openConvocations,
+                          icon: ViroIcon(ViroIcons.users, size: 18),
+                          label: Text(
+                            AppCopy.planning.manageConvocationsShort,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(
+                              ViroSpacing.buttonHeightMedium,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: ViroSpacing.sm,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
               const SizedBox(height: ViroSpacing.md),

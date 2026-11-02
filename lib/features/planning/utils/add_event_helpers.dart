@@ -10,6 +10,16 @@ import 'package:viro_team_v2/utils/season_end.dart';
 String addEventFormatTime(TimeOfDay time) =>
     '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
+/// Parse une heure stockée `HH:mm` ; `null` si absente ou invalide.
+TimeOfDay? addEventParseTime(String? value) {
+  final match = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(value?.trim() ?? '');
+  if (match == null) return null;
+  final hour = int.parse(match.group(1)!);
+  final minute = int.parse(match.group(2)!);
+  if (hour > 23 || minute > 59) return null;
+  return TimeOfDay(hour: hour, minute: minute);
+}
+
 /// Libellé équipe pour les listes déroulantes (`Nom (catégorie)`).
 String addEventTeamLabel(ClubTeam team) =>
     team.category != null && team.category!.isNotEmpty
@@ -35,6 +45,29 @@ String addEventPracticeLocationLabel(PracticeLocation location) {
     return '${location.name} ($address)';
   }
   return location.name;
+}
+
+/// Index sentinel « Autre » (saisie libre) dans un dropdown de lieux.
+const int addEventLocationOtherIndex = -1;
+
+/// Index du lieu de pratique correspondant à [location], ou `null` si custom.
+int? addEventMatchingPracticeLocationIndex(
+  List<PracticeLocation> locations,
+  String? location,
+) {
+  final trimmed = location?.trim() ?? '';
+  if (trimmed.isEmpty || locations.isEmpty) return null;
+  final normalized = trimmed.toLowerCase();
+  for (var i = 0; i < locations.length; i++) {
+    final entry = locations[i];
+    final label = addEventPracticeLocationLabel(entry);
+    final name = entry.name.trim();
+    if (label == trimmed || name == trimmed) return i;
+    if (label.toLowerCase() == normalized || name.toLowerCase() == normalized) {
+      return i;
+    }
+  }
+  return null;
 }
 
 /// Index du premier lieu de pratique, ou `-1` s’il n’y en a pas.

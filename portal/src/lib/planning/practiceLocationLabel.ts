@@ -22,3 +22,22 @@ export function defaultPracticeLocationSelectValue(
 ): string {
   return locations.length > 0 ? "0" : PRACTICE_LOCATION_OTHER_VALUE;
 }
+
+/**
+ * Valeur du sélecteur correspondant à un lieu déjà stocké : index du lieu
+ * club si reconnu, sinon `other` (saisie libre / adresse libre).
+ */
+export function practiceLocationSelectValueFor(
+  locations: PracticeLocation[],
+  location: string | null | undefined,
+): string {
+  const trimmed = location?.trim() ?? "";
+  if (!trimmed || locations.length === 0) {
+    return PRACTICE_LOCATION_OTHER_VALUE;
+  }
+  const index = locations.findIndex(
+    (entry) =>
+      practiceLocationLabel(entry) === trimmed || entry.name.trim() === trimmed,
+  );
+  return index >= 0 ? String(index) : PRACTICE_LOCATION_OTHER_VALUE;
+}

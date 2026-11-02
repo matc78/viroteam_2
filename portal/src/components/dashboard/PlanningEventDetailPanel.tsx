@@ -25,6 +25,7 @@ import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import { useToast } from "@/components/ToastProvider";
 import { sendEventPush } from "@/lib/firebase/callableService";
 import { convocationsCopy } from "@/lib/copy/convocationsCopy";
+import { eventEditCopy } from "@/lib/copy/eventEditCopy";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningEventDetailPanel.module.css";
@@ -55,6 +56,8 @@ type PlanningEventDetailPanelProps = {
    * événement à venir lié à une équipe).
    */
   onManageConvocations?: () => void;
+  /** Si fourni, affiche « Modifier » (date, heures, lieu, titre). */
+  onEdit?: () => void;
 };
 
 function rsvpRowLabel(status: RsvpRowStatus): string {
@@ -126,6 +129,7 @@ export function PlanningEventDetailPanel({
   onRsvpUpdated,
   canSendPush = false,
   onManageConvocations,
+  onEdit,
 }: PlanningEventDetailPanelProps) {
   const { showToast } = useToast();
   const [sendingPush, setSendingPush] = useState(false);
@@ -380,26 +384,39 @@ export function PlanningEventDetailPanel({
             ) : null}
           </section>
 
-          {onManageConvocations || (canSendPush && clubId) ? (
+          {onEdit || onManageConvocations || (canSendPush && clubId) ? (
             <div className={styles.pushActions}>
-              {onManageConvocations ? (
+              {canSendPush && clubId ? (
                 <button
                   type="button"
                   className={styles.pushButton}
-                  onClick={onManageConvocations}
+                  disabled={sendingPush}
+                  onClick={() => void handleSendPush()}
                 >
-                  {convocationsCopy.manageAction}
+                  {sendingPush ? "Envoi…" : "Envoyer une notification"}
                 </button>
               ) : null}
-              {canSendPush && clubId ? (
-              <button
-                type="button"
-                className={styles.pushButton}
-                disabled={sendingPush}
-                onClick={() => void handleSendPush()}
-              >
-                {sendingPush ? "Envoi…" : "Envoyer une notification"}
-              </button>
+              {onEdit || onManageConvocations ? (
+                <div className={styles.modActionsRow}>
+                  {onEdit ? (
+                    <button
+                      type="button"
+                      className={styles.pushButton}
+                      onClick={onEdit}
+                    >
+                      {eventEditCopy.editAction}
+                    </button>
+                  ) : null}
+                  {onManageConvocations ? (
+                    <button
+                      type="button"
+                      className={styles.pushButton}
+                      onClick={onManageConvocations}
+                    >
+                      {convocationsCopy.manageActionShort}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ) : null}

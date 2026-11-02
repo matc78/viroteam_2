@@ -95,26 +95,31 @@ test("truncatePushBody tronque avec ellipse", () => {
   assert.ok(out.endsWith("…"));
 });
 
-test("rappels J-7 / J-2 : quoi, quand, et la réponse attendue", () => {
+test("rappels J-7 / J-2 : titre court (type + jour), équipe dans le corps", () => {
   const j7 = eventReminderJ7Copy({ ...training, type: "tournament", title: "Tournoi de Noël" });
-  assert.equal(j7.title, "Tournoi de Noël · Tournoi jeu. 23/10 à 18h00");
-  assert.match(j7.body, /^Dans une semaine · Gymnase Jean Moulin\. Tu viens \?/);
+  assert.equal(j7.title, "Tournoi jeu. 23/10");
+  assert.match(j7.body, /^Dans une semaine · Tournoi de Noël · Gymnase Jean Moulin\. Tu viens \?/);
 
   const j2 = eventReminderJ2Copy(training);
-  assert.equal(j2.title, "U15 · Entraînement jeu. 23/10 à 18h00");
-  assert.equal(j2.body, "Toujours pas de réponse : tu viens ? Un tap suffit.");
+  assert.equal(j2.title, "Entraînement jeu. 23/10");
+  assert.equal(j2.body, "U15 · 18h00. Toujours pas de réponse : tu viens ? Un tap suffit.");
   assert.notEqual(j2.body, j7.body);
 
-  // Parent : l'enfant remplace l'équipe dans le titre.
+  // Parent : prénom + type dans le titre (jour / équipe dans le corps).
   const j2Parent = eventReminderJ2Copy(forLeo);
-  assert.equal(j2Parent.title, "Léo · Entraînement jeu. 23/10 à 18h00");
+  assert.equal(j2Parent.title, "Léo · Entraînement");
   assert.match(j2Parent.body, /pour Léo/);
+  assert.match(j2Parent.body, /^U15 · 18h00/);
   assert.match(eventReminderJ7Copy(forLeo).body, /Léo vient \?/);
 
-  // Titre libre identique au type : pas de répétition.
+  // Titre libre identique au type : pas de répétition dans le corps.
   assert.equal(
     eventReminderJ2Copy({ ...training, title: "Entraînement" }).title,
-    "Entraînement jeu. 23/10 à 18h00",
+    "Entraînement jeu. 23/10",
+  );
+  assert.equal(
+    eventReminderJ2Copy({ ...training, title: "Entraînement" }).body,
+    "18h00. Toujours pas de réponse : tu viens ? Un tap suffit.",
   );
 });
 
@@ -127,36 +132,39 @@ test("rappel jour J : aujourd'hui / demain, RDV, relance si pas de réponse", ()
     when: "today",
     rsvp: "yes",
   });
-  assert.equal(today.title, "C’est aujourd’hui : Match à 15h00");
-  assert.equal(today.body, "U15 · RDV 14h15 · Gymnase Jean Moulin");
+  assert.equal(today.title, "Aujourd’hui · Match");
+  assert.equal(today.body, "U15 · 15h00 · RDV 14h15 · Gymnase Jean Moulin");
 
   const tomorrow = eventDayOfReminderCopy({ ...training, when: "tomorrow", rsvp: "none" });
-  assert.equal(tomorrow.title, "Demain : Entraînement à 18h00");
+  assert.equal(tomorrow.title, "Demain · Entraînement");
+  assert.match(tomorrow.body, /^U15 · 18h00 · /);
   assert.match(tomorrow.body, /Pense à répondre\.$/);
 
   const parent = eventDayOfReminderCopy({ ...forLeo, when: "today", rsvp: "none" });
-  assert.equal(parent.title, "C’est aujourd’hui pour Léo : Entraînement à 18h00");
+  // « Aujourd’hui · Léo · Entraînement » dépasse ~26 car. → fallback.
+  assert.equal(parent.title, "Léo · Entraînement");
   assert.match(parent.body, /Pense à répondre pour Léo\.$/);
 });
 
 test("création, annulation, report, modification, push coach", () => {
   const created = eventCreatedCopy({ ...training, type: "match", dayLabel: "sam. 25/10" });
-  assert.equal(created.title, "Nouvelle convocation · Match sam. 25/10");
-  assert.equal(created.body, "U15 · 18h00 · Gymnase Jean Moulin. Tu viens ?");
-  assert.match(eventCreatedCopy(forLeo).title, /^Nouvelle convocation pour Léo/);
+  assert.equal(created.title, "Nouvelle convocation");
+  assert.equal(created.body, "Match sam. 25/10 · U15 · 18h00 · Gymnase Jean Moulin. Tu viens ?");
+  assert.equal(eventCreatedCopy(forLeo).title, "Convocation · Léo");
 
   const canceled = eventCanceledCopy(training);
-  assert.equal(canceled.title, "Annulé · Entraînement jeu. 23/10");
-  assert.equal(canceled.body, "U15 — L’entraînement de 18h00 n’aura pas lieu.");
+  assert.equal(canceled.title, "Annulé · Entraînement");
+  assert.equal(canceled.body, "U15 · jeu. 23/10 — L’entraînement de 18h00 n’aura pas lieu.");
   assert.equal(
     eventCanceledCopy({ ...training, type: "meeting", title: "", startTime: undefined }).body,
-    "La réunion n’aura pas lieu.",
+    "jeu. 23/10 — La réunion n’aura pas lieu.",
   );
 
   const postponed = eventPostponedCopy({ ...training, dayLabel: "lun. 27/10" });
-  assert.equal(postponed.title, "Changement de date · Entraînement");
+  assert.equal(postponed.title, "Report · Entraînement");
   assert.equal(postponed.body, "U15 — Maintenant lun. 27/10 à 18h00. Vérifie ta dispo.");
   assert.match(eventPostponedCopy(forLeo).body, /Vérifie la dispo de Léo\.$/);
+  assert.equal(eventPostponedCopy(forLeo).title, "Léo · Report");
 
   const modified = eventModifiedCopy({
     ...training,
@@ -165,14 +173,17 @@ test("création, annulation, report, modification, push coach", () => {
       { field: "meetingTime", value: "17h30" },
     ],
   });
-  assert.equal(modified.title, "Entraînement jeu. 23/10 à 18h00 modifié");
-  assert.equal(modified.body, "Nouveau lieu : Salle B · RDV à 17h30.");
+  assert.equal(modified.title, "Entraînement modifié");
+  assert.equal(
+    modified.body,
+    "U15 · Entraînement jeu. 23/10 · Nouveau lieu : Salle B · RDV à 17h30.",
+  );
 
   assert.equal(
     eventManualPushCopy({ ...training, rsvp: "none" }).body,
-    "Entraînement jeu. 23/10 à 18h00 · Gymnase Jean Moulin — tu viens ?",
+    "Entraînement jeu. 23/10 à 18h00 · U15 · Gymnase Jean Moulin — tu viens ?",
   );
-  assert.equal(eventManualPushCopy({ ...training, rsvp: "yes" }).title, "U15 · Rappel du coach");
+  assert.equal(eventManualPushCopy({ ...training, rsvp: "yes" }).title, "Rappel du coach");
   assert.doesNotMatch(eventManualPushCopy({ ...training, rsvp: "yes" }).body, /\?/);
 });
 
@@ -185,8 +196,8 @@ test("RSVP : digest staff avec décompte, confirmation parent", () => {
     ctx: training,
     tally,
   });
-  assert.equal(single.title, "U15 · Entraînement jeu. 23/10 à 18h00");
-  assert.equal(single.body, "Marie D. vient · 12 oui, 3 non, 4 sans réponse");
+  assert.equal(single.title, "Marie D. vient");
+  assert.equal(single.body, "Entraînement jeu. 23/10 · U15 · 12 oui, 3 non, 4 sans réponse");
 
   const digest = eventRsvpChangedCopy({
     responses: [
@@ -197,10 +208,11 @@ test("RSVP : digest staff avec décompte, confirmation parent", () => {
     ctx: forLeo,
     tally,
   });
-  // Le digest staff ne prend jamais le prénom d'un enfant.
-  assert.match(digest.title, /^U15 · /);
-  assert.match(digest.body, /^3 nouvelles réponses · /);
+  // Le digest staff ne prend jamais le prénom d'un enfant dans le titre.
+  assert.equal(digest.title, "3 nouvelles réponses");
+  assert.equal(digest.body, "Entraînement jeu. 23/10 · U15 · 12 oui, 3 non, 4 sans réponse");
 
+  assert.equal(childRsvpConfirmationCopy({ ctx: forLeo, status: "no" }).title, "Léo · Entraînement");
   assert.equal(
     childRsvpConfirmationCopy({ ctx: forLeo, status: "no" }).body,
     "Réponse enregistrée pour Léo : Non.",
@@ -219,21 +231,25 @@ test("récap hebdo : rien sans event, réponses attendues sinon", () => {
     { type: "training", dayLabel: "mer. 29/10", awaitingResponse: true },
     { type: "match", dayLabel: "sam. 1/11", awaitingResponse: true },
   ]);
-  assert.equal(copy?.title, "Ta semaine : 1 match, 2 entraînements");
+  assert.equal(copy?.title, "Ta semaine");
   assert.equal(
     copy?.body,
-    "2 réponses attendues (mer. 29/10, sam. 1/11). Jette un œil au planning.",
+    "1 match, 2 entraînements. 2 réponses attendues (mer. 29/10, sam. 1/11). Jette un œil au planning.",
   );
   assert.equal(
     weeklyDigestCopy([{ type: "meeting", dayLabel: "jeu. 30/10", awaitingResponse: false }])?.body,
-    "Tout est répondu, bonne semaine !",
+    "1 réunion. Tout est répondu, bonne semaine !",
   );
 });
 
-test("annonce et cotisation : club dans le titre, tutoiement", () => {
+test("annonce et cotisation : titres courts, club dans le corps", () => {
   assert.equal(
     announcementPublishedCopy({ clubName: "VB Lyon", message: "Hello" }).title,
-    "VB Lyon · Nouvelle annonce",
+    "Nouvelle annonce",
+  );
+  assert.equal(
+    announcementPublishedCopy({ clubName: "VB Lyon", message: "Hello" }).body,
+    "VB Lyon · Hello",
   );
   const fee = feeReminderCopy({
     clubName: "VB Lyon",
@@ -241,15 +257,24 @@ test("annonce et cotisation : club dans le titre, tutoiement", () => {
     deadlineLabel: "30/11",
     overdue: false,
   });
-  assert.equal(fee.title, "VB Lyon · Cotisation 2026-2027");
-  assert.equal(fee.body, "À régler avant le 30/11.");
+  assert.equal(fee.title, "Cotisation à régler");
+  assert.equal(fee.body, "VB Lyon · Saison 2026-2027 · À régler avant le 30/11.");
   assert.equal(
     feeReminderCopy({ clubName: "", seasonLabel: "", overdue: false }).body,
     "Pense à régler ta cotisation.",
   );
+  assert.equal(
+    feeReminderCopy({
+      clubName: "X",
+      seasonLabel: "S",
+      deadlineLabel: "15/10",
+      overdue: true,
+    }).title,
+    "Cotisation en retard",
+  );
   assert.match(
     feeReminderCopy({ clubName: "X", seasonLabel: "S", deadlineLabel: "15/10", overdue: true }).body,
-    /^Date limite dépassée \(15\/10\)/,
+    /Date limite dépassée \(15\/10\)/,
   );
 });
 
@@ -414,7 +439,10 @@ test("bilan coach selon son réglage : J-2, veille ou jour J", () => {
   const morning = morningReminderSlots("20261025")[0]!;
 
   // Veille : push dédiée pour un event de 10h et plus, rien pour les autres réglages.
-  assert.equal(coachEve!.copyFor(evening, coach, audience, "eve")!.body, "Demain · 1 oui, 1 non, 1 sans réponse");
+  assert.equal(
+    coachEve!.copyFor(evening, coach, audience, "eve")!.body,
+    "Demain · 18h00 · 1 oui, 1 non, 1 sans réponse",
+  );
   assert.equal(coachEve!.copyFor(evening, coach, audience, "day"), null);
   assert.equal(coachEve!.copyFor(evening, coach, audience, "j2"), null);
   assert.equal(coachEve!.copyFor(evening, audience[1]!, audience, "eve"), null);
@@ -481,15 +509,15 @@ test("copies peut-être J-7 / J-2 et bilan coach", () => {
     tally: { yes: 8, no: 1, maybe: 2, none: 5 },
     when: "j2",
   });
-  assert.equal(coach.title, "Entraînement jeu. 23/10 à 18h00");
-  assert.match(coach.body, /^Dans 2 jours · 8 oui/);
+  assert.equal(coach.title, "Entraînement jeu. 23/10");
+  assert.match(coach.body, /^Dans 2 jours · 18h00 · 8 oui/);
   assert.match(coach.body, /5 sans réponse/);
   const coachEve = eventCoachSummaryCopy({
     ...training,
     tally: { yes: 8, no: 1, maybe: 0, none: 0 },
     when: "eve",
   });
-  assert.equal(coachEve.body, "Demain · 8 oui, 1 non");
+  assert.equal(coachEve.body, "Demain · 18h00 · 8 oui, 1 non");
   const dayWithTally = eventDayOfReminderCopy({
     ...training,
     when: "today",

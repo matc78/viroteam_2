@@ -1,9 +1,13 @@
 import { ANNOUNCEMENT_BODY_MAX_CHARS } from "./types";
 
 /**
- * Copy des push : tutoiement, titre = de quoi / quand, corps = détails puis
- * action attendue. Pas d'humour sur la cotisation ni les annulations.
+ * Copy des push : tutoiement. Titre court (≈ 26 car. visibles sur écran
+ * verrouillé iOS) = action / type / quand. Corps = équipe, lieu, décompte,
+ * puis action attendue. Pas d'humour sur la cotisation ni les annulations.
  */
+
+/** Longueur cible d'un titre push (écran verrouillé iOS, police système). */
+const PUSH_TITLE_MAX_CHARS = 26;
 
 /** Tronque un texte pour le corps d'une push (ajoute « … » si besoin). */
 export function truncatePushBody(
@@ -135,19 +139,25 @@ function joinParts(parts: Array<string | undefined>): string {
   return parts.map((part) => part?.trim() ?? "").filter(Boolean).join(" · ");
 }
 
+/** « Entraînement jeu. 23/10 ». */
+function typeDay(ctx: EventPushContext): string {
+  return `${eventTypePushLabel(ctx.type)} ${ctx.dayLabel}`;
+}
+
 /** « Entraînement jeu. 23/10 à 18h00 ». */
 function typeDayTime(ctx: EventPushContext): string {
   const time = ctx.startTime ? ` à ${ctx.startTime}` : "";
-  return `${eventTypePushLabel(ctx.type)} ${ctx.dayLabel}${time}`;
+  return `${typeDay(ctx)}${time}`;
 }
 
 /**
- * En-tête commun : équipe (ou prénom de l'enfant pour un parent), type, jour
- * et heure. Le titre est omis s'il répète le type.
+ * Titre court pour les rappels / confirmations : type + jour, ou
+ * « {enfant} · {type} » pour un parent (jour et équipe dans le corps).
  */
 function eventHeadline(ctx: EventPushContext): string {
-  const who = ctx.childFirstName?.trim() || eventSubject(ctx);
-  return who ? `${who} · ${typeDayTime(ctx)}` : typeDayTime(ctx);
+  const child = ctx.childFirstName?.trim();
+  if (child) return fitPushTitle(`${child} · ${eventTypePushLabel(ctx.type)}`);
+  return fitPushTitle(typeDay(ctx));
 }
 
 /** Titre de l'event s'il apporte une info (pas une simple répétition du type). */
@@ -158,6 +168,30 @@ function eventSubject(ctx: EventPushContext): string {
   return title;
 }
 
+/**
+ * Garde un titre sous [PUSH_TITLE_MAX_CHARS] ; sinon [fallback] ou troncature
+ * avec ellipse en dernier recours.
+ */
+function fitPushTitle(text: string, fallback?: string): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= PUSH_TITLE_MAX_CHARS) return normalized;
+  const safeFallback = fallback?.replace(/\s+/g, " ").trim();
+  if (safeFallback && safeFallback.length <= PUSH_TITLE_MAX_CHARS) return safeFallback;
+  return `${normalized.slice(0, Math.max(0, PUSH_TITLE_MAX_CHARS - 1)).trimEnd()}…`;
+}
+
+/** Équipe / titre libre + heure (+ lieu si demandé) pour le corps. */
+function eventContextLine(
+  ctx: EventPushContext,
+  options: { includeLocation?: boolean } = {},
+): string {
+  return joinParts([
+    eventSubject(ctx),
+    ctx.startTime,
+    options.includeLocation ? ctx.location : undefined,
+  ]);
+}
+
 /** « Tu viens ? » ou « Léo vient ? » selon le destinataire. */
 function comingQuestion(ctx: EventPushContext): string {
   const child = ctx.childFirstName?.trim();
@@ -166,7 +200,8 @@ function comingQuestion(ctx: EventPushContext): string {
 
 /** Rappel J-7 (events importants), pour ceux qui n'ont pas répondu. */
 export function eventReminderJ7Copy(ctx: EventPushContext): PushCopy {
-  const where = ctx.location ? ` · ${ctx.location}` : "";
+  const context = joinParts([eventSubject(ctx), ctx.location]);
+  const where = context ? ` · ${context}` : "";
   return {
     title: eventHeadline(ctx),
     body: `Dans une semaine${where}. ${comingQuestion(ctx)} Réponds pour que le coach s’organise.`,
@@ -175,7 +210,8 @@ export function eventReminderJ7Copy(ctx: EventPushContext): PushCopy {
 
 /** Rappel J-7 pour un « peut-être » encore en suspens. */
 export function eventReminderJ7MaybeCopy(ctx: EventPushContext): PushCopy {
-  const where = ctx.location ? ` · ${ctx.location}` : "";
+  const context = joinParts([eventSubject(ctx), ctx.location]);
+  const where = context ? ` · ${context}` : "";
   const child = ctx.childFirstName?.trim();
   const ask = child
     ? `${child} est encore en peut-être. Tu confirmes ?`
@@ -189,22 +225,26 @@ export function eventReminderJ7MaybeCopy(ctx: EventPushContext): PushCopy {
 /** Rappel J-2, pour ceux qui n'ont pas répondu. */
 export function eventReminderJ2Copy(ctx: EventPushContext): PushCopy {
   const child = ctx.childFirstName?.trim();
+  const context = eventContextLine(ctx);
+  const action = child
+    ? `Toujours pas de réponse pour ${child}. Un tap suffit.`
+    : "Toujours pas de réponse : tu viens ? Un tap suffit.";
   return {
     title: eventHeadline(ctx),
-    body: child
-      ? `Toujours pas de réponse pour ${child}. Un tap suffit.`
-      : "Toujours pas de réponse : tu viens ? Un tap suffit.",
+    body: context ? `${context}. ${action}` : action,
   };
 }
 
 /** Rappel J-2 pour un « peut-être » encore en suspens. */
 export function eventReminderJ2MaybeCopy(ctx: EventPushContext): PushCopy {
   const child = ctx.childFirstName?.trim();
+  const context = eventContextLine(ctx);
+  const action = child
+    ? `${child} est encore en peut-être — tu confirmes ?`
+    : "Tu es encore en peut-être — tu confirmes ?";
   return {
     title: eventHeadline(ctx),
-    body: child
-      ? `${child} est encore en peut-être — tu confirmes ?`
-      : "Tu es encore en peut-être — tu confirmes ?",
+    body: context ? `${context}. ${action}` : action,
   };
 }
 
@@ -217,8 +257,10 @@ export function eventCoachSummaryCopy(
 ): PushCopy {
   const lead = ctx.when === "j2" ? "Dans 2 jours" : "Demain";
   return {
-    title: typeDayTime(ctx),
-    body: truncatePushBody(`${lead} · ${formatRsvpTally(ctx.tally)}`),
+    title: fitPushTitle(typeDay(ctx)),
+    body: truncatePushBody(
+      joinParts([lead, ctx.startTime, formatRsvpTally(ctx.tally)]),
+    ),
   };
 }
 
@@ -235,14 +277,18 @@ export function eventDayOfReminderCopy(
   },
 ): PushCopy {
   const child = ctx.childFirstName?.trim();
-  const whenLabel = ctx.when === "today" ? "C’est aujourd’hui" : "Demain";
-  const time = ctx.startTime ? ` à ${ctx.startTime}` : "";
-  const what = `${eventTypePushLabel(ctx.type)}${time}`;
+  const whenLabel = ctx.when === "today" ? "Aujourd’hui" : "Demain";
+  const typeLabel = eventTypePushLabel(ctx.type);
+  // Heure dans le corps : « Demain · Entraînement 18h00 » dépasse ~26 car.
   const title = child
-    ? `${whenLabel} pour ${child} : ${what}`
-    : `${whenLabel} : ${what}`;
+    ? fitPushTitle(
+        joinParts([whenLabel, child, typeLabel]),
+        `${child} · ${typeLabel}`,
+      )
+    : fitPushTitle(`${whenLabel} · ${typeLabel}`, typeLabel);
   const details = joinParts([
     eventSubject(ctx),
+    ctx.startTime,
     ctx.meetingTime ? `RDV ${ctx.meetingTime}` : undefined,
     ctx.location,
   ]);
@@ -268,12 +314,17 @@ export function eventDayOfReminderCopy(
 /** Nouvelle convocation (event créé à 7 jours ou moins). */
 export function eventCreatedCopy(ctx: EventPushContext): PushCopy {
   const child = ctx.childFirstName?.trim();
-  const titlePrefix = child
-    ? `Nouvelle convocation pour ${child}`
+  const title = child
+    ? fitPushTitle(`Convocation · ${child}`, "Nouvelle convocation")
     : "Nouvelle convocation";
-  const details = joinParts([eventSubject(ctx), ctx.startTime, ctx.location]);
+  const details = joinParts([
+    typeDay(ctx),
+    eventSubject(ctx),
+    ctx.startTime,
+    ctx.location,
+  ]);
   return {
-    title: `${titlePrefix} · ${eventTypePushLabel(ctx.type)} ${ctx.dayLabel}`,
+    title,
     body: details ? `${details}. ${comingQuestion(ctx)}` : comingQuestion(ctx),
   };
 }
@@ -281,11 +332,14 @@ export function eventCreatedCopy(ctx: EventPushContext): PushCopy {
 /** Push annulation. */
 export function eventCanceledCopy(ctx: EventPushContext): PushCopy {
   const child = ctx.childFirstName?.trim();
+  const typeLabel = eventTypePushLabel(ctx.type);
   const time = ctx.startTime ? ` de ${ctx.startTime}` : "";
   const sentence = `${capitalize(eventTypeWithArticle(ctx.type))}${time} n’aura pas lieu.`;
-  const subject = eventSubject(ctx);
+  const subject = joinParts([eventSubject(ctx), ctx.dayLabel]);
   return {
-    title: `${child ? `${child} · ` : ""}Annulé · ${eventTypePushLabel(ctx.type)} ${ctx.dayLabel}`,
+    title: child
+      ? fitPushTitle(`${child} · Annulé`, `Annulé · ${typeLabel}`)
+      : fitPushTitle(`Annulé · ${typeLabel}`),
     body: subject ? `${subject} — ${sentence}` : sentence,
   };
 }
@@ -293,12 +347,15 @@ export function eventCanceledCopy(ctx: EventPushContext): PushCopy {
 /** Push report : [ctx] porte déjà la nouvelle date / heure. */
 export function eventPostponedCopy(ctx: EventPushContext): PushCopy {
   const child = ctx.childFirstName?.trim();
+  const typeLabel = eventTypePushLabel(ctx.type);
   const time = ctx.startTime ? ` à ${ctx.startTime}` : "";
   const subject = eventSubject(ctx);
   const moved = `Maintenant ${ctx.dayLabel}${time}.`;
   const check = child ? `Vérifie la dispo de ${child}.` : "Vérifie ta dispo.";
   return {
-    title: `${child ? `${child} · ` : ""}Changement de date · ${eventTypePushLabel(ctx.type)}`,
+    title: child
+      ? fitPushTitle(`${child} · Report`, `Report · ${typeLabel}`)
+      : fitPushTitle(`Report · ${typeLabel}`),
     body: `${subject ? `${subject} — ` : ""}${moved} ${check}`,
   };
 }
@@ -339,12 +396,16 @@ export function eventModifiedCopy(
   ctx: EventPushContext & { changes: EventFieldChange[] },
 ): PushCopy {
   const child = ctx.childFirstName?.trim();
+  const typeLabel = eventTypePushLabel(ctx.type);
   const described = ctx.changes.map(describeFieldChange);
+  const changeLine =
+    described.length > 0 ? `${described.join(" · ")}.` : "Les infos ont changé, jette un œil.";
+  const context = joinParts([eventSubject(ctx), typeDay(ctx)]);
   return {
-    title: `${child ? `${child} · ` : ""}${typeDayTime(ctx)} modifié`,
-    body: truncatePushBody(
-      described.length > 0 ? `${described.join(" · ")}.` : "Les infos ont changé, jette un œil.",
-    ),
+    title: child
+      ? fitPushTitle(`${child} · ${typeLabel} modifié`, `${typeLabel} modifié`)
+      : fitPushTitle(`${typeLabel} modifié`),
+    body: truncatePushBody(context ? `${context} · ${changeLine}` : changeLine),
   };
 }
 
@@ -352,10 +413,13 @@ export function eventModifiedCopy(
 export function eventManualPushCopy(
   ctx: EventPushContext & { rsvp: RsvpStatus },
 ): PushCopy {
-  const who = ctx.childFirstName?.trim() || eventSubject(ctx);
-  const details = joinParts([typeDayTime(ctx), ctx.location]);
+  const details = joinParts([
+    typeDayTime(ctx),
+    eventSubject(ctx),
+    ctx.location,
+  ]);
   return {
-    title: `${who ? `${who} · ` : ""}Rappel du coach`,
+    title: "Rappel du coach",
     body: ctx.rsvp === "none" ? `${details} — ${comingQuestion(ctx).toLowerCase()}` : details,
   };
 }
@@ -431,13 +495,16 @@ export function eventRsvpChangedCopy(params: {
   const responses = params.responses.length > 0
     ? params.responses
     : [{ memberName: "Un membre", status: "none" }];
+  const typeLabel = eventTypePushLabel(params.ctx.type);
   const lead =
     responses.length === 1
       ? rsvpSentence(responses[0]!.memberName.trim() || "Un membre", responses[0]!.status)
       : `${responses.length} nouvelles réponses`;
   return {
-    title: eventHeadline({ ...params.ctx, childFirstName: undefined }),
-    body: truncatePushBody(`${lead} · ${formatRsvpTally(params.tally)}`),
+    title: fitPushTitle(lead, `Réponse · ${typeLabel}`),
+    body: truncatePushBody(
+      joinParts([typeDay(params.ctx), eventSubject(params.ctx), formatRsvpTally(params.tally)]),
+    ),
   };
 }
 
@@ -485,13 +552,13 @@ export function weeklyDigestCopy(items: WeeklyDigestItem[]): PushCopy | null {
     ...new Set(items.filter((item) => item.awaitingResponse).map((item) => item.dayLabel)),
   ];
   const pendingCount = items.filter((item) => item.awaitingResponse).length;
-  const body =
+  const pendingLine =
     pendingCount === 0
       ? "Tout est répondu, bonne semaine !"
       : `${pendingCount} réponse${pendingCount > 1 ? "s" : ""} attendue${pendingCount > 1 ? "s" : ""} (${pendingDays.join(", ")}). Jette un œil au planning.`;
   return {
-    title: `Ta semaine : ${summary}`,
-    body: truncatePushBody(body),
+    title: "Ta semaine",
+    body: truncatePushBody(`${summary}. ${pendingLine}`),
   };
 }
 
@@ -502,8 +569,8 @@ export function announcementPublishedCopy(params: {
 }): PushCopy {
   const club = params.clubName.trim();
   return {
-    title: club ? `${club} · Nouvelle annonce` : "Nouvelle annonce",
-    body: truncatePushBody(params.message),
+    title: "Nouvelle annonce",
+    body: truncatePushBody(club ? `${club} · ${params.message}` : params.message),
   };
 }
 
@@ -516,21 +583,22 @@ export function feeReminderCopy(params: {
 }): PushCopy {
   const season = params.seasonLabel.trim();
   const club = params.clubName.trim();
-  const subject = `Cotisation${season ? ` ${season}` : ""}`;
-  const title = club ? `${club} · ${subject}` : subject;
+  const context = joinParts([club, season ? `Saison ${season}` : undefined]);
   if (params.overdue) {
+    const detail = params.deadlineLabel
+      ? `Date limite dépassée (${params.deadlineLabel}). Règle-la dès que possible.`
+      : "Date limite dépassée. Règle-la dès que possible.";
     return {
-      title,
-      body: params.deadlineLabel
-        ? `Date limite dépassée (${params.deadlineLabel}). Règle-la dès que possible.`
-        : "Date limite dépassée. Règle-la dès que possible.",
+      title: "Cotisation en retard",
+      body: truncatePushBody(context ? `${context} · ${detail}` : detail),
     };
   }
+  const detail = params.deadlineLabel
+    ? `À régler avant le ${params.deadlineLabel}.`
+    : "Pense à régler ta cotisation.";
   return {
-    title,
-    body: params.deadlineLabel
-      ? `À régler avant le ${params.deadlineLabel}.`
-      : "Pense à régler ta cotisation.",
+    title: "Cotisation à régler",
+    body: truncatePushBody(context ? `${context} · ${detail}` : detail),
   };
 }
 

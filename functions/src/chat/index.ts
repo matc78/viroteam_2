@@ -15,13 +15,20 @@ export {
   onMemberWrittenForChatDev,
   onClubWrittenForChat,
   onClubWrittenForChatDev,
-  onChatMessageCreatedForPush,
-  onChatMessageCreatedForPushDev,
+  onGuardianWrittenForChat,
+  onGuardianWrittenForChatDev,
   scheduleSeasonChatPurge,
   scheduleSeasonChatPurgeDev,
   createCategoryChannel,
   createCategoryChannelDev,
 } from "./triggers";
+
+export {
+  onChatMessageCreatedForPush,
+  onChatMessageCreatedForPushDev,
+  onChatMessageUpdated,
+  onChatMessageUpdatedDev,
+} from "./messageTriggers";
 
 export {
   syncTeamConversations,

@@ -11,14 +11,11 @@ import 'package:viro_team_v2/utils/chat_image_prepare.dart';
 class ChatMessageOperations {
   /// Crée le module d’écriture de messages.
   ChatMessageOperations({
-    required FirebaseFirestore firestore,
     required FirebaseStorage storage,
     required ChatPaths paths,
-  })  : _db = firestore,
-        _storage = storage,
+  })  : _storage = storage,
         _paths = paths;
 
-  final FirebaseFirestore _db;
   final FirebaseStorage _storage;
   final ChatPaths _paths;
 
@@ -29,14 +26,12 @@ class ChatMessageOperations {
   }) =>
       _paths.messages(clubId, conversationId).doc().id;
 
-  /// Envoie un message texte et met à jour le preview conversation.
+  /// Envoie un message texte (l'aperçu inbox est écrit par le serveur).
   Future<String> sendTextMessage({
     required String clubId,
     required String conversationId,
     required String senderUid,
     required String text,
-    String? senderFirstName,
-    String? senderRole,
     String? replyToMessageId,
     String? replyToText,
     String? replyToSenderUid,
@@ -51,9 +46,8 @@ class ChatMessageOperations {
     final ref = clientId != null
         ? _paths.messages(clubId, conversationId).doc(clientId)
         : _paths.messages(clubId, conversationId).doc();
-    final batch = _db.batch();
 
-    batch.set(ref, {
+    await ref.set({
       FirestoreFields.type: ChatMessageTypes.text,
       FirestoreFields.text: trimmed,
       FirestoreFields.senderUid: senderUid,
@@ -65,20 +59,6 @@ class ChatMessageOperations {
         replyToSenderUid: replyToSenderUid,
       ),
     });
-    batch.update(_paths.conversations(clubId).doc(conversationId), {
-      FirestoreFields.lastMessageAt: FieldValue.serverTimestamp(),
-      FirestoreFields.lastMessagePreview: truncateChatText(
-        trimmed,
-        maxLength: 120,
-      ),
-      FirestoreFields.lastSenderUid: senderUid,
-      if (trimToNull(senderFirstName) != null)
-        FirestoreFields.lastSenderFirstName: trimToNull(senderFirstName),
-      if (trimToNull(senderRole) != null)
-        FirestoreFields.lastSenderRole: trimToNull(senderRole),
-      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
     return ref.id;
   }
 
@@ -89,8 +69,6 @@ class ChatMessageOperations {
     required String senderUid,
     required Uint8List bytes,
     String contentType = 'image/jpeg',
-    String? senderFirstName,
-    String? senderRole,
     String? replyToMessageId,
     String? replyToText,
     String? replyToSenderUid,
@@ -119,8 +97,7 @@ class ChatMessageOperations {
 
     final url = await storageRef.getDownloadURL();
     final thumbUrl = await thumbRef.getDownloadURL();
-    final batch = _db.batch();
-    batch.set(ref, {
+    await ref.set({
       FirestoreFields.type: ChatMessageTypes.image,
       FirestoreFields.storagePath: path,
       FirestoreFields.downloadUrl: url,
@@ -136,21 +113,11 @@ class ChatMessageOperations {
         replyToSenderUid: replyToSenderUid,
       ),
     });
-    batch.update(_paths.conversations(clubId).doc(conversationId), {
-      FirestoreFields.lastMessageAt: FieldValue.serverTimestamp(),
-      FirestoreFields.lastMessagePreview: '📷 Photo',
-      FirestoreFields.lastSenderUid: senderUid,
-      if (trimToNull(senderFirstName) != null)
-        FirestoreFields.lastSenderFirstName: trimToNull(senderFirstName),
-      if (trimToNull(senderRole) != null)
-        FirestoreFields.lastSenderRole: trimToNull(senderRole),
-      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
     return ref.id;
   }
 
-  /// Soft-delete d’un message.
+  /// Soft-delete d’un message : le contenu est retiré dans la même écriture
+  /// (exigé par les règles), le média Storage est supprimé par le serveur.
   Future<void> softDeleteMessage({
     required String clubId,
     required String conversationId,
@@ -160,10 +127,11 @@ class ChatMessageOperations {
     await _paths.messages(clubId, conversationId).doc(messageId).update({
       FirestoreFields.deletedAt: FieldValue.serverTimestamp(),
       FirestoreFields.deletedByUid: deletedByUid,
+      for (final key in chatMessageContentFields) key: FieldValue.delete(),
     });
   }
 
-  /// Modifie le texte d’un message et le preview s’il est le plus récent.
+  /// Modifie le texte d’un message (l'aperçu suit côté serveur).
   Future<void> editTextMessage({
     required String clubId,
     required String conversationId,
@@ -172,29 +140,9 @@ class ChatMessageOperations {
   }) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
-
-    final latestSnap = await _paths
-        .messages(clubId, conversationId)
-        .orderBy(FirestoreFields.createdAt, descending: true)
-        .limit(1)
-        .get();
-    final isLatest =
-        latestSnap.docs.isNotEmpty && latestSnap.docs.first.id == messageId;
-
-    final batch = _db.batch();
-    batch.update(_paths.messages(clubId, conversationId).doc(messageId), {
+    await _paths.messages(clubId, conversationId).doc(messageId).update({
       FirestoreFields.text: trimmed,
       FirestoreFields.editedAt: FieldValue.serverTimestamp(),
     });
-    if (isLatest) {
-      batch.update(_paths.conversations(clubId).doc(conversationId), {
-        FirestoreFields.lastMessagePreview: truncateChatText(
-          trimmed,
-          maxLength: 120,
-        ),
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      });
-    }
-    await batch.commit();
   }
 }

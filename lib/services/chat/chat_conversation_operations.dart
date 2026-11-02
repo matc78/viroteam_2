@@ -3,9 +3,15 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/services/chat/chat_helpers.dart';
-import 'package:viro_team_v2/services/chat/chat_inbox_queries.dart';
 import 'package:viro_team_v2/services/chat/chat_paths.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
+
+/// Levée quand un canal existe déjà pour la même cible (callable
+/// `createCategoryChannel`, code `already-exists`).
+class ChatChannelAlreadyExistsException implements Exception {
+  /// Crée l'exception.
+  const ChatChannelAlreadyExistsException();
+}
 
 /// Regroupe les mutations de conversation et les callables du chat.
 class ChatConversationOperations {
@@ -13,14 +19,11 @@ class ChatConversationOperations {
   ChatConversationOperations({
     required FirebaseFunctions functions,
     required ChatPaths paths,
-    required ChatInboxQueries inboxQueries,
   })  : _functions = functions,
-        _paths = paths,
-        _inboxQueries = inboxQueries;
+        _paths = paths;
 
   final FirebaseFunctions _functions;
   final ChatPaths _paths;
-  final ChatInboxQueries _inboxQueries;
 
   /// Mute / unmute.
   Future<void> setMuted({
@@ -119,6 +122,8 @@ class ChatConversationOperations {
   }
 
   /// Callable admin : canal ciblé (catégories / équipes / parents).
+  ///
+  /// Lève [ChatChannelAlreadyExistsException] si la cible a déjà un canal.
   Future<String> createCategoryChannel({
     required String clubId,
     required String title,
@@ -128,24 +133,24 @@ class ChatConversationOperations {
   }) async {
     final callable =
         _functions.httpsCallable(cloudCallableName('createCategoryChannel'));
-    final result = await callable.call(<String, dynamic>{
-      'clubId': clubId,
-      'title': title,
-      'scopeType': scopeType,
-      'scopeIds': scopeIds,
-      'writePolicy': writePolicy,
-    });
-    return _extractConversationId(
-      data: result.data,
-      errorLabel: 'createCategoryChannel',
-    );
-  }
-
-  /// Backfill chats système d’un club (équipes déjà existantes).
-  Future<void> ensureClubChatSynced({required String clubId}) async {
-    final callable =
-        _functions.httpsCallable(cloudCallableName('ensureClubChatSynced'));
-    await callable.call(<String, dynamic>{'clubId': clubId});
+    try {
+      final result = await callable.call(<String, dynamic>{
+        'clubId': clubId,
+        'title': title,
+        'scopeType': scopeType,
+        'scopeIds': scopeIds,
+        'writePolicy': writePolicy,
+      });
+      return _extractConversationId(
+        data: result.data,
+        errorLabel: 'createCategoryChannel',
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code == 'already-exists') {
+        throw const ChatChannelAlreadyExistsException();
+      }
+      rethrow;
+    }
   }
 
   /// Backfill de tous les clubs où l’utilisateur est admin.
@@ -162,24 +167,6 @@ class ChatConversationOperations {
       );
     }
     return (clubsSynced: 0, teamsSynced: 0);
-  }
-
-  /// Ensure puis retrouve une conv système (pour clubs pré-chat).
-  Future<String?> ensureAndFindConversationId({
-    required String clubId,
-    required String systemKey,
-  }) async {
-    var id = await _inboxQueries.findConversationIdBySystemKey(
-      clubId: clubId,
-      systemKey: systemKey,
-    );
-    if (id != null) return id;
-
-    await ensureClubChatSynced(clubId: clubId);
-    return _inboxQueries.findConversationIdBySystemKey(
-      clubId: clubId,
-      systemKey: systemKey,
-    );
   }
 
   String _extractConversationId({

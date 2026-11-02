@@ -13,6 +13,7 @@ import {
   type AdminMemberRef,
 } from "./memberAdminUtils";
 import { activeGuardianUids, recomputeParentTeamIdsSafe } from "./parentTeams";
+import { purgeUserFromClubChats } from "./chat/accountCleanup";
 
 const MEMBER_STATUS_ARCHIVED = "archived";
 const INVITATION_STATUS_PENDING = "pending";
@@ -229,6 +230,32 @@ async function anonymizeMemberships(
   return anonymized;
 }
 
+/**
+ * Étape 0b : messagerie de chaque club du compte (fiches + liens parent) —
+ * messages vidés, uid retiré des conversations. Avant l'anonymisation, qui
+ * retirerait l'uid des DM et empêcherait de retrouver ses messages.
+ */
+async function purgeChats(
+  uid: string,
+  memberDocs: QueryDocumentSnapshot[],
+  failures: FailedSteps,
+): Promise<void> {
+  const clubIds = new Set(memberDocs.map((memberDoc) => memberDoc.ref.parent.parent!.id));
+  try {
+    const userSnap = await db().collection("users").doc(uid).get();
+    for (const clubId of stringArray(userSnap.data()?.parentClubIds)) clubIds.add(clubId);
+  } catch (error) {
+    logStep(failures, "lecture des clubs parent", { uid, error });
+  }
+  for (const clubId of clubIds) {
+    try {
+      await purgeUserFromClubChats({ firestore: db(), clubId, uid });
+    } catch (error) {
+      logStep(failures, "nettoyage messagerie", { uid, clubId, error });
+    }
+  }
+}
+
 /** Étape 2 : invitations pending adressées à l'e-mail → revoked. */
 async function revokePendingInvitations(emailNorm: string): Promise<void> {
   if (!emailNorm) return;
@@ -315,6 +342,9 @@ async function handleDeleteMyAccount(
     );
   }
   await assertNotLastAdmin(uid, memberDocs);
+
+  // 0b. Messagerie (avant que l'anonymisation ne retire l'uid des DM).
+  await purgeChats(uid, memberDocs, failures);
 
   // 1. Fiches membres.
   const anonymizedMembers = await anonymizeMemberships(uid, memberDocs, failures);

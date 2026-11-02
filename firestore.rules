@@ -28,6 +28,14 @@ rules_version = '2';
 //   rôle `admin` réservé aux admins.
 // - Invitation : `role` figé après création ; un coach ne modifie plus une
 //   invitation admin ; `guardian` / `team` réservées aux Cloud Functions.
+//
+// Lot 4 (intégrité messagerie, 2 nov. 2026) :
+// - Aperçu inbox (`lastMessage*`, `lastSender*`) écrit uniquement par le
+//   trigger `onChatMessageCreatedForPush` : plus aucune écriture client.
+// - Options de sondage : texte 1..100.
+// - Soft-delete : le contenu (texte, médias, sondage, citation, réactions)
+//   est retiré dans la même écriture ; modération par un admin du club ou
+//   par un coach sur le chat équipe / parents d'une équipe qu'il encadre.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -545,37 +553,11 @@ service cloud.firestore {
             );
         }
 
-        /// Preview inbox : expéditeur = appelant, rôle connu, prénom ≤ 60, aperçu ≤ 200.
-        function isValidPreviewUpdate() {
-          return (
-              !affectedKeys().hasAny(['lastSenderUid'])
-              || request.resource.data.lastSenderUid == request.auth.uid
-            )
-            && (
-              !affectedKeys().hasAny(['lastSenderRole'])
-              || request.resource.data.lastSenderRole in ['player', 'coach', 'admin', 'parent']
-            )
-            && (
-              !affectedKeys().hasAny(['lastSenderFirstName'])
-              || (
-                request.resource.data.lastSenderFirstName is string
-                && request.resource.data.lastSenderFirstName.size() <= 60
-              )
-            )
-            && (
-              !affectedKeys().hasAny(['lastMessagePreview'])
-              || (
-                request.resource.data.lastMessagePreview is string
-                && request.resource.data.lastMessagePreview.size() <= 200
-              )
-            );
-        }
-
         allow read: if isConvParticipantFrom(resource.data);
         allow create: if false;
         // Rename : participants autorisés à écrire (pas un lecteur d'un canal
-        // admins_only). Avatar : groupe open + URL Storage. Preview inbox :
-        // canWriteMessagesOn + valeurs bornées.
+        // admins_only). Avatar : groupe open + URL Storage. L'aperçu inbox
+        // n'est écrit que par les Cloud Functions.
         allow update: if isConvParticipantFrom(resource.data) && (
           (
             canWriteMessagesOn(resource.data)
@@ -597,14 +579,6 @@ service cloud.firestore {
             && isConversationAvatarDownloadUrl(
               request.resource.data.get('avatarUrl', '')
             )
-          )
-          || (
-            canWriteMessagesOn(resource.data)
-            && affectedKeys().hasOnly([
-              'lastMessageAt', 'lastMessagePreview', 'lastSenderUid',
-              'lastSenderFirstName', 'lastSenderRole', 'updatedAt'
-            ])
-            && isValidPreviewUpdate()
           )
         );
         allow delete: if false;
@@ -866,6 +840,50 @@ service cloud.firestore {
               && votes.get('o10', []) == [] && votes.get('o11', []) == [];
           }
 
+          /// Option de sondage n°[i] : texte 1..100 (ou index hors liste). Pas
+          /// de `is map` / `hasOnly` : 12 options feraient dépasser la limite
+          /// de 1000 expressions ; une option qui n'est pas `{text: string}`
+          /// lève une erreur, donc un refus.
+          function isValidPollOptionAt(options, i) {
+            return i >= options.size()
+              || (options[i].text.size() > 0 && options[i].text.size() <= 100);
+          }
+
+          /// Liste d'options de sondage : 2..12 options valides.
+          function isValidPollOptions(options) {
+            return options is list
+              && options.size() >= 2
+              && options.size() <= 12
+              && isValidPollOptionAt(options, 0) && isValidPollOptionAt(options, 1)
+              && isValidPollOptionAt(options, 2) && isValidPollOptionAt(options, 3)
+              && isValidPollOptionAt(options, 4) && isValidPollOptionAt(options, 5)
+              && isValidPollOptionAt(options, 6) && isValidPollOptionAt(options, 7)
+              && isValidPollOptionAt(options, 8) && isValidPollOptionAt(options, 9)
+              && isValidPollOptionAt(options, 10) && isValidPollOptionAt(options, 11);
+          }
+
+          /// Champs de contenu retirés au soft-delete (le média Storage est
+          /// supprimé par le trigger `onChatMessageUpdated` via `storagePath`).
+          function messageContentKeys() {
+            return [
+              'text', 'downloadUrl', 'thumbUrl', 'reactions',
+              'replyToMessageId', 'replyToText', 'replyToSenderUid',
+              'pollQuestion', 'pollOptions', 'pollVotes', 'pollAllowMultiple'
+            ];
+          }
+
+          /// Modération : admin du club, ou coach sur le chat équipe / parents
+          /// d'une équipe qu'il encadre (`members.teamIds`, tenu par les Functions).
+          function canModerateMessages() {
+            let conv = conversationDoc();
+            return isClubAdmin(clubId)
+              || (
+                isClubCoach(clubId)
+                && conv.get('type', '') in ['team', 'parents']
+                && conv.get('teamId', '') in get(memberDocRef(clubId)).data.get('teamIds', [])
+              );
+          }
+
           /// Socle commun à tout message créé par un client.
           function isValidMessageCreateBase() {
             return request.resource.data.keys().hasOnly(messageCreateKeys())
@@ -915,9 +933,7 @@ service cloud.firestore {
                 && request.resource.data.get('pollQuestion', '') is string
                 && request.resource.data.pollQuestion.size() > 0
                 && request.resource.data.pollQuestion.size() <= 200
-                && request.resource.data.get('pollOptions', []) is list
-                && request.resource.data.pollOptions.size() >= 2
-                && request.resource.data.pollOptions.size() <= 12
+                && isValidPollOptions(request.resource.data.get('pollOptions', []))
                 && isEmptyPollVotes(request.resource.data.get('pollVotes', {}))
                 && request.resource.data.get('pollAllowMultiple', false) is bool
                 && !request.resource.data.keys().hasAny([
@@ -957,12 +973,17 @@ service cloud.firestore {
               && request.resource.data.get('type', '') == 'poll'
               && onlyOwnPollVotesUpdate()
             ) || (
-              affectedKeys().hasOnly(['deletedAt', 'deletedByUid'])
+              affectedKeys().hasOnly(
+                ['deletedAt', 'deletedByUid'].concat(messageContentKeys())
+              )
+              && affectedKeys().hasAll(['deletedAt', 'deletedByUid'])
               && resource.data.get('deletedAt', null) == null
+              && request.resource.data.deletedAt == request.time
               && request.resource.data.deletedByUid == request.auth.uid
+              && !request.resource.data.keys().hasAny(messageContentKeys())
               && (
                 request.auth.uid == resource.data.senderUid
-                || isClubCoachOrAdmin(clubId)
+                || canModerateMessages()
               )
             ) || (
               affectedKeys().hasOnly(['text', 'editedAt'])

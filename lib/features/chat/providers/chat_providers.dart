@@ -18,35 +18,12 @@ final chatClubIdsProvider = Provider<List<String>>((ref) {
 
 String? _uidOf(Ref ref) => ref.watch(authStateProvider).value?.uid;
 
-/// Backfill idempotent des chats système pour tous les clubs de la session.
-///
-/// Déclenché à l’ouverture de l’inbox : les clubs créés avant le chat
-/// reçoivent leurs conversations `team` / `parents` / `staff` / `club`.
-final chatEnsureSyncedProvider = FutureProvider<void>((ref) async {
-  final uid = _uidOf(ref);
-  if (uid == null || uid.isEmpty) return;
-  final clubIds = ref.watch(chatClubIdsProvider);
-  if (clubIds.isEmpty) return;
-  final chat = ref.read(chatServiceProvider);
-  await Future.wait(
-    clubIds.map((clubId) async {
-      try {
-        await chat.ensureClubChatSynced(clubId: clubId);
-      } catch (_) {
-        // Best-effort : l’inbox reste utilisable même si un club échoue.
-      }
-    }),
-  );
-});
-
 /// Inbox multi-clubs.
 final chatInboxProvider = StreamProvider<List<ChatConversation>>((ref) {
   final uid = _uidOf(ref);
   if (uid == null || uid.isEmpty) {
     return Stream.value(const []);
   }
-  // Lance le backfill une fois (écoute pour invalidation si clubs changent).
-  ref.watch(chatEnsureSyncedProvider);
   final clubIds = ref.watch(chatClubIdsProvider);
   return ref.watch(chatServiceProvider).watchInbox(uid: uid, clubIds: clubIds);
 });

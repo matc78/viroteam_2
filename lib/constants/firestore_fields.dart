@@ -292,6 +292,9 @@ abstract final class ChatWritePolicies {
   static const String open = 'open';
   static const String adminsOnly = 'admins_only';
   static const String coachesAndAdmins = 'coaches_and_admins';
+
+  /// DM dont l'autre participant a quitté le club : lecture seule.
+  static const String closed = 'closed';
 }
 
 /// Types de message chat MVP.

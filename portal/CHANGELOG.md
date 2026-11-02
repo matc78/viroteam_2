@@ -9,6 +9,12 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Modifié
+
+- Messagerie (toujours masquée) : le portail n’écrit plus l’aperçu de l’inbox (écrit par le serveur), le soft-delete retire le contenu du message, et l’inbox ne relance plus la resynchronisation complète des clubs à chaque session.
+- Messagerie : un DM fermé (l’autre personne a quitté le club) passe en lecture seule avec un message dédié ; recréer un canal déjà existant affiche « Un canal existe déjà pour cette cible. ».
+- Sondages : question ≤ 200 caractères, options ≤ 100.
+
 ## [1.13.0] - 2026-11-02
 
 ### Ajouté

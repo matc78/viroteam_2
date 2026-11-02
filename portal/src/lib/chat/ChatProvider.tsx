@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -21,7 +20,6 @@ import {
 } from "@/lib/chat/conversationPreview";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
-  ensureClubsChatSynced,
   messagesPagePath,
   totalUnreadCount,
   watchChatStates,
@@ -158,7 +156,6 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
     Record<string, string>
   >({});
 
-  const syncedClubsRef = useRef<string>("");
 
   const clubIds = useMemo(() => {
     const ids = new Set<string>();
@@ -217,11 +214,6 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
     }
 
     setInboxLoading(true);
-    const clubKey = clubIds.slice().sort().join(",");
-    if (syncedClubsRef.current !== clubKey) {
-      syncedClubsRef.current = clubKey;
-      void ensureClubsChatSynced(clubIds);
-    }
 
     const unsubInbox = watchInbox({
       uid: user.uid,

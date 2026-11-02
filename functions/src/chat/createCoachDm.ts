@@ -1,7 +1,11 @@
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { requireString, requireUid, stringArray, uniq } from "../common";
 import { db, defineDualCallable } from "../db";
-import { resolveAuthUid, resolveAuthUids, upsertSystemConversation } from "./sync";
+import {
+  resolveAuthUids,
+  resolveClubAdminUids,
+  upsertSystemConversation,
+} from "./sync";
 
 /**
  * Crée (ou réutilise) une DM / coach_group entre l’appelant et des coaches/admins.
@@ -119,22 +123,8 @@ async function handleCreateCoachDm(request: CallableRequest): Promise<{
     );
     for (const coachUid of coachUids) allowedCoachUids.add(coachUid);
   }
-  // adminIds peut être memberId ou Auth uid — toujours résoudre.
-  for (const adminUid of await resolveAuthUids(
-    firestore,
-    clubId,
-    [...adminIds],
-  )) {
+  for (const adminUid of await resolveClubAdminUids(firestore, clubId, [...adminIds])) {
     allowedCoachUids.add(adminUid);
-  }
-  // Filet : admins déclarés par rôle fiche (adminIds parfois incomplet).
-  const adminMembersSnap = await clubRef
-    .collection("members")
-    .where("role", "==", "admin")
-    .get();
-  for (const adminDoc of adminMembersSnap.docs) {
-    const adminUid = await resolveAuthUid(firestore, clubId, adminDoc.id);
-    if (adminUid) allowedCoachUids.add(adminUid);
   }
 
   for (const target of targetUids) {

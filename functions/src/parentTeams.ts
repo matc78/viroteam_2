@@ -40,7 +40,7 @@ function rosterIdsOf(memberId: string, member: DocumentData): string[] {
  * Équipes d'une fiche enfant : `members.teamIds` ∪ équipes dont `playerIds`
  * contient la fiche (robuste si `teamIds` n'est pas à jour).
  */
-async function childTeamIds(
+export async function childTeamIds(
   firestore: Firestore,
   clubId: string,
   memberId: string,
@@ -273,13 +273,24 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
 
   // Sync chats équipe / parents (best-effort).
   try {
-    const { syncTeamConversations } = await import("./chat/sync");
+    const { syncScopedChannels, syncTeamConversations } = await import("./chat/sync");
     await syncTeamConversations({
       firestore,
       clubId,
       teamId,
       teamData: after,
     });
+    // Canaux ciblés (catégories, équipes, parents) : seulement si le roster
+    // ou la catégorie de l'équipe bouge.
+    const rosterOrCategoryChanged =
+      audienceAdded.length > 0 ||
+      audienceRemovedRaw.length > 0 ||
+      !before ||
+      !after ||
+      String(before.category ?? "") !== String(after.category ?? "");
+    if (rosterOrCategoryChanged) {
+      await syncScopedChannels({ firestore, clubId });
+    }
   } catch (error) {
     console.error("syncTeamConversations failed", { clubId, teamId, error });
   }

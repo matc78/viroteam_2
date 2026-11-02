@@ -29,7 +29,7 @@ class TeamMessagingLinksSection extends ConsumerWidget {
     required String title,
   }) async {
     try {
-      final id = await ref.read(chatServiceProvider).ensureAndFindConversationId(
+      final id = await ref.read(chatServiceProvider).findConversationIdBySystemKey(
             clubId: team.clubId,
             systemKey: systemKey,
           );

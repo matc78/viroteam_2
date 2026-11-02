@@ -59,6 +59,9 @@ final class AppCopyChat {
   String get noConversationMedia => 'Pas encore de médias.';
   String get makeAnnouncement => 'Faire une annonce';
   String get readonlyHint => 'Seuls les admins peuvent écrire ici.';
+  String get closedHint =>
+      'Cette discussion est fermée : tu peux toujours relire l’historique.';
+  String get channelAlreadyExists => 'Un canal existe déjà pour cette cible.';
   String get openTeamChat => 'Ouvrir le chat d’équipe';
   String get openParentsChat => 'Ouvrir le chat parents';
   String get chatEntry => 'Discussions';

@@ -29,12 +29,14 @@ Logique sensible hors client (HelloAsso, invitations). Spec paiement :
 | `onTeamWritten` / `onTeamWrittenDev` | Trigger Firestore `clubs/{clubId}/teams/{teamId}` — recalcule `users/{uid}.parentTeamIds` des parents des joueurs ajoutés/retirés + sync chats `team` / `parents` |
 | `createCoachDm` / `…Dev` | Callable — crée une DM / groupe coaches (joueurs & parents → coaches/admins uniquement) |
 | `createCategoryChannel` / `…Dev` | Callable admin — canal catégorie (écriture admin par défaut) |
-| `ensureClubChatSynced` / `…Dev` | Callable — backfill idempotent chats système d’un club (équipes déjà créées) |
+| `ensureClubChatSynced` / `…Dev` | Callable admin — réparation : resync complète des chats d’un club (une fois / 5 min, `clubs.chatSyncedAt`) |
 | `backfillMyAdminClubChats` / `…Dev` | Callable — backfill de tous les clubs où l’appelant est admin |
-| `onMemberWrittenForChat` / `…Dev` | Trigger membres — sync chats `staff` + `club` |
+| `onMemberWrittenForChat` / `…Dev` | Trigger membres — ajout / retrait ciblé dans `staff` + `club` ; une fiche qui quitte le club sort de ses DM et canaux |
+| `onGuardianWrittenForChat` / `…Dev` | Trigger guardians — lien activé / révoqué : resync chats `parents` des équipes de l’enfant + canaux ciblés |
 | `onClubWrittenForChat` / `…Dev` | Trigger club — resync si `adminIds` change |
-| `onChatMessageCreatedForPush` / `…Dev` | Trigger message — push 1 notif / message (mute + pref `chat`) |
-| `scheduleSeasonChatPurge` / `…Dev` | Cron 03:00 Europe/Paris — purge messages si `seasonEndDate` dans les 48 h (Storage conservé) |
+| `onChatMessageCreatedForPush` / `…Dev` | Trigger message — seul auteur de l’aperçu inbox, fige la citation, non-lus par lots, push 1 notif / message (mute + pref `chat`) ; idempotent (`fanoutAt`) |
+| `onChatMessageUpdated` / `…Dev` | Trigger message — soft-delete : média Storage supprimé + aperçu ; édition : aperçu à jour |
+| `scheduleSeasonChatPurge` / `…Dev` | Cron 03:00 Europe/Paris — purge messages + médias si `seasonEndDate` dans les 48 h (une fois par fin de saison, `clubs.chatPurgedSeasonEndDate`) |
 | `registerFcmToken` / `…Dev` | Callable — enregistre un token FCM (`users/{uid}/fcmTokens`) |
 | `unregisterFcmToken` / `…Dev` | Callable — supprime un token FCM |
 | `sendEventPush` / `…Dev` | Callable — notif manuelle event (coach/admin, 1/h) |
@@ -98,10 +100,11 @@ la ligne à `true` dans [`deploy-functions.yml`](../.github/workflows/deploy-fun
   dû, et fusionnées sans doublon par session (`mergeFeeAids`). Le webhook ignore (et
   logge) tout `payment_intent.succeeded` dont la devise n'est pas `eur`. Helpers purs et
   testés dans `src/stripeCheckoutUtils.ts`. HelloAsso (dormant) n'a pas été touché.
-- **Chats système** : `onMemberWrittenForChat` ne relance `syncClubWideConversations`
-  que si `role` / `status` / `accountUid` / `userId` / `teamIds` changent
-  (`memberChatFieldsChanged`), et `upsertSystemConversation` ne réécrit pas une
-  conversation dont participants (triés), titre, politique et cibles sont identiques.
+- **Chats système** : `onMemberWrittenForChat` n'agit que si `role` / `status` /
+  `accountUid` / `userId` changent (`memberChatFieldsChanged`) et applique un delta
+  (`memberChatDelta`) au lieu de relire tout le club ; `upsertSystemConversation` ne
+  réécrit pas une conversation dont participants (triés), titre, politique et cibles
+  sont identiques.
 - **`createCategoryChannel`** : `writePolicy` ∈ {`open`, `admins_only`,
   `coaches_and_admins`}, `title` ≤ 80, admin résolu via `assertClubAdmin` (adminIds,
   index `member_accounts` ou fiche directe).
@@ -164,9 +167,11 @@ git tag functions-v1.0.0 && git push origin functions-v1.0.0
 
 ## Backfill clubs existants (chat)
 
-Après déploiement des Functions chat, les clubs qui avaient déjà des équipes n’ont pas encore de docs `conversations`. Deux options :
+Les triggers (équipes, fiches, guardians, `adminIds`) tiennent les conversations à jour. Pour un club qui avait déjà des équipes avant le déploiement du chat (ou pour réparer) :
 
-1. **Automatique** — ouvrir l’écran Discussions dans l’app (appelle `ensureClubChatSynced` pour chaque club de la session).
-2. **Admin** — callable `backfillMyAdminClubChats` / `…Dev` pour synchroniser tous les clubs où tu es dans `adminIds`.
+1. **Un club** — callable `ensureClubChatSynced` / `…Dev` (admin du club, une resync / 5 min).
+2. **Tous mes clubs** — callable `backfillMyAdminClubChats` / `…Dev` pour synchroniser tous les clubs où tu es dans `adminIds`.
+
+L’app et le portail ne lancent plus de resync à l’ouverture de l’inbox.
 
 Les upserts sont idempotents (`systemKey`).

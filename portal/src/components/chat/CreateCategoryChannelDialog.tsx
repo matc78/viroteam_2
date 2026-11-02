@@ -9,7 +9,9 @@ import {
   splitBrandColorHex,
 } from "@/lib/clubSetup/clubBrandColors";
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
+import { chatCopy } from "@/lib/copy/chatCopy";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { isChannelAlreadyExistsError } from "@/lib/firebase/callableService";
 import { createCategoryChannel } from "@/lib/firebase/chatService";
 import { MemberRoles } from "@/lib/firebase/constants";
 import type { ClubRecord } from "@/lib/firebase/clubService";
@@ -148,7 +150,11 @@ export function CreateCategoryChannelDialog() {
       openThread({ clubId, conversationId });
     } catch (submitError) {
       console.error("[chat] createCategoryChannel failed", submitError);
-      setError("Création du canal impossible.");
+      setError(
+        isChannelAlreadyExistsError(submitError)
+          ? chatCopy.channelAlreadyExists
+          : "Création du canal impossible.",
+      );
     } finally {
       setBusy(false);
     }

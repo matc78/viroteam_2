@@ -130,6 +130,11 @@ abstract final class ProjectConfig {
   static const String conversationsSubcollection = 'conversations';
   static const String chatMessagesSubcollection = 'messages';
   static const String chatStateSubcollection = 'chatState';
+
+  /// Bornes d'un sondage chat (alignées `firestore.rules`).
+  static const int chatPollQuestionMaxLength = 200;
+  static const int chatPollOptionMaxLength = 100;
+  static const int chatPollMaxOptions = 12;
   static const String paymentsHelloAssoSpecDoc =
       'docs/specs/viroteam_v2_payments_helloasso_spec.md';
 

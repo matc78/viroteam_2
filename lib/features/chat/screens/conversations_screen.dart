@@ -15,6 +15,7 @@ import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/chat/chat_conversation_operations.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
@@ -378,6 +379,10 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
         isGroup: true,
         isChannel: true,
       );
+    } on ChatChannelAlreadyExistsException {
+      if (context.mounted) {
+        ViroSnackBar.show(context, AppCopy.chat.channelAlreadyExists);
+      }
     } catch (_) {
       if (context.mounted) {
         ViroSnackBar.show(context, AppCopy.chat.sendFailed);

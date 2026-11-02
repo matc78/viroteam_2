@@ -236,6 +236,15 @@ export const ChatWritePolicies = {
   open: "open",
   adminsOnly: "admins_only",
   coachesAndAdmins: "coaches_and_admins",
+  /** DM dont l’autre participant a quitté le club : lecture seule. */
+  closed: "closed",
+} as const;
+
+/** Bornes d’un sondage chat (alignées `firestore.rules` et l’app). */
+export const ChatLimits = {
+  pollQuestionMaxLength: 200,
+  pollOptionMaxLength: 100,
+  pollMaxOptions: 12,
 } as const;
 
 /** Types de message chat MVP. */

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
+import { ChatLimits } from "@/lib/firebase/constants";
 import infoStyles from "./ConversationInfoPanel.module.css";
 import styles from "./CreatePollSheet.module.css";
 
@@ -62,6 +63,7 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
           <input
             className={styles.input}
             value={question}
+            maxLength={ChatLimits.pollQuestionMaxLength}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder="Ex. Qui amène les ballons ?"
           />
@@ -72,6 +74,7 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
             <input
               className={styles.input}
               value={option}
+              maxLength={ChatLimits.pollOptionMaxLength}
               onChange={(e) => {
                 const next = [...options];
                 next[index] = e.target.value;
@@ -80,7 +83,7 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
             />
           </label>
         ))}
-        {options.length < 12 ? (
+        {options.length < ChatLimits.pollMaxOptions ? (
           <button
             type="button"
             className={styles.secondary}

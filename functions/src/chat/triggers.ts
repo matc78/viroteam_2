@@ -1,38 +1,36 @@
 import * as admin from "firebase-admin";
-import {
-  onDocumentCreated,
-  onDocumentWritten,
-} from "firebase-functions/v2/firestore";
+import type { DocumentReference, Firestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { defineBoolean } from "firebase-functions/params";
 import { requireString, requireUid, stringArray, uniq } from "../common";
 import { db, defineDualCallable, runWithDatabase, type FirestoreDatabaseId } from "../db";
 import { assertClubAdmin } from "../guardians";
-import { buildPushData, sendPushToUids } from "../notifications/send";
+import { childTeamIds } from "../parentTeams";
 import {
+  CHANNEL_EXISTS_REASON,
   CHANNEL_WRITE_POLICIES,
   CONVERSATION_TITLE_MAX,
+  PRIVATE_CONVERSATION_TYPES,
+  memberChatDelta,
   memberChatFieldsChanged,
+  type ParticipantDelta,
 } from "./memberChatDiff";
 import {
+  channelScopeSystemKey,
   createScopedChannelConversation,
+  findSystemConversation,
+  removeUidFromClubConversations,
   resolveScopedChannelParticipants,
   type ChannelAudienceScopeType,
   syncClubWideConversations,
+  syncScopedChannels,
+  syncTeamConversations,
 } from "./sync";
 
 const REGION = "europe-west1";
-
-/**
- * Messagerie cachée en prod tant que ce param est `false` (défaut) : aucun
- * push `chat_message` ne part. Param public dotenv (`functions/.env.<projet>`,
- * écrit par le workflow deploy-functions) — passer à `true` le jour où la
- * messagerie est ouverte aux clubs.
- */
-const chatMessagingLive = defineBoolean("CHAT_MESSAGING_LIVE", {
-  default: false,
-});
+const FieldValue = admin.firestore.FieldValue;
 
 function defineMemberWrittenTrigger(databaseId: FirestoreDatabaseId) {
   return onDocumentWritten(
@@ -44,23 +42,176 @@ function defineMemberWrittenTrigger(databaseId: FirestoreDatabaseId) {
     async (event) =>
       runWithDatabase(databaseId, async () => {
         const clubId = event.params.clubId;
-        // Resync uniquement si un champ qui compte pour les chats a changé
-        // (même logique de diff que `onClubWrittenForChat` sur `adminIds`).
-        if (
-          !memberChatFieldsChanged(
-            event.data?.before?.data(),
-            event.data?.after?.data(),
-          )
-        ) {
-          return;
-        }
+        const before = event.data?.before?.data();
+        const after = event.data?.after?.data();
+        // Seuls rôle, statut et compte lié comptent pour les chats.
+        if (!memberChatFieldsChanged(before, after)) return;
         try {
-          await syncClubWideConversations({ firestore: db(), clubId });
+          await applyMemberChatChange({
+            firestore: db(),
+            clubId,
+            memberId: event.params.memberId,
+            before,
+            after,
+          });
         } catch (error) {
-          console.error("syncClubWideConversations failed", { clubId, error });
+          console.error("applyMemberChatChange failed", { clubId, error });
         }
       }),
   );
+}
+
+/** Vrai si [uid] reste parent (guardian actif) dans le club. */
+async function isClubGuardian(
+  firestore: Firestore,
+  clubId: string,
+  uid: string,
+): Promise<boolean> {
+  const userSnap = await firestore.collection("users").doc(uid).get();
+  return stringArray(userSnap.data()?.parentClubIds).includes(clubId);
+}
+
+/** Vrai si [uid] a encore une fiche membre dans le club. */
+async function isClubMemberAccount(
+  firestore: Firestore,
+  clubId: string,
+  uid: string,
+): Promise<boolean> {
+  const clubRef = firestore.collection("clubs").doc(clubId);
+  const [account, direct] = await firestore.getAll(
+    clubRef.collection("member_accounts").doc(uid),
+    clubRef.collection("members").doc(uid),
+  );
+  return !!account?.exists || !!direct?.exists;
+}
+
+/**
+ * Applique une écriture de fiche aux chats `club` / `staff` par ajout /
+ * retrait ciblé (plus de relecture de tout le club), puis retire l'uid qui
+ * quitte le club de ses DM, groupes coachs et canaux.
+ */
+async function applyMemberChatChange(params: {
+  firestore: Firestore;
+  clubId: string;
+  memberId: string;
+  before: Record<string, unknown> | undefined;
+  after: Record<string, unknown> | undefined;
+}): Promise<void> {
+  const { firestore, clubId, memberId } = params;
+  const delta = memberChatDelta(params.before, params.after);
+  const clubSnap = await firestore.collection("clubs").doc(clubId).get();
+  const adminIds = stringArray(clubSnap.data()?.adminIds);
+  // Un admin déclaré dans `adminIds` (uid ou memberId) reste dans le staff.
+  const staff: ParticipantDelta = {
+    add: delta.staff.add,
+    remove: delta.staff.remove.filter(
+      (uid) => !adminIds.includes(uid) && !adminIds.includes(memberId),
+    ),
+  };
+
+  const changes: Array<[string, ParticipantDelta]> = [
+    ["club", delta.club],
+    ["staff", staff],
+  ];
+  for (const [systemKey, change] of changes) {
+    if (change.add.length === 0 && change.remove.length === 0) continue;
+    const conv = await findSystemConversation(firestore, clubId, systemKey);
+    if (!conv) {
+      // Première fiche du club : création complète des deux chats.
+      await syncClubWideConversations({ firestore, clubId });
+      break;
+    }
+    if (change.add.length > 0) {
+      await conv.ref.update({
+        participantUids: FieldValue.arrayUnion(...change.add),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    if (change.remove.length > 0) {
+      await conv.ref.update({
+        participantUids: FieldValue.arrayRemove(...change.remove),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  for (const uid of delta.leftUids) {
+    if (await isClubGuardian(firestore, clubId, uid)) continue;
+    await removeUidFromClubConversations({ firestore, clubId, uid });
+  }
+}
+
+function defineGuardianWrittenTrigger(databaseId: FirestoreDatabaseId) {
+  return onDocumentWritten(
+    {
+      document: "clubs/{clubId}/members/{memberId}/guardians/{parentUid}",
+      database: databaseId,
+      region: REGION,
+    },
+    async (event) =>
+      runWithDatabase(databaseId, async () => {
+        const before = event.data?.before?.data();
+        const after = event.data?.after?.data();
+        const wasActive = String(before?.status ?? "") === "active";
+        const isActive = String(after?.status ?? "") === "active";
+        if (wasActive === isActive) return;
+        const { clubId, memberId } = event.params;
+        const parentUid =
+          String(after?.parentUid ?? before?.parentUid ?? "").trim() ||
+          event.params.parentUid;
+        try {
+          await applyGuardianChatChange({
+            firestore: db(),
+            clubId,
+            memberId,
+            parentUid,
+            isActive,
+          });
+        } catch (error) {
+          console.error("applyGuardianChatChange failed", {
+            clubId,
+            memberId,
+            error,
+          });
+        }
+      }),
+  );
+}
+
+/**
+ * Lien parent activé / révoqué : resync des chats `parents` des équipes de
+ * l'enfant et des canaux ciblés ; un parent qui n'a plus aucun lien dans le
+ * club (ni fiche) sort de ses DM et groupes coachs.
+ */
+async function applyGuardianChatChange(params: {
+  firestore: Firestore;
+  clubId: string;
+  memberId: string;
+  parentUid: string;
+  isActive: boolean;
+}): Promise<void> {
+  const { firestore, clubId, memberId, parentUid, isActive } = params;
+  const clubRef = firestore.collection("clubs").doc(clubId);
+  const memberSnap = await clubRef.collection("members").doc(memberId).get();
+  const teamIds = memberSnap.exists
+    ? await childTeamIds(firestore, clubId, memberId, memberSnap.data() ?? {})
+    : [];
+  for (const teamId of teamIds) {
+    const teamSnap = await clubRef.collection("teams").doc(teamId).get();
+    if (!teamSnap.exists) continue;
+    await syncTeamConversations({ firestore, clubId, teamId, teamData: teamSnap.data() });
+  }
+  await syncScopedChannels({ firestore, clubId });
+
+  if (isActive) return;
+  if (await isClubGuardian(firestore, clubId, parentUid)) return;
+  if (await isClubMemberAccount(firestore, clubId, parentUid)) return;
+  await removeUidFromClubConversations({
+    firestore,
+    clubId,
+    uid: parentUid,
+    types: PRIVATE_CONVERSATION_TYPES,
+  });
 }
 
 function defineClubWrittenTrigger(databaseId: FirestoreDatabaseId) {
@@ -91,141 +242,6 @@ function defineClubWrittenTrigger(databaseId: FirestoreDatabaseId) {
   );
 }
 
-function defineMessageCreatedTrigger(databaseId: FirestoreDatabaseId) {
-  return onDocumentCreated(
-    {
-      document: "clubs/{clubId}/conversations/{conversationId}/messages/{messageId}",
-      database: databaseId,
-      region: REGION,
-    },
-    async (event) =>
-      runWithDatabase(databaseId, async () => {
-        const data = event.data?.data();
-        if (!data) return;
-        const clubId = event.params.clubId;
-        const conversationId = event.params.conversationId;
-        const senderUid = String(data.senderUid ?? "").trim();
-        const firestore = db();
-
-        const convSnap = await firestore
-          .collection("clubs")
-          .doc(clubId)
-          .collection("conversations")
-          .doc(conversationId)
-          .get();
-        if (!convSnap.exists) return;
-        const conv = convSnap.data() ?? {};
-        const participants = stringArray(conv.participantUids).filter(
-          (uid) => uid && uid !== senderUid,
-        );
-        if (participants.length === 0) return;
-
-        // Filtre muted + lecture active (thread encore ouvert / markRead en vol).
-        // Court : le client markRead dès que le fil est ouvert ; une fenêtre
-        // trop longue masque les non-lus après avoir quitté la discussion.
-        const ACTIVE_READ_MS = 15_000;
-        const unmuted: string[] = [];
-        for (const uid of participants) {
-          const stateId = `${clubId}_${conversationId}`;
-          const stateSnap = await firestore
-            .collection("users")
-            .doc(uid)
-            .collection("chatState")
-            .doc(stateId)
-            .get();
-          const stateData = stateSnap.data();
-          if (stateData?.muted === true) continue;
-
-          const lastReadAt = stateData?.lastReadAt;
-          const lastReadMs =
-            lastReadAt && typeof lastReadAt.toMillis === "function"
-              ? lastReadAt.toMillis()
-              : 0;
-          const activelyReading =
-            lastReadMs > 0 && Date.now() - lastReadMs < ACTIVE_READ_MS;
-          if (activelyReading) continue;
-
-          unmuted.push(uid);
-          // Incrémente unread best-effort
-          await stateSnap.ref.set(
-            {
-              unreadCount: admin.firestore.FieldValue.increment(1),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            },
-            { merge: true },
-          );
-        }
-
-        const preview =
-          data.type === "image"
-            ? "📷 Photo"
-            : data.type === "poll"
-              ? `📊 ${String(data.pollQuestion ?? data.text ?? "Sondage").trim().slice(0, 100)}`
-              : String(data.text ?? "").trim().slice(0, 120);
-
-        // DM 1:1 : titre = nom de l’expéditeur (pas le title figé = cible).
-        // Groupe / canal : titre = nom du groupe, corps préfixé du prénom.
-        const isDm =
-          String(conv.type ?? "") === "dm" &&
-          stringArray(conv.participantUids).length <= 2;
-        let senderFirstName = "";
-        let senderFullName = "";
-        if (senderUid && (!isDm || !String(conv.titleOverride || "").trim())) {
-          const senderSnap = await firestore
-            .collection("users")
-            .doc(senderUid)
-            .get();
-          const senderData = senderSnap.data() ?? {};
-          const first = String(senderData.firstName ?? "").trim();
-          const last = String(senderData.lastName ?? "").trim();
-          const display = String(senderData.displayName ?? "").trim();
-          senderFullName = display || `${first} ${last}`.trim();
-          senderFirstName =
-            first ||
-            (display ? display.split(/\s+/)[0] ?? "" : "") ||
-            senderFullName;
-        }
-
-        let title = String(conv.titleOverride || "").trim();
-        if (!title && isDm) {
-          title = senderFullName;
-        }
-        if (!title) {
-          title = String(conv.title || "Message").trim() || "Message";
-        }
-
-        const messageBody = preview || "Nouveau message";
-        // En groupe : « Prénom : message » (en 1:1 le titre suffit).
-        const body =
-          !isDm && senderFirstName
-            ? `${senderFirstName} : ${messageBody}`
-            : messageBody;
-
-        // Garde : pas de push tant que la messagerie n'est pas ouverte
-        // (les compteurs non-lus ci-dessus restent maintenus).
-        if (!chatMessagingLive.value()) return;
-
-        await sendPushToUids({
-          firestore,
-          uids: unmuted,
-          payload: {
-            title,
-            body,
-            preferenceKey: "chat",
-            data: buildPushData({
-              type: "chat_message",
-              clubId,
-              preferenceKey: "chat",
-              deepLink: `viroteam://chat?clubId=${encodeURIComponent(clubId)}&conversationId=${encodeURIComponent(conversationId)}`,
-              webPath: `/messages?clubId=${encodeURIComponent(clubId)}&conversationId=${encodeURIComponent(conversationId)}`,
-              extra: { conversationId },
-            }),
-          },
-        });
-      }),
-  );
-}
-
 function defineSeasonChatPurge(databaseId: FirestoreDatabaseId) {
   return onSchedule(
     {
@@ -249,27 +265,83 @@ function defineSeasonChatPurge(databaseId: FirestoreDatabaseId) {
           .get();
 
         for (const clubDoc of clubsSnap.docs) {
-          const convs = await clubDoc.ref.collection("conversations").get();
-          for (const conv of convs.docs) {
-            let snap = await conv.ref.collection("messages").limit(400).get();
-            while (!snap.empty) {
-              const batch = firestore.batch();
-              for (const msg of snap.docs) batch.delete(msg.ref);
-              await batch.commit();
-              snap = await conv.ref.collection("messages").limit(400).get();
-            }
-            await conv.ref.set(
-              {
-                lastMessagePreview: "",
-                lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-              },
-              { merge: true },
-            );
+          // Fenêtre de 48 h → le job voit deux fois la même fin de saison.
+          const seasonEndMs = clubDoc.data().seasonEndDate?.toMillis?.() ?? null;
+          const purgedMs = clubDoc.data().chatPurgedSeasonEndDate?.toMillis?.() ?? null;
+          if (seasonEndMs != null && seasonEndMs === purgedMs) continue;
+          try {
+            await purgeClubChat(firestore, clubDoc.ref);
+            await clubDoc.ref.update({
+              chatPurgedSeasonEndDate: clubDoc.data().seasonEndDate,
+            });
+          } catch (error) {
+            console.error("scheduleSeasonChatPurge failed", {
+              clubId: clubDoc.id,
+              error,
+            });
           }
         }
       }),
   );
+}
+
+/**
+ * Purge de fin de saison d'un club : messages, médias Storage (l'avatar des
+ * groupes est gardé), non-lus remis à zéro. Les conversations sans
+ * participant (équipe supprimée, canal vidé) sont supprimées.
+ */
+async function purgeClubChat(
+  firestore: Firestore,
+  clubRef: DocumentReference,
+): Promise<void> {
+  const bucket = getStorage().bucket();
+  const convs = await clubRef.collection("conversations").get();
+  for (const conv of convs.docs) {
+    let snap = await conv.ref.collection("messages").limit(400).get();
+    while (!snap.empty) {
+      const batch = firestore.batch();
+      for (const msg of snap.docs) batch.delete(msg.ref);
+      await batch.commit();
+      snap = await conv.ref.collection("messages").limit(400).get();
+    }
+
+    const participantUids = stringArray(conv.data().participantUids);
+    const [files] = await bucket.getFiles({
+      prefix: `clubs/${clubRef.id}/chat/${conv.id}/`,
+    });
+    const keepAvatar = participantUids.length > 0;
+    await Promise.all(
+      files
+        .filter((file) => !keepAvatar || !file.name.endsWith("/avatar.jpg"))
+        .map((file) => file.delete({ ignoreNotFound: true })),
+    );
+
+    const stateId = `${clubRef.id}_${conv.id}`;
+    for (let i = 0; i < participantUids.length; i += 400) {
+      const batch = firestore.batch();
+      for (const uid of participantUids.slice(i, i + 400)) {
+        batch.set(
+          firestore.collection("users").doc(uid).collection("chatState").doc(stateId),
+          { unreadCount: 0, updatedAt: FieldValue.serverTimestamp() },
+          { merge: true },
+        );
+      }
+      await batch.commit();
+    }
+
+    if (!keepAvatar) {
+      await conv.ref.delete();
+      continue;
+    }
+    // `lastMessageAt` inchangé : sans expéditeur, aucun non-lu « fantôme ».
+    await conv.ref.update({
+      lastMessagePreview: "",
+      lastSenderUid: FieldValue.delete(),
+      lastSenderFirstName: FieldValue.delete(),
+      lastSenderRole: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
 }
 
 const CHANNEL_SCOPE_TYPES = new Set<ChannelAudienceScopeType>([
@@ -337,6 +409,19 @@ async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
   await assertClubAdmin(clubId, uid);
   const firestore = db();
 
+  // Même cible = même `systemKey` : on n'écrase pas le titre / la politique
+  // d'un canal existant (un canal vidé par la purge peut être recréé).
+  const existing = await findSystemConversation(
+    firestore,
+    clubId,
+    channelScopeSystemKey(scopeType, scopeIds),
+  );
+  if (existing && stringArray(existing.data().participantUids).length > 0) {
+    throw new HttpsError("already-exists", "Un canal existe déjà pour cette cible", {
+      reason: CHANNEL_EXISTS_REASON,
+    });
+  }
+
   const participantUids = await resolveScopedChannelParticipants({
     firestore,
     clubId,
@@ -366,9 +451,8 @@ export const onMemberWrittenForChat = defineMemberWrittenTrigger("v2-prod");
 export const onMemberWrittenForChatDev = defineMemberWrittenTrigger("v2-dev");
 export const onClubWrittenForChat = defineClubWrittenTrigger("v2-prod");
 export const onClubWrittenForChatDev = defineClubWrittenTrigger("v2-dev");
-export const onChatMessageCreatedForPush = defineMessageCreatedTrigger("v2-prod");
-export const onChatMessageCreatedForPushDev =
-  defineMessageCreatedTrigger("v2-dev");
+export const onGuardianWrittenForChat = defineGuardianWrittenTrigger("v2-prod");
+export const onGuardianWrittenForChatDev = defineGuardianWrittenTrigger("v2-dev");
 export const scheduleSeasonChatPurge = defineSeasonChatPurge("v2-prod");
 export const scheduleSeasonChatPurgeDev = defineSeasonChatPurge("v2-dev");
 

@@ -14,6 +14,8 @@ bool chatThreadCanWrite(ChatConversation? conv, String? uid, String? role) {
       return role == MemberRoles.admin;
     case ChatWritePolicies.coachesAndAdmins:
       return role == MemberRoles.admin || role == MemberRoles.coach;
+    case ChatWritePolicies.closed:
+      return false;
     default:
       return true;
   }

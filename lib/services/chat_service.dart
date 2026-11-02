@@ -32,7 +32,6 @@ class ChatService {
 
     _queries = ChatInboxQueries(paths: paths);
     _messages = ChatMessageOperations(
-      firestore: db,
       storage: resolvedStorage,
       paths: paths,
     );
@@ -40,7 +39,6 @@ class ChatService {
     _conversations = ChatConversationOperations(
       functions: resolvedFunctions,
       paths: paths,
-      inboxQueries: _queries,
     );
   }
 
@@ -111,7 +109,7 @@ class ChatService {
         conversationId: conversationId,
       );
 
-  /// Envoie un message texte (espaces / sauts de ligne en fin retirés) et met à jour le preview conversation.
+  /// Envoie un message texte (espaces / sauts de ligne en fin retirés) ; l’aperçu inbox est écrit par le serveur.
   ///
   /// Retourne l’id du document créé. Passe [clientMessageId] pour unifier l’optimistic UI.
   Future<String> sendTextMessage({
@@ -119,8 +117,6 @@ class ChatService {
     required String conversationId,
     required String senderUid,
     required String text,
-    String? senderFirstName,
-    String? senderRole,
     String? replyToMessageId,
     String? replyToText,
     String? replyToSenderUid,
@@ -131,8 +127,6 @@ class ChatService {
         conversationId: conversationId,
         senderUid: senderUid,
         text: text,
-        senderFirstName: senderFirstName,
-        senderRole: senderRole,
         replyToMessageId: replyToMessageId,
         replyToText: replyToText,
         replyToSenderUid: replyToSenderUid,
@@ -148,8 +142,6 @@ class ChatService {
     required String senderUid,
     required Uint8List bytes,
     String contentType = 'image/jpeg',
-    String? senderFirstName,
-    String? senderRole,
     String? replyToMessageId,
     String? replyToText,
     String? replyToSenderUid,
@@ -161,8 +153,6 @@ class ChatService {
         senderUid: senderUid,
         bytes: bytes,
         contentType: contentType,
-        senderFirstName: senderFirstName,
-        senderRole: senderRole,
         replyToMessageId: replyToMessageId,
         replyToText: replyToText,
         replyToSenderUid: replyToSenderUid,
@@ -197,9 +187,7 @@ class ChatService {
         deletedByUid: deletedByUid,
       );
 
-  /// Modifie le texte d’un message (auteur uniquement).
-  ///
-  /// Si le message édité est le dernier, met aussi à jour `lastMessagePreview`.
+  /// Modifie le texte d’un message (auteur uniquement) ; l’aperçu suit côté serveur.
   Future<void> editTextMessage({
     required String clubId,
     required String conversationId,
@@ -221,8 +209,6 @@ class ChatService {
     required String question,
     required List<String> optionTexts,
     bool allowMultiple = false,
-    String? senderFirstName,
-    String? senderRole,
   }) =>
       _polls.sendPollMessage(
         clubId: clubId,
@@ -231,8 +217,6 @@ class ChatService {
         question: question,
         optionTexts: optionTexts,
         allowMultiple: allowMultiple,
-        senderFirstName: senderFirstName,
-        senderRole: senderRole,
       );
 
   /// Vote (ou retire le vote) sur une option de sondage.
@@ -379,21 +363,7 @@ class ChatService {
         systemKey: systemKey,
       );
 
-  /// Backfill chats système d’un club (équipes déjà existantes).
-  Future<void> ensureClubChatSynced({required String clubId}) =>
-      _conversations.ensureClubChatSynced(clubId: clubId);
-
   /// Backfill de tous les clubs où l’utilisateur est admin.
   Future<({int clubsSynced, int teamsSynced})> backfillMyAdminClubChats() =>
       _conversations.backfillMyAdminClubChats();
-
-  /// Ensure puis retrouve une conv système (pour clubs pré-chat).
-  Future<String?> ensureAndFindConversationId({
-    required String clubId,
-    required String systemKey,
-  }) =>
-      _conversations.ensureAndFindConversationId(
-        clubId: clubId,
-        systemKey: systemKey,
-      );
 }

@@ -1,42 +1,57 @@
+import * as admin from "firebase-admin";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { requireString, requireUid, stringArray } from "../common";
+import { requireString, requireUid } from "../common";
 import { db, defineDualCallable } from "../db";
-import { syncAllConversationsForClub } from "./sync";
+import { assertClubAdmin } from "../guardians";
+import { syncAllConversationsForClub, syncScopedChannels } from "./sync";
 
 /**
- * Crée / met à jour les conversations système d’un club (équipes existantes,
- * staff, club). Idempotent — à appeler après déploiement chat ou à l’ouverture
- * de l’inbox.
- *
- * Args : `{ clubId: string }`
- * Auth : membre licencié ou parent du club.
+ * Délai minimal entre deux resync complètes d'un même club : la resync relit
+ * équipes, rosters et guardians, elle ne doit pas servir de chemin courant.
  */
-async function handleEnsureClubChatSynced(request: CallableRequest): Promise<{
-  teamsSynced: number;
-}> {
-  const uid = requireUid(request);
-  const clubId = requireString(request.data?.clubId, "clubId");
-  const firestore = db();
+const CLUB_CHAT_RESYNC_MIN_INTERVAL_MS = 5 * 60 * 1000;
 
+/**
+ * Resync complète d'un club (conversations d'équipes, staff, club, canaux
+ * ciblés), throttlée par `clubs/{clubId}.chatSyncedAt`. Retourne
+ * `{ teamsSynced, skipped }` (`skipped` = resync récente, rien fait).
+ */
+async function resyncClubChat(clubId: string): Promise<{
+  teamsSynced: number;
+  skipped: boolean;
+}> {
+  const firestore = db();
   const clubRef = firestore.collection("clubs").doc(clubId);
   const clubSnap = await clubRef.get();
   if (!clubSnap.exists) {
     throw new HttpsError("not-found", "Club introuvable");
   }
-
-  const account = await clubRef.collection("member_accounts").doc(uid).get();
-  const directMember = await clubRef.collection("members").doc(uid).get();
-  const userSnap = await firestore.collection("users").doc(uid).get();
-  const parentClubIds = stringArray(userSnap.data()?.parentClubIds);
-  const isMember = account.exists || directMember.exists;
-  const isParent = parentClubIds.includes(clubId);
-  const isAdmin = stringArray(clubSnap.data()?.adminIds).includes(uid);
-
-  if (!isMember && !isParent && !isAdmin) {
-    throw new HttpsError("permission-denied", "Tu n’es pas dans ce club");
+  const lastSyncMs = clubSnap.data()?.chatSyncedAt?.toMillis?.() ?? 0;
+  if (Date.now() - lastSyncMs < CLUB_CHAT_RESYNC_MIN_INTERVAL_MS) {
+    return { teamsSynced: 0, skipped: true };
   }
+  await clubRef.update({ chatSyncedAt: admin.firestore.FieldValue.serverTimestamp() });
+  const { teamsSynced } = await syncAllConversationsForClub({ firestore, clubId });
+  await syncScopedChannels({ firestore, clubId });
+  return { teamsSynced, skipped: false };
+}
 
-  return syncAllConversationsForClub({ firestore, clubId });
+/**
+ * Réparation : recrée / resynchronise les conversations d'un club. Les
+ * triggers (équipes, fiches, guardians, adminIds) restent la source normale ;
+ * ce n'est plus appelé à l'ouverture de l'inbox.
+ *
+ * Args : `{ clubId: string }`
+ * Auth : admin du club.
+ */
+async function handleEnsureClubChatSynced(request: CallableRequest): Promise<{
+  teamsSynced: number;
+  skipped: boolean;
+}> {
+  const uid = requireUid(request);
+  const clubId = requireString(request.data?.clubId, "clubId");
+  await assertClubAdmin(clubId, uid);
+  return resyncClubChat(clubId);
 }
 
 /**
@@ -55,16 +70,16 @@ async function handleBackfillMyAdminClubChats(
     .where("adminIds", "array-contains", uid)
     .get();
 
+  let clubsSynced = 0;
   let teamsSynced = 0;
   for (const clubDoc of clubsSnap.docs) {
-    const result = await syncAllConversationsForClub({
-      firestore,
-      clubId: clubDoc.id,
-    });
+    const result = await resyncClubChat(clubDoc.id);
+    if (result.skipped) continue;
+    clubsSynced += 1;
     teamsSynced += result.teamsSynced;
   }
 
-  return { clubsSynced: clubsSnap.size, teamsSynced };
+  return { clubsSynced, teamsSynced };
 }
 
 export const { prod: ensureClubChatSynced, dev: ensureClubChatSyncedDev } =

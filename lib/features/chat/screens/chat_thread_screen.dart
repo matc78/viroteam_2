@@ -311,22 +311,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     return null;
   }
 
-  ({String firstName, String senderRole}) _senderMeta() {
-    final user = ref.read(viroUserProvider).value;
-    final clubs = ref.read(userClubsProvider).value ?? const [];
-    final membership = clubs
-        .where((e) => e.club.id == widget.clubId)
-        .map((e) => e.membership)
-        .firstOrNull;
-    final firstName = (user?.firstName.trim().isNotEmpty == true)
-        ? user!.firstName.trim()
-        : (user?.displayName.trim().split(RegExp(r'\s+')).firstOrNull ?? '');
-    return (
-      firstName: firstName,
-      senderRole: membership?.role ?? 'parent',
-    );
-  }
-
   @override
   void dispose() {
     _scrollController.removeListener(_onThreadScroll);
@@ -345,7 +329,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final uid = ref.read(authStateProvider).value?.uid;
     final text = _controller.text.trimRight();
     if (uid == null || text.trim().isEmpty || _sending) return;
-    final meta = _senderMeta();
     final reply = _replyTo;
     final clientId = ref.read(chatServiceProvider).allocateMessageId(
           clubId: widget.clubId,
@@ -378,8 +361,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             conversationId: widget.conversationId,
             senderUid: uid,
             text: text,
-            senderFirstName: meta.firstName,
-            senderRole: meta.senderRole,
             replyToMessageId: reply?.id,
             replyToText:
                 reply == null ? null : chatThreadReplyPreviewText(reply),
@@ -415,7 +396,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       maxWidth: 1600,
     );
     if (file == null) return;
-    final meta = _senderMeta();
     final reply = _replyTo;
     final bytes = Uint8List.fromList(await file.readAsBytes());
     final clientId = ref.read(chatServiceProvider).allocateMessageId(
@@ -448,8 +428,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             conversationId: widget.conversationId,
             senderUid: uid,
             bytes: bytes,
-            senderFirstName: meta.firstName,
-            senderRole: meta.senderRole,
             replyToMessageId: reply?.id,
             replyToText:
                 reply == null ? null : chatThreadReplyPreviewText(reply),
@@ -480,7 +458,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     if (!failed.isSendFailed || _sending) return;
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid == null) return;
-    final meta = _senderMeta();
     setState(() {
       _sending = true;
       _pendingMessages = _pendingMessages
@@ -500,8 +477,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               conversationId: widget.conversationId,
               senderUid: uid,
               bytes: bytes,
-              senderFirstName: meta.firstName,
-              senderRole: meta.senderRole,
               replyToMessageId: failed.replyToMessageId,
               replyToText: failed.replyToText,
               replyToSenderUid: failed.replyToSenderUid,
@@ -513,8 +488,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               conversationId: widget.conversationId,
               senderUid: uid,
               text: failed.text ?? '',
-              senderFirstName: meta.firstName,
-              senderRole: meta.senderRole,
               replyToMessageId: failed.replyToMessageId,
               replyToText: failed.replyToText,
               replyToSenderUid: failed.replyToSenderUid,
@@ -881,6 +854,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       headerAvatarUrl = peerAvatarUrl;
     }
     final isAdminOnly = conv?.writePolicy == ChatWritePolicies.adminsOnly;
+    final isClosed = conv?.writePolicy == ChatWritePolicies.closed;
     final canWrite = chatThreadCanWrite(conv, uid, role);
     final canPoll = canWrite && (conv?.allowsPolls ?? false);
 
@@ -930,7 +904,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       ),
       body: Column(
         children: [
-          if (isAdminOnly)
+          if (isAdminOnly || isClosed)
             Material(
               color: palette.accentSofter,
               child: Padding(
@@ -939,7 +913,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   vertical: ViroSpacing.xs,
                 ),
                 child: Text(
-                  AppCopy.chat.readonlyHint,
+                  isClosed
+                      ? AppCopy.chat.closedHint
+                      : AppCopy.chat.readonlyHint,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: palette.accent,
                       ),

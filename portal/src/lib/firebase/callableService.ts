@@ -30,6 +30,14 @@ export class CallableError extends Error {
   }
 }
 
+/** `details.reason` quand un canal existe déjà pour la cible (`createCategoryChannel`). */
+export const CHANNEL_EXISTS_REASON = "channel_exists";
+
+/** Vrai si `createCategoryChannel` a refusé : la cible a déjà un canal. */
+export function isChannelAlreadyExistsError(error: unknown): boolean {
+  return error instanceof CallableError && error.reason === CHANNEL_EXISTS_REASON;
+}
+
 /** Vrai si la callable a refusé l’action faute d’e-mail confirmé. */
 export function isEmailNotVerifiedError(error: unknown): boolean {
   return error instanceof CallableError && error.reason === EMAIL_NOT_VERIFIED_REASON;

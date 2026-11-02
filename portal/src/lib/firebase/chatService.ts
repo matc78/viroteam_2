@@ -16,7 +16,7 @@ import {
   type Unsubscribe,
   updateDoc,
   where,
-  writeBatch,
+  deleteField,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
 import {
@@ -25,6 +25,7 @@ import {
   ensureClubChatSynced as ensureClubChatSyncedCallable,
 } from "./callableService";
 import {
+  ChatLimits,
   ChatMessageTypes,
   ChatWritePolicies,
   Collections,
@@ -99,31 +100,6 @@ function parsePollOptions(raw: unknown): ChatPollOption[] {
     out.push({ id, text });
   }
   return out;
-}
-
-function previewText(text: string): string {
-  return text.length > 120 ? `${text.slice(0, 117)}…` : text;
-}
-
-/** Champs preview conversation à écrire à l’envoi d’un message. */
-function conversationPreviewUpdate(params: {
-  preview: string;
-  senderUid: string;
-  senderFirstName?: string | null;
-  senderRole?: string | null;
-}): Record<string, unknown> {
-  const firstName = params.senderFirstName?.trim() ?? "";
-  const role = params.senderRole?.trim() ?? "";
-  return {
-    [Fields.lastMessageAt]: serverTimestamp(),
-    [Fields.lastMessagePreview]: params.preview,
-    [Fields.lastSenderUid]: params.senderUid,
-    ...(firstName
-      ? { [Fields.lastSenderFirstName]: firstName }
-      : {}),
-    ...(role ? { [Fields.lastSenderRole]: role } : {}),
-    [Fields.updatedAt]: serverTimestamp(),
-  };
 }
 
 /** Parse un document conversation. */
@@ -484,6 +460,8 @@ export function canWriteToConversation(params: {
       return (
         clubRole === MemberRoles.admin || clubRole === MemberRoles.coach
       );
+    case ChatWritePolicies.closed:
+      return false;
     default:
       return true;
   }
@@ -507,20 +485,16 @@ function replyFields(payload: ReplyPayload): Record<string, string> {
   };
 }
 
-/** Envoie un message texte et met à jour le preview. */
+/** Envoie un message texte (l’aperçu inbox est écrit par le serveur). */
 export async function sendTextMessage(params: {
   clubId: string;
   conversationId: string;
   senderUid: string;
   text: string;
-  senderFirstName?: string | null;
-  senderRole?: string | null;
 } & ReplyPayload): Promise<void> {
   const trimmed = params.text.trim();
   if (!trimmed) return;
-  const messageRef = doc(messagesCol(params.clubId, params.conversationId));
-  const batch = writeBatch(db());
-  batch.set(messageRef, {
+  await setDoc(doc(messagesCol(params.clubId, params.conversationId)), {
     [Fields.type]: ChatMessageTypes.text,
     [Fields.text]: trimmed,
     [Fields.senderUid]: params.senderUid,
@@ -528,16 +502,6 @@ export async function sendTextMessage(params: {
     [Fields.reactions]: {},
     ...replyFields(params),
   });
-  batch.update(
-    doc(conversationsCol(params.clubId), params.conversationId),
-    conversationPreviewUpdate({
-      preview: previewText(trimmed),
-      senderUid: params.senderUid,
-      senderFirstName: params.senderFirstName,
-      senderRole: params.senderRole,
-    }),
-  );
-  await batch.commit();
 }
 
 /** Upload photo puis crée le message image. */
@@ -547,8 +511,6 @@ export async function sendImageMessage(params: {
   senderUid: string;
   bytes: ArrayBuffer;
   contentType?: string;
-  senderFirstName?: string | null;
-  senderRole?: string | null;
 } & ReplyPayload): Promise<void> {
   const messageRef = doc(messagesCol(params.clubId, params.conversationId));
   const prepared = await prepareChatImageUpload(
@@ -570,8 +532,7 @@ export async function sendImageMessage(params: {
       contentType: "image/jpeg",
     }),
   ]);
-  const batch = writeBatch(db());
-  batch.set(messageRef, {
+  await setDoc(messageRef, {
     [Fields.type]: ChatMessageTypes.image,
     [Fields.storagePath]: fullPath,
     [Fields.downloadUrl]: downloadUrl,
@@ -583,19 +544,27 @@ export async function sendImageMessage(params: {
     [Fields.reactions]: {},
     ...replyFields(params),
   });
-  batch.update(
-    doc(conversationsCol(params.clubId), params.conversationId),
-    conversationPreviewUpdate({
-      preview: "📷 Photo",
-      senderUid: params.senderUid,
-      senderFirstName: params.senderFirstName,
-      senderRole: params.senderRole,
-    }),
-  );
-  await batch.commit();
 }
 
-/** Soft-delete d’un message. */
+/**
+ * Champs de contenu retirés au soft-delete (liste alignée `firestore.rules`,
+ * `messageContentKeys`) ; le média Storage est supprimé par le serveur.
+ */
+const MESSAGE_CONTENT_FIELDS = [
+  Fields.text,
+  Fields.downloadUrl,
+  Fields.thumbUrl,
+  Fields.reactions,
+  Fields.replyToMessageId,
+  Fields.replyToText,
+  Fields.replyToSenderUid,
+  Fields.pollQuestion,
+  Fields.pollOptions,
+  Fields.pollVotes,
+  Fields.pollAllowMultiple,
+] as const;
+
+/** Soft-delete d’un message : le contenu est retiré dans la même écriture. */
 export async function softDeleteMessage(params: {
   clubId: string;
   conversationId: string;
@@ -607,11 +576,14 @@ export async function softDeleteMessage(params: {
     {
       [Fields.deletedAt]: serverTimestamp(),
       [Fields.deletedByUid]: params.deletedByUid,
+      ...Object.fromEntries(
+        MESSAGE_CONTENT_FIELDS.map((field) => [field, deleteField()]),
+      ),
     },
   );
 }
 
-/** Modifie le texte d’un message (auteur uniquement). */
+/** Modifie le texte d’un message (auteur uniquement) ; l’aperçu suit côté serveur. */
 export async function editTextMessage(params: {
   clubId: string;
   conversationId: string;
@@ -637,8 +609,6 @@ export async function sendPollMessage(params: {
   question: string;
   optionTexts: string[];
   allowMultiple?: boolean;
-  senderFirstName?: string | null;
-  senderRole?: string | null;
 }): Promise<void> {
   const trimmedQuestion = params.question.trim();
   const options = params.optionTexts
@@ -647,8 +617,8 @@ export async function sendPollMessage(params: {
   if (!trimmedQuestion || options.length < 2) {
     throw new Error("Sondage : question + au moins 2 options.");
   }
-  if (options.length > 12) {
-    throw new Error("Sondage : 12 options max.");
+  if (options.length > ChatLimits.pollMaxOptions) {
+    throw new Error(`Sondage : ${ChatLimits.pollMaxOptions} options max.`);
   }
 
   const convDoc = await getDoc(
@@ -669,10 +639,7 @@ export async function sendPollMessage(params: {
     pollVotes[id] = [];
   });
 
-  const messageRef = doc(messagesCol(params.clubId, params.conversationId));
-  const preview = previewText(`📊 ${trimmedQuestion}`);
-  const batch = writeBatch(db());
-  batch.set(messageRef, {
+  await setDoc(doc(messagesCol(params.clubId, params.conversationId)), {
     [Fields.type]: ChatMessageTypes.poll,
     [Fields.text]: trimmedQuestion,
     [Fields.pollQuestion]: trimmedQuestion,
@@ -683,16 +650,6 @@ export async function sendPollMessage(params: {
     [Fields.createdAt]: serverTimestamp(),
     [Fields.reactions]: {},
   });
-  batch.update(
-    doc(conversationsCol(params.clubId), params.conversationId),
-    conversationPreviewUpdate({
-      preview,
-      senderUid: params.senderUid,
-      senderFirstName: params.senderFirstName,
-      senderRole: params.senderRole,
-    }),
-  );
-  await batch.commit();
 }
 
 /** Vote (ou retire le vote) sur une option de sondage. */
@@ -978,25 +935,12 @@ export async function findConversationIdBySystemKey(params: {
   return snap.docs[0]!.id;
 }
 
-/** Backfill chats système d’un club. */
+/**
+ * Réparation admin : resynchronise les conversations d’un club (les triggers
+ * serveur restent la source normale ; throttlé côté serveur).
+ */
 export async function ensureClubChatSynced(clubId: string): Promise<void> {
   await ensureClubChatSyncedCallable({ clubId });
-}
-
-/** Ensure puis retrouve une conv système. */
-export async function ensureAndFindConversationId(params: {
-  clubId: string;
-  systemKey: string;
-}): Promise<string | null> {
-  const id = await findConversationIdBySystemKey(params);
-  if (id) return id;
-  await ensureClubChatSynced(params.clubId);
-  return findConversationIdBySystemKey(params);
-}
-
-/** Best-effort sync de tous les clubs (ouverture inbox). */
-export async function ensureClubsChatSynced(clubIds: string[]): Promise<void> {
-  await Promise.allSettled(clubIds.map((clubId) => ensureClubChatSynced(clubId)));
 }
 
 /** Chemin page messages selon l’espace. */

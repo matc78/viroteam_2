@@ -84,6 +84,7 @@ import {
   type ChatUserState,
 } from "@/lib/firebase/chatTypes";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
+import { chatCopy } from "@/lib/copy/chatCopy";
 import styles from "./ChatThreadView.module.css";
 
 const LONG_PRESS_MS = 450;
@@ -147,7 +148,7 @@ export function ChatThreadView({
   clubName,
   clubColor,
 }: ChatThreadViewProps) {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const chat = useChatOptional();
   const inboxPeerName =
     chat?.dmPeerNameByKey[chatStateDocId(clubId, conversationId)] ?? null;
@@ -558,11 +559,6 @@ export function ChatThreadView({
     : false;
   const muted = chatState?.muted ?? false;
   const favorite = chatState?.favorite ?? false;
-  const senderFirstName =
-    profile?.firstName?.trim() ||
-    profile?.displayName?.trim().split(/\s+/)[0] ||
-    "";
-  const senderRole = clubRole || PortalUiRoles.parent;
   const title = conversation
     ? chatDisplayTitle(conversation, {
         peerDisplayName:
@@ -643,8 +639,6 @@ export function ChatThreadView({
         senderUid: user.uid,
         bytes,
         contentType: file.type || "image/jpeg",
-        senderFirstName,
-        senderRole,
         ...replyPayloadFromTarget(replyTarget),
       });
       setReplyTarget(null);
@@ -726,8 +720,6 @@ export function ChatThreadView({
         conversationId,
         senderUid: user.uid,
         text,
-        senderFirstName,
-        senderRole,
         ...replyPayloadFromTarget(replyTarget),
       });
       setDraft("");
@@ -1585,7 +1577,7 @@ export function ChatThreadView({
         </form>
       ) : (
         <p className={styles.readonly}>
-          Seuls les admins peuvent écrire ici.
+          {chatCopy.readonlyNotice(conversation?.writePolicy)}
         </p>
       )}
 
@@ -1604,8 +1596,6 @@ export function ChatThreadView({
               question: payload.question,
               optionTexts: payload.options,
               allowMultiple: payload.allowMultiple,
-              senderFirstName,
-              senderRole,
             });
             setPollOpen(false);
           }}

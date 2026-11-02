@@ -20,6 +20,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   collection,
   collectionGroup,
   query,
@@ -186,6 +187,7 @@ beforeEach(async () => {
     await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_TEAM}`), {
       type: "team",
       systemKey: "team:teamA",
+      teamId: "teamA",
       title: "Équipe A",
       participantUids: [ADMIN.uid, COACH.uid, PLAYER.uid],
       writePolicy: "open",
@@ -207,6 +209,20 @@ beforeEach(async () => {
       type: "text",
       text: "Ancien",
       senderUid: COACH.uid,
+      createdAt: Timestamp.now(),
+      reactions: {},
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/msgPlayer`), {
+      type: "text",
+      text: "Message du joueur",
+      senderUid: PLAYER.uid,
+      createdAt: Timestamp.now(),
+      reactions: { "👍": [COACH.uid] },
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_DM}/messages/msgDm`), {
+      type: "text",
+      text: "Coach, une question",
+      senderUid: PLAYER.uid,
       createdAt: Timestamp.now(),
       reactions: {},
     });
@@ -977,9 +993,9 @@ test("un simple lecteur d'un canal admins_only ne le renomme pas, un admin oui",
   );
 });
 
-test("le preview inbox n'accepte qu'un rôle connu et un prénom court", async () => {
+test("l'aperçu inbox n'est écrit que par le serveur, jamais par un client", async () => {
   const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}`);
-  await assertSucceeds(
+  await assertFails(
     updateDoc(ref, {
       lastMessageAt: serverTimestamp(),
       lastMessagePreview: "Salut",
@@ -989,22 +1005,32 @@ test("le preview inbox n'accepte qu'un rôle connu et un prénom court", async (
       updatedAt: serverTimestamp(),
     }),
   );
+  // Aperçu réécrit en gardant l'expéditeur précédent (ancienne faille).
+  await assertFails(updateDoc(ref, { lastMessagePreview: "Faux message du coach" }));
+  // Date future qui épinglerait la conversation.
   await assertFails(
-    updateDoc(ref, {
-      lastMessageAt: serverTimestamp(),
-      lastSenderUid: PLAYER.uid,
-      lastSenderRole: "superadmin",
-      updatedAt: serverTimestamp(),
+    updateDoc(ref, { lastMessageAt: Timestamp.fromDate(new Date(2099, 0, 1)) }),
+  );
+});
+
+test("une conversation n'est ni créée ni supprimée par un client", async () => {
+  await assertFails(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/conversations/pirate`), {
+      type: "dm",
+      title: "Pirate",
+      participantUids: [ADMIN.uid, PLAYER.uid],
+      writePolicy: "open",
     }),
   );
-  await assertFails(
-    updateDoc(ref, {
-      lastMessageAt: serverTimestamp(),
-      lastSenderUid: PLAYER.uid,
-      lastSenderFirstName: "x".repeat(61),
-      updatedAt: serverTimestamp(),
-    }),
-  );
+  await assertFails(deleteDoc(doc(as(ADMIN), `clubs/${CLUB}/conversations/${CONV_TEAM}`)));
+});
+
+test("chatState : seul le propriétaire lit et écrit son état de lecture", async () => {
+  const path = `users/${PLAYER.uid}/chatState/${CLUB}_${CONV_TEAM}`;
+  await assertSucceeds(setDoc(doc(as(PLAYER), path), { unreadCount: 0, lastReadAt: serverTimestamp() }));
+  await assertSucceeds(getDoc(doc(as(PLAYER), path)));
+  await assertFails(getDoc(doc(as(COACH), path)));
+  await assertFails(setDoc(doc(as(COACH), path), { unreadCount: 99 }));
 });
 
 // ————————————————————————————————————————————————————————————————
@@ -1145,6 +1171,86 @@ test("un participant vote sur un sondage, uniquement avec son uid", async () => 
   const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/pollOld`);
   await assertSucceeds(updateDoc(ref, { pollVotes: { o0: [PLAYER.uid], o1: [] } }));
   await assertFails(updateDoc(ref, { pollVotes: { o0: [PLAYER.uid], o1: [COACH.uid] } }));
+});
+
+test("un sondage refuse une option vide, trop longue ou mal typée", async () => {
+  const col = `clubs/${CLUB}/conversations/${CONV_TEAM}/messages`;
+  const poll = (pollOptions) => ({
+    type: "poll",
+    text: "Match samedi ?",
+    pollQuestion: "Match samedi ?",
+    pollOptions,
+    pollVotes: Object.fromEntries(pollOptions.map((_, i) => [`o${i}`, []])),
+    pollAllowMultiple: false,
+    senderUid: COACH.uid,
+    createdAt: serverTimestamp(),
+    reactions: {},
+  });
+  const twelve = Array.from({ length: 12 }, (_, i) => ({ id: `o${i}`, text: `Option ${i}` }));
+  await assertSucceeds(setDoc(doc(as(COACH), `${col}/po1`), poll(twelve)));
+  await assertFails(
+    setDoc(doc(as(COACH), `${col}/po2`), poll([{ id: "o0", text: "Oui" }, { id: "o1", text: "x".repeat(101) }])),
+  );
+  await assertFails(
+    setDoc(doc(as(COACH), `${col}/po3`), poll([{ id: "o0", text: "Oui" }, { id: "o1", text: "" }])),
+  );
+  await assertFails(
+    setDoc(doc(as(COACH), `${col}/po4`), poll([{ id: "o0", text: "Oui" }, { id: "o1", text: 42 }])),
+  );
+  await assertFails(setDoc(doc(as(COACH), `${col}/po5`), poll([{ id: "o0", text: "Oui" }, "Non"])));
+});
+
+/** Soft-delete conforme : marqueurs + retrait du contenu. */
+function softDelete(user) {
+  return {
+    deletedAt: serverTimestamp(),
+    deletedByUid: user.uid,
+    text: deleteField(),
+    reactions: deleteField(),
+  };
+}
+
+test("le soft-delete retire le contenu dans la même écriture", async () => {
+  const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/msgPlayer`);
+  // Marqueurs seuls : le texte resterait lisible.
+  await assertFails(updateDoc(ref, { deletedAt: serverTimestamp(), deletedByUid: PLAYER.uid }));
+  // Horodatage client.
+  await assertFails(
+    updateDoc(ref, { ...softDelete(PLAYER), deletedAt: Timestamp.fromDate(new Date(2020, 0, 1)) }),
+  );
+  // Suppression attribuée à un autre.
+  await assertFails(updateDoc(ref, { ...softDelete(PLAYER), deletedByUid: COACH.uid }));
+  await assertSucceeds(updateDoc(ref, softDelete(PLAYER)));
+  // Plus de réaction ni de second soft-delete sur un message supprimé.
+  await assertFails(updateDoc(ref, { reactions: { "👍": [PLAYER.uid] } }));
+  await assertFails(updateDoc(ref, softDelete(PLAYER)));
+});
+
+test("modération : admin et coach de l'équipe suppriment, pas un joueur ni un coach en DM", async () => {
+  const teamMsg = `clubs/${CLUB}/conversations/${CONV_TEAM}/messages`;
+  // Un joueur ne supprime pas le message du coach.
+  await assertFails(updateDoc(doc(as(PLAYER), `${teamMsg}/msgOld`), softDelete(PLAYER)));
+  // Le coach de l'équipe A modère le chat de l'équipe A.
+  await assertSucceeds(updateDoc(doc(as(COACH), `${teamMsg}/msgPlayer`), softDelete(COACH)));
+  // L'admin du club modère tout chat où il est participant.
+  await assertSucceeds(updateDoc(doc(as(ADMIN), `${teamMsg}/msgOld`), softDelete(ADMIN)));
+  // Un coach ne supprime pas le message d'un joueur dans un DM.
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/conversations/${CONV_DM}/messages/msgDm`), softDelete(COACH)),
+  );
+});
+
+test("seul l'auteur modifie le texte de son message", async () => {
+  const path = `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/msgPlayer`;
+  await assertSucceeds(
+    updateDoc(doc(as(PLAYER), path), { text: "Message corrigé", editedAt: serverTimestamp() }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), path), { text: "Réécrit par le coach", editedAt: serverTimestamp() }),
+  );
+  await assertFails(
+    updateDoc(doc(as(PLAYER), path), { text: "x".repeat(4001), editedAt: serverTimestamp() }),
+  );
 });
 
 // ————————————————————————————————————————————————————————————————

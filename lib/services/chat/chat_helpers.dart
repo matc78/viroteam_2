@@ -13,6 +13,22 @@ String? trimToNull(String? value) {
   return trimmed;
 }
 
+/// Champs de contenu retirés au soft-delete (liste alignée `firestore.rules`,
+/// `messageContentKeys`).
+const List<String> chatMessageContentFields = [
+  FirestoreFields.text,
+  FirestoreFields.downloadUrl,
+  FirestoreFields.thumbUrl,
+  FirestoreFields.reactions,
+  FirestoreFields.replyToMessageId,
+  FirestoreFields.replyToText,
+  FirestoreFields.replyToSenderUid,
+  FirestoreFields.pollQuestion,
+  FirestoreFields.pollOptions,
+  FirestoreFields.pollVotes,
+  FirestoreFields.pollAllowMultiple,
+];
+
 /// Champs Firestore communs pour une citation de message.
 Map<String, dynamic> buildReplyFields({
   required String? replyToMessageId,

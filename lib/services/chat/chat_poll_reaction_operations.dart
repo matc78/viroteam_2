@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
-import 'package:viro_team_v2/services/chat/chat_helpers.dart';
 import 'package:viro_team_v2/services/chat/chat_paths.dart';
 
 /// Regroupe les mutations de sondages et réactions emoji.
@@ -23,8 +22,6 @@ class ChatPollReactionOperations {
     required String question,
     required List<String> optionTexts,
     bool allowMultiple = false,
-    String? senderFirstName,
-    String? senderRole,
   }) async {
     final trimmedQuestion = question.trim();
     final options = optionTexts
@@ -59,10 +56,7 @@ class ChatPollReactionOperations {
       pollVotes[id] = <String>[];
     }
 
-    final ref = _paths.messages(clubId, conversationId).doc();
-    final preview = '📊 $trimmedQuestion';
-    final batch = _db.batch();
-    batch.set(ref, {
+    await _paths.messages(clubId, conversationId).doc().set({
       FirestoreFields.type: ChatMessageTypes.poll,
       FirestoreFields.text: trimmedQuestion,
       FirestoreFields.pollQuestion: trimmedQuestion,
@@ -73,20 +67,6 @@ class ChatPollReactionOperations {
       FirestoreFields.createdAt: FieldValue.serverTimestamp(),
       FirestoreFields.reactions: <String, dynamic>{},
     });
-    batch.update(_paths.conversations(clubId).doc(conversationId), {
-      FirestoreFields.lastMessageAt: FieldValue.serverTimestamp(),
-      FirestoreFields.lastMessagePreview: truncateChatText(
-        preview,
-        maxLength: 120,
-      ),
-      FirestoreFields.lastSenderUid: senderUid,
-      if (trimToNull(senderFirstName) != null)
-        FirestoreFields.lastSenderFirstName: trimToNull(senderFirstName),
-      if (trimToNull(senderRole) != null)
-        FirestoreFields.lastSenderRole: trimToNull(senderRole),
-      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
   }
 
   /// Vote (ou retire le vote) sur une option de sondage.

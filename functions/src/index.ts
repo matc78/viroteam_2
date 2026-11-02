@@ -95,8 +95,12 @@ export {
   onMemberWrittenForChatDev,
   onClubWrittenForChat,
   onClubWrittenForChatDev,
+  onGuardianWrittenForChat,
+  onGuardianWrittenForChatDev,
   onChatMessageCreatedForPush,
   onChatMessageCreatedForPushDev,
+  onChatMessageUpdated,
+  onChatMessageUpdatedDev,
   scheduleSeasonChatPurge,
   scheduleSeasonChatPurgeDev,
 } from "./chat";

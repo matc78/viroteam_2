@@ -8,6 +8,28 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+
+- Messagerie (toujours masquée en release) : le serveur devient la seule source de vérité.
+  - L’aperçu de l’inbox (dernier message, expéditeur, rôle) est écrit par le trigger `onChatMessageCreatedForPush`, qui fige aussi la citation d’après le vrai message cité. Le client n’écrit plus que le message ; le trigger est idempotent (`fanoutAt`) et compte les non-lus par lots.
+  - Nouveau trigger `onChatMessageUpdated` : message supprimé → photo et miniature supprimées du Storage, aperçu « Message supprimé » ; message modifié → aperçu à jour (aussi depuis le portail).
+  - Participants : une fiche archivée, supprimée ou rattachée à un autre compte sort des chats `club` / `staff` par ajout / retrait ciblé (plus de relecture de tout le club à chaque fiche) et de ses DM, groupes coachs et canaux. Un DM réduit à une personne passe en lecture seule (`writePolicy: closed`).
+  - Nouveau trigger `onGuardianWrittenForChat` : activer ou révoquer un lien parent met à jour les chats parents des équipes de l’enfant ; un parent sans plus aucun lien dans le club sort de ses DM.
+  - Canaux ciblés : participants recalculés quand un roster ou une catégorie d’équipe change. Recréer un canal pour la même cible est refusé au lieu d’écraser son titre et sa politique.
+  - `ensureClubChatSynced` réservé aux admins et limité à une resync toutes les 5 min ; l’app ne l’appelle plus à l’ouverture de l’inbox.
+  - Purge de fin de saison : supprime aussi les médias Storage, remet les non-lus à zéro, ne fait plus remonter les conversations (plus de non-lu « fantôme »), supprime les conversations sans participant et ne tourne qu’une fois par fin de saison.
+  - Suppression de compte : les messages de la personne sont vidés et son uid retiré des conversations.
+- Sondages : question ≤ 200 caractères, options ≤ 100 (champs bornés dans l’app).
+
+### Sécurité
+
+- Règles Firestore (messagerie) :
+  - Plus aucune écriture client de l’aperçu inbox : un participant ne peut plus le réécrire au nom d’un autre ni l’épingler avec une date future.
+  - Le soft-delete retire le contenu (texte, médias, sondage, citation, réactions) dans la même écriture.
+  - Modération réservée aux admins du club, et aux coachs sur les chats équipe / parents d’une équipe qu’ils encadrent (avant : tout coach du club, partout).
+  - Texte des options de sondage borné (1 à 100 caractères).
+- Ordre de déploiement : `functions-v*` d’abord (le trigger écrit l’aperçu), puis les clients, puis `firestore-dev-v*` / `firestore-v*`.
+
 ## [2.2.13] - 2026-11-02
 
 ### Ajouté

@@ -3,6 +3,13 @@ import * as crypto from "crypto";
 import type { DocumentData, Firestore } from "firebase-admin/firestore";
 import { stringArray, uniq } from "../common";
 import { activeGuardianUids } from "../parentTeams";
+import {
+  parseChannelScopeSystemKey,
+  writePolicyAfterRemoval,
+  type ChannelAudienceScopeType,
+} from "./memberChatDiff";
+
+export type { ChannelAudienceScopeType };
 
 const WRITE_OPEN = "open";
 const WRITE_ADMINS = "admins_only";
@@ -272,7 +279,8 @@ export async function syncClubWideConversations(params: {
     .get();
 
   const licensedUids: string[] = [];
-  const staffUids: string[] = [...adminIds];
+  // adminIds peut être memberId ou Auth uid — toujours résoudre.
+  const staffUids: string[] = await resolveAuthUids(firestore, clubId, adminIds);
 
   for (const doc of membersSnap.docs) {
     const data = doc.data();
@@ -335,9 +343,6 @@ export async function syncAllConversationsForClub(params: {
   return { teamsSynced: teamsSnap.size };
 }
 
-/** Scope d’audience pour un canal admin custom. */
-export type ChannelAudienceScopeType = "categories" | "teams" | "parents";
-
 /** Clé système idempotente pour un scope multi. */
 export function channelScopeSystemKey(
   scopeType: ChannelAudienceScopeType,
@@ -398,17 +403,7 @@ export async function resolveScopedChannelParticipants(params: {
     coachIds.push(...stringArray(data.coachIds));
   }
 
-  // adminIds peut être memberId ou Auth uid — toujours résoudre.
-  const adminUids = await resolveAuthUids(firestore, clubId, adminIds);
-  // Filet : admins déclarés par rôle fiche (adminIds parfois incomplet).
-  const adminMembersSnap = await clubRef
-    .collection("members")
-    .where("role", "==", "admin")
-    .get();
-  for (const adminDoc of adminMembersSnap.docs) {
-    const adminUid = await resolveAuthUid(firestore, clubId, adminDoc.id);
-    if (adminUid) adminUids.push(adminUid);
-  }
+  const adminUids = await resolveClubAdminUids(firestore, clubId, adminIds);
 
   const coachUids = await resolveAuthUids(firestore, clubId, coachIds);
   const participantUids = [...adminUids, ...coachUids];
@@ -481,4 +476,113 @@ export async function createCategoryConversation(params: {
     participantUids: params.participantUids,
     writePolicy: params.writePolicy,
   });
+}
+
+/**
+ * Uids Auth des admins du club : `adminIds` (memberId ou uid, toujours
+ * résolus) + fiches au rôle `admin` (filet si `adminIds` est incomplet).
+ */
+export async function resolveClubAdminUids(
+  firestore: Firestore,
+  clubId: string,
+  adminIds: string[],
+): Promise<string[]> {
+  const adminUids = await resolveAuthUids(firestore, clubId, adminIds);
+  const adminMembersSnap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("members")
+    .where("role", "==", "admin")
+    .get();
+  for (const adminDoc of adminMembersSnap.docs) {
+    const adminUid = authUidFromMember(adminDoc.id, adminDoc.data());
+    if (adminUid) adminUids.push(adminUid);
+  }
+  return uniq(adminUids);
+}
+
+/** Conversation système d'un club par `systemKey` (ou `null`). */
+export async function findSystemConversation(
+  firestore: Firestore,
+  clubId: string,
+  systemKey: string,
+): Promise<FirebaseFirestore.QueryDocumentSnapshot | null> {
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("conversations")
+    .where("systemKey", "==", systemKey)
+    .limit(1)
+    .get();
+  return snap.docs[0] ?? null;
+}
+
+/**
+ * Recalcule les participants des canaux ciblés (`category`) d'un club à
+ * partir de leur scope (relu dans la `systemKey`). Titre et politique
+ * d'écriture restent ceux choisis par l'admin.
+ */
+export async function syncScopedChannels(params: {
+  firestore: Firestore;
+  clubId: string;
+}): Promise<void> {
+  const { firestore, clubId } = params;
+  const channels = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("conversations")
+    .where("type", "==", "category")
+    .get();
+  for (const channel of channels.docs) {
+    const scope = parseChannelScopeSystemKey(channel.data().systemKey);
+    if (!scope) continue;
+    const participantUids = await resolveScopedChannelParticipants({
+      firestore,
+      clubId,
+      ...scope,
+    });
+    const sortedJoin = (uids: string[]) => uniq(uids).sort().join(",");
+    if (sortedJoin(stringArray(channel.data().participantUids)) === sortedJoin(participantUids)) {
+      continue;
+    }
+    await channel.ref.update({
+      participantUids: uniq(participantUids),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+}
+
+/**
+ * Retire [uid] des conversations d'un club dont les participants ne sont pas
+ * recalculés par équipe ([types], par défaut DM, groupes coachs et canaux
+ * ciblés). Un DM réduit à un seul participant est fermé.
+ */
+export async function removeUidFromClubConversations(params: {
+  firestore: Firestore;
+  clubId: string;
+  uid: string;
+  types?: ReadonlySet<string>;
+}): Promise<void> {
+  const { firestore, clubId, uid } = params;
+  const types = params.types ?? new Set(["dm", "coach_group", "category"]);
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("conversations")
+    .where("participantUids", "array-contains", uid)
+    .get();
+  for (const conv of snap.docs) {
+    const data = conv.data();
+    if (!types.has(String(data.type ?? ""))) continue;
+    await conv.ref.update({
+      participantUids: admin.firestore.FieldValue.arrayRemove(uid),
+      writePolicy: writePolicyAfterRemoval({
+        type: data.type,
+        participantUids: data.participantUids,
+        removedUid: uid,
+        writePolicy: data.writePolicy,
+      }),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
 }

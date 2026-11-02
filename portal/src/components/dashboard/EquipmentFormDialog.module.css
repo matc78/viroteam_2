@@ -1,5 +1,4 @@
 .panel {
-  --panel-border: color-mix(in srgb, var(--tone-blue-border) 42%, var(--color-gray-200));
   width: min(100%, 28rem);
   max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
 }
@@ -25,16 +24,42 @@
 .textarea {
   min-height: 2.5rem;
   padding: 0.45rem 0.75rem;
-  border: 1.5px solid var(--color-gray-200);
-  border-radius: var(--radius-sm);
-  background: var(--color-white);
-  color: var(--color-primary-900);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-primary);
   font: inherit;
+  font-size: var(--font-size-md);
+  transition: border-color 140ms ease;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.input:hover:not(:disabled),
+.textarea:hover:not(:disabled) {
+  border-color: var(--text-muted);
+}
+
+.input:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.input:disabled,
+.textarea:disabled {
+  background: var(--surface-muted);
+  color: var(--text-muted);
 }
 
 .textarea {
   min-height: 4.5rem;
   resize: vertical;
+  line-height: 1.45;
 }
 
 @media (max-width: 480px) {

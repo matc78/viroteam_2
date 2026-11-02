@@ -1,34 +1,55 @@
+/*
+ * Onglets de page (Membres, Cotisations, Annonces) : contrôle segmenté sobre,
+ * même langage que `ui/SegmentedChoice` — onglet actif blanc légèrement surélevé.
+ */
 .tabs {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  align-items: stretch;
+  gap: 2px;
+  max-width: 100%;
   margin: 0 0 var(--space-lg);
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
 }
 
 .tab {
   display: inline-flex;
   align-items: center;
-  min-height: 2.1rem;
-  padding: 0.3rem 0.9rem;
-  border: 1.5px solid var(--color-gray-200);
-  border-radius: 999px;
-  background: var(--color-white);
-  color: var(--color-gray-700);
+  justify-content: center;
+  min-height: 2.25rem;
+  padding: 0.3rem 0.95rem;
+  border: none;
+  border-radius: calc(var(--radius-control) - 3px);
+  background: transparent;
+  color: var(--text-secondary);
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
   cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
 }
 
-.tab:hover {
-  border-color: var(--color-primary-300);
-  color: var(--color-primary-800);
+.tab:hover:not(.tabActive) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .tabActive {
-  border-color: var(--color-primary-500);
-  background: var(--color-primary-100);
-  color: var(--color-primary-900);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
 }
 
 .inlineLink {
@@ -37,12 +58,17 @@
   padding: 0;
   border: none;
   background: none;
-  color: var(--color-primary-700);
+  color: var(--accent-text);
   font: inherit;
-  font-size: 0.78rem;
-  font-weight: 650;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   text-decoration: underline;
+  text-underline-offset: 2px;
   cursor: pointer;
+}
+
+.inlineLink:hover {
+  color: var(--accent-strong);
 }
 
 .inlineForm {

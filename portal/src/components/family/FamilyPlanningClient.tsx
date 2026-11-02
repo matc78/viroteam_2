@@ -38,6 +38,10 @@ import {
   loadMembersByRosterIds,
 } from "@/lib/firebase/memberService";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
+import {
+  useOptimisticEventRsvp,
+  type SetRsvpOverride,
+} from "@/lib/planning/useOptimisticEventRsvp";
 import type { PopoverAnchorRect } from "@/lib/planning/anchoredPopoverPosition";
 import { buildGuestDirectoryFromMembers } from "@/lib/planning/eventGuestRows";
 import {
@@ -46,6 +50,9 @@ import {
   rosterContains,
 } from "@/lib/teams/viewerTeamScope";
 import familyStyles from "./FamilyPlanningClient.module.css";
+
+const NO_EVENTS: ClubEventView[] = [];
+const NO_IDS: string[] = [];
 
 /** Planning famille : calendrier de l’enfant sélectionné, sans filtres bureau. */
 export function FamilyPlanningClient() {
@@ -80,8 +87,15 @@ export function FamilyPlanningClient() {
     };
   }, [cursor]);
 
-  const { data, loading, refreshing, error, reload, loadedClubId } =
-    useAsyncClubResource(
+  const {
+    data,
+    loading,
+    refreshing,
+    error,
+    reload,
+    reloadSilently,
+    loadedClubId,
+  } = useAsyncClubResource(
     activeClub && selectedMemberId ? activeClub : null,
     async (club) => {
       if (!selectedMemberId) {
@@ -207,10 +221,23 @@ export function FamilyPlanningClient() {
     }
   }, [teamOptions]);
 
+  const { events: childEvents, setRsvpOverride } = useOptimisticEventRsvp(
+    data?.events ?? NO_EVENTS,
+  );
+  const childMatchIds = data?.viewerMatchIds ?? NO_IDS;
+
+  /** Override RSVP étendu à tous les ids de l’enfant (lecture du fill calendrier). */
+  const handleRsvpOptimistic: SetRsvpOverride = (eventId, memberIds, value) =>
+    setRsvpOverride(
+      eventId,
+      [...new Set([...memberIds, ...childMatchIds])],
+      value,
+    );
+
   const eventBlocks = useMemo(() => {
     if (!data || data.teams.length === 0) return [];
     return expandEventsToLabelBlocks(
-      data.events,
+      childEvents,
       data.teams,
       [],
       {
@@ -220,12 +247,12 @@ export function FamilyPlanningClient() {
         playerIds: [],
       },
     );
-  }, [data]);
+  }, [data, childEvents]);
 
   /** Garde le popover ouvert synchronisé après un reload RSVP. */
   useEffect(() => {
-    if (!selectedEvent || !data?.events) return;
-    const fresh = data.events.find((event) => event.id === selectedEvent.id);
+    if (!selectedEvent) return;
+    const fresh = childEvents.find((event) => event.id === selectedEvent.id);
     if (!fresh) return;
     if (fresh === selectedEvent) return;
     if (
@@ -238,7 +265,7 @@ export function FamilyPlanningClient() {
       return;
     }
     setSelectedEvent(fresh);
-  }, [data?.events, selectedEvent]);
+  }, [childEvents, selectedEvent]);
 
   if ((loading || audienceLoading) && !data) {
     return <DashboardSkeleton variant="planning" />;
@@ -300,7 +327,7 @@ export function FamilyPlanningClient() {
               }}
               onCreateEvent={() => undefined}
               pendingCreate={null}
-              viewerMatchIds={data?.viewerMatchIds ?? []}
+              viewerMatchIds={childMatchIds}
             />
           </div>
         </div>
@@ -320,7 +347,8 @@ export function FamilyPlanningClient() {
           }}
           clubId={activeClub.id}
           linkedMemberId={selectedMemberId}
-          onRsvpUpdated={handleRefresh}
+          onRsvpOptimistic={handleRsvpOptimistic}
+          onRsvpUpdated={reloadSilently}
         />
       ) : null}
     </div>

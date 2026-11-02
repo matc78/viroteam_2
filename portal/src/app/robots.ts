@@ -19,6 +19,7 @@ export default function robots(): MetadataRoute.Robots {
         "/team",
         "/messages",
         "/settings",
+        "/account",
         "/family",
         "/club-setup",
         "/login",

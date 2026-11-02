@@ -1,16 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
 import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
 import { SettingsAccordion } from "@/components/settings/SettingsAccordion";
+import { SignInMethodsList } from "@/components/settings/SignInMethodsList";
 import { useToast } from "@/components/ToastProvider";
 import { validatePassword, PASSWORD_POLICY_HINT } from "@/lib/auth/passwordPolicy";
 import {
   authProviderLabels,
   changeUserEmail,
   changeUserPassword,
-  deleteUserAccount,
   hasPasswordProvider,
 } from "@/lib/firebase/accountService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
@@ -22,9 +21,12 @@ import { updateUserAvatarUrl } from "@/lib/firebase/userService";
 import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
 import shared from "@/components/settings/settingsShared.module.css";
 
-/** Section compte partagée (bureau + famille). */
+/**
+ * Section compte partagée (bureau + famille). Déconnexion et suppression
+ * vivent à part dans `AccountExitSection`, en bas de page.
+ */
 export function AccountSettingsSection() {
-  const { user, profile, activeClub, logout, refreshProfile } = useAuth();
+  const { user, profile, activeClub, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -33,8 +35,6 @@ export function AccountSettingsSection() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [deletePassword, setDeletePassword] = useState("");
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
@@ -43,9 +43,12 @@ export function AccountSettingsSection() {
     setEmailDraft(profile?.email ?? "");
   }, [profile?.email]);
 
+  // `providerData` est muté par Firebase lors d’une liaison : la version force le recalcul.
+  const [providersVersion, setProvidersVersion] = useState(0);
   const providers = useMemo(
     () => (user ? authProviderLabels(user) : []),
-    [user],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user, providersVersion],
   );
   const passwordAccount = user ? hasPasswordProvider(user) : false;
   const avatarUrl = profile?.avatarUrl ?? null;
@@ -57,7 +60,6 @@ export function AccountSettingsSection() {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() ?? "")
       .join("") || "U";
-  const isLeavingAccount = busy === "logout" || busy === "delete";
 
   async function handleAvatarChange(file: File | null) {
     if (!user || !file) return;
@@ -152,136 +154,82 @@ export function AccountSettingsSection() {
     }
   }
 
-  async function handleDelete() {
-    if (!user || !deleteConfirm) return;
-    setBusy("delete");
-    setError(null);
-    try {
-      await deleteUserAccount({
-        user,
-        currentPassword: passwordAccount ? deletePassword : undefined,
-      });
-      showToast("Compte supprimé.", "success");
-      await logout();
-      // Loader conservé jusqu’à la redirection (busy reste "delete").
-    } catch (deleteError) {
-      setError(
-        deleteError instanceof Error
-          ? deleteError.message
-          : "Suppression impossible.",
-      );
-      setBusy(null);
-    }
-  }
-
-  async function handleLogout() {
-    setBusy("logout");
-    setError(null);
-    try {
-      await logout();
-      // Loader conservé jusqu’à la redirection vers /login.
-    } catch (logoutError) {
-      setError(
-        logoutError instanceof Error
-          ? logoutError.message
-          : "Déconnexion impossible.",
-      );
-      setBusy(null);
-    }
-  }
-
   return (
     <section className={`${panelStyles.panel} ${shared.group}`} data-tone="blue">
-      {isLeavingAccount ? (
-        <AuthLoadingState
-          message={busy === "delete" ? "Suppression…" : "Déconnexion…"}
-        />
-      ) : null}
       <header className={shared.groupHeader}>
         <h2 className={shared.groupTitle}>Compte</h2>
         <p className={shared.groupLead}>
-          Avatar, e-mail, mot de passe et sécurité de ton compte ViroTeam.
+          Ton profil, ton e-mail et la sécurité de ton compte ViroTeam.
         </p>
       </header>
 
-      <div className={shared.accordionList}>
-        <SettingsAccordion
-          title="Avatar"
-          description="Photo affichée dans le portail et l’app"
-          defaultOpen
-        >
-          <div className={shared.mediaRow}>
-            {avatarUrl ? (
-              <button
-                type="button"
-                className={shared.avatarPreviewBtn}
-                onClick={() => setAvatarLightboxOpen(true)}
-                aria-label="Agrandir l’avatar"
-                disabled={busy !== null}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={avatarUrl} alt="" className={shared.avatarPreview} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={shared.avatarPreviewBtn}
-                onClick={() => avatarInputRef.current?.click()}
-                aria-label="Changer l’avatar"
-                disabled={busy !== null}
-              >
-                <span className={shared.avatarFallback} aria-hidden="true">
-                  {initials}
-                </span>
-              </button>
-            )}
-            <input
-              ref={avatarInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className={shared.fileInput}
-              disabled={busy !== null}
-              onChange={(event) =>
-                void handleAvatarChange(event.target.files?.[0] ?? null)
-              }
-            />
-          </div>
-          <div className={shared.actions}>
-            <button
-              type="button"
-              className={shared.secondaryButton}
-              disabled={busy !== null}
-              onClick={() => avatarInputRef.current?.click()}
-            >
-              {busy === "avatar" ? "Upload…" : "Changer l’avatar"}
-            </button>
-          </div>
-          {avatarLightboxOpen && avatarUrl ? (
-            <AvatarLightbox
-              src={avatarUrl}
-              alt="Ton avatar"
-              onClose={() => setAvatarLightboxOpen(false)}
-              onEdit={() => avatarInputRef.current?.click()}
-            />
+      <div className={shared.profileRow}>
+        {avatarUrl ? (
+          <button
+            type="button"
+            className={shared.avatarPreviewBtn}
+            onClick={() => setAvatarLightboxOpen(true)}
+            aria-label="Agrandir l’avatar"
+            disabled={busy !== null}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={avatarUrl} alt="" className={shared.avatarPreview} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={shared.avatarPreviewBtn}
+            onClick={() => avatarInputRef.current?.click()}
+            aria-label="Changer l’avatar"
+            disabled={busy !== null}
+          >
+            <span className={shared.avatarFallback} aria-hidden="true">
+              {initials}
+            </span>
+          </button>
+        )}
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className={shared.fileInput}
+          disabled={busy !== null}
+          onChange={(event) =>
+            void handleAvatarChange(event.target.files?.[0] ?? null)
+          }
+        />
+        <div className={shared.profileIdentity}>
+          <p className={shared.profileName}>
+            {profile?.displayName ?? "Mon compte"}
+          </p>
+          {profile?.email ? (
+            <p className={shared.profileEmail}>{profile.email}</p>
           ) : null}
-        </SettingsAccordion>
-
-        <SettingsAccordion
-          title="Type de connexion"
-          description="Moyens d’accès liés à ton compte"
+        </div>
+        <button
+          type="button"
+          className={shared.secondaryButton}
+          disabled={busy !== null}
+          onClick={() => avatarInputRef.current?.click()}
         >
-          <ul className={shared.providerList}>
-            {providers.map((label) => (
-              <li key={label} className={shared.providerChip}>
-                {label}
-              </li>
-            ))}
-          </ul>
-        </SettingsAccordion>
+          {busy === "avatar" ? "Upload…" : "Changer l’avatar"}
+        </button>
+        {avatarLightboxOpen && avatarUrl ? (
+          <AvatarLightbox
+            src={avatarUrl}
+            alt="Ton avatar"
+            onClose={() => setAvatarLightboxOpen(false)}
+            onEdit={() => avatarInputRef.current?.click()}
+          />
+        ) : null}
+      </div>
+
+      <div className={shared.accordionList}>
 
         <SettingsAccordion
           title="E-mail"
           description="Adresse utilisée pour te connecter"
+          value={profile?.email ?? undefined}
         >
           <form
             className={shared.fields}
@@ -313,7 +261,8 @@ export function AccountSettingsSection() {
               </label>
             ) : (
               <p className={shared.hint}>
-                Une fenêtre Google s’ouvrira pour confirmer le changement.
+                Une fenêtre Google ou Apple s’ouvrira pour confirmer le
+                changement.
               </p>
             )}
             <div className={shared.actions}>
@@ -393,68 +342,18 @@ export function AccountSettingsSection() {
           </SettingsAccordion>
         ) : null}
 
-        <SettingsAccordion title="Session" description="Quitter le portail">
-          <p className={shared.hint}>
-            Tu pourras te reconnecter à tout moment avec le même compte.
-          </p>
-          <div className={shared.actions}>
-            <button
-              type="button"
-              className={shared.secondaryButton}
-              disabled={busy !== null}
-              onClick={() => void handleLogout()}
-            >
-              {busy === "logout" ? "Déconnexion…" : "Déconnexion"}
-            </button>
-          </div>
-        </SettingsAccordion>
-
         <SettingsAccordion
-          title="Supprimer le compte"
-          description="Action irréversible"
-          tone="danger"
+          title="Moyens de connexion"
+          description="Google, Apple ou mot de passe"
+          value={providers.join(", ")}
         >
-          <p className={shared.hint}>
-            Ton compte sera supprimé et tes fiches membre anonymisées (« Membre
-            supprimé »). L’historique des clubs est conservé, tes invitations en
-            attente sont révoquées.
-          </p>
-          <label className={shared.checkRow}>
-            <input
-              type="checkbox"
-              checked={deleteConfirm}
+          {user ? (
+            <SignInMethodsList
+              user={user}
               disabled={busy !== null}
-              onChange={(event) => setDeleteConfirm(event.target.checked)}
+              onLinked={() => setProvidersVersion((version) => version + 1)}
             />
-            <span>Je confirme vouloir supprimer mon compte</span>
-          </label>
-          {passwordAccount ? (
-            <label className={shared.field}>
-              <span className={shared.label}>Mot de passe actuel</span>
-              <input
-                className={shared.input}
-                type="password"
-                autoComplete="current-password"
-                value={deletePassword}
-                disabled={busy !== null || !deleteConfirm}
-                onChange={(event) => setDeletePassword(event.target.value)}
-              />
-            </label>
-          ) : (
-            <p className={shared.hint}>
-              Une fenêtre Google s’ouvrira pour confirmer la suppression.
-            </p>
-          )}
-          <div className={shared.actions}>
-            <button
-              type="button"
-              className={shared.dangerButton}
-              disabled={busy !== null || !deleteConfirm}
-              onClick={() => void handleDelete()}
-            >
-              {busy === "delete" ? "Suppression…" : "Supprimer mon compte"}
-            </button>
-          </div>
+          ) : null}
         </SettingsAccordion>
       </div>
 

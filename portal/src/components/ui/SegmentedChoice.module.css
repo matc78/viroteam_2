@@ -1,0 +1,66 @@
+.group {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.option {
+  --option-bg: var(--accent);
+  --option-fg: var(--color-white);
+  min-height: 2.25rem;
+  min-width: 4.5rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: calc(var(--radius-control) - 3px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.group[data-size="sm"] .option {
+  min-height: 2rem;
+  min-width: 3.75rem;
+  padding-inline: 0.65rem;
+  font-size: var(--font-size-xs);
+}
+
+.option:hover:not(:disabled):not([aria-pressed="true"]) {
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+
+.option[data-tone="success"] {
+  --option-bg: var(--status-success);
+}
+
+.option[data-tone="warning"] {
+  --option-bg: var(--status-warning);
+}
+
+.option[data-tone="danger"] {
+  --option-bg: var(--status-danger);
+}
+
+.option[aria-pressed="true"] {
+  background: var(--option-bg);
+  color: var(--option-fg);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-primary-900) 18%, transparent);
+}
+
+.option:disabled {
+  cursor: progress;
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

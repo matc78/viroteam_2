@@ -1,0 +1,115 @@
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.row:first-child {
+  border-top: none;
+}
+
+.main {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-width: 0;
+  padding: 0.8rem 1.375rem;
+}
+
+.footer {
+  padding: 0 1.375rem 0.9rem;
+}
+
+/* Aligne le pied sur le texte quand la ligne a un élément à gauche (date). */
+.main:has(> .leading) + .footer {
+  padding-left: calc(1.375rem + 3rem + 0.875rem);
+}
+
+/* Contenu conditionnel (ex. boutons RSVP si convoqué) : pas d’espace vide. */
+.footer:empty {
+  display: none;
+}
+
+.trailing:empty {
+  display: none;
+}
+
+.leading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.35;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.linkFill {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.rowLink {
+  transition: background 120ms ease;
+}
+
+.rowLink:hover {
+  background: var(--surface-muted);
+}
+
+.linkFill:focus-visible {
+  outline-offset: -2px;
+}
+
+@media (max-width: 640px) {
+  .main {
+    flex-wrap: wrap;
+    padding-inline: 1rem;
+  }
+
+  /* Le texte garde une largeur lisible ; un élément large (RSVP) passe dessous, aligné à droite. */
+  .text {
+    flex: 1 1 12rem;
+  }
+
+  .trailing {
+    margin-left: auto;
+  }
+
+  .footer,
+  .main:has(> .leading) + .footer {
+    padding-inline: 1rem;
+  }
+}

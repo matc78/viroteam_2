@@ -78,6 +78,23 @@
   --tone-orange-surface: color-mix(in srgb, var(--tone-orange-soft) 70%, white);
   --tone-orange-text: #9a3412;
 
+  /* Tons complémentaires — pastilles de navigation de la sidebar. */
+  --tone-violet: #7c3aed;
+  --tone-violet-soft: #ede9fe;
+  --tone-violet-text: #5b21b6;
+
+  --tone-cyan: #0891b2;
+  --tone-cyan-soft: #cffafe;
+  --tone-cyan-text: #155e75;
+
+  --tone-pink: #db2777;
+  --tone-pink-soft: #fce7f3;
+  --tone-pink-text: #9d174d;
+
+  --tone-slate: #475569;
+  --tone-slate-soft: #e2e8f0;
+  --tone-slate-text: #334155;
+
   /* Spacing (8px grid) */
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
@@ -98,6 +115,75 @@
   --max-width: 72rem;
   --dashboard-max-width: 68rem;
   --header-height: 4.25rem;
+
+  /*
+   * Couche sémantique — espace connecté (dashboard, famille, compte).
+   * Les composants `components/ui/` et le shell ne lisent que ces tokens :
+   * un futur dark mode n’aura qu’à les redéfinir.
+   */
+  --bg-app: #f4f6fa;
+  --bg-sidebar: #ffffff;
+  --surface-card: #ffffff;
+  --surface-muted: #f6f8fb;
+  --surface-hover: #eef2f7;
+  --border-subtle: #e4e9f0;
+  --border-strong: #cdd5e0;
+  --text-primary: #0f1b2d;
+  --text-secondary: #4a5568;
+  --text-muted: #7b8698;
+  --accent: var(--color-primary-500);
+  --accent-strong: var(--color-primary-600);
+  --accent-soft: #e8f1fb;
+  --accent-text: #0f4c86;
+  --status-success: #0e9f6e;
+  --status-success-soft: #e6f6ef;
+  --status-success-text: #05603f;
+  --status-warning: #d97706;
+  --status-warning-soft: #fdf3e2;
+  --status-warning-text: #8a4b06;
+  --status-danger: #dc4426;
+  --status-danger-soft: #fdece8;
+  --status-danger-text: #a12a14;
+  --status-info: var(--color-primary-500);
+  --status-info-soft: #e8f1fb;
+  --status-info-text: #0f4c86;
+  --status-neutral-soft: #eef1f5;
+  --status-neutral-text: #4a5568;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-md: 0.9375rem;
+  --font-size-lg: 1.0625rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.625rem;
+  --font-size-3xl: 2rem;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --radius-card: 0.875rem;
+  --radius-control: 0.625rem;
+  --shadow-card-subtle: 0 1px 2px color-mix(in srgb, var(--color-primary-900) 5%, transparent);
+  --shadow-popover: 0 12px 32px color-mix(in srgb, var(--color-primary-900) 14%, transparent),
+    0 2px 6px color-mix(in srgb, var(--color-primary-900) 6%, transparent);
+  /* Sidebar : lavis bleu en tête + liseré multicolore « sport ». */
+  --bg-sidebar-wash: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-soft) 85%, white) 0%,
+    var(--bg-sidebar) 14rem
+  );
+  --sidebar-stripe: linear-gradient(
+    90deg,
+    var(--color-sport-cyan),
+    var(--color-primary-500) 30%,
+    var(--tone-violet) 55%,
+    var(--color-sport-orange) 80%,
+    var(--color-sport-yellow)
+  );
+  --sidebar-width: 15.5rem;
+  --content-max-width: 76rem;
+  --content-narrow-width: 44rem;
 }
 
 *,

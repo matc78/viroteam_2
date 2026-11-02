@@ -20,12 +20,12 @@
 }
 
 .bone {
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: linear-gradient(
     90deg,
-    var(--color-gray-100) 0%,
-    var(--color-gray-50) 45%,
-    var(--color-gray-100) 90%
+    var(--surface-hover) 0%,
+    var(--surface-muted) 45%,
+    var(--surface-hover) 90%
   );
   background-size: 200% 100%;
   animation: shimmer 1.15s ease-in-out infinite;
@@ -82,12 +82,12 @@
 
 .announcementsSide {
   min-height: 22rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .kpiCard {
   height: 6.5rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .chartsGrid {
@@ -98,7 +98,7 @@
 
 .chartCard {
   height: 14rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .activityGrid {
@@ -110,12 +110,12 @@
 
 .activityMain {
   height: 18rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .activitySide {
   height: 14rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .listsGrid {
@@ -126,7 +126,7 @@
 
 .listCard {
   height: 12rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .toolbar {
@@ -149,7 +149,7 @@
 
 .tableRow {
   height: 3rem;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
 }
 
 .form {
@@ -161,7 +161,7 @@
 
 .formBlock {
   height: 8rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .planningLayout {
@@ -174,12 +174,12 @@
 
 .sidebar {
   height: 28rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 .calendar {
   height: 32rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
 }
 
 @media (max-width: 960px) {

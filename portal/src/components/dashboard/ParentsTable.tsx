@@ -5,6 +5,7 @@ import type {
   ClubParentRow,
   ParentsFilters,
 } from "@/lib/members/parentsView";
+import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { PlanningSelect } from "./PlanningSelect";
 import styles from "./MembersTable.module.css";
 import tabStyles from "./MembersTabs.module.css";
@@ -119,7 +120,7 @@ export function ParentsTable({
         {rows.length} parent{rows.length > 1 ? "s" : ""}
       </p>
 
-      <div className={styles.tableWrap}>
+      <FadeScrollArea className={styles.tableWrap} axis="horizontal">
         <table className={`${styles.table} ${styles.tableParents}`}>
           <thead>
             <tr>
@@ -298,7 +299,7 @@ export function ParentsTable({
             )}
           </tbody>
         </table>
-      </div>
+      </FadeScrollArea>
     </div>
   );
 }

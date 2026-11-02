@@ -1,12 +1,20 @@
-/** Remplissage d’un bloc agenda selon le RSVP du viewer. */
-export type ViewerEventFill = "filled" | "outline" | "default";
+/**
+ * Remplissage d’un bloc agenda selon le RSVP du viewer :
+ * `filled` (oui), `maybe` (peut-être), `declined` (non), `outline` (sans
+ * réponse) ou `default` (viewer non convoqué / pas d’ids).
+ */
+export type ViewerEventFill =
+  | "filled"
+  | "maybe"
+  | "declined"
+  | "outline"
+  | "default";
 
 /**
- * Détermine si le bloc doit être plein (présent), outline (absent / sans
- * réponse), ou inchangé (viewer non convoqué / pas d’ids).
+ * Détermine le rendu du bloc pour le viewer.
  *
  * Audience vide = ouvert à tous (aligné FamilyRsvpButtons).
- * Seul `yes` remplit le bloc ; `no`, `maybe` et clé absente → outline.
+ * Le premier id du viewer portant une réponse fait foi ; aucune → `outline`.
  */
 export function resolveViewerEventFill(params: {
   teamMemberIds: string[];
@@ -25,7 +33,8 @@ export function resolveViewerEventFill(params: {
   for (const id of matchIds) {
     const value = (params.rsvpByMemberId[id] ?? "").toLowerCase();
     if (value === "yes") return "filled";
-    if (value === "no" || value === "maybe") return "outline";
+    if (value === "maybe") return "maybe";
+    if (value === "no") return "declined";
   }
   return "outline";
 }
@@ -35,7 +44,7 @@ export function resolveViewerEventFill(params: {
  */
 export function viewerEventFillAttr(
   fill: ViewerEventFill,
-): "filled" | "outline" | undefined {
+): Exclude<ViewerEventFill, "default"> | undefined {
   if (fill === "default") return undefined;
   return fill;
 }

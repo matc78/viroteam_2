@@ -19,6 +19,8 @@ import {
 } from "@/lib/planning/anchoredPopoverPosition";
 import { buildEventGuestRows } from "@/lib/planning/eventGuestRows";
 import { colorForFilter } from "@/lib/planning/calendarColors";
+import { withLocalRsvp, type RsvpValue } from "@/lib/planning/localRsvp";
+import type { SetRsvpOverride } from "@/lib/planning/useOptimisticEventRsvp";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
@@ -30,7 +32,6 @@ import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningEventDetailPanel.module.css";
 
 type RsvpRowStatus = "yes" | "no" | "pending";
-type RsvpValue = "yes" | "maybe" | "no";
 
 /** Props du panneau détail événement. */
 type PlanningEventDetailPanelProps = {
@@ -48,6 +49,11 @@ type PlanningEventDetailPanelProps = {
   /** Si fourni, affiche les boutons RSVP pour ce membre. */
   linkedMemberId?: string | null;
   onRsvpUpdated?: () => void;
+  /**
+   * Remonte la réponse locale à la page (calendrier mis à jour au clic) ;
+   * `null` annule l'override (échec de la callable).
+   */
+  onRsvpOptimistic?: SetRsvpOverride;
   /** Affiche le bouton d'envoi de notification (coach / admin). */
   canSendPush?: boolean;
   /**
@@ -86,33 +92,6 @@ function resolveSwatchColor(
   return "var(--tone-blue)";
 }
 
-/** Applique une réponse RSVP locale (optimistic UI) sur l'événement affiché. */
-function withLocalRsvp(
-  event: ClubEventView,
-  memberId: string,
-  value: RsvpValue,
-  aliasIds: string[] = [],
-): ClubEventView {
-  const nextMap = { ...event.rsvpByMemberId };
-  for (const id of [memberId, ...aliasIds]) {
-    if (id) nextMap[id] = value;
-  }
-  const values = Object.values(nextMap).map((entry) => entry.toLowerCase());
-  const rsvpYes = values.filter((entry) => entry === "yes").length;
-  const rsvpNo = values.filter((entry) => entry === "no").length;
-  const rsvpTotal =
-    event.rsvpTotal > 0 ? event.rsvpTotal : event.teamMemberIds.length;
-  const rsvpPending = Math.max(0, rsvpTotal - rsvpYes - rsvpNo);
-  return {
-    ...event,
-    rsvpByMemberId: nextMap,
-    rsvpYes,
-    rsvpNo,
-    rsvpPending,
-    rsvpTotal,
-  };
-}
-
 /** Détail lecture seule d'un événement avec stats et liste RSVP. */
 export function PlanningEventDetailPanel({
   event,
@@ -124,6 +103,7 @@ export function PlanningEventDetailPanel({
   clubId,
   linkedMemberId,
   onRsvpUpdated,
+  onRsvpOptimistic,
   canSendPush = false,
   onManageConvocations,
 }: PlanningEventDetailPanelProps) {
@@ -179,9 +159,8 @@ export function PlanningEventDetailPanel({
     if (!localRsvp) return event;
     return withLocalRsvp(
       event,
-      localRsvp.memberId,
+      [localRsvp.memberId, ...linkedAliasIds],
       localRsvp.value,
-      linkedAliasIds,
     );
   }, [event, localRsvp, linkedAliasIds]);
 
@@ -233,6 +212,7 @@ export function PlanningEventDetailPanel({
   function handleRsvpOptimistic(value: RsvpValue | null) {
     if (!linkedMemberId) return;
     setLocalRsvp(value ? { memberId: linkedMemberId, value } : null);
+    onRsvpOptimistic?.(event.id, [linkedMemberId, ...linkedAliasIds], value);
   }
 
   function handleRsvpPersisted() {

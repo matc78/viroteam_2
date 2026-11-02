@@ -1,57 +1,56 @@
+/* Même rendu que `components/ui/PageHeader`. */
 .intro {
-  margin-bottom: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
 .introMain {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-md);
   flex-wrap: wrap;
 }
 
 .eyebrow {
-  margin-bottom: var(--space-sm);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-sport-orange);
+  margin-bottom: 0.25rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
 }
 
 .heading {
-  font-size: clamp(1.6rem, 3vw, 2rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--color-primary-900);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text-primary);
 }
 
 .lead {
-  margin-top: var(--space-sm);
-  font-size: 1.05rem;
-  color: var(--color-gray-600);
+  max-width: 42rem;
+  margin-top: 0.3rem;
+  font-size: var(--font-size-md);
   line-height: 1.5;
+  color: var(--text-secondary);
 }
 
 .refreshButton {
   position: relative;
   flex-shrink: 0;
-  margin-top: 0.15rem;
-  padding: 0.55rem 0.95rem;
-  border-radius: 10px;
-  border: 1.5px solid color-mix(in srgb, var(--color-sport-orange) 55%, var(--color-gray-200));
-  background: color-mix(in srgb, var(--tone-orange-soft) 75%, white);
-  color: var(--tone-orange-text);
-  font-size: 0.9rem;
-  font-weight: 700;
+  min-height: 2.15rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-sport-orange) 12%, transparent);
 }
 
 .refreshButton:hover:not(:disabled) {
-  border-color: var(--color-sport-orange);
-  background: var(--tone-orange-soft);
-  color: var(--tone-orange-text);
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .refreshButton:disabled {
@@ -59,26 +58,18 @@
   cursor: wait;
 }
 
-/* Bouton accentué quand de nouvelles données sont disponibles */
+/* Nouvelles données disponibles : le bouton passe en action principale. */
 .refreshHighlight {
-  position: relative;
-  border-color: var(--refresh-accent, var(--color-sport-orange));
-  background: var(--refresh-accent, var(--color-sport-orange));
-  color: #fff;
-  animation: refreshPulse 1.8s ease-in-out infinite;
+  border-color: var(--refresh-accent, var(--accent));
+  background: var(--refresh-accent, var(--accent));
+  color: var(--color-white);
 }
 
 .refreshHighlight:hover:not(:disabled) {
-  border-color: var(--refresh-accent, var(--tone-orange-text));
-  background: color-mix(
-    in srgb,
-    var(--refresh-accent, var(--color-sport-orange)) 85%,
-    #000
-  );
-  color: #fff;
+  background: color-mix(in srgb, var(--refresh-accent, var(--accent)) 85%, black);
+  color: var(--color-white);
 }
 
-/* Pastille rouge « ! » */
 .refreshBadge {
   position: absolute;
   top: -0.4rem;
@@ -89,32 +80,16 @@
   width: 1.15rem;
   height: 1.15rem;
   border-radius: 50%;
-  background: #e53e3e;
-  color: #fff;
+  background: var(--status-danger);
+  color: var(--color-white);
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: var(--font-weight-bold);
   line-height: 1;
-  box-shadow: 0 1px 4px rgba(229, 62, 62, 0.45);
   pointer-events: none;
 }
 
-@keyframes refreshPulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0
-      color-mix(
-        in srgb,
-        var(--refresh-accent, var(--color-sport-orange)) 40%,
-        transparent
-      );
-  }
-  50% {
-    box-shadow: 0 0 0 6px
-      color-mix(
-        in srgb,
-        var(--refresh-accent, var(--color-sport-orange)) 0%,
-        transparent
-      );
+@media (max-width: 640px) {
+  .heading {
+    font-size: var(--font-size-xl);
   }
 }
-

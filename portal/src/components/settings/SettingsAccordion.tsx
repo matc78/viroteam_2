@@ -6,29 +6,27 @@ import styles from "./settingsShared.module.css";
 type SettingsAccordionProps = {
   title: string;
   description?: string;
+  /** Valeur actuelle affichée à droite quand replié (ex. l’e-mail). */
+  value?: string;
   /** Ouvert au chargement. */
   defaultOpen?: boolean;
   children: ReactNode;
-  /** Variante visuelle (danger pour suppression). */
-  tone?: "default" | "danger";
 };
 
 /** Menu dépliant pour une rubrique des paramètres. */
 export function SettingsAccordion({
   title,
   description,
+  value,
   defaultOpen = false,
   children,
-  tone = "default",
 }: SettingsAccordionProps) {
   const [open, setOpen] = useState(defaultOpen);
   const panelId = useId();
   const headerId = useId();
 
   return (
-    <div
-      className={`${styles.accordion}${tone === "danger" ? ` ${styles.accordionDanger}` : ""}`}
-    >
+    <div className={styles.accordion} data-open={open}>
       <button
         type="button"
         id={headerId}
@@ -43,8 +41,21 @@ export function SettingsAccordion({
             <span className={styles.accordionDescription}>{description}</span>
           ) : null}
         </span>
-        <span className={styles.chevron} aria-hidden="true">
-          ▸
+        <span className={styles.accordionMeta}>
+          {value && !open ? (
+            <span className={styles.accordionValue}>{value}</span>
+          ) : null}
+          <span className={styles.chevron} aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M4 6l4 4 4-4"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
         </span>
       </button>
       {open ? (

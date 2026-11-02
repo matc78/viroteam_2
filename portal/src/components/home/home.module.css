@@ -1,0 +1,244 @@
+/* ——— Grilles d’accueil ——— */
+
+.memberGrid,
+.staffGrid {
+  display: grid;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.memberGrid {
+  grid-template-columns: minmax(0, 1.6fr) minmax(17rem, 1fr);
+}
+
+.staffGrid {
+  grid-template-columns: minmax(0, 1.75fr) minmax(18rem, 1fr);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.section {
+  margin-bottom: 1.25rem;
+}
+
+@media (max-width: 1100px) {
+  .memberGrid,
+  .staffGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ——— Textes communs ——— */
+
+.error {
+  margin-bottom: var(--space-md);
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius-control);
+  background: var(--status-danger-soft);
+  color: var(--status-danger-text);
+  font-size: var(--font-size-sm);
+}
+
+.mutedText {
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.kicker {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}
+
+.cardEmpty {
+  padding: 1rem 1.375rem 1.15rem;
+}
+
+.eventLink {
+  color: inherit;
+}
+
+.eventLink:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ——— Prochain événement ——— */
+
+.nextEvent {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+
+.nextEventBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.nextEventTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.nextEventTitle:hover {
+  color: var(--accent-text);
+}
+
+.nextEventWhen {
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.nextEventWhen::first-letter {
+  text-transform: uppercase;
+}
+
+.nextEventTags {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+
+.nextEventPlace {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.nextEventAnswer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.nextEventPrompt {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+/* ——— Cotisation ——— */
+
+.feeDue {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.feeAmount {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ——— Annonces ——— */
+
+.announcements {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.announcement {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.85rem 1.375rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.announcement:first-child {
+  border-top: none;
+}
+
+.announcementMessage {
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.announcementMeta {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* ——— À traiter (staff) ——— */
+
+.allClear {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--status-success) 30%, transparent);
+  border-radius: var(--radius-card);
+  background: var(--status-success-soft);
+  color: var(--status-success-text);
+  font-size: var(--font-size-md);
+}
+
+.severityDot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--status-warning);
+}
+
+.severityDot[data-severity="high"] {
+  background: var(--status-danger);
+}
+
+.severityDot[data-severity="low"] {
+  background: var(--status-success);
+}
+
+/* ——— Équipes (coach) ——— */
+
+.teamCount {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .nextEvent {
+    align-items: flex-start;
+  }
+
+  .nextEventTitle {
+    font-size: var(--font-size-lg);
+  }
+}

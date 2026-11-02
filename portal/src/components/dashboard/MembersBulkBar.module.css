@@ -1,3 +1,4 @@
+/* Barre d’actions groupées : flottante (sticky) au bas du tableau. */
 .bar {
   position: sticky;
   bottom: var(--space-md);
@@ -9,10 +10,10 @@
   gap: var(--space-md);
   margin-top: var(--space-md);
   padding: 0.75rem 1rem;
-  border-radius: var(--radius-md);
-  border: 1.5px solid var(--color-primary-300);
-  background: color-mix(in srgb, var(--color-primary-50) 70%, white);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-popover);
 }
 
 .summary {
@@ -20,8 +21,9 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.65rem;
-  color: var(--color-primary-900);
-  font-size: 0.92rem;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 .linkButton {
@@ -29,9 +31,9 @@
   background: transparent;
   padding: 0;
   font: inherit;
-  font-size: 0.85rem;
-  font-weight: 650;
-  color: var(--color-primary-700);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--accent-text);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -57,11 +59,9 @@
 }
 
 .selectLabel {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-gray-500);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
 }
 
 .button,
@@ -69,33 +69,43 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.5rem;
-  padding: 0.45rem 0.9rem;
-  border-radius: var(--radius-sm);
+  min-height: 2.25rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
   font: inherit;
-  font-size: 0.88rem;
-  font-weight: 650;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
-  border: 1.5px solid transparent;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
 }
 
 .button {
-  background: var(--color-primary-800);
+  background: var(--accent);
   color: var(--color-white);
 }
 
 .button:hover:not(:disabled) {
-  background: var(--color-primary-900);
+  background: var(--accent-strong);
 }
 
 .buttonSecondary {
-  background: var(--color-white);
-  border-color: var(--color-gray-200);
-  color: var(--color-primary-800);
+  background: var(--surface-card);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .buttonSecondary:hover:not(:disabled) {
-  border-color: var(--color-primary-300);
+  background: var(--surface-hover);
+}
+
+.button:focus-visible,
+.buttonSecondary:focus-visible,
+.linkButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .button:disabled,

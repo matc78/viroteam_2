@@ -31,8 +31,11 @@ import {
   type PersonalPlanningData,
 } from "@/lib/firebase/personalPlanningService";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
+import { useOptimisticEventRsvp } from "@/lib/planning/useOptimisticEventRsvp";
 import type { PopoverAnchorRect } from "@/lib/planning/anchoredPopoverPosition";
 import familyStyles from "@/components/family/FamilyPlanningClient.module.css";
+
+const NO_EVENTS: PersonalClubEventView[] = [];
 
 /** Props du planning personnel (espace bureau ou famille). */
 type PersonalPlanningClientProps = {
@@ -78,6 +81,8 @@ export function PersonalPlanningClient({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  /** Le prochain chargement est-il silencieux (resync RSVP, sans voile) ? */
+  const silentReloadRef = useRef(false);
   const dataRef = useRef<PersonalPlanningData | null>(null);
   const knownClubIdsRef = useRef<Set<string>>(new Set());
   const wasPanelActiveRef = useRef(isPanelActive);
@@ -169,8 +174,10 @@ export function PersonalPlanningClient({
 
     let cancelled = false;
     const hasStale = dataRef.current !== null;
+    const silent = silentReloadRef.current;
+    silentReloadRef.current = false;
     if (hasStale) {
-      setRefreshing(true);
+      if (!silent) setRefreshing(true);
     } else {
       setLoading(true);
     }
@@ -217,6 +224,16 @@ export function PersonalPlanningClient({
     bumpReload(false);
   }, [bumpReload]);
 
+  /** Resync en arrière-plan après un RSVP (l’UI optimiste est déjà à jour). */
+  const reloadSilently = useCallback(() => {
+    silentReloadRef.current = true;
+    bumpReload(false);
+  }, [bumpReload]);
+
+  const { events: personalEvents, setRsvpOverride } = useOptimisticEventRsvp(
+    data?.events ?? NO_EVENTS,
+  );
+
   const clubOptions = useMemo(
     () => (data ? clubsAsTeamOptions(data.clubs) : []),
     [data],
@@ -254,8 +271,8 @@ export function PersonalPlanningClient({
     if (!data) return [];
     const selectedClubs = new Set(filters.teamIds);
     if (selectedClubs.size === 0) return [];
-    return data.events.filter((event) => selectedClubs.has(event.clubId));
-  }, [data, filters.teamIds]);
+    return personalEvents.filter((event) => selectedClubs.has(event.clubId));
+  }, [data, personalEvents, filters.teamIds]);
 
   const eventBlocks = useMemo(() => {
     if (!data || clubOptions.length === 0) return [];
@@ -275,8 +292,8 @@ export function PersonalPlanningClient({
 
   /** Resync le popover après reload RSVP. */
   useEffect(() => {
-    if (!selectedEvent || !data?.events) return;
-    const fresh = data.events.find(
+    if (!selectedEvent) return;
+    const fresh = personalEvents.find(
       (event) => event.personalKey === selectedEvent.personalKey,
     );
     if (!fresh || fresh === selectedEvent) return;
@@ -290,7 +307,7 @@ export function PersonalPlanningClient({
       return;
     }
     setSelectedEvent(fresh);
-  }, [data?.events, selectedEvent]);
+  }, [personalEvents, selectedEvent]);
 
   const rsvpMemberId = selectedEvent
     ? resolvePersonalRsvpMemberId({
@@ -401,7 +418,7 @@ export function PersonalPlanningClient({
               onSelectDay={setCursor}
               onSelectEvent={(event, anchor, color) => {
                 const personal =
-                  data.events.find(
+                  personalEvents.find(
                     (item) =>
                       item.personalKey === event.id || item.id === event.id,
                   ) ?? null;
@@ -433,7 +450,8 @@ export function PersonalPlanningClient({
           }}
           clubId={selectedEvent.clubId}
           linkedMemberId={rsvpMemberId}
-          onRsvpUpdated={reload}
+          onRsvpOptimistic={setRsvpOverride}
+          onRsvpUpdated={reloadSilently}
         />
       ) : null}
     </div>

@@ -147,7 +147,8 @@ function countPendingAids(fees: MemberFeeRecord[]): number {
   return count;
 }
 
-function buildCollections(fees: MemberFeeRecord[]): CollectionMonth[] {
+/** Encaissements des 6 derniers mois (CB vs hors-ligne), en euros. */
+export function buildCollections(fees: MemberFeeRecord[]): CollectionMonth[] {
   const now = new Date();
   const buckets: CollectionMonth[] = [];
   for (let offset = 5; offset >= 0; offset -= 1) {

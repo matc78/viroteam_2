@@ -3,8 +3,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
-import { AccountSettingsSection } from "@/components/settings/AccountSettingsSection";
-import { NotificationPreferencesSection } from "@/components/settings/NotificationPreferencesSection";
 import { SettingsAccordion } from "@/components/settings/SettingsAccordion";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -48,7 +46,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-/** Contenu page Paramètres bureau — club + compte. */
+/** Contenu page Paramètres du club (admin) — le compte vit sur `/account`. */
 export function SettingsPageClient() {
   const { activeClub, profile, refreshProfile } = useAuth();
   const { showToast } = useToast();
@@ -209,12 +207,8 @@ export function SettingsPageClient() {
     <div className={`${transitionStyles.page} ${shared.stack}`}>
       <DashboardPageIntro
         eyebrow="Club"
-        heading="Paramètres"
-        lead={
-          isAdmin
-            ? `Configurer ${activeClub?.name ?? "le club"} et ton compte.`
-            : "Gérer ton compte ViroTeam."
-        }
+        heading="Paramètres du club"
+        lead={`Réglages de ${activeClub?.name ?? "ton club"}. Ton compte et tes notifications sont dans Mon compte (en haut à droite).`}
       />
 
       {isAdmin ? (
@@ -407,9 +401,6 @@ export function SettingsPageClient() {
           </div>
         </section>
       ) : null}
-
-      <AccountSettingsSection />
-      <NotificationPreferencesSection showCoachSummary />
     </div>
   );
 }

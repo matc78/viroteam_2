@@ -117,6 +117,14 @@ Scaffold(
 - Portail : dialogs via `useDialogA11y` (focus + Escape) ; formulaires sur le modèle Login (`label`, `aria-invalid`, `role="alert"`).
 - Smoke manuel : [`docs/A11Y_SMOKE.md`](docs/A11Y_SMOKE.md).
 
+### Portail web — espace connecté
+
+- Coquille unique `PortalShell` (`portal/src/components/shell/`) : sidebar (sélecteur de club, modules, Mon planning / Messagerie, compte) ; top bar + tiroir sous 960 px. `DashboardShell` / `FamilyShell` ne font que lui passer leurs entrées de nav.
+- Primitives dans `portal/src/components/ui/` à utiliser avant d’en créer : `Card` / `CardHeader`, `PageHeader`, `StatTile` / `StatGrid`, `StatusBadge`, `EmptyState`, `ListRow` / `ListRows`, `ToggleRow` / `SettingRow`, `SegmentedChoice`, `Button` / `ButtonLink` / `TextLink`, `DateBadge`, `Icon`.
+- Couleurs : uniquement les tokens sémantiques de `globals.css` (`--surface-*`, `--text-*`, `--border-*`, `--accent*`, `--status-*`), pas de hex dans les modules. Cartes blanches à bordure neutre ; la couleur est réservée aux statuts (payé, à payer, en retard, réponse attendue) et à l’action principale. Exception : la sidebar `PortalShell`, où chaque lien porte un ton (`PortalNavItem.tone` → tokens `--tone-*`) et le rôle de chaque club sa couleur (`--color-role-*`). Ces tokens sont la seule couche à redéfinir pour un futur dark mode.
+- Gabarit de page : `PageHeader` (actions principales à droite) → ce qui demande une action (bandeau « À traiter », réponses attendues) → chiffres clés → contenu. Listes denses en `ListRow`, états vides en une ligne (`EmptyState`).
+- Formes décoratives (`DecorShapes`) : landing, auth et club-setup seulement ; le shell a un fond uni `--bg-app`.
+
 ---
 
 ## 3. Structure des fichiers
@@ -273,3 +281,5 @@ Plus tard :
 | 2026-10 | Dark mode app : `ViroPalette` (`ThemeExtension`) via `context.viroPalette`, `ViroTheme.dark`, choix Système / Clair / Sombre persisté localement ; `ViroColors` neutres / primaires interdits hors `lib/config` (garde-fou test) ; portail inchangé |
 | 2026-10 | Analytics : PostHog seul (Firebase Analytics retiré), projets dev / prod séparés, consentement explicite dans l’app (feuille + Paramètres) et bandeau cookies sur le portail ; identify uid Firebase + groupe `club`, mêmes clés web / mobile |
 | 2026-10 | Événements clés envoyés par les Functions, rattachés au club seul (pas d’uid, pas besoin du consentement client) ; plan de taggage `docs/analytics_events.csv` ; liens stores marqués par campagne (`utm_source` = surface, `utm_campaign` = emplacement) ; replay de sessions portail écarté pour l’instant |
+| 2026-10 | Portail : refonte de l’espace connecté — sidebar `PortalShell` (club en menu déroulant), primitives `components/ui/`, tokens sémantiques, couleur réservée aux statuts, accueils centrés sur « ce qu’il faut faire » ; décor réservé à la landing / auth ; dark mode portail toujours hors scope |
+| 2026-11 | Portail : sidebar colorée (portail jugé trop sobre) — pastille d’icône teintée par module, lavis + liseré multicolore en tête, rôle coloré sous chaque club ; le contenu des pages reste neutre |

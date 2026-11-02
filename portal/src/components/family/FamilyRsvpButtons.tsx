@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { setEventRsvp } from "@/lib/firebase/callableService";
 import type { ClubEventView } from "@/lib/firebase/eventService";
+import {
+  SegmentedChoice,
+  type SegmentedOption,
+} from "@/components/ui/SegmentedChoice";
 import styles from "./FamilyRsvpButtons.module.css";
 
 type RsvpValue = "yes" | "maybe" | "no";
@@ -22,12 +26,14 @@ type FamilyRsvpButtonsProps = {
   onUpdated?: (value: RsvpValue) => void;
   /** `footer` : barre style popover « Tu viens ? ». */
   variant?: "default" | "footer";
+  /** `sm` : version compacte (lignes de liste). */
+  size?: "sm" | "md";
 };
 
-const OPTIONS: Array<{ value: RsvpValue; label: string }> = [
-  { value: "yes", label: "Oui" },
-  { value: "maybe", label: "Peut-être" },
-  { value: "no", label: "Non" },
+const OPTIONS: ReadonlyArray<SegmentedOption<RsvpValue>> = [
+  { value: "yes", label: "Oui", tone: "success" },
+  { value: "maybe", label: "Peut-être", tone: "warning" },
+  { value: "no", label: "Non", tone: "danger" },
 ];
 
 function isRsvpValue(value: string): value is RsvpValue {
@@ -56,6 +62,7 @@ export function FamilyRsvpButtons({
   onOptimisticChange,
   onUpdated,
   variant = "default",
+  size = "md",
 }: FamilyRsvpButtonsProps) {
   const aliases = useMemo(
     () => resolveAudienceAliases(memberId, audienceIds),
@@ -124,24 +131,15 @@ export function FamilyRsvpButtons({
       {variant === "footer" ? (
         <span className={styles.prompt}>Tu viens ?</span>
       ) : null}
-      <div className={styles.row} role="group" aria-label="Réponse à la convocation" aria-busy={busy}>
-        {OPTIONS.map((option) => {
-          const selected = localValue === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              className={`${styles.button}${selected ? ` ${styles.buttonActive}` : ""}`}
-              data-value={option.value}
-              aria-pressed={selected}
-              disabled={busy}
-              onClick={() => void handleSelect(option.value)}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
+      <SegmentedChoice
+        options={OPTIONS}
+        value={isRsvpValue(localValue) ? localValue : null}
+        onSelect={(value) => void handleSelect(value)}
+        ariaLabel="Réponse à la convocation"
+        disabled={busy}
+        busy={busy}
+        size={variant === "footer" ? "sm" : size}
+      />
       {error ? (
         <p className={styles.error} role="alert">
           {error}

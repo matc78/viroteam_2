@@ -9,6 +9,38 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Modifié
+
+- Mon compte : la page occupe toute la largeur disponible ; en écran large, Compte et Mes clubs à gauche, Notifications à droite (une seule colonne sinon).
+- Barre latérale plus colorée : chaque module a sa pastille d’icône teintée (pleine quand il est actif), lavis bleu et liseré multicolore en tête, rôle de chaque club en couleur (Joueur, Coach, Admin, Parent), avatar initiales en dégradé.
+- Planning : la réponse à une convocation s’affiche immédiatement sur le calendrier (bloc plein, contour…) ; l’enregistrement et la resynchronisation se font en arrière-plan, sans voile de rechargement.
+  - Samedi et dimanche ne sont plus grisés ; seuls les jours hors du mois affiché le restent en vue Mois.
+  - Chaque réponse a son rendu : plein (présent), hachuré (peut-être), atténué et barré (absent), contour (sans réponse).
+  - Titre de période homogène (« 26 oct. – 1 nov. 2026 », « Novembre 2026 »), en-tête des jours de la vue Mois intégré à la grille et collé en haut au défilement, flèches de navigation en icônes.
+- Refonte visuelle de l’espace connecté (bureau et famille).
+  - Navigation en barre latérale : club actif en menu déroulant (avec « Créer un club »), modules avec icônes, Mon planning, Messagerie et compte en bas ; top bar + menu tiroir sur mobile.
+  - Barre latérale repliable en icônes seules (préférence mémorisée dans le navigateur).
+  - Sur Mon planning, Messagerie et Mon compte, tous les clubs sont listés directement dans la barre latérale.
+  - Cotisation dans la nav pour les joueurs (« Ma cotisation ») et les parents (« Cotisations »).
+  - Accueil joueur / parent : prochain rendez-vous mis en avant avec la réponse à donner, puis la suite du programme ; cotisation (montant et bouton « Régler ») et annonces en colonne ; compteur de réponses attendues.
+  - Accueil admin : bandeau « À traiter » cliquable en tête, 4 chiffres clés, prochains événements avec barre présents / absents, cotisations, annonces et 3 dernières actions.
+  - Accueil coach : réponses en attente, semaine à venir, événements de ses équipes avec les réponses, liste de ses équipes.
+  - Cotisations (staff) : l’onglet Suivi s’ouvre par défaut, avec encaissé, reste dû, fiches soldées, actions en attente et l’histogramme des encaissements.
+  - Cartes neutres, couleur réservée aux statuts ; boutons RSVP en sélecteur segmenté ; formes décoratives retirées de l’espace connecté.
+  - Bandeau rouge « Dernier jour pour la cotisation » avec bouton « Régler » au lieu du fond de page teinté.
+- Nouvelle page « Mon compte » (`/account`), ouverte depuis le bloc compte de la barre latérale : réglages globaux du compte, notifications, puis « Mes clubs » (rôle par club, accès aux paramètres du club pour les admins). La page Paramètres de l’espace famille affiche le même contenu.
+- « Paramètres » (nav du club) ne contient plus que les réglages du club et devient réservé aux admins (retiré de la nav coach).
+- Moyens de connexion : liaison de Google, d’Apple et ajout d’un mot de passe pour les comptes créés via Google ou Apple.
+- Paramètres : refonte de la page.
+  - Section Compte ouverte sur une carte profil (avatar, nom, e-mail, « Changer l’avatar ») ; l’e-mail et les moyens de connexion s’affichent en aperçu sur les rubriques repliées.
+  - Réglages en lignes plates séparées par un filet, en colonne de lecture.
+  - Notifications dans leur propre carte, avec des interrupteurs (sans libellé « Oui / Non ») et les sous-options indentées.
+  - Déconnexion et suppression du compte déplacées en liens discrets tout en bas de page ; la suppression passe par une modale de confirmation (case + mot de passe).
+
+### Corrigé
+
+- Photo de profil agrandie : l’image n’est plus coupée par l’en-tête.
+
 ## [1.12.0] - 2026-10-30
 
 ### Modifié

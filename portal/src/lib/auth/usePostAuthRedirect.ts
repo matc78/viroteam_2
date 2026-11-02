@@ -49,7 +49,8 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
         nextPath.startsWith("/announcements") ||
         nextPath.startsWith("/team") ||
         nextPath.startsWith("/equipment") ||
-        nextPath.startsWith("/settings");
+        nextPath.startsWith("/settings") ||
+        nextPath.startsWith("/account");
       const isJoinPath = nextPath.startsWith("/join");
       const isClubSetupPath = nextPath.startsWith("/club-setup");
 

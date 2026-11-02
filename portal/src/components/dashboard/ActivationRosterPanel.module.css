@@ -8,23 +8,25 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  padding: var(--space-md);
-  border: 1.5px solid var(--color-gray-200);
-  border-radius: var(--radius-md);
-  background: var(--color-white);
+  padding: 1.25rem 1.375rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card-subtle);
 }
 
 .summaryLead {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--color-primary-900);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  color: var(--text-primary);
 }
 
 .summaryHint {
   margin: 0;
-  font-size: 0.9rem;
-  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
   line-height: 1.45;
 }
 
@@ -42,31 +44,40 @@
   justify-content: center;
   min-height: 2.5rem;
   padding: 0.45rem 1rem;
-  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 650;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
 }
 
 .buttonPrimary {
-  border: none;
-  background: var(--color-primary-600);
+  background: var(--accent);
   color: var(--color-white);
 }
 
 .buttonPrimary:hover:not(:disabled) {
-  background: var(--color-primary-700);
+  background: var(--accent-strong);
 }
 
 .buttonSecondary {
-  border: 1.5px solid var(--color-gray-200);
-  background: var(--color-white);
-  color: var(--color-primary-900);
+  border-color: var(--border-strong);
+  background: var(--surface-card);
+  color: var(--text-primary);
 }
 
 .buttonSecondary:hover:not(:disabled) {
-  border-color: var(--color-primary-300);
+  background: var(--surface-hover);
+}
+
+.buttonPrimary:focus-visible,
+.buttonSecondary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .buttonPrimary:disabled,
@@ -75,6 +86,7 @@
   cursor: not-allowed;
 }
 
+/* Filtres par étape : tuiles compteur sobres, sélection en accent doux. */
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -88,56 +100,72 @@
   gap: 0.1rem;
   min-width: 7.5rem;
   padding: 0.55rem 0.85rem;
-  border: 1.5px solid var(--color-gray-200);
-  border-radius: var(--radius-sm);
-  background: var(--color-white);
-  color: var(--color-gray-700);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-secondary);
   font: inherit;
   cursor: pointer;
   text-align: left;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
 }
 
-.chip:hover {
-  border-color: var(--color-primary-300);
+.chip:hover:not(.chipActive) {
+  border-color: var(--border-strong);
+  background: var(--surface-muted);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .chipActive {
-  border-color: var(--color-primary-500);
-  background: var(--color-primary-100);
-  color: var(--color-primary-900);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-subtle));
+  background: var(--accent-soft);
+  color: var(--accent-text);
 }
 
 .chipValue {
-  font-size: 1.25rem;
-  font-weight: 750;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
   line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.chipActive .chipValue {
+  color: var(--accent-text);
 }
 
 .chipLabel {
-  font-size: 0.78rem;
-  font-weight: 650;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
 }
 
 .bucketHint {
   margin: 0;
-  font-size: 0.88rem;
-  color: var(--color-gray-600);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
 }
 
 .empty {
   margin: 0;
   padding: var(--space-lg);
-  border: 1.5px dashed var(--color-gray-200);
-  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface-muted);
   text-align: center;
-  color: var(--color-gray-600);
-  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .tableCard {
-  border: 1.5px solid var(--color-gray-200);
-  border-radius: var(--radius-md);
-  background: var(--color-white);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card-subtle);
   overflow: hidden;
 }
 
@@ -148,24 +176,28 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
 .table th,
 .table td {
-  padding: 0.65rem 0.85rem;
+  padding: 0.65rem 1rem;
   text-align: left;
-  border-bottom: 1px solid var(--color-gray-100);
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
 }
 
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .table th {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-gray-500);
-  background: var(--color-gray-50);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+  background: var(--surface-muted);
+  white-space: nowrap;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -173,55 +205,70 @@
 
 .row {
   cursor: pointer;
+  transition: background 120ms ease;
 }
 
 .row:hover {
-  background: var(--color-primary-50);
+  background: var(--surface-muted);
 }
 
 .nameButton {
   padding: 0;
   border: none;
   background: none;
-  color: var(--color-primary-800);
+  color: var(--text-primary);
   font: inherit;
-  font-weight: 650;
+  font-weight: var(--font-weight-semibold);
   text-align: left;
   cursor: pointer;
+}
+
+.nameButton:hover {
+  color: var(--accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.muted {
-  color: var(--color-gray-600);
+.nameButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
+.muted {
+  color: var(--text-muted);
+}
+
+/* Statut d’activation : même langage que `ui/StatusBadge`. */
 .badge {
   display: inline-flex;
   align-items: center;
   min-height: 1.5rem;
   padding: 0.1rem 0.55rem;
   border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  background: var(--status-neutral-soft);
+  color: var(--status-neutral-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .badge[data-tone="ok"] {
-  background: color-mix(in srgb, var(--color-success, #16a34a) 16%, white);
-  color: var(--color-success, #15803d);
+  background: var(--status-success-soft);
+  color: var(--status-success-text);
 }
 
 .badge[data-tone="warn"] {
-  background: var(--color-primary-100);
-  color: var(--color-primary-800);
+  background: var(--status-warning-soft);
+  color: var(--status-warning-text);
 }
 
 .badge[data-tone="info"] {
-  background: color-mix(in srgb, var(--color-primary-400, #60a5fa) 18%, white);
-  color: var(--color-primary-800);
+  background: var(--status-info-soft);
+  color: var(--status-info-text);
 }
 
 .badge[data-tone="muted"] {
-  background: var(--color-gray-100);
-  color: var(--color-gray-600);
+  background: var(--status-neutral-soft);
+  color: var(--status-neutral-text);
 }

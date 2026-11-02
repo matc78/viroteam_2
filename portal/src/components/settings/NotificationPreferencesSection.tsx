@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SettingsAccordion } from "@/components/settings/SettingsAccordion";
 import { useToast } from "@/components/ToastProvider";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
@@ -13,6 +12,7 @@ import {
 } from "@/lib/firebase/notificationPreferences";
 import { updateNotificationPreferences } from "@/lib/firebase/userService";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
+import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
 import shared from "@/components/settings/settingsShared.module.css";
 
 const TOGGLE_ROWS: Array<{
@@ -76,7 +76,7 @@ function visibleToggleRows() {
 }
 
 /**
- * Accordion préférences push (bureau + famille). [showCoachSummary] affiche
+ * Panneau préférences push (bureau + famille). [showCoachSummary] affiche
  * le moment du bilan des réponses (bureau : staff du club).
  */
 export function NotificationPreferencesSection({
@@ -121,61 +121,75 @@ export function NotificationPreferencesSection({
   }
 
   return (
-    <SettingsAccordion
-      title="Notifications"
-      description="Choisis quels rappels tu reçois dans le navigateur et sur mobile."
-      defaultOpen={false}
-    >
-      <div className={shared.stack}>
+    <section className={`${panelStyles.panel} ${shared.group}`} data-tone="amber">
+      <header className={shared.groupHeader}>
+        <h2 className={shared.groupTitle}>Notifications</h2>
+        <p className={shared.groupLead}>
+          Choisis quels rappels tu reçois dans le navigateur et sur mobile.
+        </p>
+      </header>
+      <ul className={shared.permissionList}>
         {visibleToggleRows().map((row) => {
           const parentOff = row.dependsOn != null && !prefs[row.dependsOn];
+          const enabled = prefs[row.key] && !parentOff;
           return (
-          <label key={row.key} className={shared.checkRow}>
-            <input
-              type="checkbox"
-              checked={prefs[row.key] && !parentOff}
-              disabled={busyKey === row.key || parentOff}
-              onChange={(event) =>
-                void setPreference(row.key, event.target.checked)
-              }
-            />
-            <span>
-              <strong>{row.title}</strong>
-              <br />
-              <span className={shared.hint}>{row.subtitle}</span>
-            </span>
-          </label>
+            <li
+              key={row.key}
+              className={shared.permissionRow}
+              data-child={row.dependsOn != null}
+            >
+              <div>
+                <p className={shared.permissionLabel}>{row.title}</p>
+                <p className={shared.permissionHint}>{row.subtitle}</p>
+              </div>
+              <label className={shared.toggle}>
+                <span className={shared.toggleLabel}>
+                  {enabled ? "Oui" : "Non"}
+                </span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={enabled}
+                  disabled={busyKey === row.key || parentOff}
+                  aria-label={row.title}
+                  onChange={(event) =>
+                    void setPreference(row.key, event.target.checked)
+                  }
+                />
+                <span className={shared.toggleTrack} aria-hidden="true" />
+              </label>
+            </li>
           );
         })}
         {showCoachSummary ? (
-          <label className={shared.checkRow}>
-            <span>
-              <strong>Bilan des réponses</strong>
-              <br />
-              <span className={shared.hint}>
+          <li className={shared.permissionRow}>
+            <div>
+              <p className={shared.permissionLabel}>Bilan des réponses</p>
+              <p className={shared.permissionHint}>
                 Coachs : le décompte de qui vient, au moment choisi
-              </span>
-              <br />
-              <select
-                value={prefs.coachSummaryTiming}
-                disabled={busyKey === "coachSummaryTiming" || !prefs.events}
-                onChange={(event) =>
-                  void savePreferences("coachSummaryTiming", {
-                    ...prefs,
-                    coachSummaryTiming: event.target.value as CoachSummaryTiming,
-                  })
-                }
-              >
-                {COACH_SUMMARY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </span>
-          </label>
+              </p>
+            </div>
+            <select
+              className={shared.select}
+              value={prefs.coachSummaryTiming}
+              aria-label="Moment du bilan des réponses"
+              disabled={busyKey === "coachSummaryTiming" || !prefs.events}
+              onChange={(event) =>
+                void savePreferences("coachSummaryTiming", {
+                  ...prefs,
+                  coachSummaryTiming: event.target.value as CoachSummaryTiming,
+                })
+              }
+            >
+              {COACH_SUMMARY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </li>
         ) : null}
-      </div>
-    </SettingsAccordion>
+      </ul>
+    </section>
   );
 }

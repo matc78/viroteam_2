@@ -1,0 +1,508 @@
+/*
+ * Fond opaque : masque les formes décoratives du layout racine
+ * (réservées à la landing, à l’auth et au club-setup).
+ */
+.layout {
+  /* Plus de header fixe : dialogs et dock messagerie occupent toute la hauteur. */
+  --header-height: 0px;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--bg-app);
+  color: var(--text-primary);
+}
+
+/** Planning / messagerie : un seul scroll interne au contenu. */
+.layout[data-fill="true"] {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ——— Sidebar ——— */
+
+.sidebar {
+  --nav-tone: var(--accent);
+  --nav-load-mix: 14%;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  height: 100dvh;
+  padding: 1.1rem 0.85rem 0.85rem;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-sidebar-wash), var(--bg-sidebar);
+  overflow-y: auto;
+}
+
+/* Liseré multicolore en tête de sidebar. */
+.sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--sidebar-stripe);
+  pointer-events: none;
+}
+
+.sidebarTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 0.35rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-brand);
+}
+
+.brandMark {
+  width: 1.9rem;
+  height: 1.9rem;
+  object-fit: contain;
+}
+
+.wordmark {
+  font-size: 1.05rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.collapseToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+}
+
+.collapseToggle:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.drawerClose {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+}
+
+.drawerClose:hover {
+  background: var(--surface-hover);
+}
+
+.nav {
+  flex: 1;
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navLink {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 2.6rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+/* Ton par module : pastille d’icône, état actif et barre de chargement. */
+.navLink[data-tone="blue"] {
+  --nav-tone: var(--tone-blue);
+  --nav-tone-soft: var(--tone-blue-soft);
+  --nav-tone-text: var(--tone-blue-text);
+}
+.navLink[data-tone="violet"] {
+  --nav-tone: var(--tone-violet);
+  --nav-tone-soft: var(--tone-violet-soft);
+  --nav-tone-text: var(--tone-violet-text);
+}
+.navLink[data-tone="cyan"] {
+  --nav-tone: var(--tone-cyan);
+  --nav-tone-soft: var(--tone-cyan-soft);
+  --nav-tone-text: var(--tone-cyan-text);
+}
+.navLink[data-tone="green"] {
+  --nav-tone: var(--tone-green);
+  --nav-tone-soft: var(--tone-green-soft);
+  --nav-tone-text: var(--tone-green-text);
+}
+.navLink[data-tone="orange"] {
+  --nav-tone: var(--tone-orange);
+  --nav-tone-soft: var(--tone-orange-soft);
+  --nav-tone-text: var(--tone-orange-text);
+}
+.navLink[data-tone="amber"] {
+  --nav-tone: var(--tone-amber);
+  --nav-tone-soft: var(--tone-amber-soft);
+  --nav-tone-text: var(--tone-amber-text);
+}
+.navLink[data-tone="pink"] {
+  --nav-tone: var(--tone-pink);
+  --nav-tone-soft: var(--tone-pink-soft);
+  --nav-tone-text: var(--tone-pink-text);
+}
+.navLink[data-tone="slate"] {
+  --nav-tone: var(--tone-slate);
+  --nav-tone-soft: var(--tone-slate-soft);
+  --nav-tone-text: var(--tone-slate-text);
+}
+
+.navLink:hover {
+  background: color-mix(in srgb, var(--nav-tone-soft) 55%, transparent);
+  color: var(--text-primary);
+}
+
+.navLink[aria-current="page"] {
+  background: var(--nav-tone-soft);
+  color: var(--nav-tone-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.navLink[aria-current="page"] .navIcon {
+  background: var(--nav-tone);
+  color: var(--color-white);
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--nav-tone) 35%, transparent);
+}
+
+.navIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.55rem;
+  background: var(--nav-tone-soft);
+  color: var(--nav-tone);
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.navLabel {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navBadge {
+  min-width: 1.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--status-danger);
+  color: var(--color-white);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+}
+
+.sidebarBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.55rem;
+  border-radius: var(--radius-control);
+  transition: background 120ms ease;
+}
+
+.account:hover,
+.account[aria-current="page"] {
+  background: var(--surface-hover);
+}
+
+.avatar,
+.avatarInitials {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.avatar {
+  object-fit: cover;
+}
+
+.avatarInitials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--color-primary-500), var(--tone-violet));
+  color: var(--color-white);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.accountMeta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.accountName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.accountSubtitle {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.accountIcon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+/* ——— Contenu ——— */
+
+.main {
+  width: 100%;
+  max-width: calc(var(--content-max-width) + 2 * 2.25rem);
+  margin-inline: auto;
+  padding: 1.75rem clamp(1rem, 3vw, 2.25rem) 3.5rem;
+  min-width: 0;
+}
+
+.main[data-wide="true"] {
+  max-width: none;
+}
+
+.main[data-fill="true"] {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100dvh;
+  overflow: hidden;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.feeBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-lg);
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--status-danger) 35%, transparent);
+  border-radius: var(--radius-card);
+  background: var(--status-danger-soft);
+  color: var(--status-danger-text);
+  font-size: var(--font-size-md);
+}
+
+.feeBannerLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.3rem 0.95rem;
+  border-radius: var(--radius-control);
+  background: var(--status-danger);
+  color: var(--color-white);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* ——— Desktop : sidebar repliée (icônes seules) ——— */
+
+@media (min-width: 961px) {
+  .layout[data-collapsed="true"] {
+    grid-template-columns: 4.75rem minmax(0, 1fr);
+  }
+
+  .layout[data-collapsed="true"] .sidebar {
+    align-items: stretch;
+    padding-inline: 0.6rem;
+    /* Le menu des clubs s’ouvre à droite, hors de la sidebar. */
+    overflow: visible;
+  }
+
+  .layout[data-collapsed="true"] .sidebarTop {
+    flex-direction: column;
+    gap: 0.6rem;
+    padding-inline: 0;
+  }
+
+  .layout[data-collapsed="true"] .wordmark,
+  .layout[data-collapsed="true"] .accountMeta,
+  .layout[data-collapsed="true"] .accountIcon {
+    display: none;
+  }
+
+  .layout[data-collapsed="true"] .navLink {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  /* Libellé masqué visuellement mais lu par les lecteurs d’écran. */
+  .layout[data-collapsed="true"] .navLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .layout[data-collapsed="true"] .navBadge {
+    position: absolute;
+    top: 0.2rem;
+    right: 0.35rem;
+    min-width: 1.1rem;
+    padding: 0 0.25rem;
+    font-size: 0.625rem;
+  }
+
+  .layout[data-collapsed="true"] .account {
+    justify-content: center;
+    padding-inline: 0;
+  }
+}
+
+/* ——— Mobile : top bar + tiroir ——— */
+
+.topbar,
+.backdrop {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .layout[data-fill="true"] .main {
+    height: auto;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 3.5rem;
+    padding: 0.35rem 0.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-sidebar);
+  }
+
+  .burger,
+  .topbarAccount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-control);
+    color: var(--text-primary);
+    flex-shrink: 0;
+  }
+
+  .burger:hover {
+    background: var(--surface-hover);
+  }
+
+  .topbarTitle {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 70;
+    width: min(18rem, 86vw);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 200ms ease,
+      visibility 0s linear 200ms;
+    box-shadow: var(--shadow-popover);
+  }
+
+  .sidebar[data-open="true"] {
+    transform: none;
+    visibility: visible;
+    transition: transform 200ms ease;
+  }
+
+  .drawerClose {
+    display: inline-flex;
+  }
+
+  .collapseToggle {
+    display: none;
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    background: color-mix(in srgb, var(--color-primary-900) 35%, transparent);
+  }
+
+  .main {
+    padding-top: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar[data-open="true"] {
+    transition: none;
+  }
+}

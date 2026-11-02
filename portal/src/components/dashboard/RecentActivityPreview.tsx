@@ -1,7 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { TextLink } from "@/components/ui/Button";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ListRow, ListRows } from "@/components/ui/ListRow";
 import {
   ClubListenSets,
   useClubRealtimeReload,
@@ -12,12 +15,14 @@ import {
   listClubActivity,
   type ClubActivityEventRecord,
 } from "@/lib/firebase/activityService";
-import panelStyles from "./DashboardPanel.module.css";
 import styles from "./RecentActivityPreview.module.css";
 
 type RecentActivityPreviewProps = {
   clubId: string;
 };
+
+/** Nombre d’actions affichées sur l’accueil. */
+const PREVIEW_LIMIT = 3;
 
 function formatEventDate(date: Date | null): string {
   if (!date) return "";
@@ -36,32 +41,30 @@ function actorLabel(name: string): string {
 }
 
 /**
- * Aperçu home : dernière action club + lien vers le journal.
+ * Aperçu home : dernières actions du club + lien vers le journal.
  */
 export function RecentActivityPreview({ clubId }: RecentActivityPreviewProps) {
-  const [event, setEvent] = useState<ClubActivityEventRecord | null | undefined>(
+  const [events, setEvents] = useState<ClubActivityEventRecord[] | undefined>(
     undefined,
   );
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setError(null);
-    listClubActivity(clubId, 1)
-      .then((rows) => {
-        setEvent(rows[0] ?? null);
-      })
+    listClubActivity(clubId, PREVIEW_LIMIT)
+      .then(setEvents)
       .catch((err: unknown) => {
         setError(
           err instanceof Error
             ? err.message
             : "Impossible de charger l’activité.",
         );
-        setEvent(null);
+        setEvents([]);
       });
   }, [clubId]);
 
   useEffect(() => {
-    setEvent(undefined);
+    setEvents(undefined);
     load();
   }, [load]);
 
@@ -72,54 +75,44 @@ export function RecentActivityPreview({ clubId }: RecentActivityPreviewProps) {
     enabled: Boolean(clubId),
   });
 
-  const detail = event ? clubActivityDetail(event) : null;
-
   return (
-    <section
-      className={panelStyles.panel}
-      data-tone="orange"
-      aria-labelledby="recent-activity-title"
-    >
-      <header className={styles.header}>
-        <div>
-          <h2 id="recent-activity-title" className={styles.title}>
-            Dernières actions
-          </h2>
-          <p className={styles.subtitle}>Ce qui vient d’être fait dans le club</p>
-        </div>
-        <Link href="/activity" className={styles.viewAllLink}>
-          Voir tout →
-        </Link>
-      </header>
+    <Card padding="none" aria-labelledby="recent-activity-title">
+      <CardHeader
+        title="Dernières actions"
+        titleId="recent-activity-title"
+        action={<TextLink href="/activity">Journal</TextLink>}
+      />
 
       {error ? (
-        <p className={styles.muted} role="alert">
+        <p className={styles.message} role="alert">
           {error}
         </p>
-      ) : null}
-
-      {event === undefined && !error ? (
-        <p className={styles.muted}>Chargement…</p>
-      ) : null}
-
-      {event === null && !error ? (
-        <p className={styles.muted}>
-          Rien pour l’instant — les prochaines actions apparaîtront ici.
-        </p>
-      ) : null}
-
-      {event ? (
-        <div className={styles.preview}>
-          <p className={styles.previewTitle}>{clubActivityTitle(event)}</p>
-          {detail ? <p className={styles.previewDetail}>{detail}</p> : null}
-          <p className={styles.previewMeta}>
-            {actorLabel(event.actorDisplayName)}
-            {event.createdAt
-              ? ` · ${formatEventDate(event.createdAt)}`
-              : ""}
-          </p>
+      ) : events === undefined ? (
+        <p className={styles.message}>Chargement…</p>
+      ) : events.length === 0 ? (
+        <div className={styles.message}>
+          <EmptyState>Rien pour l’instant.</EmptyState>
         </div>
-      ) : null}
-    </section>
+      ) : (
+        <ListRows aria-label="Dernières actions">
+          {events.map((event) => {
+            const detail = clubActivityDetail(event);
+            return (
+              <ListRow
+                key={event.id}
+                title={clubActivityTitle(event)}
+                meta={[
+                  detail,
+                  actorLabel(event.actorDisplayName),
+                  event.createdAt ? formatEventDate(event.createdAt) : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            );
+          })}
+        </ListRows>
+      )}
+    </Card>
   );
 }

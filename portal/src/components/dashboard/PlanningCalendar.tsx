@@ -36,6 +36,7 @@ import {
   viewerEventFillAttr,
 } from "@/lib/planning/viewerEventFill";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
+import { Icon } from "@/components/ui/icons";
 import styles from "./PlanningCalendar.module.css";
 
 export type CalendarView = "month" | "week" | "day";
@@ -74,7 +75,10 @@ type PlanningCalendarProps = {
   viewerMatchIds?: string[];
 };
 
-const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+/** Jour court (« lun. »), partagé par les en-têtes mois et semaine. */
+const WEEKDAY_SHORT_FORMAT = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "short",
+});
 const HOUR_START = 0;
 const HOUR_END = 24;
 const HOURS = Array.from(
@@ -199,7 +203,7 @@ export function PlanningCalendar({
               aria-label="Période précédente"
               onClick={() => onCursorChange(shiftCursor(cursor, view, -1))}
             >
-              ‹
+              <Icon name="chevronLeft" size={18} />
             </button>
             <button
               type="button"
@@ -207,7 +211,7 @@ export function PlanningCalendar({
               aria-label="Période suivante"
               onClick={() => onCursorChange(shiftCursor(cursor, view, 1))}
             >
-              ›
+              <Icon name="chevronRight" size={18} />
             </button>
           </div>
           <h2 className={styles.periodLabel}>{periodLabel}</h2>
@@ -367,9 +371,9 @@ function MonthView({
       scrollRef={monthScrollRef}
     >
       <div className={styles.weekdayRow}>
-        {WEEKDAY_LABELS.map((label) => (
-          <div key={label} className={styles.weekdayCell}>
-            {label}
+        {days.slice(0, 7).map((day) => (
+          <div key={day.getDay()} className={styles.weekdayCell}>
+            {WEEKDAY_SHORT_FORMAT.format(day)}
           </div>
         ))}
       </div>
@@ -715,9 +719,7 @@ function TimeGridView({
             <div className={styles.timeGutterSpacer} aria-hidden="true" />
             {days.map((day) => {
               const isToday = isSameDay(day, today);
-              const weekday = new Intl.DateTimeFormat("fr-FR", {
-                weekday: "short",
-              }).format(day);
+              const weekday = WEEKDAY_SHORT_FORMAT.format(day);
               const dayLabel = new Intl.DateTimeFormat("fr-FR", {
                 weekday: "long",
                 day: "numeric",

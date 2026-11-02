@@ -1,92 +1,84 @@
+/*
+ * Badge de rôle : seule pastille qui garde la couleur d’identité du rôle
+ * (`--color-role-*`), en version douce — fond teinté, texte foncé, sans dégradé.
+ */
 .badge {
+  --role-color: var(--color-role-player);
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   width: fit-content;
-  padding: 0.2rem 0.55rem 0.2rem 0.3rem;
-  border-radius: 0.5rem;
-  color: var(--color-white);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  min-height: 1.5rem;
+  padding: 0.1rem 0.55rem 0.1rem 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--role-color) 12%, var(--surface-card));
+  color: color-mix(in srgb, var(--role-color) 62%, var(--text-primary));
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
   white-space: nowrap;
 }
 
 .badge[data-tone="admin"] {
-  background: linear-gradient(135deg, #a78bfa 0%, var(--color-role-admin) 100%);
-  box-shadow: 0 3px 10px
-    color-mix(in srgb, var(--color-role-admin) 40%, transparent);
+  --role-color: var(--color-role-admin);
 }
 
 .badge[data-tone="coach"] {
-  background: linear-gradient(135deg, #fb923c 0%, var(--color-role-coach) 100%);
-  box-shadow: 0 3px 10px
-    color-mix(in srgb, var(--color-role-coach) 40%, transparent);
+  --role-color: var(--color-role-coach);
 }
 
 .badge[data-tone="player"] {
-  background: linear-gradient(
-    135deg,
-    var(--color-role-player) 0%,
-    #1d4ed8 100%
-  );
-  box-shadow: 0 3px 10px
-    color-mix(in srgb, var(--color-role-player) 40%, transparent);
+  --role-color: var(--color-role-player);
 }
 
 .badge[data-tone="parent"] {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-role-parent) 72%, white) 0%,
-    var(--color-role-parent) 100%
-  );
-  box-shadow: 0 3px 10px
-    color-mix(in srgb, var(--color-role-parent) 40%, transparent);
+  --role-color: var(--color-role-parent);
 }
 
 .badgeIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.15rem;
-  height: 1.15rem;
-  border-radius: 0.3rem;
-  background: color-mix(in srgb, white 20%, transparent);
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--role-color) 18%, transparent);
+  color: color-mix(in srgb, var(--role-color) 80%, var(--text-primary));
   flex-shrink: 0;
 }
 
 .badgeIcon svg {
   display: block;
-  width: 0.7rem;
-  height: 0.7rem;
+  width: 0.65rem;
+  height: 0.65rem;
 }
 
+/* Club non sélectionné : version neutre. */
 .badgeMuted {
-  background: var(--color-gray-200) !important;
-  color: var(--color-gray-600) !important;
-  box-shadow: none !important;
+  background: var(--status-neutral-soft);
+  color: var(--status-neutral-text);
 }
 
 .badgeMuted .badgeIcon {
-  background: color-mix(in srgb, var(--color-gray-500) 18%, transparent);
+  background: color-mix(in srgb, var(--text-muted) 18%, transparent);
+  color: var(--text-muted);
 }
 
 .badgeSm {
   gap: 0.2rem;
-  padding: 0.05rem 0.32rem 0.05rem 0.18rem;
-  font-size: 0.58rem;
-  border-radius: 0.4rem;
+  min-height: 1.1rem;
+  padding: 0.05rem 0.4rem 0.05rem 0.18rem;
+  font-size: 0.625rem;
 }
 
 .badgeSm .badgeIcon {
-  width: 0.85rem;
-  height: 0.85rem;
-  border-radius: 0.22rem;
+  width: 0.8rem;
+  height: 0.8rem;
 }
 
 .badgeSm .badgeIcon svg {
-  width: 0.55rem;
-  height: 0.55rem;
+  width: 0.5rem;
+  height: 0.5rem;
 }
 
 .badgeIconOnly {

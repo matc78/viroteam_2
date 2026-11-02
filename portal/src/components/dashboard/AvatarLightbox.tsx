@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./AvatarLightbox.module.css";
 
@@ -29,7 +30,9 @@ export function AvatarLightbox({
       ? `${styles.image} ${styles.rounded}`
       : styles.image;
 
-  return (
+  // Portail : rendu sous un header (backdrop-filter / transform), le `fixed`
+  // serait borné à ce parent et l’image coupée par la top bar.
+  return createPortal(
     <div
       ref={dialogRef}
       className={styles.backdrop}
@@ -66,6 +69,7 @@ export function AvatarLightbox({
           {editLabel}
         </button>
       ) : null}
-    </div>
+    </div>,
+    document.body,
   );
 }

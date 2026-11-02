@@ -1,24 +1,31 @@
 .empty {
   margin: 0;
-  color: var(--color-text-muted, #64748b);
-  font-size: 0.95rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-md);
   line-height: 1.45;
 }
 
+/* Journal : une carte, une ligne par événement (cf. `ui/ListRow`). */
 .list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card-subtle);
+  overflow: hidden;
 }
 
 .item {
-  padding: 0.75rem 0.85rem;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-sm, 10px);
-  background: var(--color-white, #fff);
+  padding: 0.8rem 1.375rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.item:first-child {
+  border-top: none;
 }
 
 .itemHead {
@@ -29,26 +36,41 @@
 }
 
 .itemTitle {
-  font-size: 0.95rem;
-  font-weight: 650;
-  color: var(--color-primary-900, #0f172a);
+  min-width: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.35;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
 .itemDate {
   flex-shrink: 0;
-  font-size: 0.78rem;
-  color: var(--color-gray-500, #64748b);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .itemDetail {
-  margin: 0.25rem 0 0;
-  font-size: 0.82rem;
-  line-height: 1.35;
-  color: var(--color-gray-600, #475569);
+  margin: 0.2rem 0 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md, 1rem);
+  gap: var(--space-md);
+}
+
+@media (max-width: 640px) {
+  .item {
+    padding-inline: 1rem;
+  }
+
+  .itemHead {
+    flex-wrap: wrap;
+  }
 }

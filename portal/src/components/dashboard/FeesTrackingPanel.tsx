@@ -29,6 +29,7 @@ import {
 } from "@/lib/firebase/feeService";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { CorrectMemberFeeDialog } from "@/components/dashboard/CorrectMemberFeeDialog";
+import { FeesOverview } from "@/components/fees/FeesOverview";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import panelStyles from "./DashboardPanel.module.css";
 import { FeesMultiFilter } from "./FeesMultiFilter";
@@ -612,414 +613,420 @@ export function FeesTrackingPanel({
   }
 
   return (
-    <section
-      className={`${panelStyles.panel} ${styles.section}`}
-      data-tone="amber"
-      aria-labelledby="fees-tracking-title"
-    >
-      <h2 id="fees-tracking-title" className={styles.title}>
-        Suivi des cotisations
-      </h2>
-      <p className={styles.lead}>
-        {readOnly
-          ? `Vue lecture — saison ${data.season.seasonLabel}.`
-          : `Corrigez tarif, montant ou reste dû via le bouton Corriger — saison ${data.season.seasonLabel}.`}
-      </p>
-
-      {error ? (
-        <p className={styles.error} role="alert">
-          {error}
+    <>
+      <FeesOverview
+        rows={data.rows}
+        showCardPayments={club.onlinePaymentEnabled === true}
+      />
+      <section
+        className={`${panelStyles.panel} ${styles.section}`}
+        data-tone="amber"
+        aria-labelledby="fees-tracking-title"
+      >
+        <h2 id="fees-tracking-title" className={styles.title}>
+          Suivi des cotisations
+        </h2>
+        <p className={styles.lead}>
+          {readOnly
+            ? `Vue lecture — saison ${data.season.seasonLabel}.`
+            : `Corrigez tarif, montant ou reste dû via le bouton Corriger — saison ${data.season.seasonLabel}.`}
         </p>
-      ) : null}
 
-      <div className={styles.summaryRow}>
-        <div className={styles.summary} role="toolbar" aria-label="Vues de suivi">
-          <button
-            type="button"
-            className={styles.summaryChip}
-            data-tone="action"
-            data-active={statusView === "pending" ? "true" : undefined}
-            aria-pressed={statusView === "pending"}
-            onClick={() => setStatusView("pending")}
-          >
-            <strong>{data.counts.needsAction}</strong> à traiter
-          </button>
-          <button
-            type="button"
-            className={styles.summaryChip}
-            data-tone="due"
-            data-active={statusView === "due" ? "true" : undefined}
-            aria-pressed={statusView === "due"}
-            onClick={() => setStatusView("due")}
-          >
-            <strong>{data.counts.remainingDue}</strong> avec reste dû
-          </button>
-          {data.counts.partial > 0 ? (
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        <div className={styles.summaryRow}>
+          <div className={styles.summary} role="toolbar" aria-label="Vues de suivi">
             <button
               type="button"
               className={styles.summaryChip}
-              data-tone="partial"
-              data-active={statusView === "partial" ? "true" : undefined}
-              aria-pressed={statusView === "partial"}
-              onClick={() => setStatusView("partial")}
+              data-tone="action"
+              data-active={statusView === "pending" ? "true" : undefined}
+              aria-pressed={statusView === "pending"}
+              onClick={() => setStatusView("pending")}
             >
-              <strong>{data.counts.partial}</strong> partiel
-              {data.counts.partial > 1 ? "s" : ""}
+              <strong>{data.counts.needsAction}</strong> à traiter
             </button>
-          ) : null}
-          <button
-            type="button"
-            className={styles.summaryChip}
-            data-tone="paid"
-            data-active={statusView === "paid" ? "true" : undefined}
-            aria-pressed={statusView === "paid"}
-            onClick={() => setStatusView("paid")}
-          >
-            <strong>{data.counts.paid}</strong> à jour
-          </button>
-          {data.counts.pendingAids > 0 ? (
-            <span className={styles.summaryChip} data-tone="aid">
-              <strong>{data.counts.pendingAids}</strong> aide
-              {data.counts.pendingAids > 1 ? "s" : ""} à valider
-            </span>
-          ) : null}
-        </div>
-        {!readOnly && smartApplyCandidates.length > 0 ? (
-          <button
-            type="button"
-            className={styles.smartButton}
-            disabled={busy}
-            title={`Assigner une cotisation à ${smartApplyCandidates.length} membre${smartApplyCandidates.length > 1 ? "s" : ""} selon la catégorie sport`}
-            onClick={() => void handleSmartApply()}
-          >
-            {busyBulk ? "Application…" : "Application intelligente"}
-          </button>
-        ) : null}
-      </div>
-
-      <FadeScrollArea
-        className={styles.toolbarWrap}
-        viewportClassName={styles.toolbar}
-        axis="horizontal"
-      >
-        <div className={styles.filters}>
-          <label
-            className={`${styles.field} ${styles.fieldSearch}`}
-            data-active={search.trim() ? "true" : undefined}
-          >
-            <span className={styles.label}>Recherche</span>
-            <input
-              className={styles.input}
-              type="search"
-              value={search}
-              placeholder="Nom du membre…"
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </label>
-
-          <label
-            className={styles.field}
-            data-active={tierFilter !== "all" ? "true" : undefined}
-          >
-            <span className={styles.label}>Cotisation</span>
-            <PlanningSelect
-              id="fees-filter-tier"
-              value={tierFilter}
-              aria-label="Filtrer par catégorie de cotisation"
-              options={[
-                { value: "all", label: "Toutes" },
-                ...data.season.tiers.map((tier) => ({
-                  value: tier.tierId,
-                  label: tier.label,
-                })),
-              ]}
-              onChange={setTierFilter}
-            />
-          </label>
-
-          <FeesMultiFilter
-            id="fees-filter-sport-category"
-            label="Catégorie"
-            value={sportCategoryFilters}
-            aria-label="Filtrer par catégories du sport"
-            options={data.sportCategories.map((category) => ({
-              value: category,
-              label: category,
-            }))}
-            onChange={setSportCategoryFilters}
-          />
-
-          <FeesMultiFilter
-            id="fees-filter-team"
-            label="Équipe"
-            value={teamFilters}
-            aria-label="Filtrer par équipes"
-            options={data.teams.map((team) => ({
-              value: team.id,
-              label: team.name,
-            }))}
-            onChange={setTeamFilters}
-          />
-        </div>
-
-        <div className={styles.toolbarActions}>
-          {hasActiveFilters ? (
             <button
               type="button"
-              className={styles.clearFiltersButton}
-              onClick={clearFilters}
-              title="Annuler les filtres"
-              aria-label="Annuler les filtres"
+              className={styles.summaryChip}
+              data-tone="due"
+              data-active={statusView === "due" ? "true" : undefined}
+              aria-pressed={statusView === "due"}
+              onClick={() => setStatusView("due")}
             >
-              <svg
-                className={styles.clearFiltersIcon}
-                viewBox="0 0 256 256"
-                aria-hidden="true"
+              <strong>{data.counts.remainingDue}</strong> avec reste dû
+            </button>
+            {data.counts.partial > 0 ? (
+              <button
+                type="button"
+                className={styles.summaryChip}
+                data-tone="partial"
+                data-active={statusView === "partial" ? "true" : undefined}
+                aria-pressed={statusView === "partial"}
+                onClick={() => setStatusView("partial")}
               >
-                <path
-                  fill="currentColor"
-                  d="M205.66 194.34a8 8 0 0 1-11.32 11.32L128 139.31l-66.34 66.35a8 8 0 0 1-11.32-11.32L116.69 128 50.34 61.66a8 8 0 0 1 11.32-11.32L128 116.69l66.34-66.35a8 8 0 0 1 11.32 11.32L139.31 128Z"
-                />
-              </svg>
+                <strong>{data.counts.partial}</strong> partiel
+                {data.counts.partial > 1 ? "s" : ""}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={styles.summaryChip}
+              data-tone="paid"
+              data-active={statusView === "paid" ? "true" : undefined}
+              aria-pressed={statusView === "paid"}
+              onClick={() => setStatusView("paid")}
+            >
+              <strong>{data.counts.paid}</strong> à jour
+            </button>
+            {data.counts.pendingAids > 0 ? (
+              <span className={styles.summaryChip} data-tone="aid">
+                <strong>{data.counts.pendingAids}</strong> aide
+                {data.counts.pendingAids > 1 ? "s" : ""} à valider
+              </span>
+            ) : null}
+          </div>
+          {!readOnly && smartApplyCandidates.length > 0 ? (
+            <button
+              type="button"
+              className={styles.smartButton}
+              disabled={busy}
+              title={`Assigner une cotisation à ${smartApplyCandidates.length} membre${smartApplyCandidates.length > 1 ? "s" : ""} selon la catégorie sport`}
+              onClick={() => void handleSmartApply()}
+            >
+              {busyBulk ? "Application…" : "Application intelligente"}
             </button>
           ) : null}
-
-          <button
-            type="button"
-            className={styles.toggleButton}
-            aria-pressed={statusView === "all"}
-            onClick={() =>
-              setStatusView((current) =>
-                current === "all" ? "pending" : "all",
-              )
-            }
-          >
-            {statusView === "all"
-              ? "Voir seulement à traiter"
-              : "Voir tous les membres"}
-          </button>
         </div>
-      </FadeScrollArea>
 
-      {sportCategoryFilters.length > 0 || teamFilters.length > 0 ? (
-        <div className={styles.activeChips} aria-label="Filtres actifs">
-          {sportCategoryFilters.map((category) => (
+        <FadeScrollArea
+          className={styles.toolbarWrap}
+          viewportClassName={styles.toolbar}
+          axis="horizontal"
+        >
+          <div className={styles.filters}>
+            <label
+              className={`${styles.field} ${styles.fieldSearch}`}
+              data-active={search.trim() ? "true" : undefined}
+            >
+              <span className={styles.label}>Recherche</span>
+              <input
+                className={styles.input}
+                type="search"
+                value={search}
+                placeholder="Nom du membre…"
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
+
+            <label
+              className={styles.field}
+              data-active={tierFilter !== "all" ? "true" : undefined}
+            >
+              <span className={styles.label}>Cotisation</span>
+              <PlanningSelect
+                id="fees-filter-tier"
+                value={tierFilter}
+                aria-label="Filtrer par catégorie de cotisation"
+                options={[
+                  { value: "all", label: "Toutes" },
+                  ...data.season.tiers.map((tier) => ({
+                    value: tier.tierId,
+                    label: tier.label,
+                  })),
+                ]}
+                onChange={setTierFilter}
+              />
+            </label>
+
+            <FeesMultiFilter
+              id="fees-filter-sport-category"
+              label="Catégorie"
+              value={sportCategoryFilters}
+              aria-label="Filtrer par catégories du sport"
+              options={data.sportCategories.map((category) => ({
+                value: category,
+                label: category,
+              }))}
+              onChange={setSportCategoryFilters}
+            />
+
+            <FeesMultiFilter
+              id="fees-filter-team"
+              label="Équipe"
+              value={teamFilters}
+              aria-label="Filtrer par équipes"
+              options={data.teams.map((team) => ({
+                value: team.id,
+                label: team.name,
+              }))}
+              onChange={setTeamFilters}
+            />
+          </div>
+
+          <div className={styles.toolbarActions}>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                className={styles.clearFiltersButton}
+                onClick={clearFilters}
+                title="Annuler les filtres"
+                aria-label="Annuler les filtres"
+              >
+                <svg
+                  className={styles.clearFiltersIcon}
+                  viewBox="0 0 256 256"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M205.66 194.34a8 8 0 0 1-11.32 11.32L128 139.31l-66.34 66.35a8 8 0 0 1-11.32-11.32L116.69 128 50.34 61.66a8 8 0 0 1 11.32-11.32L128 116.69l66.34-66.35a8 8 0 0 1 11.32 11.32L139.31 128Z"
+                  />
+                </svg>
+              </button>
+            ) : null}
+
             <button
-              key={`cat-${category}`}
               type="button"
-              className={styles.chip}
+              className={styles.toggleButton}
+              aria-pressed={statusView === "all"}
               onClick={() =>
-                setSportCategoryFilters((current) =>
-                  current.filter((item) => item !== category),
+                setStatusView((current) =>
+                  current === "all" ? "pending" : "all",
                 )
               }
-              title={`Retirer ${category}`}
             >
-              <span>Catégorie · {category}</span>
-              <span className={styles.chipRemove} aria-hidden="true">
-                ×
-              </span>
+              {statusView === "all"
+                ? "Voir seulement à traiter"
+                : "Voir tous les membres"}
             </button>
-          ))}
-          {teamFilters.map((teamId) => {
-            const teamName =
-              data.teams.find((team) => team.id === teamId)?.name ?? teamId;
-            return (
+          </div>
+        </FadeScrollArea>
+
+        {sportCategoryFilters.length > 0 || teamFilters.length > 0 ? (
+          <div className={styles.activeChips} aria-label="Filtres actifs">
+            {sportCategoryFilters.map((category) => (
               <button
-                key={`team-${teamId}`}
+                key={`cat-${category}`}
                 type="button"
                 className={styles.chip}
                 onClick={() =>
-                  setTeamFilters((current) =>
-                    current.filter((item) => item !== teamId),
+                  setSportCategoryFilters((current) =>
+                    current.filter((item) => item !== category),
                   )
                 }
-                title={`Retirer ${teamName}`}
+                title={`Retirer ${category}`}
               >
-                <span>Équipe · {teamName}</span>
+                <span>Catégorie · {category}</span>
                 <span className={styles.chipRemove} aria-hidden="true">
                   ×
                 </span>
               </button>
-            );
-          })}
-          <button
-            type="button"
-            className={styles.clearAllChips}
-            onClick={clearFilters}
-          >
-            Tout effacer
-          </button>
-        </div>
-      ) : null}
+            ))}
+            {teamFilters.map((teamId) => {
+              const teamName =
+                data.teams.find((team) => team.id === teamId)?.name ?? teamId;
+              return (
+                <button
+                  key={`team-${teamId}`}
+                  type="button"
+                  className={styles.chip}
+                  onClick={() =>
+                    setTeamFilters((current) =>
+                      current.filter((item) => item !== teamId),
+                    )
+                  }
+                  title={`Retirer ${teamName}`}
+                >
+                  <span>Équipe · {teamName}</span>
+                  <span className={styles.chipRemove} aria-hidden="true">
+                    ×
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              className={styles.clearAllChips}
+              onClick={clearFilters}
+            >
+              Tout effacer
+            </button>
+          </div>
+        ) : null}
 
-      <p className={styles.meta}>
-        {visibleRows.length} membre{visibleRows.length > 1 ? "s" : ""}
-        {" · "}
-        {statusViewMetaLabel(statusView)}
-      </p>
-
-      {visibleRows.length === 0 ? (
-        <p className={styles.empty} role="status">
-          {statusViewEmptyLabel(statusView)}
+        <p className={styles.meta}>
+          {visibleRows.length} membre{visibleRows.length > 1 ? "s" : ""}
+          {" · "}
+          {statusViewMetaLabel(statusView)}
         </p>
-      ) : (
-        <FadeScrollArea className={styles.tableWrap} axis="horizontal">
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                {!readOnly ? (
-                  <th scope="col" className={styles.checkCol}>
-                    <input
-                      className={styles.checkbox}
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      ref={(element) => {
-                        if (element) element.indeterminate = someVisibleSelected;
-                      }}
-                      aria-label="Tout sélectionner"
-                      onChange={() => {
-                        setSelectedIds((current) => {
-                          if (allVisibleSelected) {
+
+        {visibleRows.length === 0 ? (
+          <p className={styles.empty} role="status">
+            {statusViewEmptyLabel(statusView)}
+          </p>
+        ) : (
+          <FadeScrollArea className={styles.tableWrap} axis="horizontal">
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  {!readOnly ? (
+                    <th scope="col" className={styles.checkCol}>
+                      <input
+                        className={styles.checkbox}
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        ref={(element) => {
+                          if (element) element.indeterminate = someVisibleSelected;
+                        }}
+                        aria-label="Tout sélectionner"
+                        onChange={() => {
+                          setSelectedIds((current) => {
+                            if (allVisibleSelected) {
+                              const next = new Set(current);
+                              for (const row of visibleRows) {
+                                next.delete(row.memberId);
+                              }
+                              return next;
+                            }
                             const next = new Set(current);
                             for (const row of visibleRows) {
-                              next.delete(row.memberId);
+                              next.add(row.memberId);
                             }
                             return next;
-                          }
-                          const next = new Set(current);
-                          for (const row of visibleRows) {
-                            next.add(row.memberId);
-                          }
-                          return next;
-                        });
-                      }}
-                    />
-                  </th>
-                ) : null}
-                <th scope="col">Nom</th>
-                <th scope="col">Statut</th>
-                <th scope="col">Cotisation</th>
-                <th scope="col">Équipe</th>
-                <th scope="col">Paiement</th>
-                <th scope="col">Montants</th>
-                {!readOnly ? <th scope="col">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((row) => (
-                <FeeTrackingRowItem
-                  key={row.memberId}
-                  row={row}
-                  tiers={data.season.tiers}
-                  checked={selectedIds.has(row.memberId)}
-                  busy={busyMemberId === row.memberId}
-                  disabled={busy}
-                  readOnly={readOnly}
-                  onToggleSelect={() => {
-                    setSelectedIds((current) => {
-                      const next = new Set(current);
-                      if (next.has(row.memberId)) next.delete(row.memberId);
-                      else next.add(row.memberId);
-                      return next;
-                    });
-                  }}
-                  onCorrect={() => openCorrect(row)}
-                  onAidStatus={(aidId, status) =>
-                    void handleAidStatus(row, aidId, status)
-                  }
-                />
-              ))}
-            </tbody>
-          </table>
-        </FadeScrollArea>
-      )}
+                          });
+                        }}
+                      />
+                    </th>
+                  ) : null}
+                  <th scope="col">Nom</th>
+                  <th scope="col">Statut</th>
+                  <th scope="col">Cotisation</th>
+                  <th scope="col">Équipe</th>
+                  <th scope="col">Paiement</th>
+                  <th scope="col">Montants</th>
+                  {!readOnly ? <th scope="col">Actions</th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRows.map((row) => (
+                  <FeeTrackingRowItem
+                    key={row.memberId}
+                    row={row}
+                    tiers={data.season.tiers}
+                    checked={selectedIds.has(row.memberId)}
+                    busy={busyMemberId === row.memberId}
+                    disabled={busy}
+                    readOnly={readOnly}
+                    onToggleSelect={() => {
+                      setSelectedIds((current) => {
+                        const next = new Set(current);
+                        if (next.has(row.memberId)) next.delete(row.memberId);
+                        else next.add(row.memberId);
+                        return next;
+                      });
+                    }}
+                    onCorrect={() => openCorrect(row)}
+                    onAidStatus={(aidId, status) =>
+                      void handleAidStatus(row, aidId, status)
+                    }
+                  />
+                ))}
+              </tbody>
+            </table>
+          </FadeScrollArea>
+        )}
 
-      {!readOnly && selectedIds.size > 0 ? (
-        <div
-          className={styles.bar}
-          role="region"
-          aria-label="Actions sur la sélection"
-        >
-          <div className={styles.barSummary}>
-            <strong>
-              {selectedIds.size} sélectionné
-              {selectedIds.size > 1 ? "s" : ""}
-            </strong>
-            <button
-              type="button"
-              className={styles.linkButton}
-              disabled={busy}
-              onClick={() => setSelectedIds(new Set())}
-            >
-              Tout désélectionner
-            </button>
+        {!readOnly && selectedIds.size > 0 ? (
+          <div
+            className={styles.bar}
+            role="region"
+            aria-label="Actions sur la sélection"
+          >
+            <div className={styles.barSummary}>
+              <strong>
+                {selectedIds.size} sélectionné
+                {selectedIds.size > 1 ? "s" : ""}
+              </strong>
+              <button
+                type="button"
+                className={styles.linkButton}
+                disabled={busy}
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Tout désélectionner
+              </button>
+            </div>
+            <div className={styles.barActions}>
+              {data.season.tiers.length > 0 ? (
+                <label className={styles.selectField}>
+                  <span className={styles.selectLabel}>Assigner cotisation</span>
+                  <PlanningSelect
+                    id="fees-bulk-tier"
+                    value=""
+                    aria-label="Assigner une cotisation à la sélection"
+                    disabled={busy}
+                    placement="up"
+                    placeholder="Choisir…"
+                    options={data.season.tiers.map((tier) => ({
+                      value: tier.tierId,
+                      label: tierOptionLabel(tier),
+                    }))}
+                    onChange={(next) => {
+                      if (!next) return;
+                      void applyBulkTier(next);
+                    }}
+                  />
+                </label>
+              ) : null}
+              <button
+                type="button"
+                className={styles.barSecondaryButton}
+                disabled={busy}
+                onClick={handleRelanceMailto}
+              >
+                Relancer par e-mail
+              </button>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                disabled={busy || payableSelectedCount === 0}
+                title={
+                  payableSelectedCount === 0
+                    ? "Aucun membre avec reste dû"
+                    : `Enregistrer le reste dû (${payableSelectedCount})`
+                }
+                onClick={() => void handleBulkMarkPaid()}
+              >
+                {busyBulk
+                  ? "Enregistrement…"
+                  : `Marquer payé (${payableSelectedCount})`}
+              </button>
+            </div>
           </div>
-          <div className={styles.barActions}>
-            {data.season.tiers.length > 0 ? (
-              <label className={styles.selectField}>
-                <span className={styles.selectLabel}>Assigner cotisation</span>
-                <PlanningSelect
-                  id="fees-bulk-tier"
-                  value=""
-                  aria-label="Assigner une cotisation à la sélection"
-                  disabled={busy}
-                  placement="up"
-                  placeholder="Choisir…"
-                  options={data.season.tiers.map((tier) => ({
-                    value: tier.tierId,
-                    label: tierOptionLabel(tier),
-                  }))}
-                  onChange={(next) => {
-                    if (!next) return;
-                    void applyBulkTier(next);
-                  }}
-                />
-              </label>
-            ) : null}
-            <button
-              type="button"
-              className={styles.barSecondaryButton}
-              disabled={busy}
-              onClick={handleRelanceMailto}
-            >
-              Relancer par e-mail
-            </button>
-            <button
-              type="button"
-              className={styles.primaryButton}
-              disabled={busy || payableSelectedCount === 0}
-              title={
-                payableSelectedCount === 0
-                  ? "Aucun membre avec reste dû"
-                  : `Enregistrer le reste dû (${payableSelectedCount})`
-              }
-              onClick={() => void handleBulkMarkPaid()}
-            >
-              {busyBulk
-                ? "Enregistrement…"
-                : `Marquer payé (${payableSelectedCount})`}
-            </button>
-          </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {correctRow ? (
-        <CorrectMemberFeeDialog
-          clubId={club.id}
-          seasonId={data.season.id}
-          row={correctRow}
-          tiers={data.season.tiers}
-          busy={correctBusy}
-          error={correctError}
-          onClose={closeCorrect}
-          onChangeTier={correctChangeTier}
-          onAdjustPaid={correctAdjustPaid}
-          onMarkPaid={correctMarkPaid}
-          onExonerate={correctExonerate}
-        />
-      ) : null}
-    </section>
+        {correctRow ? (
+          <CorrectMemberFeeDialog
+            clubId={club.id}
+            seasonId={data.season.id}
+            row={correctRow}
+            tiers={data.season.tiers}
+            busy={correctBusy}
+            error={correctError}
+            onClose={closeCorrect}
+            onChangeTier={correctChangeTier}
+            onAdjustPaid={correctAdjustPaid}
+            onMarkPaid={correctMarkPaid}
+            onExonerate={correctExonerate}
+          />
+        ) : null}
+      </section>
+    </>
   );
 }
 

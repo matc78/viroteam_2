@@ -42,6 +42,10 @@ import { colorForFilter } from "@/lib/planning/calendarColors";
 import { getLinkedMemberId } from "@/lib/firebase/memberService";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
 import {
+  useOptimisticEventRsvp,
+  type SetRsvpOverride,
+} from "@/lib/planning/useOptimisticEventRsvp";
+import {
   arePlanningFiltersEqual,
   emptyPlanningFilters,
   readPlanningFilters,
@@ -55,6 +59,8 @@ import {
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import styles from "./page.module.css";
+
+const NO_EVENTS: ClubEventView[] = [];
 
 /** Contenu page planning branché sur Firestore. */
 function PlanningPageContent() {
@@ -99,16 +105,17 @@ function PlanningPageContent() {
     };
   }, [cursor]);
 
-  const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
-    activeClub,
-    (club) =>
-      loadPlanningPageData(club.id, {
-        start: range.start,
-        end: range.end,
-      }),
-    [range.start.getTime(), range.end.getTime()],
-    "/planning",
-  );
+  const { data, loading, refreshing, error, reload, reloadSilently } =
+    useAsyncClubPageResource(
+      activeClub,
+      (club) =>
+        loadPlanningPageData(club.id, {
+          start: range.start,
+          end: range.end,
+        }),
+      [range.start.getTime(), range.end.getTime()],
+      "/planning",
+    );
   const planningActive = useIsPortalRouteActive(["/planning"]);
   useClubRealtimeReload({
     clubId: activeClub?.id,
@@ -274,17 +281,25 @@ function PlanningPageContent() {
     writePlanningFilters(activeClub.id, filters);
   }, [activeClub, filters, filtersClubId]);
 
+  const { events: clubEvents, setRsvpOverride } = useOptimisticEventRsvp(
+    data?.events ?? NO_EVENTS,
+  );
+
+  /** Override RSVP étendu à tous les ids du viewer (lecture du fill calendrier). */
+  const handleRsvpOptimistic: SetRsvpOverride = (eventId, memberIds, value) =>
+    setRsvpOverride(eventId, [...new Set([...memberIds, ...viewerIds])], value);
+
   const visibleEvents = useMemo(() => {
     if (!data) return [];
-    if (caps.isAdmin) return data.events;
-    return data.events.filter((event) =>
+    if (caps.isAdmin) return clubEvents;
+    return clubEvents.filter((event) =>
       eventVisibleToRosterMember({
         event,
         rosterTeamIds: scopedTeamIdSet,
         matchIds: viewerIds,
       }),
     );
-  }, [data, caps.isAdmin, scopedTeamIdSet, viewerIds]);
+  }, [data, clubEvents, caps.isAdmin, scopedTeamIdSet, viewerIds]);
 
   const eventBlocks = useMemo(() => {
     if (!data || !roleScopeReady) return [];
@@ -551,7 +566,8 @@ function PlanningPageContent() {
           }}
           clubId={activeClub?.id}
           linkedMemberId={linkedMemberId}
-          onRsvpUpdated={handleRefresh}
+          onRsvpOptimistic={handleRsvpOptimistic}
+          onRsvpUpdated={reloadSilently}
           canSendPush={Boolean(
             activeClub && (caps.isAdmin || caps.isCoach),
           )}

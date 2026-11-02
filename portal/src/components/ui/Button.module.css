@@ -1,0 +1,89 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.md {
+  min-height: 2.5rem;
+  padding: 0.45rem 1rem;
+  font-size: var(--font-size-md);
+}
+
+.sm {
+  min-height: 2.15rem;
+  padding: 0.3rem 0.75rem;
+  font-size: var(--font-size-sm);
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--color-white);
+}
+
+.primary:hover {
+  background: var(--accent-strong);
+}
+
+.secondary {
+  border-color: var(--border-strong);
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+
+.secondary:hover {
+  background: var(--surface-hover);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--accent-text);
+}
+
+.ghost:hover {
+  background: var(--accent-soft);
+}
+
+.danger {
+  background: var(--status-danger);
+  color: var(--color-white);
+}
+
+.danger:hover {
+  background: color-mix(in srgb, var(--status-danger) 85%, black);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.textLink::after {
+  content: "→";
+  transition: transform 140ms ease;
+}
+
+.textLink:hover::after {
+  transform: translateX(2px);
+}

@@ -54,7 +54,19 @@ function messageForAuthCode(code: string): string | null {
     case "auth/account-exists-with-different-credential":
       return "Un compte existe déjà avec cet e-mail. Connecte-toi avec ton mot de passe.";
     case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
       return "Connexion annulée.";
+    case "auth/popup-blocked":
+      return "Fenêtre bloquée par le navigateur. Autorise les pop-ups puis réessaie.";
+    case "auth/credential-already-in-use":
+      return "Ce compte est déjà lié à un autre compte ViroTeam.";
+    case "auth/provider-already-linked":
+      return "Ce moyen de connexion est déjà lié à ton compte.";
+    case "auth/requires-recent-login":
+      return "Par sécurité, reconnecte-toi puis réessaie.";
+    case "auth/operation-not-allowed":
+    case "auth/invalid-oauth-client-id":
+      return "Ce moyen de connexion n’est pas disponible sur le portail pour le moment.";
     case "auth/internal-error":
       // Souvent App Check Enforce sans jeton debug enregistré (localhost).
       return "Connexion bloquée (App Check). En local : ouvre la console du navigateur, copie le debug token App Check, puis enregistre-le dans Firebase Console → App Check → Manage debug tokens.";

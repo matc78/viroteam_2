@@ -17,6 +17,11 @@ export type AsyncClubResourceState<T> = {
    */
   loadedClubId: string | null;
   reload: () => void;
+  /**
+   * Resynchronisation en arrière-plan : recharge sans passer `refreshing`
+   * à true (pas de voile, ex. après un RSVP optimiste).
+   */
+  reloadSilently: () => void;
 };
 
 /**
@@ -35,6 +40,8 @@ export function useAsyncClubResource<T>(
   const [error, setError] = useState<string | null>(null);
   const [loadedClubId, setLoadedClubId] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  /** Le prochain chargement est-il silencieux (consommé par l’effet) ? */
+  const silentReloadRef = useRef(false);
   const dataRef = useRef<T | null>(null);
   const loadedClubIdRef = useRef<string | null>(null);
   /** Toujours le loader du dernier render (évite closure stale au reload). */
@@ -66,6 +73,8 @@ export function useAsyncClubResource<T>(
       loadedClubIdRef.current !== null &&
       loadedClubIdRef.current !== activeClub.id;
     const hasStaleData = dataRef.current !== null && !isClubSwitch;
+    const silent = silentReloadRef.current;
+    silentReloadRef.current = false;
 
     if (isClubSwitch) {
       setData(null);
@@ -74,7 +83,7 @@ export function useAsyncClubResource<T>(
       setLoading(true);
       setRefreshing(false);
     } else if (hasStaleData) {
-      setRefreshing(true);
+      if (!silent) setRefreshing(true);
     } else {
       setLoading(true);
     }
@@ -113,7 +122,14 @@ export function useAsyncClubResource<T>(
     refreshing,
     error,
     loadedClubId,
-    reload: () => setReloadToken((token) => token + 1),
+    reload: () => {
+      silentReloadRef.current = false;
+      setReloadToken((token) => token + 1);
+    },
+    reloadSilently: () => {
+      silentReloadRef.current = true;
+      setReloadToken((token) => token + 1);
+    },
   };
 }
 

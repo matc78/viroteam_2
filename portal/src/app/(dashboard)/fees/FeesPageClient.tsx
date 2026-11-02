@@ -361,7 +361,8 @@ function FeesStaffView() {
     onReload: reload,
     enabled: feesActive,
   });
-  const [tab, setTab] = useState<FeesTab>("config");
+  // Le suivi est l’usage quotidien ; la configuration se fait une fois par saison.
+  const [tab, setTab] = useState<FeesTab>("tracking");
 
   if (loading && !config) {
     return <DashboardSkeleton variant="fees" />;
@@ -375,7 +376,7 @@ function FeesStaffView() {
         lead={
           isCoachRead && !isAdmin
             ? `Suivi en lecture des cotisations de ${activeClub?.name ?? "votre club"}.`
-            : `Configurez la saison et suivez les paiements de ${activeClub?.name ?? "votre club"}.`
+            : `Suivez les paiements et configurez la saison de ${activeClub?.name ?? "votre club"}.`
         }
         onRefresh={reload}
         refreshing={refreshing}
@@ -394,17 +395,6 @@ function FeesStaffView() {
               <button
                 type="button"
                 role="tab"
-                id="fees-tab-config"
-                aria-selected={tab === "config"}
-                aria-controls="fees-panel-config"
-                className={`${tabStyles.tab} ${tab === "config" ? tabStyles.tabActive : ""}`}
-                onClick={() => setTab("config")}
-              >
-                Configuration
-              </button>
-              <button
-                type="button"
-                role="tab"
                 id="fees-tab-tracking"
                 aria-selected={tab === "tracking"}
                 aria-controls="fees-panel-tracking"
@@ -412,6 +402,17 @@ function FeesStaffView() {
                 onClick={() => setTab("tracking")}
               >
                 Suivi
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="fees-tab-config"
+                aria-selected={tab === "config"}
+                aria-controls="fees-panel-config"
+                className={`${tabStyles.tab} ${tab === "config" ? tabStyles.tabActive : ""}`}
+                onClick={() => setTab("config")}
+              >
+                Configuration
               </button>
             </div>
           ) : null}

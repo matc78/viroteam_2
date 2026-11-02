@@ -1,0 +1,45 @@
+.badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  padding: 0.3rem 0;
+  border-radius: 0.6rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.badge[data-size="lg"] {
+  width: 4.25rem;
+  padding: 0.5rem 0;
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border-subtle));
+  background: var(--accent-soft);
+}
+
+.weekday,
+.month {
+  font-size: 0.625rem;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.day {
+  margin: 0.15rem 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.badge[data-size="lg"] .day {
+  font-size: var(--font-size-2xl);
+  color: var(--accent-text);
+}
+
+.badge[data-size="lg"] .weekday,
+.badge[data-size="lg"] .month {
+  color: var(--accent-text);
+}

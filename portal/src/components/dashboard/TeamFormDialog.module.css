@@ -1,5 +1,4 @@
 .panel {
-  --panel-border: color-mix(in srgb, var(--color-sport-green) 34%, var(--color-gray-200));
   width: min(100%, 26rem);
   max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
 }
@@ -19,15 +18,22 @@
 .input {
   min-height: 2.5rem;
   padding: 0.45rem 0.75rem;
-  border: 1.5px solid var(--color-gray-200);
-  border-radius: var(--radius-sm);
-  background: var(--color-white);
-  color: var(--color-primary-900);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-primary);
   font: inherit;
+  font-size: var(--font-size-md);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
 }
 
 .hint {
   margin: 0;
-  font-size: 0.8rem;
-  color: var(--color-gray-500);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
 }

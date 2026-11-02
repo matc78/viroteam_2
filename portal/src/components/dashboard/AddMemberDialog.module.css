@@ -1,6 +1,4 @@
 .panel {
-  --panel-border: color-mix(in srgb, var(--color-sport-green) 34%, var(--color-gray-200));
-  --panel-shadow: color-mix(in srgb, var(--color-sport-green) 7%, transparent);
   width: min(100%, 26rem);
   max-height: calc(100vh - var(--header-height) - 2 * var(--space-lg));
 }
@@ -19,22 +17,31 @@
 .select {
   min-height: 2.5rem;
   padding: 0.45rem 0.75rem;
-  border: 1.5px solid var(--color-gray-200);
-  border-radius: var(--radius-sm);
-  background: var(--color-white);
-  color: var(--color-primary-900);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-primary);
   font: inherit;
+  font-size: var(--font-size-md);
 }
 
+.input:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* Invitation créée : bloc de statut « succès ». */
 .success {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--color-success) 10%, white);
-  border: 1px solid color-mix(in srgb, var(--color-success) 28%, white);
+  padding: var(--space-md);
+  border-radius: var(--radius-card);
+  background: var(--status-success-soft);
+  color: var(--status-success-text);
   text-align: center;
 }
 
@@ -44,19 +51,19 @@
 
 .code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
-  color: var(--color-primary-900);
+  color: var(--text-primary);
   text-align: center;
 }
 
 .fieldHint {
   display: block;
   margin-top: 0.25rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--color-gray-500);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--text-muted);
   text-transform: none;
   letter-spacing: 0;
 }

@@ -2,17 +2,17 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.55rem 0.85rem;
+  gap: 0.5rem 0.85rem;
   margin: 0;
   flex-shrink: 0;
 }
 
 .childFilterLabel {
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--color-gray-500);
+  color: var(--text-muted);
 }
 
 .childFilterChips {

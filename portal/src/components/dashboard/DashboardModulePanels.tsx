@@ -23,6 +23,7 @@ const loadAnnouncements = () =>
 const loadActivity = () => import("@/app/(dashboard)/activity/ActivityPageClient");
 const loadEquipment = () => import("@/app/(dashboard)/equipment/EquipmentPageClient");
 const loadSettings = () => import("@/app/(dashboard)/settings/SettingsPageClient");
+const loadAccount = () => import("@/app/(dashboard)/account/AccountPageClient");
 
 const HomePageClient = dynamic(() => loadHome().then((m) => m.HomePageClient), {
   loading: () => <DashboardSkeleton variant="home" />,
@@ -65,6 +66,10 @@ const SettingsPageClient = dynamic(
   () => loadSettings().then((m) => m.SettingsPageClient),
   { loading: () => <DashboardSkeleton variant="home" /> },
 );
+const AccountPageClient = dynamic(
+  () => loadAccount().then((m) => m.AccountPageClient),
+  { loading: () => <DashboardSkeleton variant="home" /> },
+);
 
 const MODULE_LOADERS: Array<() => Promise<unknown>> = [
   loadHome,
@@ -75,6 +80,7 @@ const MODULE_LOADERS: Array<() => Promise<unknown>> = [
   loadAnnouncements,
   loadPersonalPlanning,
   loadSettings,
+  loadAccount,
   loadEquipment,
   loadActivity,
   ...(CHAT_MESSAGING_LIVE ? [loadMessages] : []),
@@ -91,7 +97,8 @@ type ModuleId =
   | "announcements"
   | "activity"
   | "equipment"
-  | "settings";
+  | "settings"
+  | "account";
 
 type ModuleDef = {
   id: ModuleId;
@@ -163,6 +170,12 @@ const MODULES: ModuleDef[] = [
     match: (pathname) =>
       pathname === "/settings" || pathname.startsWith("/settings/"),
     render: () => <SettingsPageClient />,
+  },
+  {
+    id: "account",
+    match: (pathname) =>
+      pathname === "/account" || pathname.startsWith("/account/"),
+    render: () => <AccountPageClient />,
   },
 ];
 

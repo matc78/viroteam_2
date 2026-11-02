@@ -1,22 +1,22 @@
 .details {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-md);
+  gap: var(--space-md) var(--space-lg);
   margin: 0;
 }
 
 .details dt {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-gray-500);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
 }
 
 .details dd {
   margin: 0.15rem 0 0;
-  font-size: 1rem;
-  color: var(--color-primary-900);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .full {
@@ -25,6 +25,8 @@
 
 .prewrap {
   white-space: pre-wrap;
+  font-weight: var(--font-weight-regular);
+  color: var(--text-secondary);
 }
 
 .iban {
@@ -36,24 +38,40 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.6rem;
-  padding: 0.45rem 1.1rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary-600);
+  align-self: flex-start;
+  min-height: 2.5rem;
+  padding: 0.45rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--accent);
   color: var(--color-white);
   font: inherit;
-  font-weight: 650;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.payButton:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.payButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .payButton:disabled {
-  opacity: 0.7;
+  opacity: 0.55;
   cursor: wait;
 }
 
 @media (max-width: 640px) {
   .details {
     grid-template-columns: 1fr;
+  }
+
+  .payButton {
+    align-self: stretch;
   }
 }

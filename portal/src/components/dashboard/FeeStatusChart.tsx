@@ -1,11 +1,14 @@
 import { useMemo } from "react";
+import { TextLink } from "@/components/ui/Button";
+import { Card, CardHeader } from "@/components/ui/Card";
 import type { FeeStatusSegment } from "@/lib/firebase/homeService";
-import panelStyles from "./DashboardPanel.module.css";
 import styles from "./FeeStatusChart.module.css";
 
 /** Props du donut cotisations. */
 type FeeStatusChartProps = {
   segments: FeeStatusSegment[];
+  /** Lien « Voir tout » vers la page Cotisations. */
+  viewAllHref?: string;
 };
 
 const RADIUS = 42;
@@ -13,7 +16,7 @@ const STROKE = 14;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 /** Donut SVG : répartition payé / partiel / à payer / exonéré. */
-export function FeeStatusChart({ segments }: FeeStatusChartProps) {
+export function FeeStatusChart({ segments, viewAllHref }: FeeStatusChartProps) {
   const total = segments.reduce((sum, segment) => sum + segment.count, 0);
 
   const segmentsWithOffset = useMemo(() => {
@@ -28,17 +31,15 @@ export function FeeStatusChart({ segments }: FeeStatusChartProps) {
   }, [segments, total]);
 
   return (
-    <section
-      className={panelStyles.panel}
-      data-tone="green"
-      aria-labelledby="fee-status-title"
-    >
-      <header className={styles.header}>
-        <h2 id="fee-status-title" className={styles.title}>
-          Cotisations
-        </h2>
-        <p className={styles.subtitle}>Répartition saison en cours</p>
-      </header>
+    <Card aria-labelledby="fee-status-title">
+      <CardHeader
+        title="Cotisations"
+        titleId="fee-status-title"
+        subtitle="Saison en cours"
+        action={
+          viewAllHref ? <TextLink href={viewAllHref}>Voir tout</TextLink> : null
+        }
+      />
 
       <div className={styles.body}>
         <div className={styles.chartWrap}>
@@ -92,6 +93,6 @@ export function FeeStatusChart({ segments }: FeeStatusChartProps) {
           ))}
         </ul>
       </div>
-    </section>
+    </Card>
   );
 }

@@ -1,70 +1,46 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { BrandMark } from "@/components/BrandMark";
+import { useMemo } from "react";
 import { FamilyRouteGuard } from "@/components/auth/FamilyRouteGuard";
-import { NavLoadBar } from "@/components/common/NavLoadBar";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
-import { AvatarLightbox } from "@/components/dashboard/AvatarLightbox";
-import { ClubMembershipPicker } from "@/components/dashboard/ClubMembershipPicker";
-import { PersonalPlanningTile } from "@/components/dashboard/PersonalPlanningTile";
-import { MessagingTile } from "@/components/chat/MessagingTile";
-import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import {
   FamilyAudienceProvider,
   useFamilyAudience,
 } from "@/components/family/FamilyAudienceProvider";
 import { FamilyModulePanels } from "@/components/family/FamilyModulePanels";
+import { PortalShell, type PortalNavItem } from "@/components/shell/PortalShell";
 import { isFamilyRouteAllowed } from "@/lib/auth/bureauPermissions";
 import { useFamilyFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { PortalUiRoles } from "@/lib/firebase/constants";
-import { site } from "@/lib/site";
 import {
   buildClubMembershipTiles,
   type PortalSpace,
 } from "@/lib/firebase/types";
-import styles from "@/components/dashboard/DashboardShell.module.css";
 
-const NAV_ITEMS = [
-  { href: "/family", label: "Accueil", toneClass: "toneOrange" },
-  { href: "/family/team", label: "Équipe", toneClass: "toneGreen" },
-  { href: "/family/planning", label: "Planning", toneClass: "toneBlue" },
-] as const;
+const NAV_ITEMS: readonly PortalNavItem[] = [
+  { href: "/family", label: "Accueil", icon: "home", tone: "blue" },
+  { href: "/family/planning", label: "Planning", icon: "calendar", tone: "cyan" },
+  { href: "/family/team", label: "Équipe", icon: "team", tone: "green" },
+  { href: "/family/fees", label: "Cotisations", icon: "wallet", tone: "orange" },
+];
 
-function isNavItemActive(pathname: string, href: string): boolean {
-  if (href === "/family") return pathname === "/family";
+function isPathUnder(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function isFamilyMyPlanningPath(pathname: string): boolean {
-  return (
-    pathname === "/family/my-planning" ||
-    pathname.startsWith("/family/my-planning/")
-  );
-}
-
-function isFamilyMessagesPath(pathname: string): boolean {
-  return (
-    pathname === "/family/messages" ||
-    pathname.startsWith("/family/messages/")
-  );
+function isNavItemActive(pathname: string, href: string): boolean {
+  if (href === "/family") return pathname === "/family";
+  return isPathUnder(pathname, href);
 }
 
 function isFamilyCrossClubPath(pathname: string): boolean {
-  return isFamilyMyPlanningPath(pathname) || isFamilyMessagesPath(pathname);
+  return ["/family/my-planning", "/family/messages", "/family/settings"].some(
+    (href) => isPathUnder(pathname, href),
+  );
 }
 
-function userInitials(displayName: string): string {
-  const nameParts = displayName.trim().split(/\s+/).filter(Boolean);
-  if (nameParts.length === 0) return "F";
-  if (nameParts.length === 1) return nameParts[0]!.slice(0, 1).toUpperCase();
-  return `${nameParts[0]!.slice(0, 1)}${nameParts[1]!.slice(0, 1)}`.toUpperCase();
-}
-
-/** Header + nav famille (audience résolue pour le nom de l’enfant). */
+/** Sidebar famille (audience résolue pour le nom de l’enfant). */
 function FamilyShellChrome() {
   const pathname = usePathname();
   const router = useRouter();
@@ -76,24 +52,21 @@ function FamilyShellChrome() {
     profile,
     selectClubContext,
   } = useAuth();
-  const { pendingHref, pendingClubId, pendingSpace, beginPageLoad } =
-    usePageLoad();
+  const { beginPageLoad } = usePageLoad();
   const { selectedTarget } = useFamilyAudience();
   const feeDeadlineUrgent = useFamilyFeeDeadlineUrgency(
     selectedTarget?.memberId ?? null,
   );
-  const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
-  const profileAvatarUrl = profile?.avatarUrl?.trim() || null;
 
   const clubsWithRoles = useMemo(
     () => buildClubMembershipTiles(bureauClubs, familyClubs, profile),
     [bureauClubs, familyClubs, profile],
   );
 
-  const childHeaderLabel =
+  const childLabel =
     selectedTarget?.kind === "child"
       ? selectedTarget.displayName
-      : selectedTarget?.label ?? "Famille";
+      : (selectedTarget?.label ?? "Famille");
 
   function handleClubChange(clubId: string, space: PortalSpace) {
     if (space !== activeSpace) {
@@ -114,168 +87,38 @@ function FamilyShellChrome() {
     }
   }
 
-  const resolvedName = profile?.displayName ?? "Famille";
-  const onMyPlanning = isFamilyMyPlanningPath(pathname);
-  const onMessages = isFamilyMessagesPath(pathname);
-  const onCrossClub = onMyPlanning || onMessages;
-  const pendingNavItem = NAV_ITEMS.find((item) => item.href === pendingHref);
-  const isPlanning =
-    pathname.startsWith("/family/planning") || onMyPlanning;
-  const fillViewport = isPlanning || onMessages;
+  const fillViewport =
+    isPathUnder(pathname, "/family/planning") ||
+    isPathUnder(pathname, "/family/my-planning") ||
+    isPathUnder(pathname, "/family/messages");
 
   return (
-    <div
-      className={[
-        fillViewport ? `${styles.page} ${styles.pageFill}` : styles.page,
-        feeDeadlineUrgent ? styles.pageFeeDeadline : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+    <PortalShell
+      spaceLabel="espace famille"
+      homeHref="/family"
+      navItems={NAV_ITEMS}
+      isNavItemActive={isNavItemActive}
+      crossClub={isFamilyCrossClubPath(pathname)}
+      myPlanningHref="/family/my-planning"
+      accountHref="/family/settings"
+      feesHref="/family/fees"
+      feeDeadlineUrgent={feeDeadlineUrgent}
+      fillViewport={fillViewport}
+      wide={fillViewport}
+      clubs={clubsWithRoles}
+      activeClubId={activeClub?.id ?? null}
+      activeSpace={activeSpace}
+      formatClubSecondaryLabel={(club) =>
+        club.space === "family" && club.id === activeClub?.id
+          ? `Parent · ${childLabel}`
+          : null
+      }
+      onClubChange={handleClubChange}
+      accountSubtitle={`Parent · ${childLabel}`}
+      routeGuard={<FamilyRouteGuard />}
     >
-      <FamilyRouteGuard />
-      <header className={styles.header}>
-        <div className={styles.inner}>
-          <div className={styles.brandBlock}>
-            <Link
-              href="/family"
-              className={styles.brand}
-              aria-label={`${site.name} — espace famille`}
-              onClick={() => {
-                if (pathname !== "/family") beginPageLoad("/family");
-              }}
-            >
-              <BrandMark className={styles.mark} priority />
-              <span className={styles.wordmark}>{site.name}</span>
-            </Link>
-          </div>
-
-          <div className={styles.headerCenter}>
-            <ClubMembershipPicker
-              clubs={clubsWithRoles}
-              activeClubId={onCrossClub ? null : (activeClub?.id ?? null)}
-              activeSpace={activeSpace}
-              compact
-              showCreateClub
-              pendingClubId={pendingClubId}
-              pendingSpace={pendingSpace}
-              formatSecondaryLabel={(club) =>
-                club.space === "family" ? childHeaderLabel : null
-              }
-              onClubChange={handleClubChange}
-            />
-          </div>
-
-          <div className={styles.actions}>
-            <PersonalPlanningTile href="/family/my-planning" />
-            <MessagingTile />
-            <div className={styles.userBlock}>
-              {profileAvatarUrl ? (
-                <button
-                  type="button"
-                  className={styles.avatarZoomBtn}
-                  aria-label="Agrandir ta photo"
-                  onClick={() => setAvatarLightboxOpen(true)}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={profileAvatarUrl}
-                    alt=""
-                    className={styles.avatarImage}
-                  />
-                </button>
-              ) : (
-                <Link
-                  href="/family/settings"
-                  className={styles.avatarLink}
-                  aria-label="Ouvrir les paramètres"
-                  onClick={() => {
-                    if (pathname !== "/family/settings") {
-                      beginPageLoad("/family/settings");
-                    }
-                  }}
-                >
-                  <span
-                    className={`${styles.avatar} ${styles.avatarToneParent}`}
-                    aria-hidden="true"
-                  >
-                    {userInitials(resolvedName)}
-                  </span>
-                </Link>
-              )}
-              <Link
-                href="/family/settings"
-                className={styles.userBlockLink}
-                aria-label="Ouvrir les paramètres"
-                onClick={() => {
-                  if (pathname !== "/family/settings") {
-                    beginPageLoad("/family/settings");
-                  }
-                }}
-              >
-                <div className={styles.userMeta}>
-                  <span className={styles.userName}>{resolvedName}</span>
-                  {!onCrossClub ? (
-                    <RoleBadge
-                      role={PortalUiRoles.parent}
-                      className={styles.roleChip}
-                    />
-                  ) : null}
-                </div>
-              </Link>
-            </div>
-            {avatarLightboxOpen && profileAvatarUrl ? (
-              <AvatarLightbox
-                src={profileAvatarUrl}
-                alt="Ta photo de profil"
-                onClose={() => setAvatarLightboxOpen(false)}
-              />
-            ) : null}
-          </div>
-        </div>
-
-        {!onCrossClub ? (
-          <nav className={styles.navStrip} aria-label="Espace famille">
-            <NavLoadBar
-              active={pendingNavItem != null}
-              toneClassName={
-                pendingNavItem ? styles[pendingNavItem.toneClass] : undefined
-              }
-            />
-            {NAV_ITEMS.map((item) => {
-              const isActive = isNavItemActive(pathname, item.href);
-              const isPending = pendingHref === item.href && !isActive;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  scroll={false}
-                  prefetch
-                  className={`${styles.navLink} ${styles[item.toneClass]}${isActive ? ` ${styles.navLinkActive}` : ""}${isPending ? ` ${styles.navLinkPending}` : ""}`}
-                  aria-current={isActive ? "page" : undefined}
-                  onClick={() => {
-                    if (!isActive) beginPageLoad(item.href);
-                  }}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        ) : null}
-      </header>
-
-      <main
-        className={[
-          styles.main,
-          isPlanning || onMessages ? styles.mainWide : "",
-          fillViewport ? styles.mainFill : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        <FamilyModulePanels />
-      </main>
-    </div>
+      <FamilyModulePanels />
+    </PortalShell>
   );
 }
 

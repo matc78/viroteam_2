@@ -1,7 +1,11 @@
+import { FirebaseError } from "firebase/app";
 import {
   EmailAuthProvider,
   GoogleAuthProvider,
+  OAuthProvider,
   User,
+  linkWithCredential,
+  linkWithPopup,
   reauthenticateWithCredential,
   reauthenticateWithPopup,
   updateEmail,
@@ -17,6 +21,15 @@ import { Collections, Fields } from "./constants";
 
 const googleProvider = new GoogleAuthProvider();
 
+/** Provider Apple (même id que l’app : `apple.com`). */
+function appleProvider(): OAuthProvider {
+  const provider = new OAuthProvider("apple.com");
+  provider.addScope("email");
+  provider.addScope("name");
+  provider.setCustomParameters({ locale: "fr" });
+  return provider;
+}
+
 /** Indique si le compte a le provider email/mot de passe. */
 export function hasPasswordProvider(user: User): boolean {
   return user.providerData.some((provider) => provider.providerId === "password");
@@ -29,13 +42,72 @@ export function hasGoogleProvider(user: User): boolean {
   );
 }
 
+/** Indique si le compte a le provider Apple. */
+export function hasAppleProvider(user: User): boolean {
+  return user.providerData.some(
+    (provider) => provider.providerId === "apple.com",
+  );
+}
+
 /** Libellés FR des providers Auth liés au compte. */
 export function authProviderLabels(user: User): string[] {
   const labels: string[] = [];
-  if (hasPasswordProvider(user)) labels.push("Email / mot de passe");
+  if (hasPasswordProvider(user)) labels.push("E-mail / mot de passe");
   if (hasGoogleProvider(user)) labels.push("Google");
+  if (hasAppleProvider(user)) labels.push("Apple");
   if (labels.length === 0) labels.push("Inconnu");
   return labels;
+}
+
+/** Lie un compte Google au compte ViroTeam connecté (popup). */
+export async function linkGoogleProvider(user: User): Promise<void> {
+  try {
+    await linkWithPopup(user, googleProvider);
+  } catch (error) {
+    throw new Error(authErrorMessage(error));
+  }
+}
+
+/** Lie un identifiant Apple au compte ViroTeam connecté (popup). */
+export async function linkAppleProvider(user: User): Promise<void> {
+  try {
+    await linkWithPopup(user, appleProvider());
+  } catch (error) {
+    throw new Error(authErrorMessage(error));
+  }
+}
+
+/**
+ * Ajoute un mot de passe (provider `password`) à un compte Google / Apple,
+ * sur l’e-mail du compte. Réauthentifie par popup si la session est trop ancienne.
+ */
+export async function linkPasswordProvider(params: {
+  user: User;
+  newPassword: string;
+}): Promise<void> {
+  const { user, newPassword } = params;
+  const email = user.email?.trim();
+  if (!email) throw new Error("Aucun e-mail sur ce compte.");
+  const policyError = validatePassword(newPassword);
+  if (policyError) throw new Error(policyError);
+  const credential = EmailAuthProvider.credential(email, newPassword);
+  try {
+    await linkWithCredential(user, credential);
+  } catch (error) {
+    if (
+      error instanceof FirebaseError &&
+      error.code === "auth/requires-recent-login"
+    ) {
+      await reauthenticateUser({ user });
+      try {
+        await linkWithCredential(user, credential);
+        return;
+      } catch (retryError) {
+        throw new Error(authErrorMessage(retryError));
+      }
+    }
+    throw new Error(authErrorMessage(error));
+  }
 }
 
 /**
@@ -59,6 +131,10 @@ export async function reauthenticateUser(params: {
     }
     if (hasGoogleProvider(user)) {
       await reauthenticateWithPopup(user, googleProvider);
+      return;
+    }
+    if (hasAppleProvider(user)) {
+      await reauthenticateWithPopup(user, appleProvider());
       return;
     }
     throw new Error("Aucun moyen de réauthentification disponible.");

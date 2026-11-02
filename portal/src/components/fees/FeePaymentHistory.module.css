@@ -8,48 +8,52 @@
 .compact {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
-  border-top: 1px solid var(--color-gray-200);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .title {
   margin: 0;
-  font-size: 0.82rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--color-primary-900);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
 }
 
 .muted,
 .error {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
 }
 
 .muted {
-  color: var(--color-gray-600);
+  color: var(--text-muted);
 }
 
 .error {
-  color: var(--color-error, #b91c1c);
+  color: var(--status-danger-text);
 }
 
+/* Liste compacte façon `ui/ListRow` : lignes séparées, sans cartes empilées. */
 .list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
   max-height: 14rem;
   overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
 }
 
 .item {
-  padding: 0.55rem 0.65rem;
-  border: 1px solid var(--color-gray-200);
-  border-radius: var(--radius-sm);
-  background: var(--color-white);
+  padding: 0.6rem 0.8rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.item:first-child {
+  border-top: none;
 }
 
 .itemHead {
@@ -60,20 +64,21 @@
 }
 
 .itemTitle {
-  font-size: 0.84rem;
-  font-weight: 650;
-  color: var(--color-primary-900);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
 }
 
 .itemDate {
   flex-shrink: 0;
-  font-size: 0.72rem;
-  color: var(--color-gray-500);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .itemDetail {
-  margin: 0.2rem 0 0;
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: var(--color-gray-600);
+  margin: 0.15rem 0 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  color: var(--text-secondary);
 }

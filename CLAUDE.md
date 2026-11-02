@@ -112,6 +112,13 @@ Chercher d'abord dans `lib/widgets/common/`, `lib/widgets/lists/`, `lib/config/v
 - Tout texte UI passe par `AppCopy` (`lib/copy/app_copy_<feature>.dart`), jamais de littéral FR dans un widget.
 - Voix « pote de vestiaire » (app uniquement ; le portail peut être plus institutionnel) : tutoiement partout, décontracté, au plus une touche sport par phrase. Humour OK dans les états vides, les succès, l'onboarding ; **pas d'humour** sur le paiement, la suppression de compte, les erreurs critiques ou les confirmations destructives. Garder les termes métier `Coach`, `Match`, `Cotisation`, `Convocation`.
 
+### Portail — espace connecté
+
+- Coquille `PortalShell` (`portal/src/components/shell/`, sidebar + tiroir mobile) pour le bureau et la famille.
+- Primitives `portal/src/components/ui/` (`Card`, `PageHeader`, `StatTile`, `StatusBadge`, `EmptyState`, `ListRow`, `ToggleRow`, `SegmentedChoice`, `Button`…) avant tout nouveau composant.
+- Tokens sémantiques de `globals.css` uniquement (`--surface-*`, `--text-*`, `--border-*`, `--accent*`, `--status-*`), pas de hex ; couleur réservée aux statuts et à l’action principale (exception : la sidebar, un ton `--tone-*` par lien et une couleur par rôle).
+- Page : `PageHeader` → ce qui demande une action → chiffres clés → contenu. Décor (`DecorShapes`) : landing / auth / club-setup seulement.
+
 ### Accessibilité (pragmatique)
 
 - Élément interactif sans texte (icône seule) → libellé accessible (`tooltip`, `ViroPressable.label`) ; `ViroFloatingIconButton` exige un `tooltip`.

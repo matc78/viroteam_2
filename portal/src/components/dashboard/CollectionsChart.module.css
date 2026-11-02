@@ -1,3 +1,10 @@
+/* Séries du graphique : CB = accent plein, hors ligne = accent atténué. */
+.chart,
+.legend {
+  --series-card: var(--accent);
+  --series-offline: color-mix(in srgb, var(--accent) 28%, var(--surface-card));
+}
+
 .header {
   display: flex;
   flex-wrap: wrap;
@@ -7,15 +14,17 @@
 }
 
 .title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-primary-900);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  color: var(--text-primary);
 }
 
 .subtitle {
-  margin-top: var(--space-xs);
-  font-size: 0.875rem;
-  color: var(--color-gray-600);
+  margin-top: 0.15rem;
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  color: var(--text-muted);
 }
 
 .totals {
@@ -23,16 +32,17 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 0.15rem;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
 }
 
 .totalCard {
-  color: var(--color-primary-600);
+  color: var(--accent-text);
 }
 
 .totalOffline {
-  color: var(--color-gray-600);
+  color: var(--text-secondary);
 }
 
 .chart {
@@ -68,28 +78,28 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  border-radius: 4px 4px 2px 2px;
+  border-radius: 4px 4px 0 0;
   overflow: hidden;
 }
 
 .barCard {
   display: block;
   width: 100%;
-  background: var(--color-primary-400);
+  background: var(--series-card);
   min-height: 2px;
 }
 
 .barOffline {
   display: block;
   width: 100%;
-  background: var(--color-primary-100);
+  background: var(--series-offline);
   min-height: 2px;
 }
 
 .monthLabel {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-gray-600);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
 }
 
 .legend {
@@ -105,20 +115,20 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-sm);
-  font-size: 0.8rem;
-  color: var(--color-gray-600);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
 }
 
 .swatch {
   width: 0.7rem;
   height: 0.7rem;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 .swatchCard {
-  background: var(--color-primary-400);
+  background: var(--series-card);
 }
 
 .swatchOffline {
-  background: var(--color-primary-100);
+  background: var(--series-offline);
 }

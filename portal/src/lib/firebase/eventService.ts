@@ -1300,44 +1300,53 @@ export function buildWeekDays(weekCursor: Date): Date[] {
   });
 }
 
-/** Libellé période calendrier selon la vue. */
+/**
+ * Libellé période calendrier selon la vue : « Novembre 2026 »,
+ * « Lundi 2 novembre 2026 », « 2 – 8 nov. 2026 », « 26 oct. – 1 nov. 2026 ».
+ */
 export function formatCalendarPeriodLabel(
   cursor: Date,
   view: "month" | "week" | "day",
 ): string {
   if (view === "month") {
-    return new Intl.DateTimeFormat("fr-FR", {
-      month: "long",
-      year: "numeric",
-    }).format(cursor);
+    return capitalizeFirst(
+      new Intl.DateTimeFormat("fr-FR", {
+        month: "long",
+        year: "numeric",
+      }).format(cursor),
+    );
   }
   if (view === "day") {
-    return new Intl.DateTimeFormat("fr-FR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(cursor);
+    return capitalizeFirst(
+      new Intl.DateTimeFormat("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(cursor),
+    );
   }
   const start = startOfWeek(cursor);
   const end = endOfWeek(cursor);
+  const endLabel = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(end);
   if (start.getMonth() === end.getMonth()) {
-    return `${start.getDate()} – ${new Intl.DateTimeFormat("fr-FR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(end)}`;
+    return `${start.getDate()} – ${endLabel}`;
   }
   const startLabel = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "short",
+    ...(start.getFullYear() !== end.getFullYear() ? { year: "numeric" } : {}),
   }).format(start);
-  const endLabel = new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(end);
   return `${startLabel} – ${endLabel}`;
+}
+
+/** Met la première lettre en capitale (libellés `Intl` en minuscules). */
+function capitalizeFirst(label: string): string {
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 /** Formate l'heure d'un event (fr-FR). */

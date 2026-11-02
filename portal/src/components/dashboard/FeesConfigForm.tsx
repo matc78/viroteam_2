@@ -727,7 +727,7 @@ export function FeesConfigForm({
         <ul className={styles.tierList} ref={feeInfoRootRef}>
           {tiers.map((tier, index) => (
             <li key={tier.id} className={styles.tierRow}>
-              <span className={`badge badge-amber ${styles.tierBadge}`}>
+              <span className={styles.tierBadge}>
                 #{index + 1}
               </span>
               <div className={styles.libelleField}>

@@ -8,6 +8,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Corrigé
+
+- Release Android CI : épingle Temurin JDK 21 dans `release-android.yml` (le runner `ubuntu-latest` passait sur Java 25 et faisait échouer `assembleRelease` avec le seul message « 25.0.x »)
+
 ## [2.2.13] - 2026-11-02
 
 ### Ajouté

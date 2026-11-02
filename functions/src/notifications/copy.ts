@@ -344,19 +344,64 @@ export function eventCanceledCopy(ctx: EventPushContext): PushCopy {
   };
 }
 
-/** Push report : [ctx] porte déjà la nouvelle date / heure. */
-export function eventPostponedCopy(ctx: EventPushContext): PushCopy {
+/**
+ * Diff de planning pour la push « report » : date et / ou heure, avec les
+ * anciennes valeurs déjà formatées (jour « jeu. 23/10 », heure « 18h00 »).
+ */
+export type EventPostponedDiff = {
+  dateChanged: boolean;
+  timeChanged: boolean;
+  previousDayLabel?: string;
+  previousStartTime?: string;
+};
+
+/** « jeu. 23/10 » ou « jeu. 23/10 à 18h00 ». */
+function dayTimeLabel(dayLabel: string, startTime?: string): string {
+  return startTime ? `${dayLabel} à ${startTime}` : dayLabel;
+}
+
+/**
+ * Phrase du report selon ce qui a bougé :
+ * - heure seule → « jeu. 23/10 — passe à 19h00 (au lieu de 18h00). »
+ * - date (± heure) → « Reporté au lun. 27/10 à 18h00 (au lieu de …). »
+ */
+function postponedMovedSentence(
+  ctx: EventPushContext & EventPostponedDiff,
+): string {
+  const next = dayTimeLabel(ctx.dayLabel, ctx.startTime);
+  if (ctx.dateChanged) {
+    const previous = ctx.previousDayLabel
+      ? dayTimeLabel(
+          ctx.previousDayLabel,
+          ctx.timeChanged ? ctx.previousStartTime : undefined,
+        )
+      : undefined;
+    const instead = previous ? ` (au lieu de ${previous})` : "";
+    return `Reporté au ${next}${instead}.`;
+  }
+  if (ctx.startTime && ctx.previousStartTime) {
+    return `${ctx.dayLabel} — passe à ${ctx.startTime} (au lieu de ${ctx.previousStartTime}).`;
+  }
+  if (ctx.startTime) {
+    return `${ctx.dayLabel} — passe à ${ctx.startTime}.`;
+  }
+  return `Maintenant ${next}.`;
+}
+
+/** Push report : [ctx] porte la nouvelle date / heure + le diff before→after. */
+export function eventPostponedCopy(
+  ctx: EventPushContext & EventPostponedDiff,
+): PushCopy {
   const child = ctx.childFirstName?.trim();
   const typeLabel = eventTypePushLabel(ctx.type);
-  const time = ctx.startTime ? ` à ${ctx.startTime}` : "";
   const subject = eventSubject(ctx);
-  const moved = `Maintenant ${ctx.dayLabel}${time}.`;
+  const moved = postponedMovedSentence(ctx);
   const check = child ? `Vérifie la dispo de ${child}.` : "Vérifie ta dispo.";
   return {
     title: child
       ? fitPushTitle(`${child} · Report`, `Report · ${typeLabel}`)
       : fitPushTitle(`Report · ${typeLabel}`),
-    body: `${subject ? `${subject} — ` : ""}${moved} ${check}`,
+    body: `${subject ? `${subject} · ` : ""}${moved} ${check}`,
   };
 }
 

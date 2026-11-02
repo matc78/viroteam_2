@@ -14,6 +14,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Push « report » d’événement : le corps dit si c’est l’heure (« passe à 16h00 au lieu de 14h30 ») ou la date (« reporté au … »), au lieu de « Maintenant … »
 - Notifications push : titres raccourcis (~26 car. visibles sur écran verrouillé iOS) — type / action en premier, équipe et détails dans le corps (RSVP, rappels, récap, annonces, cotisations)
 - Releases app : les notes de version (`distribution/release-notes/X.Y.Z.txt`, précédées de « Version X.Y.Z ») sont envoyées à chaque tag dans les « Nouveautés » Play (internal et brouillon production), dans la GitHub Release et dans « What to Test » TestFlight. Un tag `release-v*` prépare aussi la version App Store (Nouveautés, build attachée, sans envoi en review). Sans fichier de notes, la CI échoue.
 - GitHub Actions : toutes les actions des workflows tournent sur Node.js 24 (checkout v6, upload-artifact v6, download-artifact v7, setup-java v5, paths-filter v4, auth v3, action-gh-release v3), ce qui supprime les avertissements de dépréciation de Node.js 20

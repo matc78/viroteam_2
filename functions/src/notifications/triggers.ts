@@ -22,9 +22,16 @@ import {
   eventCreatedCopy,
   eventPostponedCopy,
 } from "./copy";
-import { calendarDaysUntil, feesDeepLink, homeDeepLink } from "./deepLinks";
+import {
+  calendarDaysUntil,
+  dateIdToShortDayLabel,
+  feesDeepLink,
+  formatTimeFr,
+  homeDeepLink,
+} from "./deepLinks";
 import {
   creationReminderFlags,
+  eventScheduleChange,
   isConvocationReintegration,
   isEventPostponedChange,
   isOnlyPushBookkeepingChange,
@@ -35,6 +42,7 @@ import {
 import { scheduleEventModifiedNotify } from "./eventModifiedNotify";
 import {
   contextForEntry,
+  eventDateId,
   eventPushContext,
   sendEventPushToAudience,
 } from "./eventPush";
@@ -156,6 +164,9 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
   }
 
   if (isEventPostponedChange(before, after)) {
+    const schedule = eventScheduleChange(before, after);
+    const previousDayLabel = dateIdToShortDayLabel(eventDateId(before));
+    const previousStartTime = formatTimeFr(before.startTime) || undefined;
     await sendToWholeAudience({
       firestore,
       clubId,
@@ -163,7 +174,13 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
       eventData: after,
       type: "event_postponed",
       actor,
-      copy: eventPostponedCopy,
+      copy: (ctx) =>
+        eventPostponedCopy({
+          ...ctx,
+          ...schedule,
+          previousDayLabel: schedule.dateChanged ? previousDayLabel : undefined,
+          previousStartTime,
+        }),
     });
     // Le calendrier normal reprend pour la nouvelle date ; les rappels dont la
     // fenêtre est déjà passée sont couverts par la push de report.

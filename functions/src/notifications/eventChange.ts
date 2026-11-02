@@ -36,17 +36,28 @@ export function dayOfReminderIsEve(startTime: unknown): boolean {
   return normalized < DAY_OF_REMINDER_EVE_BEFORE;
 }
 
+/** Date et / ou heure de début qui ont changé entre before et after. */
+export function eventScheduleChange(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): { dateChanged: boolean; timeChanged: boolean } {
+  return {
+    dateChanged:
+      stringifyField(before.dateId) !== stringifyField(after.dateId) ||
+      timestampMillis(before.date) !== timestampMillis(after.date),
+    timeChanged:
+      stringifyField(before.startTime) !== stringifyField(after.startTime),
+  };
+}
+
 /** Champs dont le changement déclenche « reporté ». */
 export function isEventPostponedChange(
   before: Record<string, unknown> | undefined,
   after: Record<string, unknown>,
 ): boolean {
   if (!before) return false;
-  return (
-    stringifyField(before.dateId) !== stringifyField(after.dateId) ||
-    stringifyField(before.startTime) !== stringifyField(after.startTime) ||
-    timestampMillis(before.date) !== timestampMillis(after.date)
-  );
+  const { dateChanged, timeChanged } = eventScheduleChange(before, after);
+  return dateChanged || timeChanged;
 }
 
 /** Champs suivis pour la push « modifié » (hors report / annulation). */

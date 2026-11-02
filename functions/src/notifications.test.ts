@@ -47,6 +47,7 @@ import {
   describeChanges,
   isConvocationReintegration,
   isEventContentModified,
+  eventScheduleChange,
   isEventPostponedChange,
   isOnlyPushBookkeepingChange,
   listAddedTeamMemberIds,
@@ -160,11 +161,67 @@ test("création, annulation, report, modification, push coach", () => {
     "jeu. 23/10 — La réunion n’aura pas lieu.",
   );
 
-  const postponed = eventPostponedCopy({ ...training, dayLabel: "lun. 27/10" });
-  assert.equal(postponed.title, "Report · Entraînement");
-  assert.equal(postponed.body, "U15 — Maintenant lun. 27/10 à 18h00. Vérifie ta dispo.");
-  assert.match(eventPostponedCopy(forLeo).body, /Vérifie la dispo de Léo\.$/);
-  assert.equal(eventPostponedCopy(forLeo).title, "Léo · Report");
+  const postponedDate = eventPostponedCopy({
+    ...training,
+    dayLabel: "lun. 27/10",
+    dateChanged: true,
+    timeChanged: false,
+    previousDayLabel: "jeu. 23/10",
+  });
+  assert.equal(postponedDate.title, "Report · Entraînement");
+  assert.equal(
+    postponedDate.body,
+    "U15 · Reporté au lun. 27/10 à 18h00 (au lieu de jeu. 23/10). Vérifie ta dispo.",
+  );
+
+  const postponedTime = eventPostponedCopy({
+    ...training,
+    startTime: "19h00",
+    dateChanged: false,
+    timeChanged: true,
+    previousStartTime: "18h00",
+  });
+  assert.equal(
+    postponedTime.body,
+    "U15 · jeu. 23/10 — passe à 19h00 (au lieu de 18h00). Vérifie ta dispo.",
+  );
+
+  const postponedBoth = eventPostponedCopy({
+    ...training,
+    type: "match",
+    dayLabel: "dim. 08/11",
+    startTime: "16h00",
+    dateChanged: true,
+    timeChanged: true,
+    previousDayLabel: "dim. 01/11",
+    previousStartTime: "14h30",
+  });
+  assert.equal(postponedBoth.title, "Report · Match");
+  assert.equal(
+    postponedBoth.body,
+    "U15 · Reporté au dim. 08/11 à 16h00 (au lieu de dim. 01/11 à 14h30). Vérifie ta dispo.",
+  );
+
+  assert.match(
+    eventPostponedCopy({
+      ...forLeo,
+      dateChanged: false,
+      timeChanged: true,
+      previousStartTime: "18h00",
+      startTime: "19h00",
+    }).body,
+    /Vérifie la dispo de Léo\.$/,
+  );
+  assert.equal(
+    eventPostponedCopy({
+      ...forLeo,
+      dateChanged: true,
+      timeChanged: false,
+      previousDayLabel: "jeu. 23/10",
+      dayLabel: "lun. 27/10",
+    }).title,
+    "Léo · Report",
+  );
 
   const modified = eventModifiedCopy({
     ...training,
@@ -560,6 +617,27 @@ test("isEventPostponedChange / champs modifiés / bookkeeping", () => {
       { dateId: "20260909", startTime: "18:00" },
     ),
     true,
+  );
+  assert.deepEqual(
+    eventScheduleChange(
+      { dateId: "20260908", startTime: "18:00" },
+      { dateId: "20260909", startTime: "18:00" },
+    ),
+    { dateChanged: true, timeChanged: false },
+  );
+  assert.deepEqual(
+    eventScheduleChange(
+      { dateId: "20260908", startTime: "14:30" },
+      { dateId: "20260908", startTime: "16:00" },
+    ),
+    { dateChanged: false, timeChanged: true },
+  );
+  assert.deepEqual(
+    eventScheduleChange(
+      { dateId: "20260908", startTime: "14:30" },
+      { dateId: "20260909", startTime: "16:00" },
+    ),
+    { dateChanged: true, timeChanged: true },
   );
   assert.equal(
     isEventPostponedChange(

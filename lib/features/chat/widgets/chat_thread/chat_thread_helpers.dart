@@ -19,6 +19,18 @@ bool chatThreadCanWrite(ChatConversation? conv, String? uid, String? role) {
   }
 }
 
+/// Bandeau « qui peut écrire » d’un canal, ou `null` si la conversation est ouverte.
+String? chatThreadReadonlyHint(ChatConversation? conv) {
+  switch (conv?.writePolicy) {
+    case ChatWritePolicies.adminsOnly:
+      return AppCopy.chat.readonlyHint;
+    case ChatWritePolicies.coachesAndAdmins:
+      return AppCopy.chat.readonlyHintCoachesAndAdmins;
+    default:
+      return null;
+  }
+}
+
 /// Prénom de l’expéditeur pour les aperçus (réponse, etc.).
 String chatThreadSenderFirstName(String senderUid, List<ClubMember> members) {
   for (final member in members) {

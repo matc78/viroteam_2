@@ -11,6 +11,47 @@ enum ConversationGroupAvatarTone {
   group,
 }
 
+/// Profil d’un participant dénormalisé sur la conversation (écrit par les Functions).
+///
+/// Seule source de noms / avatars / rôles pour un parent, qui ne peut pas lister
+/// les fiches membres du club.
+class ChatParticipantProfile {
+  const ChatParticipantProfile({
+    required this.role,
+    this.firstName = '',
+    this.lastName = '',
+    this.displayName = '',
+    this.avatarUrl,
+  });
+
+  final String firstName;
+  final String lastName;
+  final String displayName;
+  final String? avatarUrl;
+
+  /// `player` | `coach` | `admin` | `parent`.
+  final String role;
+
+  /// Parse une entrée de `participantProfiles` (valeurs non-string ignorées).
+  factory ChatParticipantProfile.fromMap(Map<String, dynamic> data) {
+    String text(String key) {
+      final value = data[key];
+      return value is String ? value.trim() : '';
+    }
+
+    final avatar = text(FirestoreFields.avatarUrl);
+    return ChatParticipantProfile(
+      firstName: text(FirestoreFields.firstName),
+      lastName: text(FirestoreFields.lastName),
+      displayName: text(FirestoreFields.displayName),
+      avatarUrl: avatar.isEmpty ? null : avatar,
+      role: text(FirestoreFields.role).isEmpty
+          ? MemberRoles.player
+          : text(FirestoreFields.role),
+    );
+  }
+}
+
 /// Conversation club (`clubs/{clubId}/conversations/{convId}`).
 class ChatConversation {
   const ChatConversation({
@@ -32,6 +73,7 @@ class ChatConversation {
     this.lastSenderRole,
     this.createdAt,
     this.updatedAt,
+    this.participantProfiles = const {},
   });
 
   final String id;
@@ -54,6 +96,9 @@ class ChatConversation {
   final String? lastSenderRole;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  /// Profils des participants par uid (vide tant que la sync serveur n’est pas passée).
+  final Map<String, ChatParticipantProfile> participantProfiles;
 
   /// Titre affiché (override si présent).
   ///
@@ -132,8 +177,21 @@ class ChatConversation {
       lastSenderRole: data[FirestoreFields.lastSenderRole] as String?,
       createdAt: _asDateTime(data[FirestoreFields.createdAt]),
       updatedAt: _asDateTime(data[FirestoreFields.updatedAt]),
+      participantProfiles:
+          _participantProfiles(data[FirestoreFields.participantProfiles]),
     );
   }
+}
+
+Map<String, ChatParticipantProfile> _participantProfiles(Object? raw) {
+  if (raw is! Map) return const {};
+  return {
+    for (final entry in raw.entries)
+      if (entry.key is String && entry.value is Map)
+        entry.key as String: ChatParticipantProfile.fromMap(
+          Map<String, dynamic>.from(entry.value as Map),
+        ),
+  };
 }
 
 List<String> _stringList(Object? raw) {

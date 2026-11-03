@@ -22,12 +22,12 @@ import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_membe
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_message_tile.dart';
 import 'package:viro_team_v2/features/chat/widgets/create_poll_sheet.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/chat_service.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
@@ -68,7 +68,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   final ValueNotifier<bool> _isNearBottomNotifier = ValueNotifier(true);
   final ValueNotifier<int> _newBelowCountNotifier = ValueNotifier(0);
 
-  bool _sending = false;
   bool _loadingOlder = false;
   bool _hasMoreOlder = true;
   List<ChatMessage> _olderMessages = const [];
@@ -240,7 +239,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               .where((message) => !existingIds.contains(message.id))
               .toList();
           _olderMessages = [...fresh, ..._olderMessages];
-          if (older.length < 50) _hasMoreOlder = false;
+          if (older.length < ChatService.messagePageSize) {
+            _hasMoreOlder = false;
+          }
         }
         _loadingOlder = false;
       });
@@ -255,6 +256,31 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       setState(() => _loadingOlder = false);
       ViroSnackBar.show(context, AppCopy.chat.loadOlderFailed);
     }
+  }
+
+  /// Garde dans l’historique local les messages que l’arrivée d’un nouveau
+  /// message pousse hors de la fenêtre live (sinon ils disparaissent du haut).
+  void _retainMessagesLeavingLiveWindow(
+    List<ChatMessage>? previous,
+    List<ChatMessage> next,
+  ) {
+    if (previous == null || previous.isEmpty) return;
+    // Fenêtre non pleine : rien n’a pu en sortir (une purge ne doit pas être gardée).
+    if (next.length < ChatService.messagePageSize) return;
+    final oldestLive = next.first.createdAt;
+    final knownIds = {
+      for (final message in next) message.id,
+      for (final message in _olderMessages) message.id,
+    };
+    final dropped = previous
+        .where(
+          (message) =>
+              !knownIds.contains(message.id) &&
+              message.createdAt.isBefore(oldestLive),
+        )
+        .toList(growable: false);
+    if (dropped.isEmpty) return;
+    setState(() => _olderMessages = [...dropped, ..._olderMessages]);
   }
 
   void _setReplyTo(ChatMessage message) {
@@ -344,7 +370,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Future<void> _sendText() async {
     final uid = ref.read(authStateProvider).value?.uid;
     final text = _controller.text.trimRight();
-    if (uid == null || text.trim().isEmpty || _sending) return;
+    if (uid == null || text.trim().isEmpty) return;
     final meta = _senderMeta();
     final reply = _replyTo;
     final clientId = ref.read(chatServiceProvider).allocateMessageId(
@@ -365,7 +391,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       localStatus: ChatMessageLocalStatus.sending,
     );
     setState(() {
-      _sending = true;
       _pendingMessages = [..._pendingMessages, optimistic];
       _replyTo = null;
     });
@@ -400,14 +425,12 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         });
         ViroSnackBar.show(context, AppCopy.chat.sendFailed);
       }
-    } finally {
-      if (mounted) setState(() => _sending = false);
     }
   }
 
   Future<void> _sendPhoto({required ImageSource source}) async {
     final uid = ref.read(authStateProvider).value?.uid;
-    if (uid == null || _sending) return;
+    if (uid == null) return;
     final picker = ImagePicker();
     final file = await picker.pickImage(
       source: source,
@@ -436,7 +459,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       localImageBytes: bytes,
     );
     setState(() {
-      _sending = true;
       _pendingMessages = [..._pendingMessages, optimistic];
       _replyTo = null;
     });
@@ -470,19 +492,16 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         });
         ViroSnackBar.show(context, AppCopy.chat.photoFailed);
       }
-    } finally {
-      if (mounted) setState(() => _sending = false);
     }
   }
 
   /// Relance un message optimiste en échec.
   Future<void> _retryFailedMessage(ChatMessage failed) async {
-    if (!failed.isSendFailed || _sending) return;
+    if (!failed.isSendFailed) return;
     final uid = ref.read(authStateProvider).value?.uid;
     if (uid == null) return;
     final meta = _senderMeta();
     setState(() {
-      _sending = true;
       _pendingMessages = _pendingMessages
           .map(
             (m) => m.id == failed.id
@@ -540,8 +559,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               : AppCopy.chat.sendFailed,
         );
       }
-    } finally {
-      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -797,6 +814,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       final messages = next.asData?.value;
       if (messages == null) return;
       final prevMessages = previous?.asData?.value;
+      _retainMessagesLeavingLiveWindow(prevMessages, messages);
       final prevLastId = (prevMessages == null || prevMessages.isEmpty)
           ? null
           : prevMessages.last.id;
@@ -829,8 +847,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final stateId = ChatUserState.docId(widget.clubId, widget.conversationId);
     final state = states[stateId];
     final conv = _resolveConversation(convAsync.value);
-    final members =
-        ref.watch(clubMembersProvider(widget.clubId)).value ?? const [];
+    final members = ref.watch(chatThreadMembersProvider(_key));
     final dmPeers = ref.watch(chatDmPeersProvider).value ?? const {};
     final peerFromInbox = dmPeers['${widget.clubId}|${widget.conversationId}'];
     String? peerDisplayName = peerFromInbox?.displayName;
@@ -881,6 +898,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       headerAvatarUrl = peerAvatarUrl;
     }
     final isAdminOnly = conv?.writePolicy == ChatWritePolicies.adminsOnly;
+    final readonlyHint = chatThreadReadonlyHint(conv);
     final canWrite = chatThreadCanWrite(conv, uid, role);
     final canPoll = canWrite && (conv?.allowsPolls ?? false);
 
@@ -930,7 +948,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       ),
       body: Column(
         children: [
-          if (isAdminOnly)
+          if (readonlyHint != null)
             Material(
               color: palette.accentSofter,
               child: Padding(
@@ -939,7 +957,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   vertical: ViroSpacing.xs,
                 ),
                 child: Text(
-                  AppCopy.chat.readonlyHint,
+                  readonlyHint,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: palette.accent,
                       ),
@@ -1001,7 +1019,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                         });
                       }
                     }
-                    final showLoadMore = _hasMoreOlder && messages.isNotEmpty;
+                    // Fenêtre live non pleine et rien chargé avant : tout l’historique est là.
+                    final showLoadMore = _hasMoreOlder &&
+                        messages.isNotEmpty &&
+                        (liveMessages.length >= ChatService.messagePageSize ||
+                            _olderMessages.isNotEmpty);
                     final unreadSepCount = _unreadSeparatorCount;
                     final unreadAfter = _unreadSeparatorAfter;
                     int? firstUnreadIndex;
@@ -1214,7 +1236,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             ChatThreadComposer(
               controller: _controller,
               focusNode: _composerFocusNode,
-              sending: _sending,
               canPoll: canPoll,
               showReplyBar: _replyTo != null,
               replyToSenderName: _replyTo == null

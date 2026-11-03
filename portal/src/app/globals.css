@@ -3,9 +3,12 @@
   --color-primary-50: #d4e4f4;
   --color-primary-100: #9bb8dc;
   --color-primary-200: #5e8dbf;
+  /* 300 et 700 : intermédiaires portail (milieu des voisins), absents de ViroColors */
+  --color-primary-300: #3c76ae;
   --color-primary-400: #1a5f9e;
   --color-primary-500: #1769b0;
   --color-primary-600: #134a7d;
+  --color-primary-700: #0f3e6a;
   --color-primary-800: #0b3358;
   --color-primary-900: #061f38;
 
@@ -19,8 +22,17 @@
   --color-gray-200: #e2e6ed;
   --color-gray-300: #c8ced8;
   --color-gray-400: #8b95a5;
+  /* 500, 700, 800 : intermédiaires portail (milieu des voisins), absents de ViroColors */
+  --color-gray-500: #6b7586;
   --color-gray-600: #4a5568;
+  --color-gray-700: #2e3647;
+  --color-gray-800: #202737;
   --color-gray-900: #111827;
+
+  /* Alias sémantiques texte / bordure */
+  --color-text: var(--color-gray-900);
+  --color-text-muted: var(--color-gray-500);
+  --color-border: var(--color-gray-200);
 
   /* Surfaces */
   --color-scaffold: #e9eff7;

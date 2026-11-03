@@ -5,7 +5,6 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
@@ -57,8 +56,9 @@ class PollVotesScreen extends ConsumerWidget {
         messageId: messageId,
       )),
     );
-    final members =
-        ref.watch(clubMembersProvider(clubId)).value ?? const <ClubMember>[];
+    final members = ref.watch(
+      chatThreadMembersProvider((clubId: clubId, conversationId: conversationId)),
+    );
     final memberByUid = <String, ClubMember>{
       for (final member in members)
         if (member.accountUid != null && member.accountUid!.isNotEmpty)

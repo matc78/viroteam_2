@@ -11,7 +11,6 @@ class ChatThreadComposer extends StatelessWidget {
   const ChatThreadComposer({
     super.key,
     required this.controller,
-    required this.sending,
     required this.canPoll,
     required this.replyToSenderName,
     required this.replyPreview,
@@ -26,7 +25,6 @@ class ChatThreadComposer extends StatelessWidget {
 
   final TextEditingController controller;
   final FocusNode? focusNode;
-  final bool sending;
   final bool canPoll;
   final String replyToSenderName;
   final String replyPreview;
@@ -98,7 +96,7 @@ class ChatThreadComposer extends StatelessWidget {
             child: Row(
               children: [
                 ChatAttachMenu(
-                  enabled: !sending,
+                  enabled: true,
                   showPoll: canPoll,
                   onCamera: onCamera,
                   onGallery: onGallery,
@@ -146,7 +144,7 @@ class ChatThreadComposer extends StatelessWidget {
                 ),
                 IconButton(
                   tooltip: AppCopy.chat.sendMessage,
-                  onPressed: sending ? null : onSend,
+                  onPressed: onSend,
                   icon: ViroIcon(
                     ViroIcons.send,
                     color: palette.accent,

@@ -9,6 +9,13 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Corrigé
+
+- Couleurs : huit variables CSS utilisées sans être définies (`--color-gray-500/700/800`, `--color-primary-300/700`, `--color-text`, `--color-text-muted`, `--color-border`) le sont désormais. Les textes secondaires retrouvent leur gris, et les bordures au survol (membres, équipes, annonces, import…) ne prennent plus la couleur du texte. Un test échoue si une variable `--color-*` utilisée n’existe pas
+- Messagerie (masquée) : une conversation n’est plus marquée lue quand la page Messages est masquée ou l’onglet en arrière-plan
+- Messagerie (masquée) : le bandeau d’un canal dit qui peut écrire (admins seuls, ou coachs et admins) et ne s’affiche plus pendant le chargement
+- Messagerie (masquée) : noms, photos et rôles des participants lus sur la conversation (`participantProfiles`) — un parent les voit, sans lecture des membres un par un
+
 ## [1.13.0] - 2026-11-02
 
 ### Ajouté

@@ -40,6 +40,7 @@ import {
   type ConversationParticipant,
 } from "@/lib/chat/conversationParticipants";
 import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
+import { splitParticipantsByProfiles } from "@/lib/chat/participantProfiles";
 import {
   formatChatDateSeparator,
   isSameCalendarDay,
@@ -79,11 +80,14 @@ import {
   isChatMessageDeleted,
   isGroupConversation,
   pollUniqueVoterCount,
+  readonlyHintFor,
   type ChatConversation,
+  type ChatParticipantProfile,
   type ChatMessage,
   type ChatUserState,
 } from "@/lib/firebase/chatTypes";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
+import { useDocumentVisible } from "@/lib/ui/useDocumentVisible";
 import styles from "./ChatThreadView.module.css";
 
 const LONG_PRESS_MS = 450;
@@ -124,6 +128,8 @@ type ChatThreadViewProps = {
   clubRole: string | null;
   chatState?: ChatUserState;
   compact?: boolean;
+  /** `false` quand la vue reste montée mais masquée (page keep-alive) : pas de `markRead`. */
+  isActive?: boolean;
   onClose?: () => void;
   onMaximize?: () => void;
   headerExtra?: ReactNode;
@@ -141,6 +147,7 @@ export function ChatThreadView({
   clubRole,
   chatState,
   compact = false,
+  isActive = true,
   onClose,
   onMaximize,
   headerExtra,
@@ -148,6 +155,8 @@ export function ChatThreadView({
   clubColor,
 }: ChatThreadViewProps) {
   const { user, profile } = useAuth();
+  const documentVisible = useDocumentVisible();
+  const isSeen = isActive && documentVisible;
   const chat = useChatOptional();
   const inboxPeerName =
     chat?.dmPeerNameByKey[chatStateDocId(clubId, conversationId)] ?? null;
@@ -357,6 +366,10 @@ export function ChatThreadView({
 
   // Clés stables : le doc conversation change à chaque snapshot (dernier message).
   const participantUidsKey = (conversation?.participantUids ?? []).join("|");
+  const participantProfilesKey = useMemo(
+    () => JSON.stringify(conversation?.participantProfiles ?? {}),
+    [conversation?.participantProfiles],
+  );
   const isDirectConversation =
     conversation != null && !isGroupConversation(conversation);
 
@@ -369,14 +382,26 @@ export function ChatThreadView({
       return;
     }
 
-    const seeded = seedParticipantsFromPreviewCache({
-      clubId,
+    const profiles = JSON.parse(participantProfilesKey) as Record<
+      string,
+      ChatParticipantProfile
+    >;
+    const { fromProfiles } = splitParticipantsByProfiles({
       participantUids: uids,
-      previewSenderByKey: chat?.previewSenderByKey,
-      userDisplayNameByUid: chat?.userDisplayNameByUid,
-      dmPeerDisplayName: inboxPeerName,
-      viewerUid: user?.uid,
+      profiles,
     });
+    const profileUids = new Set(fromProfiles.map((participant) => participant.uid));
+    const seeded = [
+      ...fromProfiles,
+      ...seedParticipantsFromPreviewCache({
+        clubId,
+        participantUids: uids,
+        previewSenderByKey: chat?.previewSenderByKey,
+        userDisplayNameByUid: chat?.userDisplayNameByUid,
+        dmPeerDisplayName: inboxPeerName,
+        viewerUid: user?.uid,
+      }).filter((participant) => !profileUids.has(participant.uid)),
+    ];
     const seededForHeader =
       isDirectConversation && user
         ? seeded.filter((participant) => participant.uid !== user.uid)
@@ -394,6 +419,7 @@ export function ChatThreadView({
     void resolveConversationParticipants({
       clubId,
       participantUids: uids,
+      profiles,
     })
       .then((resolved) => {
         if (cancelled) return;
@@ -417,6 +443,7 @@ export function ChatThreadView({
   }, [
     clubId,
     participantUidsKey,
+    participantProfilesKey,
     isDirectConversation,
     user,
     chat?.previewSenderByKey,
@@ -534,13 +561,14 @@ export function ChatThreadView({
   }, [autoScrollConversationKey, messages.length, lastMessageId]);
 
   useEffect(() => {
-    if (!user || messages.length === 0) return;
+    if (!user || !isSeen || messages.length === 0) return;
     const lastId = messages[messages.length - 1]!.id;
     if (lastMarkedIdRef.current === lastId) return;
     lastMarkedIdRef.current = lastId;
     void markRead({ uid: user.uid, clubId, conversationId });
-  }, [messages, user, clubId, conversationId]);
+  }, [messages, user, clubId, conversationId, isSeen]);
 
+  const readonlyHint = readonlyHintFor(conversation);
   const canWrite = useMemo(() => {
     if (!conversation || !user) return false;
     return canWriteToConversation({
@@ -1583,11 +1611,9 @@ export function ChatThreadView({
           </button>
           </div>
         </form>
-      ) : (
-        <p className={styles.readonly}>
-          Seuls les admins peuvent écrire ici.
-        </p>
-      )}
+      ) : readonlyHint ? (
+        <p className={styles.readonly}>{readonlyHint}</p>
+      ) : null}
 
       </div>
 

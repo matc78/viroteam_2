@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
+import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
+import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/chat/chat_helpers.dart';
 import 'package:viro_team_v2/services/chat_messages_local_cache.dart';
 
 /// ClubIds accessibles (membres + parents).
@@ -282,4 +285,17 @@ final chatConversationProvider = StreamProvider.family<
         clubId: key.clubId,
         conversationId: key.conversationId,
       );
+});
+
+/// Fiches affichables d’un fil : membres du club + profils de la conversation
+/// pour les participants sans fiche lisible (un parent ne liste pas `members`).
+final chatThreadMembersProvider = Provider.family<List<ClubMember>,
+    ({String clubId, String conversationId})>((ref, key) {
+  final members =
+      ref.watch(clubMembersProvider(key.clubId)).value ?? const <ClubMember>[];
+  final conversation = ref.watch(chatConversationProvider(key)).value;
+  return chatMembersWithProfiles(
+    members: members,
+    profiles: conversation?.participantProfiles ?? const {},
+  );
 });

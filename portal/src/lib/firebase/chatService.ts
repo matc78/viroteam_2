@@ -33,6 +33,7 @@ import {
 } from "./constants";
 import { prepareChatImageUpload } from "@/lib/chat/createImageThumbnail";
 import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
+import { parseParticipantProfiles } from "@/lib/chat/participantProfiles";
 import { isAllowedReactionEmoji } from "@/components/chat/emojiCatalog";
 import { uploadImageAtPath, conversationAvatarStoragePath } from "./storage";
 import {
@@ -151,6 +152,9 @@ export function parseChatConversation(
         ? data[Fields.categoryKey]
         : null,
     participantUids: stringList(data[Fields.participantUids]),
+    participantProfiles: parseParticipantProfiles(
+      data[Fields.participantProfiles],
+    ),
     writePolicy: String(data[Fields.writePolicy] ?? ChatWritePolicies.open),
     lastMessageAt: toDate(data[Fields.lastMessageAt]),
     lastMessagePreview: String(data[Fields.lastMessagePreview] ?? ""),

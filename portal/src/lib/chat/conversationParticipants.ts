@@ -1,5 +1,7 @@
 import type { ChatPreviewSender } from "@/lib/chat/conversationPreview";
 import { previewSenderKey } from "@/lib/chat/conversationPreview";
+import { splitParticipantsByProfiles } from "@/lib/chat/participantProfiles";
+import type { ChatParticipantProfile } from "@/lib/firebase/chatTypes";
 import { PortalUiRoles } from "@/lib/firebase/constants";
 import {
   listClubMembers,
@@ -103,16 +105,33 @@ export function participantFirstName(
   return fromDisplay || "Membre";
 }
 
+function sortByFirstName(
+  participants: ConversationParticipant[],
+): ConversationParticipant[] {
+  return participants.sort((a, b) =>
+    participantFirstName(a).localeCompare(participantFirstName(b), "fr", {
+      sensitivity: "base",
+    }),
+  );
+}
+
 /**
- * Résout les UIDs participants via les membres du club.
- * Les UIDs sans fiche membre (parents) sont enrichis via `users/{uid}`.
+ * Résout les UIDs participants : profils dénormalisés de la conversation
+ * d’abord (aucune lecture), puis membres du club et `users/{uid}` pour les
+ * UIDs pas encore couverts (conversation pas encore resynchronisée).
  */
 export async function resolveConversationParticipants(params: {
   clubId: string;
   participantUids: string[];
+  profiles?: Record<string, ChatParticipantProfile>;
 }): Promise<ConversationParticipant[]> {
-  const uidSet = new Set(params.participantUids.filter(Boolean));
-  if (uidSet.size === 0) return [];
+  const { fromProfiles, missingUids: unprofiledUids } =
+    splitParticipantsByProfiles({
+      participantUids: params.participantUids,
+      profiles: params.profiles ?? {},
+    });
+  if (unprofiledUids.length === 0) return sortByFirstName(fromProfiles);
+  const uidSet = new Set(unprofiledUids);
 
   const members = await listClubMembers(params.clubId);
   const byUid = new Map<string, ClubMemberRecord>();
@@ -147,7 +166,7 @@ export async function resolveConversationParticipants(params: {
     }),
   );
 
-  const resolved: ConversationParticipant[] = [];
+  const resolved: ConversationParticipant[] = [...fromProfiles];
   for (const uid of uidSet) {
     const member = byUid.get(uid);
     if (member) {
@@ -172,12 +191,7 @@ export async function resolveConversationParticipants(params: {
     });
   }
 
-  resolved.sort((a, b) =>
-    participantFirstName(a).localeCompare(participantFirstName(b), "fr", {
-      sensitivity: "base",
-    }),
-  );
-  return resolved;
+  return sortByFirstName(resolved);
 }
 
 /** Preview « Prénom, Prénom, … » (tronquée). */

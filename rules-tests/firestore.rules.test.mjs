@@ -977,6 +977,23 @@ test("un simple lecteur d'un canal admins_only ne le renomme pas, un admin oui",
   );
 });
 
+test("participantProfiles reste écrit par les Functions : un participant ne le modifie pas", async () => {
+  const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}`);
+  await assertFails(
+    updateDoc(ref, {
+      [`participantProfiles.${PLAYER.uid}`]: { firstName: "Usurpé", role: "admin" },
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(ref, {
+      titleOverride: "Les Bleus",
+      participantProfiles: {},
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
 test("le preview inbox n'accepte qu'un rôle connu et un prénom court", async () => {
   const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}`);
   await assertSucceeds(

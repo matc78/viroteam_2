@@ -191,6 +191,7 @@ export function MessagesPageClient({
               key={`${selectedClubId}-${selectedConversationId}`}
               clubId={selectedClubId}
               conversationId={selectedConversationId}
+              isActive={isPanelActive}
               clubRole={roleForClub(selectedClubId)}
               chatState={stateId ? chatStates[stateId] : undefined}
               clubName={clubNameById[selectedClubId]}

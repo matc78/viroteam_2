@@ -13,6 +13,8 @@ export {
 export {
   onMemberWrittenForChat,
   onMemberWrittenForChatDev,
+  onUserWrittenForChat,
+  onUserWrittenForChatDev,
   onClubWrittenForChat,
   onClubWrittenForChatDev,
   onChatMessageCreatedForPush,

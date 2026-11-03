@@ -44,6 +44,9 @@ class ChatService {
     );
   }
 
+  /// Taille de la fenêtre live et des pages d’historique d’un fil.
+  static const int messagePageSize = 50;
+
   late final ChatInboxQueries _queries;
   late final ChatMessageOperations _messages;
   late final ChatPollReactionOperations _polls;
@@ -77,7 +80,7 @@ class ChatService {
   Stream<List<ChatMessage>> watchMessages({
     required String clubId,
     required String conversationId,
-    int limit = 50,
+    int limit = messagePageSize,
   }) =>
       _queries.watchMessages(
         clubId: clubId,
@@ -174,7 +177,7 @@ class ChatService {
     required String clubId,
     required String conversationId,
     required String beforeMessageId,
-    int limit = 50,
+    int limit = messagePageSize,
   }) =>
       _queries.fetchOlderMessages(
         clubId: clubId,

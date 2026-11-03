@@ -1,4 +1,38 @@
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/models/chat_conversation.dart';
+import 'package:viro_team_v2/models/club_member.dart';
+
+/// Complète [members] avec une fiche par profil de [profiles] dont l’uid n’a pas
+/// de fiche lisible (parent : `list` members refusé ; participant sans fiche).
+///
+/// Une fiche membre lisible reste prioritaire sur le profil dénormalisé.
+List<ClubMember> chatMembersWithProfiles({
+  required List<ClubMember> members,
+  required Map<String, ChatParticipantProfile> profiles,
+}) {
+  if (profiles.isEmpty) return members;
+  final knownUids = {
+    for (final member in members)
+      if (member.accountUid != null) member.accountUid!,
+  };
+  final fromProfiles = [
+    for (final entry in profiles.entries)
+      if (!knownUids.contains(entry.key))
+        ClubMember(
+          memberId: entry.key,
+          accountUid: entry.key,
+          role: entry.value.role,
+          status: 'active',
+          firstName: trimToNull(entry.value.firstName),
+          lastName: trimToNull(entry.value.lastName),
+          displayName: trimToNull(entry.value.displayName),
+          avatarUrl: entry.value.avatarUrl,
+          hasLinkedAccount: true,
+        ),
+  ];
+  if (fromProfiles.isEmpty) return members;
+  return [...members, ...fromProfiles];
+}
 
 /// Tronque [text] à [maxLength] caractères avec une ellipsis si nécessaire.
 String truncateChatText(String text, {required int maxLength}) {

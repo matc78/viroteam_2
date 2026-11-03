@@ -189,6 +189,8 @@ export const Fields = {
   systemKey: "systemKey",
   titleOverride: "titleOverride",
   participantUids: "participantUids",
+  /** Map uid → profil (nom, rôle, avatar), écrite par les Functions uniquement. */
+  participantProfiles: "participantProfiles",
   writePolicy: "writePolicy",
   lastMessageAt: "lastMessageAt",
   lastMessagePreview: "lastMessagePreview",

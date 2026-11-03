@@ -8,8 +8,15 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Messagerie (masquée) : chaque conversation porte les profils de ses participants (`participantProfiles` : nom, rôle, photo), écrits uniquement par les Functions à chaque sync et mis à jour quand un membre ou un parent change de nom ou de photo (`onMemberWrittenForChat`, nouveau trigger `onUserWrittenForChat`). Un parent voit enfin les noms, photos et rôles des expéditeurs dans le fil, et le portail n’a plus besoin de relire les membres un par un
+
 ### Corrigé
 
+- Messagerie (masquée) : l’app n’empêche plus d’envoyer un message tant que le précédent n’est pas confirmé, les anciens messages ne disparaissent plus du haut du fil quand un nouveau arrive, et « Charger plus » ne s’affiche que s’il reste de l’historique
+- Messagerie (masquée) : les canaux réservés aux coachs et admins affichent le bon bandeau (« Seuls les coachs et les admins peuvent écrire ici. ») dans l’app et sur le portail
+- Tests des règles Firestore : `npm test` fonctionne aussi sous Windows (guillemets du script)
 - Release Android CI : épingle Temurin JDK 21 dans `release-android.yml` (le runner `ubuntu-latest` passait sur Java 25 et faisait échouer `assembleRelease` avec le seul message « 25.0.x »)
 
 ## [2.2.13] - 2026-11-02

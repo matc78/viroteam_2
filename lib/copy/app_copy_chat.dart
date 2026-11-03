@@ -59,6 +59,8 @@ final class AppCopyChat {
   String get noConversationMedia => 'Pas encore de médias.';
   String get makeAnnouncement => 'Faire une annonce';
   String get readonlyHint => 'Seuls les admins peuvent écrire ici.';
+  String get readonlyHintCoachesAndAdmins =>
+      'Seuls les coachs et les admins peuvent écrire ici.';
   String get openTeamChat => 'Ouvrir le chat d’équipe';
   String get openParentsChat => 'Ouvrir le chat parents';
   String get chatEntry => 'Discussions';

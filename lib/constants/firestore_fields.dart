@@ -237,6 +237,9 @@ abstract final class FirestoreFields {
   static const String systemKey = 'systemKey';
   static const String titleOverride = 'titleOverride';
   static const String participantUids = 'participantUids';
+
+  /// Map uid → profil (nom, rôle, avatar), écrite par les Functions uniquement.
+  static const String participantProfiles = 'participantProfiles';
   static const String writePolicy = 'writePolicy';
   static const String lastMessageAt = 'lastMessageAt';
   static const String lastMessagePreview = 'lastMessagePreview';

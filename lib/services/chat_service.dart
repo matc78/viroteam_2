@@ -172,6 +172,45 @@ class ChatService {
         clientMessageId: clientMessageId,
       );
 
+  /// Envoie un message optimiste [pending] (texte, ou photo via
+  /// `localImageBytes`) sous son propre id : premier envoi comme relance.
+  ///
+  /// Lève [StateError] si une photo n’a plus ses octets locaux.
+  Future<String> sendPendingMessage(
+    ChatMessage pending, {
+    String? senderFirstName,
+    String? senderRole,
+  }) {
+    if (pending.type == ChatMessageTypes.image) {
+      final bytes = pending.localImageBytes;
+      if (bytes == null) throw StateError('no local bytes');
+      return sendImageMessage(
+        clubId: pending.clubId,
+        conversationId: pending.conversationId,
+        senderUid: pending.senderUid,
+        bytes: bytes,
+        senderFirstName: senderFirstName,
+        senderRole: senderRole,
+        replyToMessageId: pending.replyToMessageId,
+        replyToText: pending.replyToText,
+        replyToSenderUid: pending.replyToSenderUid,
+        clientMessageId: pending.id,
+      );
+    }
+    return sendTextMessage(
+      clubId: pending.clubId,
+      conversationId: pending.conversationId,
+      senderUid: pending.senderUid,
+      text: pending.text ?? '',
+      senderFirstName: senderFirstName,
+      senderRole: senderRole,
+      replyToMessageId: pending.replyToMessageId,
+      replyToText: pending.replyToText,
+      replyToSenderUid: pending.replyToSenderUid,
+      clientMessageId: pending.id,
+    );
+  }
+
   /// Charge une page de messages plus anciens que [beforeMessageId].
   Future<List<ChatMessage>> fetchOlderMessages({
     required String clubId,

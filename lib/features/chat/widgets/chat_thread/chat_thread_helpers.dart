@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
@@ -101,6 +103,173 @@ String chatThreadSenderRoleFor(String senderUid, List<ClubMember> members) {
 /// True si [a] et [b] tombent le même jour calendaire local.
 bool chatThreadSameCalendarDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+/// Séparateur « nouveaux messages » figé à l’open du fil.
+///
+/// [count] : nombre de non-lus à remonter depuis la fin ; sinon [after] :
+/// premier message d’un autre postérieur à cette date. Les deux `null` =
+/// pas de séparateur.
+typedef ChatThreadUnreadSeparator = ({int? count, DateTime? after});
+
+/// Calcule le séparateur « nouveaux messages » à l’open (voir
+/// [chatThreadEffectiveUnread]) : compteur Firestore, sinon `lastReadAt`.
+ChatThreadUnreadSeparator chatThreadUnreadSeparator({
+  required ChatConversation? conversation,
+  required ChatUserState? state,
+  required String? viewerUid,
+}) {
+  final effective = chatThreadEffectiveUnread(
+    conversation: conversation,
+    state: state,
+    viewerUid: viewerUid,
+  );
+  if (effective <= 0) return (count: null, after: null);
+  if (state != null && state.unreadCount > 0) {
+    return (count: state.unreadCount, after: null);
+  }
+  if (state?.lastReadAt != null) {
+    return (count: null, after: state!.lastReadAt);
+  }
+  return (count: effective, after: null);
+}
+
+/// Index (ordre chronologique) du premier message non lu d’un autre que
+/// [viewerUid], ou `null` si [separator] ne désigne rien.
+int? chatThreadFirstUnreadIndex({
+  required List<ChatMessage> messages,
+  required String? viewerUid,
+  required ChatThreadUnreadSeparator separator,
+}) {
+  if (messages.isEmpty) return null;
+  final count = separator.count;
+  final after = separator.after;
+  if (count != null && count > 0) {
+    final byCount =
+        (messages.length - count).clamp(0, messages.length - 1);
+    for (var i = byCount; i < messages.length; i++) {
+      if (messages[i].senderUid != viewerUid) return i;
+    }
+    return null;
+  }
+  if (after != null) {
+    for (var i = 0; i < messages.length; i++) {
+      final message = messages[i];
+      if (message.createdAt.isAfter(after) && message.senderUid != viewerUid) {
+        return i;
+      }
+    }
+  }
+  return null;
+}
+
+/// Fusionne historique + live + envois optimistes, triés par date.
+///
+/// Le live l’emporte sur l’historique ; un envoi optimiste n’apparaît que
+/// tant que son id n’est pas encore arrivé.
+List<ChatMessage> mergeChatThreadMessages({
+  required List<ChatMessage> older,
+  required List<ChatMessage> live,
+  required List<ChatMessage> pending,
+}) {
+  final byId = <String, ChatMessage>{};
+  for (final message in older) {
+    byId[message.id] = message;
+  }
+  for (final message in live) {
+    byId[message.id] = message;
+  }
+  for (final message in pending) {
+    byId.putIfAbsent(message.id, () => message);
+  }
+  return byId.values.toList()
+    ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+}
+
+/// Messages que l’arrivée d’un nouveau message pousse hors de la fenêtre
+/// live ([previous] → [next]) et qu’il faut garder dans l’historique local.
+///
+/// Fenêtre non pleine (< [pageSize]) : rien n’a pu en sortir (une purge ne
+/// doit pas être gardée).
+List<ChatMessage> chatThreadMessagesLeavingLiveWindow({
+  required List<ChatMessage>? previous,
+  required List<ChatMessage> next,
+  required List<ChatMessage> older,
+  required int pageSize,
+}) {
+  if (previous == null || previous.isEmpty) return const [];
+  if (next.length < pageSize) return const [];
+  final oldestLive = next.first.createdAt;
+  final knownIds = {
+    for (final message in next) message.id,
+    for (final message in older) message.id,
+  };
+  return previous
+      .where(
+        (message) =>
+            !knownIds.contains(message.id) &&
+            message.createdAt.isBefore(oldestLive),
+      )
+      .toList(growable: false);
+}
+
+/// Message optimiste (statut « envoi ») affiché avant la confirmation serveur.
+///
+/// [imageBytes] : photo locale (type image), sinon message texte [text].
+/// [replyTo] : message cité, dont l’extrait est figé dans le brouillon.
+ChatMessage chatThreadPendingMessage({
+  required String id,
+  required String clubId,
+  required String conversationId,
+  required String senderUid,
+  required DateTime createdAt,
+  String? text,
+  Uint8List? imageBytes,
+  ChatMessage? replyTo,
+}) {
+  return ChatMessage(
+    id: id,
+    clubId: clubId,
+    conversationId: conversationId,
+    type: imageBytes != null ? ChatMessageTypes.image : ChatMessageTypes.text,
+    text: imageBytes != null ? null : text,
+    senderUid: senderUid,
+    createdAt: createdAt,
+    replyToMessageId: replyTo?.id,
+    replyToText: replyTo == null ? null : chatThreadReplyPreviewText(replyTo),
+    replyToSenderUid: replyTo?.senderUid,
+    localStatus: ChatMessageLocalStatus.sending,
+    localImageBytes: imageBytes,
+  );
+}
+
+/// Nom et photo du pair d’un DM : annuaire inbox [inboxPeer] d’abord (photo :
+/// puis [seedAvatarUrl] de l’open), sinon fiche membre de l’autre participant.
+({String? displayName, String? avatarUrl}) chatThreadDmPeer({
+  required ChatConversation? conversation,
+  required String? viewerUid,
+  required List<ClubMember> members,
+  ({String displayName, String? avatarUrl})? inboxPeer,
+  String? seedAvatarUrl,
+}) {
+  String? displayName = inboxPeer?.displayName;
+  String? avatarUrl = inboxPeer?.avatarUrl ?? seedAvatarUrl;
+  if (displayName != null || conversation == null || viewerUid == null) {
+    return (displayName: displayName, avatarUrl: avatarUrl);
+  }
+  final peerUid = conversation.peerUidFor(viewerUid);
+  if (peerUid == null) return (displayName: null, avatarUrl: avatarUrl);
+  for (final member in members) {
+    if (member.accountUid != peerUid) continue;
+    final name = (member.displayName ?? '').trim();
+    if (name.isNotEmpty) displayName = name;
+    final photo = member.avatarUrl?.trim();
+    if (avatarUrl == null && photo != null && photo.isNotEmpty) {
+      avatarUrl = photo;
+    }
+    break;
+  }
+  return (displayName: displayName, avatarUrl: avatarUrl);
 }
 
 /// Non-lus effectifs à l’open (compteur Firestore ou fallback lastReadAt).

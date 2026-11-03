@@ -12,6 +12,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 - Messagerie (masquée) : chaque conversation porte les profils de ses participants (`participantProfiles` : nom, rôle, photo), écrits uniquement par les Functions à chaque sync et mis à jour quand un membre ou un parent change de nom ou de photo (`onMemberWrittenForChat`, nouveau trigger `onUserWrittenForChat`). Un parent voit enfin les noms, photos et rôles des expéditeurs dans le fil, et le portail n’a plus besoin de relire les membres un par un
 
+### Modifié
+
+- Messagerie (masquée), sans changement visuel : l’état du fil (historique, envois optimistes et relance, non-lus) passe dans un contrôleur Riverpod par conversation (`chatThreadControllerProvider`) et les trois chemins d’envoi (texte, photo, relance) dans `ChatService.sendPendingMessage`. Le détail des votes d’un sondage devient une route go_router (`/conversations/:clubId/:conversationId/polls/:messageId`) avec retour vers le fil. Nouvelles tuiles `ChatReactorListTile`, `ChatDmTargetListTile`, `ChatMediaListTile` et premiers tests du chat (helpers du fil, tri de l’inbox, extraction des médias, tuiles)
+
 ### Corrigé
 
 - Messagerie (masquée) : l’app n’empêche plus d’envoyer un message tant que le précédent n’est pas confirmé, les anciens messages ne disparaissent plus du haut du fil quand un nouveau arrive, et « Charger plus » ne s’affiche que s’il reste de l’historique

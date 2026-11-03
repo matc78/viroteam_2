@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type AnimationEvent } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
 import { ConversationListItem } from "@/components/chat/ConversationListItem";
 import { useChat } from "@/lib/chat/ChatProvider";
-import { sortInboxConversations } from "@/lib/firebase/chatService";
+import { filterInbox } from "@/lib/chat/filterInbox";
 import { chatStateDocId } from "@/lib/firebase/chatTypes";
 import styles from "./MessagingDock.module.css";
 
@@ -36,23 +36,17 @@ export function MessagingDock() {
   const [query, setQuery] = useState("");
   const [phase, setPhase] = useState<DockPhase>(dockOpen ? "open" : "closed");
 
-  const filtered = useMemo(() => {
-    const sorted = sortInboxConversations(conversations, chatStates);
-    const q = query.trim().toLowerCase();
-    if (!q) return sorted;
-    return sorted.filter((conversation) => {
-      const stateId = chatStateDocId(conversation.clubId, conversation.id);
-      const title = (
-        conversation.titleOverride ||
-        dmPeerNameByKey[stateId] ||
-        conversation.title ||
-        ""
-      ).toLowerCase();
-      const club = (clubNameById[conversation.clubId] ?? "").toLowerCase();
-      const preview = conversation.lastMessagePreview.toLowerCase();
-      return title.includes(q) || club.includes(q) || preview.includes(q);
-    });
-  }, [conversations, chatStates, query, clubNameById, dmPeerNameByKey]);
+  const filtered = useMemo(
+    () =>
+      filterInbox({
+        conversations,
+        chatStates,
+        query,
+        clubNameById,
+        dmPeerNameByKey,
+      }),
+    [conversations, chatStates, query, clubNameById, dmPeerNameByKey],
+  );
 
   useEffect(() => {
     if (dockOpen) {

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { NavLoadBar } from "@/components/common/NavLoadBar";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { useChatOptional } from "@/lib/chat/ChatProvider";
+import { isMessagesPath } from "@/lib/chat/isMessagesPath";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 import styles from "./MessagingTile.module.css";
 
@@ -25,17 +26,6 @@ function ChatIcon() {
         strokeLinejoin="round"
       />
     </svg>
-  );
-}
-
-/** True si la route courante est la page Messagerie (bureau ou famille). */
-function isMessagesPath(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return (
-    pathname === "/messages" ||
-    pathname.startsWith("/messages/") ||
-    pathname === "/family/messages" ||
-    pathname.startsWith("/family/messages/")
   );
 }
 

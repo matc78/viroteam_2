@@ -19,6 +19,7 @@ import {
   previewSenderKey,
   type ChatPreviewSender,
 } from "@/lib/chat/conversationPreview";
+import { isMessagesPath } from "@/lib/chat/isMessagesPath";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   ensureClubsChatSynced,
@@ -80,16 +81,6 @@ type ChatContextValue = {
 const ChatContext = createContext<ChatContextValue | null>(null);
 
 const MOBILE_MQ = "(max-width: 767px)";
-
-function isMessagesPath(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return (
-    pathname === "/messages" ||
-    pathname.startsWith("/messages/") ||
-    pathname === "/family/messages" ||
-    pathname.startsWith("/family/messages/")
-  );
-}
 
 /**
  * Quand la messagerie est désactivée : pas de chrome, redirige les deep links.
@@ -187,11 +178,7 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
     activeSpace === "family" ? "family" : "bureau",
   );
 
-  const onMessagesPage =
-    pathname === "/messages" ||
-    pathname.startsWith("/messages/") ||
-    pathname === "/family/messages" ||
-    pathname.startsWith("/family/messages/");
+  const onMessagesPage = isMessagesPath(pathname);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

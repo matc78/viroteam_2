@@ -15,6 +15,11 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 - Messagerie (masquée) : une conversation n’est plus marquée lue quand la page Messages est masquée ou l’onglet en arrière-plan
 - Messagerie (masquée) : le bandeau d’un canal dit qui peut écrire (admins seuls, ou coachs et admins) et ne s’affiche plus pendant le chargement
 - Messagerie (masquée) : noms, photos et rôles des participants lus sur la conversation (`participantProfiles`) — un parent les voit, sans lecture des membres un par un
+- Messagerie (masquée) : les séparateurs de jour du fil ont une clé par jour local (et non UTC) — deux jours consécutifs autour de minuit ne partagent plus la même clé React
+
+### Modifié
+
+- Messagerie (masquée) : `ChatThreadView` découpé en hooks et composants (`components/chat/thread/`), logique pure dans `lib/chat/` (`buildThreadRows`, `filterInbox`, `isMessagesPath` unique), tests vitest ajoutés ; rendu inchangé
 
 ## [1.13.0] - 2026-11-02
 

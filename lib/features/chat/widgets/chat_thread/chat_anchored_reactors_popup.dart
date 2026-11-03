@@ -4,9 +4,9 @@ import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
-import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/widgets/lists/chat_reactor_list_tile.dart';
 
 /// Popup ancré au message : sous le message, ou au-dessus si pas de place.
 class ChatAnchoredReactorsPopup extends StatefulWidget {
@@ -198,79 +198,19 @@ class _ChatAnchoredReactorsPopupState extends State<ChatAnchoredReactorsPopup> {
                   itemCount: rows.length,
                   itemBuilder: (context, index) {
                     final row = rows[index];
-                    final mine = widget.viewerUid != null &&
-                        row.uid == widget.viewerUid;
-                    final firstName = widget.nameByUid[row.uid]?.trim() ?? '';
-                    final displayName = mine
-                        ? AppCopy.chat.you
-                        : (firstName.isNotEmpty
-                            ? firstName
-                            : AppCopy.common.memberFallback);
-                    return ListTile(
-                      dense: true,
-                      leading: _reactorAvatar(
-                        uid: row.uid,
-                        firstName: firstName,
-                      ),
-                      title: Text(
-                        displayName,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: mine
-                          ? Text(AppCopy.chat.reactionRemoveMine)
-                          : null,
-                      trailing: Text(
-                        row.emoji,
-                        style: const TextStyle(fontSize: 22),
-                      ),
-                      onTap: mine
-                          ? () => widget.onToggleReaction(row.emoji)
-                          : null,
+                    return ChatReactorListTile(
+                      emoji: row.emoji,
+                      firstName: widget.nameByUid[row.uid]?.trim() ?? '',
+                      mine: widget.viewerUid != null &&
+                          row.uid == widget.viewerUid,
+                      member: widget.memberByUid[row.uid],
+                      onTap: () => widget.onToggleReaction(row.emoji),
                     );
                   },
                 ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  /// Avatar : photo si dispo, sinon initiale du prénom (jamais celle de « Vous »).
-  Widget _reactorAvatar({
-    required String uid,
-    required String firstName,
-  }) {
-    final member = widget.memberByUid[uid];
-    final photoUrl = member?.avatarUrl?.trim();
-    final hasPhoto = member != null &&
-        member.hasLinkedAccount &&
-        photoUrl != null &&
-        photoUrl.isNotEmpty;
-
-    if (hasPhoto) {
-      return MemberAvatar(member: member, size: 36);
-    }
-
-    final preferred = member?.preferredFirstName.trim() ?? '';
-    final fromMember =
-        preferred.isNotEmpty && preferred != AppCopy.common.childFallback
-            ? preferred
-            : (member?.fullName.trim() ?? '');
-    final initialSource = firstName.isNotEmpty ? firstName : fromMember;
-    final initial =
-        initialSource.isNotEmpty ? initialSource[0].toUpperCase() : '?';
-
-    final palette = context.viroPalette;
-    return CircleAvatar(
-      radius: 18,
-      backgroundColor: palette.accentSoft,
-      child: Text(
-        initial,
-        style: TextStyle(
-          color: palette.brandText,
-          fontWeight: FontWeight.w700,
         ),
       ),
     );

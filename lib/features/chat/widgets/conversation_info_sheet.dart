@@ -12,6 +12,7 @@ import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/utils/linkify_message_text.dart';
 import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
+import 'package:viro_team_v2/widgets/lists/chat_media_list_tile.dart';
 import 'package:viro_team_v2/widgets/lists/poll_voter_list_tile.dart';
 
 /// Médias extraits d’un thread (photos + liens).
@@ -260,7 +261,7 @@ Future<void> showConversationInfoSheet({
                 else ...[
                   if (media.imageUrls.isNotEmpty)
                     SizedBox(
-                      height: 88,
+                      height: ChatMediaListTile.size,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(
@@ -269,26 +270,15 @@ Future<void> showConversationInfoSheet({
                         itemCount: media.imageUrls.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(width: ViroSpacing.sm),
-                        itemBuilder: (context, index) {
-                          final url = media.imageUrls[index];
-                          return GestureDetector(
-                            onTap: onOpenImage == null
-                                ? null
-                                : () {
-                                    Navigator.pop(ctx);
-                                    onOpenImage(url);
-                                  },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                url,
-                                width: 88,
-                                height: 88,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          );
-                        },
+                        itemBuilder: (_, index) => ChatMediaListTile(
+                          imageUrl: media.imageUrls[index],
+                          onTap: onOpenImage == null
+                              ? null
+                              : () {
+                                  Navigator.pop(ctx);
+                                  onOpenImage(media.imageUrls[index]);
+                                },
+                        ),
                       ),
                     ),
                   for (final link in media.linkUrls)

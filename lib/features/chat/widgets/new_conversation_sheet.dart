@@ -10,17 +10,15 @@ import 'package:viro_team_v2/features/chat/open_chat_thread.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
-import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
-import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
-import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/widgets/lists/chat_dm_target_list_tile.dart';
 
 /// Timeout max pour les lectures sheet (évite loader infini).
 const _kLoadTimeout = Duration(seconds: 6);
@@ -376,43 +374,16 @@ class _NewConversationSheetState extends ConsumerState<_NewConversationSheet> {
               Flexible(
                 child: ListView(
                   shrinkWrap: true,
-                  children: _targets.map((target) {
-                    final selected = _selected.contains(target.uid);
-                    final member = target.member;
-                    return ViroCard(
-                      margin: const EdgeInsets.only(bottom: ViroSpacing.xs),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: ViroSpacing.sm,
-                        vertical: ViroSpacing.xs,
-                      ),
-                      child: CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: selected,
-                        secondary: member != null
-                            ? MemberAvatar(member: member, size: 40)
-                            : null,
-                        title: Text(
-                          target.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: palette.brandText,
-                          ),
-                        ),
-                        subtitle: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: ViroRoleBadge(
-                              role: viroRoleFromMemberRole(target.role),
-                              compact: true,
-                            ),
-                          ),
-                        ),
+                  children: [
+                    for (final target in _targets)
+                      ChatDmTargetListTile(
+                        label: target.label,
+                        role: target.role,
+                        member: target.member,
+                        selected: _selected.contains(target.uid),
                         onChanged: (value) {
                           setState(() {
-                            if (value == true) {
+                            if (value) {
                               _selected.add(target.uid);
                             } else {
                               _selected.remove(target.uid);
@@ -420,8 +391,7 @@ class _NewConversationSheetState extends ConsumerState<_NewConversationSheet> {
                           });
                         },
                       ),
-                    );
-                  }).toList(),
+                  ],
                 ),
               ),
             const SizedBox(height: ViroSpacing.sm),

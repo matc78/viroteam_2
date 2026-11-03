@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
-import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
-import 'package:viro_team_v2/widgets/common/viro_slide_page.dart';
 import 'package:viro_team_v2/widgets/lists/poll_voter_list_tile.dart';
 
 /// Ouvre l’écran détails des votes d’un sondage (layout type infos groupe).
@@ -19,14 +19,12 @@ Future<void> openPollVotesScreen({
   required String messageId,
   required int participantCount,
 }) {
-  return Navigator.of(context).push<void>(
-    ViroSlideRoute<void>(
-      builder: (_) => PollVotesScreen(
-        clubId: clubId,
-        conversationId: conversationId,
-        messageId: messageId,
-        participantCount: participantCount,
-      ),
+  return context.push<void>(
+    AppRoutes.pollVotesPath(
+      clubId,
+      conversationId,
+      messageId,
+      participantCount: participantCount,
     ),
   );
 }
@@ -65,13 +63,12 @@ class PollVotesScreen extends ConsumerWidget {
           member.accountUid!: member,
     };
 
+    final threadRoute = AppRoutes.conversationPath(clubId, conversationId);
     return ViroScaffold(
+      fallbackRoute: threadRoute,
       appBar: ViroAppBar(
         title: Text(AppCopy.chat.pollDetailsTitle),
-        leading: IconButton(
-          icon: ViroIcon(ViroIcons.chevronLeft, color: palette.brandText),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        fallbackRoute: threadRoute,
       ),
       body: messageAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

@@ -51,6 +51,7 @@ import 'package:viro_team_v2/features/clubs/screens/club_selector_screen.dart';
 import 'package:viro_team_v2/features/home/screens/home_member_screen.dart';
 import 'package:viro_team_v2/features/chat/screens/conversations_screen.dart';
 import 'package:viro_team_v2/features/chat/screens/chat_thread_screen.dart';
+import 'package:viro_team_v2/features/chat/screens/poll_votes_screen.dart';
 import 'package:viro_team_v2/features/chat/chat_thread_open_seed.dart';
 import 'package:viro_team_v2/widgets/common/viro_bubble_expand_page.dart';
 import 'package:viro_team_v2/widgets/common/viro_slide_page.dart';
@@ -157,6 +158,9 @@ abstract final class AppRoutes {
 
   static const conversation = '/conversations/:clubId/:conversationId';
 
+  static const pollVotes =
+      '/conversations/:clubId/:conversationId/polls/:messageId';
+
   static const designPreview = '/dev/design';
 
 
@@ -226,6 +230,19 @@ abstract final class AppRoutes {
 
   static String conversationPath(String clubId, String conversationId) =>
       '/conversations/$clubId/$conversationId';
+
+  /// Détail des votes du sondage [messageId] ; [participantCount] alimente
+  /// le résumé « X sur Y ont voté » (`?participants=`).
+  static String pollVotesPath(
+    String clubId,
+    String conversationId,
+    String messageId, {
+    required int participantCount,
+  }) =>
+      Uri(
+        path: '/conversations/$clubId/$conversationId/polls/$messageId',
+        queryParameters: {'participants': '$participantCount'},
+      ).toString();
 
   /// Écran de mise à jour obligatoire, en mémorisant la route demandée
   /// [from] (`?from=`) pour y revenir si l'exigence est levée.
@@ -692,6 +709,25 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ),
           );
         },
+      ),
+
+      GoRoute(
+        path: AppRoutes.pollVotes,
+        redirect: (context, state) =>
+            FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
+        pageBuilder: (context, state) => ViroSlidePage<void>(
+          key: state.pageKey,
+          name: state.path,
+          child: PollVotesScreen(
+            clubId: state.pathParameters['clubId']!,
+            conversationId: state.pathParameters['conversationId']!,
+            messageId: state.pathParameters['messageId']!,
+            participantCount: int.tryParse(
+                  state.uri.queryParameters['participants'] ?? '',
+                ) ??
+                0,
+          ),
+        ),
       ),
 
       GoRoute(

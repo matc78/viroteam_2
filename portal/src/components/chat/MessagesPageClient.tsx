@@ -7,13 +7,13 @@ import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { ConversationListItem } from "@/components/chat/ConversationListItem";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { useChat } from "@/lib/chat/ChatProvider";
+import { filterInbox } from "@/lib/chat/filterInbox";
 import {
   readableTextOnBrand,
   splitBrandColorHex,
 } from "@/lib/clubSetup/clubBrandColors";
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { chatStateDocId } from "@/lib/firebase/chatTypes";
-import { sortInboxConversations } from "@/lib/firebase/chatService";
 import styles from "./MessagesPageClient.module.css";
 
 type MessagesPageClientProps = {
@@ -76,26 +76,17 @@ export function MessagesPageClient({
     }
   }, [isPanelActive, queryClubId, queryConversationId]);
 
-  const filtered = useMemo(() => {
-    const sorted = sortInboxConversations(conversations, chatStates);
-    const q = query.trim().toLowerCase();
-    if (!q) return sorted;
-    return sorted.filter((conversation) => {
-      const id = chatStateDocId(conversation.clubId, conversation.id);
-      const title = (
-        conversation.titleOverride ||
-        dmPeerNameByKey[id] ||
-        conversation.title ||
-        ""
-      ).toLowerCase();
-      const club = (clubNameById[conversation.clubId] ?? "").toLowerCase();
-      return (
-        title.includes(q) ||
-        club.includes(q) ||
-        conversation.lastMessagePreview.toLowerCase().includes(q)
-      );
-    });
-  }, [conversations, chatStates, query, clubNameById, dmPeerNameByKey]);
+  const filtered = useMemo(
+    () =>
+      filterInbox({
+        conversations,
+        chatStates,
+        query,
+        clubNameById,
+        dmPeerNameByKey,
+      }),
+    [conversations, chatStates, query, clubNameById, dmPeerNameByKey],
+  );
 
   function selectConversation(clubId: string, conversationId: string) {
     setSelectedClubId(clubId);

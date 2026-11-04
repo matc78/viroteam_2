@@ -8,6 +8,7 @@ import { useChatOptional } from "@/lib/chat/ChatProvider";
 import { isMessagesPath } from "@/lib/chat/isMessagesPath";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
 import styles from "./MessagingTile.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 /** Icône bulle messagerie. */
 function ChatIcon() {
@@ -43,10 +44,7 @@ export function MessagingTile() {
   const { totalUnread, messagesHref } = chat;
   const isActive = isMessagesPath(pathname);
   const isPending = pendingHref === messagesHref;
-  const label =
-    totalUnread > 0
-      ? `Messagerie, ${totalUnread} non lu${totalUnread > 1 ? "s" : ""}`
-      : "Messagerie";
+  const label = chatCopy.chatEntryWithUnread(totalUnread);
 
   return (
     <Link
@@ -69,7 +67,7 @@ export function MessagingTile() {
           </span>
         ) : null}
       </span>
-      <span className={styles.label}>Messagerie</span>
+      <span className={styles.label}>{chatCopy.chatEntry}</span>
     </Link>
   );
 }

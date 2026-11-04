@@ -107,6 +107,33 @@
   --shadow-soft: 0 12px 40px color-mix(in srgb, var(--color-primary-900) 8%, transparent);
   --shadow-card: 0 4px 14px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
     0 1px 3px color-mix(in srgb, var(--color-primary-900) 5%, transparent);
+  /*
+   * Messagerie — gabarits communs avec l'app Flutter (px logiques identiques).
+   * La soustraction de l'avatar reste locale (`ChatThreadView.module.css`).
+   */
+  --chat-bubble-radius: 14px;
+  /* Coin de la « queue » de bulle (bas-gauche reçu, bas-droit envoyé). */
+  --chat-bubble-tail-radius: 4px;
+  --chat-bubble-padding-y: 8px;
+  --chat-bubble-padding-x: 12px;
+  --chat-bubble-max-width: 78%;
+  --chat-bubble-max-width-cap: 22rem;
+  --chat-message-gap: 8px;
+  --chat-quote-radius: 8px;
+  --chat-avatar-inbox: 44px;
+  --chat-avatar-header: 36px;
+  --chat-avatar-sender: 28px;
+  --chat-avatar-poll-voter: 22px;
+  --chat-avatar-hero: 88px;
+
+  /* Messagerie — couleurs sans équivalent dans la palette (thème sombre : à redéfinir ici). */
+  --chat-thread-background: #f4f7fa;
+  /* Voile clair posé sur le motif du fil. */
+  --chat-thread-background-wash: rgb(255 255 255 / 62%);
+  --chat-error-text: #b42318;
+  --chat-attach-photos: #3b82f6;
+  --chat-attach-poll: #f59e0b;
+
   --max-width: 72rem;
   --dashboard-max-width: 68rem;
   --header-height: 4.25rem;

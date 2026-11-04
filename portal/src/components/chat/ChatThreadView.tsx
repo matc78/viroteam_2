@@ -48,6 +48,7 @@ import {
 } from "@/lib/firebase/chatTypes";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./ChatThreadView.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ChatThreadViewProps = {
   clubId: string;
@@ -185,7 +186,7 @@ export function ChatThreadView({
             ? participants[0]?.displayName
             : null) || inboxPeerName,
       })
-    : "Discussion";
+    : chatCopy.conversationFallbackTitle;
   const titleShort =
     title.length > 25 ? `${title.slice(0, 25).trimEnd()}…` : title;
   const membersPreview = formatParticipantPreview(participants);
@@ -310,7 +311,7 @@ export function ChatThreadView({
     try {
       await handleChangeAvatar(file);
     } catch {
-      setError("Impossible de changer la photo.");
+      setError(chatCopy.groupAvatarUploadFailed);
     } finally {
       if (avatarMenuInputRef.current) avatarMenuInputRef.current.value = "";
     }
@@ -382,7 +383,7 @@ export function ChatThreadView({
         role="log"
         aria-live="polite"
         aria-relevant="additions"
-        aria-label="Messages"
+        aria-label={chatCopy.messagesLogLabel}
         onDragOver={composer.handleDragOver}
         onDragLeave={composer.handleDragLeave}
         onDrop={(event) => void composer.handleDrop(event)}
@@ -410,13 +411,11 @@ export function ChatThreadView({
               })
             }
           >
-            {thread.loadingOlder ? "Chargement…" : "Charger plus"}
+            {thread.loadingOlder ? chatCopy.loading : chatCopy.loadOlderMessages}
           </button>
         ) : null}
         {thread.threadRows.length === 0 ? (
-          <p className={styles.emptyHint}>
-            Pas encore de messages. Lance-toi.
-          </p>
+          <p className={styles.emptyHint}>{chatCopy.emptyThread}</p>
         ) : (
           thread.threadRows.map((row) => {
             if (row.kind === "date") {
@@ -430,7 +429,9 @@ export function ChatThreadView({
               return (
                 <div key={row.id} className={styles.unreadSeparator}>
                   <span className={styles.unreadSeparatorLine} aria-hidden />
-                  <span className={styles.unreadSeparatorLabel}>nouveau</span>
+                  <span className={styles.unreadSeparatorLabel}>
+                    {chatCopy.unreadSeparatorLabel}
+                  </span>
                   <span className={styles.unreadSeparatorLine} aria-hidden />
                 </div>
               );

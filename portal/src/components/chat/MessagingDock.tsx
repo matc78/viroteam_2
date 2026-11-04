@@ -8,6 +8,7 @@ import { useChat } from "@/lib/chat/ChatProvider";
 import { filterInbox } from "@/lib/chat/filterInbox";
 import { chatStateDocId } from "@/lib/firebase/chatTypes";
 import styles from "./MessagingDock.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type DockPhase = "closed" | "open" | "closing";
 
@@ -80,13 +81,13 @@ export function MessagingDock() {
       <button
         type="button"
         className={styles.collapsedBar}
-        aria-label="Ouvrir la messagerie"
+        aria-label={chatCopy.openMessaging}
         onClick={openFromEdge}
       >
         <span className={styles.chevron} aria-hidden>
           <ChatIcon name="chevronLeft" size={12} />
         </span>
-        <span className={styles.collapsedBarLabel}>Messagerie</span>
+        <span className={styles.collapsedBarLabel}>{chatCopy.chatEntry}</span>
       </button>
     );
   }
@@ -102,18 +103,18 @@ export function MessagingDock() {
   return (
     <aside
       className={dockClassName}
-      aria-label="Messagerie"
+      aria-label={chatCopy.chatEntry}
       onAnimationEnd={finishClose}
     >
       <header className={styles.header}>
-        <h2 className={styles.title}>Messagerie</h2>
+        <h2 className={styles.title}>{chatCopy.chatEntry}</h2>
         <div className={styles.headerActions}>
           {isAdminSomewhere ? (
             <button
               type="button"
               className={styles.iconBtn}
-              aria-label="Créer canal"
-              title="Créer canal"
+              aria-label={chatCopy.createCategoryChannel}
+              title={chatCopy.createCategoryChannel}
               onClick={openCategoryChannel}
             >
               <ChatIcon name="plus" size={18} />
@@ -122,7 +123,7 @@ export function MessagingDock() {
           <button
             type="button"
             className={styles.iconBtn}
-            aria-label="Nouvelle discussion"
+            aria-label={chatCopy.newConversation}
             onClick={openCompose}
           >
             <ChatIcon name="newMessage" size={18} />
@@ -130,7 +131,7 @@ export function MessagingDock() {
           <Link
             href={messagesHref}
             className={styles.iconBtn}
-            aria-label="Ouvrir la messagerie en page"
+            aria-label={chatCopy.openMessagingPage}
             onClick={beginClose}
           >
             <ChatIcon name="openPage" size={16} />
@@ -138,7 +139,7 @@ export function MessagingDock() {
           <button
             type="button"
             className={styles.iconBtn}
-            aria-label="Réduire"
+            aria-label={chatCopy.collapseDock}
             onClick={beginClose}
           >
             <ChatIcon name="chevronRight" size={16} />
@@ -147,7 +148,7 @@ export function MessagingDock() {
             <button
               type="button"
               className={styles.iconBtn}
-              aria-label="Fermer"
+              aria-label={chatCopy.close}
               onClick={beginClose}
             >
               <ChatIcon name="close" size={16} />
@@ -160,28 +161,25 @@ export function MessagingDock() {
         <input
           className={styles.search}
           type="search"
-          placeholder="Rechercher dans les messages"
-          aria-label="Rechercher dans les messages"
+          placeholder={chatCopy.searchConversationsHint}
+          aria-label={chatCopy.searchConversationsHint}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
       <div className={styles.list}>
         {inboxLoading && conversations.length === 0 ? (
-          <p className={styles.empty}>Chargement…</p>
+          <p className={styles.empty}>{chatCopy.loading}</p>
         ) : filtered.length === 0 ? (
           <div className={styles.emptyBlock}>
-            <p className={styles.empty}>Aucune discussion pour l’instant.</p>
-            <p className={styles.emptyHint}>
-              Les chats d’équipe et parents apparaissent dès que ton club est
-              prêt.
-            </p>
+            <p className={styles.empty}>{chatCopy.emptyInbox}</p>
+            <p className={styles.emptyHint}>{chatCopy.emptyInboxHint}</p>
             <button
               type="button"
               className={styles.composeCta}
               onClick={openCompose}
             >
-              Nouvelle discussion
+              {chatCopy.newConversation}
             </button>
           </div>
         ) : (

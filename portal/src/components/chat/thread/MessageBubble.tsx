@@ -17,6 +17,7 @@ import {
   type ChatMessage,
 } from "@/lib/firebase/chatTypes";
 import styles from "../ChatThreadView.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type MessageBubbleProps = {
   message: ChatMessage;
@@ -71,7 +72,9 @@ export function MessageBubble({
     ? peopleByUid.get(message.senderUid)
     : undefined;
   const senderLabel = showSenderMeta
-    ? senderPerson?.displayName?.trim() || senderPerson?.label || "Quelqu’un"
+    ? senderPerson?.displayName?.trim() ||
+      senderPerson?.label ||
+      chatCopy.someone
     : null;
   const timeLabel = deleted ? "" : messageTimeLabel(message);
   const timeIso = deleted ? undefined : message.createdAt.toISOString();
@@ -94,7 +97,9 @@ export function MessageBubble({
         >
           <MemberAvatar
             displayName={
-              senderPerson?.displayName || senderPerson?.label || "Membre"
+              senderPerson?.displayName ||
+              senderPerson?.label ||
+              chatCopy.unknownMember
             }
             avatarUrl={senderPerson?.avatarUrl}
             hasLinkedAccount={senderPerson?.hasLinkedAccount ?? false}
@@ -142,13 +147,13 @@ export function MessageBubble({
             </button>
           ) : null}
           {deleted ? (
-            <p className={styles.deleted}>Message supprimé</p>
+            <p className={styles.deleted}>{chatCopy.messageDeleted}</p>
           ) : message.type === ChatMessageTypes.image ? (
             <div className={styles.imageWrap}>
               <button
                 type="button"
                 className={styles.imageBtn}
-                aria-label="Agrandir la photo"
+                aria-label={chatCopy.enlargePhoto}
                 onClick={(event) => {
                   event.stopPropagation();
                   const fullUrl = message.downloadUrl || message.thumbUrl || "";
@@ -158,7 +163,7 @@ export function MessageBubble({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={message.thumbUrl || message.downloadUrl || ""}
-                  alt="Photo"
+                  alt={chatCopy.photoPreview}
                   className={styles.image}
                   style={
                     message.width && message.height
@@ -180,8 +185,8 @@ export function MessageBubble({
               </p>
               <p className={styles.pollMode}>
                 {message.pollAllowMultiple
-                  ? "Plusieurs réponses possibles"
-                  : "Réponse unique"}
+                  ? chatCopy.pollAllowMultiple
+                  : chatCopy.pollSingleChoice}
               </p>
               <ul className={styles.pollOptions}>
                 {message.pollOptions.map((option) => {
@@ -211,9 +216,7 @@ export function MessageBubble({
               </ul>
               <div className={styles.pollMetaRow}>
                 <p className={styles.pollMeta}>
-                  {pollUniqueVoterCount(message) <= 1
-                    ? `${pollUniqueVoterCount(message)} vote`
-                    : `${pollUniqueVoterCount(message)} votes`}
+                  {chatCopy.pollVotersLabel(pollUniqueVoterCount(message))}
                 </p>
                 <time className={styles.time} dateTime={timeIso}>
                   {timeLabel}
@@ -227,7 +230,7 @@ export function MessageBubble({
                   onOpenPollVotes(message.id);
                 }}
               >
-                Voir les votes
+                {chatCopy.viewVotes}
               </button>
             </div>
           ) : (

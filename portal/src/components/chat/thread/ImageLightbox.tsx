@@ -3,6 +3,7 @@
 import type { RefObject } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
 import styles from "../ChatThreadView.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ImageLightboxProps = {
   overlayRef: RefObject<HTMLDivElement | null>;
@@ -19,19 +20,19 @@ export function ImageLightbox({ overlayRef, url, onClose }: ImageLightboxProps) 
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Photo en plein écran"
+      aria-label={chatCopy.photoFullscreen}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
-        alt="Photo en plein écran"
+        alt={chatCopy.photoFullscreen}
         className={styles.lightboxImage}
         onClick={(event) => event.stopPropagation()}
       />
       <button
         type="button"
         className={styles.lightboxClose}
-        aria-label="Fermer"
+        aria-label={chatCopy.close}
         onClick={onClose}
       >
         <ChatIcon name="close" size={20} />

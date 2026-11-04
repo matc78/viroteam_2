@@ -12,23 +12,12 @@
   gap: 0.45rem;
 }
 
-.composeBtn,
-.categoryBtn {
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 0.5rem 0.9rem;
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
 .composeBtn {
-  background: var(--color-primary-500);
-  color: #fff;
+  composes: actionBtnPrimary from "./chatShared.module.css";
 }
 
 .categoryBtn {
+  composes: actionBtn from "./chatShared.module.css";
   background: var(--color-gray-100);
   color: var(--color-primary-800);
 }
@@ -42,7 +31,7 @@
   border: 1px solid var(--color-gray-200);
   border-radius: 0.85rem;
   overflow: hidden;
-  background: #fff;
+  background: var(--color-surface-card);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary-900) 6%, transparent);
 }
 
@@ -51,22 +40,16 @@
   flex-direction: column;
   min-height: 0;
   border-right: 1px solid var(--color-gray-100);
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .searchRow {
+  composes: searchRow from "./chatShared.module.css";
   padding: 0.65rem 0.75rem;
-  border-bottom: 1px solid var(--color-gray-100);
 }
 
 .search {
-  width: 100%;
-  padding: 0.45rem 0.7rem;
-  border: 1px solid var(--color-gray-200);
-  border-radius: 999px;
-  font: inherit;
-  font-size: 0.82rem;
-  background: var(--color-gray-50, #f8fafc);
+  composes: search from "./chatShared.module.css";
 }
 
 .list {
@@ -76,10 +59,9 @@
 }
 
 .empty {
-  margin: 0;
+  composes: emptyText from "./chatShared.module.css";
   padding: 1.25rem 1rem;
   font-size: 0.85rem;
-  color: var(--color-gray-500);
 }
 
 .threadPane {
@@ -87,9 +69,9 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background-color: #f4f7fa;
+  background-color: var(--chat-thread-background);
   background-image:
-    linear-gradient(rgb(255 255 255 / 62%), rgb(255 255 255 / 62%)),
+    linear-gradient(var(--chat-thread-background-wash), var(--chat-thread-background-wash)),
     url("/chat/thread-bg.png");
   background-repeat: repeat;
   background-position: top left;
@@ -105,20 +87,9 @@
 }
 
 .clubLabel {
-  display: inline-block;
-  margin: 0;
-  padding: 0.08rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  line-height: 1.2;
+  composes: clubLabel from "./chatShared.module.css";
   background: var(--club-brand, var(--color-primary-500));
-  color: var(--club-brand-text, #fff);
-  max-width: 8.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: middle;
+  color: var(--club-brand-text, var(--color-white));
 }
 
 @media (max-width: 900px) {

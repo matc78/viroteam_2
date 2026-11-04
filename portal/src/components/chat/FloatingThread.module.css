@@ -7,7 +7,7 @@
   height: min(34rem, calc(100dvh - var(--header-height, 3.5rem) - 1.5rem));
   border: 1px solid var(--color-gray-200);
   border-radius: 0.85rem;
-  background: #fff;
+  background: var(--color-surface-card);
   box-shadow:
     0 2px 8px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
     0 12px 28px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
@@ -22,20 +22,9 @@
 }
 
 .clubLabel {
-  display: inline-block;
-  margin: 0;
-  padding: 0.08rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  line-height: 1.2;
+  composes: clubLabel from "./chatShared.module.css";
   background: var(--color-primary-500);
-  color: #fff;
-  max-width: 8.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: middle;
+  color: var(--color-white);
 }
 
 @media (max-width: 1100px) {

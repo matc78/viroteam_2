@@ -21,6 +21,7 @@ import {
 import { QUICK_REACTIONS } from "@/components/chat/emojiCatalog";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import styles from "./MessageReactions.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 /** Profil affiché dans le détail des réactions. */
 export type ReactionPerson = {
@@ -77,7 +78,7 @@ export function MessageReactionsBar({
         <button
           type="button"
           className={styles.chipGroup}
-          aria-label={`${totalReactionCount(entries)} réaction${totalReactionCount(entries) > 1 ? "s" : ""}`}
+          aria-label={chatCopy.reactionCountLabel(totalReactionCount(entries))}
           onClick={(event) => {
             event.stopPropagation();
             setDetailsOpen(true);
@@ -144,7 +145,7 @@ export function ReactionQuickBar({ onPick }: ReactionQuickBarProps) {
   }
 
   return (
-    <div className={styles.quickBar} role="toolbar" aria-label="Réagir">
+    <div className={styles.quickBar} role="toolbar" aria-label={chatCopy.reactions}>
       {QUICK_REACTIONS.map(({ emoji, unified }) => (
         <button
           key={unified}
@@ -159,7 +160,7 @@ export function ReactionQuickBar({ onPick }: ReactionQuickBarProps) {
       <button
         type="button"
         className={styles.quickMoreBtn}
-        aria-label="Plus d’émojis"
+        aria-label={chatCopy.moreEmojis}
         onClick={() => setExpanded(true)}
       >
         <AppleEmoji emoji="1f642" size={18} />
@@ -286,13 +287,13 @@ function ReactionDetailsPanel({
       >
         <div className={styles.detailsTop}>
           <p id={titleId} className={styles.detailsTitle}>
-            {total <= 1 ? "1 réaction" : `${total} réactions`}
+            {chatCopy.reactionCountLabel(total)}
           </p>
           <div className={styles.detailsFilters}>
             <button
               type="button"
               className={styles.addReactionBtn}
-              aria-label="Ajouter une réaction"
+              aria-label={chatCopy.addReaction}
               aria-expanded={picking}
               onClick={() => setPicking((open) => !open)}
             >
@@ -337,7 +338,9 @@ function ReactionDetailsPanel({
           {rows.map(({ uid, emoji }) => {
             const person = peopleByUid.get(uid);
             const mine = Boolean(myUid && uid === myUid);
-            const label = mine ? "Vous" : (person?.label ?? "Membre");
+            const label = mine
+              ? chatCopy.you
+              : (person?.label ?? chatCopy.unknownMember);
             const displayName = person?.displayName || label;
             return (
               <li key={`${uid}-${emoji}`}>
@@ -362,7 +365,7 @@ function ReactionDetailsPanel({
                     <span className={styles.reactorName}>{label}</span>
                     {mine ? (
                       <span className={styles.reactorHint}>
-                        Clique pour supprimer
+                        {chatCopy.reactionRemoveMine}
                       </span>
                     ) : null}
                   </span>

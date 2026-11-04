@@ -13,6 +13,7 @@ import {
 import { rosterContains, viewerMatchIds } from "@/lib/teams/viewerTeamScope";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./ComposeConversationDialog.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type TargetOption = {
   uid: string;
@@ -141,7 +142,7 @@ export function ComposeConversationDialog() {
 
         setTargets(options);
       } catch {
-        if (!cancelled) setError("Impossible de charger les contacts.");
+        if (!cancelled) setError(chatCopy.targetsLoadFailed);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -174,7 +175,7 @@ export function ComposeConversationDialog() {
       openThread({ clubId, conversationId });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Impossible de démarrer la discussion.",
+        err instanceof Error ? err.message : chatCopy.startChatFailed,
       );
     } finally {
       setBusy(false);
@@ -194,18 +195,16 @@ export function ComposeConversationDialog() {
       <div className={styles.panel}>
         <header className={styles.header}>
           <div>
-            <p className={styles.eyebrow}>Messagerie</p>
+            <p className={styles.eyebrow}>{chatCopy.chatEntry}</p>
             <h3 id="compose-conversation-title" className={styles.title}>
-              Nouvelle discussion
+              {chatCopy.newConversation}
             </h3>
-            <p className={styles.hint}>
-              Tu peux écrire à tes coaches ou à un admin du club.
-            </p>
+            <p className={styles.hint}>{chatCopy.newConversationHint}</p>
           </div>
           <button
             type="button"
             className={styles.close}
-            aria-label="Fermer"
+            aria-label={chatCopy.close}
             onClick={closeCompose}
           >
             ×
@@ -213,7 +212,7 @@ export function ComposeConversationDialog() {
         </header>
 
         <label className={styles.label}>
-          Club
+          {chatCopy.clubLabel}
           <select
             className={styles.select}
             value={clubId}
@@ -227,12 +226,12 @@ export function ComposeConversationDialog() {
           </select>
         </label>
 
-        <p className={styles.sectionTitle}>Choisir qui contacter</p>
+        <p className={styles.sectionTitle}>{chatCopy.pickTargets}</p>
         <div className={styles.list}>
           {loading ? (
-            <p className={styles.empty}>Chargement…</p>
+            <p className={styles.empty}>{chatCopy.loading}</p>
           ) : targets.length === 0 ? (
-            <p className={styles.empty}>Aucun coach ou admin disponible.</p>
+            <p className={styles.empty}>{chatCopy.noTargets}</p>
           ) : (
             targets.map((target) => (
               <label key={target.uid} className={styles.row}>
@@ -260,7 +259,7 @@ export function ComposeConversationDialog() {
             className={styles.secondary}
             onClick={closeCompose}
           >
-            Annuler
+            {chatCopy.cancel}
           </button>
           <button
             type="button"
@@ -268,7 +267,7 @@ export function ComposeConversationDialog() {
             disabled={busy || selected.size === 0}
             onClick={() => void handleStart()}
           >
-            {busy ? "Ouverture…" : "Démarrer"}
+            {busy ? chatCopy.startingChat : chatCopy.startChat}
           </button>
         </div>
       </div>

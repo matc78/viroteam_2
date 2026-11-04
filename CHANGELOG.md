@@ -14,6 +14,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Messagerie (masquée) : tokens communs avec le portail (`ViroChat` ↔ `--chat-*`), un seul avatar de conversation (`ViroConversationAvatar`) pour l’inbox, l’en-tête du fil et la fiche, bulles de sondage alignées sur les messages (78 % de large, mêmes marges). « Vous » devient « Toi » et les états vides de l’inbox et du fil affichent une ligne d’aide
 - Messagerie (masquée), sans changement visuel : l’état du fil (historique, envois optimistes et relance, non-lus) passe dans un contrôleur Riverpod par conversation (`chatThreadControllerProvider`) et les trois chemins d’envoi (texte, photo, relance) dans `ChatService.sendPendingMessage`. Le détail des votes d’un sondage devient une route go_router (`/conversations/:clubId/:conversationId/polls/:messageId`) avec retour vers le fil. Nouvelles tuiles `ChatReactorListTile`, `ChatDmTargetListTile`, `ChatMediaListTile` et premiers tests du chat (helpers du fil, tri de l’inbox, extraction des médias, tuiles)
 
 ### Corrigé

@@ -10,6 +10,7 @@ import { ChatIcon } from "@/components/chat/ChatIcons";
 import { replyPreviewText } from "@/lib/chat/threadMessages";
 import type { ChatMessage } from "@/lib/firebase/chatTypes";
 import styles from "../ChatThreadView.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ComposerProps = {
   draft: string;
@@ -62,7 +63,7 @@ export function Composer({
       {replyTarget ? (
         <div className={styles.replyBanner}>
           <div className={styles.replyBannerText}>
-            <span className={styles.replyBannerLabel}>Réponse à</span>
+            <span className={styles.replyBannerLabel}>{chatCopy.replyTo}</span>
             <span className={styles.replyBannerQuote}>
               {replyAuthorLabel(replyTarget.senderUid)} ·{" "}
               {replyPreviewText(replyTarget)}
@@ -71,7 +72,7 @@ export function Composer({
           <button
             type="button"
             className={styles.replyBannerClose}
-            aria-label="Annuler la réponse"
+            aria-label={chatCopy.cancelReply}
             onClick={onCancelReply}
           >
             <ChatIcon name="close" size={14} />
@@ -97,7 +98,7 @@ export function Composer({
           <button
             type="button"
             className={`${styles.plusBtn}${attachOpen ? ` ${styles.plusBtnOpen}` : ""}`}
-            aria-label="Ajouter"
+            aria-label={chatCopy.attachAdd}
             aria-expanded={attachOpen}
             aria-haspopup="menu"
             disabled={busy}
@@ -120,7 +121,7 @@ export function Composer({
                 >
                   <ChatIcon name="image" size={13} />
                 </span>
-                Photos
+                {chatCopy.attachPhotos}
               </button>
               {canPoll ? (
                 <button
@@ -136,7 +137,7 @@ export function Composer({
                   >
                     <ChatIcon name="poll" size={13} />
                   </span>
-                  Faire un sondage
+                  {chatCopy.createPoll}
                 </button>
               ) : null}
             </div>
@@ -154,7 +155,7 @@ export function Composer({
               onSend();
             }
           }}
-          placeholder="Écrire un message…"
+          placeholder={chatCopy.messageHint}
           disabled={busy}
         />
         <button
@@ -162,7 +163,7 @@ export function Composer({
           className={styles.sendBtn}
           disabled={busy || !draft.trim()}
         >
-          Envoyer
+          {chatCopy.send}
         </button>
       </div>
     </form>

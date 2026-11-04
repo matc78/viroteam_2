@@ -6,7 +6,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 
 /// Ligne « qui a réagi » du popup de réactions (avatar + nom + emoji).
 ///
-/// [mine] : réaction du viewer, affichée « Vous » et retirable au tap.
+/// [mine] : réaction du viewer, affichée « Toi » et retirable au tap.
 class ChatReactorListTile extends StatelessWidget {
   const ChatReactorListTile({
     super.key,
@@ -47,7 +47,7 @@ class ChatReactorListTile extends StatelessWidget {
   }
 }
 
-/// Avatar : photo si dispo, sinon initiale du prénom (jamais celle de « Vous »).
+/// Avatar : photo si dispo, sinon initiale du prénom (jamais celle de « Toi »).
 class _ReactorAvatar extends StatelessWidget {
   const _ReactorAvatar({required this.member, required this.firstName});
 

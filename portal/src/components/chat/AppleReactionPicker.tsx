@@ -9,10 +9,11 @@ import {
 import frEmojiData from "emoji-picker-react/dist/data/emojis-fr";
 import { QUICK_REACTION_UNIFIED } from "@/components/chat/emojiCatalog";
 import styles from "./AppleReactionPicker.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
-  loading: () => <div className={styles.loading}>Chargement des émojis…</div>,
+  loading: () => <div className={styles.loading}>{chatCopy.emojiLoading}</div>,
 });
 
 type AppleReactionPickerProps = {
@@ -51,7 +52,7 @@ export function AppleReactionPicker({
         theme={Theme.LIGHT}
         emojiData={frEmojiData}
         lazyLoadEmojis
-        searchPlaceholder="Rechercher un emoji"
+        searchPlaceholder={chatCopy.emojiSearchHint}
         previewConfig={{ showPreview: false }}
         skinTonesDisabled={false}
         onReactionClick={handlePick}

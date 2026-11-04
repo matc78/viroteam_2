@@ -37,7 +37,7 @@
   gap: 0.2rem;
   border: 1px solid var(--color-gray-200);
   border-radius: 999px;
-  background: #fff;
+  background: var(--color-surface-card);
   padding: 0.08rem 0.38rem;
   font-size: 0.92rem;
   line-height: 1.25;
@@ -62,7 +62,7 @@
   align-items: center;
   gap: 0.15rem;
   padding: 0.35rem 0.45rem;
-  background: #fff;
+  background: var(--color-surface-card);
   border-radius: 999px;
   border: 1px solid var(--color-gray-200);
   box-shadow:
@@ -87,7 +87,7 @@
 }
 
 .quickEmojiBtn:hover {
-  background: var(--color-gray-50, #f8fafc);
+  background: var(--color-gray-50);
 }
 
 .quickEmojiImg {
@@ -103,7 +103,7 @@
   height: 2.15rem;
   border-radius: 999px;
   border: 1.5px solid var(--color-gray-200);
-  background: var(--color-gray-50, #f8fafc);
+  background: var(--color-gray-50);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -125,13 +125,13 @@
   width: 0.9rem;
   height: 0.9rem;
   border-radius: 999px;
-  background: var(--color-primary-600, #134a7d);
-  color: #fff;
+  background: var(--color-primary-600);
+  color: var(--color-white);
   font-size: 0.65rem;
   font-weight: 800;
   line-height: 0.9rem;
   text-align: center;
-  border: 1.5px solid #fff;
+  border: 1.5px solid var(--color-surface-card);
 }
 
 .quickExpanded {
@@ -149,7 +149,7 @@
   position: fixed;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--color-surface-card);
   border-radius: 0.95rem;
   box-shadow:
     0 6px 18px color-mix(in srgb, var(--color-primary-900) 16%, transparent),
@@ -167,7 +167,7 @@
   margin: 0 0 0.65rem;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--color-gray-900, #111827);
+  color: var(--color-gray-900);
 }
 
 .detailsFilters {
@@ -183,7 +183,7 @@
   height: 2.35rem;
   border-radius: 999px;
   border: 1.5px solid var(--color-gray-200);
-  background: #fff;
+  background: var(--color-surface-card);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -205,13 +205,13 @@
   width: 0.95rem;
   height: 0.95rem;
   border-radius: 999px;
-  background: var(--color-primary-600, #134a7d);
-  color: #fff;
+  background: var(--color-primary-600);
+  color: var(--color-white);
   font-size: 0.7rem;
   font-weight: 800;
   line-height: 0.95rem;
   text-align: center;
-  border: 1.5px solid #fff;
+  border: 1.5px solid var(--color-surface-card);
 }
 
 .filterChip {
@@ -230,7 +230,7 @@
 }
 
 .filterChipActive {
-  background: color-mix(in srgb, var(--color-primary-500) 18%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 18%, var(--color-surface-card));
   color: var(--color-primary-800);
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-primary-500) 45%, transparent);
 }
@@ -272,7 +272,7 @@
 }
 
 .reactorRow:not(:disabled):hover {
-  background: var(--color-gray-50, #f8fafc);
+  background: var(--color-gray-50);
 }
 
 .reactorText {
@@ -286,7 +286,7 @@
 .reactorName {
   font-size: 0.9rem;
   font-weight: 700;
-  color: var(--color-gray-900, #111827);
+  color: var(--color-gray-900);
 }
 
 .reactorHint {

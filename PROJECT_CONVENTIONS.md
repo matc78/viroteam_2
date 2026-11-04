@@ -91,6 +91,13 @@ Scaffold(
 | Bouton icône / FAB | `ViroFloatingIconButton`, `ViroFloatingActionButton` |
 | Tap avec animation | `ViroPressable` |
 | Bouton pleine largeur | `ElevatedButton` / `OutlinedButton` (thème) |
+| Avatar de conversation (DM, groupe, canal) | `ViroConversationAvatar` (tailles `ViroChat.avatar*`) |
+
+### Messagerie : tokens partagés app ↔ portail
+
+- Dimensions du chat (rayons et marges de bulle, largeur max 78 %, écart entre messages, rayon de citation, tailles d’avatar) → **`ViroChat`** (`lib/config/viro_chat.dart`) dans l’app, variables **`--chat-*`** (`portal/src/app/globals.css`) dans le portail. Mêmes noms, mêmes valeurs : toute nouvelle valeur est ajoutée des deux côtés.
+- Fond du fil : `ViroChat.threadBackgroundAsset` (app), `--chat-thread-background` (portail).
+- Portail : pas d’hexa en dur dans les modules CSS du chat (variables `--color-*` / `--chat-*`, vérifié par `cssColorTokens.test.ts`) ; briques communes (`iconBtn`, `search`, dialogues…) dans `chatShared.module.css` via `composes:` ; textes dans `src/lib/copy/chatCopy.ts`, mêmes clés que `app_copy_chat.dart` quand le sens est le même.
 
 ### Motion & ombres
 

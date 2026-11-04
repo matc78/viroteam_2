@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -96,7 +97,7 @@ class ChatThreadMessageTile extends StatelessWidget {
     final hasReactionChips = !isPollBubble &&
         !message.isDeleted &&
         message.reactions.values.any((uids) => uids.isNotEmpty);
-    const senderAvatarSize = 28.0;
+    const senderAvatarSize = ViroChat.avatarSender;
     final avatarBottomPad = hasReactionChips ? 20.0 : 4.0;
 
     late final Widget bubble;

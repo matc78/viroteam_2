@@ -25,6 +25,7 @@ import {
 import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import styles from "./ConversationListItem.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ConversationListItemProps = {
   conversation: ChatConversation;
@@ -104,14 +105,15 @@ export function ConversationListItem({
     previewSenderByKey,
   );
   const previewText = conversation.lastMessagePreview.trim();
-  const unreadPreviewLabel =
-    unread <= 1 ? `${unread} nouveau message` : `${unread} nouveaux messages`;
+  const unreadPreviewLabel = chatCopy.unreadPreview(unread);
 
   let previewContent: ReactNode;
   if (unread > 0) {
     previewContent = unreadPreviewLabel;
   } else if (!previewText) {
-    previewContent = <span className={styles.previewEmpty}>Aucun message</span>;
+    previewContent = (
+      <span className={styles.previewEmpty}>{chatCopy.emptyPreview}</span>
+    );
   } else if (isGroup && previewSender) {
     previewContent = (
       <>
@@ -169,7 +171,7 @@ export function ConversationListItem({
           className={styles.avatar}
           style={
             {
-              background: `color-mix(in srgb, ${brand} 35%, white)`,
+              background: `color-mix(in srgb, ${brand} 35%, var(--color-surface-card))`,
               color: brand,
             } as CSSProperties
           }
@@ -182,7 +184,7 @@ export function ConversationListItem({
         <span className={styles.topRow}>
           <span className={styles.title}>
             {favorite ? (
-              <span className={styles.favMark} aria-label="Favori">
+              <span className={styles.favMark} aria-label={chatCopy.favoriteMark}>
                 <ChatIcon name="favoriteFill" size={12} />
               </span>
             ) : null}
@@ -205,7 +207,7 @@ export function ConversationListItem({
             <RoleBadge role={clubRole} size="sm" iconOnly />
           ) : null}
           {muted ? (
-            <span className={styles.muteMark} aria-label="Notifications coupées">
+            <span className={styles.muteMark} aria-label={chatCopy.mutedNotifications}>
               <ChatIcon name="mute" size={12} />
             </span>
           ) : null}
@@ -227,7 +229,7 @@ export function ConversationListItem({
     {photoLightboxOpen && groupAvatarUrl ? (
       <AvatarLightbox
         src={groupAvatarUrl}
-        alt={`Photo de ${title}`}
+        alt={chatCopy.photoOfAlt(title)}
         onClose={() => setPhotoLightboxOpen(false)}
       />
     ) : null}

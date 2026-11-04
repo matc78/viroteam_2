@@ -15,6 +15,7 @@ import {
   type ChatConversation,
   type ChatParticipantProfile,
 } from "@/lib/firebase/chatTypes";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 /**
  * Participants du fil : pré-remplis depuis les profils dénormalisés et les
@@ -156,10 +157,12 @@ export function useThreadParticipants(params: {
 
   /** Prénom affiché pour l’auteur d’un message cité (« Toi » pour le viewer). */
   function replyAuthorLabel(senderUid: string | null | undefined): string {
-    if (!senderUid) return "Quelqu’un";
-    if (senderUid === viewerUid) return "Toi";
+    if (!senderUid) return chatCopy.someone;
+    if (senderUid === viewerUid) return chatCopy.replyAuthorSelf;
     const participant = allParticipants.find((person) => person.uid === senderUid);
-    return participant ? participantFirstName(participant) : "Quelqu’un";
+    return participant
+      ? participantFirstName(participant)
+      : chatCopy.someone;
   }
 
   return {

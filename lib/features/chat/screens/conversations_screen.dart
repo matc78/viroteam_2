@@ -166,6 +166,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
               if (conversations.isEmpty) {
                 return ViroEmptyState(
                   message: AppCopy.chat.emptyInbox,
+                  hint: AppCopy.chat.emptyInboxHint,
                   icon: ViroIcons.chat,
                   actionLabel: AppCopy.chat.newConversation,
                   onAction: () => showNewConversationSheet(context, ref),

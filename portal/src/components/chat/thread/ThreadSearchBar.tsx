@@ -1,6 +1,7 @@
 "use client";
 
 import styles from "../ChatThreadView.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ThreadSearchBarProps = {
   query: string;
@@ -21,18 +22,18 @@ export function ThreadSearchBar({
       <input
         className={styles.searchInput}
         type="search"
-        placeholder="Rechercher dans la discussion"
+        placeholder={chatCopy.searchMessagesHint}
         value={query}
         autoFocus
         onChange={(event) => onQueryChange(event.target.value)}
       />
       <span className={styles.searchMeta}>
         {query.trim()
-          ? `${matchCount} résultat${matchCount > 1 ? "s" : ""}`
+          ? chatCopy.searchResultsCount(matchCount)
           : ""}
       </span>
       <button type="button" className={styles.searchClose} onClick={onClose}>
-        Fermer
+        {chatCopy.close}
       </button>
     </div>
   );

@@ -11,12 +11,16 @@ class ViroEmptyState extends StatelessWidget {
   const ViroEmptyState({
     super.key,
     required this.message,
+    this.hint,
     this.icon,
     this.actionLabel,
     this.onAction,
   });
 
   final String message;
+
+  /// Ligne d’aide sous [message] (ce qui va se passer, quoi faire).
+  final String? hint;
   final IconData? icon;
   final String? actionLabel;
   final VoidCallback? onAction;
@@ -41,6 +45,16 @@ class ViroEmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: theme.bodyLarge?.copyWith(color: context.viroPalette.textSecondary),
             ),
+            if (hint != null) ...[
+              const SizedBox(height: ViroSpacing.xs),
+              Text(
+                hint!,
+                textAlign: TextAlign.center,
+                style: theme.bodyMedium?.copyWith(
+                  color: context.viroPalette.textMuted,
+                ),
+              ),
+            ],
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: ViroSpacing.lg),
               ViroPrimaryButton(label: actionLabel!, onPressed: onAction),

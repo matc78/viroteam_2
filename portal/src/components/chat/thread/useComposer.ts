@@ -16,6 +16,7 @@ import {
   sendTextMessage,
 } from "@/lib/firebase/chatService";
 import type { ChatMessage } from "@/lib/firebase/chatTypes";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 /** Sondage saisi dans `CreatePollSheet`. */
 type PollDraft = {
@@ -103,7 +104,7 @@ export function useComposer(params: {
       setReplyTarget(null);
     } catch {
       onSendFailed();
-      setError("Envoi de la photo impossible.");
+      setError(chatCopy.photoFailed);
     } finally {
       setBusy(false);
     }
@@ -136,8 +137,8 @@ export function useComposer(params: {
       const detail =
         err instanceof Error && err.message.trim()
           ? err.message.trim()
-          : "erreur inconnue";
-      setError(`Envoi impossible. (${detail})`);
+          : chatCopy.unknownError;
+      setError(chatCopy.sendFailedWithDetail(detail));
     } finally {
       setBusy(false);
     }

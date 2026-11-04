@@ -5,6 +5,7 @@ import { useChat } from "@/lib/chat/ChatProvider";
 import { chatStateDocId, type ChatThreadKey } from "@/lib/firebase/chatTypes";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./FloatingThread.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type FloatingThreadProps = {
   thread: ChatThreadKey;
@@ -30,7 +31,7 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
       className={styles.window}
       role="dialog"
       aria-modal="true"
-      aria-label="Conversation"
+      aria-label={chatCopy.floatingThreadLabel}
     >
       <ChatThreadView
         key={`${thread.clubId}-${thread.conversationId}`}

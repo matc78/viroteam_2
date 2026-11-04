@@ -96,7 +96,7 @@ final class AppCopyChat {
   String get channelOptionsParentsHint => 'Équipes avec joueurs';
   String parentsOfTeamLabel(String teamName) => 'Parents · $teamName';
   String get channelTitleHint => 'Titre affiché';
-  String get you => 'Vous';
+  String get you => 'Toi';
   String get loadError => 'Impossible de charger les discussions.';
 
   String get attachAdd => 'Ajouter';

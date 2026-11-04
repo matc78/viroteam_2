@@ -8,6 +8,7 @@ import { ReactionQuickBar } from "@/components/chat/MessageReactions";
 import { ChatMessageTypes } from "@/lib/firebase/constants";
 import type { ChatMessage } from "@/lib/firebase/chatTypes";
 import styles from "../ChatThreadView.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type MessageActionsPopoverProps = {
   message: ChatMessage;
@@ -49,7 +50,7 @@ export function MessageActionsPopover({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Actions du message"
+      aria-label={chatCopy.messageActions}
     >
       {layout ? (
         <div
@@ -76,7 +77,7 @@ export function MessageActionsPopover({
                 onClick={onReply}
               >
                 <ChatIcon name="reply" size={18} />
-                Répondre
+                {chatCopy.reply}
               </button>
             ) : null}
             {message.type === ChatMessageTypes.text &&
@@ -87,7 +88,7 @@ export function MessageActionsPopover({
                 onClick={onCopy}
               >
                 <ChatIcon name="copy" size={18} />
-                Copier
+                {chatCopy.copyMessage}
               </button>
             ) : null}
             {mine && message.type === ChatMessageTypes.text ? (
@@ -97,7 +98,7 @@ export function MessageActionsPopover({
                 onClick={onEdit}
               >
                 <ChatIcon name="edit" size={18} />
-                Modifier
+                {chatCopy.editMessage}
               </button>
             ) : null}
             {mine ? (
@@ -107,7 +108,7 @@ export function MessageActionsPopover({
                 onClick={onDelete}
               >
                 <ChatIcon name="trash" size={18} />
-                Supprimer
+                {chatCopy.deleteMessage}
               </button>
             ) : null}
           </div>

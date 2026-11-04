@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
 import infoStyles from "./ConversationInfoPanel.module.css";
 import styles from "./CreatePollSheet.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type CreatePollSheetProps = {
   onClose: () => void;
@@ -25,7 +26,7 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
   async function handleSubmit() {
     const trimmedOptions = options.map((o) => o.trim()).filter(Boolean);
     if (!question.trim() || trimmedOptions.length < 2) {
-      setError("Ajoute au moins 2 options.");
+      setError(chatCopy.pollNeedOptions);
       return;
     }
     setBusy(true);
@@ -37,38 +38,38 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
         allowMultiple,
       });
     } catch {
-      setError("Impossible de créer le sondage.");
+      setError(chatCopy.pollFailed);
       setBusy(false);
     }
   }
 
   return (
-    <aside className={infoStyles.panel} aria-label="Créer un sondage">
+    <aside className={infoStyles.panel} aria-label={chatCopy.createPollLabel}>
       <header className={infoStyles.header}>
         <button
           type="button"
           className={infoStyles.headerIconBtn}
-          aria-label="Fermer"
+          aria-label={chatCopy.close}
           onClick={onClose}
         >
           <ChatIcon name="close" size={20} />
         </button>
-        <h2 className={infoStyles.headerTitle}>Sondage</h2>
+        <h2 className={infoStyles.headerTitle}>{chatCopy.pollLabel}</h2>
       </header>
 
       <div className={`${infoStyles.scrollBody} ${styles.form}`}>
         <label className={styles.label}>
-          Question
+          {chatCopy.pollQuestionLabel}
           <input
             className={styles.input}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ex. Qui amène les ballons ?"
+            placeholder={chatCopy.pollQuestionHint}
           />
         </label>
         {options.map((option, index) => (
           <label key={index} className={styles.label}>
-            Option {index + 1}
+            {chatCopy.pollOptionLabel(index + 1)}
             <input
               className={styles.input}
               value={option}
@@ -86,7 +87,7 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
             className={styles.secondary}
             onClick={() => setOptions([...options, ""])}
           >
-            Ajouter une option
+            {chatCopy.pollAddOption}
           </button>
         ) : null}
         <label className={styles.check}>
@@ -95,7 +96,7 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
             checked={allowMultiple}
             onChange={(e) => setAllowMultiple(e.target.checked)}
           />
-          Plusieurs réponses possibles
+          {chatCopy.pollAllowMultiple}
         </label>
         {error ? <p className={styles.error}>{error}</p> : null}
         <button
@@ -104,7 +105,7 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
           disabled={busy}
           onClick={() => void handleSubmit()}
         >
-          {busy ? "Envoi…" : "Envoyer le sondage"}
+          {busy ? chatCopy.pollSending : chatCopy.pollSend}
         </button>
       </div>
     </aside>

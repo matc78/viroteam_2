@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -229,7 +230,7 @@ class _AttachMenuCard extends StatelessWidget {
         padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
           color: palette.surfaceCard,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(ViroChat.attachMenuRadius),
           border: Border.all(color: palette.border),
           boxShadow: ViroMotion.floatingShadow(palette,
             opacity: 0.1,
@@ -291,7 +292,7 @@ class _AttachMenuItem extends StatelessWidget {
       onTap: onTap,
       floating: false,
       minSize: 36,
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(ViroChat.attachMenuItemRadius),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: 7,
@@ -315,7 +316,7 @@ class _AttachMenuItem extends StatelessWidget {
               style: theme.labelLarge?.copyWith(
                 color: palette.brandStrong,
                 fontWeight: FontWeight.w600,
-                fontSize: 12.5,
+                fontSize: ViroChat.attachMenuLabelSize,
               ),
             ),
           ],

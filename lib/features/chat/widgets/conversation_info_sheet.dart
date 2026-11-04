@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -11,6 +11,7 @@ import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/utils/linkify_message_text.dart';
+import 'package:viro_team_v2/widgets/common/viro_conversation_avatar.dart';
 import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
 import 'package:viro_team_v2/widgets/lists/chat_media_list_tile.dart';
 import 'package:viro_team_v2/widgets/lists/poll_voter_list_tile.dart';
@@ -111,14 +112,17 @@ Future<void> showConversationInfoSheet({
                   Padding(
                     padding: const EdgeInsets.only(bottom: ViroSpacing.md),
                     child: Center(
-                      child: _GroupInfoAvatar(
+                      child: ViroConversationAvatar(
+                        size: ViroChat.avatarHero,
+                        color: palette.accent,
                         photoUrl: hasGroupPhoto ? groupPhoto : null,
+                        isGroup: true,
                         isChannel: conversation.isReadonlyForMembers,
                         groupBackground: colorForConversationGroupAvatarTone(
                           conversation.groupAvatarTone,
                           palette: palette,
                         ),
-                        canEdit: canEditAvatar,
+                        showEditBadge: canEditAvatar,
                         onTap: hasGroupPhoto || canEditAvatar
                             ? () {
                                 if (hasGroupPhoto) {
@@ -303,101 +307,6 @@ Future<void> showConversationInfoSheet({
       );
     },
   );
-}
-
-/// Avatar hero du sheet infos (groupe / canal).
-class _GroupInfoAvatar extends StatelessWidget {
-  const _GroupInfoAvatar({
-    required this.isChannel,
-    required this.groupBackground,
-    required this.canEdit,
-    this.photoUrl,
-    this.onTap,
-  });
-
-  final String? photoUrl;
-  final bool isChannel;
-  final Color groupBackground;
-  final bool canEdit;
-  final VoidCallback? onTap;
-
-  static const double _size = 88;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.viroPalette;
-    final trimmed = photoUrl?.trim();
-    final hasPhoto = trimmed != null && trimmed.isNotEmpty;
-    final Widget child;
-    if (hasPhoto) {
-      child = ClipOval(
-        child: Image.network(
-          trimmed,
-          width: _size,
-          height: _size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallbackIcon(),
-        ),
-      );
-    } else {
-      child = _fallbackIcon();
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap ??
-            (hasPhoto
-                ? () {
-                    showViroImageLightbox(
-                      context,
-                      imageUrl: trimmed,
-                      shape: ViroImageLightboxShape.circle,
-                    );
-                  }
-                : null),
-        customBorder: const CircleBorder(),
-        child: Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            child,
-            if (canEdit)
-              Container(
-                width: 28,
-                height: 28,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: palette.accentFill,
-                  shape: BoxShape.circle,
-                ),
-                child: ViroIcon(
-                  ViroIcons.camera,
-                  size: 14,
-                  color: palette.onAccent,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _fallbackIcon() {
-    return Container(
-      width: _size,
-      height: _size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: groupBackground,
-        shape: BoxShape.circle,
-      ),
-      child: ViroIcon(
-        isChannel ? ViroIcons.megaphone : ViroIcons.groups,
-        size: 36,
-        color: ViroColors.white,
-      ),
-    );
-  }
 }
 
 String _memberDisplayName(ClubMember member) {

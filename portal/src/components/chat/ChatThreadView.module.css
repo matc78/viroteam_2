@@ -5,7 +5,7 @@
   align-items: stretch;
   min-height: 0;
   height: 100%;
-  background: #fff;
+  background: var(--color-surface-card);
   overflow: hidden;
 }
 
@@ -20,7 +20,7 @@
   min-width: 0;
   min-height: 0;
   height: 100%;
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .rootWithInfo .chatColumn {
@@ -34,7 +34,7 @@
   gap: 0.5rem;
   padding: 0.7rem 0.85rem;
   border-bottom: 1px solid var(--color-gray-100);
-  background: color-mix(in srgb, var(--color-primary-500) 5%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 5%, var(--color-surface-card));
 }
 
 .headerMain {
@@ -82,9 +82,8 @@
 }
 
 .favMark {
+  composes: favMark from "./chatShared.module.css";
   flex-shrink: 0;
-  display: inline-flex;
-  color: var(--color-sport-orange, #e85d04);
 }
 
 .membersPreview {
@@ -111,7 +110,7 @@
   gap: 0.5rem;
   padding: 0.55rem 0.75rem;
   border-bottom: 1px solid var(--color-gray-100);
-  background: #fff;
+  background: var(--color-surface-card);
   flex-shrink: 0;
 }
 
@@ -142,7 +141,7 @@
 }
 
 .bubbleRowMatch .bubble {
-  outline: 2px solid color-mix(in srgb, var(--color-primary-500) 45%, white);
+  outline: 2px solid color-mix(in srgb, var(--color-primary-500) 45%, var(--color-surface-card));
 }
 
 .text :global(.chatLink) {
@@ -160,21 +159,10 @@
 }
 
 .iconBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: iconBtn from "./chatShared.module.css";
   width: 1.85rem;
   height: 1.85rem;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-primary-600);
-  cursor: pointer;
   font-size: 1rem;
-}
-
-.iconBtn:hover {
-  background: var(--color-gray-100);
 }
 
 .menuWrap {
@@ -192,7 +180,7 @@
   padding: 0.35rem;
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--color-surface-card);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
 }
 
@@ -217,15 +205,15 @@
 }
 
 .menu button:hover {
-  background: var(--color-gray-50, #f8fafc);
+  background: var(--color-gray-50);
 }
 
 .menu button.danger {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
 }
 
 .menu button.danger svg {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
 }
 
 .messages {
@@ -235,10 +223,10 @@
   padding: 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  background-color: #f4f7fa;
+  gap: var(--chat-message-gap);
+  background-color: var(--chat-thread-background);
   background-image:
-    linear-gradient(rgb(255 255 255 / 62%), rgb(255 255 255 / 62%)),
+    linear-gradient(var(--chat-thread-background-wash), var(--chat-thread-background-wash)),
     url("/chat/thread-bg.png");
   background-repeat: repeat;
   background-position: top left;
@@ -255,7 +243,7 @@
   border: 1px solid var(--color-gray-200);
   border-radius: 999px;
   padding: 0.35rem 0.85rem;
-  background: #fff;
+  background: var(--color-surface-card);
   color: var(--color-primary-700);
   font: inherit;
   font-size: 0.78rem;
@@ -273,7 +261,7 @@
   margin: 0.15rem 0;
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-primary-900) 8%, white);
+  background: color-mix(in srgb, var(--color-primary-900) 8%, var(--color-surface-card));
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--color-gray-600);
@@ -328,7 +316,7 @@
 }
 
 .bubbleRowWithAvatar .bubbleShell {
-  max-width: min(calc(85% - 2rem), 22rem);
+  max-width: min(calc(var(--chat-bubble-max-width) - 2rem), var(--chat-bubble-max-width-cap));
 }
 
 .senderAvatar {
@@ -346,7 +334,7 @@
 /* Conteneur relatif : la bulle + réactions qui coupent la bordure basse. */
 .bubbleShell {
   position: relative;
-  max-width: min(85%, 22rem);
+  max-width: min(var(--chat-bubble-max-width), var(--chat-bubble-max-width-cap));
 }
 
 .bubbleShellWithReactions {
@@ -356,9 +344,10 @@
 
 .bubble {
   max-width: 100%;
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.85rem 0.85rem 0.85rem 0.25rem;
-  background: #fff;
+  padding: var(--chat-bubble-padding-y) var(--chat-bubble-padding-x);
+  border-radius: var(--chat-bubble-radius) var(--chat-bubble-radius) var(--chat-bubble-radius)
+    var(--chat-bubble-tail-radius);
+  background: var(--color-surface-card);
   border: 1.5px solid var(--color-role-player);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--color-primary-900) 4%, transparent);
   user-select: none;
@@ -369,8 +358,9 @@
 }
 
 .bubbleMine {
-  border-radius: 0.85rem 0.85rem 0.25rem 0.85rem;
-  background: #fff;
+  border-radius: var(--chat-bubble-radius) var(--chat-bubble-radius) var(--chat-bubble-tail-radius)
+    var(--chat-bubble-radius);
+  background: var(--color-surface-card);
 }
 
 .bubble[data-role="player"] {
@@ -411,7 +401,7 @@
   line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-word;
-  color: var(--color-primary-900, #0b3358);
+  color: var(--color-primary-900);
 }
 
 /* Texte + heure inline bas-droite (style WhatsApp). */
@@ -467,8 +457,8 @@
   padding: 0.35rem 0.45rem;
   border: none;
   border-left: 3px solid var(--color-primary-400);
-  border-radius: 0.35rem;
-  background: color-mix(in srgb, var(--color-primary-500) 8%, white);
+  border-radius: var(--chat-quote-radius);
+  background: color-mix(in srgb, var(--color-primary-500) 8%, var(--color-surface-card));
   text-align: left;
   cursor: pointer;
 }
@@ -498,7 +488,7 @@
   font-size: 0.68rem;
   font-weight: 500;
   line-height: 1.1;
-  color: #fff;
+  color: var(--color-white);
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
@@ -548,7 +538,7 @@
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--color-surface-card);
   font: inherit;
   font-size: 0.8rem;
   cursor: pointer;
@@ -556,7 +546,7 @@
 
 .pollOptionSelected {
   border-color: var(--color-primary-500);
-  background: color-mix(in srgb, var(--color-primary-500) 12%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-surface-card));
 }
 
 .pollMarker {
@@ -565,7 +555,7 @@
   height: 0.95rem;
   border: 1.5px solid var(--color-gray-400);
   border-radius: 999px;
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .pollMarkerMulti {
@@ -575,7 +565,7 @@
 .pollMarkerSelected {
   border-color: var(--color-primary-600);
   background: var(--color-primary-600);
-  box-shadow: inset 0 0 0 2px #fff;
+  box-shadow: inset 0 0 0 2px var(--color-surface-card);
 }
 
 .pollOptionText {
@@ -673,7 +663,7 @@
 .actionSheet {
   width: 100%;
   max-width: 22rem;
-  background: #fff;
+  background: var(--color-surface-card);
   border-radius: 0.9rem;
   box-shadow: 0 12px 32px color-mix(in srgb, var(--color-primary-900) 18%, transparent);
   overflow: hidden;
@@ -692,7 +682,7 @@
   font-size: 0.9rem;
   text-align: left;
   cursor: pointer;
-  color: var(--color-primary-900, #0b3358);
+  color: var(--color-primary-900);
 }
 
 .actionItem + .actionItem {
@@ -700,11 +690,11 @@
 }
 
 .actionItem:hover {
-  background: var(--color-gray-50, #f8fafc);
+  background: var(--color-gray-50);
 }
 
 .actionDanger {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
 }
 
 .editFieldWrap {
@@ -728,7 +718,7 @@
   gap: 0.45rem;
   padding: 0.65rem 0.75rem;
   border-top: 1px solid var(--color-gray-100);
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .composerRow {
@@ -743,8 +733,8 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.45rem 0.55rem;
-  border-radius: 0.55rem;
-  background: var(--color-gray-50, #f8fafc);
+  border-radius: var(--chat-quote-radius);
+  background: var(--color-gray-50);
   border: 1px solid var(--color-gray-200);
 }
 
@@ -814,7 +804,7 @@
   border: none;
   border-radius: 999px;
   background: color-mix(in srgb, white 18%, transparent);
-  color: #fff;
+  color: var(--color-white);
   cursor: pointer;
 }
 
@@ -842,12 +832,12 @@
 }
 
 .plusBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary-500) 12%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-surface-card));
   color: var(--color-primary-900);
 }
 
 .plusBtnOpen {
-  background: color-mix(in srgb, var(--color-primary-500) 18%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 18%, var(--color-surface-card));
   color: var(--color-primary-900);
   transform: rotate(45deg);
 }
@@ -868,7 +858,7 @@
   padding: 0.3rem;
   border: 1px solid var(--color-gray-200);
   border-radius: 0.75rem;
-  background: #fff;
+  background: var(--color-surface-card);
   box-shadow:
     0 4px 12px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
     0 14px 32px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
@@ -905,7 +895,7 @@
 }
 
 .attachMenu button:hover:not(:disabled) {
-  background: var(--color-gray-50, #f8fafc);
+  background: var(--color-gray-50);
 }
 
 .attachMenu button:disabled {
@@ -920,16 +910,16 @@
   width: 1.55rem;
   height: 1.55rem;
   border-radius: 999px;
-  color: #fff;
+  color: var(--color-white);
   flex-shrink: 0;
 }
 
 .attachIcon[data-tone="photos"] {
-  background: #3b82f6;
+  background: var(--chat-attach-photos);
 }
 
 .attachIcon[data-tone="poll"] {
-  background: #f59e0b;
+  background: var(--chat-attach-poll);
 }
 
 .input {
@@ -952,7 +942,7 @@
   border-radius: 999px;
   padding: 0.45rem 0.85rem;
   background: var(--color-primary-500);
-  color: #fff;
+  color: var(--color-white);
   font: inherit;
   font-weight: 700;
   font-size: 0.8rem;
@@ -974,5 +964,5 @@
 }
 
 .error {
-  color: #b42318;
+  color: var(--chat-error-text);
 }

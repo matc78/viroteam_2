@@ -15,6 +15,7 @@ import {
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { chatStateDocId } from "@/lib/firebase/chatTypes";
 import styles from "./MessagesPageClient.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type MessagesPageClientProps = {
   eyebrow: string;
@@ -110,8 +111,8 @@ export function MessagesPageClient({
     <div className={styles.pageRoot}>
       <DashboardPageIntro
         eyebrow={eyebrow}
-        heading="Messagerie"
-        lead="Toutes tes discussions, tous clubs confondus — équipes, parents, coaches."
+        heading={chatCopy.chatEntry}
+        lead={chatCopy.pageLead}
       >
         <div className={styles.headerActions}>
           {isAdminSomewhere ? (
@@ -120,7 +121,7 @@ export function MessagesPageClient({
               className={styles.categoryBtn}
               onClick={openCategoryChannel}
             >
-              Créer canal
+              {chatCopy.createCategoryChannel}
             </button>
           ) : null}
           <button
@@ -128,7 +129,7 @@ export function MessagesPageClient({
             className={styles.composeBtn}
             onClick={openCompose}
           >
-            Nouvelle discussion
+            {chatCopy.newConversation}
           </button>
         </div>
       </DashboardPageIntro>
@@ -139,16 +140,16 @@ export function MessagesPageClient({
             <input
               className={styles.search}
               type="search"
-              placeholder="Rechercher dans les messages"
+              placeholder={chatCopy.searchConversationsHint}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
           <div className={styles.list}>
             {inboxLoading && conversations.length === 0 ? (
-              <p className={styles.empty}>Chargement…</p>
+              <p className={styles.empty}>{chatCopy.loading}</p>
             ) : filtered.length === 0 ? (
-              <p className={styles.empty}>Aucune discussion pour l’instant.</p>
+              <p className={styles.empty}>{chatCopy.emptyInbox}</p>
             ) : (
               filtered.map((conversation) => {
                 const id = chatStateDocId(conversation.clubId, conversation.id);
@@ -206,7 +207,7 @@ export function MessagesPageClient({
             />
           ) : (
             <div className={styles.placeholder}>
-              <p>Sélectionne une discussion pour commencer.</p>
+              <p>{chatCopy.selectConversationHint}</p>
             </div>
           )}
         </section>

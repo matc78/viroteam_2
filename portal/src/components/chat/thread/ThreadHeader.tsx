@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
 import styles from "../ChatThreadView.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ThreadHeaderProps = {
   title: string;
@@ -60,7 +61,7 @@ export function ThreadHeader({
         type="button"
         className={styles.headerMain}
         onClick={() => onOpenInfo()}
-        aria-label="Infos de la discussion"
+        aria-label={chatCopy.conversationInfo}
       >
         <span className={styles.headerText}>
           <span className={styles.titleRow}>
@@ -68,7 +69,7 @@ export function ThreadHeader({
               {titleShort}
             </span>
             {favorite ? (
-              <span className={styles.favMark} aria-label="Favori">
+              <span className={styles.favMark} aria-label={chatCopy.favoriteMark}>
                 <ChatIcon name="favoriteFill" size={12} />
               </span>
             ) : null}
@@ -88,7 +89,7 @@ export function ThreadHeader({
           <button
             type="button"
             className={styles.iconBtn}
-            aria-label="Options"
+            aria-label={chatCopy.threadOptions}
             onClick={onToggleMenu}
           >
             <ChatIcon name="options" size={18} />
@@ -97,22 +98,22 @@ export function ThreadHeader({
             <div className={styles.menu}>
               <button type="button" onClick={() => onOpenInfo()}>
                 <ChatIcon name="info" size={18} />
-                Infos de la discussion
+                {chatCopy.conversationInfo}
               </button>
               <button type="button" onClick={onOpenSearch}>
                 <ChatIcon name="search" size={18} />
-                Rechercher un message
+                {chatCopy.searchMessage}
               </button>
               <button type="button" onClick={onToggleMute}>
                 <ChatIcon name={muted ? "bell" : "mute"} size={18} />
-                {muted ? "Réactiver les notifs" : "Couper les notifs"}
+                {muted ? chatCopy.unmute : chatCopy.mute}
               </button>
               <button type="button" onClick={onToggleFavorite}>
                 <ChatIcon
                   name={favorite ? "favoriteFill" : "favorite"}
                   size={18}
                 />
-                {favorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                {favorite ? chatCopy.removeFavorite : chatCopy.addFavorite}
               </button>
               {isGroup ? (
                 <button
@@ -120,19 +121,19 @@ export function ThreadHeader({
                   onClick={() => onOpenInfo({ rename: true })}
                 >
                   <ChatIcon name="edit" size={18} />
-                  Renommer
+                  {chatCopy.renameConversation}
                 </button>
               ) : null}
               {canChangeGroupAvatar ? (
                 <button type="button" onClick={onChangeAvatar}>
                   <ChatIcon name="image" size={18} />
-                  Changer la photo
+                  {chatCopy.changeGroupAvatar}
                 </button>
               ) : null}
               {canPoll ? (
                 <button type="button" onClick={onCreatePoll}>
                   <ChatIcon name="poll" size={18} />
-                  Faire un sondage
+                  {chatCopy.createPoll}
                 </button>
               ) : null}
             </div>
@@ -142,7 +143,7 @@ export function ThreadHeader({
           <button
             type="button"
             className={styles.iconBtn}
-            aria-label="Agrandir"
+            aria-label={chatCopy.maximize}
             onClick={onMaximize}
           >
             <ChatIcon name="maximize" size={16} />
@@ -152,7 +153,7 @@ export function ThreadHeader({
           <button
             type="button"
             className={styles.iconBtn}
-            aria-label="Fermer"
+            aria-label={chatCopy.close}
             onClick={onClose}
           >
             <ChatIcon name="close" size={16} />

@@ -26,6 +26,7 @@ import {
   type ChatMessage,
 } from "@/lib/firebase/chatTypes";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 const LONG_PRESS_MS = 450;
 
@@ -173,7 +174,7 @@ export function useMessageActions(params: {
   /** Supprime (soft delete) après confirmation. */
   async function handleDelete(message: ChatMessage) {
     if (!uid) return;
-    if (!window.confirm("Supprimer ce message ?")) return;
+    if (!window.confirm(chatCopy.deleteMessageConfirm)) return;
     setActionMessage(null);
     await softDeleteMessage({
       clubId,
@@ -190,7 +191,7 @@ export function useMessageActions(params: {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      setError("Copie impossible.");
+      setError(chatCopy.copyFailed);
     }
     setActionMessage(null);
   }
@@ -225,7 +226,7 @@ export function useMessageActions(params: {
       });
       setEditingMessage(null);
     } catch {
-      setError("Modification impossible.");
+      setError(chatCopy.editFailed);
     }
   }
 
@@ -254,7 +255,7 @@ export function useMessageActions(params: {
         uid,
       });
     } catch {
-      setError("Vote impossible.");
+      setError(chatCopy.pollVoteFailed);
     }
   }
 

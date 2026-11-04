@@ -8,6 +8,7 @@ import {
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
 import { getUserProfile } from "@/lib/firebase/userService";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 /** Participant résolu pour preview / panneau infos. */
 export type ConversationParticipant = {
@@ -102,7 +103,7 @@ export function participantFirstName(
   const first = participant.firstName.trim();
   if (first) return first;
   const fromDisplay = participant.displayName.trim().split(/\s+/)[0];
-  return fromDisplay || "Membre";
+  return fromDisplay || chatCopy.unknownMember;
 }
 
 function sortByFirstName(
@@ -157,7 +158,7 @@ export async function resolveConversationParticipants(params: {
         if (!displayName && !profile.firstName) return;
         profileByUid.set(uid, {
           firstName: profile.firstName.trim(),
-          displayName: displayName || "Parent",
+          displayName: displayName || chatCopy.unknownParent,
           avatarUrl: profile.avatarUrl,
         });
       } catch {
@@ -184,7 +185,7 @@ export async function resolveConversationParticipants(params: {
     resolved.push({
       uid,
       firstName: profile?.firstName ?? "",
-      displayName: profile?.displayName ?? "Parent",
+      displayName: profile?.displayName ?? chatCopy.unknownParent,
       role: PortalUiRoles.parent,
       avatarUrl: profile?.avatarUrl ?? null,
       hasLinkedAccount: false,

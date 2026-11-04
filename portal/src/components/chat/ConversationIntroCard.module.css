@@ -8,7 +8,7 @@
   margin: 0.35rem auto 0.85rem;
   padding: 1.15rem 1.1rem 1rem;
   border-radius: 1.35rem;
-  background: #fff;
+  background: var(--color-surface-card);
   border: 1px solid var(--color-gray-100);
   box-shadow: 0 2px 10px color-mix(in srgb, var(--color-primary-900) 6%, transparent);
   text-align: center;
@@ -25,7 +25,7 @@
 }
 
 .cardButton:hover {
-  border-color: color-mix(in srgb, var(--color-primary-500) 28%, white);
+  border-color: color-mix(in srgb, var(--color-primary-500) 28%, var(--color-surface-card));
   box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary-900) 10%, transparent);
 }
 
@@ -39,7 +39,7 @@
   border-radius: 999px;
   font-size: 1.55rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--color-white);
   overflow: hidden;
 }
 
@@ -85,7 +85,7 @@
   padding: 0.12rem 0.5rem;
   border-radius: 999px;
   background: var(--club-brand, var(--color-primary-500));
-  color: var(--club-brand-text, #fff);
+  color: var(--club-brand-text, var(--color-white));
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.02em;

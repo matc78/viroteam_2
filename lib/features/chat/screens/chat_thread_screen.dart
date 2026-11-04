@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -558,7 +559,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   decoration: BoxDecoration(
                     color: palette.surface,
                     image: DecorationImage(
-                      image: AssetImage('assets/images/chat/thread_bg.png'),
+                      image: AssetImage(ViroChat.threadBackgroundAsset),
                       repeat: ImageRepeat.repeat,
                       alignment: Alignment.topLeft,
                       scale: 2.5,
@@ -581,6 +582,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                     if (view.messages.isEmpty) {
                       return ViroEmptyState(
                         message: AppCopy.chat.emptyThread,
+                        hint: chrome.canWrite
+                            ? AppCopy.chat.emptyThreadHint
+                            : null,
                         icon: ViroIcons.chat,
                       );
                     }

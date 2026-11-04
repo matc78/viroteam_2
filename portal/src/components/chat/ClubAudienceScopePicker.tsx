@@ -12,6 +12,7 @@ import {
   sortTeamCategories,
 } from "@/lib/teams/compareTeamCategories";
 import styles from "./ClubAudienceScopePicker.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ScopeOption = {
   id: string;
@@ -75,7 +76,7 @@ export function ClubAudienceScopePicker({
       id: team.id,
       label:
         value.scopeType === "parents"
-          ? `Parents · ${team.name}`
+          ? chatCopy.parentsOfTeamLabel(team.name)
           : team.category
             ? `${team.name} (${team.category})`
             : team.name,
@@ -88,7 +89,7 @@ export function ClubAudienceScopePicker({
     if (!accentColor) return undefined;
     return {
       "--scope-accent": accentColor,
-      "--scope-accent-text": accentTextColor ?? "#fff",
+      "--scope-accent-text": accentTextColor ?? "var(--color-white)",
     } as CSSProperties;
   }, [accentColor, accentTextColor]);
 
@@ -109,14 +110,14 @@ export function ClubAudienceScopePicker({
 
   const optionsHint =
     value.scopeType === "categories"
-      ? "Catégories des équipes du club"
+      ? chatCopy.channelOptionsCategoriesHint
       : value.scopeType === "parents"
-        ? "Équipes avec joueurs"
-        : "Équipes du club";
+        ? chatCopy.channelOptionsParentsHint
+        : chatCopy.channelOptionsTeamsHint;
 
   return (
     <div className={styles.root} style={accentStyle}>
-      <div className={styles.modes} role="tablist" aria-label="Type de cible">
+      <div className={styles.modes} role="tablist" aria-label={chatCopy.scopeTypeLabel}>
         {SCOPE_ORDER.map((scopeType) => (
           <button
             key={scopeType}
@@ -136,15 +137,15 @@ export function ClubAudienceScopePicker({
       {options.length === 0 ? (
         <p className={styles.empty}>
           {value.scopeType === "categories"
-            ? "Aucune catégorie sur les équipes du club."
+            ? chatCopy.noCategoriesForChannel
             : value.scopeType === "parents"
-              ? "Aucune équipe avec joueurs."
-              : "Aucune équipe dans ce club."}
+              ? chatCopy.noTeamsWithPlayersForChannel
+              : chatCopy.noTeamsForChannel}
         </p>
       ) : (
         <>
           <p className={styles.optionsLabel}>{optionsHint}</p>
-          <div className={styles.options} role="group" aria-label="Cibles">
+          <div className={styles.options} role="group" aria-label={chatCopy.scopeTargetsLabel}>
             {options.map((option) => {
               const isSelected = selected.has(option.id);
               return (

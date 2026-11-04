@@ -63,7 +63,7 @@
   background: color-mix(
     in srgb,
     var(--scope-accent, var(--color-primary-500)) 8%,
-    white
+    var(--color-surface-card)
   );
   color: var(--color-primary-900);
   font: inherit;
@@ -75,7 +75,7 @@
 .option[data-selected="true"] {
   border-color: var(--scope-accent, var(--color-primary-500));
   background: var(--scope-accent, var(--color-primary-500));
-  color: var(--scope-accent-text, #fff);
+  color: var(--scope-accent-text, var(--color-white));
 }
 
 .option:disabled {
@@ -84,7 +84,7 @@
 }
 
 .empty {
-  margin: 0;
+  composes: emptyText from "./chatShared.module.css";
   font-size: 0.8rem;
-  color: var(--color-gray-500);
 }
+

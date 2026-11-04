@@ -20,6 +20,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Modifié
 
 - Messagerie (masquée) : `ChatThreadView` découpé en hooks et composants (`components/chat/thread/`), logique pure dans `lib/chat/` (`buildThreadRows`, `filterInbox`, `isMessagesPath` unique), tests vitest ajoutés ; rendu inchangé
+- Messagerie (masquée) : socle visuel commun avec l’app — tokens `--chat-*` (bulles, citations, avatars, couleurs du fil) dans `globals.css`, couleurs en dur des modules chat remplacées par des variables (thème sombre possible), classes dupliquées factorisées dans `chatShared.module.css`, textes regroupés dans `chatCopy`. Seul changement visible : les bulles vont jusqu’à 78 % de la largeur du fil (85 % avant)
 
 ## [1.13.0] - 2026-11-02
 

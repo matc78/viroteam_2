@@ -20,6 +20,7 @@ import type {
   ChatMessage,
   ChatUserState,
 } from "@/lib/firebase/chatTypes";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 const REALTIME_MESSAGE_LIMIT = 100;
 const OLDER_PAGE_SIZE = 50;
@@ -140,7 +141,7 @@ export function useThreadMessages(params: {
         });
       }
     } catch {
-      setError("Impossible de charger l’historique.");
+      setError(chatCopy.loadOlderFailed);
     } finally {
       setLoadingOlder(false);
     }

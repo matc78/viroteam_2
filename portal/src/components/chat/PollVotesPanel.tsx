@@ -14,6 +14,7 @@ import {
 } from "@/lib/firebase/chatTypes";
 import infoStyles from "./ConversationInfoPanel.module.css";
 import styles from "./PollVotesPanel.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type PollVotesPanelProps = {
   message: ChatMessage;
@@ -50,17 +51,17 @@ export function PollVotesPanel({
 
   if (selected) {
     return (
-      <aside className={infoStyles.panel} aria-label="Fiche membre">
+      <aside className={infoStyles.panel} aria-label={chatCopy.memberCard}>
         <header className={infoStyles.header}>
           <button
             type="button"
             className={infoStyles.headerIconBtn}
-            aria-label="Retour"
+            aria-label={chatCopy.back}
             onClick={() => setSelectedUid(null)}
           >
             <ChatIcon name="close" size={20} />
           </button>
-          <h2 className={infoStyles.headerTitle}>Infos du contact</h2>
+          <h2 className={infoStyles.headerTitle}>{chatCopy.contactInfo}</h2>
         </header>
         <div className={infoStyles.memberDetail}>
           <MemberAvatar
@@ -77,34 +78,36 @@ export function PollVotesPanel({
   }
 
   return (
-    <aside className={infoStyles.panel} aria-label="Détails du sondage">
+    <aside className={infoStyles.panel} aria-label={chatCopy.pollDetailsTitle}>
       <header className={infoStyles.header}>
         <button
           type="button"
           className={infoStyles.headerIconBtn}
-          aria-label="Fermer"
+          aria-label={chatCopy.close}
           onClick={onClose}
         >
           <ChatIcon name="close" size={20} />
         </button>
-        <h2 className={infoStyles.headerTitle}>Détails du sondage</h2>
+        <h2 className={infoStyles.headerTitle}>
+          {chatCopy.pollDetailsTitle}
+        </h2>
       </header>
 
       <div className={infoStyles.scrollBody}>
         <div className={styles.hero}>
-          <h3 className={styles.question}>{question || "Sondage"}</h3>
+          <h3 className={styles.question}>{question || chatCopy.pollLabel}</h3>
           <p className={styles.mode}>
             {message.pollAllowMultiple
-              ? "Plusieurs réponses possibles"
-              : "Réponse unique"}
+              ? chatCopy.pollAllowMultiple
+              : chatCopy.pollSingleChoice}
           </p>
           <p className={styles.summary}>
-            Membres ayant voté : {voted} sur {participantCount}
+            {chatCopy.pollVotedSummary(voted, participantCount)}
           </p>
         </div>
 
         {voted === 0 ? (
-          <p className={infoStyles.emptyPad}>Personne n’a encore voté.</p>
+          <p className={infoStyles.emptyPad}>{chatCopy.pollNoVotesYet}</p>
         ) : (
           message.pollOptions.map((option) => {
             const voterUids = message.pollVotes[option.id] ?? [];
@@ -114,18 +117,18 @@ export function PollVotesPanel({
                 <div className={styles.optionHeader}>
                   <h4 className={styles.optionTitle}>{option.text}</h4>
                   <span className={styles.voteBadge}>
-                    {count <= 1 ? `${count} vote` : `${count} votes`}
+                    {chatCopy.pollOptionVotesLabel(count)}
                   </span>
                 </div>
                 {count === 0 ? (
-                  <p className={styles.emptyOption}>Aucun vote</p>
+                  <p className={styles.emptyOption}>{chatCopy.pollOptionNoVotes}</p>
                 ) : (
                   <ul className={infoStyles.memberList}>
                     {voterUids.map((uid) => {
                       const person = peopleByUid.get(uid);
                       const label = person
                         ? participantFirstName(person)
-                        : "Membre";
+                        : chatCopy.unknownMember;
                       return (
                         <li key={`${option.id}-${uid}`}>
                           <button

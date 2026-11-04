@@ -4,6 +4,7 @@ import {
   isChatMessageDeleted,
   type ChatMessage,
 } from "@/lib/firebase/chatTypes";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 /** Tri chronologique (plus ancien en tête). */
 function byCreatedAt(a: ChatMessage, b: ChatMessage): number {
@@ -13,9 +14,9 @@ function byCreatedAt(a: ChatMessage, b: ChatMessage): number {
 /** Texte court pour la citation d’un message. */
 export function replyPreviewText(message: ChatMessage): string {
   if (message.type === ChatMessageTypes.poll) {
-    return message.pollQuestion || message.text || "Sondage";
+    return message.pollQuestion || message.text || chatCopy.pollLabel;
   }
-  if (message.type === ChatMessageTypes.image) return "Photo";
+  if (message.type === ChatMessageTypes.image) return chatCopy.photoPreview;
   return (message.text ?? "").trim();
 }
 

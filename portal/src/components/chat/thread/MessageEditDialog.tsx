@@ -3,6 +3,7 @@
 import type { RefObject } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
 import styles from "../ChatThreadView.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type MessageEditDialogProps = {
   overlayRef: RefObject<HTMLDivElement | null>;
@@ -27,7 +28,7 @@ export function MessageEditDialog({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="Modifier le message"
+      aria-label={chatCopy.editMessageDialog}
     >
       <div
         className={styles.actionSheet}
@@ -44,10 +45,10 @@ export function MessageEditDialog({
         </div>
         <button type="button" className={styles.actionItem} onClick={onSave}>
           <ChatIcon name="edit" size={18} />
-          Enregistrer
+          {chatCopy.save}
         </button>
         <button type="button" className={styles.actionItem} onClick={onClose}>
-          Annuler
+          {chatCopy.cancel}
         </button>
       </div>
     </div>

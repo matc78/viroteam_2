@@ -1,57 +1,30 @@
 .backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-lg);
-  background: color-mix(in srgb, var(--color-primary-900) 28%, transparent);
+  composes: dialogBackdrop from "./chatShared.module.css";
 }
 
 .panel {
+  composes: dialogPanel from "./chatShared.module.css";
   width: min(32rem, 100%);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem 1.1rem;
-  border-radius: 0.85rem;
-  background: #fff;
-  box-shadow:
-    0 12px 28px color-mix(in srgb, var(--color-primary-900) 14%, transparent),
-    0 28px 64px color-mix(in srgb, var(--color-primary-900) 16%, transparent);
   max-height: min(90vh, 40rem);
   overflow: auto;
 }
 
 .header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
+  composes: dialogHeader from "./chatShared.module.css";
 }
 
 .title {
+  composes: dialogTitle from "./chatShared.module.css";
   margin: 0;
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: var(--color-primary-900);
 }
 
 .hint {
-  margin: 0.35rem 0 0;
-  font-size: 0.82rem;
-  color: var(--color-gray-500);
+  composes: dialogHint from "./chatShared.module.css";
 }
 
 .close {
-  width: 2rem;
-  height: 2rem;
-  border: none;
-  border-radius: 999px;
-  background: var(--color-gray-100);
+  composes: dialogClose from "./chatShared.module.css";
   color: var(--color-primary-700);
-  cursor: pointer;
   font-size: 1.1rem;
   line-height: 1;
 }
@@ -131,9 +104,7 @@
 }
 
 .error {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #b42318;
+  composes: formError from "./chatShared.module.css";
 }
 
 .actions {
@@ -161,7 +132,7 @@
 
 .submitBtn {
   background: var(--color-primary-500);
-  color: #fff;
+  color: var(--color-white);
 }
 
 .submitBtn:disabled,

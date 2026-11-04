@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/push_channels.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -69,9 +68,8 @@ class LocalNotificationService {
         >();
     if (android == null) return;
     for (final channel in PushChannel.values) {
-      if (channel == PushChannel.chat && !FeatureFlags.chatMessagingLive) {
-        continue;
-      }
+      // Canal chat toujours créé : le serveur ne pousse qu’aux comptes
+      // `flags.chatMessaging` (ou quand CHAT_MESSAGING_LIVE est ouvert).
       await android.createNotificationChannel(
         AndroidNotificationChannel(
           channel.id,

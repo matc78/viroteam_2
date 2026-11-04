@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -267,7 +267,7 @@ class NotificationPreferencesSection extends ConsumerWidget {
                 subtitle: AppCopy.settings.notifFeesSubtitle,
                 value: prefs.fees,
               ),
-              if (FeatureFlags.chatMessagingLive) ...[
+              if (ref.watch(chatMessagingLiveProvider)) ...[
                 const Divider(height: 1),
                 toggle(
                   key: 'chat',

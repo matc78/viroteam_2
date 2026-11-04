@@ -6,7 +6,8 @@ import { NavLoadBar } from "@/components/common/NavLoadBar";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
 import { useChatOptional } from "@/lib/chat/ChatProvider";
 import { isMessagesPath } from "@/lib/chat/isMessagesPath";
-import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
+import { useAuth } from "@/lib/firebase/AuthProvider";
+import { isChatMessagingLive } from "@/lib/featureFlags";
 import styles from "./MessagingTile.module.css";
 import { chatCopy } from "@/lib/copy/chatCopy";
 
@@ -37,9 +38,10 @@ function ChatIcon() {
  */
 export function MessagingTile() {
   const pathname = usePathname();
+  const { profile } = useAuth();
   const chat = useChatOptional();
   const { pendingHref, beginPageLoad } = usePageLoad();
-  if (!CHAT_MESSAGING_LIVE || !chat) return null;
+  if (!isChatMessagingLive(profile) || !chat) return null;
 
   const { totalUnread, messagesHref } = chat;
   const isActive = isMessagesPath(pathname);

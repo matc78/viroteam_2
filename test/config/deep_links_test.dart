@@ -51,5 +51,24 @@ void main() {
         AppRoutes.clubMyFeePath('c1'),
       );
     });
+
+    test('chat ignoré sans accès messagerie', () {
+      expect(
+        deepLinkRouteFromUri(
+          Uri.parse('viroteam://chat?clubId=c1&conversationId=x'),
+        ),
+        isNull,
+      );
+    });
+
+    test('chat ouvert avec accès messagerie', () {
+      expect(
+        deepLinkRouteFromUri(
+          Uri.parse('viroteam://chat?clubId=c1&conversationId=x'),
+          chatMessagingLive: true,
+        ),
+        AppRoutes.conversationPath('c1', 'x'),
+      );
+    });
   });
 }

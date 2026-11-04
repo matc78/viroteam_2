@@ -9,9 +9,8 @@ import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/config/router_refresh.dart';
 import 'package:viro_team_v2/config/startup_session_gate.dart';
 
-import 'package:viro_team_v2/config/feature_flags.dart';
-
 import 'package:viro_team_v2/features/app_update/providers/app_update_providers.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 
 import 'package:viro_team_v2/features/app_update/screens/app_update_required_screen.dart';
 
@@ -669,7 +668,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.conversations,
         redirect: (context, state) =>
-            FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
+            ref.read(chatMessagingLiveProvider) ? null : AppRoutes.home,
         pageBuilder: (context, state) {
           if (state.extra is ConversationsSwipeCommit) {
             return ViroSlidePage<void>(
@@ -692,7 +691,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.conversation,
         redirect: (context, state) =>
-            FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
+            ref.read(chatMessagingLiveProvider) ? null : AppRoutes.home,
         pageBuilder: (context, state) {
           final clubId = state.pathParameters['clubId']!;
           final conversationId = state.pathParameters['conversationId']!;
@@ -714,7 +713,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.pollVotes,
         redirect: (context, state) =>
-            FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
+            ref.read(chatMessagingLiveProvider) ? null : AppRoutes.home,
         pageBuilder: (context, state) => ViroSlidePage<void>(
           key: state.pageKey,
           name: state.path,

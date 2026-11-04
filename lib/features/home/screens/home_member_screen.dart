@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -164,14 +164,14 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
 
   /// Ouvre la messagerie via la bulle chat (expand circulaire).
   void _openMessagingFromBubble(Offset bubbleOrigin) {
-    if (!FeatureFlags.chatMessagingLive) return;
+    if (!ref.read(chatMessagingLiveProvider)) return;
     _swipeToMessagingKey.currentState?.reset();
     context.push(AppRoutes.conversations, extra: bubbleOrigin);
   }
 
   /// Finalise le swipe interactif → route messagerie sans rejouer le slide.
   void _commitMessagingFromSwipe() {
-    if (!FeatureFlags.chatMessagingLive) return;
+    if (!ref.read(chatMessagingLiveProvider)) return;
     context.push(
       AppRoutes.conversations,
       extra: const ConversationsSwipeCommit(),
@@ -186,10 +186,11 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
         const <String, Map<String, ClubTeam>>{};
     final pendingCounts = ref.watch(pendingCountByClubProvider);
     final userAsync = ref.watch(viroUserProvider);
+    final chatMessagingLive = ref.watch(chatMessagingLiveProvider);
 
     return ViroSwipeToReveal(
       key: _swipeToMessagingKey,
-      enabled: FeatureFlags.chatMessagingLive,
+      enabled: chatMessagingLive,
       reveal: const ConversationsScreen(),
       onCommit: _commitMessagingFromSwipe,
       child: ViroScaffold(
@@ -318,9 +319,8 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                     clubs: clubs,
                     pendingByClub: pendingCounts,
                     onAddClub: () => showAddClubSheet(context, ref),
-                    onOpenChat: FeatureFlags.chatMessagingLive
-                        ? _openMessagingFromBubble
-                        : null,
+                    onOpenChat:
+                        chatMessagingLive ? _openMessagingFromBubble : null,
                   ),
                 ),
               ],

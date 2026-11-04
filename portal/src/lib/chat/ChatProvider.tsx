@@ -45,7 +45,7 @@ import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
 import { listClubMembers } from "@/lib/firebase/memberService";
 import { membershipRoleForClub, splitDisplayName } from "@/lib/firebase/types";
 import { getUserProfile } from "@/lib/firebase/userService";
-import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
+import { isChatMessagingLive } from "@/lib/featureFlags";
 import { chatMobileMediaQuery } from "@/lib/chat/chatBreakpoints";
 
 type ChatContextValue = {
@@ -122,10 +122,16 @@ function ChatMessagingDisabled({ children }: { children: ReactNode }) {
 /**
  * État messagerie global (dock + 1 fenêtre flottante).
  * Survit aux changements de module / club / espace bureau↔famille.
- * Inactif si `CHAT_MESSAGING_LIVE` est faux (feature non déployée sur l’app).
+ * Actif en local (`NEXT_PUBLIC_CHAT_MESSAGING_LIVE`) ou si
+ * `users/{uid}.flags.chatMessaging`.
  */
 export function ChatProvider({ children }: { children: ReactNode }) {
-  if (!CHAT_MESSAGING_LIVE) {
+  const { profile, status } = useAuth();
+  // Profil pas encore chargé : pas de chrome chat, pas de redirect /messages.
+  if (status === "loading") {
+    return <>{children}</>;
+  }
+  if (!isChatMessagingLive(profile)) {
     return <ChatMessagingDisabled>{children}</ChatMessagingDisabled>;
   }
   return <ChatProviderLive>{children}</ChatProviderLive>;

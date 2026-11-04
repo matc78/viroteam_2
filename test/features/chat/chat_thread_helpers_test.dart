@@ -593,6 +593,30 @@ void main() {
       );
     });
   });
+
+  group('chatThreadReactionChips', () {
+    test('garde tout sous le plafond, les plus fréquents d’abord', () {
+      final chips = chatThreadReactionChips({
+        '👍': ['a'],
+        '❤️': ['a', 'b'],
+        '😂': [],
+      });
+      expect(chips.visible.map((e) => e.key), ['❤️', '👍']);
+      expect(chips.hiddenCount, 0);
+    });
+
+    test('au-delà du plafond, compte les emojis restants (« +n »)', () {
+      final chips = chatThreadReactionChips({
+        for (final (i, emoji) in ['😀', '😃', '😄', '😁', '😆', '😅', '🤣']
+            .indexed)
+          emoji: [for (var n = 0; n <= (i == 6 ? 5 : 0); n++) 'u$n'],
+      });
+      expect(chips.visible, hasLength(ViroChat.reactionChipsMax));
+      expect(chips.visible.first.key, '🤣');
+      expect(chips.visible.skip(1).map((e) => e.key), ['😀', '😃', '😄']);
+      expect(chips.hiddenCount, 3);
+    });
+  });
 }
 
 const _minute = Duration(minutes: 1);

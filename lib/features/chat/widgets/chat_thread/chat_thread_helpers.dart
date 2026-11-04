@@ -337,6 +337,28 @@ Size chatThreadImageSize({double? width, double? height}) {
   return Size(displayWidth, displayHeight);
 }
 
+/// Réactions résumées pour les chips sous une bulle.
+///
+/// [visible] : au plus [ViroChat.reactionChipsMax] emojis, les plus fréquents
+/// d’abord (ordre d’origine à égalité) ; [hiddenCount] : nombre d’emojis
+/// distincts restants, affichés en « +n ».
+({List<MapEntry<String, List<String>>> visible, int hiddenCount})
+chatThreadReactionChips(Map<String, List<String>> reactions) {
+  final entries = reactions.entries.where((e) => e.value.isNotEmpty).toList();
+  final order = {for (final (i, e) in entries.indexed) e.key: i};
+  entries.sort((a, b) {
+    final byCount = b.value.length.compareTo(a.value.length);
+    return byCount != 0 ? byCount : order[a.key]!.compareTo(order[b.key]!);
+  });
+  if (entries.length <= ViroChat.reactionChipsMax) {
+    return (visible: entries, hiddenCount: 0);
+  }
+  return (
+    visible: entries.sublist(0, ViroChat.reactionChipsMax),
+    hiddenCount: entries.length - ViroChat.reactionChipsMax,
+  );
+}
+
 /// Non-lus effectifs à l’open (compteur Firestore ou fallback lastReadAt).
 int chatThreadEffectiveUnread({
   required ChatConversation? conversation,

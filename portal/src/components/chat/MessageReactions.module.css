@@ -6,12 +6,20 @@
   transform: translateY(62%);
   z-index: 2;
   display: flex;
-  flex-wrap: wrap;
+  /* Une seule rangée : plafonnée à MAX_VISIBLE_REACTIONS + chip « +n ». */
+  flex-wrap: nowrap;
+  white-space: nowrap;
   align-items: center;
   gap: 0.2rem;
   margin: 0;
   padding: 0;
   pointer-events: auto;
+}
+
+/* Tes bulles (à droite) : ancrée à droite, déborde vers le centre du fil. */
+.barMine {
+  left: auto;
+  right: 0.4rem;
 }
 
 .chipGroup {

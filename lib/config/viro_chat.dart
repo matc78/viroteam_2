@@ -50,6 +50,10 @@ abstract final class ViroChat {
   /// Rapport initiale / avatar (DM sans photo).
   static const double avatarInitialRatio = 0.4;
 
+  /// Nombre max d’emojis affichés sous une bulle ; au-delà, chip « +n »
+  /// (`MAX_VISIBLE_REACTIONS` côté portail).
+  static const int reactionChipsMax = 4;
+
   /// Menu « + » du composer : carte, lignes et libellés.
   static const double attachMenuRadius = 12;
   static const double attachMenuItemRadius = 9;

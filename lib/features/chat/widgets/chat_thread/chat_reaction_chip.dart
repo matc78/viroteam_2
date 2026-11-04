@@ -9,15 +9,29 @@ class ChatReactionChip extends StatelessWidget {
     required this.emoji,
     required this.count,
     required this.mine,
-  });
+  }) : _more = false;
+
+  /// Chip « +n » : [hiddenCount] emojis distincts non affichés.
+  const ChatReactionChip.more({super.key, required int hiddenCount})
+    : emoji = '',
+      count = hiddenCount,
+      mine = false,
+      _more = true;
 
   final String emoji;
   final int count;
   final bool mine;
+  final bool _more;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
+    final String label;
+    if (_more) {
+      label = '+$count';
+    } else {
+      label = count > 1 ? '$emoji $count' : emoji;
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
@@ -34,7 +48,7 @@ class ChatReactionChip extends StatelessWidget {
         ),
       ),
       child: Text(
-        count > 1 ? '$emoji $count' : emoji,
+        label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: palette.textSecondary,
               fontWeight: FontWeight.w700,

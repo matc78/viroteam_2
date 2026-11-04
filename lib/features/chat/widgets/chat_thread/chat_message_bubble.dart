@@ -128,6 +128,7 @@ class ChatMessageBubble extends StatelessWidget {
     final reactionEntries = message.reactions.entries
         .where((e) => e.value.isNotEmpty)
         .toList();
+    final reactionChips = chatThreadReactionChips(message.reactions);
     final hasReactions = reactionEntries.isNotEmpty;
     final imageUrl = (message.thumbUrl ?? message.downloadUrl ?? '').trim();
     final foreground = mine ? palette.onAccent : palette.brandText;
@@ -350,9 +351,11 @@ class ChatMessageBubble extends StatelessWidget {
             ),
             if (hasReactions)
               Positioned(
-                // Messages à gauche → chips à droite ; messages à toi → à gauche.
-                left: mine ? 8 : null,
-                right: mine ? null : 8,
+                // Ancrées côté intérieur du fil (à gauche pour les messages
+                // reçus, à droite pour les tiens) : une rangée plus large
+                // qu’une bulle courte déborde vers le centre, pas hors écran.
+                left: mine ? null : 8,
+                right: mine ? 8 : null,
                 bottom: 0,
                 child: Semantics(
                   button: true,
@@ -382,17 +385,23 @@ class ChatMessageBubble extends StatelessWidget {
                           heightFactor: 1,
                           child: Padding(
                             padding: const EdgeInsets.only(bottom: 4),
-                            child: Wrap(
+                            // Une seule rangée : au-delà de
+                            // ViroChat.reactionChipsMax emojis, chip « +n ».
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               spacing: 4,
-                              runSpacing: 4,
                               children: [
-                                for (final entry in reactionEntries)
+                                for (final entry in reactionChips.visible)
                                   ChatReactionChip(
                                     emoji: entry.key,
                                     count: entry.value.length,
                                     mine:
                                         viewerUid != null &&
                                         entry.value.contains(viewerUid),
+                                  ),
+                                if (reactionChips.hiddenCount > 0)
+                                  ChatReactionChip.more(
+                                    hiddenCount: reactionChips.hiddenCount,
                                   ),
                               ],
                             ),

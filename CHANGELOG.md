@@ -23,6 +23,9 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 ### Corrigé
 
 - Messagerie (masquée) : les pastilles de réaction sous une bulle ne réagissaient au tap que sur leurs quelques pixels du haut
+- Messagerie (masquée) : une conversation de l’inbox s’ouvre au tap n’importe où sur la tuile (les zones vides, à droite du titre par exemple, ne réagissaient pas — corrigé dans `ViroPressable`, donc pour toutes les tuiles qui l’utilisent)
+- Messagerie (masquée) : un message avec beaucoup de réactions différentes n’affiche plus qu’une rangée de 4 emojis (les plus utilisés) puis « +n », et cette rangée déborde vers le centre du fil au lieu de sortir de l’écran
+- Avatars à initiales (`MemberAvatar`) : fond opaque, le motif du fil de discussion ne transparaît plus
 - RSVP : les joueurs avec fiche pré-créée (invitation) pouvaient voir leur présence « coincée » — l’app écrivait sous `memberId` alors que les convocations / l’UI lisaient `accountUid`. Lecture, écriture, rules et création d’événement utilisent maintenant le même canon (`accountUid` si lié) ; un vote nettoie l’ancienne clé, et un script `tool/repair_event_rsvp_audience.mjs` répare les doubles clés déjà en base
 - Messagerie (masquée) : l’app n’empêche plus d’envoyer un message tant que le précédent n’est pas confirmé, les anciens messages ne disparaissent plus du haut du fil quand un nouveau arrive, et « Charger plus » ne s’affiche que s’il reste de l’historique
 - Messagerie (masquée) : les canaux réservés aux coachs et admins affichent le bon bandeau (« Seuls les coachs et les admins peuvent écrire ici. ») dans l’app et sur le portail

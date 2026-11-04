@@ -11,6 +11,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ### Corrigé
 
+- Messagerie (masquée) : un message avec beaucoup de réactions différentes n’affiche plus qu’une rangée de 4 emojis (les plus utilisés) puis « +n » (comme l’app) ; sur tes bulles, la rangée est ancrée à droite pour ne plus déborder du fil
 - Messagerie (masquée) : « Changer la photo » du menu Options fonctionne aussi dans une conversation où l’on ne peut pas écrire ; un échec de suppression ou de renommage affiche une erreur au lieu d’échouer en silence
 - Couleurs : huit variables CSS utilisées sans être définies (`--color-gray-500/700/800`, `--color-primary-300/700`, `--color-text`, `--color-text-muted`, `--color-border`) le sont désormais. Les textes secondaires retrouvent leur gris, et les bordures au survol (membres, équipes, annonces, import…) ne prennent plus la couleur du texte. Un test échoue si une variable `--color-*` utilisée n’existe pas
 - Messagerie (masquée) : une conversation n’est plus marquée lue quand la page Messages est masquée ou l’onglet en arrière-plan

@@ -42,6 +42,24 @@ function reactionEntries(
     .map(([emoji, uids]) => ({ emoji, uids }));
 }
 
+/** Emojis max sous une bulle, au-delà chip « +n » (`ViroChat.reactionChipsMax`). */
+export const MAX_VISIBLE_REACTIONS = 4;
+
+/**
+ * Chips de la barre : les plus fréquents d’abord (ordre d’origine à égalité),
+ * au plus `MAX_VISIBLE_REACTIONS`, et le nombre d’emojis restants.
+ */
+export function visibleReactionChips(entries: ReactionEntry[]): {
+  visible: ReactionEntry[];
+  hiddenCount: number;
+} {
+  const sorted = [...entries].sort((a, b) => b.uids.length - a.uids.length);
+  return {
+    visible: sorted.slice(0, MAX_VISIBLE_REACTIONS),
+    hiddenCount: Math.max(0, sorted.length - MAX_VISIBLE_REACTIONS),
+  };
+}
+
 function totalReactionCount(entries: ReactionEntry[]): number {
   return entries.reduce((sum, entry) => sum + entry.uids.length, 0);
 }
@@ -69,12 +87,19 @@ export function MessageReactionsBar({
   const [detailsOpen, setDetailsOpen] = useState(false);
   const barRef = useRef<HTMLDivElement | null>(null);
   const entries = useMemo(() => reactionEntries(reactions), [reactions]);
+  const { visible, hiddenCount } = useMemo(
+    () => visibleReactionChips(entries),
+    [entries],
+  );
 
   if (entries.length === 0) return null;
 
   return (
     <>
-      <div className={styles.bar} ref={barRef}>
+      <div
+        className={`${styles.bar}${mine ? ` ${styles.barMine}` : ""}`}
+        ref={barRef}
+      >
         <button
           type="button"
           className={styles.chipGroup}
@@ -89,7 +114,7 @@ export function MessageReactionsBar({
             setDetailsOpen(true);
           }}
         >
-          {entries.map(({ emoji, uids }) => {
+          {visible.map(({ emoji, uids }) => {
             const mineChip = Boolean(myUid && uids.includes(myUid));
             return (
               <span
@@ -103,6 +128,11 @@ export function MessageReactionsBar({
               </span>
             );
           })}
+          {hiddenCount > 0 ? (
+            <span className={styles.chip}>
+              <span className={styles.count}>+{hiddenCount}</span>
+            </span>
+          ) : null}
         </button>
       </div>
       {detailsOpen

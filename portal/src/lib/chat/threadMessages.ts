@@ -82,6 +82,19 @@ export function appendOlderPage(
 }
 
 /**
+ * Nombre de messages arrivés après `messageId` (bouton « nouveaux messages »).
+ * Id null ou introuvable → 0.
+ */
+export function countMessagesAfter(
+  messages: ChatMessage[],
+  messageId: string | null,
+): number {
+  if (!messageId) return 0;
+  const index = messages.findIndex((message) => message.id === messageId);
+  return index < 0 ? 0 : messages.length - 1 - index;
+}
+
+/**
  * Ids des messages (non supprimés) dont le texte ou la question de sondage
  * contient la recherche, sans casse. Recherche vide → aucun résultat.
  */

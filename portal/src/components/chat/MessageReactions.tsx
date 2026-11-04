@@ -358,7 +358,7 @@ function ReactionDetailsPanel({
                     displayName={displayName}
                     avatarUrl={person?.avatarUrl}
                     hasLinkedAccount={person?.hasLinkedAccount ?? false}
-                    size="sm"
+                    diameter="var(--chat-avatar-sender)"
                     enableZoom={false}
                   />
                   <span className={styles.reactorText}>

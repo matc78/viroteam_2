@@ -97,6 +97,9 @@ Scaffold(
 
 - Dimensions du chat (rayons et marges de bulle, largeur max 78 %, écart entre messages, rayon de citation, tailles d’avatar) → **`ViroChat`** (`lib/config/viro_chat.dart`) dans l’app, variables **`--chat-*`** (`portal/src/app/globals.css`) dans le portail. Mêmes noms, mêmes valeurs : toute nouvelle valeur est ajoutée des deux côtés.
 - Fond du fil : `ViroChat.threadBackgroundAsset` (app), `--chat-thread-background` (portail).
+- Bulles : les miennes sur `palette.accentFill` / texte `palette.onAccent` (portail : `--chat-bubble-mine-bg` / `--chat-bubble-mine-text`), celles des autres sur `surfaceCard` avec la bordure de rôle. Regroupement (même règle des deux côtés, testée : `chatThreadGroupPositions` ↔ `messageGrouping.ts`) : même expéditeur, même jour, moins de 5 min, pas de séparateur, ni supprimé ni sondage ; nom sur le premier, avatar et coin « queue » sur le dernier, écart `messageGroupGap` / `--chat-message-group-gap` (2 px).
+- Photos : 220 px de large, hauteur au ratio bornée 120–320 px (`chatThreadImageSize` ↔ `messageImageLayout.ts`, tokens `ViroChat.image*` / `--chat-image-*`).
+- Recherche dans le fil : compteur « n / total » où 1 = résultat le plus récent, sur les deux plateformes.
 - Portail : pas d’hexa en dur dans les modules CSS du chat (variables `--color-*` / `--chat-*`, vérifié par `cssColorTokens.test.ts`) ; briques communes (`iconBtn`, `search`, dialogues…) dans `chatShared.module.css` via `composes:` ; textes dans `src/lib/copy/chatCopy.ts`, mêmes clés que `app_copy_chat.dart` quand le sens est le même.
 
 ### Motion & ombres

@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChatThreadView } from "@/components/chat/ChatThreadView";
+import { ClubBadge } from "@/components/chat/ClubBadge";
+import { InboxListState } from "@/components/chat/InboxListState";
 import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { ConversationListItem } from "@/components/chat/ConversationListItem";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { useChat } from "@/lib/chat/ChatProvider";
 import { filterInbox } from "@/lib/chat/filterInbox";
-import {
-  readableTextOnBrand,
-  splitBrandColorHex,
-} from "@/lib/clubSetup/clubBrandColors";
-import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { chatStateDocId } from "@/lib/firebase/chatTypes";
 import styles from "./MessagesPageClient.module.css";
 import { chatCopy } from "@/lib/copy/chatCopy";
@@ -40,6 +37,8 @@ export function MessagesPageClient({
     clubColorById,
     previewSenderByKey,
     inboxLoading,
+    inboxError,
+    retryInbox,
     openCompose,
     openCategoryChannel,
     isAdminSomewhere,
@@ -101,11 +100,6 @@ export function MessagesPageClient({
     selectedClubId && selectedConversationId
       ? chatStateDocId(selectedClubId, selectedConversationId)
       : null;
-  const selectedClubBrand = selectedClubId
-    ? splitBrandColorHex(
-        clubColorById[selectedClubId] ?? ClubSetupDefaults.brandColorHex,
-      ).primary
-    : null;
 
   return (
     <div className={styles.pageRoot}>
@@ -141,17 +135,20 @@ export function MessagesPageClient({
               className={styles.search}
               type="search"
               placeholder={chatCopy.searchConversationsHint}
+              aria-label={chatCopy.searchConversationsLabel}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
           <div className={styles.list}>
-            {inboxLoading && conversations.length === 0 ? (
-              <p className={styles.empty}>{chatCopy.loading}</p>
-            ) : filtered.length === 0 ? (
-              <p className={styles.empty}>{chatCopy.emptyInbox}</p>
-            ) : (
-              filtered.map((conversation) => {
+            <InboxListState
+              loading={inboxLoading}
+              error={inboxError}
+              onRetry={retryInbox}
+              totalCount={conversations.length}
+              filteredCount={filtered.length}
+            />
+            {filtered.map((conversation) => {
                 const id = chatStateDocId(conversation.clubId, conversation.id);
                 const selected =
                   selectedClubId === conversation.clubId &&
@@ -172,8 +169,7 @@ export function MessagesPageClient({
                     }
                   />
                 );
-              })
-            )}
+              })}
           </div>
         </aside>
 
@@ -189,19 +185,11 @@ export function MessagesPageClient({
               clubName={clubNameById[selectedClubId]}
               clubColor={clubColorById[selectedClubId]}
               headerExtra={
-                clubNameById[selectedClubId] && selectedClubBrand ? (
-                  <span
-                    className={styles.clubLabel}
-                    style={
-                      {
-                        "--club-brand": selectedClubBrand,
-                        "--club-brand-text":
-                          readableTextOnBrand(selectedClubBrand),
-                      } as CSSProperties
-                    }
-                  >
-                    {clubNameById[selectedClubId]}
-                  </span>
+                clubNameById[selectedClubId] ? (
+                  <ClubBadge
+                    name={clubNameById[selectedClubId]}
+                    color={clubColorById[selectedClubId]}
+                  />
                 ) : null
               }
             />

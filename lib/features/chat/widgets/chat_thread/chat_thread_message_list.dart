@@ -22,6 +22,7 @@ class ChatThreadMessageList extends StatelessWidget {
     required this.scrollController,
     required this.searchOpen,
     required this.searchQuery,
+    required this.currentSearchMatchId,
     required this.anchorKeyFor,
     required this.messageAnchorKeys,
     required this.reactorsMessageId,
@@ -42,6 +43,9 @@ class ChatThreadMessageList extends StatelessWidget {
   final ScrollController scrollController;
   final ValueListenable<bool> searchOpen;
   final ValueListenable<String> searchQuery;
+
+  /// Id du résultat de recherche sélectionné (`null` = aucun).
+  final ValueListenable<String?> currentSearchMatchId;
   final GlobalKey Function(String messageId) anchorKeyFor;
   final Map<String, GlobalKey> messageAnchorKeys;
   final String? reactorsMessageId;
@@ -64,9 +68,11 @@ class ChatThreadMessageList extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: searchOpen,
       builder: (context, isSearchOpen, _) {
-        return ValueListenableBuilder<String>(
-          valueListenable: searchQuery,
-          builder: (context, query, _) {
+        return ListenableBuilder(
+          listenable: Listenable.merge([searchQuery, currentSearchMatchId]),
+          builder: (context, _) {
+            final query = searchQuery.value;
+            final currentMatchId = currentSearchMatchId.value;
             return GestureDetector(
               behavior: HitTestBehavior.deferToChild,
               onTap: onDismissReactors,
@@ -103,6 +109,10 @@ class ChatThreadMessageList extends StatelessWidget {
                     anchorKey: anchorKeyFor(message.id),
                     messageAnchorKeys: messageAnchorKeys,
                     showUnreadSeparator: messageIndex == view.firstUnreadIndex,
+                    groupPosition: view.groupPositions[messageIndex],
+                    uploadProgress: view.uploadProgress[message.id],
+                    isCurrentSearchMatch:
+                        isSearchOpen && message.id == currentMatchId,
                     searchOpen: isSearchOpen,
                     searchQuery: query,
                     clubId: clubId,

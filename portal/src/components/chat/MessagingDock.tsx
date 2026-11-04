@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type AnimationEvent } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
 import { ConversationListItem } from "@/components/chat/ConversationListItem";
+import { InboxListState } from "@/components/chat/InboxListState";
 import { useChat } from "@/lib/chat/ChatProvider";
 import { filterInbox } from "@/lib/chat/filterInbox";
 import { chatStateDocId } from "@/lib/firebase/chatTypes";
@@ -22,6 +23,8 @@ export function MessagingDock() {
     clubColorById,
     previewSenderByKey,
     inboxLoading,
+    inboxError,
+    retryInbox,
     messagesHref,
     activeThread,
     setDockOpen,
@@ -162,28 +165,21 @@ export function MessagingDock() {
           className={styles.search}
           type="search"
           placeholder={chatCopy.searchConversationsHint}
-          aria-label={chatCopy.searchConversationsHint}
+          aria-label={chatCopy.searchConversationsLabel}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
       <div className={styles.list}>
-        {inboxLoading && conversations.length === 0 ? (
-          <p className={styles.empty}>{chatCopy.loading}</p>
-        ) : filtered.length === 0 ? (
-          <div className={styles.emptyBlock}>
-            <p className={styles.empty}>{chatCopy.emptyInbox}</p>
-            <p className={styles.emptyHint}>{chatCopy.emptyInboxHint}</p>
-            <button
-              type="button"
-              className={styles.composeCta}
-              onClick={openCompose}
-            >
-              {chatCopy.newConversation}
-            </button>
-          </div>
-        ) : (
-          filtered.map((conversation) => {
+        <InboxListState
+          loading={inboxLoading}
+          error={inboxError}
+          onRetry={retryInbox}
+          totalCount={conversations.length}
+          filteredCount={filtered.length}
+          onCompose={openCompose}
+        />
+        {filtered.map((conversation) => {
             const stateId = chatStateDocId(
               conversation.clubId,
               conversation.id,
@@ -210,8 +206,7 @@ export function MessagingDock() {
                 }
               />
             );
-          })
-        )}
+          })}
       </div>
     </aside>
   );

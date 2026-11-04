@@ -148,7 +148,13 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid)).data.memberId == memberId);
     }
 
+    /// Clé RSVP / seenAt canonique = Auth uid (aligné reconcile / app).
     function audienceMemberId(clubId) {
+      return request.auth.uid;
+    }
+
+    /// `memberId` pré-créé lié au compte, s'il diffère de l'Auth uid.
+    function linkedLegacyMemberId(clubId) {
       let accountIndex = /databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid);
       return exists(accountIndex)
         ? get(accountIndex).data.memberId
@@ -219,28 +225,61 @@ service cloud.firestore {
       ];
     }
 
-    /// Map `memberId → Timestamp` : seule la clé `ownId` change, et sa valeur
-    /// est l'horodatage serveur (`serverTimestamp()` côté client).
-    function ownServerTimestampOk(field, ownId) {
+    /// Map audience → Timestamp : Auth uid et/ou memberId lié (transition app).
+    function ownServerTimestampOk(field, clubId) {
+      let ownId = audienceMemberId(clubId);
+      let legacyId = linkedLegacyMemberId(clubId);
       let before = resource.data.get(field, {});
       let after = request.resource.data.get(field, {});
+      let changed = after.diff(before).affectedKeys();
       return !affectedKeys().hasAny([field]) || (
-        after.diff(before).affectedKeys().hasOnly([ownId])
-        && after[ownId] == request.time
+        (
+          changed.hasOnly([ownId])
+          && after[ownId] == request.time
+        ) || (
+          // Ancienne app : écrit encore sous memberId.
+          legacyId != ownId
+          && changed.hasOnly([legacyId])
+          && after[legacyId] == request.time
+        ) || (
+          // Nouvelle app : Auth uid + delete de la clé memberId.
+          legacyId != ownId
+          && changed.hasOnly([ownId, legacyId])
+          && after[ownId] == request.time
+          && !(legacyId in after)
+        )
+      );
+    }
+
+    /// RSVP : Auth uid (canon), memberId lié (ancienne app), ou uid + delete legacy.
+    function ownRsvpMapOk(clubId) {
+      let ownId = audienceMemberId(clubId);
+      let legacyId = linkedLegacyMemberId(clubId);
+      let before = resource.data.get('rsvp', {});
+      let after = request.resource.data.get('rsvp', {});
+      let changed = after.diff(before).affectedKeys();
+      return !affectedKeys().hasAny(['rsvp']) || (
+        changed.hasOnly([ownId])
+        || (
+          legacyId != ownId
+          && changed.hasOnly([legacyId])
+        )
+        || (
+          legacyId != ownId
+          && changed.hasOnly([ownId, legacyId])
+          && !(legacyId in after)
+        )
       );
     }
 
     /// Le membre ne modifie que ses propres clés : `rsvp`, son horodatage
-    /// `rsvpUpdatedAt` et sa vue `seenAt`.
+    /// `rsvpUpdatedAt` et sa vue `seenAt` (plus nettoyage d'alias memberId).
     function onlyOwnAudienceUpdate(clubId) {
-      let ownId = audienceMemberId(clubId);
-      let rsvpAffected = request.resource.data.get('rsvp', {})
-        .diff(resource.data.get('rsvp', {})).affectedKeys();
       return isClubMember(clubId)
         && affectedKeys().hasOnly(['rsvp', 'rsvpUpdatedAt', 'seenAt', 'updatedAt'])
-        && rsvpAffected.hasOnly([ownId])
-        && ownServerTimestampOk('rsvpUpdatedAt', ownId)
-        && ownServerTimestampOk('seenAt', ownId);
+        && ownRsvpMapOk(clubId)
+        && ownServerTimestampOk('rsvpUpdatedAt', clubId)
+        && ownServerTimestampOk('seenAt', clubId);
     }
 
     /// Le titulaire d'une fiche ne modifie que son profil affiché.

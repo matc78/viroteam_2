@@ -1,13 +1,16 @@
 "use client";
 
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { ChatIcon } from "@/components/chat/ChatIcons";
 import {
   MessageReactionsBar,
   type ReactionPerson,
 } from "@/components/chat/MessageReactions";
+import { MessageImage } from "@/components/chat/thread/MessageImage";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import { previewSenderRoleTone } from "@/lib/chat/conversationPreview";
 import { linkifyMessageText } from "@/lib/chat/linkifyMessageText";
+import type { DeliveryStatus } from "@/lib/chat/pendingMessages";
 import { messageTimeLabel } from "@/lib/chat/threadMessages";
 import { ChatMessageTypes } from "@/lib/firebase/constants";
 import {
@@ -25,6 +28,16 @@ type MessageBubbleProps = {
   isGroup: boolean;
   /** Résultat de la recherche en cours (surlignage). */
   isMatch: boolean;
+  /** Résultat courant de la recherche (surlignage appuyé). */
+  isCurrentMatch: boolean;
+  /** Regroupé avec le message précédent : pas de nom, écart réduit. */
+  groupedWithPrevious: boolean;
+  /** Regroupé avec le message suivant : pas d’avatar ni de « queue ». */
+  groupedWithNext: boolean;
+  /** Envoi optimiste en cours ou en échec (absent = confirmé). */
+  delivery?: DeliveryStatus;
+  /** Réactions à afficher (surcharge optimiste comprise). */
+  reactions: Record<string, string[]>;
   senderRole: string | undefined;
   peopleByUid: Map<string, ReactionPerson>;
   rowRef: (node: HTMLDivElement | null) => void;
@@ -40,17 +53,25 @@ type MessageBubbleProps = {
   onVote: (message: ChatMessage, optionId: string) => void;
   onOpenPollVotes: (messageId: string) => void;
   onToggleReaction: (message: ChatMessage, emoji: string) => void;
+  /** Relance un envoi en échec. */
+  onRetrySend: (messageId: string) => void;
 };
 
 /**
- * Ligne message du fil : avatar + nom (groupe, autres membres), citation,
- * contenu texte / photo / sondage, horodatage et réactions.
+ * Ligne message du fil : avatar + nom (groupe, autres membres ; nom sur le
+ * premier message d’un groupe, avatar sur le dernier), citation, contenu
+ * texte / photo / sondage, horodatage, statut d’envoi et réactions.
  */
 export function MessageBubble({
   message,
   viewerUid,
   isGroup,
   isMatch,
+  isCurrentMatch,
+  groupedWithPrevious,
+  groupedWithNext,
+  delivery,
+  reactions,
   senderRole,
   peopleByUid,
   rowRef,
@@ -63,6 +84,7 @@ export function MessageBubble({
   onVote,
   onOpenPollVotes,
   onToggleReaction,
+  onRetrySend,
 }: MessageBubbleProps) {
   const mine = viewerUid === message.senderUid;
   const deleted = isChatMessageDeleted(message);
@@ -71,41 +93,64 @@ export function MessageBubble({
   const senderPerson = showSenderMeta
     ? peopleByUid.get(message.senderUid)
     : undefined;
-  const senderLabel = showSenderMeta
-    ? senderPerson?.displayName?.trim() ||
-      senderPerson?.label ||
-      chatCopy.someone
-    : null;
+  const senderLabel =
+    showSenderMeta && !groupedWithPrevious
+      ? senderPerson?.displayName?.trim() ||
+        senderPerson?.label ||
+        chatCopy.someone
+      : null;
+  const showAvatar = showSenderMeta && !groupedWithNext;
   const timeLabel = deleted ? "" : messageTimeLabel(message);
   const timeIso = deleted ? undefined : message.createdAt.toISOString();
   const hasReply =
     !deleted && Boolean(message.replyToMessageId && message.replyToText);
   const hasReactions =
-    !deleted &&
-    Object.values(message.reactions).some((uids) => uids.length > 0);
+    !deleted && Object.values(reactions).some((uids) => uids.length > 0);
+  const pending = delivery != null;
+
+  const rowClassName = [
+    styles.bubbleRow,
+    mine ? styles.bubbleRowMine : "",
+    showSenderMeta ? styles.bubbleRowWithAvatar : "",
+    groupedWithPrevious ? styles.bubbleRowGrouped : "",
+    isMatch ? styles.bubbleRowMatch : "",
+    isCurrentMatch ? styles.bubbleRowCurrentMatch : "",
+    delivery === "sending" ? styles.bubbleRowSending : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const bubbleClassName = [
+    styles.bubble,
+    mine ? styles.bubbleMine : "",
+    groupedWithNext ? styles.bubbleNoTail : "",
+    delivery === "failed" ? styles.bubbleFailed : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div
-      ref={rowRef}
-      className={`${styles.bubbleRow}${mine ? ` ${styles.bubbleRowMine}` : ""}${showSenderMeta ? ` ${styles.bubbleRowWithAvatar}` : ""}${isMatch ? ` ${styles.bubbleRowMatch}` : ""}`}
-    >
+    <div ref={rowRef} className={rowClassName}>
       {showSenderMeta ? (
         <span
           className={`${styles.senderAvatar}${
             hasReactions ? ` ${styles.senderAvatarWithReactions}` : ""
           }`}
+          aria-hidden={showAvatar ? undefined : true}
         >
-          <MemberAvatar
-            displayName={
-              senderPerson?.displayName ||
-              senderPerson?.label ||
-              chatCopy.unknownMember
-            }
-            avatarUrl={senderPerson?.avatarUrl}
-            hasLinkedAccount={senderPerson?.hasLinkedAccount ?? false}
-            size="xs"
-            enableZoom={false}
-          />
+          {showAvatar ? (
+            <MemberAvatar
+              displayName={
+                senderPerson?.displayName ||
+                senderPerson?.label ||
+                chatCopy.unknownMember
+              }
+              avatarUrl={senderPerson?.avatarUrl}
+              hasLinkedAccount={senderPerson?.hasLinkedAccount ?? false}
+              diameter="var(--chat-avatar-sender)"
+              enableZoom={false}
+            />
+          ) : null}
         </span>
       ) : null}
       <div
@@ -114,14 +159,16 @@ export function MessageBubble({
         }`}
       >
         <div
-          className={`${styles.bubble}${mine ? ` ${styles.bubbleMine}` : ""}`}
+          className={bubbleClassName}
           data-msg-bubble=""
           data-role={roleTone}
           onContextMenu={(event) => {
             event.preventDefault();
-            onOpenActions(message);
+            if (!pending) onOpenActions(message);
           }}
-          onPointerDown={(event) => onBubblePointerDown(event, message)}
+          onPointerDown={(event) => {
+            if (!pending) onBubblePointerDown(event, message);
+          }}
           onPointerUp={onBubblePointerEnd}
           onPointerLeave={onBubblePointerEnd}
           onPointerCancel={onBubblePointerEnd}
@@ -149,35 +196,12 @@ export function MessageBubble({
           {deleted ? (
             <p className={styles.deleted}>{chatCopy.messageDeleted}</p>
           ) : message.type === ChatMessageTypes.image ? (
-            <div className={styles.imageWrap}>
-              <button
-                type="button"
-                className={styles.imageBtn}
-                aria-label={chatCopy.enlargePhoto}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  const fullUrl = message.downloadUrl || message.thumbUrl || "";
-                  if (fullUrl) onOpenImage(fullUrl);
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={message.thumbUrl || message.downloadUrl || ""}
-                  alt={chatCopy.photoPreview}
-                  className={styles.image}
-                  style={
-                    message.width && message.height
-                      ? {
-                          aspectRatio: `${message.width} / ${message.height}`,
-                        }
-                      : undefined
-                  }
-                />
-              </button>
-              <time className={styles.timeOnImage} dateTime={timeIso}>
-                {timeLabel}
-              </time>
-            </div>
+            <MessageImage
+              message={message}
+              timeLabel={timeLabel}
+              timeIso={timeIso}
+              onOpenImage={onOpenImage}
+            />
           ) : message.type === ChatMessageTypes.poll ? (
             <div className={styles.poll}>
               <p className={styles.pollQuestion}>
@@ -247,9 +271,24 @@ export function MessageBubble({
             </div>
           )}
         </div>
-        {!deleted ? (
+        {delivery === "sending" ? (
+          <p className={styles.deliveryStatus}>
+            {chatCopy.messageSending}
+          </p>
+        ) : delivery === "failed" ? (
+          <button
+            type="button"
+            className={styles.deliveryRetry}
+            aria-label={chatCopy.retrySendLabel}
+            onClick={() => onRetrySend(message.id)}
+          >
+            <ChatIcon name="closeCircle" size={14} />
+            {chatCopy.messageSendFailed} · {chatCopy.retrySend}
+          </button>
+        ) : null}
+        {!deleted && !pending ? (
           <MessageReactionsBar
-            reactions={message.reactions}
+            reactions={reactions}
             myUid={viewerUid}
             peopleByUid={peopleByUid}
             mine={mine}

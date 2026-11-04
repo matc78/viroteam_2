@@ -73,6 +73,15 @@
   vertical-align: middle;
 }
 
+/* Pastille club aux couleurs du club (`ClubBadge`, variables posées en inline). */
+.clubBadge {
+  composes: clubLabel;
+  flex-shrink: 1;
+  min-width: 0;
+  background: var(--club-brand, var(--color-primary-500));
+  color: var(--club-brand-text, var(--color-white));
+}
+
 /* Bouton d'action rectangulaire (pied de dialog, en-tête de page). Couleurs locales ou `actionBtnPrimary`. */
 .actionBtn {
   border: none;

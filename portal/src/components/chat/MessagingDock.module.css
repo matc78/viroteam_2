@@ -208,37 +208,3 @@
   overflow-y: auto;
 }
 
-.emptyBlock {
-  padding: 1.25rem 1rem;
-  text-align: center;
-}
-
-.empty {
-  margin: 0;
-  padding: 0.85rem 1rem;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--color-primary-900);
-}
-
-.emptyBlock .empty {
-  padding: 0;
-}
-
-.emptyHint {
-  margin: 0.4rem 0 0.9rem;
-  font-size: 0.78rem;
-  color: var(--color-gray-500);
-}
-
-.composeCta {
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 0.45rem 0.85rem;
-  background: var(--color-primary-500);
-  color: var(--color-white);
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.82rem;
-  cursor: pointer;
-}

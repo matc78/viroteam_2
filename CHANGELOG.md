@@ -14,11 +14,14 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Messagerie (masquée), fil : mes messages en bulles bleues, messages consécutifs d’une même personne regroupés (nom et avatar une seule fois), squelette au chargement et « Réessayer » en cas d’erreur, photos à leur ratio avec placeholder et progression pendant l’envoi, modification d’un message directement dans le champ (plus de boîte de dialogue), bouton d’envoi grisé tant que le champ est vide, recherche avec compteur (« 2 / 5 ») et navigation précédent / suivant
+- Messagerie (masquée), inbox et création : état « aucun résultat » distinct de l’inbox vide, placeholder de recherche fidèle à ce qu’elle filtre, fenêtres « nouvelle conversation » et « sondage » alignées sur les autres sheets ; les destinataires possibles sont chargés par `ChatDmTargetsService` avec des lectures groupées (plus de lecture par destinataire)
 - Messagerie (masquée) : tokens communs avec le portail (`ViroChat` ↔ `--chat-*`), un seul avatar de conversation (`ViroConversationAvatar`) pour l’inbox, l’en-tête du fil et la fiche, bulles de sondage alignées sur les messages (78 % de large, mêmes marges). « Vous » devient « Toi » et les états vides de l’inbox et du fil affichent une ligne d’aide
 - Messagerie (masquée), sans changement visuel : l’état du fil (historique, envois optimistes et relance, non-lus) passe dans un contrôleur Riverpod par conversation (`chatThreadControllerProvider`) et les trois chemins d’envoi (texte, photo, relance) dans `ChatService.sendPendingMessage`. Le détail des votes d’un sondage devient une route go_router (`/conversations/:clubId/:conversationId/polls/:messageId`) avec retour vers le fil. Nouvelles tuiles `ChatReactorListTile`, `ChatDmTargetListTile`, `ChatMediaListTile` et premiers tests du chat (helpers du fil, tri de l’inbox, extraction des médias, tuiles)
 
 ### Corrigé
 
+- RSVP : les joueurs avec fiche pré-créée (invitation) pouvaient voir leur présence « coincée » — l’app écrivait sous `memberId` alors que les convocations / l’UI lisaient `accountUid`. Lecture, écriture, rules et création d’événement utilisent maintenant le même canon (`accountUid` si lié) ; un vote nettoie l’ancienne clé, et un script `tool/repair_event_rsvp_audience.mjs` répare les doubles clés déjà en base
 - Messagerie (masquée) : l’app n’empêche plus d’envoyer un message tant que le précédent n’est pas confirmé, les anciens messages ne disparaissent plus du haut du fil quand un nouveau arrive, et « Charger plus » ne s’affiche que s’il reste de l’historique
 - Messagerie (masquée) : les canaux réservés aux coachs et admins affichent le bon bandeau (« Seuls les coachs et les admins peuvent écrire ici. ») dans l’app et sur le portail
 - Tests des règles Firestore : `npm test` fonctionne aussi sous Windows (guillemets du script)

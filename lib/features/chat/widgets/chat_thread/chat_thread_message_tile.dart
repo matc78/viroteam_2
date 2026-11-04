@@ -41,6 +41,9 @@ class ChatThreadMessageTile extends StatelessWidget {
     required this.onOpenReactors,
     required this.onDismissReactors,
     required this.onVotePoll,
+    this.groupPosition = (isFirst: true, isLast: true),
+    this.isCurrentSearchMatch = false,
+    this.uploadProgress,
     this.onRetrySend,
   });
 
@@ -71,6 +74,15 @@ class ChatThreadMessageTile extends StatelessWidget {
   }) onOpenReactors;
   final VoidCallback onDismissReactors;
   final void Function(ChatMessage message, String optionId) onVotePoll;
+
+  /// Place dans le groupe : nom sur le premier message, avatar sur le dernier.
+  final ChatThreadGroupPosition groupPosition;
+
+  /// Résultat de recherche sélectionné (mis en avant).
+  final bool isCurrentSearchMatch;
+
+  /// Avancement de l’upload de la photo (envoi en cours).
+  final double? uploadProgress;
   final VoidCallback? onRetrySend;
 
   @override
@@ -85,11 +97,12 @@ class ChatThreadMessageTile extends StatelessWidget {
         (message.text ?? '').toLowerCase().contains(query) ||
         (message.pollQuestion ?? '').toLowerCase().contains(query);
     final showSenderMeta = !mine && isGroup;
-    final senderLabel = showSenderMeta
+    final senderLabel = showSenderMeta && groupPosition.isFirst
         ? chatThreadSenderFullName(message.senderUid, members)
         : '';
-    final senderMember =
-        showSenderMeta ? memberByUid[message.senderUid] : null;
+    final senderMember = showSenderMeta && groupPosition.isLast
+        ? memberByUid[message.senderUid]
+        : null;
     final replySenderLabel = message.replyToSenderUid == null
         ? ''
         : chatThreadSenderFirstName(message.replyToSenderUid!, members);
@@ -98,7 +111,8 @@ class ChatThreadMessageTile extends StatelessWidget {
         !message.isDeleted &&
         message.reactions.values.any((uids) => uids.isNotEmpty);
     const senderAvatarSize = ViroChat.avatarSender;
-    final avatarBottomPad = hasReactionChips ? 20.0 : 4.0;
+    final avatarBottomPad =
+        hasReactionChips ? 20.0 : ViroChat.messageGap / 2;
 
     late final Widget bubble;
     if (isPollBubble) {
@@ -133,6 +147,9 @@ class ChatThreadMessageTile extends StatelessWidget {
         replySenderLabel: replySenderLabel,
         highlightQuery: query.isEmpty ? null : searchQuery,
         isSearchMatch: searchOpen && query.isNotEmpty && matchesSearch,
+        isCurrentSearchMatch: isCurrentSearchMatch,
+        groupPosition: groupPosition,
+        uploadProgress: uploadProgress,
         onLongPress: () => onShowActions(message, mine: mine),
         onDoubleTap: () => onReact(message, chatHeartReactionEmoji),
         onOpenReactors: () {

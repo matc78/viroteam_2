@@ -16,9 +16,24 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 - Messagerie (masquée) : le bandeau d’un canal dit qui peut écrire (admins seuls, ou coachs et admins) et ne s’affiche plus pendant le chargement
 - Messagerie (masquée) : noms, photos et rôles des participants lus sur la conversation (`participantProfiles`) — un parent les voit, sans lecture des membres un par un
 - Messagerie (masquée) : les séparateurs de jour du fil ont une clé par jour local (et non UTC) — deux jours consécutifs autour de minuit ne partagent plus la même clé React
+- Messagerie (masquée) : une erreur de chargement de l’inbox (ou du fil) n’est plus avalée — message d’erreur avec « Réessayer » ; une recherche sans résultat affiche « Aucune discussion ne correspond… » au lieu de l’inbox vide ; le placeholder de recherche décrit ce qu’elle filtre (nom, club, dernier message)
+- Messagerie (masquée) : Entrée n’envoie plus le message pendant une composition IME (accents, kana…) ; le champ garde le focus pendant l’envoi
+- Messagerie (masquée) : la pastille du club prend la couleur du club partout, y compris dans la fenêtre flottante ; titres longs tronqués en CSS (inbox, en-tête du fil, fenêtre flottante)
+
+### Ajouté
+
+- Messagerie (masquée) : envoi optimiste (le message apparaît tout de suite en « Envoi… », « Échec · Réessayer » cliquable sinon), bouton flottant « Derniers messages » / « n nouveaux messages », historique chargé automatiquement en remontant (position de lecture conservée)
+- Messagerie (masquée) : squelette au chargement du fil, état vide (« Envoie le premier message… » si tu peux écrire), erreur avec « Réessayer »
+- Messagerie (masquée) : recherche dans le fil avec compteur « 2 / 5 », navigation précédent / suivant (boutons, Entrée / Maj+Entrée) et résultat courant mis en évidence
+- Messagerie (masquée) : modification d’un message directement dans le composer (bandeau « Modification » + Annuler, Entrée enregistre, Échap annule) — la boîte de dialogue de modification est supprimée
+- Messagerie (masquée) : mute, favori et réactions appliqués tout de suite, annulés avec un message d’erreur si l’écriture échoue
 
 ### Modifié
 
+- Messagerie (masquée) : mes bulles en couleur d’accent pleine (texte et liens clairs), celles des autres en surface carte avec la bordure de rôle ; messages consécutifs regroupés comme dans l’app (même expéditeur, même jour, < 5 min, sans séparateur, hors supprimés et sondages) — nom sur le premier, avatar et « queue » sur le dernier, écart `--chat-message-group-gap` (2 px)
+- Messagerie (masquée) : photos du fil au gabarit de l’app (220 px de large, hauteur au ratio bornée 120–320 px, place réservée avant chargement, fond de chargement, « Photo indisponible » en cas d’erreur)
+- Messagerie (masquée) : avatars aux tailles `--chat-avatar-*` (inbox 44, en-tête du fil 36 — nouvel avatar —, expéditeur 28, votant 22, fiche 88) ; `MemberAvatar` accepte un diamètre libre (`diameter`)
+- Messagerie (masquée) : boutons rapides du panneau infos « Couper » / « Réactiver » (libellés accessibles « Couper les notifs » / « Réactiver les notifs ») au lieu de « Mute » / « Notifs »
 - Messagerie (masquée) : `ChatThreadView` découpé en hooks et composants (`components/chat/thread/`), logique pure dans `lib/chat/` (`buildThreadRows`, `filterInbox`, `isMessagesPath` unique), tests vitest ajoutés ; rendu inchangé
 - Messagerie (masquée) : socle visuel commun avec l’app — tokens `--chat-*` (bulles, citations, avatars, couleurs du fil) dans `globals.css`, couleurs en dur des modules chat remplacées par des variables (thème sombre possible), classes dupliquées factorisées dans `chatShared.module.css`, textes regroupés dans `chatCopy`. Seul changement visible : les bulles vont jusqu’à 78 % de la largeur du fil (85 % avant)
 

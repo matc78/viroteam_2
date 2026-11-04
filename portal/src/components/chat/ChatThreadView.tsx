@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from "react";
+import { ChatIcon } from "@/components/chat/ChatIcons";
 import { ConversationInfoPanel } from "@/components/chat/ConversationInfoPanel";
 import { ConversationIntroCard } from "@/components/chat/ConversationIntroCard";
 import { CreatePollSheet } from "@/components/chat/CreatePollSheet";
@@ -16,12 +17,17 @@ import { Composer } from "@/components/chat/thread/Composer";
 import { ImageLightbox } from "@/components/chat/thread/ImageLightbox";
 import { MessageActionsPopover } from "@/components/chat/thread/MessageActionsPopover";
 import { MessageBubble } from "@/components/chat/thread/MessageBubble";
-import { MessageEditDialog } from "@/components/chat/thread/MessageEditDialog";
 import { ThreadHeader } from "@/components/chat/thread/ThreadHeader";
 import { ThreadSearchBar } from "@/components/chat/thread/ThreadSearchBar";
+import {
+  ThreadEmpty,
+  ThreadLoadError,
+  ThreadSkeleton,
+} from "@/components/chat/thread/ThreadStates";
 import { useComposer } from "@/components/chat/thread/useComposer";
 import { useMarkReadWhenVisible } from "@/components/chat/thread/useMarkReadWhenVisible";
 import { useMessageActions } from "@/components/chat/thread/useMessageActions";
+import { usePendingMessages } from "@/components/chat/thread/usePendingMessages";
 import { useThreadMessages } from "@/components/chat/thread/useThreadMessages";
 import { useThreadParticipants } from "@/components/chat/thread/useThreadParticipants";
 import { useThreadScroll } from "@/components/chat/thread/useThreadScroll";
@@ -109,12 +115,15 @@ export function ChatThreadView({
     enabled: Boolean(lightboxUrl),
   });
 
+  const pendingStore = usePendingMessages({ clubId, conversationId });
+
   const thread = useThreadMessages({
     clubId,
     conversationId,
     inboxConversation,
     chatState,
     viewerUid,
+    pending: pendingStore.pending,
   });
   const { conversation, messages } = thread;
 
@@ -146,7 +155,23 @@ export function ChatThreadView({
     inboxPeerName,
   });
 
-  const scroll = useThreadScroll({ clubId, conversationId, messages });
+  const scroll = useThreadScroll({
+    clubId,
+    conversationId,
+    messages,
+    onNearTop: () => {
+      if (!thread.hasMoreOlder || thread.loadingOlder) return;
+      void loadOlderMessages();
+    },
+  });
+
+  /** Charge l’historique en gardant la position de lecture. */
+  function loadOlderMessages() {
+    return thread.loadOlder({
+      beforePrepend: scroll.preserveScrollOnPrepend,
+      setError,
+    });
+  }
 
   useMarkReadWhenVisible({
     uid: viewerUid,
@@ -187,8 +212,6 @@ export function ChatThreadView({
             : null) || inboxPeerName,
       })
     : chatCopy.conversationFallbackTitle;
-  const titleShort =
-    title.length > 25 ? `${title.slice(0, 25).trimEnd()}…` : title;
   const membersPreview = formatParticipantPreview(participants);
   const showMembersPreviewSlot =
     (conversation?.participantUids.length ?? 0) > 0;
@@ -197,7 +220,7 @@ export function ChatThreadView({
     clubId,
     conversationId,
     messages,
-    messageRefs: scroll.messageRefs,
+    scrollToMessage: scroll.scrollToMessage,
   });
 
   const composer = useComposer({
@@ -207,6 +230,7 @@ export function ChatThreadView({
     canWrite,
     senderFirstName,
     senderRole,
+    pendingQueue: pendingStore,
     setError,
     onSendStart: scroll.forceScrollOnNextMessage,
     onSendFailed: scroll.cancelForcedScroll,
@@ -219,7 +243,8 @@ export function ChatThreadView({
     messagesRef: scroll.messagesRef,
     messageRefs: scroll.messageRefs,
     setError,
-    onReply: composer.setReplyTarget,
+    onReply: composer.startReply,
+    onEdit: composer.startEdit,
   });
 
   function openInfo(options?: { rename?: boolean }) {
@@ -253,26 +278,57 @@ export function ChatThreadView({
     search.setSearchOpen(true);
   }
 
-  async function handleToggleMute() {
+  /**
+   * Écrit une préférence (mute / favori) : via le provider (optimiste,
+   * annulé si l’écriture échoue), sinon directement.
+   */
+  async function writePrefs(prefs: { muted?: boolean; favorite?: boolean }) {
     if (!user) return;
+    if (chat) {
+      await chat.updateConversationPrefs({ clubId, conversationId, ...prefs });
+      return;
+    }
+    if (prefs.muted !== undefined) {
+      await setMuted({ uid: user.uid, clubId, conversationId, muted: prefs.muted });
+    }
+    if (prefs.favorite !== undefined) {
+      await setFavorite({
+        uid: user.uid,
+        clubId,
+        conversationId,
+        favorite: prefs.favorite,
+      });
+    }
+  }
+
+  async function handleToggleMute() {
     setMenuOpen(false);
-    await setMuted({
-      uid: user.uid,
-      clubId,
-      conversationId,
-      muted: !muted,
-    });
+    const next = !muted;
+    try {
+      await writePrefs({ muted: next });
+    } catch {
+      setError(next ? chatCopy.muteFailed : chatCopy.unmuteFailed);
+    }
   }
 
   async function handleToggleFavorite() {
-    if (!user) return;
     setMenuOpen(false);
-    await setFavorite({
-      uid: user.uid,
-      clubId,
-      conversationId,
-      favorite: !favorite,
-    });
+    try {
+      await writePrefs({ favorite: !favorite });
+    } catch {
+      setError(chatCopy.favoriteFailed);
+    }
+  }
+
+  async function handleRetrySend(messageId: string) {
+    setError(null);
+    scroll.forceScrollOnNextMessage();
+    try {
+      await pendingStore.retry(messageId);
+    } catch {
+      scroll.cancelForcedScroll();
+      setError(chatCopy.sendFailed);
+    }
   }
 
   async function handleRename(nextTitle: string) {
@@ -338,6 +394,8 @@ export function ChatThreadView({
   const sidePanelOpen =
     infoOpen || pollOpen || pollVotesMessage != null;
   const { actionMessage } = actions;
+  const showSkeleton = thread.status === "loading" && messages.length === 0;
+  const showLoadError = thread.status === "error" && messages.length === 0;
 
   return (
     <div
@@ -346,8 +404,9 @@ export function ChatThreadView({
     >
       <div className={styles.chatColumn}>
       <ThreadHeader
+        conversation={conversation}
+        clubColor={clubColor}
         title={title}
-        titleShort={titleShort}
         favorite={favorite}
         muted={muted}
         headerExtra={headerExtra}
@@ -372,11 +431,14 @@ export function ChatThreadView({
         <ThreadSearchBar
           query={search.searchQuery}
           matchCount={search.searchMatches.length}
+          position={search.position}
           onQueryChange={search.setSearchQuery}
+          onStep={search.stepMatch}
           onClose={search.closeSearch}
         />
       ) : null}
 
+      <div className={styles.messagesViewport}>
       <div
         className={`${styles.messages}${composer.dragOver ? ` ${styles.messagesDragOver}` : ""}`}
         ref={scroll.messagesRef}
@@ -384,6 +446,7 @@ export function ChatThreadView({
         aria-live="polite"
         aria-relevant="additions"
         aria-label={chatCopy.messagesLogLabel}
+        aria-busy={showSkeleton || undefined}
         onDragOver={composer.handleDragOver}
         onDragLeave={composer.handleDragLeave}
         onDrop={(event) => void composer.handleDrop(event)}
@@ -403,19 +466,17 @@ export function ChatThreadView({
             type="button"
             className={styles.loadMoreBtn}
             disabled={thread.loadingOlder}
-            onClick={() =>
-              void thread.loadOlder({
-                viewport: scroll.messagesRef.current,
-                beforePrepend: scroll.skipNextAutoScroll,
-                setError,
-              })
-            }
+            onClick={() => void loadOlderMessages()}
           >
             {thread.loadingOlder ? chatCopy.loading : chatCopy.loadOlderMessages}
           </button>
         ) : null}
-        {thread.threadRows.length === 0 ? (
-          <p className={styles.emptyHint}>{chatCopy.emptyThread}</p>
+        {showSkeleton ? (
+          <ThreadSkeleton />
+        ) : showLoadError ? (
+          <ThreadLoadError onRetry={thread.retry} />
+        ) : thread.threadRows.length === 0 ? (
+          <ThreadEmpty canWrite={canWrite} />
         ) : (
           thread.threadRows.map((row) => {
             if (row.kind === "date") {
@@ -444,6 +505,11 @@ export function ChatThreadView({
                 viewerUid={viewerUid}
                 isGroup={isGroup}
                 isMatch={search.isSearchMatch(message.id)}
+                isCurrentMatch={search.currentMatchId === message.id}
+                groupedWithPrevious={row.groupedWithPrevious}
+                groupedWithNext={row.groupedWithNext}
+                delivery={thread.deliveryById[message.id]}
+                reactions={actions.reactionsFor(message)}
                 senderRole={roleByUid.get(message.senderUid)}
                 peopleByUid={peopleByUid}
                 rowRef={(node) => {
@@ -462,23 +528,44 @@ export function ChatThreadView({
                 onToggleReaction={(target, emoji) =>
                   void actions.handleReaction(target, emoji)
                 }
+                onRetrySend={(messageId) => void handleRetrySend(messageId)}
               />
             );
           })
         )}
         <div ref={scroll.bottomRef} />
       </div>
+      {scroll.awayFromBottom ? (
+        <button
+          type="button"
+          className={`${styles.jumpToLatest}${scroll.newMessagesCount > 0 ? ` ${styles.jumpToLatestUnread}` : ""}`}
+          onClick={scroll.jumpToLatest}
+        >
+          {scroll.newMessagesCount > 0
+            ? chatCopy.newMessagesBelow(scroll.newMessagesCount)
+            : chatCopy.jumpToLatest}
+          <ChatIcon name="chevronDown" size={14} />
+        </button>
+      ) : null}
+      </div>
 
-      {error ? <p className={styles.error}>{error}</p> : null}
+      {error ? (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      ) : null}
 
       {canWrite ? (
         <Composer
           draft={composer.draft}
           onDraftChange={composer.setDraft}
-          busy={composer.busy}
+          inputRef={composer.inputRef}
           replyTarget={composer.replyTarget}
           onCancelReply={() => composer.setReplyTarget(null)}
           replyAuthorLabel={replyAuthorLabel}
+          editingMessage={composer.editingMessage}
+          savingEdit={composer.savingEdit}
+          onCancelEdit={composer.cancelEdit}
           attachOpen={composer.attachOpen}
           onToggleAttach={() => composer.setAttachOpen((open) => !open)}
           onPickPhoto={() => {
@@ -564,16 +651,6 @@ export function ChatThreadView({
           overlayRef={lightboxRef}
           url={lightboxUrl}
           onClose={() => setLightboxUrl(null)}
-        />
-      ) : null}
-
-      {actions.editingMessage ? (
-        <MessageEditDialog
-          overlayRef={actions.editOverlayRef}
-          draft={actions.editDraft}
-          onDraftChange={actions.setEditDraft}
-          onSave={() => void actions.handleEditSave()}
-          onClose={actions.closeEdit}
         />
       ) : null}
     </div>

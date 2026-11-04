@@ -119,7 +119,13 @@
   --chat-bubble-max-width: 78%;
   --chat-bubble-max-width-cap: 22rem;
   --chat-message-gap: 8px;
+  /* Écart entre deux messages d’un même groupe (même expéditeur, < 5 min). */
+  --chat-message-group-gap: 2px;
   --chat-quote-radius: 8px;
+  /* Photo dans une bulle : largeur fixe, hauteur au ratio bornée (`messageImageLayout.ts`). */
+  --chat-image-width: 220px;
+  --chat-image-min-height: 120px;
+  --chat-image-max-height: 320px;
   --chat-avatar-inbox: 44px;
   --chat-avatar-header: 36px;
   --chat-avatar-sender: 28px;
@@ -133,6 +139,9 @@
   --chat-error-text: #b42318;
   --chat-attach-photos: #3b82f6;
   --chat-attach-poll: #f59e0b;
+  /* Mes bulles : accent plein (`accentFill` côté app), texte et liens clairs. */
+  --chat-bubble-mine-bg: var(--color-primary-500);
+  --chat-bubble-mine-text: var(--color-white);
 
   --max-width: 72rem;
   --dashboard-max-width: 68rem;

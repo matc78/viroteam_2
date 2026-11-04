@@ -175,7 +175,7 @@ export function ConversationInfoPanel({
             displayName={selected.displayName}
             avatarUrl={selected.avatarUrl}
             hasLinkedAccount={selected.hasLinkedAccount}
-            size="md"
+            diameter="var(--chat-avatar-hero)"
           />
           <h3 className={styles.memberName}>{selected.displayName}</h3>
           <RoleBadge role={selected.role} size="sm" />
@@ -198,7 +198,7 @@ export function ConversationInfoPanel({
   ) : isGroup ? (
     <ChatIcon
       name={isChannel ? "megaphone" : "usersThree"}
-      size={44}
+      size={40}
     />
   ) : (
     title.trim().slice(0, 1).toUpperCase() || "?"
@@ -348,6 +348,7 @@ export function ConversationInfoPanel({
           <button
             type="button"
             className={styles.quickBtn}
+            aria-label={muted ? chatCopy.unmute : chatCopy.mute}
             onClick={onToggleMute}
           >
             <span className={styles.quickIcon}>
@@ -358,6 +359,7 @@ export function ConversationInfoPanel({
           <button
             type="button"
             className={styles.quickBtn}
+            aria-label={favorite ? chatCopy.removeFavorite : chatCopy.addFavorite}
             onClick={onToggleFavorite}
           >
             <span className={styles.quickIcon}>
@@ -501,7 +503,7 @@ export function ConversationInfoPanel({
                         displayName={participant.displayName}
                         avatarUrl={participant.avatarUrl}
                         hasLinkedAccount={participant.hasLinkedAccount}
-                        size="sm"
+                        diameter="var(--chat-avatar-sender)"
                         enableZoom={false}
                       />
                       <span className={styles.memberRowText}>
@@ -530,7 +532,7 @@ export function ConversationInfoPanel({
                 displayName={dmOther.displayName}
                 avatarUrl={dmOther.avatarUrl}
                 hasLinkedAccount={dmOther.hasLinkedAccount}
-                size="sm"
+                diameter="var(--chat-avatar-sender)"
                 enableZoom={false}
               />
               <span className={styles.memberRowText}>

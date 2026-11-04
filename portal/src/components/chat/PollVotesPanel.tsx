@@ -68,7 +68,7 @@ export function PollVotesPanel({
             displayName={selected.displayName}
             avatarUrl={selected.avatarUrl}
             hasLinkedAccount={selected.hasLinkedAccount}
-            size="md"
+            diameter="var(--chat-avatar-hero)"
           />
           <h3 className={infoStyles.memberName}>{selected.displayName}</h3>
           <RoleBadge role={selected.role} size="sm" />
@@ -143,7 +143,7 @@ export function PollVotesPanel({
                               hasLinkedAccount={
                                 person?.hasLinkedAccount ?? false
                               }
-                              size="sm"
+                              diameter="var(--chat-avatar-poll-voter)"
                               enableZoom={false}
                             />
                             <span className={infoStyles.memberRowText}>

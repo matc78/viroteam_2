@@ -26,6 +26,7 @@ import {
   where,
   writeBatch,
   serverTimestamp,
+  deleteField,
   Timestamp,
 } from "firebase/firestore";
 
@@ -862,6 +863,60 @@ test("un membre répond présent uniquement pour lui-même", async () => {
     updateDoc(doc(as(PLAYER), `clubs/${CLUB}/events/evA`), {
       [`rsvp.${PLAYER.uid}`]: "maybe",
       [`rsvpUpdatedAt.${COACH.uid}`]: serverTimestamp(),
+    }),
+  );
+});
+
+test("fiche pré-créée : RSVP sous auth uid, pas sous memberId legacy", async () => {
+  const linkedUid = "linkedPlayer1";
+  const legacyMemberId = "mem-pre-linked";
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, `users/${linkedUid}`), {
+      email: "linked@club.fr",
+      emailNorm: "linked@club.fr",
+      memberClubIds: [CLUB],
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/members/${legacyMemberId}`), {
+      memberId: legacyMemberId,
+      accountUid: linkedUid,
+      role: "player",
+      status: "active",
+      teamIds: ["teamA"],
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/member_accounts/${linkedUid}`), {
+      memberId: legacyMemberId,
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/events/evLinked`), {
+      title: "Entraînement lié",
+      teamIds: ["teamA"],
+      teamMemberIds: [linkedUid],
+      rsvp: { [linkedUid]: "yes", [legacyMemberId]: "yes" },
+    });
+  });
+
+  const asLinked = () => env.authenticatedContext(linkedUid).firestore();
+  const eventPath = `clubs/${CLUB}/events/evLinked`;
+
+  await assertSucceeds(
+    updateDoc(doc(asLinked(), eventPath), {
+      [`rsvp.${linkedUid}`]: "no",
+      [`rsvpUpdatedAt.${linkedUid}`]: serverTimestamp(),
+    }),
+  );
+  // Ancienne app : encore autorisée sous memberId (transition store).
+  await assertSucceeds(
+    updateDoc(doc(asLinked(), eventPath), {
+      [`rsvp.${legacyMemberId}`]: "yes",
+      [`rsvpUpdatedAt.${legacyMemberId}`]: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asLinked(), eventPath), {
+      [`rsvp.${linkedUid}`]: "maybe",
+      [`rsvpUpdatedAt.${linkedUid}`]: serverTimestamp(),
+      [`rsvp.${legacyMemberId}`]: deleteField(),
+      [`rsvpUpdatedAt.${legacyMemberId}`]: deleteField(),
     }),
   );
 });

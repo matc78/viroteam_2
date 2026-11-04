@@ -58,12 +58,6 @@
   overflow-y: auto;
 }
 
-.empty {
-  composes: emptyText from "./chatShared.module.css";
-  padding: 1.25rem 1rem;
-  font-size: 0.85rem;
-}
-
 .threadPane {
   min-height: 0;
   min-width: 0;
@@ -84,12 +78,6 @@
   text-align: center;
   color: var(--color-gray-500);
   font-size: 0.9rem;
-}
-
-.clubLabel {
-  composes: clubLabel from "./chatShared.module.css";
-  background: var(--club-brand, var(--color-primary-500));
-  color: var(--club-brand-text, var(--color-white));
 }
 
 @media (max-width: 900px) {

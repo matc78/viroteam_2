@@ -85,10 +85,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 7.5rem;
-  height: 7.5rem;
+  width: var(--chat-avatar-hero);
+  height: var(--chat-avatar-hero);
   border-radius: 999px;
-  font-size: 2.6rem;
+  font-size: calc(var(--chat-avatar-hero) * 0.4);
   font-weight: 700;
   margin-bottom: 0.55rem;
   overflow: hidden;

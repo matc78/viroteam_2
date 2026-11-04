@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatThreadView } from "@/components/chat/ChatThreadView";
+import { ClubBadge } from "@/components/chat/ClubBadge";
 import { useChat } from "@/lib/chat/ChatProvider";
 import { chatStateDocId, type ChatThreadKey } from "@/lib/firebase/chatTypes";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
@@ -46,7 +47,7 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
         onMaximize={maximizeThread}
         headerExtra={
           clubName ? (
-            <span className={styles.clubLabel}>{clubName}</span>
+            <ClubBadge name={clubName} color={clubColorById[thread.clubId]} />
           ) : null
         }
       />

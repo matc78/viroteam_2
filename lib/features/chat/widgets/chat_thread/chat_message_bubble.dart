@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
@@ -5,7 +6,9 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_bubble_timestamp.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_reaction_chip.dart';
+import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_helpers.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 
 /// Bulle texte / image d’un message du fil (hors sondage).
@@ -24,6 +27,9 @@ class ChatMessageBubble extends StatelessWidget {
     this.replySenderLabel = '',
     this.highlightQuery,
     this.isSearchMatch = false,
+    this.isCurrentSearchMatch = false,
+    this.groupPosition = (isFirst: true, isLast: true),
+    this.uploadProgress,
     this.onImageTap,
     this.onReplyTap,
     this.onRetry,
@@ -44,6 +50,15 @@ class ChatMessageBubble extends StatelessWidget {
   final String replySenderLabel;
   final String? highlightQuery;
   final bool isSearchMatch;
+
+  /// Résultat de recherche actuellement sélectionné (contour marqué).
+  final bool isCurrentSearchMatch;
+
+  /// Place dans le groupe : marges serrées et coin « queue » sur le dernier.
+  final ChatThreadGroupPosition groupPosition;
+
+  /// Avancement (0 → 1) de l’upload de la photo, `null` hors envoi.
+  final double? uploadProgress;
   final VoidCallback? onImageTap;
   final VoidCallback? onReplyTap;
 
@@ -55,14 +70,20 @@ class ChatMessageBubble extends StatelessWidget {
     final theme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
     final align = mine ? Alignment.centerRight : Alignment.centerLeft;
+    final topGap = (groupPosition.isFirst
+            ? ViroChat.messageGap
+            : ViroChat.messageGroupGap) /
+        2;
+    final bottomGap = (groupPosition.isLast
+            ? ViroChat.messageGap
+            : ViroChat.messageGroupGap) /
+        2;
 
     if (message.isDeleted) {
       return Align(
         alignment: align,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            vertical: ViroChat.messageGap / 2,
-          ),
+          padding: EdgeInsets.only(top: topGap, bottom: bottomGap),
           child: Text(
             AppCopy.chat.messageDeleted,
             style: theme.bodySmall?.copyWith(
@@ -79,14 +100,43 @@ class ChatMessageBubble extends StatelessWidget {
         .toList();
     final hasReactions = reactionEntries.isNotEmpty;
     final imageUrl = (message.thumbUrl ?? message.downloadUrl ?? '').trim();
+    final foreground = mine ? palette.onAccent : palette.brandText;
+    final secondary =
+        mine ? palette.onAccent.withValues(alpha: 0.85) : palette.textSecondary;
+    const radius = Radius.circular(ViroChat.bubbleRadius);
+    const tail = Radius.circular(ViroChat.bubbleTailRadius);
+    final hasTail = groupPosition.isLast;
+    final bubbleRadius = BorderRadius.only(
+      topLeft: radius,
+      topRight: radius,
+      bottomLeft: hasTail && !mine ? tail : radius,
+      bottomRight: hasTail && mine ? tail : radius,
+    );
+    final Color background;
+    if (mine) {
+      background = palette.accentFill;
+    } else if (isSearchMatch) {
+      background = ViroColors.warning.withValues(alpha: 0.12);
+    } else {
+      background = palette.surfaceCard;
+    }
+    final Border? border = isCurrentSearchMatch || (mine && isSearchMatch)
+        ? Border.all(color: ViroColors.warning, width: 2)
+        : mine
+            ? null
+            : Border.all(color: borderColor, width: 1.5);
+    final imageSize = chatThreadImageSize(
+      width: message.width,
+      height: message.height,
+    );
 
     return Align(
       alignment: align,
       child: Padding(
         // Espace bas pour les chips qui débordent sur la bordure.
         padding: EdgeInsets.only(
-          top: 4,
-          bottom: hasReactions ? 20 : 4,
+          top: topGap,
+          bottom: hasReactions ? 20 : bottomGap,
         ),
         child: Stack(
           key: anchorKey,
@@ -105,11 +155,9 @@ class ChatMessageBubble extends StatelessWidget {
                       ViroChat.bubbleMaxWidthFraction,
                 ),
                 decoration: BoxDecoration(
-                  color: isSearchMatch
-                      ? ViroColors.warning.withValues(alpha: 0.12)
-                      : palette.surfaceCard,
-                  borderRadius: BorderRadius.circular(ViroChat.bubbleRadius),
-                  border: Border.all(color: borderColor, width: 1.5),
+                  color: background,
+                  borderRadius: bubbleRadius,
+                  border: border,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,11 +184,13 @@ class ChatMessageBubble extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: palette.accentSofter,
+                            color: mine
+                                ? palette.onAccent.withValues(alpha: 0.16)
+                                : palette.accentSofter,
                             borderRadius: BorderRadius.circular(ViroChat.quoteRadius),
                             border: Border(
                               left: BorderSide(
-                                color: borderColor,
+                                color: mine ? palette.onAccent : borderColor,
                                 width: 3,
                               ),
                             ),
@@ -152,7 +202,9 @@ class ChatMessageBubble extends StatelessWidget {
                                 Text(
                                   replySenderLabel,
                                   style: theme.labelSmall?.copyWith(
-                                    color: palette.readableAccent(borderColor),
+                                    color: mine
+                                        ? foreground
+                                        : palette.readableAccent(borderColor),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -161,7 +213,7 @@ class ChatMessageBubble extends StatelessWidget {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.bodySmall?.copyWith(
-                                  color: palette.textSecondary,
+                                  color: secondary,
                                 ),
                               ),
                             ],
@@ -177,18 +229,18 @@ class ChatMessageBubble extends StatelessWidget {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(ViroChat.quoteRadius),
-                              child: message.localImageBytes != null
-                                  ? Image.memory(
-                                      message.localImageBytes!,
-                                      fit: BoxFit.cover,
-                                      width: 220,
-                                    )
-                                  : Image.network(
-                                      imageUrl,
-                                      fit: BoxFit.cover,
-                                      width: 220,
-                                    ),
+                              child: _ChatBubbleImage(
+                                url: imageUrl,
+                                localBytes: message.localImageBytes,
+                                size: imageSize,
+                              ),
                             ),
+                            if (uploadProgress != null)
+                              Positioned.fill(
+                                child: _UploadProgressOverlay(
+                                  progress: uploadProgress!,
+                                ),
+                              ),
                             Positioned(
                               right: 6,
                               bottom: 6,
@@ -209,8 +261,9 @@ class ChatMessageBubble extends StatelessWidget {
                         edited: message.editedAt != null,
                         highlightQuery: highlightQuery,
                         localStatus: message.localStatus,
+                        onAccent: mine,
                         style: theme.bodyMedium?.copyWith(
-                          color: palette.brandText,
+                          color: foreground,
                         ),
                       ),
                     if (message.isSendFailed && onRetry != null)
@@ -226,8 +279,11 @@ class ChatMessageBubble extends StatelessWidget {
                           child: Text(
                             AppCopy.chat.retrySend,
                             style: theme.labelSmall?.copyWith(
-                              color: palette.errorText,
+                              color: mine ? foreground : palette.errorText,
                               fontWeight: FontWeight.w700,
+                              decoration:
+                                  mine ? TextDecoration.underline : null,
+                              decorationColor: foreground,
                             ),
                           ),
                         ),
@@ -264,6 +320,101 @@ class ChatMessageBubble extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Photo d’une bulle : octets locaux (envoi) ou réseau, à taille fixe
+/// (pas de saut de mise en page), avec placeholder et état d’erreur.
+class _ChatBubbleImage extends StatelessWidget {
+  const _ChatBubbleImage({
+    required this.url,
+    required this.localBytes,
+    required this.size,
+  });
+
+  final String url;
+  final Uint8List? localBytes;
+  final Size size;
+
+  @override
+  Widget build(BuildContext context) {
+    final cacheWidth =
+        (size.width * MediaQuery.devicePixelRatioOf(context)).round();
+    final bytes = localBytes;
+    if (bytes != null) {
+      return Image.memory(
+        bytes,
+        width: size.width,
+        height: size.height,
+        fit: BoxFit.cover,
+        cacheWidth: cacheWidth,
+      );
+    }
+    return Image.network(
+      url,
+      width: size.width,
+      height: size.height,
+      fit: BoxFit.cover,
+      cacheWidth: cacheWidth,
+      loadingBuilder: (context, child, progress) => progress == null
+          ? child
+          : _ImagePlaceholder(size: size, loading: true),
+      errorBuilder: (_, _, _) => _ImagePlaceholder(size: size),
+    );
+  }
+}
+
+/// Fond neutre pendant le chargement, ou icône si la photo ne charge pas.
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder({required this.size, this.loading = false});
+
+  final Size size;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.viroPalette;
+    return Container(
+      width: size.width,
+      height: size.height,
+      alignment: Alignment.center,
+      color: palette.surfaceMuted,
+      child: loading
+          ? null
+          : ViroIcon(
+              ViroIcons.image,
+              color: palette.textMuted,
+              semanticLabel: AppCopy.chat.imageLoadFailed,
+            ),
+    );
+  }
+}
+
+/// Voile + anneau de progression pendant l’upload d’une photo.
+class _UploadProgressOverlay extends StatelessWidget {
+  const _UploadProgressOverlay({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(ViroChat.quoteRadius),
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.3),
+        child: Center(
+          child: SizedBox.square(
+            dimension: 36,
+            child: CircularProgressIndicator(
+              value: progress <= 0 ? null : progress,
+              strokeWidth: 3,
+              color: ViroColors.white,
+              semanticsLabel: AppCopy.chat.photoUploading,
+            ),
+          ),
         ),
       ),
     );

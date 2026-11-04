@@ -45,7 +45,14 @@ final class AppCopyChat {
   String get unmute => 'Réactiver les notifs';
   String get addFavorite => 'Ajouter aux favoris';
   String get removeFavorite => 'Retirer des favoris';
-  String get searchConversationsHint => 'Rechercher une discussion…';
+  /// Placeholder inbox : filtre titre / interlocuteur, club, dernier message
+  /// et prénom de son auteur (`filterInboxConversations`).
+  String get searchConversationsHint => 'Nom, club ou dernier message…';
+
+  /// Inbox : la recherche ne trouve aucune discussion (≠ inbox vide).
+  String get inboxSearchNoResults => 'Rien qui colle à ta recherche.';
+  String get inboxSearchNoResultsHint =>
+      'Essaie un nom, un club ou un mot du dernier message.';
   String get searchMessagesHint => 'Rechercher dans les messages…';
   String get searchNoResults => 'Aucun résultat.';
   String get conversationInfo => 'Infos de la discussion';
@@ -108,6 +115,7 @@ final class AppCopyChat {
   String get pollQuestionHint => 'Ex. Qui amène les ballons ?';
   String get pollOptionLabel => 'Option';
   String get pollAddOption => 'Ajouter une option';
+  String get pollRemoveOption => 'Retirer l’option';
   String get pollSingleChoice => 'Réponse unique';
   String get pollAllowMultiple => 'Plusieurs réponses possibles';
   String get pollSend => 'Envoyer le sondage';
@@ -139,4 +147,22 @@ final class AppCopyChat {
   String get messageSending => 'Envoi…';
   String get messageSendFailed => 'Échec';
   String get retrySend => 'Réessayer';
+
+  /// Fil : chargement impossible (avec « Réessayer »).
+  String get threadLoadError => 'Impossible de charger les messages.';
+
+  /// Photo d’une bulle qui ne charge pas / en cours d’envoi (lecteurs d’écran).
+  String get imageLoadFailed => 'Photo indisponible';
+  String get photoUploading => 'Envoi de la photo';
+
+  /// Bandeau du composer en mode modification.
+  String get editingMessage => 'Modification du message';
+  String get cancelEdit => 'Annuler la modification';
+  String get saveEdit => 'Enregistrer';
+
+  /// Recherche dans le fil : position du résultat courant et navigation.
+  String searchResultPosition(int current, int total) => '$current / $total';
+  String get searchNoResult => 'Aucun résultat';
+  String get searchPrevious => 'Résultat plus ancien';
+  String get searchNext => 'Résultat plus récent';
 }

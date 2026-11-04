@@ -157,6 +157,7 @@ class ChatService {
     String? replyToText,
     String? replyToSenderUid,
     String? clientMessageId,
+    void Function(double progress)? onProgress,
   }) =>
       _messages.sendImageMessage(
         clubId: clubId,
@@ -170,16 +171,19 @@ class ChatService {
         replyToText: replyToText,
         replyToSenderUid: replyToSenderUid,
         clientMessageId: clientMessageId,
+        onProgress: onProgress,
       );
 
   /// Envoie un message optimiste [pending] (texte, ou photo via
   /// `localImageBytes`) sous son propre id : premier envoi comme relance.
   ///
+  /// [onProgress] (0 → 1) suit l’upload d’une photo.
   /// Lève [StateError] si une photo n’a plus ses octets locaux.
   Future<String> sendPendingMessage(
     ChatMessage pending, {
     String? senderFirstName,
     String? senderRole,
+    void Function(double progress)? onProgress,
   }) {
     if (pending.type == ChatMessageTypes.image) {
       final bytes = pending.localImageBytes;
@@ -195,6 +199,7 @@ class ChatService {
         replyToText: pending.replyToText,
         replyToSenderUid: pending.replyToSenderUid,
         clientMessageId: pending.id,
+        onProgress: onProgress,
       );
     }
     return sendTextMessage(

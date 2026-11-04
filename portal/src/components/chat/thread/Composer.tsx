@@ -7,6 +7,10 @@ import type {
   RefObject,
 } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
+import {
+  hasSendableText,
+  shouldSubmitOnEnter,
+} from "@/lib/chat/composerKeys";
 import { replyPreviewText } from "@/lib/chat/threadMessages";
 import type { ChatMessage } from "@/lib/firebase/chatTypes";
 import styles from "../ChatThreadView.module.css";
@@ -15,10 +19,14 @@ import { chatCopy } from "@/lib/copy/chatCopy";
 type ComposerProps = {
   draft: string;
   onDraftChange: (draft: string) => void;
-  busy: boolean;
+  inputRef: RefObject<HTMLTextAreaElement | null>;
   replyTarget: ChatMessage | null;
   onCancelReply: () => void;
   replyAuthorLabel: (senderUid: string | null | undefined) => string;
+  /** Message en cours de modification (bandeau « Modification »). */
+  editingMessage: ChatMessage | null;
+  savingEdit: boolean;
+  onCancelEdit: () => void;
   attachOpen: boolean;
   onToggleAttach: () => void;
   onPickPhoto: () => void;
@@ -35,16 +43,21 @@ type ComposerProps = {
 };
 
 /**
- * Composer du fil : bandeau de citation, menu « + » (photos, sondage),
- * zone de saisie (Entrée envoie, Maj+Entrée saute une ligne) et bouton Envoyer.
+ * Composer du fil : bandeau de citation ou de modification, menu « + »
+ * (photos, sondage), zone de saisie (Entrée valide hors composition IME,
+ * Maj+Entrée saute une ligne, Échap annule la modification) et bouton
+ * Envoyer / Enregistrer, désactivé tant que le champ est vide.
  */
 export function Composer({
   draft,
   onDraftChange,
-  busy,
+  inputRef,
   replyTarget,
   onCancelReply,
   replyAuthorLabel,
+  editingMessage,
+  savingEdit,
+  onCancelEdit,
   attachOpen,
   onToggleAttach,
   onPickPhoto,
@@ -58,9 +71,31 @@ export function Composer({
   onPaste,
   onSend,
 }: ComposerProps) {
+  const editing = editingMessage != null;
+  const canSubmit = hasSendableText(draft) && !savingEdit;
   return (
     <form className={styles.composer} onSubmit={(e) => onSend(e)}>
-      {replyTarget ? (
+      {editing ? (
+        <div className={styles.replyBanner}>
+          <div className={styles.replyBannerText}>
+            <span className={styles.replyBannerLabel}>
+              {chatCopy.editingBanner}
+            </span>
+            <span className={styles.replyBannerQuote}>
+              {replyPreviewText(editingMessage)}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={styles.replyBannerClose}
+            aria-label={chatCopy.cancelEdit}
+            title={chatCopy.cancelEdit}
+            onClick={onCancelEdit}
+          >
+            <ChatIcon name="close" size={14} />
+          </button>
+        </div>
+      ) : replyTarget ? (
         <div className={styles.replyBanner}>
           <div className={styles.replyBannerText}>
             <span className={styles.replyBannerLabel}>{chatCopy.replyTo}</span>
@@ -101,19 +136,14 @@ export function Composer({
             aria-label={chatCopy.attachAdd}
             aria-expanded={attachOpen}
             aria-haspopup="menu"
-            disabled={busy}
+            disabled={editing}
             onClick={onToggleAttach}
           >
             <ChatIcon name="plus" size={18} />
           </button>
           {attachOpen ? (
             <div className={styles.attachMenu} role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                disabled={busy}
-                onClick={onPickPhoto}
-              >
+              <button type="button" role="menuitem" onClick={onPickPhoto}>
                 <span
                   className={styles.attachIcon}
                   data-tone="photos"
@@ -124,12 +154,7 @@ export function Composer({
                 {chatCopy.attachPhotos}
               </button>
               {canPoll ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={busy}
-                  onClick={onCreatePoll}
-                >
+                <button type="button" role="menuitem" onClick={onCreatePoll}>
                   <span
                     className={styles.attachIcon}
                     data-tone="poll"
@@ -144,26 +169,41 @@ export function Composer({
           ) : null}
         </div>
         <textarea
+          ref={inputRef}
           className={styles.input}
           rows={1}
           value={draft}
+          aria-label={editing ? chatCopy.editMessage : chatCopy.messageHint}
           onChange={(event) => onDraftChange(event.target.value)}
           onPaste={onPaste}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
+            if (editing && event.key === "Escape") {
               event.preventDefault();
-              onSend();
+              onCancelEdit();
+              return;
+            }
+            if (
+              shouldSubmitOnEnter({
+                key: event.key,
+                shiftKey: event.shiftKey,
+                isComposing: event.nativeEvent.isComposing,
+                keyCode: event.nativeEvent.keyCode,
+              })
+            ) {
+              event.preventDefault();
+              if (canSubmit) onSend();
             }
           }}
           placeholder={chatCopy.messageHint}
-          disabled={busy}
         />
         <button
           type="submit"
           className={styles.sendBtn}
-          disabled={busy || !draft.trim()}
+          disabled={!canSubmit}
+          // Garde le focus dans le champ au clic (la saisie continue).
+          onMouseDown={(event) => event.preventDefault()}
         >
-          {chatCopy.send}
+          {editing ? chatCopy.save : chatCopy.send}
         </button>
       </div>
     </form>

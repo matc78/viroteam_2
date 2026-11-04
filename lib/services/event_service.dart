@@ -155,6 +155,13 @@ class EventService {
   }) =>
       _rsvp.resolveAudienceId(clubId: clubId, authUid: authUid);
 
+  /// Id du document `members/{memberId}` (cotisations) — distinct de la clé RSVP.
+  Future<String> resolveMemberDocId({
+    required String clubId,
+    required String authUid,
+  }) =>
+      _rsvp.resolveMemberDocId(clubId: clubId, authUid: authUid);
+
   /// Événements à venir pour un membre, tous ses clubs (spec home globale).
   Stream<List<ClubEvent>> watchUpcomingEventsForUser({
     required List<String> clubIds,

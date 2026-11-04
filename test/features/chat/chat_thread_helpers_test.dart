@@ -1,6 +1,8 @@
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_helpers.dart';
@@ -480,6 +482,115 @@ void main() {
       );
       expect(peer.displayName, isNull);
       expect(peer.avatarUrl, isNull);
+    });
+  });
+
+  group('chatThreadGroupPositions', () {
+    test('regroupe les messages proches d’une même personne', () {
+      final positions = chatThreadGroupPositions([
+        _message('a', minutes: 0),
+        _message('b', minutes: 1),
+        _message('c', minutes: 2),
+        _message('d', minutes: 3, sender: 'me'),
+      ]);
+      expect(positions, [
+        (isFirst: true, isLast: false),
+        (isFirst: false, isLast: false),
+        (isFirst: false, isLast: true),
+        (isFirst: true, isLast: true),
+      ]);
+    });
+
+    test('coupe après 5 minutes, sur un sondage ou un supprimé', () {
+      final poll = ChatMessage(
+        id: 'poll',
+        conversationId: 'dm',
+        clubId: 'club',
+        type: ChatMessageTypes.poll,
+        senderUid: 'peer',
+        createdAt: _t0.add(const Duration(minutes: 7)),
+      );
+      final positions = chatThreadGroupPositions([
+        _message('a', minutes: 0),
+        _message('b', minutes: 6),
+        poll,
+        ChatMessage(
+          id: 'deleted',
+          conversationId: 'dm',
+          clubId: 'club',
+          type: ChatMessageTypes.text,
+          senderUid: 'peer',
+          createdAt: _t0.add(const Duration(minutes: 8)),
+          deletedAt: _t0,
+        ),
+      ]);
+      expect(positions.every((p) => p.isFirst && p.isLast), isTrue);
+    });
+
+    test('le séparateur « nouveaux messages » coupe le groupe', () {
+      final positions = chatThreadGroupPositions(
+        [_message('a', minutes: 0), _message('b', minutes: 1)],
+        firstUnreadIndex: 1,
+      );
+      expect(positions[0].isLast, isTrue);
+      expect(positions[1].isFirst, isTrue);
+    });
+  });
+
+  group('chatThreadSearchMatches', () {
+    test('texte et question de sondage, sans casse, hors supprimés', () {
+      final matches = chatThreadSearchMatches([
+        _message('a', text: 'Match samedi'),
+        _message('b', text: 'Entraînement'),
+        ChatMessage(
+          id: 'p',
+          conversationId: 'dm',
+          clubId: 'club',
+          type: ChatMessageTypes.poll,
+          senderUid: 'peer',
+          createdAt: _t0,
+          pollQuestion: 'Dispo pour le MATCH ?',
+        ),
+        ChatMessage(
+          id: 'd',
+          conversationId: 'dm',
+          clubId: 'club',
+          type: ChatMessageTypes.text,
+          senderUid: 'peer',
+          createdAt: _t0,
+          text: 'match annulé',
+          deletedAt: _t0,
+        ),
+      ], '  match ');
+      expect(matches, ['a', 'p']);
+    });
+
+    test('requête vide : aucun résultat', () {
+      expect(chatThreadSearchMatches([_message('a', text: 'x')], ' '), isEmpty);
+    });
+  });
+
+  group('chatThreadImageSize', () {
+    test('hauteur au ratio, bornée', () {
+      expect(
+        chatThreadImageSize(width: 1600, height: 1200),
+        const Size(ViroChat.imageWidth, 165),
+      );
+      expect(
+        chatThreadImageSize(width: 1000, height: 4000).height,
+        ViroChat.imageMaxHeight,
+      );
+      expect(
+        chatThreadImageSize(width: 4000, height: 500).height,
+        ViroChat.imageMinHeight,
+      );
+    });
+
+    test('dimensions inconnues : carré', () {
+      expect(
+        chatThreadImageSize(),
+        const Size.square(ViroChat.imageWidth),
+      );
     });
   });
 }

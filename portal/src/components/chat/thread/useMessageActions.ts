@@ -14,8 +14,8 @@ import {
   findScrollParent,
   type AnchoredPopoverLayout,
 } from "@/components/chat/anchoredPopover";
+import { toggleReactionUid } from "@/lib/chat/reactionToggle";
 import {
-  editTextMessage,
   softDeleteMessage,
   toggleReaction,
   votePollOption,
@@ -32,7 +32,8 @@ const LONG_PRESS_MS = 450;
 
 /**
  * Actions sur un message : popover ancré sur la bulle (clic droit / appui long),
- * réactions, copie, réponse, édition, suppression, vote de sondage.
+ * réactions (optimistes, annulées si l’écriture échoue), copie, réponse,
+ * modification (déléguée au composer), suppression, vote de sondage.
  */
 export function useMessageActions(params: {
   clubId: string;
@@ -42,6 +43,7 @@ export function useMessageActions(params: {
   messageRefs: RefObject<Record<string, HTMLDivElement | null>>;
   setError: (message: string | null) => void;
   onReply: (message: ChatMessage) => void;
+  onEdit: (message: ChatMessage) => void;
 }) {
   const {
     clubId,
@@ -51,30 +53,33 @@ export function useMessageActions(params: {
     messageRefs,
     setError,
     onReply,
+    onEdit,
   } = params;
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
   const [actionLayout, setActionLayout] = useState<AnchoredPopoverLayout | null>(
     null,
   );
-  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(
-    null,
-  );
-  const [editDraft, setEditDraft] = useState("");
+  /**
+   * Réactions affichées en optimiste (`messageId` → map), valables tant que
+   * le message n’a pas été re-reçu de Firestore (`base` = map serveur au clic).
+   */
+  const [reactionOverrides, setReactionOverrides] = useState<
+    Record<
+      string,
+      { base: Record<string, string[]>; reactions: Record<string, string[]> }
+    >
+  >({});
   const longPressTimerRef = useRef<number | null>(null);
 
   const actionOverlayRef = useDialogA11y({
     onClose: () => setActionMessage(null),
     enabled: Boolean(actionMessage && actionLayout),
   });
-  const editOverlayRef = useDialogA11y({
-    onClose: () => setEditingMessage(null),
-    enabled: Boolean(editingMessage),
-  });
 
   useEffect(() => {
     setActionMessage(null);
     setActionLayout(null);
-    setEditingMessage(null);
+    setReactionOverrides({});
   }, [clubId, conversationId]);
 
   /** Ferme le popover d’actions. */
@@ -196,51 +201,53 @@ export function useMessageActions(params: {
     setActionMessage(null);
   }
 
-  /** Ouvre l’édition d’un message texte. */
+  /** Passe le message texte en modification dans le composer. */
   function openEdit(message: ChatMessage) {
     if (message.type !== ChatMessageTypes.text) return;
     setActionMessage(null);
-    setEditingMessage(message);
-    setEditDraft(message.text ?? "");
+    onEdit(message);
   }
 
-  /** Ferme l’édition sans enregistrer. */
-  function closeEdit() {
-    setEditingMessage(null);
+  /**
+   * Réactions à afficher : surcharge optimiste tant que Firestore n’a pas
+   * renvoyé le message (nouvel objet `reactions`), sinon l’état serveur.
+   */
+  function reactionsFor(message: ChatMessage): Record<string, string[]> {
+    const override = reactionOverrides[message.id];
+    return override && override.base === message.reactions
+      ? override.reactions
+      : message.reactions;
   }
 
-  /** Enregistre l’édition (rien à faire si vide ou inchangé). */
-  async function handleEditSave() {
-    if (!editingMessage) return;
-    const next = editDraft.trim();
-    if (!next || next === (editingMessage.text ?? "").trim()) {
-      setEditingMessage(null);
-      return;
-    }
-    try {
-      await editTextMessage({
-        clubId,
-        conversationId,
-        messageId: editingMessage.id,
-        text: next,
-      });
-      setEditingMessage(null);
-    } catch {
-      setError(chatCopy.editFailed);
-    }
-  }
-
-  /** Ajoute / retire une réaction. */
+  /**
+   * Ajoute / retire une réaction : affichage immédiat, écriture Firestore ;
+   * si elle échoue, retour à l’état serveur et message d’erreur.
+   */
   async function handleReaction(message: ChatMessage, emoji: string) {
     if (!uid || isChatMessageDeleted(message)) return;
     setActionMessage(null);
-    await toggleReaction({
-      clubId,
-      conversationId,
-      messageId: message.id,
-      emoji,
-      uid,
-    });
+    const optimistic = toggleReactionUid(reactionsFor(message), emoji, uid);
+    setReactionOverrides((current) => ({
+      ...current,
+      [message.id]: { base: message.reactions, reactions: optimistic },
+    }));
+    try {
+      await toggleReaction({
+        clubId,
+        conversationId,
+        messageId: message.id,
+        emoji,
+        uid,
+      });
+    } catch {
+      setError(chatCopy.reactionFailed);
+      setReactionOverrides((current) => {
+        if (current[message.id]?.reactions !== optimistic) return current;
+        const next = { ...current };
+        delete next[message.id];
+        return next;
+      });
+    }
   }
 
   /** Vote pour une option de sondage. */
@@ -271,13 +278,8 @@ export function useMessageActions(params: {
     handleDelete,
     handleCopy,
     handleReaction,
+    reactionsFor,
     handleVote,
-    editingMessage,
-    editDraft,
-    setEditDraft,
-    editOverlayRef,
     openEdit,
-    closeEdit,
-    handleEditSave,
   };
 }

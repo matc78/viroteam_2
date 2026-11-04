@@ -2,12 +2,17 @@
 
 import type { ReactNode } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
+import { ConversationAvatar } from "@/components/chat/ConversationAvatar";
+import type { ChatConversation } from "@/lib/firebase/chatTypes";
 import styles from "../ChatThreadView.module.css";
 import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ThreadHeaderProps = {
+  /** Conversation (avatar) ; null tant qu’elle n’est pas chargée. */
+  conversation: ChatConversation | null;
+  clubColor?: string | null;
+  /** Titre complet, tronqué en CSS (ellipse) si trop long. */
   title: string;
-  titleShort: string;
   favorite: boolean;
   muted: boolean;
   headerExtra?: ReactNode;
@@ -30,12 +35,13 @@ type ThreadHeaderProps = {
 };
 
 /**
- * En-tête du fil : titre (ouvre les infos), aperçu des membres,
+ * En-tête du fil : avatar + titre (ouvre les infos), aperçu des membres,
  * menu Options, boutons Agrandir / Fermer.
  */
 export function ThreadHeader({
+  conversation,
+  clubColor,
   title,
-  titleShort,
   favorite,
   muted,
   headerExtra,
@@ -63,10 +69,20 @@ export function ThreadHeader({
         onClick={() => onOpenInfo()}
         aria-label={chatCopy.conversationInfo}
       >
+        {conversation ? (
+          <ConversationAvatar
+            conversation={conversation}
+            title={title}
+            clubColor={clubColor}
+            size="header"
+          />
+        ) : (
+          <span className={styles.headerAvatarPlaceholder} aria-hidden />
+        )}
         <span className={styles.headerText}>
           <span className={styles.titleRow}>
             <span className={styles.title} title={title}>
-              {titleShort}
+              {title}
             </span>
             {favorite ? (
               <span className={styles.favMark} aria-label={chatCopy.favoriteMark}>

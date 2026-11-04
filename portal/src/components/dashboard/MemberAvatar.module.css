@@ -40,6 +40,13 @@
   font-size: 0.75rem;
 }
 
+/* Diamètre libre (`diameter`), ex. tokens `--chat-avatar-*`. */
+.avatar.custom {
+  width: var(--member-avatar-size);
+  height: var(--member-avatar-size);
+  font-size: calc(var(--member-avatar-size) * 0.36);
+}
+
 .clickable {
   border-color: transparent;
   box-shadow: 0 0 0 1.5px

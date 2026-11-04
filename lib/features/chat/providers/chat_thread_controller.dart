@@ -28,6 +28,8 @@ class ChatThreadState {
     this.loadingOlder = false,
     this.hasMoreOlder = true,
     this.replyTo,
+    this.editing,
+    this.uploadProgress = const {},
     this.unreadSeparator = (count: null, after: null),
   });
 
@@ -42,10 +44,17 @@ class ChatThreadState {
   /// Message cité par le brouillon en cours.
   final ChatMessage? replyTo;
 
+  /// Message en cours de modification dans le composer.
+  final ChatMessage? editing;
+
+  /// Avancement (0 → 1) de l’upload des photos en cours, par id de message.
+  final Map<String, double> uploadProgress;
+
   /// Séparateur « nouveaux messages » figé à l’open.
   final ChatThreadUnreadSeparator unreadSeparator;
 
-  /// Copie modifiée ; [clearReply] retire [replyTo].
+  /// Copie modifiée ; [clearReply] retire [replyTo], [clearEditing] retire
+  /// [editing].
   ChatThreadState copyWith({
     List<ChatMessage>? olderMessages,
     List<ChatMessage>? pendingMessages,
@@ -53,6 +62,9 @@ class ChatThreadState {
     bool? hasMoreOlder,
     ChatMessage? replyTo,
     bool clearReply = false,
+    ChatMessage? editing,
+    bool clearEditing = false,
+    Map<String, double>? uploadProgress,
   }) {
     return ChatThreadState(
       olderMessages: olderMessages ?? this.olderMessages,
@@ -60,6 +72,8 @@ class ChatThreadState {
       loadingOlder: loadingOlder ?? this.loadingOlder,
       hasMoreOlder: hasMoreOlder ?? this.hasMoreOlder,
       replyTo: clearReply ? null : (replyTo ?? this.replyTo),
+      editing: clearEditing ? null : (editing ?? this.editing),
+      uploadProgress: uploadProgress ?? this.uploadProgress,
       unreadSeparator: unreadSeparator,
     );
   }
@@ -185,9 +199,33 @@ class ChatThreadController extends Notifier<ChatThreadState> {
     }
   }
 
-  /// Cite [message] dans le prochain envoi.
+  /// Cite [message] dans le prochain envoi (annule une modification en cours).
   void setReplyTo(ChatMessage message) {
-    state = state.copyWith(replyTo: message);
+    state = state.copyWith(replyTo: message, clearEditing: true);
+  }
+
+  /// Passe le composer en modification de [message] (annule la citation).
+  void startEditing(ChatMessage message) {
+    if (!canEdit(message)) return;
+    state = state.copyWith(editing: message, clearReply: true);
+  }
+
+  /// Quitte le mode modification.
+  void cancelEditing() {
+    if (state.editing == null) return;
+    state = state.copyWith(clearEditing: true);
+  }
+
+  /// Enregistre [text] comme nouveau texte du message en modification.
+  ///
+  /// Texte vide ou inchangé : quitte simplement le mode modification.
+  Future<void> submitEdit(String text) async {
+    final editing = state.editing;
+    if (editing == null) return;
+    state = state.copyWith(clearEditing: true);
+    final next = text.trim();
+    if (next.isEmpty || next == (editing.text ?? '').trim()) return;
+    await editMessage(editing, next);
   }
 
   /// Annule la citation en cours.
@@ -239,6 +277,9 @@ class ChatThreadController extends Notifier<ChatThreadState> {
         pending,
         senderFirstName: meta.firstName,
         senderRole: meta.senderRole,
+        onProgress: pending.type == ChatMessageTypes.image
+            ? (progress) => _setUploadProgress(pending.id, progress)
+            : null,
       );
       await markRead();
       return true;
@@ -247,7 +288,23 @@ class ChatThreadController extends Notifier<ChatThreadState> {
         _setPendingStatus(pending.id, ChatMessageLocalStatus.failed);
       }
       return false;
+    } finally {
+      if (ref.mounted) _setUploadProgress(pending.id, null);
     }
+  }
+
+  /// Met à jour (ou retire si `null`) l’avancement de l’upload de [messageId].
+  void _setUploadProgress(String messageId, double? progress) {
+    if (!ref.mounted) return;
+    final current = state.uploadProgress;
+    if (progress == null && !current.containsKey(messageId)) return;
+    state = state.copyWith(
+      uploadProgress: {
+        for (final entry in current.entries)
+          if (entry.key != messageId) entry.key: entry.value,
+        if (progress != null) messageId: progress,
+      },
+    );
   }
 
   void _setPendingStatus(String messageId, ChatMessageLocalStatus status) {
@@ -418,11 +475,19 @@ class ChatThreadMessagesView {
     required this.messages,
     required this.showLoadMore,
     required this.loadingOlder,
+    required this.groupPositions,
+    this.uploadProgress = const {},
     this.firstUnreadIndex,
   });
 
   /// Historique + live + optimistes, ordre chronologique.
   final List<ChatMessage> messages;
+
+  /// Place de chaque message de [messages] dans son groupe.
+  final List<ChatThreadGroupPosition> groupPositions;
+
+  /// Avancement des uploads photo en cours, par id de message.
+  final Map<String, double> uploadProgress;
 
   /// Bouton « Charger plus » en haut du fil.
   final bool showLoadMore;
@@ -444,6 +509,11 @@ final chatThreadMessagesViewProvider = Provider.autoDispose
       live: liveMessages,
       pending: thread.pendingMessages,
     );
+    final firstUnreadIndex = chatThreadFirstUnreadIndex(
+      messages: messages,
+      viewerUid: uid,
+      separator: thread.unreadSeparator,
+    );
     return ChatThreadMessagesView(
       messages: messages,
       // Fenêtre live non pleine et rien chargé avant : tout l’historique est là.
@@ -452,11 +522,12 @@ final chatThreadMessagesViewProvider = Provider.autoDispose
           (liveMessages.length >= ChatService.messagePageSize ||
               thread.olderMessages.isNotEmpty),
       loadingOlder: thread.loadingOlder,
-      firstUnreadIndex: chatThreadFirstUnreadIndex(
-        messages: messages,
-        viewerUid: uid,
-        separator: thread.unreadSeparator,
+      groupPositions: chatThreadGroupPositions(
+        messages,
+        firstUnreadIndex: firstUnreadIndex,
       ),
+      uploadProgress: thread.uploadProgress,
+      firstUnreadIndex: firstUnreadIndex,
     );
   });
 });

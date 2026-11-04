@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { AvatarLightbox } from "./AvatarLightbox";
 import styles from "./MemberAvatar.module.css";
 
@@ -9,6 +9,11 @@ type MemberAvatarProps = {
   avatarUrl?: string | null;
   hasLinkedAccount: boolean;
   size?: "xs" | "sm" | "md";
+  /**
+   * Diamètre CSS libre (ex. `var(--chat-avatar-sender)`), prioritaire sur
+   * `size` ; les initiales suivent la taille.
+   */
+  diameter?: string;
   /** Fond initiales : défaut (bleu) ou blanc cassé. */
   tone?: "default" | "offwhite";
   /**
@@ -26,6 +31,7 @@ export function MemberAvatar({
   avatarUrl,
   hasLinkedAccount,
   size = "md",
+  diameter,
   tone = "default",
   enableZoom = true,
   onEdit,
@@ -38,7 +44,12 @@ export function MemberAvatar({
 
   const avatar = (
     <span
-      className={`${styles.avatar} ${styles[size]}${tone === "offwhite" ? ` ${styles.offwhite}` : ""}${canZoom ? ` ${styles.clickable}` : ""}`}
+      className={`${styles.avatar} ${diameter ? styles.custom : styles[size]}${tone === "offwhite" ? ` ${styles.offwhite}` : ""}${canZoom ? ` ${styles.clickable}` : ""}`}
+      style={
+        diameter
+          ? ({ "--member-avatar-size": diameter } as CSSProperties)
+          : undefined
+      }
       aria-hidden={!canZoom}
     >
       {hasPhoto ? (

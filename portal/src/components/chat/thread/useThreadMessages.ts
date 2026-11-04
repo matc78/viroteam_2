@@ -7,6 +7,10 @@ import {
   type UnreadSeparatorAnchor,
 } from "@/lib/chat/buildThreadRows";
 import {
+  mergePendingMessages,
+  type PendingMessage,
+} from "@/lib/chat/pendingMessages";
+import {
   appendOlderPage,
   mergeThreadMessages,
 } from "@/lib/chat/threadMessages";
@@ -25,10 +29,15 @@ import { chatCopy } from "@/lib/copy/chatCopy";
 const REALTIME_MESSAGE_LIMIT = 100;
 const OLDER_PAGE_SIZE = 50;
 
+/** État de chargement du fil : 1er snapshot attendu, reçu, ou en erreur. */
+export type ThreadLoadStatus = "loading" | "ready" | "error";
+
 /**
  * Fil d’une conversation : doc conversation + messages temps réel,
- * pagination de l’historique, lignes à afficher (jours + « nouveau »).
- * `inboxConversation` sert de repli tant que le doc live n’est pas arrivé.
+ * envois optimistes (`pending`), pagination de l’historique, lignes à
+ * afficher (jours + « nouveau » + regroupement), état de chargement / erreur
+ * avec relance. `inboxConversation` sert de repli tant que le doc live n’est
+ * pas arrivé.
  */
 export function useThreadMessages(params: {
   clubId: string;
@@ -36,9 +45,16 @@ export function useThreadMessages(params: {
   inboxConversation: ChatConversation | null;
   chatState?: ChatUserState;
   viewerUid?: string;
+  pending: PendingMessage[];
 }) {
-  const { clubId, conversationId, inboxConversation, chatState, viewerUid } =
-    params;
+  const {
+    clubId,
+    conversationId,
+    inboxConversation,
+    chatState,
+    viewerUid,
+    pending,
+  } = params;
   const [conversationLive, setConversationLive] =
     useState<ChatConversation | null>(null);
   const conversation = conversationLive ?? inboxConversation;
@@ -46,6 +62,9 @@ export function useThreadMessages(params: {
   const [olderMessages, setOlderMessages] = useState<ChatMessage[]>([]);
   const [hasMoreOlder, setHasMoreOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  const [status, setStatus] = useState<ThreadLoadStatus>("loading");
+  /** Incrémenté par « Réessayer » pour relancer les abonnements. */
+  const [reloadKey, setReloadKey] = useState(0);
   /** Ancre séparateur « nouveau » figée à l’open (avant markRead). */
   const unreadSeparatorAnchorRef = useRef<UnreadSeparatorAnchor>(null);
   const unreadSnapshotKeyRef = useRef<string | null>(null);
@@ -69,6 +88,7 @@ export function useThreadMessages(params: {
 
   useEffect(() => {
     setConversationLive(null);
+    setStatus("loading");
     const unsubConv = watchConversation({
       clubId,
       conversationId,
@@ -80,20 +100,35 @@ export function useThreadMessages(params: {
       messageLimit: REALTIME_MESSAGE_LIMIT,
       onData: (list) => {
         setRealtimeMessages(list);
+        setStatus("ready");
         setHasMoreOlder((previous) =>
           previous ? previous : list.length >= REALTIME_MESSAGE_LIMIT,
         );
+      },
+      onError: (error) => {
+        console.error("[chat] watchMessages failed", error);
+        setStatus("error");
       },
     });
     return () => {
       unsubConv();
       unsubMsgs();
     };
-  }, [clubId, conversationId]);
+  }, [clubId, conversationId, reloadKey]);
 
-  const messages = useMemo(
+  /** Relance l’écoute du fil après une erreur. */
+  function retry() {
+    setReloadKey((key) => key + 1);
+  }
+
+  const serverMessages = useMemo(
     () => mergeThreadMessages(olderMessages, realtimeMessages),
     [olderMessages, realtimeMessages],
+  );
+
+  const { messages, deliveryById } = useMemo(
+    () => mergePendingMessages(serverMessages, pending),
+    [serverMessages, pending],
   );
 
   const threadRows = useMemo(
@@ -107,20 +142,17 @@ export function useThreadMessages(params: {
   );
 
   /**
-   * Charge la page d’historique précédente et garde la position de lecture.
-   * `beforePrepend` est appelé juste avant l’insertion (ex. couper l’auto-scroll).
+   * Charge la page d’historique précédente. `beforePrepend` est appelé juste
+   * avant l’insertion (mémoriser la position de lecture, couper l’auto-scroll).
    */
   async function loadOlder(options: {
-    viewport: HTMLDivElement | null;
     beforePrepend: () => void;
     setError: (message: string | null) => void;
   }) {
-    if (loadingOlder || !hasMoreOlder || messages.length === 0) return;
-    const { viewport, beforePrepend, setError } = options;
-    const oldest = messages[0]!;
-    const previousHeight = viewport?.scrollHeight ?? 0;
+    if (loadingOlder || !hasMoreOlder || serverMessages.length === 0) return;
+    const { beforePrepend, setError } = options;
+    const oldest = serverMessages[0]!;
     setLoadingOlder(true);
-    setError(null);
     try {
       const page = await fetchOlderMessages({
         clubId,
@@ -135,10 +167,6 @@ export function useThreadMessages(params: {
         beforePrepend();
         setOlderMessages((current) => appendOlderPage(current, page));
         setHasMoreOlder(page.length >= OLDER_PAGE_SIZE);
-        requestAnimationFrame(() => {
-          if (!viewport) return;
-          viewport.scrollTop += viewport.scrollHeight - previousHeight;
-        });
       }
     } catch {
       setError(chatCopy.loadOlderFailed);
@@ -150,7 +178,10 @@ export function useThreadMessages(params: {
   return {
     conversation,
     messages,
+    deliveryById,
     threadRows,
+    status,
+    retry,
     hasMoreOlder,
     loadingOlder,
     loadOlder,

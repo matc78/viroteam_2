@@ -49,10 +49,15 @@ export const chatCopy = {
   floatingThreadLabel: "Conversation",
   newConversation: "Nouvelle discussion",
   createCategoryChannel: "Créer canal",
-  searchConversationsHint: "Rechercher dans les messages",
+  /** Placeholder : `filterInbox` cherche dans le titre, le club et le dernier message. */
+  searchConversationsHint: "Nom, club ou dernier message…",
+  searchConversationsLabel: "Rechercher une discussion",
+  searchNoResults: "Aucune discussion ne correspond à ta recherche.",
   emptyInbox: "Aucune discussion pour l’instant.",
   emptyInboxHint:
     "Les chats d’équipe et parents apparaissent dès que ton club est prêt.",
+  loadError: "Impossible de charger les discussions.",
+  retry: "Réessayer",
   selectConversationHint: "Sélectionne une discussion pour commencer.",
 
   // --- Tuile d'inbox ---
@@ -101,8 +106,14 @@ export const chatCopy = {
   messagesLogLabel: "Messages",
   loadOlderMessages: "Charger plus",
   loadOlderFailed: "Impossible de charger l’historique.",
-  emptyThread: "Pas encore de messages. Lance-toi.",
+  emptyThread: "Aucun message pour l’instant.",
+  emptyThreadHint: "Envoie le premier message pour lancer la discussion.",
+  threadLoadFailed: "Impossible de charger la discussion.",
   unreadSeparatorLabel: "nouveau",
+  /** Bouton flottant quand on a remonté dans l’historique. */
+  jumpToLatest: "Derniers messages",
+  newMessagesBelow: (count: number) =>
+    count <= 1 ? "1 nouveau message" : `${count} nouveaux messages`,
   today: "Aujourd'hui",
   yesterday: "Hier",
 
@@ -119,11 +130,19 @@ export const chatCopy = {
   groupAvatarUploadFailed: "Impossible de changer la photo.",
   createPoll: "Faire un sondage",
   maximize: "Agrandir",
+  muteFailed: "Impossible de couper les notifs.",
+  unmuteFailed: "Impossible de réactiver les notifs.",
+  favoriteFailed: "Impossible de modifier les favoris.",
 
   // --- Recherche dans le fil ---
   searchMessagesHint: "Rechercher dans la discussion",
-  searchResultsCount: (count: number) =>
-    `${count} résultat${count > 1 ? "s" : ""}`,
+  searchNoMatch: "Aucun résultat",
+  /** Compteur affiché : position (1 = plus récent) / total. */
+  searchCounter: (position: number, total: number) => `${position} / ${total}`,
+  searchCounterLabel: (position: number, total: number) =>
+    `Résultat ${position} sur ${total}`,
+  searchOlder: "Résultat suivant (plus ancien)",
+  searchNewer: "Résultat précédent (plus récent)",
 
   // --- Composer ---
   replyTo: "Réponse à",
@@ -133,23 +152,32 @@ export const chatCopy = {
   messageHint: "Écrire un message…",
   send: "Envoyer",
   photoFailed: "Envoi de la photo impossible.",
-  sendFailedWithDetail: (detail: string) => `Envoi impossible. (${detail})`,
+  sendFailed: "Envoi impossible.",
   unknownError: "erreur inconnue",
+  /** Bandeau du composer pendant la modification d’un message. */
+  editingBanner: "Modification",
+  cancelEdit: "Annuler la modification",
+  /** Statut d’envoi optimiste sur la bulle. */
+  messageSending: "Envoi…",
+  messageSendFailed: "Échec",
+  retrySend: "Réessayer",
+  retrySendLabel: "Échec de l’envoi, clique pour réessayer",
 
   // --- Bulle et actions ---
   messageDeleted: "Message supprimé",
   enlargePhoto: "Agrandir la photo",
   photoPreview: "Photo",
   photoFullscreen: "Photo en plein écran",
+  photoUnavailable: "Photo indisponible",
   messageActions: "Actions du message",
   reply: "Répondre",
   copyMessage: "Copier",
   editMessage: "Modifier",
-  editMessageDialog: "Modifier le message",
   deleteMessage: "Supprimer",
   deleteMessageConfirm: "Supprimer ce message ?",
   copyFailed: "Copie impossible.",
   editFailed: "Modification impossible.",
+  reactionFailed: "Réaction impossible.",
 
   // --- Réactions ---
   reactions: "Réagir",
@@ -195,8 +223,9 @@ export const chatCopy = {
   /** Type affiché sous le nom d'un DM. */
   directKind: "Discussion",
   searchAction: "Rechercher",
-  muteAction: "Mute",
-  unmuteAction: "Notifs",
+  /** Formes courtes de `mute` / `unmute` (boutons rapides du panneau infos). */
+  muteAction: "Couper",
+  unmuteAction: "Réactiver",
   favoritesAction: "Favoris",
   conversationMedia: "Médias, liens et documents",
   noConversationMedia: "Aucun média pour l’instant.",

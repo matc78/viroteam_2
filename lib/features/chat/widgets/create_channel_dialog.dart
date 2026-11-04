@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -138,6 +139,8 @@ class _CreateChannelDialogState extends ConsumerState<CreateChannelDialog> {
   Widget build(BuildContext context) {
     final teamsAsync = ref.watch(clubTeamsProvider(_clubId));
     final multiClub = widget.adminClubs.length > 1;
+    final palette = context.viroPalette;
+    final textTheme = Theme.of(context).textTheme;
 
     return AlertDialog(
       title: Text(AppCopy.chat.createCategoryChannel),
@@ -148,7 +151,12 @@ class _CreateChannelDialogState extends ConsumerState<CreateChannelDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(AppCopy.chat.categoryChannelHint),
+              Text(
+                AppCopy.chat.categoryChannelHint,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: palette.textSecondary,
+                ),
+              ),
               const SizedBox(height: ViroSpacing.md),
               if (!multiClub)
                 Center(
@@ -197,7 +205,7 @@ class _CreateChannelDialogState extends ConsumerState<CreateChannelDialog> {
               const SizedBox(height: ViroSpacing.md),
               Text(
                 AppCopy.chat.channelAudienceLabel,
-                style: Theme.of(context).textTheme.labelLarge,
+                style: textTheme.labelLarge,
               ),
               const SizedBox(height: ViroSpacing.sm),
               teamsAsync.when(
@@ -205,7 +213,7 @@ class _CreateChannelDialogState extends ConsumerState<CreateChannelDialog> {
                   padding: EdgeInsets.all(ViroSpacing.lg),
                   child: Center(child: ViroLogoLoader(size: 36)),
                 ),
-                error: (_, __) => Text(AppCopy.chat.noTeamsForChannel),
+                error: (_, _) => Text(AppCopy.chat.noTeamsForChannel),
                 data: (teams) {
                   final suggested = _suggestedTitle(teams);
                   return Column(
@@ -237,9 +245,12 @@ class _CreateChannelDialogState extends ConsumerState<CreateChannelDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(AppCopy.common.cancel),
+          child: Text(
+            AppCopy.common.cancel,
+            style: TextStyle(color: palette.textSecondary),
+          ),
         ),
-        TextButton(
+        FilledButton(
           onPressed: _scope.ids.isEmpty
               ? null
               : () {

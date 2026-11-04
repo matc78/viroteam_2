@@ -35,11 +35,21 @@ export type RsvpMigrationPlan = {
   legacyValue: unknown;
 };
 
+/** Options de migration RSVP. */
+export type PlanRsvpMigrationOptions = {
+  /**
+   * Si les deux clés existent : écraser le canonique avec la valeur legacy
+   * (repair dual-key post-bug app ; pas le flux acceptInvitation).
+   */
+  preferLegacyWhenBoth?: boolean;
+};
+
 /** Calcule comment migrer la map RSVP (pur). */
 export function planRsvpMigration(
   rsvp: Record<string, unknown> | null | undefined,
   legacyId: string,
   canonicalId: string,
+  options?: PlanRsvpMigrationOptions,
 ): RsvpMigrationPlan | null {
   if (!rsvp || typeof rsvp !== "object") return null;
   if (!legacyId || !canonicalId || legacyId === canonicalId) return null;
@@ -51,10 +61,14 @@ export function planRsvpMigration(
     canonicalRaw !== undefined &&
     canonicalRaw !== null &&
     String(canonicalRaw).trim() !== "";
+  const preferLegacy = options?.preferLegacyWhenBoth === true;
 
   return {
     deleteLegacy: true,
-    setCanonical: !hasCanonical && legacyValue !== undefined && legacyValue !== null,
+    setCanonical:
+      (preferLegacy || !hasCanonical) &&
+      legacyValue !== undefined &&
+      legacyValue !== null,
     legacyValue,
   };
 }
@@ -74,6 +88,8 @@ export function buildEventAudienceMigrationPatch(params: {
   legacyId: string;
   canonicalId: string;
   deleteField: unknown;
+  /** Repair dual-key : la valeur `memberId` gagne sur `accountUid`. */
+  preferLegacyWhenBoth?: boolean;
 }): Record<string, unknown> | null {
   const {
     teamMemberIds,
@@ -83,14 +99,19 @@ export function buildEventAudienceMigrationPatch(params: {
     legacyId,
     canonicalId,
     deleteField,
+    preferLegacyWhenBoth,
   } = params;
+  const rsvpOpts = preferLegacyWhenBoth
+    ? { preferLegacyWhenBoth: true }
+    : undefined;
   const nextMembers = migrateTeamMemberIds(teamMemberIds, legacyId, canonicalId);
-  const rsvpPlan = planRsvpMigration(rsvp, legacyId, canonicalId);
+  const rsvpPlan = planRsvpMigration(rsvp, legacyId, canonicalId, rsvpOpts);
   const hasLegacyRsvpUpdatedAt =
     legacyId !== canonicalId &&
     !!rsvpUpdatedAt &&
     typeof rsvpUpdatedAt === "object" &&
     legacyId in rsvpUpdatedAt;
+  // seenAt : ne pas écraser une vue canonique (hors conflit RSVP).
   const seenAtPlan = planRsvpMigration(seenAt, legacyId, canonicalId);
   if (!nextMembers && !rsvpPlan && !hasLegacyRsvpUpdatedAt && !seenAtPlan) {
     return null;

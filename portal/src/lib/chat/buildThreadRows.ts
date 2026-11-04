@@ -1,4 +1,5 @@
 import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
+import { canGroupMessages } from "@/lib/chat/messageGrouping";
 import {
   formatChatDateSeparator,
   isSameCalendarDay,
@@ -9,11 +10,24 @@ import type {
   ChatUserState,
 } from "@/lib/firebase/chatTypes";
 
+/**
+ * Ligne message du fil. `groupedWithPrevious` / `groupedWithNext` : le message
+ * forme un groupe (voir `canGroupMessages`) avec son voisin direct — nom sur
+ * le premier du groupe, avatar et « queue » de bulle sur le dernier.
+ */
+export type ThreadMessageRow = {
+  kind: "message";
+  id: string;
+  message: ChatMessage;
+  groupedWithPrevious: boolean;
+  groupedWithNext: boolean;
+};
+
 /** Ligne du fil : séparateur de jour, séparateur « nouveau » ou message. */
 export type ThreadRow =
   | { kind: "date"; id: string; label: string }
   | { kind: "unread"; id: string }
-  | { kind: "message"; id: string; message: ChatMessage };
+  | ThreadMessageRow;
 
 /**
  * Ancre du séparateur « nouveau », figée à l’ouverture du fil (avant markRead) :
@@ -64,8 +78,9 @@ function localDayKey(date: Date): string {
 
 /**
  * Construit les lignes du fil à partir des messages triés (plus ancien en tête) :
- * un séparateur par jour calendaire, et au plus un séparateur « nouveau »
- * avant le premier message non lu selon l’ancre.
+ * un séparateur par jour calendaire, au plus un séparateur « nouveau »
+ * avant le premier message non lu selon l’ancre, et le regroupement des
+ * messages consécutifs (jamais à travers un séparateur).
  */
 export function buildThreadRows(params: {
   messages: ChatMessage[];
@@ -80,6 +95,8 @@ export function buildThreadRows(params: {
       ? Math.max(0, messages.length - anchor.count)
       : null;
   let unreadInserted = false;
+  /** Dernière ligne message sans séparateur depuis (candidate au regroupement). */
+  let previousRow: ThreadMessageRow | null = null;
   for (let index = 0; index < messages.length; index++) {
     const message = messages[index]!;
     if (!previousDay || !isSameCalendarDay(previousDay, message.createdAt)) {
@@ -89,6 +106,7 @@ export function buildThreadRows(params: {
         label: formatChatDateSeparator(message.createdAt),
       });
       previousDay = message.createdAt;
+      previousRow = null;
     }
     const showUnreadHere =
       !unreadInserted &&
@@ -99,8 +117,20 @@ export function buildThreadRows(params: {
     if (showUnreadHere) {
       rows.push({ kind: "unread", id: "unread-separator" });
       unreadInserted = true;
+      previousRow = null;
     }
-    rows.push({ kind: "message", id: message.id, message });
+    const grouped =
+      previousRow !== null && canGroupMessages(previousRow.message, message);
+    if (grouped && previousRow) previousRow.groupedWithNext = true;
+    const row: ThreadMessageRow = {
+      kind: "message",
+      id: message.id,
+      message,
+      groupedWithPrevious: grouped,
+      groupedWithNext: false,
+    };
+    rows.push(row);
+    previousRow = row;
   }
   return rows;
 }

@@ -22,6 +22,17 @@ abstract final class ViroChat {
   /// Espace vertical entre deux messages.
   static const double messageGap = 8;
 
+  /// Espace vertical entre deux messages d’un même groupe.
+  static const double messageGroupGap = 2;
+
+  /// Écart max entre deux messages d’un même expéditeur pour les regrouper.
+  static const Duration messageGroupWindow = Duration(minutes: 5);
+
+  /// Largeur d’une photo dans une bulle ; hauteur bornée par le ratio.
+  static const double imageWidth = 220;
+  static const double imageMinHeight = 120;
+  static const double imageMaxHeight = 320;
+
   /// Rayon de la citation (réponse) et de la photo dans une bulle.
   static const double quoteRadius = 8;
 

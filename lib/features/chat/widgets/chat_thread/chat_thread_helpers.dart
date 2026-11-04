@@ -1,5 +1,7 @@
 import 'dart:typed_data';
+import 'dart:ui';
 
+import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
@@ -270,6 +272,69 @@ ChatMessage chatThreadPendingMessage({
     break;
   }
   return (displayName: displayName, avatarUrl: avatarUrl);
+}
+
+/// Place d’un message dans son groupe (messages consécutifs d’une personne).
+typedef ChatThreadGroupPosition = ({bool isFirst, bool isLast});
+
+/// `true` si [next] prolonge le groupe de [previous] : même expéditeur, même
+/// jour, moins de [ViroChat.messageGroupWindow] d’écart, ni supprimé ni sondage.
+bool chatThreadContinuesGroup(ChatMessage previous, ChatMessage next) {
+  if (previous.senderUid != next.senderUid) return false;
+  if (previous.isDeleted || next.isDeleted) return false;
+  if (previous.isPoll || next.isPoll) return false;
+  if (!chatThreadSameCalendarDay(previous.createdAt, next.createdAt)) {
+    return false;
+  }
+  return next.createdAt.difference(previous.createdAt).abs() <
+      ViroChat.messageGroupWindow;
+}
+
+/// Place de chaque message de [messages] (ordre chronologique) dans son
+/// groupe ; le séparateur « nouveaux messages » à [firstUnreadIndex] coupe
+/// un groupe.
+List<ChatThreadGroupPosition> chatThreadGroupPositions(
+  List<ChatMessage> messages, {
+  int? firstUnreadIndex,
+}) {
+  bool joined(int index) =>
+      index > 0 &&
+      index < messages.length &&
+      index != firstUnreadIndex &&
+      chatThreadContinuesGroup(messages[index - 1], messages[index]);
+  return [
+    for (var i = 0; i < messages.length; i++)
+      (isFirst: !joined(i), isLast: !joined(i + 1)),
+  ];
+}
+
+/// Ids des messages (ordre chronologique) dont le texte ou la question de
+/// sondage contient [query], sans tenir compte de la casse.
+List<String> chatThreadSearchMatches(
+  List<ChatMessage> messages,
+  String query,
+) {
+  final needle = query.trim().toLowerCase();
+  if (needle.isEmpty) return const [];
+  return [
+    for (final message in messages)
+      if (!message.isDeleted &&
+          ((message.text ?? '').toLowerCase().contains(needle) ||
+              (message.pollQuestion ?? '').toLowerCase().contains(needle)))
+        message.id,
+  ];
+}
+
+/// Taille d’affichage d’une photo de [width] × [height] px : largeur fixe,
+/// hauteur au ratio (bornée) ; carré tant que les dimensions sont inconnues.
+Size chatThreadImageSize({double? width, double? height}) {
+  const displayWidth = ViroChat.imageWidth;
+  if (width == null || height == null || width <= 0 || height <= 0) {
+    return const Size.square(displayWidth);
+  }
+  final displayHeight = (displayWidth * height / width)
+      .clamp(ViroChat.imageMinHeight, ViroChat.imageMaxHeight);
+  return Size(displayWidth, displayHeight);
 }
 
 /// Non-lus effectifs à l’open (compteur Firestore ou fallback lastReadAt).

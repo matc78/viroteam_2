@@ -22,6 +22,8 @@ import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_dialo
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_helpers.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_jump_button.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_message_list.dart';
+import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_search_navigator.dart';
+import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_skeleton.dart';
 import 'package:viro_team_v2/features/chat/widgets/create_poll_sheet.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
@@ -64,6 +66,13 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   /// Recherche isolée (pas de setState plein écran à chaque frappe).
   final ValueNotifier<String> _searchQueryNotifier = ValueNotifier('');
   final ValueNotifier<bool> _searchOpenNotifier = ValueNotifier(false);
+
+  /// Résultats de la recherche (ids, ordre chronologique) et position
+  /// sélectionnée (index dans `ids`, -1 = aucun).
+  final ValueNotifier<({List<String> ids, int index})> _searchMatchesNotifier =
+      ValueNotifier((ids: const [], index: -1));
+  final ValueNotifier<String?> _currentSearchMatchNotifier =
+      ValueNotifier(null);
 
   /// Proximité du bas + msgs hors viewport (FAB).
   final ValueNotifier<bool> _isNearBottomNotifier = ValueNotifier(true);
@@ -109,9 +118,78 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     super.initState();
     _scrollController.addListener(_onThreadScroll);
     _searchController.addListener(() {
-      _searchQueryNotifier.value = _searchController.text.trim();
+      final query = _searchController.text.trim();
+      if (query == _searchQueryNotifier.value) return;
+      _searchQueryNotifier.value = query;
+      _refreshSearchMatches(selectLatest: true);
     });
     Future<void>.delayed(ViroMotion.drillIn, _revealMessagesAfterTransition);
+  }
+
+  /// Recalcule les résultats de la recherche ; [selectLatest] sélectionne le
+  /// plus récent (nouvelle saisie), sinon garde le résultat courant s’il existe.
+  void _refreshSearchMatches({bool selectLatest = false}) {
+    final messages =
+        ref.read(chatThreadMessagesViewProvider(_key)).value?.messages ??
+            const <ChatMessage>[];
+    final ids = chatThreadSearchMatches(messages, _searchQueryNotifier.value);
+    final currentId = _currentSearchMatchNotifier.value;
+    var index = selectLatest ? -1 : ids.indexOf(currentId ?? '');
+    if (index < 0) index = ids.length - 1;
+    _searchMatchesNotifier.value = (ids: ids, index: index);
+    final nextId = index >= 0 ? ids[index] : null;
+    if (nextId == currentId) return;
+    _currentSearchMatchNotifier.value = nextId;
+    if (nextId != null && selectLatest) _revealMessage(nextId);
+  }
+
+  /// Sélectionne le résultat [delta] crans plus loin (-1 = plus ancien).
+  void _stepSearchMatch(int delta) {
+    final matches = _searchMatchesNotifier.value;
+    final index = matches.index + delta;
+    if (index < 0 || index >= matches.ids.length) return;
+    _searchMatchesNotifier.value = (ids: matches.ids, index: index);
+    _currentSearchMatchNotifier.value = matches.ids[index];
+    _revealMessage(matches.ids[index]);
+  }
+
+  /// Amène le message [messageId] à l’écran, en faisant défiler le fil tant
+  /// que sa bulle n’est pas construite (liste paresseuse).
+  Future<void> _revealMessage(String messageId) async {
+    final messages =
+        ref.read(chatThreadMessagesViewProvider(_key)).value?.messages ??
+            const <ChatMessage>[];
+    final targetIndex = messages.indexWhere((m) => m.id == messageId);
+    if (targetIndex < 0) return;
+    for (var attempt = 0; attempt < 40; attempt++) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final targetContext = _messageAnchorKeys[messageId]?.currentContext;
+      if (targetContext != null) {
+        await Scrollable.ensureVisible(
+          targetContext,
+          duration: ViroMotion.fast,
+          alignment: 0.5,
+        );
+        return;
+      }
+      final builtIndexes = [
+        for (final entry in _messageAnchorKeys.entries)
+          if (entry.value.currentContext != null)
+            messages.indexWhere((m) => m.id == entry.key),
+      ].where((i) => i >= 0);
+      if (builtIndexes.isEmpty) return;
+      final oldestBuilt = builtIndexes.reduce((a, b) => a < b ? a : b);
+      final position = _scrollController.position;
+      // Fil inversé : remonter dans l’historique = augmenter l’offset.
+      final step = position.viewportDimension * 0.8;
+      final next = targetIndex < oldestBuilt
+          ? position.pixels + step
+          : position.pixels - step;
+      _scrollController.jumpTo(
+        next.clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
+      await WidgetsBinding.instance.endOfFrame;
+    }
   }
 
   /// Affiche la liste + markRead une fois le slide terminé.
@@ -148,6 +226,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   void _onMessagesViewChanged(List<ChatMessage> messages) {
     final liveIds = {for (final message in messages) message.id};
     _messageAnchorKeys.removeWhere((id, _) => !liveIds.contains(id));
+    if (_searchOpenNotifier.value && _searchQueryNotifier.value.isNotEmpty) {
+      _refreshSearchMatches();
+    }
     final reactorsId = _reactorsMessageId;
     if (reactorsId == null) return;
     final stillHasReactions = messages.any(
@@ -208,8 +289,29 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   }
 
   void _setReplyTo(ChatMessage message) {
+    _leaveEditing();
     _thread.setReplyTo(message);
     _composerFocusNode.requestFocus();
+  }
+
+  /// Ouvre la modification de [message] dans le composer (texte prérempli).
+  void _startEditing(ChatMessage message) {
+    if (!_thread.canEdit(message)) return;
+    _thread.startEditing(message);
+    final text = message.text ?? '';
+    _controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+    _composerFocusNode.requestFocus();
+  }
+
+  /// Quitte la modification en vidant le champ (le brouillon était le texte
+  /// du message modifié).
+  void _leaveEditing() {
+    if (ref.read(chatThreadControllerProvider(_key)).editing == null) return;
+    _thread.cancelEditing();
+    _controller.clear();
   }
 
   /// Demande un scroll bas après envoi (immédiat + quand le stream pousse).
@@ -243,6 +345,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     _scrollController.dispose();
     _searchQueryNotifier.dispose();
     _searchOpenNotifier.dispose();
+    _searchMatchesNotifier.dispose();
+    _currentSearchMatchNotifier.dispose();
     _isNearBottomNotifier.dispose();
     _newBelowCountNotifier.dispose();
     super.dispose();
@@ -251,6 +355,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   Future<void> _sendText() async {
     final text = _controller.text.trimRight();
     if (text.trim().isEmpty) return;
+    if (ref.read(chatThreadControllerProvider(_key)).editing != null) {
+      _controller.clear();
+      await _thread.submitEdit(text);
+      return;
+    }
     final pending = _thread.enqueueText(text);
     if (pending == null) return;
     _controller.clear();
@@ -378,16 +487,6 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     await _thread.deleteMessage(message);
   }
 
-  Future<void> _editMessage(ChatMessage message) async {
-    if (!_thread.canEdit(message)) return;
-    final next = await showChatEditMessageDialog(
-      context: context,
-      initialText: message.text ?? '',
-    );
-    if (next == null) return;
-    await _thread.editMessage(message, next);
-  }
-
   void _showMessageActions(ChatMessage message, {required bool mine}) {
     _dismissReactorsPopup();
     showChatMessageActionsSheet(
@@ -400,7 +499,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
         context: context,
         text: message.text ?? '',
       ),
-      onEdit: () => _editMessage(message),
+      onEdit: () => _startEditing(message),
       onDelete: () => _deleteMessage(message),
       onReact: (emoji) => _thread.react(message, emoji),
       onOpenEmojiPicker: (msg, myEmojis) =>
@@ -489,6 +588,10 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final replyTo = ref.watch(
       chatThreadControllerProvider(_key).select((thread) => thread.replyTo),
     );
+    final editing = ref.watch(
+      chatThreadControllerProvider(_key)
+          .select((thread) => thread.editing != null),
+    );
     final conv = chrome.conversation;
 
     return ViroScaffold(
@@ -521,6 +624,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
             if (!next) {
               _searchController.clear();
               _searchQueryNotifier.value = '';
+              _searchMatchesNotifier.value = (ids: const [], index: -1);
+              _currentSearchMatchNotifier.value = null;
             }
           });
         },
@@ -551,6 +656,27 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 ),
               ),
             ),
+          ListenableBuilder(
+            listenable: Listenable.merge([
+              _searchOpenNotifier,
+              _searchQueryNotifier,
+              _searchMatchesNotifier,
+            ]),
+            builder: (context, _) {
+              if (!_searchOpenNotifier.value ||
+                  _searchQueryNotifier.value.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              final matches = _searchMatchesNotifier.value;
+              // Comme le portail : 1 = résultat le plus récent.
+              return ChatThreadSearchNavigator(
+                current: matches.ids.length - matches.index,
+                total: matches.ids.length,
+                onPrevious: () => _stepSearchMatch(-1),
+                onNext: () => _stepSearchMatch(1),
+              );
+            },
+          ),
           Expanded(
             child: Stack(
               fit: StackFit.expand,
@@ -571,9 +697,11 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                   color: palette.background.withValues(alpha: 0.62),
                 ),
                 viewAsync.when(
-                  loading: () => const SizedBox.expand(),
-                  error: (_, _) =>
-                      Center(child: Text(AppCopy.chat.loadError)),
+                  loading: () => const ChatThreadSkeleton(),
+                  error: (_, _) => ViroErrorState(
+                    message: AppCopy.chat.threadLoadError,
+                    onRetry: () => ref.invalidate(chatMessagesProvider(_key)),
+                  ),
                   data: (view) {
                     // Pendant le slide : chrome seul (fond + app bar), pas de ListView.
                     if (!_routeTransitionSettled) {
@@ -603,6 +731,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                           scrollController: _scrollController,
                           searchOpen: _searchOpenNotifier,
                           searchQuery: _searchQueryNotifier,
+                          currentSearchMatchId: _currentSearchMatchNotifier,
                           anchorKeyFor: _anchorKeyFor,
                           messageAnchorKeys: _messageAnchorKeys,
                           reactorsMessageId: _reactorsMessageId,
@@ -649,6 +778,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
               replyPreview:
                   replyTo == null ? '' : chatThreadReplyPreviewText(replyTo),
               onClearReply: _thread.clearReply,
+              editing: editing,
+              onCancelEdit: _leaveEditing,
               onSend: _sendText,
               onCamera: () => _sendPhoto(source: ImageSource.camera),
               onGallery: () => _sendPhoto(source: ImageSource.gallery),

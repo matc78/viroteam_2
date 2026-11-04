@@ -377,13 +377,22 @@ service cloud.firestore {
         && request.resource.data.get('parentLinks', []) == []
         && request.resource.data.get('parentClubIds', []) == []
         && request.resource.data.get('parentTeamIds', []) == []
-        && request.resource.data.get('memberClubIds', []) == [];
+        && request.resource.data.get('memberClubIds', []) == []
+        // Accès anticipé messagerie : console / Admin SDK uniquement.
+        && request.resource.data.get('flags', {}).get('chatMessaging', false) == false;
       // Les index parent et clubs sont maintenus par les Cloud Functions.
       // `legal` est write-once à la création (preuve d’acceptation CGU).
+      // `flags.chatMessaging` : pas d’auto-grant (seul Admin SDK / console
+      // peut passer false → true). Une écriture client qui remplace `flags`
+      // peut perdre le bit (merge de profil) — acceptable.
       allow update: if isOwner(uid)
         && !affectedKeys().hasAny([
           'parentLinks', 'parentClubIds', 'parentTeamIds', 'memberClubIds', 'deleted', 'legal'
-        ]);
+        ])
+        && (
+          request.resource.data.get('flags', {}).get('chatMessaging', false) != true
+          || resource.data.get('flags', {}).get('chatMessaging', false) == true
+        );
       // Suppression de compte : callable `deleteMyAccount` (anonymisation).
       allow delete: if false;
 

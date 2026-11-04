@@ -79,15 +79,16 @@ firebase functions:secrets:set BREVO_API_KEY
 # BREVO_SENDER_EMAIL=noreply@viroteam.com
 # BREVO_SENDER_NAME=Guy · ViroTeam
 # INVITE_JOIN_BASE_URL=https://www.viroteam.com
-# CHAT_MESSAGING_LIVE=false   # push chat coupés tant que la messagerie est cachée
+# CHAT_MESSAGING_LIVE=false   # push chat : seulement flags.chatMessaging tant que false
 ```
 
 **`CHAT_MESSAGING_LIVE`** (param public `defineBoolean`, défaut `false`) : tant qu'il vaut
-`false`, `onChatMessageCreatedForPush` maintient les compteurs non-lus mais n'envoie
-**aucun** push `chat_message`. Le workflow CI l'écrit à `false` dans
-`functions/.env.viroteam-75303` ; le jour où la messagerie est ouverte aux clubs, passer
-la ligne à `true` dans [`deploy-functions.yml`](../.github/workflows/deploy-functions.yml)
-(ou dans le `.env` local) et redéployer.
+`false`, `onChatMessageCreatedForPush` maintient les compteurs non-lus et n'envoie des
+push `chat_message` qu'aux comptes avec `users/{uid}.flags.chatMessaging == true`.
+Le workflow CI l'écrit à `false` dans `functions/.env.viroteam-75303` ; le jour où la
+messagerie est ouverte à tous les clubs, passer la ligne à `true` dans
+[`deploy-functions.yml`](../.github/workflows/deploy-functions.yml) (ou dans le `.env`
+local) et redéployer.
 
 ## Décisions sécurité (lot 2, 28 sept. 2026)
 

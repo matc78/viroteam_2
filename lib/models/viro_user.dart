@@ -21,6 +21,7 @@ class ViroUser {
     this.notificationPreferences = NotificationPreferences.defaults,
     this.profileCompleted = false,
     this.disabled = false,
+    this.chatMessaging = false,
     this.termsAcceptedAt,
     this.termsVersion,
     this.createdAt,
@@ -41,6 +42,9 @@ class ViroUser {
   final NotificationPreferences notificationPreferences;
   final bool profileCompleted;
   final bool disabled;
+
+  /// Accès anticipé messagerie (`flags.chatMessaging`), posé en console.
+  final bool chatMessaging;
   final DateTime? termsAcceptedAt;
   final String? termsVersion;
   final DateTime? createdAt;
@@ -114,6 +118,7 @@ class ViroUser {
       profileCompleted:
           flags[FirestoreFields.profileCompleted] as bool? ?? false,
       disabled: flags[FirestoreFields.disabled] as bool? ?? false,
+      chatMessaging: flags[FirestoreFields.chatMessaging] as bool? ?? false,
       termsAcceptedAt:
           (legal[FirestoreFields.termsAcceptedAt] as Timestamp?)?.toDate(),
       termsVersion: legal[FirestoreFields.termsVersion] as String?,

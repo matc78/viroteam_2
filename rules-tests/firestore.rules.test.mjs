@@ -733,6 +733,20 @@ test("un utilisateur ne modifie pas sa trace legal (CGU) après création", asyn
   );
 });
 
+test("un utilisateur ne s'accorde pas flags.chatMessaging", async () => {
+  await assertFails(
+    updateDoc(doc(as(PLAYER), `users/${PLAYER.uid}`), {
+      flags: { chatMessaging: true },
+    }),
+  );
+  await assertFails(
+    setDoc(doc(as({ uid: "nouveau2", email: "n2@x.fr" }), "users/nouveau2"), {
+      email: "n2@x.fr",
+      flags: { chatMessaging: true },
+    }),
+  );
+});
+
 // ————————————————————————————————————————————————————————————————
 // Parents : uniquement l'équipe de l'enfant
 // ————————————————————————————————————————————————————————————————

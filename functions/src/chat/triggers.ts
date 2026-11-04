@@ -29,14 +29,37 @@ import {
 const REGION = "europe-west1";
 
 /**
- * Messagerie cachée en prod tant que ce param est `false` (défaut) : aucun
- * push `chat_message` ne part. Param public dotenv (`functions/.env.<projet>`,
- * écrit par le workflow deploy-functions) — passer à `true` le jour où la
- * messagerie est ouverte aux clubs.
+ * Ouverture globale messagerie : si `true`, push chat à tous les destinataires
+ * éligibles. Si `false` (défaut prod), seuls les comptes avec
+ * `users/{uid}.flags.chatMessaging == true` reçoivent des push.
+ * Param public dotenv (`functions/.env.<projet>`, écrit par deploy-functions).
  */
 const chatMessagingLive = defineBoolean("CHAT_MESSAGING_LIVE", {
   default: false,
 });
+
+/**
+ * Filtre les uids qui ont l’accès anticipé messagerie
+ * (`flags.chatMessaging === true`). Lectures groupées via `getAll`.
+ */
+async function filterChatMessagingFlaggedUids(
+  firestore: FirebaseFirestore.Firestore,
+  uids: string[],
+): Promise<string[]> {
+  if (uids.length === 0) return [];
+  const snaps = await firestore.getAll(
+    ...uids.map((uid) => firestore.collection("users").doc(uid)),
+  );
+  const allowed: string[] = [];
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const flags = snap.data()?.flags as Record<string, unknown> | undefined;
+    if (flags?.chatMessaging === true) {
+      allowed.push(snap.id);
+    }
+  }
+  return allowed;
+}
 
 function defineMemberWrittenTrigger(databaseId: FirestoreDatabaseId) {
   return onDocumentWritten(
@@ -266,13 +289,16 @@ function defineMessageCreatedTrigger(databaseId: FirestoreDatabaseId) {
             ? `${senderFirstName} : ${messageBody}`
             : messageBody;
 
-        // Garde : pas de push tant que la messagerie n'est pas ouverte
-        // (les compteurs non-lus ci-dessus restent maintenus).
-        if (!chatMessagingLive.value()) return;
+        // Compteurs non-lus déjà maintenus. Push : tous si ouvert globalement,
+        // sinon uniquement les comptes `flags.chatMessaging`.
+        const pushUids = chatMessagingLive.value()
+          ? unmuted
+          : await filterChatMessagingFlaggedUids(firestore, unmuted);
+        if (pushUids.length === 0) return;
 
         await sendPushToUids({
           firestore,
-          uids: unmuted,
+          uids: pushUids,
           payload: {
             title,
             body,

@@ -24,6 +24,7 @@ function makeProfile(overrides: Partial<ViroUserProfile> = {}): ViroUserProfile 
     notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
     profileCompleted: true,
     disabled: false,
+    chatMessaging: false,
     termsAcceptedAt: null,
     termsVersion: null,
     ...overrides,

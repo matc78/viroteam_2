@@ -43,6 +43,8 @@ export type ViroUserProfile = {
   notificationPreferences: NotificationPreferences;
   profileCompleted: boolean;
   disabled: boolean;
+  /** Accès anticipé messagerie (`flags.chatMessaging`), posé en console. */
+  chatMessaging: boolean;
   termsAcceptedAt: Date | null;
   termsVersion: string | null;
 };
@@ -110,6 +112,7 @@ export function parseUserProfile(
     ),
     profileCompleted: Boolean(flags[Fields.profileCompleted]),
     disabled: Boolean(flags[Fields.disabled]),
+    chatMessaging: flags[Fields.chatMessaging] === true,
     termsAcceptedAt:
       termsAcceptedRaw instanceof Timestamp
         ? termsAcceptedRaw.toDate()

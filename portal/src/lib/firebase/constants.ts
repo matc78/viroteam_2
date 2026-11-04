@@ -56,6 +56,8 @@ export const Fields = {
   flags: "flags",
   profileCompleted: "profileCompleted",
   disabled: "disabled",
+  /** Accès anticipé messagerie (`users/{uid}.flags.chatMessaging`). */
+  chatMessaging: "chatMessaging",
   legal: "legal",
   termsAcceptedAt: "termsAcceptedAt",
   termsVersion: "termsVersion",

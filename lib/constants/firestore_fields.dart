@@ -17,6 +17,9 @@ abstract final class FirestoreFields {
   static const String flags = 'flags';
   static const String profileCompleted = 'profileCompleted';
   static const String disabled = 'disabled';
+
+  /// Accès anticipé messagerie (`users/{uid}.flags.chatMessaging`).
+  static const String chatMessaging = 'chatMessaging';
   static const String createdAt = 'createdAt';
   static const String updatedAt = 'updatedAt';
   static const String lastConnectionAt = 'lastConnectionAt';

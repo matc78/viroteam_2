@@ -36,7 +36,7 @@
 | `clubMemberships` | array | `[{ clubId, role }]` — clubs où l’utilisateur est **membre** (`player` \| `coach` \| `admin`) |
 | `parentLinks` | array | Index session parent : `[{ clubId, memberId, relation, status }]` — **pas** un rôle club. Source de vérité : `members/{memberId}/guardians/{parentUid}`. Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md). |
 | `notificationPreferences` | map | `{ events, weeklyDigest, announcements, fees, rsvp, rsvpTeammates, chat }` — booléens, défaut `true` sauf `rsvpTeammates` (`false`) ; `coachSummaryTiming` : `'j2' | 'eve' | 'day'` (moment du bilan des réponses pour les coachs, défaut `'eve'`) |
-| `flags` | map | `{ profileCompleted, disabled }` |
+| `flags` | map | `{ profileCompleted, disabled, chatMessaging? }` — `chatMessaging: true` = accès anticipé messagerie (console / Admin SDK uniquement ; pas d’auto-grant client) |
 | `legal` | map | `{ termsAcceptedAt, termsVersion }` — trace d’acceptation CGU / privacy à la création du compte (version ex. `"2026-09"`) ; immuable après create (rules) |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |

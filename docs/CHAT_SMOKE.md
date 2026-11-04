@@ -1,8 +1,12 @@
-# Recette messagerie (avant ouverture des flags)
+# Recette messagerie (avant ouverture globale)
 
-La messagerie s’ouvre (`FeatureFlags.chatMessagingLive` côté app, `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` côté portail) quand ce parcours passe **sans défaut** sur toute la matrice ci-dessous. Un défaut = une ligne cochée « KO » avec un lien vers le ticket ou le commit correctif ; on rejoue la ligne après correction.
+La messagerie est visible en **debug** (app) / `NEXT_PUBLIC_CHAT_MESSAGING_LIVE=true` (portail local), et en **prod** seulement si `users/{uid}.flags.chatMessaging == true` (console Firestore). L’ouverture à tous les clubs se fait quand ce parcours passe **sans défaut** sur toute la matrice ci-dessous. Un défaut = une ligne cochée « KO » avec un lien vers le ticket ou le commit correctif ; on rejoue la ligne après correction.
 
 Accessibilité générale : [`A11Y_SMOKE.md`](A11Y_SMOKE.md). Plan et décisions : doc « Messagerie — plan UI/UX app + portail » (lots 0 à 6).
+
+### Accès anticipé (compte de test prod)
+
+Sur `v2-prod` (ou `v2-dev`) : `users/{uid}` → `flags.chatMessaging = true` (booléen). Le client ne peut pas s’auto-accorder ce flag (rules). Push chat : uniquement ces comptes tant que `CHAT_MESSAGING_LIVE=false` côté Functions.
 
 ---
 
@@ -11,7 +15,7 @@ Accessibilité générale : [`A11Y_SMOKE.md`](A11Y_SMOKE.md). Plan et décisions
 - Functions déployées (tag `functions-v*`) puis rattrapage lancé : `backfillMyAdminClubChats` sur chaque club de test (profils participants du lot 0).
 - Règles Firestore rejouées : `cd rules-tests && npm test` (JDK 21+).
 - Un club de test avec au moins : 1 admin, 1 coach, 2 joueurs, 1 parent rattaché à un enfant joueur, 2 équipes, 1 canal « coachs et admins ».
-- Portail lancé avec `NEXT_PUBLIC_CHAT_MESSAGING_LIVE=true`. App en debug (le flag est actif en `kDebugMode`).
+- Portail lancé avec `NEXT_PUBLIC_CHAT_MESSAGING_LIVE=true`. App en debug (toujours visible). En release / `FORCE_PROD_BACKEND` : comptes de test avec `flags.chatMessaging`.
 
 ## Matrice
 
@@ -102,7 +106,8 @@ En `FORCE_PROD_BACKEND`, jouer seulement A, B et C, sur un club de test de la pr
 
 Quand toute la matrice est verte :
 
-1. `lib/config/feature_flags.dart` : `chatMessagingLive` → `true` (au lieu de `kDebugMode`).
-2. Portail : ajouter la variable `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` (valeur `"true"`, disponible au build) dans `portal/apphosting.yaml`, puis mettre à jour le commentaire de `CHAT_MESSAGING_LIVE` (`portal/src/lib/featureFlags.ts`).
-3. Changelogs : retirer « (masquée) » des entrées messagerie de `[Unreleased]`, ajouter l’entrée d’ouverture.
-4. Release app (`v*`) et portail (`portal-v*`) dans la même fenêtre, pour que l’app et le portail ouvrent ensemble.
+1. Functions : `CHAT_MESSAGING_LIVE=true` dans [`deploy-functions.yml`](../.github/workflows/deploy-functions.yml) (push à tous, plus seulement `flags.chatMessaging`).
+2. App : faire résoudre `chatMessagingLiveProvider` / `resolveChatMessagingLive` à `true` aussi en release (ex. ignorer le flag user, ou le poser par défaut).
+3. Portail : ajouter `NEXT_PUBLIC_CHAT_MESSAGING_LIVE=true` dans `portal/apphosting.yaml`, ou faire que `isChatMessagingLive` renvoie true sans flag user.
+4. Changelogs : retirer « (masquée) » / « accès anticipé » des entrées messagerie de `[Unreleased]`, ajouter l’entrée d’ouverture.
+5. Release app (`v*`), Functions (`functions-v*`) et portail (`portal-v*`) dans la même fenêtre.

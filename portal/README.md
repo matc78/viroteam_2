@@ -61,7 +61,7 @@ Credentials Admin (route `/api/club-setup/places`, une des deux options) :
 | `/announcements` | Annonces (admin / coach) |
 | `/equipment` | Inventaire équipements (admin) |
 | `/settings` | Paramètres club (saison, logo, droits coachs) + compte |
-| `/messages` | Messagerie (désactivée en prod tant que `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` absent) |
+| `/messages` | Messagerie (local : `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` ; prod : `flags.chatMessaging`) |
 | `/family` | Espace parent |
 | `/family/settings` | Paramètres compte (espace famille) |
 | `/legal/cgu` | Conditions générales |

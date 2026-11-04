@@ -65,7 +65,7 @@ Les règles Firestore restent simples ; tout ce qui touche à plusieurs document
 - Riverpod : services instanciés comme `Provider` dans `lib/providers/service_providers.dart` ; providers d'état par feature dans `lib/features/<feature>/providers/`.
 - Logique métier / accès Firestore dans `lib/services/` (pas dans les écrans, pas dans `build()`). Écrans fins dans `lib/features/<feature>/screens/`.
 - Analytics : PostHog uniquement, via `AnalyticsService` (`lib/services/analytics_service.dart`) / `@/lib/posthog` côté portail. Rien sans consentement (`analyticsConsentProvider` dans l'app, bandeau cookies sur le portail), jamais de PII ; identité = uid Firebase + groupe `club`, propriétés construites par `analytics_identity.dart` ↔ `portal/src/lib/analytics/analyticsIdentity.ts` (mêmes clés). Clé prod en release seulement (`ProjectConfig.posthogApiKey`). Événements clés envoyés par les Functions (`captureClubEvent`, groupe `club` seul, jamais d'uid) ; plan de taggage `docs/analytics_events.csv`, dashboards et rituel `docs/ANALYTICS.md`.
-- Feature flags dans `lib/config/feature_flags.dart` (ex. messagerie `chatMessagingLive` = debug uniquement, aligné avec `CHAT_MESSAGING_LIVE` côté portail).
+- Feature flags dans `lib/config/feature_flags.dart`. Messagerie : `chatMessagingLiveProvider` (debug toujours ; release si `users/{uid}.flags.chatMessaging`) — portail `isChatMessagingLive` / `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` en local.
 
 ### Portail (`portal/`)
 

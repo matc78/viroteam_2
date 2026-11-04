@@ -23,6 +23,7 @@ import {
   type ChatMessage,
 } from "@/lib/firebase/chatTypes";
 import { chatCopy } from "@/lib/copy/chatCopy";
+import { useMenuA11y } from "@/lib/ui/useMenuA11y";
 
 /** Sondage saisi dans `CreatePollSheet`. */
 type PollDraft = {
@@ -124,7 +125,10 @@ export function useComposer(params: {
   const [dragOver, setDragOver] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const attachWrapRef = useRef<HTMLDivElement | null>(null);
+  const attachMenu = useMenuA11y({
+    open: attachOpen,
+    onClose: () => setAttachOpen(false),
+  });
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   /** Brouillon mis de côté pendant une modification (restauré à la sortie). */
   const stashedDraftRef = useRef("");
@@ -135,24 +139,6 @@ export function useComposer(params: {
     setDragOver(false);
     setAttachOpen(false);
   }, [clubId, conversationId]);
-
-  useEffect(() => {
-    if (!attachOpen) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!attachWrapRef.current?.contains(event.target as Node)) {
-        setAttachOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setAttachOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [attachOpen]);
 
   /** Remet le focus dans le champ (après envoi, citation, modification). */
   function focusInput() {
@@ -382,7 +368,8 @@ export function useComposer(params: {
     attachOpen,
     setAttachOpen,
     fileInputRef,
-    attachWrapRef,
+    attachWrapRef: attachMenu.wrapRef,
+    attachMenuRef: attachMenu.menuRef,
     handleSend,
     handleImage,
     handlePaste,

@@ -35,7 +35,9 @@
   gap: 0.3rem;
 }
 
-.field label {
+.field label,
+.fieldLabel {
+  margin: 0;
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--color-primary-800);

@@ -479,6 +479,31 @@
   max-width: min(var(--chat-bubble-max-width), var(--chat-bubble-max-width-cap));
 }
 
+/*
+ * Bouton « Actions du message » : à côté de la bulle, visible au survol de la
+ * ligne ou au focus clavier (alternative au clic droit / appui long).
+ */
+.bubbleActionsBtn {
+  composes: iconBtn from "./chatShared.module.css";
+  position: absolute;
+  top: 0;
+  left: calc(100% + 0.25rem);
+  width: 1.75rem;
+  height: 1.75rem;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.bubbleRowMine .bubbleActionsBtn {
+  left: auto;
+  right: calc(100% + 0.25rem);
+}
+
+.bubbleRow:hover .bubbleActionsBtn,
+.bubbleRow:focus-within .bubbleActionsBtn {
+  opacity: 1;
+}
+
 .bubbleShellWithReactions {
   /* Place pour la partie basse des pastilles qui dépassent. */
   margin-bottom: 0.85rem;
@@ -951,6 +976,16 @@
 
 .actionDanger {
   color: var(--color-error);
+}
+
+/* Question de la confirmation de suppression (en tête du menu d’actions). */
+.actionConfirmText {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-gray-100);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-primary-900);
 }
 
 .composer {

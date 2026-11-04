@@ -3,6 +3,7 @@ import { makeMessage } from "./chatTestFixtures";
 import {
   appendOlderPage,
   findThreadSearchMatches,
+  incomingMessageToAnnounce,
   mergeThreadMessages,
   messageTimeLabel,
   replyPayloadFromTarget,
@@ -119,5 +120,71 @@ describe("findThreadSearchMatches", () => {
 
   it("aucune correspondance", () => {
     expect(findThreadSearchMatches(messages, "tournoi")).toEqual([]);
+  });
+});
+
+describe("incomingMessageToAnnounce", () => {
+  const first = makeMessage({ id: "m1", senderUid: "other" });
+  const incoming = makeMessage({ id: "m2", senderUid: "other" });
+
+  it("annonce le nouveau dernier message d’un autre membre", () => {
+    expect(
+      incomingMessageToAnnounce({
+        previousLastId: "m1",
+        messages: [first, incoming],
+        viewerUid: "me",
+      }),
+    ).toBe(incoming);
+  });
+
+  it("annonce aussi le premier message d’un fil vide", () => {
+    expect(
+      incomingMessageToAnnounce({
+        previousLastId: null,
+        messages: [incoming],
+        viewerUid: "me",
+      }),
+    ).toBe(incoming);
+  });
+
+  it("rien au premier chargement ni au chargement de l’historique", () => {
+    expect(
+      incomingMessageToAnnounce({
+        previousLastId: undefined,
+        messages: [first, incoming],
+        viewerUid: "me",
+      }),
+    ).toBeNull();
+    expect(
+      incomingMessageToAnnounce({
+        previousLastId: "m2",
+        messages: [makeMessage({ id: "m0" }), first, incoming],
+        viewerUid: "me",
+      }),
+    ).toBeNull();
+  });
+
+  it("rien pour mes messages ni un message supprimé", () => {
+    expect(
+      incomingMessageToAnnounce({
+        previousLastId: "m1",
+        messages: [first, makeMessage({ id: "m2", senderUid: "me" })],
+        viewerUid: "me",
+      }),
+    ).toBeNull();
+    expect(
+      incomingMessageToAnnounce({
+        previousLastId: "m1",
+        messages: [
+          first,
+          makeMessage({
+            id: "m2",
+            senderUid: "other",
+            deletedAt: new Date(2026, 10, 3, 11, 0),
+          }),
+        ],
+        viewerUid: "me",
+      }),
+    ).toBeNull();
   });
 });

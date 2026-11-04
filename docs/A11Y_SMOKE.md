@@ -37,7 +37,7 @@ Parcours : **login → home → dialog → planning → messagerie**.
 | 3b | Fiche membre / détail événement : même comportement (useDialogA11y) | ☐ |
 | 4 | Planning : flèches période + en-têtes de jour nommés | ☐ |
 | 5 | Messagerie dock : boutons icon-only avec `aria-label` ; recherche labellée | ☐ |
-| 5b | Thread flottant : Escape ferme ; overlay actions/édition : Escape ferme l’overlay d’abord ; fil `role=log` | ☐ |
+| 5b | Thread flottant non modal (Tab rejoint le dock) : Escape ferme quand le focus est dedans ; overlay actions : Escape ferme l’overlay d’abord ; seuls les messages reçus sont annoncés | ☐ |
 | 6 | Tables membres : tri (`aria-sort`) / sélection annoncés | ☐ |
 | 7 | Toast annoncé (`aria-live`) | ☐ |
 

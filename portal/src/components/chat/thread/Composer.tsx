@@ -33,11 +33,9 @@ type ComposerProps = {
   canPoll: boolean;
   onCreatePoll: () => void;
   attachWrapRef: RefObject<HTMLDivElement | null>;
+  attachMenuRef: RefObject<HTMLDivElement | null>;
   fileInputRef: RefObject<HTMLInputElement | null>;
   onImageChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  /** Input caché du menu « Changer la photo » (rendu ici, dans le formulaire). */
-  avatarMenuInputRef: RefObject<HTMLInputElement | null>;
-  onAvatarMenuFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onSend: (event?: FormEvent) => void;
 };
@@ -64,10 +62,9 @@ export function Composer({
   canPoll,
   onCreatePoll,
   attachWrapRef,
+  attachMenuRef,
   fileInputRef,
   onImageChange,
-  avatarMenuInputRef,
-  onAvatarMenuFileChange,
   onPaste,
   onSend,
 }: ComposerProps) {
@@ -121,13 +118,6 @@ export function Composer({
         hidden
         onChange={onImageChange}
       />
-      <input
-        ref={avatarMenuInputRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={onAvatarMenuFileChange}
-      />
       <div className={styles.composerRow}>
         <div className={styles.attachWrap} ref={attachWrapRef}>
           <button
@@ -142,7 +132,12 @@ export function Composer({
             <ChatIcon name="plus" size={18} />
           </button>
           {attachOpen ? (
-            <div className={styles.attachMenu} role="menu">
+            <div
+              ref={attachMenuRef}
+              className={styles.attachMenu}
+              role="menu"
+              aria-label={chatCopy.attachAdd}
+            >
               <button type="button" role="menuitem" onClick={onPickPhoto}>
                 <span
                   className={styles.attachIcon}

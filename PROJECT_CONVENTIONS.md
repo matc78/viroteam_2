@@ -100,6 +100,7 @@ Scaffold(
 - Bulles : les miennes sur `palette.accentFill` / texte `palette.onAccent` (portail : `--chat-bubble-mine-bg` / `--chat-bubble-mine-text`), celles des autres sur `surfaceCard` avec la bordure de rôle. Regroupement (même règle des deux côtés, testée : `chatThreadGroupPositions` ↔ `messageGrouping.ts`) : même expéditeur, même jour, moins de 5 min, pas de séparateur, ni supprimé ni sondage ; nom sur le premier, avatar et coin « queue » sur le dernier, écart `messageGroupGap` / `--chat-message-group-gap` (2 px).
 - Photos : 220 px de large, hauteur au ratio bornée 120–320 px (`chatThreadImageSize` ↔ `messageImageLayout.ts`, tokens `ViroChat.image*` / `--chat-image-*`).
 - Recherche dans le fil : compteur « n / total » où 1 = résultat le plus récent, sur les deux plateformes.
+- Points de rupture du chat : 767 px (mobile : page Messages en bascule liste ↔ fil) et 1024 px (panneaux par-dessus le fil) uniquement — `ChatBreakpoints` (`portal/src/lib/chat/chatBreakpoints.ts`), vérifié par `chatBreakpoints.test.ts`.
 - Portail : pas d’hexa en dur dans les modules CSS du chat (variables `--color-*` / `--chat-*`, vérifié par `cssColorTokens.test.ts`) ; briques communes (`iconBtn`, `search`, dialogues…) dans `chatShared.module.css` via `composes:` ; textes dans `src/lib/copy/chatCopy.ts`, mêmes clés que `app_copy_chat.dart` quand le sens est le même.
 
 ### Motion & ombres
@@ -124,8 +125,9 @@ Scaffold(
 - `ViroFloatingIconButton` exige toujours un `tooltip` (Tooltip + Semantics).
 - Tuiles / cartes tappables → `semanticLabel` (ou texte enfant clairement annoncé), pas de double lecture.
 - Cibles tactiles ≥ `ViroSpacing.minTouchTarget` (44).
-- Portail : dialogs via `useDialogA11y` (focus + Escape) ; formulaires sur le modèle Login (`label`, `aria-invalid`, `role="alert"`).
-- Smoke manuel : [`docs/A11Y_SMOKE.md`](docs/A11Y_SMOKE.md).
+- Portail : dialogs via `useDialogA11y` (focus + Escape) ; panneaux latéraux et fenêtres qui ne bloquent pas la page avec `modal: false` (pas de piège Tab, Escape seulement si le focus est dedans) ; menus déroulants (`aria-haspopup="menu"` + `role="menu"`) via `useMenuA11y` (flèches, Escape qui ne ferme que le menu) ; pas de `window.confirm`, confirmation dans l’UI ; formulaires sur le modèle Login (`label`, `aria-invalid`, `role="alert"`).
+- Portail : action réservée au clic droit ou à l’appui long → aussi un bouton visible au survol et au focus clavier. Zone `aria-live` limitée à ce qui est nouveau (pas un fil entier).
+- Smoke manuel : [`docs/A11Y_SMOKE.md`](docs/A11Y_SMOKE.md) ; recette messagerie avant ouverture : [`docs/CHAT_SMOKE.md`](docs/CHAT_SMOKE.md).
 
 ---
 
@@ -284,3 +286,4 @@ Plus tard :
 | 2026-10 | Analytics : PostHog seul (Firebase Analytics retiré), projets dev / prod séparés, consentement explicite dans l’app (feuille + Paramètres) et bandeau cookies sur le portail ; identify uid Firebase + groupe `club`, mêmes clés web / mobile |
 | 2026-10 | Événements clés envoyés par les Functions, rattachés au club seul (pas d’uid, pas besoin du consentement client) ; plan de taggage `docs/analytics_events.csv` ; liens stores marqués par campagne (`utm_source` = surface, `utm_campaign` = emplacement) ; replay de sessions portail écarté pour l’instant |
 | 2026-11 | Messagerie : mes bulles en `accentFill`, les autres en `surfaceCard`, messages consécutifs regroupés (app + portail) ; bouton Messagerie du header portail = page Messages ; portail mobile = bascule liste ↔ fil ; « en train d’écrire », accusés de lecture et multi-photos hors MVP |
+| 2026-11 | A11y portail : `useDialogA11y({ modal: false })` pour panneaux latéraux et fenêtre flottante, `useMenuA11y` pour les menus, bouton d’actions au focus à la place du seul clic droit ; points de rupture du chat 767 / 1024 px ; ouverture de la messagerie conditionnée à `docs/CHAT_SMOKE.md` |

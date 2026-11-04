@@ -11,6 +11,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ### Corrigé
 
+- Messagerie (masquée) : « Changer la photo » du menu Options fonctionne aussi dans une conversation où l’on ne peut pas écrire ; un échec de suppression ou de renommage affiche une erreur au lieu d’échouer en silence
 - Couleurs : huit variables CSS utilisées sans être définies (`--color-gray-500/700/800`, `--color-primary-300/700`, `--color-text`, `--color-text-muted`, `--color-border`) le sont désormais. Les textes secondaires retrouvent leur gris, et les bordures au survol (membres, équipes, annonces, import…) ne prennent plus la couleur du texte. Un test échoue si une variable `--color-*` utilisée n’existe pas
 - Messagerie (masquée) : une conversation n’est plus marquée lue quand la page Messages est masquée ou l’onglet en arrière-plan
 - Messagerie (masquée) : le bandeau d’un canal dit qui peut écrire (admins seuls, ou coachs et admins) et ne s’affiche plus pendant le chargement
@@ -22,6 +23,8 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ### Ajouté
 
+- Messagerie (masquée), accessibilité : bouton « Actions du message » au survol et au focus clavier (plus besoin du clic droit) ; suppression confirmée dans le menu d’actions au lieu d’une boîte `window.confirm` ; menus Options et « + » navigables aux flèches (Échap ferme le menu, pas la fenêtre) ; panneaux infos / sondage et fenêtre flottante non modaux (focus à l’ouverture, Échap, Tab peut en sortir pour rejoindre le dock) ; le lecteur d’écran annonce uniquement les messages reçus (« Nouveau message de … »), plus tout le fil ; formulaires sondage, renommage et création avec libellés et erreurs annoncées
+- Messagerie (masquée), mobile (< 768 px) : la page Messages affiche la liste ou le fil en plein écran, avec un bouton retour ; points de rupture du chat ramenés à 767 et 1024 px (`ChatBreakpoints`, vérifié par un test)
 - Messagerie (masquée) : envoi optimiste (le message apparaît tout de suite en « Envoi… », « Échec · Réessayer » cliquable sinon), bouton flottant « Derniers messages » / « n nouveaux messages », historique chargé automatiquement en remontant (position de lecture conservée)
 - Messagerie (masquée) : squelette au chargement du fil, état vide (« Envoie le premier message… » si tu peux écrire), erreur avec « Réessayer »
 - Messagerie (masquée) : recherche dans le fil avec compteur « 2 / 5 », navigation précédent / suivant (boutons, Entrée / Maj+Entrée) et résultat courant mis en évidence

@@ -228,8 +228,14 @@ export function CreateCategoryChannelDialog() {
           )}
         </div>
 
-        <div className={styles.field}>
-          <label id="channel-scope-label">{chatCopy.channelAudienceLabel}</label>
+        <div
+          className={styles.field}
+          role="group"
+          aria-labelledby="channel-scope-label"
+        >
+          <p id="channel-scope-label" className={styles.fieldLabel}>
+            {chatCopy.channelAudienceLabel}
+          </p>
           {loadingTeams ? (
             <p className={styles.hint}>{chatCopy.teamsLoading}</p>
           ) : (
@@ -256,7 +262,11 @@ export function CreateCategoryChannelDialog() {
           />
         </div>
 
-        {error ? <p className={styles.error}>{error}</p> : null}
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <div className={styles.actions}>
           <button

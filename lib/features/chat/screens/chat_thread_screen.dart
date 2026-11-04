@@ -744,6 +744,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                           onRetrySend: (message) {
                             if (message.isSendFailed) _deliver(message);
                           },
+                          onReply: chrome.canWrite ? _setReplyTo : null,
                         ),
                         ?reactorsPopup,
                         Positioned(

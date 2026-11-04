@@ -108,15 +108,20 @@ void showChatMessageActionsSheet({
                         },
                       ),
                     ),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(999),
-                      onTap: () {
+                    IconButton(
+                      tooltip: AppCopy.chat.moreEmojis,
+                      onPressed: () {
                         Navigator.pop(ctx);
                         onOpenEmojiPicker(message, myEmojis);
                       },
-                      child: Container(
-                        width: 40,
-                        height: 40,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(
+                        width: ViroSpacing.minTouchTarget,
+                        height: ViroSpacing.minTouchTarget,
+                      ),
+                      icon: Container(
+                        width: ViroSpacing.minTouchTarget,
+                        height: ViroSpacing.minTouchTarget,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -202,8 +207,9 @@ void showChatEmojiPickerSheet({
                     horizontal: ViroSpacing.sm,
                     vertical: ViroSpacing.xs,
                   ),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 8,
+                  // Cases ≥ cible tactile, quel que soit l’écran.
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: ViroSpacing.minTouchTarget + 8,
                     mainAxisSpacing: 4,
                     crossAxisSpacing: 4,
                   ),

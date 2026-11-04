@@ -148,10 +148,14 @@ class _ChatAttachMenuState extends State<ChatAttachMenu>
             button: true,
             label: AppCopy.chat.attachAdd,
             expanded: _open,
-            child: _PlusButton(
-              open: _open,
-              enabled: widget.enabled,
-              onTap: _toggle,
+            child: Tooltip(
+              message: AppCopy.chat.attachAdd,
+              excludeFromSemantics: true,
+              child: _PlusButton(
+                open: _open,
+                enabled: widget.enabled,
+                onTap: _toggle,
+              ),
             ),
           ),
         ),
@@ -178,28 +182,33 @@ class _PlusButton extends StatelessWidget {
       onTap: enabled ? onTap : null,
       enabled: enabled,
       floating: false,
-      minSize: 40,
-      borderRadius: BorderRadius.circular(20),
-      child: AnimatedContainer(
-        duration: ViroMotion.fast,
-        curve: Curves.ease,
-        width: 34,
-        height: 34,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: open
-              ? palette.accent.withValues(alpha: 0.14)
-              : palette.surfaceMuted,
-        ),
-        child: AnimatedRotation(
-          turns: open ? 0.125 : 0,
-          duration: ViroMotion.fast,
-          curve: Curves.ease,
-          child: ViroIcon(
-            ViroIcons.add,
-            size: 18,
-            color: open ? palette.brandStrong : palette.brandText,
+      borderRadius: BorderRadius.circular(ViroSpacing.minTouchTarget / 2),
+      // Pastille de 34 px centrée dans une cible de 44.
+      child: SizedBox.square(
+        dimension: ViroSpacing.minTouchTarget,
+        child: Center(
+          child: AnimatedContainer(
+            duration: ViroMotion.fast,
+            curve: Curves.ease,
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: open
+                  ? palette.accent.withValues(alpha: 0.14)
+                  : palette.surfaceMuted,
+            ),
+            child: AnimatedRotation(
+              turns: open ? 0.125 : 0,
+              duration: ViroMotion.fast,
+              curve: Curves.ease,
+              child: ViroIcon(
+                ViroIcons.add,
+                size: 18,
+                color: open ? palette.brandStrong : palette.brandText,
+              ),
+            ),
           ),
         ),
       ),
@@ -291,7 +300,6 @@ class _AttachMenuItem extends StatelessWidget {
     return ViroPressable(
       onTap: onTap,
       floating: false,
-      minSize: 36,
       borderRadius: BorderRadius.circular(ViroChat.attachMenuItemRadius),
       child: Padding(
         padding: const EdgeInsets.symmetric(

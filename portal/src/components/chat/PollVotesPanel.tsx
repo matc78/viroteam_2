@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import {
   participantFirstName,
   type ConversationParticipant,
@@ -33,6 +34,11 @@ export function PollVotesPanel({
   onClose,
 }: PollVotesPanelProps) {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  // Escape : retour à la liste des votes depuis une fiche, sinon fermeture.
+  const panelRef = useDialogA11y({
+    onClose: () => (selectedUid ? setSelectedUid(null) : onClose()),
+    modal: false,
+  });
 
   const peopleByUid = useMemo(() => {
     const map = new Map<string, ConversationParticipant>();
@@ -51,7 +57,12 @@ export function PollVotesPanel({
 
   if (selected) {
     return (
-      <aside className={infoStyles.panel} aria-label={chatCopy.memberCard}>
+      <aside
+        ref={panelRef}
+        className={infoStyles.panel}
+        role="dialog"
+        aria-label={chatCopy.memberCard}
+      >
         <header className={infoStyles.header}>
           <button
             type="button"
@@ -78,7 +89,12 @@ export function PollVotesPanel({
   }
 
   return (
-    <aside className={infoStyles.panel} aria-label={chatCopy.pollDetailsTitle}>
+    <aside
+      ref={panelRef}
+      className={infoStyles.panel}
+      role="dialog"
+      aria-label={chatCopy.pollDetailsTitle}
+    >
       <header className={infoStyles.header}>
         <button
           type="button"

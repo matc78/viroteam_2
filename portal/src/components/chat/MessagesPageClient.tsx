@@ -22,6 +22,7 @@ type MessagesPageClientProps = {
 /**
  * Page messagerie pleine largeur (liste + thread), keep-alive.
  * Query `?clubId=&conversationId=` sélectionne le thread (deep link notif).
+ * Mobile (< 768px) : liste ou fil en plein écran, bouton retour dans le fil.
  */
 export function MessagesPageClient({
   eyebrow,
@@ -45,6 +46,7 @@ export function MessagesPageClient({
     roleForClub,
     setDockOpen,
     dmPeerNameByKey,
+    isMobileLayout,
   } = useChat();
 
   useReportPageReady(
@@ -95,6 +97,13 @@ export function MessagesPageClient({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
+  /** Mobile : quitte le fil pour revenir à la liste (vide la sélection). */
+  function backToList() {
+    setSelectedClubId(null);
+    setSelectedConversationId(null);
+    router.replace(pathname, { scroll: false });
+  }
+
   const hasSelection = Boolean(selectedClubId && selectedConversationId);
   const stateId =
     selectedClubId && selectedConversationId
@@ -128,7 +137,9 @@ export function MessagesPageClient({
         </div>
       </DashboardPageIntro>
 
-      <div className={styles.layout}>
+      <div
+        className={`${styles.layout}${hasSelection ? ` ${styles.layoutThreadOpen}` : ""}`}
+      >
         <aside className={styles.listPane}>
           <div className={styles.searchRow}>
             <input
@@ -184,6 +195,7 @@ export function MessagesPageClient({
               chatState={stateId ? chatStates[stateId] : undefined}
               clubName={clubNameById[selectedClubId]}
               clubColor={clubColorById[selectedClubId]}
+              onBack={isMobileLayout ? backToList : undefined}
               headerExtra={
                 clubNameById[selectedClubId] ? (
                   <ClubBadge

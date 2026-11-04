@@ -271,6 +271,18 @@ export function MessageBubble({
             </div>
           )}
         </div>
+        {!deleted && !pending ? (
+          <button
+            type="button"
+            className={styles.bubbleActionsBtn}
+            aria-label={chatCopy.messageActions}
+            aria-haspopup="dialog"
+            title={chatCopy.messageActions}
+            onClick={() => onOpenActions(message)}
+          >
+            <ChatIcon name="options" size={16} />
+          </button>
+        ) : null}
         {delivery === "sending" ? (
           <p className={styles.deliveryStatus}>
             {chatCopy.messageSending}

@@ -226,8 +226,15 @@ export function ComposeConversationDialog() {
           </select>
         </label>
 
-        <p className={styles.sectionTitle}>{chatCopy.pickTargets}</p>
-        <div className={styles.list}>
+        <p id="compose-targets-title" className={styles.sectionTitle}>
+          {chatCopy.pickTargets}
+        </p>
+        <div
+          className={styles.list}
+          role="group"
+          aria-labelledby="compose-targets-title"
+          aria-busy={loading || undefined}
+        >
           {loading ? (
             <p className={styles.empty}>{chatCopy.loading}</p>
           ) : targets.length === 0 ? (
@@ -251,7 +258,11 @@ export function ComposeConversationDialog() {
           )}
         </div>
 
-        {error ? <p className={styles.error}>{error}</p> : null}
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <div className={styles.footer}>
           <button

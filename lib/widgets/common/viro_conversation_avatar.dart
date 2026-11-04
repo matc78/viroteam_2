@@ -3,6 +3,7 @@ import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
+import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
 
 /// Avatar circulaire d’une conversation : canal (mégaphone), groupe (photo ou
@@ -25,6 +26,7 @@ class ViroConversationAvatar extends StatelessWidget {
     this.onTap,
     this.onEdit,
     this.showEditBadge = false,
+    this.semanticLabel,
   });
 
   /// Diamètre (voir les tailles `ViroChat.avatar*`).
@@ -45,6 +47,9 @@ class ViroConversationAvatar extends StatelessWidget {
 
   /// Pastille appareil photo en bas à droite (photo modifiable).
   final bool showEditBadge;
+
+  /// Libellé lu quand l’avatar est tappable (photo en grand, modification).
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +97,22 @@ class ViroConversationAvatar extends StatelessWidget {
                 )
             : onEdit);
     if (handleTap == null) return avatar;
-    return GestureDetector(onTap: handleTap, child: avatar);
+    // Cible tactile ≥ 44 même pour un petit avatar (en-tête du fil).
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: handleTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: ViroSpacing.minTouchTarget,
+            minHeight: ViroSpacing.minTouchTarget,
+          ),
+          child: Center(widthFactor: 1, heightFactor: 1, child: avatar),
+        ),
+      ),
+    );
   }
 
   Widget _fallback() {

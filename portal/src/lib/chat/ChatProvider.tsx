@@ -46,6 +46,7 @@ import { listClubMembers } from "@/lib/firebase/memberService";
 import { membershipRoleForClub, splitDisplayName } from "@/lib/firebase/types";
 import { getUserProfile } from "@/lib/firebase/userService";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
+import { chatMobileMediaQuery } from "@/lib/chat/chatBreakpoints";
 
 type ChatContextValue = {
   dockOpen: boolean;
@@ -101,7 +102,6 @@ type ChatContextValue = {
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
-const MOBILE_MQ = "(max-width: 767px)";
 
 /**
  * Quand la messagerie est désactivée : pas de chrome, redirige les deep links.
@@ -214,7 +214,7 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const media = window.matchMedia(MOBILE_MQ);
+    const media = window.matchMedia(chatMobileMediaQuery);
     const update = () => setIsMobileLayout(media.matches);
     update();
     media.addEventListener("change", update);

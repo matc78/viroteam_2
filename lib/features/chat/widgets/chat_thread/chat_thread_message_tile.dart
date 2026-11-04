@@ -45,6 +45,7 @@ class ChatThreadMessageTile extends StatelessWidget {
     this.isCurrentSearchMatch = false,
     this.uploadProgress,
     this.onRetrySend,
+    this.onReply,
   });
 
   final ChatMessage message;
@@ -85,6 +86,9 @@ class ChatThreadMessageTile extends StatelessWidget {
   final double? uploadProgress;
   final VoidCallback? onRetrySend;
 
+  /// Répondre (action des lecteurs d’écran) ; `null` en lecture seule.
+  final void Function(ChatMessage message)? onReply;
+
   @override
   Widget build(BuildContext context) {
     final query = searchQuery.toLowerCase();
@@ -113,6 +117,7 @@ class ChatThreadMessageTile extends StatelessWidget {
     const senderAvatarSize = ViroChat.avatarSender;
     final avatarBottomPad =
         hasReactionChips ? 20.0 : ViroChat.messageGap / 2;
+    final reply = onReply;
 
     late final Widget bubble;
     if (isPollBubble) {
@@ -185,6 +190,7 @@ class ChatThreadMessageTile extends StatelessWidget {
               }
             : null,
         onRetry: message.isSendFailed ? onRetrySend : null,
+        onReply: reply == null ? null : () => reply(message),
       );
       bubble = message.isLocalPending
           ? _OptimisticAppear(child: contentBubble)

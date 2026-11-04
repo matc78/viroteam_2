@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, RefObject } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { AnchoredPopoverLayout } from "@/components/chat/anchoredPopover";
 import { ChatIcon } from "@/components/chat/ChatIcons";
@@ -22,12 +22,14 @@ type MessageActionsPopoverProps = {
   onReply: () => void;
   onCopy: () => void;
   onEdit: () => void;
+  /** Suppression confirmée (la confirmation se fait dans le popover). */
   onDelete: () => void;
 };
 
 /**
  * Popover d’actions d’un message (portail dans `body`), ancré sur la bulle :
  * réactions rapides puis Répondre / Copier / Modifier / Supprimer.
+ * « Supprimer » demande une confirmation sur place (focus sur Annuler).
  */
 export function MessageActionsPopover({
   message,
@@ -43,6 +45,13 @@ export function MessageActionsPopover({
   onDelete,
 }: MessageActionsPopoverProps) {
   const mine = viewerUid === message.senderUid;
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const cancelDeleteRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (confirmingDelete) cancelDeleteRef.current?.focus();
+  }, [confirmingDelete]);
+
   return createPortal(
     <div
       ref={overlayRef}
@@ -68,40 +77,19 @@ export function MessageActionsPopover({
           }
           onClick={(event) => event.stopPropagation()}
         >
-          <ReactionQuickBar onPick={onReaction} />
-          <div className={styles.actionSheet}>
-            {canWrite ? (
+          {confirmingDelete ? (
+            <div className={styles.actionSheet}>
+              <p className={styles.actionConfirmText}>
+                {chatCopy.deleteMessageConfirm}
+              </p>
               <button
+                ref={cancelDeleteRef}
                 type="button"
                 className={styles.actionItem}
-                onClick={onReply}
+                onClick={() => setConfirmingDelete(false)}
               >
-                <ChatIcon name="reply" size={18} />
-                {chatCopy.reply}
+                {chatCopy.cancel}
               </button>
-            ) : null}
-            {message.type === ChatMessageTypes.text &&
-            (message.text ?? "").trim() ? (
-              <button
-                type="button"
-                className={styles.actionItem}
-                onClick={onCopy}
-              >
-                <ChatIcon name="copy" size={18} />
-                {chatCopy.copyMessage}
-              </button>
-            ) : null}
-            {mine && message.type === ChatMessageTypes.text ? (
-              <button
-                type="button"
-                className={styles.actionItem}
-                onClick={onEdit}
-              >
-                <ChatIcon name="edit" size={18} />
-                {chatCopy.editMessage}
-              </button>
-            ) : null}
-            {mine ? (
               <button
                 type="button"
                 className={`${styles.actionItem} ${styles.actionDanger}`}
@@ -110,8 +98,55 @@ export function MessageActionsPopover({
                 <ChatIcon name="trash" size={18} />
                 {chatCopy.deleteMessage}
               </button>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <>
+              <ReactionQuickBar onPick={onReaction} />
+              <div className={styles.actionSheet}>
+                {canWrite ? (
+                  <button
+                    type="button"
+                    className={styles.actionItem}
+                    onClick={onReply}
+                  >
+                    <ChatIcon name="reply" size={18} />
+                    {chatCopy.reply}
+                  </button>
+                ) : null}
+                {message.type === ChatMessageTypes.text &&
+                (message.text ?? "").trim() ? (
+                  <button
+                    type="button"
+                    className={styles.actionItem}
+                    onClick={onCopy}
+                  >
+                    <ChatIcon name="copy" size={18} />
+                    {chatCopy.copyMessage}
+                  </button>
+                ) : null}
+                {mine && message.type === ChatMessageTypes.text ? (
+                  <button
+                    type="button"
+                    className={styles.actionItem}
+                    onClick={onEdit}
+                  >
+                    <ChatIcon name="edit" size={18} />
+                    {chatCopy.editMessage}
+                  </button>
+                ) : null}
+                {mine ? (
+                  <button
+                    type="button"
+                    className={`${styles.actionItem} ${styles.actionDanger}`}
+                    onClick={() => setConfirmingDelete(true)}
+                  >
+                    <ChatIcon name="trash" size={18} />
+                    {chatCopy.deleteMessage}
+                  </button>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
       ) : null}
     </div>,

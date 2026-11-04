@@ -112,3 +112,25 @@ export function findThreadSearchMatches(
     })
     .map((message) => message.id);
 }
+
+/**
+ * Message à annoncer aux lecteurs d’écran : le dernier du fil s’il vient
+ * d’arriver (dernier id changé), n’est pas du viewer et n’est pas supprimé.
+ * Rien au premier chargement (`previousLastId` indéfini) ni quand on charge
+ * l’historique (le dernier message ne change pas).
+ *
+ * @param previousLastId id du dernier message au rendu précédent
+ *   (`null` = fil vide, `undefined` = pas encore chargé).
+ */
+export function incomingMessageToAnnounce(params: {
+  previousLastId: string | null | undefined;
+  messages: ChatMessage[];
+  viewerUid: string | undefined;
+}): ChatMessage | null {
+  const { previousLastId, messages, viewerUid } = params;
+  if (previousLastId === undefined) return null;
+  const last = messages[messages.length - 1];
+  if (!last || last.id === previousLastId) return null;
+  if (last.senderUid === viewerUid || isChatMessageDeleted(last)) return null;
+  return last;
+}

@@ -22,7 +22,11 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
     closeFloatingThread,
     maximizeThread,
   } = useChat();
-  const dialogRef = useDialogA11y({ onClose: closeFloatingThread });
+  // Non modale : le dock et la page restent joignables au clavier (Tab).
+  const dialogRef = useDialogA11y({
+    onClose: closeFloatingThread,
+    modal: false,
+  });
   const stateId = chatStateDocId(thread.clubId, thread.conversationId);
   const clubName = clubNameById[thread.clubId];
 
@@ -31,7 +35,6 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
       ref={dialogRef}
       className={styles.window}
       role="dialog"
-      aria-modal="true"
       aria-label={chatCopy.floatingThreadLabel}
     >
       <ChatThreadView

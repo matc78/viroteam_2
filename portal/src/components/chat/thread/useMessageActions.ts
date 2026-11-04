@@ -176,17 +176,20 @@ export function useMessageActions(params: {
     onReply(message);
   }
 
-  /** Supprime (soft delete) après confirmation. */
+  /** Supprime (soft delete) ; la confirmation est demandée dans le popover. */
   async function handleDelete(message: ChatMessage) {
     if (!uid) return;
-    if (!window.confirm(chatCopy.deleteMessageConfirm)) return;
     setActionMessage(null);
-    await softDeleteMessage({
-      clubId,
-      conversationId,
-      messageId: message.id,
-      deletedByUid: uid,
-    });
+    try {
+      await softDeleteMessage({
+        clubId,
+        conversationId,
+        messageId: message.id,
+        deletedByUid: uid,
+      });
+    } catch {
+      setError(chatCopy.deleteMessageFailed);
+    }
   }
 
   /** Copie le texte du message dans le presse-papiers. */

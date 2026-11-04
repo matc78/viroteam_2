@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:viro_team_v2/config/viro_chat.dart';
+import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -10,6 +12,9 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_reaction_chip.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_helpers.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
+
+/// Hauteur des chips de réaction sous la bulle (elles chevauchent sa bordure).
+const double _reactionChipsOverflow = 20;
 
 /// Bulle texte / image d’un message du fil (hors sondage).
 class ChatMessageBubble extends StatelessWidget {
@@ -33,6 +38,7 @@ class ChatMessageBubble extends StatelessWidget {
     this.onImageTap,
     this.onReplyTap,
     this.onRetry,
+    this.onReply,
   });
 
   /// Ancre visuelle de la bulle (pas le Align pleine largeur).
@@ -65,16 +71,40 @@ class ChatMessageBubble extends StatelessWidget {
   /// Réessaie un envoi optimiste en échec.
   final VoidCallback? onRetry;
 
+  /// Répond à ce message (action des lecteurs d’écran) ; `null` si
+  /// l’utilisateur ne peut pas écrire dans la discussion.
+  final VoidCallback? onReply;
+
+  /// Actions proposées aux lecteurs d’écran à la place des gestes
+  /// (double-tap cœur, appui long, tap sur les chips).
+  Map<CustomSemanticsAction, VoidCallback> _semanticsActions({
+    required bool hasReactions,
+  }) {
+    final reply = onReply;
+    return {
+      if (reply != null && !message.isLocalPending)
+        CustomSemanticsAction(label: AppCopy.chat.reply): reply,
+      if (!message.isLocalPending)
+        CustomSemanticsAction(label: AppCopy.chat.reactWithHeart): onDoubleTap,
+      if (hasReactions)
+        CustomSemanticsAction(label: AppCopy.chat.reactionReactors):
+            onOpenReactors,
+      CustomSemanticsAction(label: AppCopy.chat.messageActions): onLongPress,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
     final align = mine ? Alignment.centerRight : Alignment.centerLeft;
-    final topGap = (groupPosition.isFirst
+    final topGap =
+        (groupPosition.isFirst
             ? ViroChat.messageGap
             : ViroChat.messageGroupGap) /
         2;
-    final bottomGap = (groupPosition.isLast
+    final bottomGap =
+        (groupPosition.isLast
             ? ViroChat.messageGap
             : ViroChat.messageGroupGap) /
         2;
@@ -101,8 +131,9 @@ class ChatMessageBubble extends StatelessWidget {
     final hasReactions = reactionEntries.isNotEmpty;
     final imageUrl = (message.thumbUrl ?? message.downloadUrl ?? '').trim();
     final foreground = mine ? palette.onAccent : palette.brandText;
-    final secondary =
-        mine ? palette.onAccent.withValues(alpha: 0.85) : palette.textSecondary;
+    final secondary = mine
+        ? palette.onAccent.withValues(alpha: 0.85)
+        : palette.textSecondary;
     const radius = Radius.circular(ViroChat.bubbleRadius);
     const tail = Radius.circular(ViroChat.bubbleTailRadius);
     final hasTail = groupPosition.isLast;
@@ -123,8 +154,8 @@ class ChatMessageBubble extends StatelessWidget {
     final Border? border = isCurrentSearchMatch || (mine && isSearchMatch)
         ? Border.all(color: ViroColors.warning, width: 2)
         : mine
-            ? null
-            : Border.all(color: borderColor, width: 1.5);
+        ? null
+        : Border.all(color: borderColor, width: 1.5);
     final imageSize = chatThreadImageSize(
       width: message.width,
       height: message.height,
@@ -133,162 +164,187 @@ class ChatMessageBubble extends StatelessWidget {
     return Align(
       alignment: align,
       child: Padding(
-        // Espace bas pour les chips qui débordent sur la bordure.
         padding: EdgeInsets.only(
           top: topGap,
-          bottom: hasReactions ? 20 : bottomGap,
+          bottom: hasReactions ? 0 : bottomGap,
         ),
         child: Stack(
           key: anchorKey,
           clipBehavior: Clip.none,
           children: [
-            GestureDetector(
-              onLongPress: onLongPress,
-              onDoubleTap: onDoubleTap,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: ViroChat.bubblePaddingX,
-                  vertical: ViroChat.bubblePaddingY,
+            Padding(
+              // Les chips débordent sous la bulle : leur zone de tap (≥ 44)
+              // reste dans le Stack pour être atteignable.
+              padding: EdgeInsets.only(
+                bottom: hasReactions ? _reactionChipsOverflow : 0,
+              ),
+              child: Semantics(
+                customSemanticsActions: _semanticsActions(
+                  hasReactions: hasReactions,
                 ),
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width *
-                      ViroChat.bubbleMaxWidthFraction,
-                ),
-                decoration: BoxDecoration(
-                  color: background,
-                  borderRadius: bubbleRadius,
-                  border: border,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (senderLabel.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: Text(
-                          senderLabel,
-                          style: theme.labelSmall?.copyWith(
-                            color: palette.readableAccent(borderColor),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    if (message.hasReply)
-                      GestureDetector(
-                        onTap: onReplyTap,
-                        child: Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: mine
-                                ? palette.onAccent.withValues(alpha: 0.16)
-                                : palette.accentSofter,
-                            borderRadius: BorderRadius.circular(ViroChat.quoteRadius),
-                            border: Border(
-                              left: BorderSide(
-                                color: mine ? palette.onAccent : borderColor,
-                                width: 3,
+                child: GestureDetector(
+                  onLongPress: onLongPress,
+                  onDoubleTap: onDoubleTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: ViroChat.bubblePaddingX,
+                      vertical: ViroChat.bubblePaddingY,
+                    ),
+                    constraints: BoxConstraints(
+                      maxWidth:
+                          MediaQuery.sizeOf(context).width *
+                          ViroChat.bubbleMaxWidthFraction,
+                    ),
+                    decoration: BoxDecoration(
+                      color: background,
+                      borderRadius: bubbleRadius,
+                      border: border,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (senderLabel.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              senderLabel,
+                              style: theme.labelSmall?.copyWith(
+                                color: palette.readableAccent(borderColor),
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (replySenderLabel.isNotEmpty)
-                                Text(
-                                  replySenderLabel,
-                                  style: theme.labelSmall?.copyWith(
+                        if (message.hasReply)
+                          GestureDetector(
+                            onTap: onReplyTap,
+                            child: Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: mine
+                                    ? palette.onAccent.withValues(alpha: 0.16)
+                                    : palette.accentSofter,
+                                borderRadius: BorderRadius.circular(
+                                  ViroChat.quoteRadius,
+                                ),
+                                border: Border(
+                                  left: BorderSide(
                                     color: mine
-                                        ? foreground
-                                        : palette.readableAccent(borderColor),
-                                    fontWeight: FontWeight.w700,
+                                        ? palette.onAccent
+                                        : borderColor,
+                                    width: 3,
                                   ),
                                 ),
-                              Text(
-                                message.replyToText ?? '',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.bodySmall?.copyWith(
-                                  color: secondary,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (replySenderLabel.isNotEmpty)
+                                    Text(
+                                      replySenderLabel,
+                                      style: theme.labelSmall?.copyWith(
+                                        color: mine
+                                            ? foreground
+                                            : palette.readableAccent(
+                                                borderColor,
+                                              ),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  Text(
+                                    message.replyToText ?? '',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.bodySmall?.copyWith(
+                                      color: secondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (message.type == ChatMessageTypes.image &&
+                            (imageUrl.isNotEmpty ||
+                                message.localImageBytes != null))
+                          GestureDetector(
+                            onTap: onImageTap,
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(
+                                    ViroChat.quoteRadius,
+                                  ),
+                                  child: _ChatBubbleImage(
+                                    url: imageUrl,
+                                    localBytes: message.localImageBytes,
+                                    size: imageSize,
+                                  ),
+                                ),
+                                if (uploadProgress != null)
+                                  Positioned.fill(
+                                    child: _UploadProgressOverlay(
+                                      progress: uploadProgress!,
+                                    ),
+                                  ),
+                                Positioned(
+                                  right: 6,
+                                  bottom: 6,
+                                  child: ChatBubbleTimestamp(
+                                    sentAt: message.createdAt,
+                                    edited: message.editedAt != null,
+                                    onImage: true,
+                                    localStatus: message.localStatus,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ChatBubbleTextWithTime(
+                            text: message.text ?? '',
+                            sentAt: message.createdAt,
+                            edited: message.editedAt != null,
+                            highlightQuery: highlightQuery,
+                            localStatus: message.localStatus,
+                            onAccent: mine,
+                            style: theme.bodyMedium?.copyWith(
+                              color: foreground,
+                            ),
+                          ),
+                        if (message.isSendFailed && onRetry != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: TextButton(
+                              onPressed: onRetry,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: ViroSpacing.xs,
+                                ),
+                                minimumSize: const Size.square(
+                                  ViroSpacing.minTouchTarget,
+                                ),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                AppCopy.chat.retrySend,
+                                style: theme.labelSmall?.copyWith(
+                                  color: mine ? foreground : palette.errorText,
+                                  fontWeight: FontWeight.w700,
+                                  decoration: mine
+                                      ? TextDecoration.underline
+                                      : null,
+                                  decorationColor: foreground,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    if (message.type == ChatMessageTypes.image &&
-                        (imageUrl.isNotEmpty ||
-                            message.localImageBytes != null))
-                      GestureDetector(
-                        onTap: onImageTap,
-                        child: Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(ViroChat.quoteRadius),
-                              child: _ChatBubbleImage(
-                                url: imageUrl,
-                                localBytes: message.localImageBytes,
-                                size: imageSize,
-                              ),
-                            ),
-                            if (uploadProgress != null)
-                              Positioned.fill(
-                                child: _UploadProgressOverlay(
-                                  progress: uploadProgress!,
-                                ),
-                              ),
-                            Positioned(
-                              right: 6,
-                              bottom: 6,
-                              child: ChatBubbleTimestamp(
-                                sentAt: message.createdAt,
-                                edited: message.editedAt != null,
-                                onImage: true,
-                                localStatus: message.localStatus,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      ChatBubbleTextWithTime(
-                        text: message.text ?? '',
-                        sentAt: message.createdAt,
-                        edited: message.editedAt != null,
-                        highlightQuery: highlightQuery,
-                        localStatus: message.localStatus,
-                        onAccent: mine,
-                        style: theme.bodyMedium?.copyWith(
-                          color: foreground,
-                        ),
-                      ),
-                    if (message.isSendFailed && onRetry != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: TextButton(
-                          onPressed: onRetry,
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: Text(
-                            AppCopy.chat.retrySend,
-                            style: theme.labelSmall?.copyWith(
-                              color: mine ? foreground : palette.errorText,
-                              fontWeight: FontWeight.w700,
-                              decoration:
-                                  mine ? TextDecoration.underline : null,
-                              decorationColor: foreground,
                             ),
                           ),
-                        ),
-                      ),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -297,24 +353,52 @@ class ChatMessageBubble extends StatelessWidget {
                 // Messages à gauche → chips à droite ; messages à toi → à gauche.
                 left: mine ? 8 : null,
                 right: mine ? null : 8,
-                bottom: -16,
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(999),
-                    onTap: onOpenReactors,
-                    child: Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: [
-                        for (final entry in reactionEntries)
-                          ChatReactionChip(
-                            emoji: entry.key,
-                            count: entry.value.length,
-                            mine: viewerUid != null &&
-                                entry.value.contains(viewerUid),
+                bottom: 0,
+                child: Semantics(
+                  button: true,
+                  label: AppCopy.chat.reactionChipsLabel([
+                    for (final entry in reactionEntries)
+                      (emoji: entry.key, count: entry.value.length),
+                  ]),
+                  hint: AppCopy.chat.reactionReactors,
+                  onTap: onOpenReactors,
+                  excludeSemantics: true,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: onOpenReactors,
+                      onLongPress: onLongPress,
+                      // Zone de tap ≥ 44 : remonte sur le bas de la bulle,
+                      // les chips restent à leur place (4 px sous le bord).
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: ViroSpacing.minTouchTarget,
+                          minHeight: ViroSpacing.minTouchTarget,
+                        ),
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          widthFactor: 1,
+                          heightFactor: 1,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Wrap(
+                              spacing: 4,
+                              runSpacing: 4,
+                              children: [
+                                for (final entry in reactionEntries)
+                                  ChatReactionChip(
+                                    emoji: entry.key,
+                                    count: entry.value.length,
+                                    mine:
+                                        viewerUid != null &&
+                                        entry.value.contains(viewerUid),
+                                  ),
+                              ],
+                            ),
                           ),
-                      ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -341,8 +425,8 @@ class _ChatBubbleImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cacheWidth =
-        (size.width * MediaQuery.devicePixelRatioOf(context)).round();
+    final cacheWidth = (size.width * MediaQuery.devicePixelRatioOf(context))
+        .round();
     final bytes = localBytes;
     if (bytes != null) {
       return Image.memory(

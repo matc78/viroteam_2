@@ -33,6 +33,7 @@ class ChatThreadMessageList extends StatelessWidget {
     required this.onOpenReactors,
     required this.onVotePoll,
     required this.onRetrySend,
+    this.onReply,
   });
 
   final ChatThreadMessagesView view;
@@ -61,6 +62,9 @@ class ChatThreadMessageList extends StatelessWidget {
   }) onOpenReactors;
   final void Function(ChatMessage message, String optionId) onVotePoll;
   final void Function(ChatMessage message) onRetrySend;
+
+  /// Répondre (action des lecteurs d’écran) ; `null` en lecture seule.
+  final void Function(ChatMessage message)? onReply;
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +132,7 @@ class ChatThreadMessageList extends StatelessWidget {
                     onRetrySend: message.isSendFailed
                         ? () => onRetrySend(message)
                         : null,
+                    onReply: onReply,
                   );
                 },
               ),

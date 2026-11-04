@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
 import { ConversationAvatar } from "@/components/chat/ConversationAvatar";
+import { useMenuA11y } from "@/lib/ui/useMenuA11y";
 import type { ChatConversation } from "@/lib/firebase/chatTypes";
 import styles from "../ChatThreadView.module.css";
 import { chatCopy } from "@/lib/copy/chatCopy";
@@ -24,6 +25,10 @@ type ThreadHeaderProps = {
   canPoll: boolean;
   menuOpen: boolean;
   onToggleMenu: () => void;
+  /** Ferme le menu Options (Escape, Tab, clic extérieur). */
+  onCloseMenu: () => void;
+  /** Retour à la liste (portail mobile, fil en plein écran). */
+  onBack?: () => void;
   onOpenInfo: (options?: { rename?: boolean }) => void;
   onOpenSearch: () => void;
   onToggleMute: () => void;
@@ -52,6 +57,8 @@ export function ThreadHeader({
   canPoll,
   menuOpen,
   onToggleMenu,
+  onCloseMenu,
+  onBack,
   onOpenInfo,
   onOpenSearch,
   onToggleMute,
@@ -61,8 +68,19 @@ export function ThreadHeader({
   onMaximize,
   onClose,
 }: ThreadHeaderProps) {
+  const menu = useMenuA11y({ open: menuOpen, onClose: onCloseMenu });
   return (
     <header className={styles.header}>
+      {onBack ? (
+        <button
+          type="button"
+          className={styles.iconBtn}
+          aria-label={chatCopy.backToInbox}
+          onClick={onBack}
+        >
+          <ChatIcon name="chevronLeft" size={20} />
+        </button>
+      ) : null}
       <button
         type="button"
         className={styles.headerMain}
@@ -101,30 +119,37 @@ export function ThreadHeader({
         </span>
       </button>
       <div className={styles.headerActions}>
-        <div className={styles.menuWrap}>
+        <div className={styles.menuWrap} ref={menu.wrapRef}>
           <button
             type="button"
             className={styles.iconBtn}
             aria-label={chatCopy.threadOptions}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
             onClick={onToggleMenu}
           >
             <ChatIcon name="options" size={18} />
           </button>
           {menuOpen ? (
-            <div className={styles.menu}>
-              <button type="button" onClick={() => onOpenInfo()}>
+            <div
+              ref={menu.menuRef}
+              className={styles.menu}
+              role="menu"
+              aria-label={chatCopy.threadOptions}
+            >
+              <button type="button" role="menuitem" onClick={() => onOpenInfo()}>
                 <ChatIcon name="info" size={18} />
                 {chatCopy.conversationInfo}
               </button>
-              <button type="button" onClick={onOpenSearch}>
+              <button type="button" role="menuitem" onClick={onOpenSearch}>
                 <ChatIcon name="search" size={18} />
                 {chatCopy.searchMessage}
               </button>
-              <button type="button" onClick={onToggleMute}>
+              <button type="button" role="menuitem" onClick={onToggleMute}>
                 <ChatIcon name={muted ? "bell" : "mute"} size={18} />
                 {muted ? chatCopy.unmute : chatCopy.mute}
               </button>
-              <button type="button" onClick={onToggleFavorite}>
+              <button type="button" role="menuitem" onClick={onToggleFavorite}>
                 <ChatIcon
                   name={favorite ? "favoriteFill" : "favorite"}
                   size={18}
@@ -134,6 +159,7 @@ export function ThreadHeader({
               {isGroup ? (
                 <button
                   type="button"
+                  role="menuitem"
                   onClick={() => onOpenInfo({ rename: true })}
                 >
                   <ChatIcon name="edit" size={18} />
@@ -141,13 +167,13 @@ export function ThreadHeader({
                 </button>
               ) : null}
               {canChangeGroupAvatar ? (
-                <button type="button" onClick={onChangeAvatar}>
+                <button type="button" role="menuitem" onClick={onChangeAvatar}>
                   <ChatIcon name="image" size={18} />
                   {chatCopy.changeGroupAvatar}
                 </button>
               ) : null}
               {canPoll ? (
-                <button type="button" onClick={onCreatePoll}>
+                <button type="button" role="menuitem" onClick={onCreatePoll}>
                   <ChatIcon name="poll" size={18} />
                   {chatCopy.createPoll}
                 </button>

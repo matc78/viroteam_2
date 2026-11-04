@@ -82,6 +82,25 @@ final class AppCopyChat {
   String get reactionAddMine => 'Réagir aussi';
   String reactionCountLabel(int count) =>
       count <= 1 ? '$count réaction' : '$count réactions';
+
+  /// Lecteurs d’écran : bouton emoji du sélecteur de réaction.
+  String reactWithEmoji(String emoji) => 'Réagir avec $emoji';
+
+  /// Lecteurs d’écran : action rapide « cœur » sur une bulle.
+  String get reactWithHeart => 'Réagir avec un cœur';
+
+  /// Lecteurs d’écran : ouvre la feuille d’actions du message.
+  String get messageActions => 'Plus d’actions';
+
+  /// Lecteurs d’écran : chips de réaction sous un message.
+  String reactionChipsLabel(List<({String emoji, int count})> reactions) =>
+      'Réactions : ${reactions.map((r) => '${r.emoji} ${r.count}').join(', ')}';
+
+  /// Menu « ⋮ » de l’en-tête du fil.
+  String get threadMenu => 'Options de la discussion';
+
+  /// Avatar de l’en-tête du fil : ouvre la photo en grand.
+  String get viewConversationPhoto => 'Voir la photo de la discussion';
   String get createCategoryChannel => 'Créer canal';
   String get categoryChannelHint =>
       'Canal en lecture seule (admins écrivent). Le canal « tout le club » existe déjà.';

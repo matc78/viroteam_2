@@ -27,6 +27,7 @@ import {
 import { useComposer } from "@/components/chat/thread/useComposer";
 import { useMarkReadWhenVisible } from "@/components/chat/thread/useMarkReadWhenVisible";
 import { useMessageActions } from "@/components/chat/thread/useMessageActions";
+import { useNewMessageAnnouncement } from "@/components/chat/thread/useNewMessageAnnouncement";
 import { usePendingMessages } from "@/components/chat/thread/usePendingMessages";
 import { useThreadMessages } from "@/components/chat/thread/useThreadMessages";
 import { useThreadParticipants } from "@/components/chat/thread/useThreadParticipants";
@@ -66,6 +67,8 @@ type ChatThreadViewProps = {
   isActive?: boolean;
   onClose?: () => void;
   onMaximize?: () => void;
+  /** Retour à la liste (page Messages sur mobile, fil en plein écran). */
+  onBack?: () => void;
   headerExtra?: ReactNode;
   clubName?: string;
   clubColor?: string | null;
@@ -86,6 +89,7 @@ export function ChatThreadView({
   isActive = true,
   onClose,
   onMaximize,
+  onBack,
   headerExtra,
   clubName,
   clubColor,
@@ -153,6 +157,13 @@ export function ChatThreadView({
     previewSenderByKey: chat?.previewSenderByKey,
     userDisplayNameByUid: chat?.userDisplayNameByUid,
     inboxPeerName,
+  });
+
+  const announcement = useNewMessageAnnouncement({
+    messages,
+    loaded: thread.status !== "loading",
+    viewerUid,
+    authorLabel: replyAuthorLabel,
   });
 
   const scroll = useThreadScroll({
@@ -417,6 +428,8 @@ export function ChatThreadView({
         canPoll={canPoll}
         menuOpen={menuOpen}
         onToggleMenu={() => setMenuOpen((open) => !open)}
+        onCloseMenu={() => setMenuOpen(false)}
+        onBack={onBack}
         onOpenInfo={openInfo}
         onOpenSearch={openSearch}
         onToggleMute={() => void handleToggleMute()}
@@ -443,8 +456,7 @@ export function ChatThreadView({
         className={`${styles.messages}${composer.dragOver ? ` ${styles.messagesDragOver}` : ""}`}
         ref={scroll.messagesRef}
         role="log"
-        aria-live="polite"
-        aria-relevant="additions"
+        aria-live="off"
         aria-label={chatCopy.messagesLogLabel}
         aria-busy={showSkeleton || undefined}
         onDragOver={composer.handleDragOver}
@@ -549,6 +561,11 @@ export function ChatThreadView({
       ) : null}
       </div>
 
+      {/* Seule zone live du fil : les messages reçus, pas tout le log. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </p>
+
       {error ? (
         <p className={styles.error} role="alert">
           {error}
@@ -575,15 +592,23 @@ export function ChatThreadView({
           canPoll={canPoll}
           onCreatePoll={openCreatePoll}
           attachWrapRef={composer.attachWrapRef}
+          attachMenuRef={composer.attachMenuRef}
           fileInputRef={composer.fileInputRef}
           onImageChange={(e) => void composer.handleImage(e)}
-          avatarMenuInputRef={avatarMenuInputRef}
-          onAvatarMenuFileChange={(e) => void handleAvatarMenuFileChange(e)}
           onPaste={composer.handlePaste}
           onSend={(e) => void composer.handleSend(e)}
         />
       ) : readonlyHint ? (
         <p className={styles.readonly}>{readonlyHint}</p>
+      ) : null}
+      {canChangeGroupAvatar ? (
+        <input
+          ref={avatarMenuInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => void handleAvatarMenuFileChange(e)}
+        />
       ) : null}
 
       </div>

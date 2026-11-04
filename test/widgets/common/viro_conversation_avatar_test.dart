@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:viro_team_v2/config/viro_chat.dart';
+import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/config/viro_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_conversation_avatar.dart';
 
@@ -71,5 +72,28 @@ void main() {
     expect(icons, containsAll([ViroIcons.groups, ViroIcons.camera]));
     await tester.tap(find.byType(ViroConversationAvatar));
     expect(edited, isTrue);
+  });
+
+  testWidgets('petit avatar tappable : cible ≥ 44 et libellé lu', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _pump(
+      tester,
+      ViroConversationAvatar(
+        size: ViroChat.avatarHeader,
+        color: Colors.teal,
+        groupBackground: Colors.green,
+        isGroup: true,
+        semanticLabel: 'Changer la photo',
+        onEdit: () {},
+      ),
+    );
+
+    final size = tester.getSize(find.byType(ViroConversationAvatar));
+    expect(size.width, greaterThanOrEqualTo(ViroSpacing.minTouchTarget));
+    expect(size.height, greaterThanOrEqualTo(ViroSpacing.minTouchTarget));
+    expect(find.bySemanticsLabel('Changer la photo'), findsOneWidget);
+    handle.dispose();
   });
 }

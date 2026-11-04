@@ -182,7 +182,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 767px) {
   .label {
     max-width: 5.5rem;
   }

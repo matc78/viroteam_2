@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useId,
   useMemo,
   useRef,
   useState,
@@ -83,6 +84,11 @@ export function ConversationInfoPanel({
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  // Escape : retour aux infos depuis une fiche membre, sinon fermeture.
+  const panelRef = useDialogA11y({
+    onClose: () => (selectedUid ? setSelectedUid(null) : onClose()),
+    modal: false,
+  });
   const [renameOpen, setRenameOpen] = useState(initialRenameOpen);
   const renameDialogRef = useDialogA11y({
     onClose: () => setRenameOpen(false),
@@ -97,6 +103,8 @@ export function ConversationInfoPanel({
   });
   const [renameDraft, setRenameDraft] = useState(title);
   const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const renameFieldId = useId();
   const [mediaOpen, setMediaOpen] = useState(false);
 
   const brand = splitBrandColorHex(
@@ -131,9 +139,12 @@ export function ConversationInfoPanel({
     const trimmed = renameDraft.trim();
     if (!trimmed || renameBusy) return;
     setRenameBusy(true);
+    setRenameError(null);
     try {
       await onRename(trimmed);
       setRenameOpen(false);
+    } catch {
+      setRenameError(chatCopy.renameFailed);
     } finally {
       setRenameBusy(false);
     }
@@ -141,6 +152,7 @@ export function ConversationInfoPanel({
 
   function openRename() {
     setRenameDraft(title);
+    setRenameError(null);
     setRenameOpen(true);
   }
 
@@ -158,7 +170,12 @@ export function ConversationInfoPanel({
 
   if (selected) {
     return (
-      <aside className={styles.panel} aria-label={chatCopy.memberCard}>
+      <aside
+        ref={panelRef}
+        className={styles.panel}
+        role="dialog"
+        aria-label={chatCopy.memberCard}
+      >
         <header className={styles.header}>
           <button
             type="button"
@@ -212,7 +229,12 @@ export function ConversationInfoPanel({
     .join(" ");
 
   return (
-    <aside className={styles.panel} aria-label={chatCopy.conversationInfo}>
+    <aside
+      ref={panelRef}
+      className={styles.panel}
+      role="dialog"
+      aria-label={chatCopy.conversationInfo}
+    >
       <header className={styles.header}>
         <button
           type="button"
@@ -550,18 +572,36 @@ export function ConversationInfoPanel({
           className={styles.renameOverlay}
           role="dialog"
           aria-modal="true"
+          aria-labelledby={`${renameFieldId}-title`}
         >
           <form className={styles.renameCard} onSubmit={handleRenameSubmit}>
-            <h4 className={styles.renameTitle}>
+            <h4 id={`${renameFieldId}-title`} className={styles.renameTitle}>
               {chatCopy.renameDialogTitle}
             </h4>
+            <label htmlFor={renameFieldId} className={styles.renameLabel}>
+              {chatCopy.renameInputLabel}
+            </label>
             <input
+              id={renameFieldId}
               className={styles.renameInput}
               value={renameDraft}
               onChange={(event) => setRenameDraft(event.target.value)}
               autoFocus
               maxLength={80}
+              aria-invalid={Boolean(renameError) || undefined}
+              aria-describedby={
+                renameError ? `${renameFieldId}-error` : undefined
+              }
             />
+            {renameError ? (
+              <p
+                id={`${renameFieldId}-error`}
+                className={styles.renameError}
+                role="alert"
+              >
+                {renameError}
+              </p>
+            ) : null}
             <div className={styles.renameActions}>
               <button
                 type="button"

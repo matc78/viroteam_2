@@ -131,6 +131,10 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                   isGroup: isGroup,
                   isChannel: isChannel,
                   groupBackground: groupBackground,
+                  semanticLabel: !isChannel &&
+                          (avatarUrl?.trim().isNotEmpty ?? false)
+                      ? AppCopy.chat.viewConversationPhoto
+                      : AppCopy.chat.changeGroupAvatar,
                   onEdit: isGroup &&
                           !isChannel &&
                           onChangeAvatar != null &&
@@ -175,6 +179,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         if (!searchOpen)
           PopupMenuButton<String>(
+            tooltip: AppCopy.chat.threadMenu,
             icon: ViroIcon(
               ViroIcons.moreVertical,
               color: palette.accent,

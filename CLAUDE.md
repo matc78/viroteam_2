@@ -94,7 +94,7 @@ Chercher d'abord dans `lib/widgets/common/`, `lib/widgets/lists/`, `lib/config/v
 ### Thème
 
 - Couleurs, typo, espacements, durées/courbes : uniquement via `lib/config/` (`ViroColors`, `ViroSpacing`, `ViroMotion`…) — pas de `Color(0x…)` ni de magic numbers dans les features.
-- Messagerie : dimensions via `ViroChat` (`lib/config/viro_chat.dart`) ↔ variables `--chat-*` du portail (`globals.css`), mêmes valeurs des deux côtés ; portail sans hexa en dur dans les CSS du chat, briques dans `chatShared.module.css`, textes dans `chatCopy.ts` (clés de `app_copy_chat.dart`).
+- Messagerie : dimensions via `ViroChat` (`lib/config/viro_chat.dart`) ↔ variables `--chat-*` du portail (`globals.css`), mêmes valeurs des deux côtés ; portail sans hexa en dur dans les CSS du chat, briques dans `chatShared.module.css`, textes dans `chatCopy.ts` (clés de `app_copy_chat.dart`). Points de rupture du chat : 767 et 1024 px seulement (`ChatBreakpoints`, testé).
 - Dark mode : `ViroTheme.light` / `ViroTheme.dark` embarquent une `ViroPalette` (`lib/config/viro_palette.dart`). Couleurs neutres et de marque via `context.viroPalette` (`textPrimary`, `textSecondary`, `surfaceCard`, `accent`, `brandText`…), **jamais** `ViroColors.gray*` / `primary*` / `surface*` dans `lib/features`, `lib/widgets`, `lib/screens` (garde-fou `test/theme_palette_usage_test.dart`). Restent des constantes : `sport*`, `success`/`warning`/`error`, badges de rôle, blanc sur fond vif. Couleur club en texte/icône → `palette.readableAccent(color)`. Choix Système / Clair / Sombre : `themeModeProvider`, persisté par `ThemePreferenceService`.
 - Fond d'écran `palette.background` (blanc en clair, bleu nuit en sombre) + formes décoratives colorées (fournis par `ViroScaffold`). **Interdit** : AppBar / bandeau / fond plein en bleu opaque (`primary800`). Le bleu fort (`accent` / `accentFill`) est réservé aux boutons primaires, liens, accents et badges.
 - Ombres de carte : `ViroMotion.cardShadow(palette)` (douce, teintée bleu en clair). Cartes / tuiles à accent → `ViroMotion.accentBorderTileShadow` (halo teinté en dark seulement ; auto via `ViroCard` si `borderColor` ou `accentColor`). Menus / sheets / dialogs : thème Material (`ViroMotion.elevationMenu`). Transitions d'écran : fade / Cupertino, pas de slides lourds.
@@ -119,7 +119,7 @@ Chercher d'abord dans `lib/widgets/common/`, `lib/widgets/lists/`, `lib/config/v
 - Élément interactif sans texte (icône seule) → libellé accessible (`tooltip`, `ViroPressable.label`) ; `ViroFloatingIconButton` exige un `tooltip`.
 - `ViroIcon` décorative (avec texte à côté) → pas de `semanticLabel` ; icône informative seule → `semanticLabel` obligatoire.
 - Tuiles/cartes tappables → `semanticLabel` sans double lecture. Cibles tactiles ≥ `ViroSpacing.minTouchTarget` (44).
-- Portail : dialogs via `useDialogA11y` (focus + Escape) ; formulaires sur le modèle de Login (`label`, `aria-invalid`, `role="alert"`). Smoke test manuel : `docs/A11Y_SMOKE.md`.
+- Portail : dialogs via `useDialogA11y` (focus + Escape ; `modal: false` pour panneaux latéraux et fenêtres non bloquantes) ; menus via `useMenuA11y` ; pas de `window.confirm` ; action au clic droit → aussi un bouton au survol et au focus ; `aria-live` limité au nouveau contenu ; formulaires sur le modèle de Login (`label`, `aria-invalid`, `role="alert"`). Smoke test manuel : `docs/A11Y_SMOKE.md` ; recette messagerie : `docs/CHAT_SMOKE.md`.
 
 ### Règles Firestore
 

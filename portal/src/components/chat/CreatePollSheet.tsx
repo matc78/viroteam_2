@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import infoStyles from "./ConversationInfoPanel.module.css";
 import styles from "./CreatePollSheet.module.css";
 import { chatCopy } from "@/lib/copy/chatCopy";
@@ -22,6 +23,11 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
   const [allowMultiple, setAllowMultiple] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useDialogA11y({ onClose, modal: false });
+  const errorId = useId();
+  // Champs à signaler tant que la question ou les 2 options manquent.
+  const showMissing = error === chatCopy.pollNeedOptions;
+  const filledOptions = options.filter((o) => o.trim()).length;
 
   async function handleSubmit() {
     const trimmedOptions = options.map((o) => o.trim()).filter(Boolean);
@@ -44,7 +50,12 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
   }
 
   return (
-    <aside className={infoStyles.panel} aria-label={chatCopy.createPollLabel}>
+    <aside
+      ref={panelRef}
+      className={infoStyles.panel}
+      role="dialog"
+      aria-label={chatCopy.createPollLabel}
+    >
       <header className={infoStyles.header}>
         <button
           type="button"
@@ -65,22 +76,31 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder={chatCopy.pollQuestionHint}
+            aria-invalid={(showMissing && !question.trim()) || undefined}
+            aria-describedby={
+              showMissing && !question.trim() ? errorId : undefined
+            }
           />
         </label>
-        {options.map((option, index) => (
-          <label key={index} className={styles.label}>
-            {chatCopy.pollOptionLabel(index + 1)}
-            <input
-              className={styles.input}
-              value={option}
-              onChange={(e) => {
-                const next = [...options];
-                next[index] = e.target.value;
-                setOptions(next);
-              }}
-            />
-          </label>
-        ))}
+        {options.map((option, index) => {
+          const missing = showMissing && filledOptions < 2 && !option.trim();
+          return (
+            <label key={index} className={styles.label}>
+              {chatCopy.pollOptionLabel(index + 1)}
+              <input
+                className={styles.input}
+                value={option}
+                onChange={(e) => {
+                  const next = [...options];
+                  next[index] = e.target.value;
+                  setOptions(next);
+                }}
+                aria-invalid={missing || undefined}
+                aria-describedby={missing ? errorId : undefined}
+              />
+            </label>
+          );
+        })}
         {options.length < 12 ? (
           <button
             type="button"
@@ -98,7 +118,11 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
           />
           {chatCopy.pollAllowMultiple}
         </label>
-        {error ? <p className={styles.error}>{error}</p> : null}
+        {error ? (
+          <p id={errorId} className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
         <button
           type="button"
           className={styles.primary}

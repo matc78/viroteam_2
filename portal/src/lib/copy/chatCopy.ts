@@ -114,6 +114,11 @@ export const chatCopy = {
   jumpToLatest: "Derniers messages",
   newMessagesBelow: (count: number) =>
     count <= 1 ? "1 nouveau message" : `${count} nouveaux messages`,
+  /** Annonce lecteur d’écran d’un message reçu pendant la lecture du fil. */
+  newMessageAnnouncement: (author: string, preview: string) =>
+    `Nouveau message de ${author} : ${preview}`,
+  /** Bouton retour du fil en plein écran (portail mobile). */
+  backToInbox: "Retour aux discussions",
   today: "Aujourd'hui",
   yesterday: "Hier",
 
@@ -175,6 +180,7 @@ export const chatCopy = {
   editMessage: "Modifier",
   deleteMessage: "Supprimer",
   deleteMessageConfirm: "Supprimer ce message ?",
+  deleteMessageFailed: "Suppression impossible.",
   copyFailed: "Copie impossible.",
   editFailed: "Modification impossible.",
   reactionFailed: "Réaction impossible.",
@@ -239,6 +245,8 @@ export const chatCopy = {
   noMembersResolved: "Aucun membre résolu.",
   contactSection: "Contact",
   renameDialogTitle: "Renommer la discussion",
+  renameInputLabel: "Nouveau nom",
+  renameFailed: "Impossible de renommer la discussion.",
 
   // --- Intro de groupe ---
   roleBreakdown: "Répartition des rôles",

@@ -123,6 +123,9 @@ Future<void> showConversationInfoSheet({
                           palette: palette,
                         ),
                         showEditBadge: canEditAvatar,
+                        semanticLabel: hasGroupPhoto
+                            ? AppCopy.chat.viewConversationPhoto
+                            : AppCopy.chat.changeGroupAvatar,
                         onTap: hasGroupPhoto || canEditAvatar
                             ? () {
                                 if (hasGroupPhoto) {

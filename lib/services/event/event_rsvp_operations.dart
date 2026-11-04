@@ -27,22 +27,20 @@ class EventRsvpOperations {
     FirestoreFields.seenAt,
   ];
 
-  /// ID présent dans `teamMemberIds` / `playerIds` (doc `members/{memberId}`).
+  /// ID présent dans `teamMemberIds` / `playerIds` (`accountUid` si lié).
   String rosterAudienceId(ClubMember member, String authUid) =>
-      member.memberId;
+      member.effectiveUid;
 
-  /// Identifiant utilisé dans `teamMemberIds` / `rsvp` pour un membre du club.
+  /// Clé RSVP / convocation pour le compte connecté (`authUid` si lié).
+  ///
+  /// Aligné sur `reconcileRosterIds` / portail : canon = accountUid une fois
+  /// le compte rattaché, sinon `memberId` de la fiche.
   Future<String> resolveAudienceId({
     required String clubId,
     required String authUid,
   }) async {
     final indexSnap = await _paths.memberAccountRef(clubId, authUid).get();
-
-    if (indexSnap.exists) {
-      final linked =
-          indexSnap.data()?[FirestoreFields.linkedMemberId] as String?;
-      if (linked != null && linked.isNotEmpty) return linked;
-    }
+    if (indexSnap.exists) return authUid;
 
     final memberSnap = await _paths.memberRef(clubId, authUid).get();
     if (memberSnap.exists) {
@@ -55,9 +53,40 @@ class EventRsvpOperations {
     return authUid;
   }
 
-  /// Enregistre le RSVP de [uid] (memberId cible : soi ou enfant).
+  /// Id du document `members/{memberId}` (cotisations, fiche) — pas la clé RSVP.
+  Future<String> resolveMemberDocId({
+    required String clubId,
+    required String authUid,
+  }) async {
+    final indexSnap = await _paths.memberAccountRef(clubId, authUid).get();
+    if (indexSnap.exists) {
+      final linked =
+          indexSnap.data()?[FirestoreFields.linkedMemberId] as String?;
+      if (linked != null && linked.isNotEmpty) return linked;
+    }
+
+    final memberSnap = await _paths.memberRef(clubId, authUid).get();
+    if (memberSnap.exists) return memberSnap.id;
+    return authUid;
+  }
+
+  /// `memberId` pré-créé distinct de [authUid], ou null.
+  Future<String?> _legacyLinkedMemberId({
+    required String clubId,
+    required String authUid,
+  }) async {
+    final indexSnap = await _paths.memberAccountRef(clubId, authUid).get();
+    if (!indexSnap.exists) return null;
+    final linked =
+        indexSnap.data()?[FirestoreFields.linkedMemberId] as String?;
+    if (linked == null || linked.isEmpty || linked == authUid) return null;
+    return linked;
+  }
+
+  /// Enregistre le RSVP de [uid] (clé audience : soi = authUid, ou enfant).
   ///
   /// [viaCallable] : parent pour un enfant (rules : clé du connecté seulement).
+  /// Pour soi : nettoie aussi une éventuelle clé `memberId` legacy.
   Future<void> updateRsvp({
     required String clubId,
     required String eventId,
@@ -76,15 +105,23 @@ class EventRsvpOperations {
       });
       return;
     }
-    await _paths.events(clubId).doc(eventId).update({
+    final updates = <String, dynamic>{
       '${FirestoreFields.rsvp}.$uid': status.firestoreValue,
       '${FirestoreFields.rsvpUpdatedAt}.$uid': FieldValue.serverTimestamp(),
-    });
+    };
+    final legacyId = await _legacyLinkedMemberId(clubId: clubId, authUid: uid);
+    if (legacyId != null) {
+      updates['${FirestoreFields.rsvp}.$legacyId'] = FieldValue.delete();
+      updates['${FirestoreFields.rsvpUpdatedAt}.$legacyId'] =
+          FieldValue.delete();
+    }
+    await _paths.events(clubId).doc(eventId).update(updates);
   }
 
   /// Marque l'événement comme vu par [audienceId] (soi ou enfant).
   ///
   /// [viaCallable] : parent pour un enfant (callable `markEventSeen`).
+  /// Pour soi : nettoie aussi une éventuelle clé `memberId` legacy.
   Future<void> markSeen({
     required String clubId,
     required String eventId,
@@ -101,9 +138,17 @@ class EventRsvpOperations {
       });
       return;
     }
-    await _paths.events(clubId).doc(eventId).update({
+    final updates = <String, dynamic>{
       '${FirestoreFields.seenAt}.$audienceId': FieldValue.serverTimestamp(),
-    });
+    };
+    final legacyId = await _legacyLinkedMemberId(
+      clubId: clubId,
+      authUid: audienceId,
+    );
+    if (legacyId != null) {
+      updates['${FirestoreFields.seenAt}.$legacyId'] = FieldValue.delete();
+    }
+    await _paths.events(clubId).doc(eventId).update(updates);
   }
 
   /// Enregistre l'appel coach (`attendance`) sans modifier `rsvp`.

@@ -2,14 +2,8 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 
-/// Clé RSVP / `teamMemberIds` (aligné sur [EventService.resolveAudienceId]).
-String rosterAudienceId(ClubMember member) {
-  final accountUid = member.accountUid;
-  if (accountUid != null && accountUid.isNotEmpty) {
-    return member.memberId;
-  }
-  return member.effectiveUid;
-}
+/// Clé RSVP / `teamMemberIds` (`accountUid` si lié, sinon `memberId`).
+String rosterAudienceId(ClubMember member) => member.effectiveUid;
 
 /// Ids joueurs convoqués dédupliqués (memberId + accountUid = une personne).
 List<String> dedupedPlayerMemberIds({

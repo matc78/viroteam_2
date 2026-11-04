@@ -26,6 +26,7 @@ import {
   where,
   writeBatch,
   serverTimestamp,
+  deleteField,
   Timestamp,
 } from "firebase/firestore";
 
@@ -866,6 +867,60 @@ test("un membre répond présent uniquement pour lui-même", async () => {
   );
 });
 
+test("fiche pré-créée : RSVP sous auth uid, pas sous memberId legacy", async () => {
+  const linkedUid = "linkedPlayer1";
+  const legacyMemberId = "mem-pre-linked";
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, `users/${linkedUid}`), {
+      email: "linked@club.fr",
+      emailNorm: "linked@club.fr",
+      memberClubIds: [CLUB],
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/members/${legacyMemberId}`), {
+      memberId: legacyMemberId,
+      accountUid: linkedUid,
+      role: "player",
+      status: "active",
+      teamIds: ["teamA"],
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/member_accounts/${linkedUid}`), {
+      memberId: legacyMemberId,
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/events/evLinked`), {
+      title: "Entraînement lié",
+      teamIds: ["teamA"],
+      teamMemberIds: [linkedUid],
+      rsvp: { [linkedUid]: "yes", [legacyMemberId]: "yes" },
+    });
+  });
+
+  const asLinked = () => env.authenticatedContext(linkedUid).firestore();
+  const eventPath = `clubs/${CLUB}/events/evLinked`;
+
+  await assertSucceeds(
+    updateDoc(doc(asLinked(), eventPath), {
+      [`rsvp.${linkedUid}`]: "no",
+      [`rsvpUpdatedAt.${linkedUid}`]: serverTimestamp(),
+    }),
+  );
+  // Ancienne app : encore autorisée sous memberId (transition store).
+  await assertSucceeds(
+    updateDoc(doc(asLinked(), eventPath), {
+      [`rsvp.${legacyMemberId}`]: "yes",
+      [`rsvpUpdatedAt.${legacyMemberId}`]: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(asLinked(), eventPath), {
+      [`rsvp.${linkedUid}`]: "maybe",
+      [`rsvpUpdatedAt.${linkedUid}`]: serverTimestamp(),
+      [`rsvp.${legacyMemberId}`]: deleteField(),
+      [`rsvpUpdatedAt.${legacyMemberId}`]: deleteField(),
+    }),
+  );
+});
+
 for (const field of ["rsvpUpdatedAt", "seenAt"]) {
   test(`${field} : uniquement sa clé, à l'heure serveur`, async () => {
     const eventPath = `clubs/${CLUB}/events/evA`;
@@ -972,6 +1027,23 @@ test("un simple lecteur d'un canal admins_only ne le renomme pas, un admin oui",
   await assertFails(
     updateDoc(doc(as(STRANGER), `clubs/${CLUB}/conversations/${CONV_TEAM}`), {
       titleOverride: "Pirate",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("participantProfiles reste écrit par les Functions : un participant ne le modifie pas", async () => {
+  const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}`);
+  await assertFails(
+    updateDoc(ref, {
+      [`participantProfiles.${PLAYER.uid}`]: { firstName: "Usurpé", role: "admin" },
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(ref, {
+      titleOverride: "Les Bleus",
+      participantProfiles: {},
       updatedAt: serverTimestamp(),
     }),
   );

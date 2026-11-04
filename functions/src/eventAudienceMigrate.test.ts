@@ -36,6 +36,19 @@ test("planRsvpMigration ne remplace pas un RSVP canonique existant", () => {
   assert.equal(plan!.setCanonical, false);
 });
 
+test("planRsvpMigration preferLegacyWhenBoth écrase le canonique (repair)", () => {
+  const plan = planRsvpMigration(
+    { "mem-a": "no", "uid-a": "yes" },
+    "mem-a",
+    "uid-a",
+    { preferLegacyWhenBoth: true },
+  );
+  assert.ok(plan);
+  assert.equal(plan!.deleteLegacy, true);
+  assert.equal(plan!.setCanonical, true);
+  assert.equal(plan!.legacyValue, "no");
+});
+
 test("buildEventAudienceMigrationPatch combine ids et RSVP", () => {
   const deleteSentinel = Symbol("delete");
   const patch = buildEventAudienceMigrationPatch({
@@ -69,6 +82,24 @@ test("buildEventAudienceMigrationPatch ne copie pas le timestamp si le RSVP cano
   assert.equal("rsvp.uid-a" in patch!, false);
   assert.equal(patch!["rsvpUpdatedAt.mem-a"], deleteSentinel);
   assert.equal("rsvpUpdatedAt.uid-a" in patch!, false);
+});
+
+test("buildEventAudienceMigrationPatch preferLegacyWhenBoth écrase le RSVP canonique", () => {
+  const deleteSentinel = Symbol("delete");
+  const patch = buildEventAudienceMigrationPatch({
+    teamMemberIds: ["uid-a"],
+    rsvp: { "mem-a": "no", "uid-a": "yes" },
+    rsvpUpdatedAt: { "mem-a": "ts-legacy" },
+    legacyId: "mem-a",
+    canonicalId: "uid-a",
+    deleteField: deleteSentinel,
+    preferLegacyWhenBoth: true,
+  });
+  assert.ok(patch);
+  assert.equal(patch!["rsvp.mem-a"], deleteSentinel);
+  assert.equal(patch!["rsvp.uid-a"], "no");
+  assert.equal(patch!["rsvpUpdatedAt.mem-a"], deleteSentinel);
+  assert.equal(patch!["rsvpUpdatedAt.uid-a"], "ts-legacy");
 });
 
 test("buildEventAudienceMigrationPatch migre seenAt sans écraser la vue canonique", () => {

@@ -10,12 +10,12 @@
   min-height: 0;
   height: 100%;
   align-self: stretch;
-  background: #fff;
+  background: var(--color-surface-card);
   overflow: hidden;
   border-left: 1px solid var(--color-gray-100);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .panel {
     position: absolute;
     inset: 0;
@@ -32,7 +32,7 @@
   gap: 0.85rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--color-gray-100);
-  background: #fff;
+  background: var(--color-surface-card);
   flex-shrink: 0;
 }
 
@@ -68,7 +68,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .hero {
@@ -78,17 +78,17 @@
   gap: 0.35rem;
   padding: 1.75rem 1.25rem 1.35rem;
   text-align: center;
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .heroAvatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 7.5rem;
-  height: 7.5rem;
+  width: var(--chat-avatar-hero);
+  height: var(--chat-avatar-hero);
   border-radius: 999px;
-  font-size: 2.6rem;
+  font-size: calc(var(--chat-avatar-hero) * 0.4);
   font-weight: 700;
   margin-bottom: 0.55rem;
   overflow: hidden;
@@ -98,17 +98,17 @@
 .heroAvatarGroup,
 .heroAvatarParents {
   background: var(--color-sport-green);
-  color: #fff;
+  color: var(--color-white);
 }
 
 .heroAvatarTeam {
   background: var(--color-primary-600);
-  color: #fff;
+  color: var(--color-white);
 }
 
 .heroAvatarChannel {
   background: var(--color-role-admin);
-  color: #fff;
+  color: var(--color-white);
 }
 
 .heroAvatarBtn {
@@ -150,8 +150,8 @@
   height: 1.75rem;
   border-radius: 999px;
   background: var(--color-primary-600);
-  color: #fff;
-  border: 2px solid #fff;
+  color: var(--color-white);
+  border: 2px solid var(--color-surface-card);
   z-index: 1;
 }
 
@@ -224,7 +224,7 @@
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
   background: var(--club-brand, var(--color-primary-500));
-  color: var(--club-brand-text, #fff);
+  color: var(--club-brand-text, var(--color-white));
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -236,7 +236,7 @@
   justify-content: center;
   gap: 1.75rem;
   padding: 0.35rem 1.25rem 1.5rem;
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .quickBtn {
@@ -268,12 +268,12 @@
 }
 
 .quickBtn:hover .quickIcon {
-  background: color-mix(in srgb, var(--color-primary-500) 12%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-surface-card));
 }
 
 .block {
   margin-top: 0.55rem;
-  background: #fff;
+  background: var(--color-surface-card);
   border-top: 1px solid var(--color-gray-100);
   border-bottom: 1px solid var(--color-gray-100);
 }
@@ -297,7 +297,7 @@
 }
 
 .listRow:hover {
-  background: color-mix(in srgb, var(--color-primary-500) 4%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 4%, var(--color-surface-card));
 }
 
 .listIcon {
@@ -343,15 +343,15 @@
   border-bottom: 1px solid var(--color-gray-100);
 }
 
-.empty,
-.emptyPad {
-  margin: 0;
+.empty {
+  composes: emptyText from "./chatShared.module.css";
   font-size: 0.85rem;
-  color: var(--color-gray-500);
 }
 
 .emptyPad {
+  composes: emptyText from "./chatShared.module.css";
   padding: 0.85rem 1.15rem 1.1rem;
+  font-size: 0.85rem;
 }
 
 .imageGrid {
@@ -448,7 +448,7 @@
 }
 
 .memberRow:hover {
-  background: color-mix(in srgb, var(--color-primary-500) 4%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 4%, var(--color-surface-card));
 }
 
 .memberRowText {
@@ -473,7 +473,7 @@
   gap: 0.65rem;
   padding: 2.5rem 1rem;
   text-align: center;
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .memberName {
@@ -498,7 +498,7 @@
   width: min(100%, 20rem);
   padding: 1rem;
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--color-surface-card);
   box-shadow: var(--shadow-card);
 }
 
@@ -507,6 +507,19 @@
   font-size: 0.95rem;
   font-weight: 800;
   color: var(--color-primary-900);
+}
+
+.renameLabel {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-primary-800);
+}
+
+.renameError {
+  composes: formError from "./chatShared.module.css";
+  margin-top: 0.45rem;
 }
 
 .renameInput {
@@ -544,7 +557,7 @@
 
 .renameSubmit {
   background: var(--color-primary-500);
-  color: #fff;
+  color: var(--color-white);
 }
 
 .renameSubmit:disabled {

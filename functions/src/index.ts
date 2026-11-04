@@ -93,6 +93,8 @@ export {
   backfillMyAdminClubChatsDev,
   onMemberWrittenForChat,
   onMemberWrittenForChatDev,
+  onUserWrittenForChat,
+  onUserWrittenForChatDev,
   onClubWrittenForChat,
   onClubWrittenForChatDev,
   onChatMessageCreatedForPush,

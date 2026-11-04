@@ -31,7 +31,8 @@ Logique sensible hors client (HelloAsso, invitations). Spec paiement :
 | `createCategoryChannel` / `…Dev` | Callable admin — canal catégorie (écriture admin par défaut) |
 | `ensureClubChatSynced` / `…Dev` | Callable — backfill idempotent chats système d’un club (équipes déjà créées) |
 | `backfillMyAdminClubChats` / `…Dev` | Callable — backfill de tous les clubs où l’appelant est admin |
-| `onMemberWrittenForChat` / `…Dev` | Trigger membres — sync chats `staff` + `club` |
+| `onMemberWrittenForChat` / `…Dev` | Trigger membres — sync chats `staff` + `club` ; nom / photo / rôle → `participantProfiles` dans toutes ses conversations |
+| `onUserWrittenForChat` / `…Dev` | Trigger `users/{uid}` — nom / photo d’un parent → `participantProfiles` dans les conversations de ses clubs |
 | `onClubWrittenForChat` / `…Dev` | Trigger club — resync si `adminIds` change |
 | `onChatMessageCreatedForPush` / `…Dev` | Trigger message — push 1 notif / message (mute + pref `chat`) |
 | `scheduleSeasonChatPurge` / `…Dev` | Cron 03:00 Europe/Paris — purge messages si `seasonEndDate` dans les 48 h (Storage conservé) |
@@ -101,7 +102,10 @@ la ligne à `true` dans [`deploy-functions.yml`](../.github/workflows/deploy-fun
 - **Chats système** : `onMemberWrittenForChat` ne relance `syncClubWideConversations`
   que si `role` / `status` / `accountUid` / `userId` / `teamIds` changent
   (`memberChatFieldsChanged`), et `upsertSystemConversation` ne réécrit pas une
-  conversation dont participants (triés), titre, politique et cibles sont identiques.
+  conversation dont participants (triés), profils, titre, politique et cibles sont identiques.
+  `participantProfiles` est remplacé en entier (`update`, pas `set` merge) pour qu’un
+  participant retiré n’y laisse pas son profil ; un changement de nom / photo seul ne
+  touche que `participantProfiles.<uid>` des conversations concernées.
 - **`createCategoryChannel`** : `writePolicy` ∈ {`open`, `admins_only`,
   `coaches_and_admins`}, `title` ≤ 80, admin résolu via `assertClubAdmin` (adminIds,
   index `member_accounts` ou fiche directe).

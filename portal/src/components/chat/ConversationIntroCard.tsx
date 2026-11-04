@@ -16,6 +16,7 @@ import {
 } from "@/lib/firebase/chatTypes";
 import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
 import styles from "./ConversationIntroCard.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ConversationIntroCardProps = {
   conversation: ChatConversation;
@@ -35,16 +36,16 @@ type RoleCount = {
 /** Pluriel FR pour les stats de rôles dans l’intro de discussion. */
 function roleCountLabel(role: string, count: number): string {
   if (role === MemberRoles.admin) {
-    return count <= 1 ? "1 admin" : `${count} admins`;
+    return chatCopy.roleCountAdmins(count);
   }
   if (role === MemberRoles.coach) {
-    return count <= 1 ? "1 coach" : `${count} coachs`;
+    return chatCopy.roleCountCoaches(count);
   }
   if (role === MemberRoles.player) {
-    return count <= 1 ? "1 joueur" : `${count} joueurs`;
+    return chatCopy.roleCountPlayers(count);
   }
   if (role === PortalUiRoles.parent) {
-    return count <= 1 ? "1 parent" : `${count} parents`;
+    return chatCopy.roleCountParents(count);
   }
   return `${count}`;
 }
@@ -150,11 +151,9 @@ export function ConversationIntroCard({
           {clubName}
         </span>
       ) : null}
-      <p className={styles.meta}>
-        {memberCount} membre{memberCount > 1 ? "s" : ""}
-      </p>
+      <p className={styles.meta}>{chatCopy.memberCount(memberCount)}</p>
       {roleStats.length > 0 ? (
-        <ul className={styles.roleStats} aria-label="Répartition des rôles">
+        <ul className={styles.roleStats} aria-label={chatCopy.roleBreakdown}>
           {roleStats.map((stat) => (
             <li key={stat.role}>
               <RoleBadge role={stat.role} size="sm" label={stat.label} />
@@ -171,7 +170,7 @@ export function ConversationIntroCard({
         type="button"
         className={`${styles.card} ${styles.cardButton}`}
         onClick={onOpenInfo}
-        aria-label="Ouvrir les infos du groupe"
+        aria-label={chatCopy.openGroupInfo}
       >
         {content}
       </button>

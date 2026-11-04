@@ -8,9 +8,28 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Messagerie (masquée), accessibilité : sur une bulle, VoiceOver / TalkBack proposent « Répondre », « Réagir avec un cœur » et « Plus d’actions » (plus besoin du double-tap ou de l’appui long) ; emojis, réactions, avatar de l’en-tête et menu ⋮ annoncent un nom ; « + », emojis, « Réessayer » et réactions ont une zone de tap d’au moins 44. Parcours de recette avant ouverture : `docs/CHAT_SMOKE.md`
+- Messagerie (masquée) : chaque conversation porte les profils de ses participants (`participantProfiles` : nom, rôle, photo), écrits uniquement par les Functions à chaque sync et mis à jour quand un membre ou un parent change de nom ou de photo (`onMemberWrittenForChat`, nouveau trigger `onUserWrittenForChat`). Un parent voit enfin les noms, photos et rôles des expéditeurs dans le fil, et le portail n’a plus besoin de relire les membres un par un
+
+### Modifié
+
+- Messagerie (masquée), fil : mes messages en bulles bleues, messages consécutifs d’une même personne regroupés (nom et avatar une seule fois), squelette au chargement et « Réessayer » en cas d’erreur, photos à leur ratio avec placeholder et progression pendant l’envoi, modification d’un message directement dans le champ (plus de boîte de dialogue), bouton d’envoi grisé tant que le champ est vide, recherche avec compteur (« 2 / 5 ») et navigation précédent / suivant
+- Messagerie (masquée), inbox et création : état « aucun résultat » distinct de l’inbox vide, placeholder de recherche fidèle à ce qu’elle filtre, fenêtres « nouvelle conversation » et « sondage » alignées sur les autres sheets ; les destinataires possibles sont chargés par `ChatDmTargetsService` avec des lectures groupées (plus de lecture par destinataire)
+- Messagerie (masquée) : tokens communs avec le portail (`ViroChat` ↔ `--chat-*`), un seul avatar de conversation (`ViroConversationAvatar`) pour l’inbox, l’en-tête du fil et la fiche, bulles de sondage alignées sur les messages (78 % de large, mêmes marges). « Vous » devient « Toi » et les états vides de l’inbox et du fil affichent une ligne d’aide
+- Messagerie (masquée), sans changement visuel : l’état du fil (historique, envois optimistes et relance, non-lus) passe dans un contrôleur Riverpod par conversation (`chatThreadControllerProvider`) et les trois chemins d’envoi (texte, photo, relance) dans `ChatService.sendPendingMessage`. Le détail des votes d’un sondage devient une route go_router (`/conversations/:clubId/:conversationId/polls/:messageId`) avec retour vers le fil. Nouvelles tuiles `ChatReactorListTile`, `ChatDmTargetListTile`, `ChatMediaListTile` et premiers tests du chat (helpers du fil, tri de l’inbox, extraction des médias, tuiles)
+
 ### Corrigé
 
+- Messagerie (masquée) : les pastilles de réaction sous une bulle ne réagissaient au tap que sur leurs quelques pixels du haut
+- Messagerie (masquée) : une conversation de l’inbox s’ouvre au tap n’importe où sur la tuile (les zones vides, à droite du titre par exemple, ne réagissaient pas — corrigé dans `ViroPressable`, donc pour toutes les tuiles qui l’utilisent)
+- Messagerie (masquée) : un message avec beaucoup de réactions différentes n’affiche plus qu’une rangée de 4 emojis (les plus utilisés) puis « +n », et cette rangée déborde vers le centre du fil au lieu de sortir de l’écran
+- Avatars à initiales (`MemberAvatar`) : fond opaque, le motif du fil de discussion ne transparaît plus
 - RSVP : les joueurs avec fiche pré-créée (invitation) pouvaient voir leur présence « coincée » — l’app écrivait sous `memberId` alors que les convocations / l’UI lisaient `accountUid`. Lecture, écriture, rules et création d’événement utilisent maintenant le même canon (`accountUid` si lié) ; un vote nettoie l’ancienne clé, et un script `tool/repair_event_rsvp_audience.mjs` répare les doubles clés déjà en base
+- Messagerie (masquée) : l’app n’empêche plus d’envoyer un message tant que le précédent n’est pas confirmé, les anciens messages ne disparaissent plus du haut du fil quand un nouveau arrive, et « Charger plus » ne s’affiche que s’il reste de l’historique
+- Messagerie (masquée) : les canaux réservés aux coachs et admins affichent le bon bandeau (« Seuls les coachs et les admins peuvent écrire ici. ») dans l’app et sur le portail
+- Tests des règles Firestore : `npm test` fonctionne aussi sous Windows (guillemets du script)
 - Release Android CI : épingle Temurin JDK 21 dans `release-android.yml` (le runner `ubuntu-latest` passait sur Java 25 et faisait échouer `assembleRelease` avec le seul message « 25.0.x »)
 
 ## [2.2.13] - 2026-11-02

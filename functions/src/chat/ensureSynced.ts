@@ -1,7 +1,7 @@
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { requireString, requireUid, stringArray } from "../common";
 import { db, defineDualCallable } from "../db";
-import { syncAllConversationsForClub } from "./sync";
+import { backfillConversationProfiles, syncAllConversationsForClub } from "./sync";
 
 /**
  * Crée / met à jour les conversations système d’un club (équipes existantes,
@@ -42,11 +42,12 @@ async function handleEnsureClubChatSynced(request: CallableRequest): Promise<{
 /**
  * Backfill de tous les clubs (ops après déploiement).
  * Réservé aux comptes présents dans `adminIds` d’au moins un club — traite
- * uniquement les clubs où l’appelant est admin.
+ * uniquement les clubs où l’appelant est admin. Recalcule aussi
+ * `participantProfiles` des DM et canaux existants.
  */
 async function handleBackfillMyAdminClubChats(
   request: CallableRequest,
-): Promise<{ clubsSynced: number; teamsSynced: number }> {
+): Promise<{ clubsSynced: number; teamsSynced: number; profilesUpdated: number }> {
   const uid = requireUid(request);
   const firestore = db();
 
@@ -56,15 +57,20 @@ async function handleBackfillMyAdminClubChats(
     .get();
 
   let teamsSynced = 0;
+  let profilesUpdated = 0;
   for (const clubDoc of clubsSnap.docs) {
     const result = await syncAllConversationsForClub({
       firestore,
       clubId: clubDoc.id,
     });
     teamsSynced += result.teamsSynced;
+    profilesUpdated += await backfillConversationProfiles({
+      firestore,
+      clubId: clubDoc.id,
+    });
   }
 
-  return { clubsSynced: clubsSnap.size, teamsSynced };
+  return { clubsSynced: clubsSnap.size, teamsSynced, profilesUpdated };
 }
 
 export const { prod: ensureClubChatSynced, dev: ensureClubChatSyncedDev } =

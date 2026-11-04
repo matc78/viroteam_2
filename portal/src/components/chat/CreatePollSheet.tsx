@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import infoStyles from "./ConversationInfoPanel.module.css";
 import styles from "./CreatePollSheet.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type CreatePollSheetProps = {
   onClose: () => void;
@@ -21,11 +23,16 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
   const [allowMultiple, setAllowMultiple] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useDialogA11y({ onClose, modal: false });
+  const errorId = useId();
+  // Champs à signaler tant que la question ou les 2 options manquent.
+  const showMissing = error === chatCopy.pollNeedOptions;
+  const filledOptions = options.filter((o) => o.trim()).length;
 
   async function handleSubmit() {
     const trimmedOptions = options.map((o) => o.trim()).filter(Boolean);
     if (!question.trim() || trimmedOptions.length < 2) {
-      setError("Ajoute au moins 2 options.");
+      setError(chatCopy.pollNeedOptions);
       return;
     }
     setBusy(true);
@@ -37,56 +44,70 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
         allowMultiple,
       });
     } catch {
-      setError("Impossible de créer le sondage.");
+      setError(chatCopy.pollFailed);
       setBusy(false);
     }
   }
 
   return (
-    <aside className={infoStyles.panel} aria-label="Créer un sondage">
+    <aside
+      ref={panelRef}
+      className={infoStyles.panel}
+      role="dialog"
+      aria-label={chatCopy.createPollLabel}
+    >
       <header className={infoStyles.header}>
         <button
           type="button"
           className={infoStyles.headerIconBtn}
-          aria-label="Fermer"
+          aria-label={chatCopy.close}
           onClick={onClose}
         >
           <ChatIcon name="close" size={20} />
         </button>
-        <h2 className={infoStyles.headerTitle}>Sondage</h2>
+        <h2 className={infoStyles.headerTitle}>{chatCopy.pollLabel}</h2>
       </header>
 
       <div className={`${infoStyles.scrollBody} ${styles.form}`}>
         <label className={styles.label}>
-          Question
+          {chatCopy.pollQuestionLabel}
           <input
             className={styles.input}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ex. Qui amène les ballons ?"
+            placeholder={chatCopy.pollQuestionHint}
+            aria-invalid={(showMissing && !question.trim()) || undefined}
+            aria-describedby={
+              showMissing && !question.trim() ? errorId : undefined
+            }
           />
         </label>
-        {options.map((option, index) => (
-          <label key={index} className={styles.label}>
-            Option {index + 1}
-            <input
-              className={styles.input}
-              value={option}
-              onChange={(e) => {
-                const next = [...options];
-                next[index] = e.target.value;
-                setOptions(next);
-              }}
-            />
-          </label>
-        ))}
+        {options.map((option, index) => {
+          const missing = showMissing && filledOptions < 2 && !option.trim();
+          return (
+            <label key={index} className={styles.label}>
+              {chatCopy.pollOptionLabel(index + 1)}
+              <input
+                className={styles.input}
+                value={option}
+                onChange={(e) => {
+                  const next = [...options];
+                  next[index] = e.target.value;
+                  setOptions(next);
+                }}
+                aria-invalid={missing || undefined}
+                aria-describedby={missing ? errorId : undefined}
+              />
+            </label>
+          );
+        })}
         {options.length < 12 ? (
           <button
             type="button"
             className={styles.secondary}
             onClick={() => setOptions([...options, ""])}
           >
-            Ajouter une option
+            {chatCopy.pollAddOption}
           </button>
         ) : null}
         <label className={styles.check}>
@@ -95,16 +116,20 @@ export function CreatePollSheet({ onClose, onSubmit }: CreatePollSheetProps) {
             checked={allowMultiple}
             onChange={(e) => setAllowMultiple(e.target.checked)}
           />
-          Plusieurs réponses possibles
+          {chatCopy.pollAllowMultiple}
         </label>
-        {error ? <p className={styles.error}>{error}</p> : null}
+        {error ? (
+          <p id={errorId} className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
         <button
           type="button"
           className={styles.primary}
           disabled={busy}
           onClick={() => void handleSubmit()}
         >
-          {busy ? "Envoi…" : "Envoyer le sondage"}
+          {busy ? chatCopy.pollSending : chatCopy.pollSend}
         </button>
       </div>
     </aside>

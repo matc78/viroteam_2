@@ -19,10 +19,17 @@ import {
   previewSenderKey,
   type ChatPreviewSender,
 } from "@/lib/chat/conversationPreview";
+import {
+  applyChatStatePatches,
+  type ChatStatePatch,
+} from "@/lib/chat/chatStatePatches";
+import { isMessagesPath } from "@/lib/chat/isMessagesPath";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   ensureClubsChatSynced,
   messagesPagePath,
+  setFavorite,
+  setMuted,
   totalUnreadCount,
   watchChatStates,
   watchInbox,
@@ -39,6 +46,7 @@ import { listClubMembers } from "@/lib/firebase/memberService";
 import { membershipRoleForClub, splitDisplayName } from "@/lib/firebase/types";
 import { getUserProfile } from "@/lib/firebase/userService";
 import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
+import { chatMobileMediaQuery } from "@/lib/chat/chatBreakpoints";
 
 type ChatContextValue = {
   dockOpen: boolean;
@@ -51,6 +59,21 @@ type ChatContextValue = {
   chatStates: Record<string, ChatUserState>;
   totalUnread: number;
   inboxLoading: boolean;
+  /** Écoute de l’inbox (conversations ou états) en erreur. */
+  inboxError: boolean;
+  /** Relance les écoutes de l’inbox après une erreur. */
+  retryInbox: () => void;
+  /**
+   * Coupe / réactive les notifs ou (dé)met en favori une conversation :
+   * affiché tout de suite, annulé si l’écriture échoue (l’erreur est relancée
+   * pour que l’appelant l’affiche).
+   */
+  updateConversationPrefs: (params: {
+    clubId: string;
+    conversationId: string;
+    muted?: boolean;
+    favorite?: boolean;
+  }) => Promise<void>;
   clubNameById: Record<string, string>;
   clubColorById: Record<string, string | null>;
   /** Annuaire `clubId:uid` → prénom + rôle (fallback preview). */
@@ -79,17 +102,6 @@ type ChatContextValue = {
 
 const ChatContext = createContext<ChatContextValue | null>(null);
 
-const MOBILE_MQ = "(max-width: 767px)";
-
-function isMessagesPath(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return (
-    pathname === "/messages" ||
-    pathname.startsWith("/messages/") ||
-    pathname === "/family/messages" ||
-    pathname.startsWith("/family/messages/")
-  );
-}
 
 /**
  * Quand la messagerie est désactivée : pas de chrome, redirige les deep links.
@@ -138,10 +150,21 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
   const [categoryChannelOpen, setCategoryChannelOpen] = useState(false);
   const [activeThread, setActiveThread] = useState<ChatThreadKey | null>(null);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
-  const [chatStates, setChatStates] = useState<Record<string, ChatUserState>>(
-    {},
+  const [serverChatStates, setChatStates] = useState<
+    Record<string, ChatUserState>
+  >({});
+  /** Préférences en cours d’écriture (optimiste), clé = id chatState. */
+  const [prefPatches, setPrefPatches] = useState<
+    Record<string, ChatStatePatch>
+  >({});
+  const chatStates = useMemo(
+    () => applyChatStatePatches(serverChatStates, prefPatches),
+    [serverChatStates, prefPatches],
   );
   const [inboxLoading, setInboxLoading] = useState(false);
+  const [inboxError, setInboxError] = useState(false);
+  /** Incrémenté par `retryInbox` pour relancer les écoutes. */
+  const [inboxReloadKey, setInboxReloadKey] = useState(0);
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [previewSenderByKey, setPreviewSenderByKey] = useState<
     Record<string, ChatPreviewSender>
@@ -187,15 +210,11 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
     activeSpace === "family" ? "family" : "bureau",
   );
 
-  const onMessagesPage =
-    pathname === "/messages" ||
-    pathname.startsWith("/messages/") ||
-    pathname === "/family/messages" ||
-    pathname.startsWith("/family/messages/");
+  const onMessagesPage = isMessagesPath(pathname);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const media = window.matchMedia(MOBILE_MQ);
+    const media = window.matchMedia(chatMobileMediaQuery);
     const update = () => setIsMobileLayout(media.matches);
     update();
     media.addEventListener("change", update);
@@ -213,10 +232,12 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
       setConversations([]);
       setChatStates({});
       setInboxLoading(false);
+      setInboxError(false);
       return;
     }
 
     setInboxLoading(true);
+    setInboxError(false);
     const clubKey = clubIds.slice().sort().join(",");
     if (syncedClubsRef.current !== clubKey) {
       syncedClubsRef.current = clubKey;
@@ -230,18 +251,67 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
         setConversations(list);
         setInboxLoading(false);
       },
-      onError: () => setInboxLoading(false),
+      onError: (error) => {
+        console.error("[chat] watchInbox failed", error);
+        setInboxLoading(false);
+        setInboxError(true);
+      },
     });
     const unsubStates = watchChatStates({
       uid: user.uid,
       onData: setChatStates,
+      onError: (error) => {
+        console.error("[chat] watchChatStates failed", error);
+        setInboxError(true);
+      },
     });
 
     return () => {
       unsubInbox();
       unsubStates();
     };
-  }, [status, user, clubIds]);
+  }, [status, user, clubIds, inboxReloadKey]);
+
+  const retryInbox = useCallback(() => {
+    setInboxReloadKey((key) => key + 1);
+  }, []);
+
+  const updateConversationPrefs = useCallback(
+    async (params: {
+      clubId: string;
+      conversationId: string;
+      muted?: boolean;
+      favorite?: boolean;
+    }) => {
+      if (!user) return;
+      const { clubId, conversationId, muted, favorite } = params;
+      const id = chatStateDocId(clubId, conversationId);
+      const patch: ChatStatePatch = {};
+      if (muted !== undefined) patch.muted = muted;
+      if (favorite !== undefined) patch.favorite = favorite;
+      setPrefPatches((current) => ({
+        ...current,
+        [id]: { ...current[id], ...patch },
+      }));
+      try {
+        if (muted !== undefined) {
+          await setMuted({ uid: user.uid, clubId, conversationId, muted });
+        }
+        if (favorite !== undefined) {
+          await setFavorite({ uid: user.uid, clubId, conversationId, favorite });
+        }
+      } finally {
+        // Succès : le snapshot chatState porte la valeur ; échec : retour serveur.
+        setPrefPatches((current) => {
+          if (!current[id]) return current;
+          const next = { ...current };
+          delete next[id];
+          return next;
+        });
+      }
+    },
+    [user],
+  );
 
   // Annuaire membres (aperçus expéditeur) : chargé seulement une fois la
   // messagerie ouverte (dock ou /messages), pas à chaque connexion.
@@ -458,6 +528,9 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
       chatStates,
       totalUnread,
       inboxLoading,
+      inboxError,
+      retryInbox,
+      updateConversationPrefs,
       clubNameById,
       clubColorById,
       previewSenderByKey,
@@ -488,6 +561,9 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
       chatStates,
       totalUnread,
       inboxLoading,
+      inboxError,
+      retryInbox,
+      updateConversationPrefs,
       clubNameById,
       clubColorById,
       previewSenderByKey,

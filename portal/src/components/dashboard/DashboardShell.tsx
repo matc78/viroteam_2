@@ -17,6 +17,7 @@ import {
   bureauCapabilities,
   isBureauRouteAllowed,
 } from "@/lib/auth/bureauPermissions";
+import { isBureauMessagesPath } from "@/lib/chat/isMessagesPath";
 import { usePlayerFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { MemberRoles } from "@/lib/firebase/constants";
@@ -72,12 +73,8 @@ function isMyPlanningPath(pathname: string): boolean {
   );
 }
 
-function isMessagesPath(pathname: string): boolean {
-  return pathname === "/messages" || pathname.startsWith("/messages/");
-}
-
 function isCrossClubPath(pathname: string): boolean {
-  return isMyPlanningPath(pathname) || isMessagesPath(pathname);
+  return isMyPlanningPath(pathname) || isBureauMessagesPath(pathname);
 }
 
 function userInitials(displayName: string): string {
@@ -151,7 +148,7 @@ export function DashboardShell() {
   const resolvedUserName = profile?.displayName ?? "Membre";
   const wide = isWidePath(pathname);
   const onMyPlanning = isMyPlanningPath(pathname);
-  const onMessages = isMessagesPath(pathname);
+  const onMessages = isBureauMessagesPath(pathname);
   const onCrossClub = onMyPlanning || onMessages;
   const fillViewport =
     pathname === "/planning" ||

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -13,7 +14,7 @@ import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 
 /// Nombre max d’avatars empilés par option de sondage.
 const int _kMaxPollAvatars = 3;
-const double _kPollAvatarSize = 22;
+const double _kPollAvatarSize = ViroChat.avatarPollVoter;
 const double _kPollAvatarOverlap = 14;
 
 /// Bulle de sondage avec barres de votes (style WhatsApp).
@@ -57,14 +58,18 @@ class ChatPollBubble extends StatelessWidget {
       child: GestureDetector(
         onLongPress: onLongPress,
         child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          margin: const EdgeInsets.symmetric(vertical: ViroChat.messageGap / 2),
+          padding: const EdgeInsets.symmetric(
+            horizontal: ViroChat.bubblePaddingX,
+            vertical: ViroChat.bubblePaddingY,
+          ),
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.sizeOf(context).width * 0.82,
+            maxWidth: MediaQuery.sizeOf(context).width *
+                ViroChat.bubbleMaxWidthFraction,
           ),
           decoration: BoxDecoration(
             color: palette.surfaceCard,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(ViroChat.bubbleRadius),
             border: Border.all(
               color: borderColor ?? palette.accentSoft,
               width: 1.5,

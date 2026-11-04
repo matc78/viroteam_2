@@ -44,6 +44,9 @@ class ChatService {
     );
   }
 
+  /// Taille de la fenêtre live et des pages d’historique d’un fil.
+  static const int messagePageSize = 50;
+
   late final ChatInboxQueries _queries;
   late final ChatMessageOperations _messages;
   late final ChatPollReactionOperations _polls;
@@ -77,7 +80,7 @@ class ChatService {
   Stream<List<ChatMessage>> watchMessages({
     required String clubId,
     required String conversationId,
-    int limit = 50,
+    int limit = messagePageSize,
   }) =>
       _queries.watchMessages(
         clubId: clubId,
@@ -154,6 +157,7 @@ class ChatService {
     String? replyToText,
     String? replyToSenderUid,
     String? clientMessageId,
+    void Function(double progress)? onProgress,
   }) =>
       _messages.sendImageMessage(
         clubId: clubId,
@@ -167,14 +171,57 @@ class ChatService {
         replyToText: replyToText,
         replyToSenderUid: replyToSenderUid,
         clientMessageId: clientMessageId,
+        onProgress: onProgress,
       );
+
+  /// Envoie un message optimiste [pending] (texte, ou photo via
+  /// `localImageBytes`) sous son propre id : premier envoi comme relance.
+  ///
+  /// [onProgress] (0 → 1) suit l’upload d’une photo.
+  /// Lève [StateError] si une photo n’a plus ses octets locaux.
+  Future<String> sendPendingMessage(
+    ChatMessage pending, {
+    String? senderFirstName,
+    String? senderRole,
+    void Function(double progress)? onProgress,
+  }) {
+    if (pending.type == ChatMessageTypes.image) {
+      final bytes = pending.localImageBytes;
+      if (bytes == null) throw StateError('no local bytes');
+      return sendImageMessage(
+        clubId: pending.clubId,
+        conversationId: pending.conversationId,
+        senderUid: pending.senderUid,
+        bytes: bytes,
+        senderFirstName: senderFirstName,
+        senderRole: senderRole,
+        replyToMessageId: pending.replyToMessageId,
+        replyToText: pending.replyToText,
+        replyToSenderUid: pending.replyToSenderUid,
+        clientMessageId: pending.id,
+        onProgress: onProgress,
+      );
+    }
+    return sendTextMessage(
+      clubId: pending.clubId,
+      conversationId: pending.conversationId,
+      senderUid: pending.senderUid,
+      text: pending.text ?? '',
+      senderFirstName: senderFirstName,
+      senderRole: senderRole,
+      replyToMessageId: pending.replyToMessageId,
+      replyToText: pending.replyToText,
+      replyToSenderUid: pending.replyToSenderUid,
+      clientMessageId: pending.id,
+    );
+  }
 
   /// Charge une page de messages plus anciens que [beforeMessageId].
   Future<List<ChatMessage>> fetchOlderMessages({
     required String clubId,
     required String conversationId,
     required String beforeMessageId,
-    int limit = 50,
+    int limit = messagePageSize,
   }) =>
       _queries.fetchOlderMessages(
         clubId: clubId,

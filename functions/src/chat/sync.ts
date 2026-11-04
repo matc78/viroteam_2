@@ -3,9 +3,18 @@ import * as crypto from "crypto";
 import type { DocumentData, Firestore } from "firebase-admin/firestore";
 import { stringArray, uniq } from "../common";
 import { activeGuardianUids } from "../parentTeams";
+import {
+  memberDirectoryFromDocs,
+  participantProfilesEqual,
+  profileFromUser,
+  type ChatParticipantProfile,
+} from "./participantProfiles";
 
 const WRITE_OPEN = "open";
 const WRITE_ADMINS = "admins_only";
+
+/** Uid Auth → profil, construit depuis les fiches membres du club. */
+export type ClubMemberDirectory = Map<string, ChatParticipantProfile>;
 
 type UpsertConversationParams = {
   firestore: Firestore;
@@ -17,7 +26,50 @@ type UpsertConversationParams = {
   writePolicy: string;
   teamId?: string;
   categoryKey?: string;
+  /** Annuaire déjà chargé (sync en lot) ; sinon lu à la demande. */
+  memberDirectory?: ClubMemberDirectory;
 };
+
+/** Charge l’annuaire des fiches membres d’un club (une requête). */
+export async function loadClubMemberDirectory(
+  firestore: Firestore,
+  clubId: string,
+): Promise<ClubMemberDirectory> {
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("members")
+    .get();
+  return memberDirectoryFromDocs(snap.docs);
+}
+
+/**
+ * Profils des participants : fiche membre si elle existe, sinon `users/{uid}`
+ * (parents), lus en un seul `getAll`. Un uid sans profil lisible est omis.
+ */
+export async function buildParticipantProfiles(params: {
+  firestore: Firestore;
+  participantUids: string[];
+  memberDirectory: ClubMemberDirectory;
+}): Promise<Record<string, ChatParticipantProfile>> {
+  const { firestore, participantUids, memberDirectory } = params;
+  const profiles: Record<string, ChatParticipantProfile> = {};
+  const missingUids: string[] = [];
+  for (const uid of participantUids) {
+    const fromMember = memberDirectory.get(uid);
+    if (fromMember) profiles[uid] = fromMember;
+    else missingUids.push(uid);
+  }
+  if (missingUids.length > 0) {
+    const snaps = await firestore.getAll(
+      ...missingUids.map((uid) => firestore.collection("users").doc(uid)),
+    );
+    for (const snap of snaps) {
+      if (snap.exists) profiles[snap.id] = profileFromUser(snap.data() ?? {});
+    }
+  }
+  return profiles;
+}
 
 /** Id déterministe pour rendre les créations concurrentes idempotentes. */
 function stableConversationId(systemKey: string): string {
@@ -47,11 +99,21 @@ export async function upsertSystemConversation(
     .limit(1)
     .get();
 
+  const participantUids = uniq(params.participantUids.filter(Boolean));
+  const participantProfiles = await buildParticipantProfiles({
+    firestore: params.firestore,
+    participantUids,
+    memberDirectory:
+      params.memberDirectory ??
+      (await loadClubMemberDirectory(params.firestore, params.clubId)),
+  });
+
   const payload: Record<string, unknown> = {
     type: params.type,
     systemKey: params.systemKey,
     title: params.title,
-    participantUids: uniq(params.participantUids.filter(Boolean)),
+    participantUids,
+    participantProfiles,
     writePolicy: params.writePolicy,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
@@ -60,12 +122,14 @@ export async function upsertSystemConversation(
 
   if (!existing.empty) {
     const ref = existing.docs[0]!.ref;
-    // Pas de réécriture si rien ne change (participants triés, titre,
+    // Pas de réécriture si rien ne change (participants triés, profils, titre,
     // politique, cibles) : évite un `updatedAt` et un fan-out inutiles.
     if (systemConversationUnchanged(existing.docs[0]!.data(), payload)) {
       return ref.id;
     }
-    await ref.set(payload, { merge: true });
+    // `update` (pas `set` merge) : remplace `participantProfiles` en entier,
+    // sinon le profil d’un participant retiré resterait dans la map.
+    await ref.update(payload);
     return ref.id;
   }
 
@@ -80,7 +144,7 @@ export async function upsertSystemConversation(
     });
   } catch (error) {
     if (!isAlreadyExistsError(error)) throw error;
-    await ref.set(payload, { merge: true });
+    await ref.update(payload);
   }
   return ref.id;
 }
@@ -94,10 +158,85 @@ function systemConversationUnchanged(
   if (sortedJoin(current.participantUids) !== sortedJoin(payload.participantUids)) {
     return false;
   }
+  if (!participantProfilesEqual(current.participantProfiles, payload.participantProfiles)) {
+    return false;
+  }
   for (const key of ["type", "title", "writePolicy", "teamId", "categoryKey"]) {
     if (String(current[key] ?? "") !== String(payload[key] ?? "")) return false;
   }
   return true;
+}
+
+/**
+ * Remplace le profil de [uid] dans les conversations du club où il participe
+ * (changement de nom / photo). [onlyRole] : ne touche que les profils de ce
+ * rôle (ex. `parent` : une fiche membre reste prioritaire sur `users/{uid}`).
+ * Retourne le nombre de conversations mises à jour.
+ */
+export async function refreshParticipantProfile(params: {
+  firestore: Firestore;
+  clubId: string;
+  uid: string;
+  profile: ChatParticipantProfile;
+  onlyRole?: string;
+}): Promise<number> {
+  const { firestore, clubId, uid, profile, onlyRole } = params;
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("conversations")
+    .where("participantUids", "array-contains", uid)
+    .get();
+  let updated = 0;
+  for (const doc of snap.docs) {
+    const profiles = (doc.data().participantProfiles ?? {}) as Record<
+      string,
+      ChatParticipantProfile | undefined
+    >;
+    const current = profiles[uid];
+    // Profil absent : la prochaine sync complète le posera avec le bon rôle.
+    if (onlyRole && current?.role !== onlyRole) continue;
+    if (participantProfilesEqual(current, profile)) continue;
+    await doc.ref.update(
+      new admin.firestore.FieldPath("participantProfiles", uid),
+      profile,
+    );
+    updated += 1;
+  }
+  return updated;
+}
+
+/**
+ * Recalcule `participantProfiles` de toutes les conversations du club (DM et
+ * canaux compris, que la sync système ne revisite pas). Rattrapage ops.
+ * Retourne le nombre de conversations mises à jour.
+ */
+export async function backfillConversationProfiles(params: {
+  firestore: Firestore;
+  clubId: string;
+}): Promise<number> {
+  const { firestore, clubId } = params;
+  const memberDirectory = await loadClubMemberDirectory(firestore, clubId);
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("conversations")
+    .get();
+  let updated = 0;
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    const participantProfiles = await buildParticipantProfiles({
+      firestore,
+      participantUids: uniq(stringArray(data.participantUids)),
+      memberDirectory,
+    });
+    if (participantProfilesEqual(data.participantProfiles, participantProfiles)) {
+      continue;
+    }
+    await doc.ref.update({ participantProfiles });
+    updated += 1;
+  }
+  return updated;
 }
 
 /** Résout un id roster → Auth uid (accountUid / userId). */
@@ -160,6 +299,7 @@ export async function syncTeamConversations(params: {
   clubId: string;
   teamId: string;
   teamData: DocumentData | undefined;
+  memberDirectory?: ClubMemberDirectory;
 }): Promise<void> {
   const { firestore, clubId, teamId, teamData } = params;
   if (!teamData) {
@@ -179,8 +319,11 @@ export async function syncTeamConversations(params: {
 
   const playerUids = await resolveAuthUids(firestore, clubId, playerIds);
   const coachUids = await resolveAuthUids(firestore, clubId, coachIds);
+  const memberDirectory =
+    params.memberDirectory ?? (await loadClubMemberDirectory(firestore, clubId));
 
   await upsertSystemConversation({
+    memberDirectory,
     firestore,
     clubId,
     systemKey: `team:${teamId}`,
@@ -201,6 +344,7 @@ export async function syncTeamConversations(params: {
   }
 
   await upsertSystemConversation({
+    memberDirectory,
     firestore,
     clubId,
     systemKey: `parents:${teamId}`,
@@ -225,13 +369,11 @@ async function clearSystemConversationParticipants(
     .limit(1)
     .get();
   if (snap.empty) return;
-  await snap.docs[0]!.ref.set(
-    {
-      participantUids: [],
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true },
-  );
+  await snap.docs[0]!.ref.update({
+    participantUids: [],
+    participantProfiles: {},
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
 }
 
 async function resolveMemberIdForChat(
@@ -270,6 +412,7 @@ export async function syncClubWideConversations(params: {
     .doc(clubId)
     .collection("members")
     .get();
+  const memberDirectory = memberDirectoryFromDocs(membersSnap.docs);
 
   const licensedUids: string[] = [];
   const staffUids: string[] = [...adminIds];
@@ -287,6 +430,7 @@ export async function syncClubWideConversations(params: {
   }
 
   await upsertSystemConversation({
+    memberDirectory,
     firestore,
     clubId,
     systemKey: "staff",
@@ -297,6 +441,7 @@ export async function syncClubWideConversations(params: {
   });
 
   await upsertSystemConversation({
+    memberDirectory,
     firestore,
     clubId,
     systemKey: "club",
@@ -321,6 +466,7 @@ export async function syncAllConversationsForClub(params: {
     .doc(clubId)
     .collection("teams")
     .get();
+  const memberDirectory = await loadClubMemberDirectory(firestore, clubId);
 
   for (const teamDoc of teamsSnap.docs) {
     await syncTeamConversations({
@@ -328,6 +474,7 @@ export async function syncAllConversationsForClub(params: {
       clubId,
       teamId: teamDoc.id,
       teamData: teamDoc.data(),
+      memberDirectory,
     });
   }
 

@@ -18,6 +18,7 @@ import {
 } from "@/components/family/FamilyAudienceProvider";
 import { FamilyModulePanels } from "@/components/family/FamilyModulePanels";
 import { isFamilyRouteAllowed } from "@/lib/auth/bureauPermissions";
+import { isFamilyMessagesPath } from "@/lib/chat/isMessagesPath";
 import { useFamilyFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { PortalUiRoles } from "@/lib/firebase/constants";
@@ -43,13 +44,6 @@ function isFamilyMyPlanningPath(pathname: string): boolean {
   return (
     pathname === "/family/my-planning" ||
     pathname.startsWith("/family/my-planning/")
-  );
-}
-
-function isFamilyMessagesPath(pathname: string): boolean {
-  return (
-    pathname === "/family/messages" ||
-    pathname.startsWith("/family/messages/")
   );
 }
 

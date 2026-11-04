@@ -89,6 +89,9 @@ class _ViroPressableState extends State<ViroPressable>
       label: widget.label,
       hint: widget.hint,
       child: GestureDetector(
+        // Toute la surface est tappable, y compris les zones sans peinture
+        // (ex. vide à droite d’un titre de tuile).
+        behavior: HitTestBehavior.opaque,
         onTapDown: widget.enabled ? _onTapDown : null,
         onTapUp: widget.enabled ? _onTapUp : null,
         onTapCancel: widget.enabled ? _onTapCancel : null,

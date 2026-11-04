@@ -3,9 +3,12 @@
   --color-primary-50: #d4e4f4;
   --color-primary-100: #9bb8dc;
   --color-primary-200: #5e8dbf;
+  /* 300 et 700 : intermédiaires portail (milieu des voisins), absents de ViroColors */
+  --color-primary-300: #3c76ae;
   --color-primary-400: #1a5f9e;
   --color-primary-500: #1769b0;
   --color-primary-600: #134a7d;
+  --color-primary-700: #0f3e6a;
   --color-primary-800: #0b3358;
   --color-primary-900: #061f38;
 
@@ -19,8 +22,17 @@
   --color-gray-200: #e2e6ed;
   --color-gray-300: #c8ced8;
   --color-gray-400: #8b95a5;
+  /* 500, 700, 800 : intermédiaires portail (milieu des voisins), absents de ViroColors */
+  --color-gray-500: #6b7586;
   --color-gray-600: #4a5568;
+  --color-gray-700: #2e3647;
+  --color-gray-800: #202737;
   --color-gray-900: #111827;
+
+  /* Alias sémantiques texte / bordure */
+  --color-text: var(--color-gray-900);
+  --color-text-muted: var(--color-gray-500);
+  --color-border: var(--color-gray-200);
 
   /* Surfaces */
   --color-scaffold: #e9eff7;
@@ -95,6 +107,42 @@
   --shadow-soft: 0 12px 40px color-mix(in srgb, var(--color-primary-900) 8%, transparent);
   --shadow-card: 0 4px 14px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
     0 1px 3px color-mix(in srgb, var(--color-primary-900) 5%, transparent);
+  /*
+   * Messagerie — gabarits communs avec l'app Flutter (px logiques identiques).
+   * La soustraction de l'avatar reste locale (`ChatThreadView.module.css`).
+   */
+  --chat-bubble-radius: 14px;
+  /* Coin de la « queue » de bulle (bas-gauche reçu, bas-droit envoyé). */
+  --chat-bubble-tail-radius: 4px;
+  --chat-bubble-padding-y: 8px;
+  --chat-bubble-padding-x: 12px;
+  --chat-bubble-max-width: 78%;
+  --chat-bubble-max-width-cap: 22rem;
+  --chat-message-gap: 8px;
+  /* Écart entre deux messages d’un même groupe (même expéditeur, < 5 min). */
+  --chat-message-group-gap: 2px;
+  --chat-quote-radius: 8px;
+  /* Photo dans une bulle : largeur fixe, hauteur au ratio bornée (`messageImageLayout.ts`). */
+  --chat-image-width: 220px;
+  --chat-image-min-height: 120px;
+  --chat-image-max-height: 320px;
+  --chat-avatar-inbox: 44px;
+  --chat-avatar-header: 36px;
+  --chat-avatar-sender: 28px;
+  --chat-avatar-poll-voter: 22px;
+  --chat-avatar-hero: 88px;
+
+  /* Messagerie — couleurs sans équivalent dans la palette (thème sombre : à redéfinir ici). */
+  --chat-thread-background: #f4f7fa;
+  /* Voile clair posé sur le motif du fil. */
+  --chat-thread-background-wash: rgb(255 255 255 / 62%);
+  --chat-error-text: #b42318;
+  --chat-attach-photos: #3b82f6;
+  --chat-attach-poll: #f59e0b;
+  /* Mes bulles : accent plein (`accentFill` côté app), texte et liens clairs. */
+  --chat-bubble-mine-bg: var(--color-primary-500);
+  --chat-bubble-mine-text: var(--color-white);
+
   --max-width: 72rem;
   --dashboard-max-width: 68rem;
   --header-height: 4.25rem;

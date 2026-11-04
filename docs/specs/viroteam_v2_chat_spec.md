@@ -39,6 +39,7 @@ Tout participant peut changer la photo (même règle que `titleOverride`). Canau
 | `titleOverride` | string? | Renommage user |
 | `avatarUrl` | string? | Photo du groupe (groupes ouverts uniquement) |
 | `participantUids` | string[] | Auth uids (rules + queries) |
+| `participantProfiles` | map | uid → `{firstName, lastName, displayName, avatarUrl?, role}` ; Functions uniquement (sync + `onMemberWrittenForChat` / `onUserWrittenForChat`). Fiche membre prioritaire, sinon `users/{uid}` avec `role: parent`. Seule source de noms pour un parent (pas de `list` members) |
 | `writePolicy` | string | `open` \| `admins_only` \| `coaches_and_admins` |
 | `lastMessageAt` | timestamp | |
 | `lastMessagePreview` | string | |

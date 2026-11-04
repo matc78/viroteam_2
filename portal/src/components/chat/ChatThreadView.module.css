@@ -5,7 +5,7 @@
   align-items: stretch;
   min-height: 0;
   height: 100%;
-  background: #fff;
+  background: var(--color-surface-card);
   overflow: hidden;
 }
 
@@ -20,7 +20,7 @@
   min-width: 0;
   min-height: 0;
   height: 100%;
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .rootWithInfo .chatColumn {
@@ -34,12 +34,15 @@
   gap: 0.5rem;
   padding: 0.7rem 0.85rem;
   border-bottom: 1px solid var(--color-gray-100);
-  background: color-mix(in srgb, var(--color-primary-500) 5%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 5%, var(--color-surface-card));
 }
 
 .headerMain {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   border: none;
   background: transparent;
   text-align: left;
@@ -59,6 +62,16 @@
   flex-direction: column;
   gap: 0.12rem;
   min-width: 0;
+  flex: 1;
+}
+
+/* Place de l’avatar tant que la conversation n’est pas chargée. */
+.headerAvatarPlaceholder {
+  flex-shrink: 0;
+  width: var(--chat-avatar-header);
+  height: var(--chat-avatar-header);
+  border-radius: 999px;
+  background: var(--color-gray-100);
 }
 
 .titleRow {
@@ -66,12 +79,12 @@
   align-items: center;
   gap: 0.4rem;
   min-width: 0;
-  flex-wrap: wrap;
 }
 
+/* Titre long : ellipse CSS (le titre complet reste dans l’attribut title). */
 .title {
   margin: 0;
-  max-width: 25ch;
+  min-width: 0;
   font-size: 0.95rem;
   font-weight: 800;
   color: var(--color-primary-900);
@@ -82,9 +95,8 @@
 }
 
 .favMark {
+  composes: favMark from "./chatShared.module.css";
   flex-shrink: 0;
-  display: inline-flex;
-  color: var(--color-sport-orange, #e85d04);
 }
 
 .membersPreview {
@@ -101,7 +113,8 @@
 .headerClubSlot {
   display: inline-flex;
   align-items: center;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
   max-width: 9rem;
 }
 
@@ -111,7 +124,7 @@
   gap: 0.5rem;
   padding: 0.55rem 0.75rem;
   border-bottom: 1px solid var(--color-gray-100);
-  background: #fff;
+  background: var(--color-surface-card);
   flex-shrink: 0;
 }
 
@@ -131,6 +144,18 @@
   color: var(--color-gray-500);
 }
 
+.searchNavBtn {
+  composes: iconBtn from "./chatShared.module.css";
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.searchNavBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .searchClose {
   border: none;
   background: transparent;
@@ -142,7 +167,14 @@
 }
 
 .bubbleRowMatch .bubble {
-  outline: 2px solid color-mix(in srgb, var(--color-primary-500) 45%, white);
+  outline: 2px solid color-mix(in srgb, var(--color-primary-500) 45%, var(--color-surface-card));
+}
+
+/* Résultat courant de la recherche : contour plein + halo. */
+.bubbleRowCurrentMatch .bubble {
+  outline: 2px solid var(--color-warning);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-warning) 22%, transparent);
 }
 
 .text :global(.chatLink) {
@@ -160,21 +192,10 @@
 }
 
 .iconBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: iconBtn from "./chatShared.module.css";
   width: 1.85rem;
   height: 1.85rem;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-primary-600);
-  cursor: pointer;
   font-size: 1rem;
-}
-
-.iconBtn:hover {
-  background: var(--color-gray-100);
 }
 
 .menuWrap {
@@ -192,7 +213,7 @@
   padding: 0.35rem;
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--color-surface-card);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
 }
 
@@ -217,28 +238,39 @@
 }
 
 .menu button:hover {
-  background: var(--color-gray-50, #f8fafc);
+  background: var(--color-gray-50);
 }
 
 .menu button.danger {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
 }
 
 .menu button.danger svg {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
+}
+
+/* Conteneur du fil : porte le bouton flottant « nouveaux messages ». */
+.messagesViewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .messages {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Position de lecture gérée à la main au chargement de l’historique. */
+  overflow-anchor: none;
   padding: 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  background-color: #f4f7fa;
+  gap: var(--chat-message-gap);
+  background-color: var(--chat-thread-background);
   background-image:
-    linear-gradient(rgb(255 255 255 / 62%), rgb(255 255 255 / 62%)),
+    linear-gradient(var(--chat-thread-background-wash), var(--chat-thread-background-wash)),
     url("/chat/thread-bg.png");
   background-repeat: repeat;
   background-position: top left;
@@ -255,7 +287,7 @@
   border: 1px solid var(--color-gray-200);
   border-radius: 999px;
   padding: 0.35rem 0.85rem;
-  background: #fff;
+  background: var(--color-surface-card);
   color: var(--color-primary-700);
   font: inherit;
   font-size: 0.78rem;
@@ -273,7 +305,7 @@
   margin: 0.15rem 0;
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-primary-900) 8%, white);
+  background: color-mix(in srgb, var(--color-primary-900) 8%, var(--color-surface-card));
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--color-gray-600);
@@ -309,11 +341,99 @@
   line-height: 1.25;
 }
 
-.emptyHint {
-  margin: 0.5rem auto auto;
-  font-size: 0.85rem;
-  color: var(--color-gray-500);
+/* États du fil (vide, erreur) : centrés dans la zone des messages. */
+.threadState {
+  margin: auto;
+  padding: 1.5rem 1rem;
+  max-width: 20rem;
   text-align: center;
+}
+
+.threadStateTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-primary-900);
+}
+
+.threadStateHint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-gray-500);
+}
+
+.threadStateBtn {
+  composes: actionBtnPrimary from "./chatShared.module.css";
+  margin-top: 0.75rem;
+}
+
+/* Squelette du premier chargement : bulles fantômes animées. */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--chat-message-gap);
+  margin-top: auto;
+}
+
+.skeletonBubble {
+  display: block;
+  height: 2.35rem;
+  max-width: min(var(--chat-bubble-max-width), var(--chat-bubble-max-width-cap));
+  border-radius: var(--chat-bubble-radius) var(--chat-bubble-radius) var(--chat-bubble-radius)
+    var(--chat-bubble-tail-radius);
+  background: color-mix(in srgb, var(--color-primary-900) 8%, var(--color-surface-card));
+  animation: skeletonPulse 1.2s ease-in-out infinite alternate;
+}
+
+.skeletonBubbleMine {
+  align-self: flex-end;
+  border-radius: var(--chat-bubble-radius) var(--chat-bubble-radius) var(--chat-bubble-tail-radius)
+    var(--chat-bubble-radius);
+  background: color-mix(in srgb, var(--chat-bubble-mine-bg) 22%, var(--color-surface-card));
+}
+
+@keyframes skeletonPulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonBubble {
+    animation: none;
+  }
+}
+
+/* Bouton flottant « derniers messages » / « n nouveaux messages ». */
+.jumpToLatest {
+  position: absolute;
+  left: 50%;
+  bottom: 0.75rem;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transform: translateX(-50%);
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 999px;
+  background: var(--color-surface-card);
+  color: var(--color-primary-700);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary-900) 14%, transparent);
+}
+
+.jumpToLatestUnread {
+  border-color: transparent;
+  background: var(--chat-bubble-mine-bg);
+  color: var(--chat-bubble-mine-text);
 }
 
 .bubbleRow {
@@ -327,14 +447,24 @@
   justify-content: flex-end;
 }
 
-.bubbleRowWithAvatar .bubbleShell {
-  max-width: min(calc(85% - 2rem), 22rem);
+/* Message regroupé avec le précédent : écart --chat-message-group-gap au lieu de --chat-message-gap. */
+.bubbleRowGrouped {
+  margin-top: calc(var(--chat-message-group-gap) - var(--chat-message-gap));
 }
 
+.bubbleRowWithAvatar .bubbleShell {
+  max-width: min(
+    calc(var(--chat-bubble-max-width) - var(--chat-avatar-sender) - 0.4rem),
+    var(--chat-bubble-max-width-cap)
+  );
+}
+
+/* Colonne avatar (vide hors dernier message d’un groupe : alignement conservé). */
 .senderAvatar {
   flex-shrink: 0;
   display: flex;
   align-items: flex-end;
+  width: var(--chat-avatar-sender);
   line-height: 0;
 }
 
@@ -346,7 +476,32 @@
 /* Conteneur relatif : la bulle + réactions qui coupent la bordure basse. */
 .bubbleShell {
   position: relative;
-  max-width: min(85%, 22rem);
+  max-width: min(var(--chat-bubble-max-width), var(--chat-bubble-max-width-cap));
+}
+
+/*
+ * Bouton « Actions du message » : à côté de la bulle, visible au survol de la
+ * ligne ou au focus clavier (alternative au clic droit / appui long).
+ */
+.bubbleActionsBtn {
+  composes: iconBtn from "./chatShared.module.css";
+  position: absolute;
+  top: 0;
+  left: calc(100% + 0.25rem);
+  width: 1.75rem;
+  height: 1.75rem;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.bubbleRowMine .bubbleActionsBtn {
+  left: auto;
+  right: calc(100% + 0.25rem);
+}
+
+.bubbleRow:hover .bubbleActionsBtn,
+.bubbleRow:focus-within .bubbleActionsBtn {
+  opacity: 1;
 }
 
 .bubbleShellWithReactions {
@@ -356,9 +511,10 @@
 
 .bubble {
   max-width: 100%;
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.85rem 0.85rem 0.85rem 0.25rem;
-  background: #fff;
+  padding: var(--chat-bubble-padding-y) var(--chat-bubble-padding-x);
+  border-radius: var(--chat-bubble-radius) var(--chat-bubble-radius) var(--chat-bubble-radius)
+    var(--chat-bubble-tail-radius);
+  background: var(--color-surface-card);
   border: 1.5px solid var(--color-role-player);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--color-primary-900) 4%, transparent);
   user-select: none;
@@ -368,9 +524,102 @@
   z-index: 0;
 }
 
-.bubbleMine {
-  border-radius: 0.85rem 0.85rem 0.25rem 0.85rem;
-  background: #fff;
+/* Mes bulles : accent plein, texte clair (pas de bordure de rôle). */
+.bubble.bubbleMine {
+  border-radius: var(--chat-bubble-radius) var(--chat-bubble-radius) var(--chat-bubble-tail-radius)
+    var(--chat-bubble-radius);
+  background: var(--chat-bubble-mine-bg);
+  border-color: var(--chat-bubble-mine-bg);
+  color: var(--chat-bubble-mine-text);
+}
+
+/* Pas le dernier du groupe : pas de « queue », tous les coins arrondis. */
+.bubble.bubbleNoTail {
+  border-radius: var(--chat-bubble-radius);
+}
+
+.bubbleMine .text,
+.bubbleMine .pollQuestion {
+  color: var(--chat-bubble-mine-text);
+}
+
+.bubbleMine .time,
+.bubbleMine .pollMode,
+.bubbleMine .pollMeta,
+.bubbleMine .deleted {
+  color: color-mix(in srgb, var(--chat-bubble-mine-text) 78%, transparent);
+}
+
+.bubbleMine .text :global(.chatLink),
+.bubbleMine .pollViewVotes {
+  color: var(--chat-bubble-mine-text);
+}
+
+.bubbleMine .pollViewVotes {
+  border-top-color: color-mix(in srgb, var(--chat-bubble-mine-text) 30%, transparent);
+}
+
+/* Plus spécifique que `.bubble[data-role=…]` : pas de bordure de rôle sur mes bulles. */
+.bubbleRowMine .bubble.bubbleMine {
+  border-color: var(--chat-bubble-mine-bg);
+}
+
+.bubbleMine .pollOption {
+  border-color: transparent;
+  color: var(--color-primary-900);
+}
+
+.bubbleMine .pollOption.pollOptionSelected {
+  border-color: var(--color-primary-700);
+}
+
+.bubbleMine .quoteBlock {
+  border-left-color: var(--chat-bubble-mine-text);
+  background: color-mix(in srgb, var(--chat-bubble-mine-text) 16%, transparent);
+}
+
+.bubbleMine .quoteAuthor,
+.bubbleMine .quoteText {
+  color: var(--chat-bubble-mine-text);
+}
+
+/* Envoi optimiste : bulle atténuée tant que Firestore n’a pas confirmé. */
+.bubbleRowSending .bubble {
+  opacity: 0.7;
+}
+
+.bubble.bubbleFailed {
+  outline: 2px solid var(--chat-error-text);
+  outline-offset: 1px;
+}
+
+.deliveryStatus,
+.deliveryRetry {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-gray-500);
+}
+
+.deliveryRetry {
+  margin-left: auto;
+  padding: 0.1rem 0.2rem;
+  border: none;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--chat-error-text);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.deliveryRetry:hover {
+  text-decoration: underline;
 }
 
 .bubble[data-role="player"] {
@@ -411,7 +660,7 @@
   line-height: 1.4;
   white-space: pre-wrap;
   word-break: break-word;
-  color: var(--color-primary-900, #0b3358);
+  color: var(--color-primary-900);
 }
 
 /* Texte + heure inline bas-droite (style WhatsApp). */
@@ -443,19 +692,48 @@
   user-select: none;
 }
 
+/* Emplacement réservé au ratio du message (aspect-ratio inline) : pas de saut. */
 .imageWrap {
   position: relative;
-  display: inline-block;
+  display: block;
+  width: var(--chat-image-width);
   max-width: 100%;
+  border-radius: var(--chat-quote-radius);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-primary-900) 8%, var(--color-surface-card));
+}
+
+.imageWrap[data-state="loading"] {
+  animation: skeletonPulse 1.2s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .imageWrap[data-state="loading"] {
+    animation: none;
+  }
 }
 
 .imageBtn {
   display: block;
+  width: 100%;
+  height: 100%;
   padding: 0;
   border: none;
   background: transparent;
   cursor: zoom-in;
-  max-width: 100%;
+}
+
+.imageError {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  height: 100%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-gray-500);
 }
 
 .quoteBlock {
@@ -467,8 +745,8 @@
   padding: 0.35rem 0.45rem;
   border: none;
   border-left: 3px solid var(--color-primary-400);
-  border-radius: 0.35rem;
-  background: color-mix(in srgb, var(--color-primary-500) 8%, white);
+  border-radius: var(--chat-quote-radius);
+  background: color-mix(in srgb, var(--color-primary-500) 8%, var(--color-surface-card));
   text-align: left;
   cursor: pointer;
 }
@@ -498,7 +776,7 @@
   font-size: 0.68rem;
   font-weight: 500;
   line-height: 1.1;
-  color: #fff;
+  color: var(--color-white);
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
@@ -513,9 +791,13 @@
 
 .image {
   display: block;
-  max-width: 100%;
-  max-height: 16rem;
-  border-radius: 0.5rem;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.imageWrap[data-state="loading"] .image {
+  opacity: 0;
 }
 
 .pollQuestion {
@@ -548,7 +830,7 @@
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--color-gray-200);
   border-radius: var(--radius-sm);
-  background: #fff;
+  background: var(--color-surface-card);
   font: inherit;
   font-size: 0.8rem;
   cursor: pointer;
@@ -556,7 +838,7 @@
 
 .pollOptionSelected {
   border-color: var(--color-primary-500);
-  background: color-mix(in srgb, var(--color-primary-500) 12%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-surface-card));
 }
 
 .pollMarker {
@@ -565,7 +847,7 @@
   height: 0.95rem;
   border: 1.5px solid var(--color-gray-400);
   border-radius: 999px;
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .pollMarkerMulti {
@@ -575,7 +857,7 @@
 .pollMarkerSelected {
   border-color: var(--color-primary-600);
   background: var(--color-primary-600);
-  box-shadow: inset 0 0 0 2px #fff;
+  box-shadow: inset 0 0 0 2px var(--color-surface-card);
 }
 
 .pollOptionText {
@@ -659,21 +941,10 @@
   border: 1px solid var(--color-gray-200);
 }
 
-.editOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: color-mix(in srgb, var(--color-primary-900) 28%, transparent);
-  padding: 0.75rem;
-}
-
 .actionSheet {
   width: 100%;
   max-width: 22rem;
-  background: #fff;
+  background: var(--color-surface-card);
   border-radius: 0.9rem;
   box-shadow: 0 12px 32px color-mix(in srgb, var(--color-primary-900) 18%, transparent);
   overflow: hidden;
@@ -692,7 +963,7 @@
   font-size: 0.9rem;
   text-align: left;
   cursor: pointer;
-  color: var(--color-primary-900, #0b3358);
+  color: var(--color-primary-900);
 }
 
 .actionItem + .actionItem {
@@ -700,26 +971,21 @@
 }
 
 .actionItem:hover {
-  background: var(--color-gray-50, #f8fafc);
+  background: var(--color-gray-50);
 }
 
 .actionDanger {
-  color: var(--color-error, #ef4444);
+  color: var(--color-error);
 }
 
-.editFieldWrap {
-  padding: 0.85rem 1rem 0.35rem;
-}
-
-.editField {
-  width: 100%;
-  font: inherit;
+/* Question de la confirmation de suppression (en tête du menu d’actions). */
+.actionConfirmText {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-gray-100);
   font-size: 0.9rem;
-  border: 1px solid var(--color-gray-200);
-  border-radius: 0.55rem;
-  padding: 0.55rem 0.65rem;
-  resize: vertical;
-  box-sizing: border-box;
+  font-weight: 600;
+  color: var(--color-primary-900);
 }
 
 .composer {
@@ -728,7 +994,7 @@
   gap: 0.45rem;
   padding: 0.65rem 0.75rem;
   border-top: 1px solid var(--color-gray-100);
-  background: #fff;
+  background: var(--color-surface-card);
 }
 
 .composerRow {
@@ -743,8 +1009,8 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.45rem 0.55rem;
-  border-radius: 0.55rem;
-  background: var(--color-gray-50, #f8fafc);
+  border-radius: var(--chat-quote-radius);
+  background: var(--color-gray-50);
   border: 1px solid var(--color-gray-200);
 }
 
@@ -814,7 +1080,7 @@
   border: none;
   border-radius: 999px;
   background: color-mix(in srgb, white 18%, transparent);
-  color: #fff;
+  color: var(--color-white);
   cursor: pointer;
 }
 
@@ -842,12 +1108,12 @@
 }
 
 .plusBtn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary-500) 12%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 12%, var(--color-surface-card));
   color: var(--color-primary-900);
 }
 
 .plusBtnOpen {
-  background: color-mix(in srgb, var(--color-primary-500) 18%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 18%, var(--color-surface-card));
   color: var(--color-primary-900);
   transform: rotate(45deg);
 }
@@ -868,7 +1134,7 @@
   padding: 0.3rem;
   border: 1px solid var(--color-gray-200);
   border-radius: 0.75rem;
-  background: #fff;
+  background: var(--color-surface-card);
   box-shadow:
     0 4px 12px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
     0 14px 32px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
@@ -905,7 +1171,7 @@
 }
 
 .attachMenu button:hover:not(:disabled) {
-  background: var(--color-gray-50, #f8fafc);
+  background: var(--color-gray-50);
 }
 
 .attachMenu button:disabled {
@@ -920,16 +1186,16 @@
   width: 1.55rem;
   height: 1.55rem;
   border-radius: 999px;
-  color: #fff;
+  color: var(--color-white);
   flex-shrink: 0;
 }
 
 .attachIcon[data-tone="photos"] {
-  background: #3b82f6;
+  background: var(--chat-attach-photos);
 }
 
 .attachIcon[data-tone="poll"] {
-  background: #f59e0b;
+  background: var(--chat-attach-poll);
 }
 
 .input {
@@ -952,7 +1218,7 @@
   border-radius: 999px;
   padding: 0.45rem 0.85rem;
   background: var(--color-primary-500);
-  color: #fff;
+  color: var(--color-white);
   font: inherit;
   font-weight: 700;
   font-size: 0.8rem;
@@ -974,5 +1240,5 @@
 }
 
 .error {
-  color: #b42318;
+  color: var(--chat-error-text);
 }

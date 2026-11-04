@@ -1,3 +1,4 @@
+import { chatCopy } from "@/lib/copy/chatCopy";
 /** Type de cible pour un canal admin (hors « tout le club », déjà sync). */
 export type ChannelAudienceScopeType = "categories" | "teams" | "parents";
 
@@ -11,9 +12,9 @@ export const CHANNEL_AUDIENCE_SCOPE_LABELS: Record<
   ChannelAudienceScopeType,
   string
 > = {
-  categories: "Catégories",
-  teams: "Équipes",
-  parents: "Parents d’équipes",
+  categories: chatCopy.scopeCategories,
+  teams: chatCopy.scopeTeams,
+  parents: chatCopy.scopeParents,
 };
 
 /** Clé système idempotente pour un scope multi. */

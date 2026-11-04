@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -10,12 +11,9 @@ import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/widgets/common/club_chip.dart';
-import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
+import 'package:viro_team_v2/widgets/common/viro_conversation_avatar.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
-
-/// Diamètre de l’avatar inbox (pastille initiale / icône groupe-canal).
-const double _kAvatarSize = 44;
 
 /// Tuile inbox style messagerie : avatar, titre + horodatage, badges, preview.
 ///
@@ -123,7 +121,8 @@ class ConversationListTile extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ConversationAvatar(
+                ViroConversationAvatar(
+                  size: ViroChat.avatarInbox,
                   initial: initial,
                   color: clubColor,
                   groupBackground: colorForConversationGroupAvatarTone(
@@ -288,7 +287,9 @@ class ConversationListTile extends StatelessWidget {
           Divider(
             height: 1,
             thickness: 1,
-            indent: ViroSpacing.screenHorizontal + _kAvatarSize + ViroSpacing.md,
+            indent: ViroSpacing.screenHorizontal +
+                ViroChat.avatarInbox +
+                ViroSpacing.md,
             color: palette.border,
           ),
       ],
@@ -342,157 +343,6 @@ class _PreviewArrow extends StatelessWidget {
         ViroIcons.chevronRight,
         size: 10,
         color: color,
-      ),
-    );
-  }
-}
-
-/// Avatar circulaire : DM (photo ou initiale marque), groupe (users),
-/// canal (mégaphone violet). Équipe = bleu primary, parents = vert.
-class _ConversationAvatar extends StatelessWidget {
-  const _ConversationAvatar({
-    required this.initial,
-    required this.color,
-    required this.groupBackground,
-    required this.isGroup,
-    required this.isChannel,
-    required this.heroTag,
-    this.photoUrl,
-  });
-
-  final String initial;
-  final Color color;
-  final Color groupBackground;
-  final bool isGroup;
-  final bool isChannel;
-  final String heroTag;
-  final String? photoUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    late final Color background;
-    late final Color foreground;
-    late final Widget child;
-
-    final trimmedPhoto = photoUrl?.trim();
-    final hasPhoto = trimmedPhoto != null && trimmedPhoto.isNotEmpty;
-    final hasDmPhoto = !isGroup && !isChannel && hasPhoto;
-    final hasGroupPhoto = isGroup && !isChannel && hasPhoto;
-
-    if (isChannel) {
-      background = groupBackground;
-      foreground = ViroColors.white;
-      child = ViroIcon(ViroIcons.megaphone, size: 20, color: foreground);
-    } else if (hasGroupPhoto) {
-      background = Colors.transparent;
-      foreground = ViroColors.white;
-      child = ClipOval(
-        child: Image.network(
-          trimmedPhoto,
-          width: _kAvatarSize,
-          height: _kAvatarSize,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            width: _kAvatarSize,
-            height: _kAvatarSize,
-            alignment: Alignment.center,
-            color: groupBackground,
-            child: ViroIcon(ViroIcons.groups, size: 20, color: ViroColors.white),
-          ),
-        ),
-      );
-    } else if (isGroup) {
-      background = groupBackground;
-      foreground = ViroColors.white;
-      child = ViroIcon(ViroIcons.groups, size: 20, color: foreground);
-    } else if (hasDmPhoto) {
-      background = Colors.transparent;
-      foreground = context.viroPalette.readableAccent(color);
-      child = ClipOval(
-        child: Image.network(
-          trimmedPhoto,
-          width: _kAvatarSize,
-          height: _kAvatarSize,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _DmInitial(
-            initial: initial,
-            color: color,
-            size: _kAvatarSize,
-          ),
-        ),
-      );
-    } else {
-      background = Color.lerp(context.viroPalette.surfaceCard, color, 0.35)!;
-      foreground = context.viroPalette.readableAccent(color);
-      child = Text(
-        initial,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: foreground,
-              fontWeight: FontWeight.w800,
-            ),
-      );
-    }
-
-    final avatar = Hero(
-      tag: heroTag,
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          width: _kAvatarSize,
-          height: _kAvatarSize,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: background,
-            shape: BoxShape.circle,
-          ),
-          clipBehavior: (hasDmPhoto || hasGroupPhoto) ? Clip.antiAlias : Clip.none,
-          child: child,
-        ),
-      ),
-    );
-
-    if (!hasDmPhoto && !hasGroupPhoto) return avatar;
-
-    return GestureDetector(
-      onTap: () {
-        showViroImageLightbox(
-          context,
-          imageUrl: trimmedPhoto,
-          shape: ViroImageLightboxShape.circle,
-        );
-      },
-      child: avatar,
-    );
-  }
-}
-
-/// Initiale DM (fallback si la photo réseau échoue).
-class _DmInitial extends StatelessWidget {
-  const _DmInitial({
-    required this.initial,
-    required this.color,
-    required this.size,
-  });
-
-  final String initial;
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.viroPalette;
-    final background = Color.lerp(palette.surfaceCard, color, 0.35)!;
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      color: background,
-      child: Text(
-        initial,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: palette.readableAccent(color),
-              fontWeight: FontWeight.w800,
-            ),
       ),
     );
   }

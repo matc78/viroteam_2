@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useId,
   useMemo,
   useRef,
   useState,
@@ -33,6 +34,7 @@ import {
 } from "@/lib/firebase/chatTypes";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./ConversationInfoPanel.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type ConversationInfoPanelProps = {
   conversation: ChatConversation;
@@ -82,6 +84,11 @@ export function ConversationInfoPanel({
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarLightboxOpen, setAvatarLightboxOpen] = useState(false);
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  // Escape : retour aux infos depuis une fiche membre, sinon fermeture.
+  const panelRef = useDialogA11y({
+    onClose: () => (selectedUid ? setSelectedUid(null) : onClose()),
+    modal: false,
+  });
   const [renameOpen, setRenameOpen] = useState(initialRenameOpen);
   const renameDialogRef = useDialogA11y({
     onClose: () => setRenameOpen(false),
@@ -96,6 +103,8 @@ export function ConversationInfoPanel({
   });
   const [renameDraft, setRenameDraft] = useState(title);
   const [renameBusy, setRenameBusy] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const renameFieldId = useId();
   const [mediaOpen, setMediaOpen] = useState(false);
 
   const brand = splitBrandColorHex(
@@ -108,7 +117,7 @@ export function ConversationInfoPanel({
   );
   const mediaCount = media.images.length + media.links.length;
   const memberCount = participants.length;
-  const memberLabel = `${memberCount} membre${memberCount > 1 ? "s" : ""}`;
+  const memberLabel = chatCopy.memberCount(memberCount);
   const groupAvatarUrl =
     isGroup && !isChannel ? conversation.avatarUrl?.trim() || null : null;
   const heroToneClass =
@@ -130,9 +139,12 @@ export function ConversationInfoPanel({
     const trimmed = renameDraft.trim();
     if (!trimmed || renameBusy) return;
     setRenameBusy(true);
+    setRenameError(null);
     try {
       await onRename(trimmed);
       setRenameOpen(false);
+    } catch {
+      setRenameError(chatCopy.renameFailed);
     } finally {
       setRenameBusy(false);
     }
@@ -140,6 +152,7 @@ export function ConversationInfoPanel({
 
   function openRename() {
     setRenameDraft(title);
+    setRenameError(null);
     setRenameOpen(true);
   }
 
@@ -157,24 +170,29 @@ export function ConversationInfoPanel({
 
   if (selected) {
     return (
-      <aside className={styles.panel} aria-label="Fiche membre">
+      <aside
+        ref={panelRef}
+        className={styles.panel}
+        role="dialog"
+        aria-label={chatCopy.memberCard}
+      >
         <header className={styles.header}>
           <button
             type="button"
             className={styles.headerIconBtn}
-            aria-label="Retour"
+            aria-label={chatCopy.back}
             onClick={() => setSelectedUid(null)}
           >
             <ChatIcon name="close" size={20} />
           </button>
-          <h2 className={styles.headerTitle}>Infos du contact</h2>
+          <h2 className={styles.headerTitle}>{chatCopy.contactInfo}</h2>
         </header>
         <div className={styles.memberDetail}>
           <MemberAvatar
             displayName={selected.displayName}
             avatarUrl={selected.avatarUrl}
             hasLinkedAccount={selected.hasLinkedAccount}
-            size="md"
+            diameter="var(--chat-avatar-hero)"
           />
           <h3 className={styles.memberName}>{selected.displayName}</h3>
           <RoleBadge role={selected.role} size="sm" />
@@ -186,7 +204,7 @@ export function ConversationInfoPanel({
   const heroFallbackStyle =
     !isGroup && !groupAvatarUrl
       ? ({
-          background: `color-mix(in srgb, ${brand} 28%, white)`,
+          background: `color-mix(in srgb, ${brand} 28%, var(--color-surface-card))`,
           color: brand,
         } as CSSProperties)
       : undefined;
@@ -197,7 +215,7 @@ export function ConversationInfoPanel({
   ) : isGroup ? (
     <ChatIcon
       name={isChannel ? "megaphone" : "usersThree"}
-      size={44}
+      size={40}
     />
   ) : (
     title.trim().slice(0, 1).toUpperCase() || "?"
@@ -211,18 +229,23 @@ export function ConversationInfoPanel({
     .join(" ");
 
   return (
-    <aside className={styles.panel} aria-label="Infos de la discussion">
+    <aside
+      ref={panelRef}
+      className={styles.panel}
+      role="dialog"
+      aria-label={chatCopy.conversationInfo}
+    >
       <header className={styles.header}>
         <button
           type="button"
           className={styles.headerIconBtn}
-          aria-label="Fermer"
+          aria-label={chatCopy.close}
           onClick={onClose}
         >
           <ChatIcon name="close" size={20} />
         </button>
         <h2 className={styles.headerTitle}>
-          {isGroup ? "Infos du groupe" : "Infos"}
+          {isGroup ? chatCopy.groupInfo : chatCopy.directInfo}
         </h2>
       </header>
 
@@ -234,8 +257,8 @@ export function ConversationInfoPanel({
               className={styles.heroAvatarBtn}
               aria-label={
                 canEditAvatar
-                  ? "Agrandir la photo du groupe"
-                  : "Agrandir la photo"
+                  ? chatCopy.enlargeGroupPhoto
+                  : chatCopy.enlargePhoto
               }
               disabled={avatarBusy}
               onClick={() => setAvatarLightboxOpen(true)}
@@ -253,7 +276,7 @@ export function ConversationInfoPanel({
             <button
               type="button"
               className={styles.heroAvatarBtn}
-              aria-label="Changer la photo du groupe"
+              aria-label={chatCopy.changeGroupPhoto}
               disabled={avatarBusy}
               onClick={() => avatarInputRef.current?.click()}
             >
@@ -285,7 +308,7 @@ export function ConversationInfoPanel({
           {avatarLightboxOpen && groupAvatarUrl ? (
             <AvatarLightbox
               src={groupAvatarUrl}
-              alt={`Photo de ${title}`}
+              alt={chatCopy.photoOfAlt(title)}
               onClose={() => setAvatarLightboxOpen(false)}
               onEdit={
                 canEditAvatar
@@ -301,7 +324,7 @@ export function ConversationInfoPanel({
               <button
                 type="button"
                 className={styles.editNameBtn}
-                aria-label="Renommer"
+                aria-label={chatCopy.renameConversation}
                 onClick={openRename}
               >
                 <ChatIcon name="edit" size={18} />
@@ -312,13 +335,13 @@ export function ConversationInfoPanel({
           <p className={styles.heroMeta}>
             {isGroup ? (
               <>
-                Groupe ·{" "}
+                {chatCopy.groupKind} ·{" "}
                 <span className={styles.heroMetaAccent} style={{ color: brand }}>
                   {memberLabel}
                 </span>
               </>
             ) : (
-              "Discussion"
+              chatCopy.directKind
             )}
           </p>
 
@@ -342,21 +365,23 @@ export function ConversationInfoPanel({
             <span className={styles.quickIcon}>
               <ChatIcon name="search" size={22} />
             </span>
-            Rechercher
+            {chatCopy.searchAction}
           </button>
           <button
             type="button"
             className={styles.quickBtn}
+            aria-label={muted ? chatCopy.unmute : chatCopy.mute}
             onClick={onToggleMute}
           >
             <span className={styles.quickIcon}>
               <ChatIcon name={muted ? "bell" : "mute"} size={22} />
             </span>
-            {muted ? "Notifs" : "Mute"}
+            {muted ? chatCopy.unmuteAction : chatCopy.muteAction}
           </button>
           <button
             type="button"
             className={styles.quickBtn}
+            aria-label={favorite ? chatCopy.removeFavorite : chatCopy.addFavorite}
             onClick={onToggleFavorite}
           >
             <span className={styles.quickIcon}>
@@ -365,7 +390,7 @@ export function ConversationInfoPanel({
                 size={22}
               />
             </span>
-            Favoris
+            {chatCopy.favoritesAction}
           </button>
         </div>
 
@@ -379,7 +404,9 @@ export function ConversationInfoPanel({
               <ChatIcon name="image" size={22} />
             </span>
             <span className={styles.listBody}>
-              <span className={styles.listLabel}>Médias, liens et documents</span>
+              <span className={styles.listLabel}>
+                {chatCopy.conversationMedia}
+              </span>
             </span>
             <span className={styles.listMeta}>{mediaCount}</span>
           </button>
@@ -387,7 +414,7 @@ export function ConversationInfoPanel({
           {mediaOpen ? (
             <div className={styles.mediaExpand}>
               {mediaCount === 0 ? (
-                <p className={styles.empty}>Aucun média pour l’instant.</p>
+                <p className={styles.empty}>{chatCopy.noConversationMedia}</p>
               ) : (
                 <>
                   {media.images.length > 0 ? (
@@ -401,7 +428,7 @@ export function ConversationInfoPanel({
                           className={styles.imageThumb}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={image.url} alt="Photo partagée" />
+                          <img src={image.url} alt={chatCopy.sharedPhotoAlt} />
                         </a>
                       ))}
                     </div>
@@ -438,9 +465,11 @@ export function ConversationInfoPanel({
               />
             </span>
             <span className={styles.listBody}>
-              <span className={styles.listLabel}>Messages importants</span>
+              <span className={styles.listLabel}>
+                {chatCopy.importantMessages}
+              </span>
               <span className={styles.listHint}>
-                {favorite ? "Dans les favoris" : "Pas encore en favori"}
+                {favorite ? chatCopy.inFavorites : chatCopy.notInFavorites}
               </span>
             </span>
           </button>
@@ -454,9 +483,13 @@ export function ConversationInfoPanel({
               <ChatIcon name={muted ? "mute" : "bell"} size={22} />
             </span>
             <span className={styles.listBody}>
-              <span className={styles.listLabel}>Paramètres de notification</span>
+              <span className={styles.listLabel}>
+                {chatCopy.notificationSettings}
+              </span>
               <span className={styles.listHint}>
-                {muted ? "Notifications coupées" : "Toutes les notifications"}
+                {muted
+                  ? chatCopy.mutedNotifications
+                  : chatCopy.allNotifications}
               </span>
             </span>
           </button>
@@ -469,16 +502,16 @@ export function ConversationInfoPanel({
               <button
                 type="button"
                 className={styles.membersSearch}
-                aria-label="Rechercher dans la discussion"
+                aria-label={chatCopy.searchMessagesHint}
                 onClick={onSearch}
               >
                 <ChatIcon name="search" size={18} />
               </button>
             </div>
             {participantsLoading ? (
-              <p className={styles.emptyPad}>Chargement des membres…</p>
+              <p className={styles.emptyPad}>{chatCopy.membersLoading}</p>
             ) : participants.length === 0 ? (
-              <p className={styles.emptyPad}>Aucun membre résolu.</p>
+              <p className={styles.emptyPad}>{chatCopy.noMembersResolved}</p>
             ) : (
               <ul className={styles.memberList}>
                 {participants.map((participant) => (
@@ -492,7 +525,7 @@ export function ConversationInfoPanel({
                         displayName={participant.displayName}
                         avatarUrl={participant.avatarUrl}
                         hasLinkedAccount={participant.hasLinkedAccount}
-                        size="sm"
+                        diameter="var(--chat-avatar-sender)"
                         enableZoom={false}
                       />
                       <span className={styles.memberRowText}>
@@ -510,7 +543,7 @@ export function ConversationInfoPanel({
         ) : dmOther ? (
           <section className={styles.block}>
             <div className={styles.membersHeader}>
-              <h4 className={styles.membersTitle}>Contact</h4>
+              <h4 className={styles.membersTitle}>{chatCopy.contactSection}</h4>
             </div>
             <button
               type="button"
@@ -521,7 +554,7 @@ export function ConversationInfoPanel({
                 displayName={dmOther.displayName}
                 avatarUrl={dmOther.avatarUrl}
                 hasLinkedAccount={dmOther.hasLinkedAccount}
-                size="sm"
+                diameter="var(--chat-avatar-sender)"
                 enableZoom={false}
               />
               <span className={styles.memberRowText}>
@@ -539,30 +572,50 @@ export function ConversationInfoPanel({
           className={styles.renameOverlay}
           role="dialog"
           aria-modal="true"
+          aria-labelledby={`${renameFieldId}-title`}
         >
           <form className={styles.renameCard} onSubmit={handleRenameSubmit}>
-            <h4 className={styles.renameTitle}>Renommer la discussion</h4>
+            <h4 id={`${renameFieldId}-title`} className={styles.renameTitle}>
+              {chatCopy.renameDialogTitle}
+            </h4>
+            <label htmlFor={renameFieldId} className={styles.renameLabel}>
+              {chatCopy.renameInputLabel}
+            </label>
             <input
+              id={renameFieldId}
               className={styles.renameInput}
               value={renameDraft}
               onChange={(event) => setRenameDraft(event.target.value)}
               autoFocus
               maxLength={80}
+              aria-invalid={Boolean(renameError) || undefined}
+              aria-describedby={
+                renameError ? `${renameFieldId}-error` : undefined
+              }
             />
+            {renameError ? (
+              <p
+                id={`${renameFieldId}-error`}
+                className={styles.renameError}
+                role="alert"
+              >
+                {renameError}
+              </p>
+            ) : null}
             <div className={styles.renameActions}>
               <button
                 type="button"
                 className={styles.renameCancel}
                 onClick={() => setRenameOpen(false)}
               >
-                Annuler
+                {chatCopy.cancel}
               </button>
               <button
                 type="submit"
                 className={styles.renameSubmit}
                 disabled={renameBusy || !renameDraft.trim()}
               >
-                Enregistrer
+                {chatCopy.save}
               </button>
             </div>
           </form>

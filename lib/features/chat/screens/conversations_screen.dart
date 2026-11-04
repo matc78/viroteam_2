@@ -12,7 +12,7 @@ import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/features/chat/widgets/create_channel_dialog.dart';
 import 'package:viro_team_v2/features/chat/widgets/new_conversation_sheet.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
-import 'package:viro_team_v2/models/chat_conversation.dart';
+import 'package:viro_team_v2/services/chat/chat_inbox_search.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
@@ -47,7 +47,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      _queryNotifier.value = _searchController.text.trim().toLowerCase();
+      _queryNotifier.value = normalizeInboxQuery(_searchController.text);
     });
   }
 
@@ -67,22 +67,6 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     _searchController.dispose();
     _queryNotifier.dispose();
     super.dispose();
-  }
-
-  bool _matchesQuery(
-    ChatConversation conv, {
-    required String clubName,
-    required String query,
-    String? peerDisplayName,
-  }) {
-    if (query.isEmpty) return true;
-    final haystack = [
-      conv.displayTitle(peerDisplayName: peerDisplayName),
-      clubName,
-      conv.lastMessagePreview,
-      conv.lastSenderFirstName ?? '',
-    ].join(' ').toLowerCase();
-    return haystack.contains(query);
   }
 
   /// Relance les streams inbox / états pour le pull-to-refresh.
@@ -156,7 +140,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
         children: [
           inboxAsync.when(
             loading: () => const Center(child: ViroLogoLoader()),
-            error: (_, __) => ViroErrorState(
+            error: (_, _) => ViroErrorState(
               message: AppCopy.chat.loadError,
               onRetry: () {
                 _refreshInbox();
@@ -166,6 +150,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
               if (conversations.isEmpty) {
                 return ViroEmptyState(
                   message: AppCopy.chat.emptyInbox,
+                  hint: AppCopy.chat.emptyInboxHint,
                   icon: ViroIcons.chat,
                   actionLabel: AppCopy.chat.newConversation,
                   onAction: () => showNewConversationSheet(context, ref),
@@ -180,16 +165,17 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
               return ValueListenableBuilder<String>(
                 valueListenable: _queryNotifier,
                 builder: (context, query, _) {
-                  final filtered = sorted.where((conv) {
-                    final club = clubById[conv.clubId];
-                    final peer = dmPeers['${conv.clubId}|${conv.id}'];
-                    return _matchesQuery(
-                      conv,
-                      clubName: club?.name ?? conv.clubId,
-                      query: query,
-                      peerDisplayName: peer?.displayName,
-                    );
-                  }).toList();
+                  final filtered = filterInboxConversations(
+                    sorted,
+                    query: query,
+                    clubNameById: {
+                      for (final club in clubById.values) club.id: club.name,
+                    },
+                    peerNameByKey: {
+                      for (final entry in dmPeers.entries)
+                        entry.key: entry.value.displayName,
+                    },
+                  );
 
                   return ViroRefreshIndicator(
                 onRefresh: _refreshInbox,
@@ -238,7 +224,8 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: ViroEmptyState(
-                          message: AppCopy.chat.searchNoResults,
+                          message: AppCopy.chat.inboxSearchNoResults,
+                          hint: AppCopy.chat.inboxSearchNoResultsHint,
                           icon: ViroIcons.search,
                         ),
                       )

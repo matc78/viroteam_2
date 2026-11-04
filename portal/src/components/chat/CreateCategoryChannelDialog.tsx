@@ -20,6 +20,7 @@ import {
 import { sortTeamCategories } from "@/lib/teams/compareTeamCategories";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./CreateCategoryChannelDialog.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 const EMPTY_SCOPE: ChannelAudienceScope = {
   scopeType: "categories",
@@ -97,7 +98,7 @@ export function CreateCategoryChannelDialog() {
         console.error("[chat] loadTeamsForClub failed", loadError);
         if (!cancelled) {
           setTeams([]);
-          setError("Impossible de charger les équipes.");
+          setError(chatCopy.teamsLoadFailed);
         }
       })
       .finally(() => {
@@ -128,7 +129,9 @@ export function CreateCategoryChannelDialog() {
       .map((id) => teams.find((team) => team.id === id)?.name)
       .filter((name): name is string => Boolean(name));
     if (scope.scopeType === "parents") {
-      return names.length > 0 ? `Parents · ${names.join(" · ")}` : "";
+      return names.length > 0
+        ? chatCopy.parentsOfTeamLabel(names.join(" · "))
+        : "";
     }
     return names.join(" · ");
   }, [scope, teams, selectedClub?.sport]);
@@ -148,7 +151,7 @@ export function CreateCategoryChannelDialog() {
       openThread({ clubId, conversationId });
     } catch (submitError) {
       console.error("[chat] createCategoryChannel failed", submitError);
-      setError("Création du canal impossible.");
+      setError(chatCopy.channelCreateFailed);
     } finally {
       setBusy(false);
     }
@@ -170,20 +173,17 @@ export function CreateCategoryChannelDialog() {
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Créer canal"
+        aria-label={chatCopy.createCategoryChannel}
       >
         <div className={styles.header}>
           <div>
-            <h2 className={styles.title}>Créer canal</h2>
-            <p className={styles.hint}>
-              Canal en lecture seule (seuls les admins écrivent). Le canal
-              « tout le club » existe déjà.
-            </p>
+            <h2 className={styles.title}>{chatCopy.createCategoryChannel}</h2>
+            <p className={styles.hint}>{chatCopy.categoryChannelHint}</p>
           </div>
           <button
             type="button"
             className={styles.close}
-            aria-label="Fermer"
+            aria-label={chatCopy.close}
             onClick={closeCategoryChannel}
           >
             ×
@@ -204,7 +204,7 @@ export function CreateCategoryChannelDialog() {
             <div
               className={styles.clubChips}
               role="radiogroup"
-              aria-label="Club"
+              aria-label={chatCopy.clubLabel}
             >
               {adminClubs.map((club) => {
                 const selected = club.id === clubId;
@@ -228,10 +228,16 @@ export function CreateCategoryChannelDialog() {
           )}
         </div>
 
-        <div className={styles.field}>
-          <label id="channel-scope-label">Destinataires</label>
+        <div
+          className={styles.field}
+          role="group"
+          aria-labelledby="channel-scope-label"
+        >
+          <p id="channel-scope-label" className={styles.fieldLabel}>
+            {chatCopy.channelAudienceLabel}
+          </p>
           {loadingTeams ? (
-            <p className={styles.hint}>Chargement des équipes…</p>
+            <p className={styles.hint}>{chatCopy.teamsLoading}</p>
           ) : (
             <ClubAudienceScopePicker
               teams={teams}
@@ -246,17 +252,21 @@ export function CreateCategoryChannelDialog() {
         </div>
 
         <div className={styles.field}>
-          <label htmlFor="channel-title">Titre affiché</label>
+          <label htmlFor="channel-title">{chatCopy.channelTitleHint}</label>
           <input
             id="channel-title"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder={suggestedTitle || "Ex. Parents U15"}
+            placeholder={suggestedTitle || chatCopy.channelTitlePlaceholder}
             disabled={busy}
           />
         </div>
 
-        {error ? <p className={styles.error}>{error}</p> : null}
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <div className={styles.actions}>
           <button
@@ -265,7 +275,7 @@ export function CreateCategoryChannelDialog() {
             onClick={closeCategoryChannel}
             disabled={busy}
           >
-            Annuler
+            {chatCopy.cancel}
           </button>
           <button
             type="button"
@@ -273,7 +283,7 @@ export function CreateCategoryChannelDialog() {
             disabled={busy || scope.scopeIds.length === 0 || loadingTeams}
             onClick={() => void handleSubmit()}
           >
-            {busy ? "Création…" : "Créer le canal"}
+            {busy ? chatCopy.creatingChannel : chatCopy.createChannel}
           </button>
         </div>
       </div>

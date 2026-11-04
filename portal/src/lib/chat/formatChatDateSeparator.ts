@@ -1,3 +1,4 @@
+import { chatCopy } from "@/lib/copy/chatCopy";
 /** Date calendaire sans heure (fuseau local). */
 function dateOnly(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -14,8 +15,8 @@ export function formatChatDateSeparator(date: Date): string {
     (today.getTime() - messageDay.getTime()) / 86_400_000,
   );
 
-  if (diffDays === 0) return "Aujourd'hui";
-  if (diffDays === 1) return "Hier";
+  if (diffDays === 0) return chatCopy.today;
+  if (diffDays === 1) return chatCopy.yesterday;
 
   const formatted = messageDay.toLocaleDateString("fr-FR", {
     weekday: "long",

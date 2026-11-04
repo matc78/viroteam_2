@@ -21,6 +21,40 @@ export function memberChatFieldsChanged(
   return beforeTeams !== afterTeams;
 }
 
+function snapshotField(data: Record<string, unknown>, key: string): string {
+  const snapshot = data.snapshot;
+  if (!snapshot || typeof snapshot !== "object") return "";
+  return String((snapshot as Record<string, unknown>)[key] ?? "");
+}
+
+/**
+ * Nom ou photo d'une fiche membre modifiés (→ `participantProfiles` à jour).
+ * Création / suppression : `false` (déjà couvert par la resync complète).
+ */
+export function memberProfileFieldsChanged(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown> | undefined,
+): boolean {
+  if (!before || !after) return false;
+  for (const key of ["firstName", "lastName"]) {
+    if (String(before[key] ?? "") !== String(after[key] ?? "")) return true;
+  }
+  return ["displayName", "avatarUrl"].some(
+    (key) => snapshotField(before, key) !== snapshotField(after, key),
+  );
+}
+
+/** Nom ou photo d'un profil `users/{uid}` modifiés (parents dans les chats). */
+export function userProfileFieldsChanged(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown> | undefined,
+): boolean {
+  if (!before || !after) return false;
+  return ["firstName", "lastName", "displayName", "avatarUrl"].some(
+    (key) => String(before[key] ?? "") !== String(after[key] ?? ""),
+  );
+}
+
 /** Politiques d'écriture acceptées pour un canal ciblé. */
 export const CHANNEL_WRITE_POLICIES = new Set([
   "open",

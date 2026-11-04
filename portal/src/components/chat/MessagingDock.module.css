@@ -13,7 +13,7 @@
   border: 1px solid var(--color-gray-200);
   border-right: none;
   border-radius: 0.7rem 0 0 0.7rem;
-  background: #fff;
+  background: var(--color-surface-card);
   box-shadow:
     -2px 0 8px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
     -8px 0 22px color-mix(in srgb, var(--color-primary-900) 10%, transparent);
@@ -39,7 +39,7 @@
 
 .collapsedBar:hover {
   width: 1.85rem;
-  background: color-mix(in srgb, var(--color-primary-500) 6%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 6%, var(--color-surface-card));
   color: var(--color-primary-800);
 }
 
@@ -69,7 +69,7 @@
   border: 1px solid var(--color-gray-200);
   border-right: none;
   border-radius: 0.85rem 0 0 0.85rem;
-  background: #fff;
+  background: var(--color-surface-card);
   box-shadow:
     -2px 0 8px color-mix(in srgb, var(--color-primary-900) 8%, transparent),
     -12px 0 28px color-mix(in srgb, var(--color-primary-900) 12%, transparent);
@@ -162,7 +162,7 @@
   gap: 0.5rem;
   padding: 0.65rem 0.75rem;
   border-bottom: 1px solid var(--color-gray-100);
-  background: color-mix(in srgb, var(--color-primary-500) 6%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 6%, var(--color-surface-card));
 }
 
 .title {
@@ -183,37 +183,23 @@
 }
 
 .iconBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  composes: iconBtn from "./chatShared.module.css";
   width: 1.9rem;
   height: 1.9rem;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-primary-600);
   text-decoration: none;
-  cursor: pointer;
 }
 
 .iconBtn:hover {
-  background: var(--color-gray-100);
   color: var(--color-primary-900);
 }
 
 .searchRow {
+  composes: searchRow from "./chatShared.module.css";
   padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid var(--color-gray-100);
 }
 
 .search {
-  width: 100%;
-  padding: 0.45rem 0.7rem;
-  border: 1px solid var(--color-gray-200);
-  border-radius: 999px;
-  background: var(--color-gray-50, #f8fafc);
-  font: inherit;
-  font-size: 0.82rem;
+  composes: search from "./chatShared.module.css";
 }
 
 .list {
@@ -222,37 +208,3 @@
   overflow-y: auto;
 }
 
-.emptyBlock {
-  padding: 1.25rem 1rem;
-  text-align: center;
-}
-
-.empty {
-  margin: 0;
-  padding: 0.85rem 1rem;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--color-primary-900);
-}
-
-.emptyBlock .empty {
-  padding: 0;
-}
-
-.emptyHint {
-  margin: 0.4rem 0 0.9rem;
-  font-size: 0.78rem;
-  color: var(--color-gray-500);
-}
-
-.composeCta {
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 0.45rem 0.85rem;
-  background: var(--color-primary-500);
-  color: #fff;
-  font: inherit;
-  font-weight: 700;
-  font-size: 0.82rem;
-  cursor: pointer;
-}

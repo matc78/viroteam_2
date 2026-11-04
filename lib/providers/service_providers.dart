@@ -25,6 +25,7 @@ import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
 import 'package:viro_team_v2/services/theme_preference_service.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
+import 'package:viro_team_v2/services/chat/chat_dm_targets_service.dart';
 import 'package:viro_team_v2/services/chat_messages_local_cache.dart';
 import 'package:viro_team_v2/services/user_avatar_storage.dart';
 import 'package:viro_team_v2/services/conversation_avatar_storage.dart';
@@ -104,6 +105,14 @@ final memberInviteServiceProvider = Provider<MemberInviteService>(
 final teamServiceProvider = Provider<TeamService>((ref) => TeamService());
 
 final chatServiceProvider = Provider<ChatService>((ref) => ChatService());
+
+/// Cibles DM coach / admin (sheet « nouvelle conversation »).
+final chatDmTargetsServiceProvider = Provider<ChatDmTargetsService>(
+  (ref) => ChatDmTargetsService(
+    memberService: ref.watch(memberServiceProvider),
+    teamService: ref.watch(teamServiceProvider),
+  ),
+);
 
 final chatMessagesLocalCacheProvider = Provider<ChatMessagesLocalCache>(
   (ref) => ChatMessagesLocalCache(),

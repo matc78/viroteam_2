@@ -1,10 +1,12 @@
 "use client";
 
 import { ChatThreadView } from "@/components/chat/ChatThreadView";
+import { ClubBadge } from "@/components/chat/ClubBadge";
 import { useChat } from "@/lib/chat/ChatProvider";
 import { chatStateDocId, type ChatThreadKey } from "@/lib/firebase/chatTypes";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./FloatingThread.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type FloatingThreadProps = {
   thread: ChatThreadKey;
@@ -20,7 +22,11 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
     closeFloatingThread,
     maximizeThread,
   } = useChat();
-  const dialogRef = useDialogA11y({ onClose: closeFloatingThread });
+  // Non modale : le dock et la page restent joignables au clavier (Tab).
+  const dialogRef = useDialogA11y({
+    onClose: closeFloatingThread,
+    modal: false,
+  });
   const stateId = chatStateDocId(thread.clubId, thread.conversationId);
   const clubName = clubNameById[thread.clubId];
 
@@ -29,8 +35,7 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
       ref={dialogRef}
       className={styles.window}
       role="dialog"
-      aria-modal="true"
-      aria-label="Conversation"
+      aria-label={chatCopy.floatingThreadLabel}
     >
       <ChatThreadView
         key={`${thread.clubId}-${thread.conversationId}`}
@@ -45,7 +50,7 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
         onMaximize={maximizeThread}
         headerExtra={
           clubName ? (
-            <span className={styles.clubLabel}>{clubName}</span>
+            <ClubBadge name={clubName} color={clubColorById[thread.clubId]} />
           ) : null
         }
       />

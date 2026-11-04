@@ -63,7 +63,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
     }
     final authUid = ref.read(authStateProvider).value?.uid;
     if (authUid == null) return;
-    final id = await ref.read(eventServiceProvider).resolveAudienceId(
+    final id = await ref.read(eventServiceProvider).resolveMemberDocId(
           clubId: clubId,
           authUid: authUid,
         );

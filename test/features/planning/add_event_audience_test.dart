@@ -31,8 +31,8 @@ void main() {
       _team('u15', ['mem-b']),
     ];
 
-    test('équipes choisies : seulement leurs convoqués', () {
-      expect(addEventAudienceForTeams([teams.first], members), ['mem-a']);
+    test('équipes choisies : seulement leurs convoqués (accountUid si lié)', () {
+      expect(addEventAudienceForTeams([teams.first], members), ['uid-a']);
     });
 
     test('tout le club : aussi les membres sans équipe, sans doublon', () {
@@ -41,7 +41,7 @@ void main() {
         members,
         wholeClub: true,
       );
-      expect(audience.toSet(), {'mem-a', 'mem-b', 'mem-sans-equipe'});
+      expect(audience.toSet(), {'uid-a', 'mem-b', 'mem-sans-equipe'});
       expect(audience.length, 3);
     });
   });
@@ -128,7 +128,17 @@ void main() {
         ],
         indexClubMembersByUid(members),
       );
-      expect(entries.map((e) => e.id), ['mem-a', 'mem-z']);
+      expect(entries.map((e) => e.id), ['uid-a', 'mem-z']);
+    });
+  });
+
+  group('rosterAudienceId', () {
+    test('accountUid si lié, sinon memberId', () {
+      expect(
+        rosterAudienceId(_member('mem-a', accountUid: 'uid-a')),
+        'uid-a',
+      );
+      expect(rosterAudienceId(_member('mem-b')), 'mem-b');
     });
   });
 

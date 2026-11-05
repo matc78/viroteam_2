@@ -10,11 +10,16 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Notifications : digest multi-événements pour l’opt-in « Réponses des coéquipiers » (fenêtre 2 min) — une seule push du type « Marie a répondu à 3 convocations, vérifie dans l’app » au lieu d’une notif par event
+- Notifications : copy dédiée quand quelqu’un passe de présent à absent / peut-être (« Marie D. a changé » · « Présence : ne vient plus »)
+- Planning : un admin (ou un coach avec le nouveau droit `canEditMemberRsvp`, off par défaut) peut modifier le RSVP d’un joueur ou coach convoqué, via la callable `setEventRsvp` (app + portail)
 - Messagerie (masquée), accessibilité : sur une bulle, VoiceOver / TalkBack proposent « Répondre », « Réagir avec un cœur » et « Plus d’actions » (plus besoin du double-tap ou de l’appui long) ; emojis, réactions, avatar de l’en-tête et menu ⋮ annoncent un nom ; « + », emojis, « Réessayer » et réactions ont une zone de tap d’au moins 44. Parcours de recette avant ouverture : `docs/CHAT_SMOKE.md`
 - Messagerie (masquée) : chaque conversation porte les profils de ses participants (`participantProfiles` : nom, rôle, photo), écrits uniquement par les Functions à chaque sync et mis à jour quand un membre ou un parent change de nom ou de photo (`onMemberWrittenForChat`, nouveau trigger `onUserWrittenForChat`). Un parent voit enfin les noms, photos et rôles des expéditeurs dans le fil, et le portail n’a plus besoin de relire les membres un par un
 
 ### Modifié
 
+- Portail Membres : l’import CSV / Excel est masqué sur viewport ≤ 767 px (peu pratique au téléphone) ; export et ajout unitaire inchangés
+- Prefs notifs : si `rsvp` est absent en base, l’app et le portail héritent de `events` (aligné Functions) — évite un écart UI / envoi pour les anciens profils
 - Messagerie : visible en debug ; en release / prod seulement si `users/{uid}.flags.chatMessaging == true` (console, pas d’auto-grant client). Portail : même règle via le profil (env local `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` inchangé). Push Functions : destinataires taggés tant que `CHAT_MESSAGING_LIVE=false`
 - Messagerie (masquée), fil : mes messages en bulles bleues, messages consécutifs d’une même personne regroupés (nom et avatar une seule fois), squelette au chargement et « Réessayer » en cas d’erreur, photos à leur ratio avec placeholder et progression pendant l’envoi, modification d’un message directement dans le champ (plus de boîte de dialogue), bouton d’envoi grisé tant que le champ est vide, recherche avec compteur (« 2 / 5 ») et navigation précédent / suivant
 - Messagerie (masquée), inbox et création : état « aucun résultat » distinct de l’inbox vide, placeholder de recherche fidèle à ce qu’elle filtre, fenêtres « nouvelle conversation » et « sondage » alignées sur les autres sheets ; les destinataires possibles sont chargés par `ChatDmTargetsService` avec des lectures groupées (plus de lecture par destinataire)
@@ -23,6 +28,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- RSVP double clé (memberId + accountUid) : l’app affiche le vote le plus récent (`rsvpUpdatedAt`) au lieu de la première clé trouvée ; le trigger events réécrit sous l’accountUid tout vote posé sous le memberId par une ancienne app (≤ 2.2.13), sans push en double
+- Notifications : une écriture technique (script `tool/`, normalisation serveur) qui pose `silentWriteAt` ne déclenche plus aucune push ; `repair_event_rsvp_audience.mjs` le pose
 - Messagerie (masquée) : les pastilles de réaction sous une bulle ne réagissaient au tap que sur leurs quelques pixels du haut
 - Messagerie (masquée) : une conversation de l’inbox s’ouvre au tap n’importe où sur la tuile (les zones vides, à droite du titre par exemple, ne réagissaient pas — corrigé dans `ViroPressable`, donc pour toutes les tuiles qui l’utilisent)
 - Messagerie (masquée) : un message avec beaucoup de réactions différentes n’affiche plus qu’une rangée de 4 emojis (les plus utilisés) puis « +n », et cette rangée déborde vers le centre du fil au lieu de sortir de l’écran

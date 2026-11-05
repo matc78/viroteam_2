@@ -9,6 +9,15 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Ajouté
+
+- Planning : un admin (ou coach avec le droit `canEditMemberRsvp`) peut modifier le RSVP des convoqués depuis le détail d’événement
+- Paramètres club : toggle « Modifier les réponses RSVP » pour les coachs (off par défaut)
+
+### Modifié
+
+- Membres : bouton « Importer CSV » masqué sur téléphone (≤ 767 px)
+
 ### Corrigé
 
 - Messagerie (masquée) : un message avec beaucoup de réactions différentes n’affiche plus qu’une rangée de 4 emojis (les plus utilisés) puis « +n » (comme l’app) ; sur tes bulles, la rangée est ancrée à droite pour ne plus déborder du fil

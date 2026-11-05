@@ -84,8 +84,6 @@ class EventRsvpCard extends StatelessWidget {
                       : AppCopy.home.rsvpNo,
                   color: ViroColors.error,
                   outlined: true,
-                  borderColor: ViroColors.error,
-                  foregroundColor: palette.textSecondary,
                   height: ViroSpacing.buttonHeightSmall,
                   onTap: onAbsent,
                 ),
@@ -97,6 +95,8 @@ class EventRsvpCard extends StatelessWidget {
                   child: RsvpChoiceButton(
                     label: AppCopy.home.rsvpMaybe,
                     color: ViroColors.warning,
+                    outlined: true,
+                    height: ViroSpacing.buttonHeightSmall,
                     onTap: onMaybe!,
                   ),
                 ),
@@ -108,7 +108,9 @@ class EventRsvpCard extends StatelessWidget {
                   label: onMaybe == null
                       ? AppCopy.home.rsvpPresent
                       : AppCopy.home.rsvpYes,
-                  color: clubColor,
+                  color: ViroColors.success,
+                  outlined: true,
+                  height: ViroSpacing.buttonHeightSmall,
                   onTap: onPresent,
                 ),
               ),

@@ -13,6 +13,23 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Cloud Functions : `npm audit fix` (proxy-addr, busboy, body-parser, grpc, qs) + override `uuid` ≥ 11.1.1 — `npm audit` à 0 faille
 - Portail : bumps Next 15.5.29, Sentry 10.78, remplacement de `xlsx` (sans patch npm) par `exceljs`, overrides ciblés (`@grpc/grpc-js`, `postcss`, `glob`, `uuid`, `tinypool`) — graphe prod à 0 faille
 
+### Ajouté
+
+- Messagerie (masquée), sondages : l’heure de chaque vote est enregistrée (`pollVoteTimes`, horodatage serveur, app + portail) et affichée dans le détail des votes (« Voté à 14:43 », « Modifié le 4/11 à 09:12 » si le membre a changé d’avis). Rules Firestore : un membre n’écrit que sa propre heure ; les anciens clients qui votent sans heure restent acceptés
+
+### Modifié
+
+- Messagerie (masquée), app : le détail d’un sondage s’ouvre en bottom sheet glissable au lieu d’une nouvelle page (route `/conversations/…/polls/…` retirée)
+- Messagerie (masquée), app : menu « + » plus lisible — voile flouté sur le fil, pastilles et libellés agrandis
+- Messagerie (masquée), app : nouvelles bulles — en clair, les miennes en bleu marque opaque (texte foncé) et celles des autres en blanc, sans contour ; en sombre, fond noir et texte blanc, contour couleur du club (blanc si elle est quasi noire) et, pour les miennes, contour néon de la couleur opposée au club (bleu néon si le club est noir / gris)
+- Home : fond flouté sous la barre du bas (clubs, ajout de club, messagerie) pour que les boutons restent lisibles au-dessus du contenu
+- Messagerie (masquée), app : look plus proche de WhatsApp / Snap — bouton d’envoi en pastille pleine bleue (adoucie tant que le champ est vide) calée en bas à droite du champ ; en-tête avec le nom du groupe en entier et le nombre de participants, tap sur l’en-tête pour ouvrir les infos (le bouton ⓘ part dans le menu) ; aperçu du dernier message sur deux lignes fixes, plus contrasté
+
+### Corrigé
+
+- Rules Firestore : un coach / admin ne peut plus patcher le `rsvp` d’un autre membre côté client ; l’édition staff passe uniquement par la callable
+- Messagerie (masquée), app : le clavier se ferme en glissant vers le bas ou en touchant le fil, même quand la conversation tient sur un écran (avant, il fallait quitter la page)
+
 ## [2.2.14] - 2026-11-05
 
 ### Ajouté

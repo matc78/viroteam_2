@@ -30,8 +30,13 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
-/** Pattern bots observés : leslie.nichols.55802@gmail.com */
-const BOT_GMAIL_PATTERN = /^[a-z0-9]+\.[a-z0-9]+\.\d{4,6}@gmail\.com$/i;
+/**
+ * Patterns bots observés :
+ * - leslie.nichols.55802@gmail.com
+ * - mathewmack.80105@gmail.com / darylbutler.32198@gmail.com
+ */
+const BOT_GMAIL_PATTERN =
+  /^[a-z0-9]+(?:\.[a-z0-9]+)?\.\d{4,6}@gmail\.com$/i;
 
 /** Écart max (ms) créé ≈ dernière connexion pour « jamais réutilisé ». */
 const SINGLE_SESSION_MAX_MS = 5 * 60 * 1000;

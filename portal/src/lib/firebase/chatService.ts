@@ -763,6 +763,13 @@ export async function votePollOption(params: {
     const votes = parseUidListsMap(data[Fields.pollVotes]);
     const currentlySelected =
       votes[params.optionId]?.includes(params.uid) ?? false;
+    // Déjà voté (ou heure déjà suivie) → l’heure posée est une modification.
+    const previousTimes = data[Fields.pollVoteTimes];
+    const edited =
+      Object.values(votes).some((voters) => voters.includes(params.uid)) ||
+      (previousTimes != null &&
+        typeof previousTimes === "object" &&
+        params.uid in previousTimes);
 
     if (allowMultiple) {
       const list = [...(votes[params.optionId] ?? [])];
@@ -787,7 +794,14 @@ export async function votePollOption(params: {
       }
     }
 
-    tx.update(ref, { [Fields.pollVotes]: votes });
+    tx.update(ref, {
+      [Fields.pollVotes]: votes,
+      // Chemin pointé : seule mon entrée change (règles Firestore).
+      [`${Fields.pollVoteTimes}.${params.uid}`]: {
+        at: serverTimestamp(),
+        edited,
+      },
+    });
   });
 }
 

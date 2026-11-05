@@ -61,12 +61,13 @@ Tout participant peut changer la photo (même règle que `titleOverride`). Canau
 | `pollQuestion` | string? (type `poll`) |
 | `pollOptions` | `{id, text}[]` (2–12) |
 | `pollVotes` | map optionId → uid[] |
+| `pollVoteTimes` | map uid → `{at, edited}` (heure serveur du dernier vote ; `edited` = le membre avait déjà voté) |
 | `pollAllowMultiple` | bool (défaut false) |
 | `replyToMessageId` | string? | id message cité |
 | `replyToText` | string? | extrait snapshot |
 | `replyToSenderUid` | string? | auteur cité |
 
-Sondages : création uniquement si `participantUids.size > 2`. Vote = update `pollVotes` (transaction client).
+Sondages : création uniquement si `participantUids.size > 2`. Vote = update `pollVotes` + `pollVoteTimes.{uid}` (transaction client ; règles : seule son entrée, `at == request.time` ; un update sans `pollVoteTimes` reste accepté pour les anciens clients).
 
 ## chatState (par user)
 

@@ -57,6 +57,10 @@ final class AppCopyChat {
   String get searchNoResults => 'Aucun résultat.';
   String get conversationInfo => 'Infos de la discussion';
   String get conversationMembers => 'Participants';
+
+  /// Sous-titre de l’en-tête d’un groupe (sous le nom).
+  String headerParticipants(int count) =>
+      count > 1 ? '$count participants' : '$count participant';
   String get loadOlderMessages => 'Charger plus';
   String get loadOlderFailed => 'Impossible de charger l’historique.';
   String get reply => 'Répondre';
@@ -147,6 +151,17 @@ final class AppCopyChat {
   String get pollDetailsTitle => 'Détails du sondage';
   String pollVotedSummary(int voted, int total) =>
       'Membres ayant voté : $voted sur $total';
+
+  /// Heure du vote d’un membre : « Voté à 14:43 », « Modifié le 4/11 à
+  /// 09:12 » ([day] null = aujourd’hui).
+  String pollVoteMoment({
+    required bool edited,
+    required String time,
+    String? day,
+  }) {
+    final verb = edited ? 'Modifié' : 'Voté';
+    return day == null ? '$verb à $time' : '$verb le $day à $time';
+  }
   String pollOptionVotesLabel(int count) =>
       count <= 1 ? '$count vote' : '$count votes';
   String get pollNoVotesYet => 'Personne n’a encore voté.';

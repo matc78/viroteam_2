@@ -17,6 +17,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 - Planning : un admin (ou coach avec le droit `canEditMemberRsvp`) peut modifier le RSVP des convoqués depuis le détail d’événement
 - Paramètres club : toggle « Modifier les réponses RSVP » pour les coachs (off par défaut)
+- Messagerie (masquée), sondages : un vote enregistre aussi son heure (`pollVoteTimes.{uid}`, horodatage serveur, `edited` si changement), comme l’app — pas encore affichée dans le panneau des votes du portail
 
 ### Modifié
 

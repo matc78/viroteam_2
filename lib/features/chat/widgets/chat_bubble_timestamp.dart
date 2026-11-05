@@ -16,10 +16,14 @@ class ChatBubbleTimestamp extends StatelessWidget {
     this.onImage = false,
     this.onAccent = false,
     this.localStatus,
+    this.color,
   });
 
   final DateTime sentAt;
   final bool edited;
+
+  /// Couleur imposée par la bulle (hors image / accent) ; défaut texte discret.
+  final Color? color;
 
   /// Sur une image : contraste renforcé (fond semi-transparent).
   final bool onImage;
@@ -34,14 +38,14 @@ class ChatBubbleTimestamp extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: onImage
-              ? ViroColors.white
-              : onAccent
-                  ? palette.onAccent.withValues(alpha: 0.8)
-                  : palette.textMuted,
-          fontWeight: FontWeight.w500,
-          height: 1.1,
-        );
+      color: onImage
+          ? ViroColors.white
+          : onAccent
+          ? palette.onAccent.withValues(alpha: 0.8)
+          : color ?? palette.textMuted,
+      fontWeight: FontWeight.w500,
+      height: 1.1,
+    );
 
     final Widget label;
     if (localStatus == ChatMessageLocalStatus.sending) {
@@ -84,9 +88,13 @@ class ChatBubbleTextWithTime extends StatefulWidget {
     this.highlightQuery,
     this.localStatus,
     this.onAccent = false,
+    this.timestampColor,
   });
 
   final String text;
+
+  /// Couleur de l’heure (voir [ChatBubbleTimestamp.color]).
+  final Color? timestampColor;
   final DateTime sentAt;
   final TextStyle? style;
   final bool edited;
@@ -205,6 +213,7 @@ class _ChatBubbleTextWithTimeState extends State<ChatBubbleTextWithTime> {
       edited: widget.edited,
       localStatus: widget.localStatus,
       onAccent: widget.onAccent,
+      color: widget.timestampColor,
     );
 
     return Stack(
@@ -219,20 +228,13 @@ class _ChatBubbleTextWithTimeState extends State<ChatBubbleTextWithTime> {
                 baseline: TextBaseline.alphabetic,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 8),
-                  child: Opacity(
-                    opacity: 0,
-                    child: timestamp,
-                  ),
+                  child: Opacity(opacity: 0, child: timestamp),
                 ),
               ),
             ],
           ),
         ),
-        Positioned(
-          right: 0,
-          bottom: 0,
-          child: timestamp,
-        ),
+        Positioned(right: 0, bottom: 0, child: timestamp),
       ],
     );
   }

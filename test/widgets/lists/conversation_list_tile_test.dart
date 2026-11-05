@@ -58,6 +58,33 @@ void main() {
     expect(tapped, isTrue);
   });
 
+  testWidgets('ConversationListTile : aperçu toujours haut de deux lignes',
+      (tester) async {
+    Future<double> tileHeight(String preview) async {
+      await _pump(
+        tester,
+        ConversationListTile(
+          conversation: _dm(preview: preview),
+          clubName: 'AS Viro',
+          clubColor: Colors.teal,
+          viewerUid: 'me',
+          state: ChatUserState(
+            id: 'club_dm',
+            lastReadAt: DateTime(2026, 11, 3, 19),
+          ),
+          onTap: () {},
+        ),
+      );
+      return tester.getSize(find.byType(ConversationListTile)).height;
+    }
+
+    final short = await tileHeight('Ok');
+    final long = await tileHeight('On se retrouve au gymnase à 18h, '
+        'pense à prendre les ballons et les chasubles pour tout le monde, '
+        'on fera aussi le point sur le tournoi de dimanche.');
+    expect(short, long);
+  });
+
   testWidgets('ConversationListTile : non-lus à la place de l’aperçu',
       (tester) async {
     await _pump(

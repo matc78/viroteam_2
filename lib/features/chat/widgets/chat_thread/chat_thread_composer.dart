@@ -73,6 +73,8 @@ class ChatThreadComposer extends StatelessWidget {
               ViroSpacing.sm,
             ),
             child: Row(
+              // Champ multiligne : « + » et envoi restent calés en bas.
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 ChatAttachMenu(
                   enabled: !editing,
@@ -131,14 +133,27 @@ class ChatThreadComposer extends StatelessWidget {
                   valueListenable: controller,
                   builder: (context, value, _) {
                     final canSend = value.text.trim().isNotEmpty;
-                    return IconButton(
-                      tooltip: editing
-                          ? AppCopy.chat.saveEdit
-                          : AppCopy.chat.sendMessage,
-                      onPressed: canSend ? onSend : null,
-                      icon: ViroIcon(
-                        editing ? ViroIcons.check : ViroIcons.send,
-                        color: canSend ? palette.accent : palette.textMuted,
+                    // Pastille pleine comme WhatsApp / Snap : bien visible
+                    // dès qu’il y a du texte, adoucie sinon.
+                    return Padding(
+                      padding: const EdgeInsets.only(left: ViroSpacing.xs),
+                      child: IconButton.filled(
+                        tooltip: editing
+                            ? AppCopy.chat.saveEdit
+                            : AppCopy.chat.sendMessage,
+                        onPressed: canSend ? onSend : null,
+                        style: IconButton.styleFrom(
+                          backgroundColor: palette.accentFill,
+                          disabledBackgroundColor: palette.accentSofter,
+                          minimumSize: const Size.square(
+                            ViroSpacing.minTouchTarget,
+                          ),
+                        ),
+                        icon: ViroIcon(
+                          editing ? ViroIcons.check : ViroIcons.sendFill,
+                          size: 20,
+                          color: canSend ? palette.onAccent : palette.accentMid,
+                        ),
                       ),
                     );
                   },

@@ -35,6 +35,7 @@ abstract final class ViroIcons {
   static IconData get chatFill => PhosphorIconsFill.chatCircle;
   static IconData get whatsapp => PhosphorIconsRegular.whatsappLogo;
   static IconData get send => PhosphorIconsRegular.paperPlaneTilt;
+  static IconData get sendFill => PhosphorIconsFill.paperPlaneRight;
   static IconData get megaphone => PhosphorIconsRegular.megaphone;
 
   // Actions

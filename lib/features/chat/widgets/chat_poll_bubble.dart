@@ -29,6 +29,7 @@ class ChatPollBubble extends StatelessWidget {
     this.memberByUid = const {},
     this.onViewVotes,
     this.borderColor,
+    this.clubColor,
     this.senderLabel = '',
   });
 
@@ -40,6 +41,11 @@ class ChatPollBubble extends StatelessWidget {
   final Map<String, ClubMember> memberByUid;
   final VoidCallback? onViewVotes;
   final Color? borderColor;
+
+  /// Couleur du club : contour des sondages reçus en mode sombre (défaut
+  /// accent du thème).
+  final Color? clubColor;
+
   /// Prénom + nom en haut de bulle (groupes, messages des autres).
   final String senderLabel;
 
@@ -50,8 +56,13 @@ class ChatPollBubble extends StatelessWidget {
     final align = mine ? Alignment.centerRight : Alignment.centerLeft;
     final total = message.pollTotalVotes;
     final uniqueVoters = message.pollUniqueVoterCount;
-    final question =
-        (message.pollQuestion ?? message.text ?? '').trim();
+    final question = (message.pollQuestion ?? message.text ?? '').trim();
+    final colors = ViroChat.bubbleColors(
+      palette: palette,
+      mine: mine,
+      clubColor: clubColor ?? palette.accent,
+    );
+    final bubbleBorderColor = colors.border;
 
     return Align(
       alignment: align,
@@ -64,16 +75,20 @@ class ChatPollBubble extends StatelessWidget {
             vertical: ViroChat.bubblePaddingY,
           ),
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.sizeOf(context).width *
+            maxWidth:
+                MediaQuery.sizeOf(context).width *
                 ViroChat.bubbleMaxWidthFraction,
           ),
           decoration: BoxDecoration(
-            color: palette.surfaceCard,
+            color: colors.background,
             borderRadius: BorderRadius.circular(ViroChat.bubbleRadius),
-            border: Border.all(
-              color: borderColor ?? palette.accentSoft,
-              width: 1.5,
-            ),
+            border: bubbleBorderColor == null
+                ? null
+                : Border.all(
+                    color: bubbleBorderColor,
+                    width: ViroChat.bubbleBorderWidth,
+                  ),
+            boxShadow: colors.glow,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,11 +108,7 @@ class ChatPollBubble extends StatelessWidget {
                 ),
               Row(
                 children: [
-                  ViroIcon(
-                    ViroIcons.poll,
-                    size: 16,
-                    color: palette.accent,
-                  ),
+                  ViroIcon(ViroIcons.poll, size: 16, color: palette.accent),
                   const SizedBox(width: 6),
                   Text(
                     AppCopy.chat.pollLabel,
@@ -112,7 +123,7 @@ class ChatPollBubble extends StatelessWidget {
               Text(
                 question,
                 style: theme.titleSmall?.copyWith(
-                  color: palette.brandText,
+                  color: colors.text,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -121,9 +132,7 @@ class ChatPollBubble extends StatelessWidget {
                 message.pollAllowMultiple
                     ? AppCopy.chat.pollAllowMultiple
                     : AppCopy.chat.pollSingleChoice,
-                style: theme.labelSmall?.copyWith(
-                  color: palette.textSecondary,
-                ),
+                style: theme.labelSmall?.copyWith(color: colors.secondaryText),
               ),
               const SizedBox(height: ViroSpacing.sm),
               for (final option in message.pollOptions)
@@ -133,11 +142,10 @@ class ChatPollBubble extends StatelessWidget {
                   memberByUid: memberByUid,
                   totalVotes: total,
                   allowMultiple: message.pollAllowMultiple,
-                  selected: viewerUid != null &&
+                  selected:
+                      viewerUid != null &&
                       message.hasVotedFor(viewerUid!, option.id),
-                  onTap: viewerUid == null
-                      ? null
-                      : () => onVote(option.id),
+                  onTap: viewerUid == null ? null : () => onVote(option.id),
                 ),
               const SizedBox(height: ViroSpacing.xs),
               Row(
@@ -146,13 +154,14 @@ class ChatPollBubble extends StatelessWidget {
                     child: Text(
                       AppCopy.chat.pollVotersLabel(uniqueVoters),
                       style: theme.labelSmall?.copyWith(
-                        color: palette.textSecondary,
+                        color: colors.secondaryText,
                       ),
                     ),
                   ),
                   ChatBubbleTimestamp(
                     sentAt: message.createdAt,
                     edited: message.editedAt != null,
+                    color: colors.secondaryText,
                   ),
                 ],
               ),
@@ -222,8 +231,7 @@ class _PollOptionRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: palette.accentSofter,
               border: Border.all(
-                color:
-                    selected ? palette.accent : palette.accentSoft,
+                color: selected ? palette.accent : palette.accentSoft,
               ),
               borderRadius: BorderRadius.circular(10),
             ),
@@ -250,9 +258,7 @@ class _PollOptionRow extends StatelessWidget {
                       ViroIcon(
                         marker,
                         size: 18,
-                        color: selected
-                            ? palette.accent
-                            : palette.textMuted,
+                        color: selected ? palette.accent : palette.textMuted,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
@@ -260,8 +266,9 @@ class _PollOptionRow extends StatelessWidget {
                           option.text,
                           style: theme.bodyMedium?.copyWith(
                             color: palette.brandText,
-                            fontWeight:
-                                selected ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                           ),
                         ),
                       ),
@@ -312,8 +319,8 @@ class _PollVoterAvatarStack extends StatelessWidget {
     final visible = shuffled.take(_kMaxPollAvatars).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
-    final stackWidth = _kPollAvatarSize +
-        (visible.length - 1) * _kPollAvatarOverlap;
+    final stackWidth =
+        _kPollAvatarSize + (visible.length - 1) * _kPollAvatarOverlap;
 
     return SizedBox(
       width: stackWidth,
@@ -345,10 +352,7 @@ class _PollVoterAvatarBubble extends StatelessWidget {
     final palette = context.viroPalette;
     final avatar = member != null
         ? IgnorePointer(
-            child: MemberAvatar(
-              member: member!,
-              size: _kPollAvatarSize,
-            ),
+            child: MemberAvatar(member: member!, size: _kPollAvatarSize),
           )
         : Container(
             width: _kPollAvatarSize,

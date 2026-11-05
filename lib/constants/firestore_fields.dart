@@ -267,6 +267,11 @@ abstract final class FirestoreFields {
   static const String pollQuestion = 'pollQuestion';
   static const String pollOptions = 'pollOptions';
   static const String pollVotes = 'pollVotes';
+
+  /// `uid → {at, edited}` : heure du dernier vote de chaque membre.
+  static const String pollVoteTimes = 'pollVoteTimes';
+  static const String pollVoteAt = 'at';
+  static const String pollVoteEdited = 'edited';
   static const String pollAllowMultiple = 'pollAllowMultiple';
   static const String replyToMessageId = 'replyToMessageId';
   static const String replyToText = 'replyToText';

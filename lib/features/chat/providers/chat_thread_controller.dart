@@ -16,6 +16,7 @@ import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
 
 /// Identifie un fil : club + conversation.
 typedef ChatThreadKey = ({String clubId, String conversationId});
@@ -649,7 +650,16 @@ final chatThreadChromeProvider = Provider.autoDispose
     title: title,
     avatarInitial: seed?.initial ?? avatarInitialFromTitle(title),
     avatarUrl: avatarUrl,
-    clubColor: seed?.clubColor,
+    // Seed de l’inbox, sinon couleur de marque du club (ouverture par notif).
+    clubColor: seed?.clubColor ??
+        clubAccentColor(
+          brandColorHex: clubs
+              .where((entry) => entry.club.id == key.clubId)
+              .firstOrNull
+              ?.club
+              .brandColorHex,
+          clubId: key.clubId,
+        ),
     isGroup: isGroup,
     isChannel: conversation?.isReadonlyForMembers ?? seed?.isChannel ?? false,
     isAdminOnly: conversation?.writePolicy == ChatWritePolicies.adminsOnly,

@@ -9,8 +9,8 @@ class ChatPollReactionOperations {
   ChatPollReactionOperations({
     required FirebaseFirestore firestore,
     required ChatPaths paths,
-  })  : _db = firestore,
-        _paths = paths;
+  }) : _db = firestore,
+       _paths = paths;
 
   final FirebaseFirestore _db;
   final ChatPaths _paths;
@@ -38,14 +38,16 @@ class ChatPollReactionOperations {
       throw ArgumentError('Sondage : 12 options max.');
     }
 
-    final convSnap =
-        await _paths.conversations(clubId).doc(conversationId).get();
+    final convSnap = await _paths
+        .conversations(clubId)
+        .doc(conversationId)
+        .get();
     final convData = convSnap.data();
     final participants =
         (convData?[FirestoreFields.participantUids] as List<dynamic>?)
-                ?.whereType<String>()
-                .toList() ??
-            const <String>[];
+            ?.whereType<String>()
+            .toList() ??
+        const <String>[];
     // Aligné règles Firestore : `participantUids.size() > 2`.
     if (participants.length <= 2) {
       throw StateError('Les sondages sont réservés aux groupes (> 2).');
@@ -112,6 +114,11 @@ class ChatPollReactionOperations {
           data[FirestoreFields.pollAllowMultiple] as bool? ?? false;
       final votes = _parseUidListsMap(data[FirestoreFields.pollVotes]);
       final currentlySelected = votes[optionId]?.contains(uid) ?? false;
+      // Déjà voté (ou heure déjà suivie) → l’heure posée est une modification.
+      final previousTimes = data[FirestoreFields.pollVoteTimes];
+      final edited =
+          votes.values.any((voters) => voters.contains(uid)) ||
+          (previousTimes is Map && previousTimes.containsKey(uid));
 
       if (allowMultiple) {
         final list = List<String>.from(votes[optionId] ?? const []);
@@ -141,7 +148,14 @@ class ChatPollReactionOperations {
         }
       }
 
-      tx.update(ref, {FirestoreFields.pollVotes: votes});
+      tx.update(ref, {
+        FirestoreFields.pollVotes: votes,
+        // Chemin pointé : seule mon entrée change (règles Firestore).
+        '${FirestoreFields.pollVoteTimes}.$uid': {
+          FirestoreFields.pollVoteAt: FieldValue.serverTimestamp(),
+          FirestoreFields.pollVoteEdited: edited,
+        },
+      });
     });
   }
 
@@ -179,8 +193,9 @@ class ChatPollReactionOperations {
     for (final entry in raw.entries) {
       if (entry.key is! String) continue;
       final value = entry.value;
-      out[entry.key as String] =
-          value is List ? value.whereType<String>().toList() : <String>[];
+      out[entry.key as String] = value is List
+          ? value.whereType<String>().toList()
+          : <String>[];
     }
     return out;
   }

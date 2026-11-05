@@ -18,7 +18,8 @@ import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 /// Tuile inbox style messagerie : avatar, titre + horodatage, badges, preview.
 ///
 /// Ligne 1 : titre (large) + timestamp à droite ; ligne 2 : chips club/rôle ;
-/// ligne 3 : preview (+ badge non-lus). Avatar groupe vert / canal violet.
+/// lignes 3-4 : preview sur deux lignes (+ badge non-lus). Avatar groupe vert
+/// / canal violet.
 class ConversationListTile extends StatelessWidget {
   const ConversationListTile({
     super.key,
@@ -82,20 +83,16 @@ class ConversationListTile extends StatelessWidget {
     final isGroup = conversation.isGroup;
     final isChannel = conversation.isReadonlyForMembers;
     final showSenderInPreview = isGroup && firstName.isNotEmpty && !hasUnread;
-    final previewColor =
-        hasUnread ? palette.textSecondary : palette.textMuted;
-    final previewStyle = theme.bodySmall?.copyWith(
+    final previewColor = hasUnread
+        ? palette.textPrimary
+        : palette.textSecondary;
+    final previewStyle = theme.bodyMedium?.copyWith(
       color: previewColor,
       fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
-      fontSize: 13,
-      fontStyle: FontStyle.italic,
+      fontSize: 14,
+      height: 1.3,
     );
-    final nameStyle = theme.bodySmall?.copyWith(
-      color: previewColor,
-      fontWeight: FontWeight.w600,
-      fontSize: 13,
-      fontStyle: FontStyle.normal,
-    );
+    final nameStyle = previewStyle?.copyWith(fontWeight: FontWeight.w600);
     final timestamp = conversation.lastMessageAt;
     final title = conversation.displayTitle(peerDisplayName: peerDisplayName);
     final initial = _avatarInitial(title);
@@ -131,9 +128,7 @@ class ConversationListTile extends StatelessWidget {
                   ),
                   isGroup: isGroup,
                   isChannel: isChannel,
-                  photoUrl: isGroup
-                      ? conversation.avatarUrl
-                      : peerAvatarUrl,
+                  photoUrl: isGroup ? conversation.avatarUrl : peerAvatarUrl,
                   heroTag: ChatThreadOpenSeed.avatarHeroTag(
                     conversation.clubId,
                     conversation.id,
@@ -212,62 +207,53 @@ class ConversationListTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: _FadingPreviewLine(
+                            child: _TwoLinePreview(
+                              style: previewStyle,
                               child: hasUnread
                                   ? Text(
                                       AppCopy.chat.unreadPreview(unread),
-                                      maxLines: 1,
-                                      softWrap: false,
-                                      overflow: TextOverflow.clip,
-                                      style: previewStyle?.copyWith(
-                                        fontStyle: FontStyle.normal,
-                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: previewStyle,
                                     )
                                   : preview.isEmpty
-                                      ? Text(
-                                          AppCopy.chat.emptyPreview,
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          overflow: TextOverflow.clip,
-                                          style: previewStyle,
-                                        )
-                                      : showSenderInPreview
-                                          ? Row(
-                                              children: [
-                                                Text(
-                                                  firstName,
-                                                  maxLines: 1,
-                                                  softWrap: false,
-                                                  overflow: TextOverflow.clip,
-                                                  style: nameStyle,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                _PreviewArrow(
-                                                  color: previewColor,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    preview,
-                                                    maxLines: 1,
-                                                    softWrap: false,
-                                                    overflow:
-                                                        TextOverflow.clip,
-                                                    style: previewStyle,
-                                                  ),
-                                                ),
-                                              ],
-                                            )
-                                          : Text(
-                                              preview,
-                                              maxLines: 1,
-                                              softWrap: false,
-                                              overflow: TextOverflow.clip,
-                                              style: previewStyle,
+                                  ? Text(
+                                      AppCopy.chat.emptyPreview,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: previewStyle?.copyWith(
+                                        color: palette.textMuted,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    )
+                                  : Text.rich(
+                                      TextSpan(
+                                        children: [
+                                          if (showSenderInPreview) ...[
+                                            TextSpan(
+                                              text: firstName,
+                                              style: nameStyle,
                                             ),
+                                            const TextSpan(text: ' '),
+                                            WidgetSpan(
+                                              alignment:
+                                                  PlaceholderAlignment.middle,
+                                              child: _PreviewArrow(
+                                                color: previewColor,
+                                              ),
+                                            ),
+                                            const TextSpan(text: ' '),
+                                          ],
+                                          TextSpan(text: preview),
+                                        ],
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: previewStyle,
+                                    ),
                             ),
                           ),
                           if (hasUnread) ...[
@@ -287,7 +273,8 @@ class ConversationListTile extends StatelessWidget {
           Divider(
             height: 1,
             thickness: 1,
-            indent: ViroSpacing.screenHorizontal +
+            indent:
+                ViroSpacing.screenHorizontal +
                 ViroChat.avatarInbox +
                 ViroSpacing.md,
             color: palette.border,
@@ -339,11 +326,7 @@ class _PreviewArrow extends StatelessWidget {
         color: context.viroPalette.surfaceMuted,
         shape: BoxShape.circle,
       ),
-      child: ViroIcon(
-        ViroIcons.chevronRight,
-        size: 10,
-        color: color,
-      ),
+      child: ViroIcon(ViroIcons.chevronRight, size: 10, color: color),
     );
   }
 }
@@ -369,47 +352,36 @@ class _UnreadBadge extends StatelessWidget {
         count > 99 ? '99+' : '$count',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: palette.onAccent,
-              fontWeight: FontWeight.w800,
-              fontSize: 10,
-            ),
+          color: palette.onAccent,
+          fontWeight: FontWeight.w800,
+          fontSize: 10,
+        ),
       ),
     );
   }
 }
 
-/// Preview inbox tronquée avec fondu à droite (pas de « … »).
-class _FadingPreviewLine extends StatelessWidget {
-  const _FadingPreviewLine({required this.child});
+/// Aperçu inbox toujours haut de deux lignes (comme WhatsApp) : un texte
+/// court laisse la seconde vide pour garder des tuiles de même hauteur.
+class _TwoLinePreview extends StatelessWidget {
+  const _TwoLinePreview({required this.style, required this.child});
 
+  final TextStyle? style;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-        return ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (bounds) {
-            final fadeStart = ((maxWidth - 36) / maxWidth).clamp(0.0, 1.0);
-            return LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: const [
-                Color(0xFF000000),
-                Color(0xFF000000),
-                Color(0x00000000),
-              ],
-              stops: [0.0, fadeStart, 1.0],
-            ).createShader(Offset.zero & Size(maxWidth, bounds.height));
-          },
-          child: SizedBox(
-            width: maxWidth,
-            child: child,
+    return Stack(
+      children: [
+        // Gabarit invisible de deux lignes (suit la taille de texte système).
+        ExcludeSemantics(
+          child: Opacity(
+            opacity: 0,
+            child: Text('\n', maxLines: 2, style: style),
           ),
-        );
-      },
+        ),
+        child,
+      ],
     );
   }
 }

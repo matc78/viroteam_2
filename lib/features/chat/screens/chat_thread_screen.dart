@@ -210,6 +210,9 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     }
   }
 
+  /// Ferme le clavier (comme WhatsApp : tap ou glissé vers le bas sur le fil).
+  void _dismissKeyboard() => FocusManager.instance.primaryFocus?.unfocus();
+
   /// Ferme le détail des réactions.
   void _dismissReactorsPopup() {
     if (_reactorsMessageId == null) return;
@@ -695,6 +698,15 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                 ),
                 ColoredBox(
                   color: palette.background.withValues(alpha: 0.62),
+                ),
+                // Fil vide / chargement : tap ou glissé vers le bas ferme le
+                // clavier (la liste, au-dessus, gère elle-même ces gestes).
+                GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: _dismissKeyboard,
+                  onVerticalDragUpdate: (details) {
+                    if (details.delta.dy > 0) _dismissKeyboard();
+                  },
                 ),
                 viewAsync.when(
                   loading: () => const ChatThreadSkeleton(),

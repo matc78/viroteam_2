@@ -16,7 +16,8 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/common/viro_conversation_avatar.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
-/// AppBar du fil : titre / recherche + actions (info, annonces, menu).
+/// AppBar du fil : nom + sous-titre (tap → infos) / recherche + actions
+/// (recherche, annonces, menu).
 class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ChatThreadAppBar({
     super.key,
@@ -102,6 +103,10 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                 : ConversationGroupAvatarTone.group,
             palette: palette,
           );
+    final participantCount = conv?.participantUids.length ?? 0;
+    final subtitle = isGroup && participantCount > 0
+        ? AppCopy.chat.headerParticipants(participantCount)
+        : null;
 
     return ViroAppBar(
       fallbackRoute: AppRoutes.conversations,
@@ -112,13 +117,13 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
               decoration: InputDecoration(
                 hintText: AppCopy.chat.searchMessagesHint,
                 border: InputBorder.none,
-                hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: palette.textMuted,
-                    ),
+                hintStyle: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: palette.textMuted),
               ),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: palette.brandText,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: palette.brandText),
             )
           : Row(
               children: [
@@ -131,11 +136,12 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                   isGroup: isGroup,
                   isChannel: isChannel,
                   groupBackground: groupBackground,
-                  semanticLabel: !isChannel &&
-                          (avatarUrl?.trim().isNotEmpty ?? false)
+                  semanticLabel:
+                      !isChannel && (avatarUrl?.trim().isNotEmpty ?? false)
                       ? AppCopy.chat.viewConversationPhoto
                       : AppCopy.chat.changeGroupAvatar,
-                  onEdit: isGroup &&
+                  onEdit:
+                      isGroup &&
                           !isChannel &&
                           onChangeAvatar != null &&
                           (conv?.canEditGroupAvatar ?? false)
@@ -143,15 +149,39 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                       : null,
                 ),
                 const SizedBox(width: ViroSpacing.sm),
+                // Comme WhatsApp : nom + sous-titre, tap → infos.
                 Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Semantics(
+                    button: conv != null,
+                    hint: conv != null ? AppCopy.chat.conversationInfo : null,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: conv != null ? () => _openInfo(context) : null,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (subtitle != null)
+                            Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: palette.textSecondary),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
+      // Infos via le tap sur l’en-tête ou le menu : on garde la place au nom.
       actions: [
         IconButton(
           tooltip: searchOpen
@@ -163,27 +193,17 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           onPressed: onToggleSearch,
         ),
-        if (!searchOpen && conversation != null)
-          IconButton(
-            tooltip: AppCopy.chat.conversationInfo,
-            icon: ViroIcon(ViroIcons.info, color: palette.accent),
-            onPressed: () => _openInfo(context),
-          ),
         if (isAdminOnly)
           IconButton(
             tooltip: AppCopy.chat.makeAnnouncement,
             icon: ViroIcon(ViroIcons.megaphone, color: palette.accent),
-            onPressed: () => context.push(
-              AppRoutes.clubAnnouncementsPath(clubId),
-            ),
+            onPressed: () =>
+                context.push(AppRoutes.clubAnnouncementsPath(clubId)),
           ),
         if (!searchOpen)
           PopupMenuButton<String>(
             tooltip: AppCopy.chat.threadMenu,
-            icon: ViroIcon(
-              ViroIcons.moreVertical,
-              color: palette.accent,
-            ),
+            icon: ViroIcon(ViroIcons.moreVertical, color: palette.accent),
             onSelected: (value) {
               switch (value) {
                 case 'rename':
@@ -201,18 +221,15 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
             itemBuilder: (_) {
               final isMuted = state?.muted ?? false;
               final isFavorite = state?.favorite ?? false;
-              final canChangeAvatar = onChangeAvatar != null &&
+              final canChangeAvatar =
+                  onChangeAvatar != null &&
                   (conversation?.canEditGroupAvatar ?? false);
               return [
                 PopupMenuItem(
                   value: 'info',
                   child: Row(
                     children: [
-                      ViroIcon(
-                        ViroIcons.info,
-                        size: 20,
-                        color: palette.accent,
-                      ),
+                      ViroIcon(ViroIcons.info, size: 20, color: palette.accent),
                       const SizedBox(width: ViroSpacing.sm),
                       Text(AppCopy.chat.conversationInfo),
                     ],
@@ -222,11 +239,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                   value: 'rename',
                   child: Row(
                     children: [
-                      ViroIcon(
-                        ViroIcons.edit,
-                        size: 20,
-                        color: palette.accent,
-                      ),
+                      ViroIcon(ViroIcons.edit, size: 20, color: palette.accent),
                       const SizedBox(width: ViroSpacing.sm),
                       Text(AppCopy.chat.renameConversation),
                     ],
@@ -277,9 +290,7 @@ class ChatThreadAppBar extends StatelessWidget implements PreferredSizeWidget {
                         color: palette.accent,
                       ),
                       const SizedBox(width: ViroSpacing.sm),
-                      Text(
-                        isMuted ? AppCopy.chat.unmute : AppCopy.chat.mute,
-                      ),
+                      Text(isMuted ? AppCopy.chat.unmute : AppCopy.chat.mute),
                     ],
                   ),
                 ),

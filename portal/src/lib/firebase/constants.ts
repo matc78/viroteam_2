@@ -216,6 +216,8 @@ export const Fields = {
   pollQuestion: "pollQuestion",
   pollOptions: "pollOptions",
   pollVotes: "pollVotes",
+  /** `uid → {at, edited}` : heure du dernier vote de chaque membre. */
+  pollVoteTimes: "pollVoteTimes",
   pollAllowMultiple: "pollAllowMultiple",
   replyToMessageId: "replyToMessageId",
   replyToText: "replyToText",

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_thread_controller.dart';
@@ -59,7 +60,8 @@ class ChatThreadMessageList extends StatelessWidget {
     required String? viewerUid,
     required Map<String, String> nameByUid,
     required Map<String, ClubMember> memberByUid,
-  }) onOpenReactors;
+  })
+  onOpenReactors;
   final void Function(ChatMessage message, String optionId) onVotePoll;
   final void Function(ChatMessage message) onRetrySend;
 
@@ -69,6 +71,7 @@ class ChatThreadMessageList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final messages = view.messages;
+    final palette = context.viroPalette;
     return ValueListenableBuilder<bool>(
       valueListenable: searchOpen,
       builder: (context, isSearchOpen, _) {
@@ -79,9 +82,15 @@ class ChatThreadMessageList extends StatelessWidget {
             final currentMatchId = currentSearchMatchId.value;
             return GestureDetector(
               behavior: HitTestBehavior.deferToChild,
-              onTap: onDismissReactors,
+              onTap: () {
+                FocusManager.instance.primaryFocus?.unfocus();
+                onDismissReactors();
+              },
               child: ListView.builder(
                 controller: scrollController,
+                // Toujours scrollable : glisser vers le bas ferme le clavier
+                // même quand le fil tient sur un écran.
+                physics: const AlwaysScrollableScrollPhysics(),
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 reverse: true,
@@ -123,6 +132,7 @@ class ChatThreadMessageList extends StatelessWidget {
                     conversationId: conversationId,
                     participantCount:
                         chrome.conversation?.participantUids.length ?? 0,
+                    clubColor: chrome.clubColor ?? palette.accent,
                     reactorsMessageId: reactorsMessageId,
                     onShowActions: onShowActions,
                     onReact: onReact,

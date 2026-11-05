@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
@@ -46,10 +48,7 @@ class _ChatAttachMenuState extends State<ChatAttachMenu>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: ViroMotion.fast,
-    );
+    _controller = AnimationController(vsync: this, duration: ViroMotion.fast);
     final curve = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOut,
@@ -107,37 +106,31 @@ class _ChatAttachMenuState extends State<ChatAttachMenu>
     return OverlayPortal(
       controller: _portalController,
       overlayChildBuilder: (context) {
-        return UnconstrainedBox(
-          alignment: Alignment.topLeft,
-          child: CompositedTransformFollower(
-            link: _layerLink,
-            showWhenUnlinked: false,
-            targetAnchor: Alignment.topLeft,
-            followerAnchor: Alignment.bottomLeft,
-            offset: const Offset(0, -7),
-            child: TapRegion(
-              groupId: _ChatAttachMenuState,
-              onTapOutside: (_) => _close(),
+        final palette = context.viroPalette;
+        return Stack(
+          children: [
+            // Voile flouté sur le fil : le menu ressort. Il bloque les taps
+            // vers le fil ; la fermeture passe par `onTapOutside` du menu.
+            Positioned.fill(
               child: FadeTransition(
                 opacity: _fade,
-                child: SlideTransition(
-                  position: _slide,
-                  child: ScaleTransition(
-                    scale: _scale,
-                    alignment: Alignment.bottomLeft,
-                    child: _AttachMenuCard(
-                      showPoll: widget.showPoll,
-                      onCamera: () => _run(widget.onCamera),
-                      onGallery: () => _run(widget.onGallery),
-                      onPoll: widget.onPoll == null
-                          ? null
-                          : () => _run(widget.onPoll!),
+                child: AbsorbPointer(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: ViroChat.attachMenuBackdropBlur,
+                      sigmaY: ViroChat.attachMenuBackdropBlur,
+                    ),
+                    child: ColoredBox(
+                      color: palette.shadowTint.withValues(
+                        alpha: ViroChat.attachMenuBackdropDim,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
+            _buildMenu(),
+          ],
         );
       },
       child: CompositedTransformTarget(
@@ -155,6 +148,42 @@ class _ChatAttachMenuState extends State<ChatAttachMenu>
                 open: _open,
                 enabled: widget.enabled,
                 onTap: _toggle,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Carte du menu, ancrée au-dessus du bouton « + ».
+  Widget _buildMenu() {
+    return UnconstrainedBox(
+      alignment: Alignment.topLeft,
+      child: CompositedTransformFollower(
+        link: _layerLink,
+        showWhenUnlinked: false,
+        targetAnchor: Alignment.topLeft,
+        followerAnchor: Alignment.bottomLeft,
+        offset: const Offset(0, -7),
+        child: TapRegion(
+          groupId: _ChatAttachMenuState,
+          onTapOutside: (_) => _close(),
+          child: FadeTransition(
+            opacity: _fade,
+            child: SlideTransition(
+              position: _slide,
+              child: ScaleTransition(
+                scale: _scale,
+                alignment: Alignment.bottomLeft,
+                child: _AttachMenuCard(
+                  showPoll: widget.showPoll,
+                  onCamera: () => _run(widget.onCamera),
+                  onGallery: () => _run(widget.onGallery),
+                  onPoll: widget.onPoll == null
+                      ? null
+                      : () => _run(widget.onPoll!),
+                ),
               ),
             ),
           ),
@@ -235,13 +264,14 @@ class _AttachMenuCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(minWidth: 164),
-        padding: const EdgeInsets.all(5),
+        constraints: const BoxConstraints(minWidth: 220),
+        padding: const EdgeInsets.all(ViroSpacing.xs),
         decoration: BoxDecoration(
           color: palette.surfaceCard,
           borderRadius: BorderRadius.circular(ViroChat.attachMenuRadius),
           border: Border.all(color: palette.border),
-          boxShadow: ViroMotion.floatingShadow(palette,
+          boxShadow: ViroMotion.floatingShadow(
+            palette,
             opacity: 0.1,
             blur: 20,
             y: 8,
@@ -303,28 +333,29 @@ class _AttachMenuItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(ViroChat.attachMenuItemRadius),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 7,
-          vertical: 6,
+          horizontal: ViroSpacing.sm,
+          vertical: ViroSpacing.xs,
         ),
         child: Row(
           children: [
             Container(
-              width: 25,
-              height: 25,
+              width: ViroChat.attachMenuMobileIconBox,
+              height: ViroChat.attachMenuMobileIconBox,
               alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: tone,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: tone),
+              child: ViroIcon(
+                icon,
+                size: ViroChat.attachMenuMobileIconSize,
+                color: ViroColors.white,
               ),
-              child: ViroIcon(icon, size: 13, color: ViroColors.white),
             ),
-            const SizedBox(width: ViroSpacing.sm),
+            const SizedBox(width: ViroSpacing.md),
             Text(
               label,
               style: theme.labelLarge?.copyWith(
                 color: palette.brandStrong,
                 fontWeight: FontWeight.w600,
-                fontSize: ViroChat.attachMenuLabelSize,
+                fontSize: ViroChat.attachMenuMobileLabelSize,
               ),
             ),
           ],

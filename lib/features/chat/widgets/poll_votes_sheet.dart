@@ -1,48 +1,59 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/club_member.dart';
-import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/poll_voter_list_tile.dart';
 
-/// Ouvre l’écran détails des votes d’un sondage (layout type infos groupe).
-Future<void> openPollVotesScreen({
+/// Ouvre le détail des votes d’un sondage en bottom sheet (glissable) :
+/// question, résumé, votants groupés par option avec l’heure du vote.
+Future<void> showPollVotesSheet({
   required BuildContext context,
   required String clubId,
   required String conversationId,
   required String messageId,
   required int participantCount,
 }) {
-  return context.push<void>(
-    AppRoutes.pollVotesPath(
-      clubId,
-      conversationId,
-      messageId,
-      participantCount: participantCount,
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    showDragHandle: true,
+    builder: (ctx) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.6,
+      minChildSize: 0.35,
+      maxChildSize: 0.92,
+      builder: (context, scrollController) => _PollVotesSheetContent(
+        clubId: clubId,
+        conversationId: conversationId,
+        messageId: messageId,
+        participantCount: participantCount,
+        scrollController: scrollController,
+      ),
     ),
   );
 }
 
-/// Détails du sondage : question, résumé, votants groupés par option.
-class PollVotesScreen extends ConsumerWidget {
-  const PollVotesScreen({
-    super.key,
+/// Contenu live du sheet (le sondage peut recevoir des votes pendant
+/// l’ouverture).
+class _PollVotesSheetContent extends ConsumerWidget {
+  const _PollVotesSheetContent({
     required this.clubId,
     required this.conversationId,
     required this.messageId,
     required this.participantCount,
+    required this.scrollController,
   });
 
   final String clubId;
   final String conversationId;
   final String messageId;
   final int participantCount;
+  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,7 +66,10 @@ class PollVotesScreen extends ConsumerWidget {
       )),
     );
     final members = ref.watch(
-      chatThreadMembersProvider((clubId: clubId, conversationId: conversationId)),
+      chatThreadMembersProvider((
+        clubId: clubId,
+        conversationId: conversationId,
+      )),
     );
     final memberByUid = <String, ClubMember>{
       for (final member in members)
@@ -63,41 +77,32 @@ class PollVotesScreen extends ConsumerWidget {
           member.accountUid!: member,
     };
 
-    final threadRoute = AppRoutes.conversationPath(clubId, conversationId);
-    return ViroScaffold(
-      fallbackRoute: threadRoute,
-      appBar: ViroAppBar(
-        title: Text(AppCopy.chat.pollDetailsTitle),
-        fallbackRoute: threadRoute,
-      ),
-      body: messageAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
-          child: Text(
-            AppCopy.chat.loadError,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: palette.textSecondary,
-                ),
-          ),
-        ),
-        data: (message) {
-          if (message == null || !message.isPoll || message.isDeleted) {
-            return Center(
-              child: Text(
-                AppCopy.chat.pollUnavailable,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: palette.textSecondary,
-                    ),
-              ),
-            );
-          }
-          return _PollVotesBody(
-            message: message,
-            memberByUid: memberByUid,
-            participantCount: participantCount,
+    Widget centered(Widget child) => ListView(
+      controller: scrollController,
+      padding: const EdgeInsets.all(ViroSpacing.xl),
+      children: [Center(child: child)],
+    );
+    final messageStyle = Theme.of(
+      context,
+    ).textTheme.bodyMedium?.copyWith(color: palette.textSecondary);
+
+    return messageAsync.when(
+      loading: () => centered(const CircularProgressIndicator()),
+      error: (_, _) =>
+          centered(Text(AppCopy.chat.loadError, style: messageStyle)),
+      data: (message) {
+        if (message == null || !message.isPoll || message.isDeleted) {
+          return centered(
+            Text(AppCopy.chat.pollUnavailable, style: messageStyle),
           );
-        },
-      ),
+        }
+        return _PollVotesBody(
+          message: message,
+          memberByUid: memberByUid,
+          participantCount: participantCount,
+          scrollController: scrollController,
+        );
+      },
     );
   }
 }
@@ -107,11 +112,13 @@ class _PollVotesBody extends StatelessWidget {
     required this.message,
     required this.memberByUid,
     required this.participantCount,
+    required this.scrollController,
   });
 
   final ChatMessage message;
   final Map<String, ClubMember> memberByUid;
   final int participantCount;
+  final ScrollController scrollController;
 
   String _nameFor(String uid) {
     final member = memberByUid[uid];
@@ -133,18 +140,27 @@ class _PollVotesBody extends StatelessWidget {
     final voted = message.pollUniqueVoterCount;
 
     return ListView(
+      controller: scrollController,
       padding: const EdgeInsets.only(bottom: ViroSpacing.xl),
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
             ViroSpacing.screenHorizontal,
-            ViroSpacing.lg,
+            0,
             ViroSpacing.screenHorizontal,
             ViroSpacing.md,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                AppCopy.chat.pollDetailsTitle,
+                style: theme.labelMedium?.copyWith(
+                  color: palette.accent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: ViroSpacing.xs),
               Text(
                 question,
                 style: theme.titleLarge?.copyWith(
@@ -188,6 +204,7 @@ class _PollVotesBody extends StatelessWidget {
               PollVoterListTile(
                 displayName: _nameFor(uid),
                 member: memberByUid[uid],
+                voteTime: message.pollVoteTimes[uid],
               ),
           ],
       ],
@@ -196,10 +213,7 @@ class _PollVotesBody extends StatelessWidget {
 }
 
 class _OptionSectionHeader extends StatelessWidget {
-  const _OptionSectionHeader({
-    required this.label,
-    required this.voteCount,
-  });
+  const _OptionSectionHeader({required this.label, required this.voteCount});
 
   final String label;
   final int voteCount;

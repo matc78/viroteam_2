@@ -25,6 +25,7 @@ class ChatMessageBubble extends StatelessWidget {
     required this.mine,
     required this.viewerUid,
     required this.borderColor,
+    required this.clubColor,
     required this.onLongPress,
     required this.onDoubleTap,
     required this.onOpenReactors,
@@ -46,7 +47,12 @@ class ChatMessageBubble extends StatelessWidget {
   final ChatMessage message;
   final bool mine;
   final String? viewerUid;
+
+  /// Couleur du rôle de l’auteur (nom, citation).
   final Color borderColor;
+
+  /// Couleur du club : contour des messages reçus en mode sombre.
+  final Color clubColor;
   final VoidCallback onLongPress;
   final VoidCallback onDoubleTap;
   final VoidCallback onOpenReactors;
@@ -131,10 +137,13 @@ class ChatMessageBubble extends StatelessWidget {
     final reactionChips = chatThreadReactionChips(message.reactions);
     final hasReactions = reactionEntries.isNotEmpty;
     final imageUrl = (message.thumbUrl ?? message.downloadUrl ?? '').trim();
-    final foreground = mine ? palette.onAccent : palette.brandText;
-    final secondary = mine
-        ? palette.onAccent.withValues(alpha: 0.85)
-        : palette.textSecondary;
+    final colors = ViroChat.bubbleColors(
+      palette: palette,
+      mine: mine,
+      clubColor: clubColor,
+    );
+    final foreground = colors.text;
+    final secondary = colors.secondaryText;
     const radius = Radius.circular(ViroChat.bubbleRadius);
     const tail = Radius.circular(ViroChat.bubbleTailRadius);
     final hasTail = groupPosition.isLast;
@@ -144,19 +153,21 @@ class ChatMessageBubble extends StatelessWidget {
       bottomLeft: hasTail && !mine ? tail : radius,
       bottomRight: hasTail && mine ? tail : radius,
     );
-    final Color background;
-    if (mine) {
-      background = palette.accentFill;
-    } else if (isSearchMatch) {
-      background = ViroColors.warning.withValues(alpha: 0.12);
-    } else {
-      background = palette.surfaceCard;
-    }
+    final background = isSearchMatch && !mine
+        ? Color.alphaBlend(
+            ViroColors.warning.withValues(alpha: 0.12),
+            colors.background,
+          )
+        : colors.background;
+    final bubbleBorderColor = colors.border;
     final Border? border = isCurrentSearchMatch || (mine && isSearchMatch)
         ? Border.all(color: ViroColors.warning, width: 2)
-        : mine
+        : bubbleBorderColor == null
         ? null
-        : Border.all(color: borderColor, width: 1.5);
+        : Border.all(
+            color: bubbleBorderColor,
+            width: ViroChat.bubbleBorderWidth,
+          );
     final imageSize = chatThreadImageSize(
       width: message.width,
       height: message.height,
@@ -200,6 +211,7 @@ class ChatMessageBubble extends StatelessWidget {
                       color: background,
                       borderRadius: bubbleRadius,
                       border: border,
+                      boxShadow: colors.glow,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,17 +238,13 @@ class ChatMessageBubble extends StatelessWidget {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: mine
-                                    ? palette.onAccent.withValues(alpha: 0.16)
-                                    : palette.accentSofter,
+                                color: foreground.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(
                                   ViroChat.quoteRadius,
                                 ),
                                 border: Border(
                                   left: BorderSide(
-                                    color: mine
-                                        ? palette.onAccent
-                                        : borderColor,
+                                    color: palette.readableAccent(borderColor),
                                     width: 3,
                                   ),
                                 ),
@@ -248,11 +256,9 @@ class ChatMessageBubble extends StatelessWidget {
                                     Text(
                                       replySenderLabel,
                                       style: theme.labelSmall?.copyWith(
-                                        color: mine
-                                            ? foreground
-                                            : palette.readableAccent(
-                                                borderColor,
-                                              ),
+                                        color: palette.readableAccent(
+                                          borderColor,
+                                        ),
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -311,7 +317,7 @@ class ChatMessageBubble extends StatelessWidget {
                             edited: message.editedAt != null,
                             highlightQuery: highlightQuery,
                             localStatus: message.localStatus,
-                            onAccent: mine,
+                            timestampColor: secondary,
                             style: theme.bodyMedium?.copyWith(
                               color: foreground,
                             ),
@@ -333,12 +339,8 @@ class ChatMessageBubble extends StatelessWidget {
                               child: Text(
                                 AppCopy.chat.retrySend,
                                 style: theme.labelSmall?.copyWith(
-                                  color: mine ? foreground : palette.errorText,
+                                  color: palette.errorText,
                                   fontWeight: FontWeight.w700,
-                                  decoration: mine
-                                      ? TextDecoration.underline
-                                      : null,
-                                  decorationColor: foreground,
                                 ),
                               ),
                             ),

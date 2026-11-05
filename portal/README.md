@@ -116,7 +116,7 @@ Redeploy manuel : **Actions → Deploy portal → Run workflow**.
 URL live : [https://www.viroteam.com](https://www.viroteam.com)  
 (fallback App Hosting : console → backend `portal`, sous-domaine `*.hosted.app`).
 
-Hôte canonique : **`www.viroteam.com`**. L’apex est redirigé en 301 par le middleware (`src/middleware.ts`). Idéalement, cocher aussi la redirection domaine dans Firebase Console → App Hosting → Domaines (CDN avant Cloud Run).
+Hôte canonique : **`www.viroteam.com`**. L’apex est redirigé en 301 par le proxy Next (`src/proxy.ts`). Idéalement, cocher aussi la redirection domaine dans Firebase Console → App Hosting → Domaines (CDN avant Cloud Run).
 
 ## Thème
 

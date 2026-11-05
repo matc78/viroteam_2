@@ -6,7 +6,7 @@ import {
   Theme,
   type EmojiClickData,
 } from "emoji-picker-react";
-import frEmojiData from "emoji-picker-react/dist/data/emojis-fr";
+import frEmojiData from "emoji-picker-react/dist/data/emojis-fr.js";
 import { QUICK_REACTION_UNIFIED } from "@/components/chat/emojiCatalog";
 import styles from "./AppleReactionPicker.module.css";
 import { chatCopy } from "@/lib/copy/chatCopy";

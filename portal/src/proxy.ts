@@ -11,7 +11,7 @@ const APEX_HOST = CANONICAL_HOST.replace(/^www\./, "");
  * ne matche pas : le CDN/Cloud Run ne voit pas `Host: viroteam.com`.
  * On lit donc `X-Forwarded-Host` (fallback `Host`).
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const forwardedHost = request.headers.get("x-forwarded-host");
   const hostHeader = request.headers.get("host");
   const rawHost = (forwardedHost ?? hostHeader ?? "").split(",")[0]?.trim() ?? "";

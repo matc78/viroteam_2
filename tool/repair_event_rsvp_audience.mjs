@@ -285,7 +285,11 @@ async function repairClub(params) {
     for (let i = 0; i < writes.length; i += 400) {
       const batch = firestore.batch();
       for (const [ref, patch] of writes.slice(i, i + 400)) {
-        batch.update(ref, patch);
+        // `silentWriteAt` : le trigger events n'envoie aucune push (cf. triggers.ts).
+        batch.update(ref, {
+          ...patch,
+          silentWriteAt: FieldValue.serverTimestamp(),
+        });
       }
       await batch.commit();
     }

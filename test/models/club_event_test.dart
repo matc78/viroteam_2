@@ -107,6 +107,34 @@ void main() {
       );
     });
 
+    test('double clé memberId + accountUid : le vote le plus récent gagne', () {
+      // Ancienne app : « oui » sous memberId, `none` périmé sous accountUid.
+      final event = _event(
+        teamMemberIds: ['accountUid'],
+        rsvp: {'memberId': 'yes', 'accountUid': 'none'},
+        rsvpUpdatedAt: {
+          'memberId': DateTime(2026, 11, 4, 23, 28),
+          'accountUid': DateTime(2026, 11, 3, 23, 22),
+        },
+      );
+      expect(
+        event.rsvpStatusForUser(
+          'accountUid',
+          clubAudienceId: 'memberId',
+          memberAudienceKeys: {'memberId', 'accountUid'},
+        ),
+        RsvpStatus.yes,
+      );
+      expect(
+        event.rsvpUpdatedAtForUser(
+          'accountUid',
+          clubAudienceId: 'memberId',
+          memberAudienceKeys: {'memberId', 'accountUid'},
+        ),
+        DateTime(2026, 11, 4, 23, 28),
+      );
+    });
+
     test('lit la présence legacy v1 pour l\'utilisateur uniquement', () {
       final event = _event(
         legacyAttendance: {'coachMemberId': 'none', 'playerB': 'present'},

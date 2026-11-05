@@ -142,3 +142,79 @@ export function buildEventAudienceMigrationPatch(params: {
   }
   return patch;
 }
+
+/** Millisecondes d'un Timestamp Firestore (ou `null`). */
+function timestampMillis(value: unknown): number | null {
+  if (value && typeof value === "object" && "toMillis" in value) {
+    const millis = (value as { toMillis?: () => number }).toMillis?.();
+    return typeof millis === "number" ? millis : null;
+  }
+  return null;
+}
+
+/**
+ * True si le vote sous `legacyId` est au moins aussi récent que celui sous
+ * `canonicalId` (`rsvpUpdatedAt`) ; sans horodatage canonique, le legacy gagne.
+ */
+export function legacyRsvpIsNewer(
+  rsvpUpdatedAt: Record<string, unknown> | null | undefined,
+  legacyId: string,
+  canonicalId: string,
+): boolean {
+  const canonicalMillis = timestampMillis(rsvpUpdatedAt?.[canonicalId]);
+  if (canonicalMillis == null) return true;
+  const legacyMillis = timestampMillis(rsvpUpdatedAt?.[legacyId]);
+  return legacyMillis != null && legacyMillis >= canonicalMillis;
+}
+
+/**
+ * Clés `rsvp` (avant ou après) absentes de `teamMemberIds` : candidates
+ * memberId legacy écrites par une ancienne app (≤ 2.2.13).
+ */
+export function rsvpKeysOutsideAudience(
+  before: Record<string, unknown> | undefined,
+  after: Record<string, unknown>,
+): string[] {
+  const audience = new Set(
+    Array.isArray(after.teamMemberIds) ? after.teamMemberIds.map(String) : [],
+  );
+  const keys = new Set<string>();
+  for (const data of [before, after]) {
+    const rsvp = data?.rsvp;
+    if (!rsvp || typeof rsvp !== "object") continue;
+    for (const key of Object.keys(rsvp)) {
+      if (key.trim() && !audience.has(key)) keys.add(key);
+    }
+  }
+  return [...keys];
+}
+
+/**
+ * Replie les clés legacy de `rsvp` sur leur canonique (`aliases` :
+ * legacy → canonique). Si les deux existent, le vote le plus récent gagne.
+ * Sert à comparer before / after sans voir de faux changements de statut.
+ */
+export function foldRsvpAliases(
+  data: Record<string, unknown> | undefined,
+  aliases: Record<string, string>,
+): Record<string, unknown> {
+  const rsvpRaw = data?.rsvp;
+  if (!rsvpRaw || typeof rsvpRaw !== "object") return {};
+  const rsvp = { ...(rsvpRaw as Record<string, unknown>) };
+  const rsvpUpdatedAt =
+    data?.rsvpUpdatedAt && typeof data.rsvpUpdatedAt === "object"
+      ? (data.rsvpUpdatedAt as Record<string, unknown>)
+      : null;
+  for (const [legacyId, canonicalId] of Object.entries(aliases)) {
+    if (!(legacyId in rsvp)) continue;
+    const legacyValue = rsvp[legacyId];
+    delete rsvp[legacyId];
+    if (
+      !(canonicalId in rsvp) ||
+      legacyRsvpIsNewer(rsvpUpdatedAt, legacyId, canonicalId)
+    ) {
+      rsvp[canonicalId] = legacyValue;
+    }
+  }
+  return rsvp;
+}

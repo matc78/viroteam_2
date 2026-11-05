@@ -15,6 +15,12 @@ import {
 } from "../analytics";
 import { stringArray } from "../common";
 import { db, runWithDatabase, type FirestoreDatabaseId } from "../db";
+import {
+  buildEventAudienceMigrationPatch,
+  foldRsvpAliases,
+  legacyRsvpIsNewer,
+  rsvpKeysOutsideAudience,
+} from "../eventAudienceMigrate";
 import { ClubDirectory, resolveEventAudience } from "./audience";
 import {
   announcementPublishedCopy,
@@ -48,6 +54,7 @@ import {
 } from "./eventPush";
 import { resolveAnnouncementRecipientUids } from "./recipients";
 import { scheduleRsvpNotifyDebounce } from "./rsvpNotify";
+import { isSilentWrite, SILENT_WRITE_FIELD } from "./silentWrite";
 import { buildPushData, sendPushToUids } from "./send";
 
 const REGION = "europe-west1";
@@ -87,6 +94,8 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
     : undefined;
   const after = event.data?.after?.exists ? event.data.after.data() : undefined;
   if (!after) return;
+  // Écriture technique (script admin, normalisation serveur) : aucune push.
+  if (isSilentWrite(before, after)) return;
 
   const clubId = event.params.clubId;
   const eventId = event.params.eventId;
@@ -140,7 +149,18 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
     });
   }
 
-  const rsvpChanges = listRsvpStatusChanges(before, after);
+  // Ancienne app (≤ 2.2.13) : vote sous le memberId lié au lieu de l'accountUid.
+  // Comparaison sur les maps repliées (pas de fausse push quand on normalise).
+  const rsvpAliases = await resolveLegacyRsvpAliases({
+    firestore,
+    clubId,
+    before,
+    after,
+  });
+  const rsvpChanges = listRsvpStatusChanges(
+    { rsvp: foldRsvpAliases(before, rsvpAliases) },
+    { rsvp: foldRsvpAliases(after, rsvpAliases) },
+  );
   // Écriture directe d'un membre pour lui-même ; la callable (parent) compte
   // ses réponses de son côté (`setEventRsvp`).
   if (actor) {
@@ -162,6 +182,13 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
       excludeUid: actor ?? actorExclude,
     });
   }
+  await normalizeLegacyRsvpKeys({
+    firestore,
+    clubId,
+    eventId,
+    eventData: after,
+    aliases: rsvpAliases,
+  });
 
   if (isEventPostponedChange(before, after)) {
     const schedule = eventScheduleChange(before, after);
@@ -198,6 +225,77 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
       excludeUid: actor,
     });
   }
+}
+
+/**
+ * Alias legacy → canonique des clés `rsvp` hors convocation : fiche
+ * `members/{clé}` rattachée à un compte (`accountUid`). Ne lit Firestore que
+ * si la map `rsvp` a changé et contient de telles clés.
+ */
+async function resolveLegacyRsvpAliases(params: {
+  firestore: Firestore;
+  clubId: string;
+  before: DocumentData | undefined;
+  after: DocumentData;
+}): Promise<Record<string, string>> {
+  const { firestore, clubId, before, after } = params;
+  if (JSON.stringify(before?.rsvp ?? {}) === JSON.stringify(after.rsvp ?? {})) {
+    return {};
+  }
+  const candidateIds = rsvpKeysOutsideAudience(before, after);
+  if (candidateIds.length === 0) return {};
+
+  const members = firestore.collection("clubs").doc(clubId).collection("members");
+  const snaps = await firestore.getAll(...candidateIds.map((id) => members.doc(id)));
+  const aliases: Record<string, string> = {};
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const accountUid = String(snap.get("accountUid") ?? "").trim();
+    if (accountUid && accountUid !== snap.id) aliases[snap.id] = accountUid;
+  }
+  return aliases;
+}
+
+/**
+ * Réécrit sous l'accountUid les clés `rsvp` / `rsvpUpdatedAt` / `seenAt`
+ * encore posées sous un memberId legacy (le vote le plus récent gagne).
+ */
+async function normalizeLegacyRsvpKeys(params: {
+  firestore: Firestore;
+  clubId: string;
+  eventId: string;
+  eventData: DocumentData;
+  aliases: Record<string, string>;
+}): Promise<void> {
+  const { eventData } = params;
+  const rsvp = eventData.rsvp && typeof eventData.rsvp === "object" ? eventData.rsvp : {};
+  const patch: Record<string, unknown> = {};
+  for (const [legacyId, canonicalId] of Object.entries(params.aliases)) {
+    if (!(legacyId in rsvp)) continue;
+    const step = buildEventAudienceMigrationPatch({
+      teamMemberIds: stringArray(eventData.teamMemberIds),
+      rsvp,
+      rsvpUpdatedAt: eventData.rsvpUpdatedAt,
+      seenAt: eventData.seenAt,
+      legacyId,
+      canonicalId,
+      deleteField: admin.firestore.FieldValue.delete(),
+      preferLegacyWhenBoth: legacyRsvpIsNewer(
+        eventData.rsvpUpdatedAt,
+        legacyId,
+        canonicalId,
+      ),
+    });
+    if (step) Object.assign(patch, step);
+  }
+  if (Object.keys(patch).length === 0) return;
+  patch[SILENT_WRITE_FIELD] = admin.firestore.FieldValue.serverTimestamp();
+  await params.firestore
+    .collection("clubs")
+    .doc(params.clubId)
+    .collection("events")
+    .doc(params.eventId)
+    .update(patch);
 }
 
 /**

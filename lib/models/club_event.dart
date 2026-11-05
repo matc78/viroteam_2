@@ -222,12 +222,23 @@ class ClubEvent {
           ) ==
           null;
 
-  /// Première clé de [keys] présente dans [rsvp].
+  /// Clé de [keys] présente dans [rsvp] ; si plusieurs (memberId legacy +
+  /// accountUid), celle au `rsvpUpdatedAt` le plus récent.
   String? _rsvpKeyIn(Set<String> keys) {
+    String? found;
     for (final key in keys) {
-      if (rsvp[key] != null) return key;
+      if (rsvp[key] == null) continue;
+      if (found == null) {
+        found = key;
+        continue;
+      }
+      final current = rsvpUpdatedAt[found];
+      final candidate = rsvpUpdatedAt[key];
+      if (candidate != null && (current == null || candidate.isAfter(current))) {
+        found = key;
+      }
     }
-    return null;
+    return found;
   }
 
   /// Identifiants possibles de l'utilisateur sur l'événement (jamais d'autres joueurs).

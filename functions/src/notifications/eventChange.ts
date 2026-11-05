@@ -163,6 +163,8 @@ export function isEventContentModified(
 export type RsvpStatusChange = {
   memberId: string;
   status: string;
+  /** Statut avant le changement (`none` si première réponse). */
+  previousStatus: string;
 };
 
 /**
@@ -179,10 +181,10 @@ export function listRsvpStatusChanges(
   const afterMap = stringMap(after.rsvp);
   const changes: RsvpStatusChange[] = [];
   for (const memberId of Object.keys(afterMap)) {
-    const previous = beforeMap[memberId] ?? "none";
+    const previousStatus = beforeMap[memberId] ?? "none";
     const next = afterMap[memberId];
-    if (previous === next) continue;
-    changes.push({ memberId, status: next });
+    if (previousStatus === next) continue;
+    changes.push({ memberId, status: next, previousStatus });
   }
   return changes;
 }

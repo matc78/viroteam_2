@@ -178,6 +178,14 @@ export async function sendPushToUids(params: {
     success: successCount,
     failure: failureCount,
   });
+  // Claim RSVP avant envoi : un échec FCM total laisse la notif perdue (pas de retry).
+  if (tokenRows.length > 0 && successCount === 0 && failureCount > 0) {
+    console.error("push FCM total failure after claim", {
+      type: params.payload.data.type,
+      clubId: params.payload.data.clubId,
+      failureCount,
+    });
+  }
   return { recipientCount: allowedUids.length, tokenCount: tokenRows.length };
 }
 

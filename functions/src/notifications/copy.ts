@@ -500,6 +500,8 @@ export function formatMemberShortName(params: {
 export type RsvpDigestEntry = {
   memberName: string;
   status: string;
+  /** Statut avant le changement ; utile pour signaler un retournement. */
+  previousStatus?: string;
 };
 
 /** Décompte des réponses d'un event (convoqués). */
@@ -511,6 +513,15 @@ export function formatRsvpTally(tally: RsvpTally): string {
   if (tally.maybe > 0) parts.push(`${tally.maybe} peut-être`);
   if (tally.none > 0) parts.push(`${tally.none} sans réponse`);
   return parts.join(", ");
+}
+
+/** True si le joueur était présent et bascule en absent / peut-être. */
+export function isRsvpPresenceFlip(previousStatus: string | undefined, status: string): boolean {
+  return (
+    normalizeRsvpStatus(previousStatus) === "yes" &&
+    (normalizeRsvpStatus(status) === "no" ||
+      normalizeRsvpStatus(status) === "maybe")
+  );
 }
 
 /** « Marie D. vient », « Paul G. ne vient pas »… */
@@ -527,6 +538,13 @@ function rsvpSentence(name: string, status: string): string {
   }
 }
 
+/** Corps court pour un retournement de présence (oui → non / peut-être). */
+function rsvpPresenceFlipBody(status: string): string {
+  return normalizeRsvpStatus(status) === "maybe"
+    ? "Passe en peut-être"
+    : "Ne vient plus";
+}
+
 /**
  * Push après stabilisation d’un ou plusieurs RSVP (digest anti-spam), pour le
  * staff et les joueurs qui suivent leurs coéquipiers. Le décompte aide le
@@ -541,15 +559,93 @@ export function eventRsvpChangedCopy(params: {
     ? params.responses
     : [{ memberName: "Un membre", status: "none" }];
   const typeLabel = eventTypePushLabel(params.ctx.type);
-  const lead =
-    responses.length === 1
-      ? rsvpSentence(responses[0]!.memberName.trim() || "Un membre", responses[0]!.status)
+  const single = responses.length === 1 ? responses[0]! : null;
+  const name = single?.memberName.trim() || "Un membre";
+  const flipped =
+    single != null &&
+    isRsvpPresenceFlip(single.previousStatus, single.status);
+
+  const lead = flipped
+    ? `${name} a changé`
+    : single != null
+      ? rsvpSentence(name, single.status)
       : `${responses.length} nouvelles réponses`;
+
+  const body = flipped
+    ? truncatePushBody(
+        joinParts([
+          `Présence : ${rsvpPresenceFlipBody(single!.status).toLowerCase()}`,
+          typeDay(params.ctx),
+          eventSubject(params.ctx),
+        ]),
+      )
+    : truncatePushBody(
+        joinParts([
+          typeDay(params.ctx),
+          eventSubject(params.ctx),
+          formatRsvpTally(params.tally),
+        ]),
+      );
+
   return {
     title: fitPushTitle(lead, `Réponse · ${typeLabel}`),
-    body: truncatePushBody(
-      joinParts([typeDay(params.ctx), eventSubject(params.ctx), formatRsvpTally(params.tally)]),
+    body,
+  };
+}
+
+/** Entrée d’un digest multi-événements pour les coéquipiers opt-in. */
+export type TeammateRsvpDigestItem = {
+  responderMemberId: string;
+  responderName: string;
+  eventId: string;
+  status: string;
+  previousStatus?: string;
+};
+
+/**
+ * Copy du digest coéquipiers multi-événements : une réponse = détail event ;
+ * plusieurs = message court « vérifie dans l’app ».
+ */
+export function teammateRsvpDigestCopy(params: {
+  items: TeammateRsvpDigestItem[];
+  /** Copy détaillée quand il n’y a qu’une seule réponse (event connu). */
+  singleEventCopy?: PushCopy;
+}): PushCopy {
+  const items = params.items;
+  if (items.length <= 1) {
+    return (
+      params.singleEventCopy ?? {
+        title: fitPushTitle("Nouvelle réponse", "Réponse"),
+        body: "Vérifie dans l'app",
+      }
+    );
+  }
+
+  const responderIds = new Set(items.map((item) => item.responderMemberId));
+  const eventIds = new Set(items.map((item) => item.eventId));
+  const eventCount = eventIds.size;
+
+  if (responderIds.size === 1) {
+    const name = items[0]!.responderName.trim() || "Un membre";
+    // Titre court (~26 car. écran verrouillé) ; détail dans le corps.
+    const lead =
+      eventCount <= 1 ? `${name} a répondu` : `${name} · ${eventCount} réponses`;
+    const body =
+      eventCount <= 1
+        ? "Vérifie dans l'app"
+        : `${name} a répondu à ${eventCount} convocations. Vérifie dans l'app`;
+    return {
+      title: fitPushTitle(lead, "Réponses coéquipiers"),
+      body: truncatePushBody(body),
+    };
+  }
+
+  return {
+    title: fitPushTitle(
+      `${items.length} réponses coéquipiers`,
+      "Réponses coéquipiers",
     ),
+    body: "Vérifie dans l'app",
   };
 }
 

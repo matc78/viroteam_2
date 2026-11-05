@@ -35,6 +35,11 @@ export function pushGrouping(data: Record<string, string>): {
   if (type === "chat_message" && data.conversationId) {
     return { threadId: `chat_${data.conversationId}` };
   }
+  if (type === "event_rsvp_changed" && data.teammateDigest === "1" && data.clubId) {
+    // Digest coéquipiers multi-events : un tag par destinataire/club.
+    const tag = `teammate_rsvp_${data.clubId}`;
+    return { tag, threadId: tag };
+  }
   if (type === "event_rsvp_changed" && data.eventId) {
     // Un tag par event : la dernière push RSVP remplace la précédente (anti-spam).
     const base = `rsvp_${data.eventId}`;

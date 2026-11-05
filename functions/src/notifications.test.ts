@@ -21,8 +21,10 @@ import {
   feeReminderCopy,
   formatMemberShortName,
   formatRsvpTally,
+  isRsvpPresenceFlip,
   preferenceOffWarning,
   rsvpStatusLabel,
+  teammateRsvpDigestCopy,
   truncatePushBody,
   weeklyDigestCopy,
   type EventPushContext,
@@ -76,6 +78,7 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   MANUAL_PUSH_COOLDOWN_MS,
   RSVP_NOTIFY_DEBOUNCE_MS,
+  TEAMMATE_RSVP_DIGEST_MS,
 } from "./notifications/types";
 
 const training: EventPushContext = {
@@ -256,6 +259,17 @@ test("RSVP : digest staff avec décompte, confirmation parent", () => {
   assert.equal(single.title, "Marie D. vient");
   assert.equal(single.body, "Entraînement jeu. 23/10 · U15 · 12 oui, 3 non, 4 sans réponse");
 
+  const flip = eventRsvpChangedCopy({
+    responses: [
+      { memberName: "Marie D.", status: "no", previousStatus: "yes" },
+    ],
+    ctx: training,
+    tally,
+  });
+  assert.equal(isRsvpPresenceFlip("yes", "no"), true);
+  assert.equal(flip.title, "Marie D. a changé");
+  assert.match(flip.body, /ne vient plus/i);
+
   const digest = eventRsvpChangedCopy({
     responses: [
       { memberName: "Marie D.", status: "yes" },
@@ -268,6 +282,32 @@ test("RSVP : digest staff avec décompte, confirmation parent", () => {
   // Le digest staff ne prend jamais le prénom d'un enfant dans le titre.
   assert.equal(digest.title, "3 nouvelles réponses");
   assert.equal(digest.body, "Entraînement jeu. 23/10 · U15 · 12 oui, 3 non, 4 sans réponse");
+
+  const teammateMulti = teammateRsvpDigestCopy({
+    items: [
+      {
+        responderMemberId: "m1",
+        responderName: "Marie D.",
+        eventId: "e1",
+        status: "yes",
+      },
+      {
+        responderMemberId: "m1",
+        responderName: "Marie D.",
+        eventId: "e2",
+        status: "no",
+      },
+      {
+        responderMemberId: "m1",
+        responderName: "Marie D.",
+        eventId: "e3",
+        status: "maybe",
+      },
+    ],
+  });
+  assert.equal(teammateMulti.title, "Marie D. · 3 réponses");
+  assert.match(teammateMulti.body, /Marie D\. a répondu à 3 convocations/);
+  assert.equal(TEAMMATE_RSVP_DIGEST_MS, 2 * 60 * 1000);
 
   assert.equal(childRsvpConfirmationCopy({ ctx: forLeo, status: "no" }).title, "Léo · Entraînement");
   assert.equal(
@@ -724,11 +764,11 @@ test("listRsvpStatusChanges détecte les deltas (ignore les suppressions)", () =
       { rsvp: { a: "yes", b: "no" } },
       { rsvp: { a: "maybe", b: "no" } },
     ),
-    [{ memberId: "a", status: "maybe" }],
+    [{ memberId: "a", status: "maybe", previousStatus: "yes" }],
   );
   assert.deepEqual(
     listRsvpStatusChanges({ rsvp: {} }, { rsvp: { a: "yes" } }),
-    [{ memberId: "a", status: "yes" }],
+    [{ memberId: "a", status: "yes", previousStatus: "none" }],
   );
   // Suppression de clé = nettoyage audience, pas une réponse utilisateur.
   assert.deepEqual(
@@ -819,6 +859,14 @@ test("pushGrouping : tag par entité (et par enfant), thread sans tag pour le ch
   assert.deepEqual(
     pushGrouping({ type: "event_rsvp_changed", eventId: "e1", memberId: "m1" }),
     { tag: "rsvp_e1", threadId: "event_e1" },
+  );
+  assert.deepEqual(
+    pushGrouping({
+      type: "event_rsvp_changed",
+      teammateDigest: "1",
+      clubId: "c1",
+    }),
+    { tag: "teammate_rsvp_c1", threadId: "teammate_rsvp_c1" },
   );
   assert.deepEqual(
     pushGrouping({ type: "event_weekly_digest" }),

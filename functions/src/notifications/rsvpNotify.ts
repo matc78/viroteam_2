@@ -26,10 +26,15 @@ import {
 } from "./eventPush";
 import { memberAccountUid } from "./recipients";
 import { RSVP_NOTIFY_DEBOUNCE_MS } from "./types";
+import {
+  enqueueTeammateDigestsForEvent,
+  flushDueTeammateRsvpDigests,
+} from "./teammateRsvpDigest";
 
 type RsvpNotifyPendingEntry = {
   version: number;
   status: string;
+  previousStatus: string;
   dueAt: Timestamp;
   excludeUid?: string;
 };
@@ -71,6 +76,7 @@ export async function scheduleRsvpNotifyDebounce(params: {
       const entry: RsvpNotifyPendingEntry = {
         version,
         status: change.status,
+        previousStatus: change.previousStatus,
         dueAt,
       };
       if (excludeUid) entry.excludeUid = excludeUid;
@@ -115,11 +121,14 @@ async function flushEventRsvpNotifications(params: {
   // Claim transactionnel : évite un double envoi si deux crons se chevauchent.
   const claimed = await params.firestore.runTransaction(async (tx) => {
     const snap = await tx.get(eventRef);
-    if (!snap.exists) return [] as Array<{
-      memberId: string;
-      status: string;
-      excludeUid?: string;
-    }>;
+    if (!snap.exists) {
+      return [] as Array<{
+        memberId: string;
+        status: string;
+        previousStatus: string;
+        excludeUid?: string;
+      }>;
+    }
     const data = snap.data() ?? {};
     if (data.canceled === true) {
       tx.update(eventRef, {
@@ -135,6 +144,7 @@ async function flushEventRsvpNotifications(params: {
     const toSend: Array<{
       memberId: string;
       status: string;
+      previousStatus: string;
       excludeUid?: string;
     }> = [];
 
@@ -146,6 +156,7 @@ async function flushEventRsvpNotifications(params: {
       toSend.push({
         memberId,
         status: entry.status,
+        previousStatus: entry.previousStatus,
         ...(entry.excludeUid ? { excludeUid: entry.excludeUid } : {}),
       });
     }
@@ -173,8 +184,13 @@ async function flushEventRsvpNotifications(params: {
   const base = eventPushContext(params.eventData);
 
   const exclude = new Set<string>();
-  const responses: Array<{ memberName: string; status: string }> = [];
+  const responses: Array<{
+    memberName: string;
+    status: string;
+    previousStatus: string;
+  }> = [];
   const responders = new Map<string, string>();
+  const responderNames = new Map<string, string>();
 
   for (const entry of claimed) {
     if (entry.excludeUid) exclude.add(entry.excludeUid);
@@ -182,17 +198,22 @@ async function flushEventRsvpNotifications(params: {
       (await directory.resolveMemberId(entry.memberId)) ?? entry.memberId;
     const member = await directory.member(memberId);
     // Le joueur qui a répondu n'a pas besoin d'être prévenu de sa réponse.
-    exclude.add(member ? (memberAccountUid(member, memberId) ?? memberId) : entry.memberId);
+    exclude.add(
+      member ? (memberAccountUid(member, memberId) ?? memberId) : entry.memberId,
+    );
     responders.set(memberId, entry.status);
+    const memberName = member
+      ? formatMemberShortName({
+          firstName: member.firstName as string | undefined,
+          lastName: member.lastName as string | undefined,
+          displayName: member.displayName as string | undefined,
+        })
+      : "Un membre";
+    responderNames.set(memberId, memberName);
     responses.push({
-      memberName: member
-        ? formatMemberShortName({
-            firstName: member.firstName as string | undefined,
-            lastName: member.lastName as string | undefined,
-            displayName: member.displayName as string | undefined,
-          })
-        : "Un membre",
+      memberName,
       status: entry.status,
+      previousStatus: entry.previousStatus,
     });
   }
 
@@ -238,23 +259,39 @@ async function flushEventRsvpNotifications(params: {
       }),
   });
 
-  // Coéquipiers et autres parents : seulement s'ils l'ont demandé.
-  await sendEventPushToAudience({
-    ...common,
-    entries: entries.filter(
-      (entry) =>
-        entry.relation !== "coach" &&
-        !staff.has(entry.uid) &&
-        !(entry.memberId != null && responders.has(entry.memberId)),
+  // Coéquipiers : file multi-events (2 min) plutôt qu'une push immédiate.
+  const teammateUids = [
+    ...new Set(
+      entries
+        .filter(
+          (entry) =>
+            entry.relation !== "coach" &&
+            !staff.has(entry.uid) &&
+            !(entry.memberId != null && responders.has(entry.memberId)) &&
+            !exclude.has(entry.uid),
+        )
+        .map((entry) => entry.uid),
     ),
-    alsoRequire: "rsvpTeammates",
-    copyFor: () => digestCopy,
+  ];
+  await enqueueTeammateDigestsForEvent({
+    firestore: params.firestore,
+    clubId: params.clubId,
+    eventId: params.eventId,
+    eventData: params.eventData,
+    claimed: claimed.map((entry) => ({
+      memberId: entry.memberId,
+      status: entry.status,
+      previousStatus: entry.previousStatus,
+    })),
+    recipientUids: teammateUids,
+    responderNames,
   });
 }
 
 /**
  * Envoie les push RSVP dont le debounce est échu et le statut encore stable,
- * puis les push « modifié » dont le regroupement est échu.
+ * puis les digests coéquipiers et les push « modifié » dont le regroupement
+ * est échu.
  */
 export async function flushDueNotifications(): Promise<void> {
   const firestore = db();
@@ -281,6 +318,7 @@ export async function flushDueNotifications(): Promise<void> {
     }
   }
 
+  await flushDueTeammateRsvpDigests({ firestore, now });
   await flushDueEventModifiedNotifications({ firestore, now });
 }
 
@@ -297,10 +335,13 @@ function readPendingMap(raw: unknown): Record<string, RsvpNotifyPendingEntry> {
     if (!dueAt || typeof dueAt.toMillis !== "function") continue;
     const version = Number(entry.version ?? 0);
     const status = String(entry.status ?? "none").trim() || "none";
+    const previousStatus =
+      String(entry.previousStatus ?? "none").trim() || "none";
     const excludeUid = String(entry.excludeUid ?? "").trim();
     out[id] = {
       version: Number.isFinite(version) ? version : 0,
       status,
+      previousStatus,
       dueAt,
       ...(excludeUid ? { excludeUid } : {}),
     };

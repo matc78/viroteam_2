@@ -58,6 +58,12 @@ export const MANUAL_PUSH_COOLDOWN_MS = 60 * 60 * 1000;
 /** Délai avant push RSVP : le statut doit rester stable aussi longtemps. */
 export const RSVP_NOTIFY_DEBOUNCE_MS = 5 * 1000;
 
+/**
+ * Fenêtre de regroupement multi-événements pour les push « réponses des
+ * coéquipiers » (opt-in `rsvpTeammates`).
+ */
+export const TEAMMATE_RSVP_DIGEST_MS = 2 * 60 * 1000;
+
 /** Délai de regroupement des modifications d'un event avant push. */
 export const EVENT_MODIFIED_DEBOUNCE_MS = 10 * 60 * 1000;
 

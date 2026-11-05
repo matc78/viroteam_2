@@ -31,6 +31,25 @@ void main() {
       expect(back.rsvpTeammates, isTrue);
       expect(back.coachSummaryTiming, CoachSummaryTiming.day);
     });
+
+    test('legacy : rsvp absent hérite de events', () {
+      final off = NotificationPreferences.fromMap(const {
+        'events': false,
+      });
+      expect(off.events, isFalse);
+      expect(off.rsvp, isFalse);
+
+      final on = NotificationPreferences.fromMap(const {
+        'events': true,
+      });
+      expect(on.rsvp, isTrue);
+
+      final explicit = NotificationPreferences.fromMap(const {
+        'events': false,
+        'rsvp': true,
+      });
+      expect(explicit.rsvp, isTrue);
+    });
   });
 
   test('rappel J-7 coché d’office pour tournoi et réunion seulement', () {

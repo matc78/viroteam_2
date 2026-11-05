@@ -4,6 +4,7 @@ import {
   adminIdsWithout,
   decrementCount,
   isLastAdmin,
+  isSelfMemberTarget,
   nextAdminIds,
   parseRemoveMemberArgs,
   parseResolveJoinRequestArgs,
@@ -47,6 +48,33 @@ test("parseRemoveMemberArgs exige clubId et memberId", () => {
   });
   assert.throws(() => parseRemoveMemberArgs({ clubId: "c1" }), isInvalidArgument);
   assert.throws(() => parseRemoveMemberArgs(undefined), isInvalidArgument);
+});
+
+test("isSelfMemberTarget : accountUid ou memberId legacy = caller", () => {
+  assert.equal(
+    isSelfMemberTarget({
+      callerUid: "uid-a",
+      memberId: "m-a",
+      accountUid: "uid-a",
+    }),
+    true,
+  );
+  assert.equal(
+    isSelfMemberTarget({
+      callerUid: "uid-a",
+      memberId: "uid-a",
+      accountUid: null,
+    }),
+    true,
+  );
+  assert.equal(
+    isSelfMemberTarget({
+      callerUid: "uid-a",
+      memberId: "m-b",
+      accountUid: "uid-b",
+    }),
+    false,
+  );
 });
 
 test("isLastAdmin : seul admin (adminIds + fiche) ⇒ true", () => {

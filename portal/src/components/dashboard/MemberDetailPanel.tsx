@@ -40,6 +40,8 @@ type MemberDetailPanelProps = {
   /** Édition profil / licence / invitations. */
   canEditMember?: boolean;
   canEditRole?: boolean;
+  /** Fiche du compte connecté : le rôle reste visible mais non modifiable. */
+  isOwnProfile?: boolean;
   canRemoveMember?: boolean;
   canManageParents?: boolean;
   onClose: () => void;
@@ -68,6 +70,7 @@ export function MemberDetailPanel({
   canSeeContact = true,
   canEditMember = true,
   canEditRole = true,
+  isOwnProfile = false,
   canRemoveMember = true,
   canManageParents = true,
   onClose,
@@ -313,7 +316,7 @@ export function MemberDetailPanel({
   const emailDisplay = canSeeContact
     ? member.email?.trim() || "—"
     : "—";
-  const showAdminSection = canEditMember || canEditRole;
+  const showAdminSection = canEditMember || canEditRole || isOwnProfile;
   const showDangerSection = canRemoveMember;
 
   return (
@@ -768,7 +771,19 @@ export function MemberDetailPanel({
                       </button>
                     </div>
                   </form>
-                ) : null}
+                ) : (
+                  <div className={styles.block}>
+                    <p className={styles.blockLabel}>Rôle</p>
+                    <p className={styles.centeredNote}>
+                      {memberRoleLabel(member.role)}
+                    </p>
+                    {isOwnProfile ? (
+                      <p className={styles.centeredNote}>
+                        Seul un autre admin peut modifier ton rôle.
+                      </p>
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -778,12 +793,14 @@ export function MemberDetailPanel({
           <section className={styles.section} data-tone="danger">
             <h3 className={styles.sectionTitle}>Zone sensible</h3>
             <div className={styles.sectionBody}>
-              {member.role !== MemberRoles.admin ? (
+              {member.role !== MemberRoles.admin || !member.hasLinkedAccount ? (
                 confirmRemove ? (
                   <div className={styles.dangerRow}>
                     <p className={styles.centeredNote}>
                       Confirmer la suppression de {member.displayName} ?
-                      Cette personne perdra l’accès au chat et à l’historique.
+                      {member.hasLinkedAccount
+                        ? " Cette personne perdra l’accès au chat et à l’historique."
+                        : " L’invitation en attente sera annulée."}
                     </p>
                     <button
                       type="button"
@@ -809,12 +826,15 @@ export function MemberDetailPanel({
                     disabled={panelBusy}
                     onClick={() => setConfirmRemove(true)}
                   >
-                    Supprimer le membre
+                    {member.hasLinkedAccount
+                      ? "Supprimer le membre"
+                      : "Supprimer l’invitation"}
                   </button>
                 )
               ) : (
                 <p className={styles.centeredNote}>
-                  Un administrateur ne peut pas être supprimé depuis cette fiche.
+                  Un administrateur déjà inscrit ne peut pas être supprimé depuis
+                  cette fiche.
                 </p>
               )}
             </div>

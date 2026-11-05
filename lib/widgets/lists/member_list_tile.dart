@@ -183,10 +183,12 @@ class MemberListTile extends StatelessWidget {
               onPressed: onRemove,
               tooltip: AppCopy.members.removeFromTeam,
             ),
+          // Menu admin : ouvert pour tout le monde sauf un admin déjà inscrit
+          // (un admin en attente reste supprimable / modifiable).
           if (!selectionMode &&
               showClubAdminActions &&
               _isAdmin &&
-              member.role != MemberRoles.admin)
+              !(member.role == MemberRoles.admin && member.hasLinkedAccount))
             PopupMenuButton<String>(
               icon: ViroIcon(ViroIcons.moreVertical, color: palette.textSecondary),
               onSelected: (value) {

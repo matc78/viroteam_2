@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
@@ -95,11 +96,13 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
   bool get _isAdmin => widget.viewerRole == MemberRoles.admin;
   bool get _isCoach => widget.viewerRole == MemberRoles.coach;
 
-  bool get _canSeeContact {
-    if (_isAdmin) return true;
-    final viewer = ref.read(clubMemberProvider(widget.club.id)).value;
-    return viewer?.memberId == widget.member.memberId ||
-        viewer?.accountUid == widget.member.accountUid;
+  /// Cotisation : admin, coach autorisé, ou sa propre fiche.
+  bool _canSeeFee({required bool isOwnProfile}) {
+    if (_isAdmin || isOwnProfile) return true;
+    return widget.club.coachPermissions.allowsViewFees(
+      isAdmin: false,
+      isCoach: _isCoach,
+    );
   }
 
   ClubAccentStyle get _accentStyle => clubAccentStyle(
@@ -181,6 +184,10 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
   }
 
   Future<void> _changeRole() async {
+    if (widget.member.isAccountOf(ref.read(authStateProvider).value?.uid)) {
+      ViroSnackBar.show(context, AppCopy.members.cannotChangeOwnRole);
+      return;
+    }
     final newRole = await showChangeRoleSheet(
       context,
       member: widget.member,
@@ -341,21 +348,29 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
     final accentStyle = _accentStyle;
     final accent = _accent;
     final teams = ref.watch(clubTeamsProvider(widget.club.id)).value ?? [];
-    final fees = ref.watch(allMemberFeesProvider(widget.club.id)).value ?? [];
     final teamLabels = resolveMemberTeamLabels(widget.member, teams);
-    final fee = _feeForMember(fees);
-    final feeLabel = fee?.status.label ?? '—';
-    final emailDisplay = _canSeeContact
-        ? (widget.member.email?.trim().isNotEmpty == true
-            ? widget.member.email!.trim()
-            : '—')
-        : '—';
     final showParentAction =
         _isAdmin && widget.member.role == MemberRoles.player;
     final viewerMember = ref.watch(clubMemberProvider(widget.club.id)).value;
     final canEditLicense = _canEditLicense(viewerMember);
-    final showDangerAction =
-        _isAdmin && widget.member.role != MemberRoles.admin;
+    final isOwnProfile =
+        widget.member.isAccountOf(ref.watch(authStateProvider).value?.uid);
+    final canSeeContact = _isAdmin || isOwnProfile;
+    final canSeeFee = _canSeeFee(isOwnProfile: isOwnProfile);
+    final canSeeLicense = canEditLicense || _isAdmin;
+    final fees = canSeeFee
+        ? (ref.watch(allMemberFeesProvider(widget.club.id)).value ?? [])
+        : const <MemberFee>[];
+    final feeLabel = _feeForMember(fees)?.status.label ?? '—';
+    final emailDisplay = widget.member.email?.trim().isNotEmpty == true
+        ? widget.member.email!.trim()
+        : '—';
+    final canChangeRole = _isAdmin && !isOwnProfile;
+    // Admin déjà inscrit : pas de suppression ici (garde dernier admin).
+    // Admin en attente : suppression autorisée.
+    final showDangerAction = _isAdmin &&
+        !(widget.member.role == MemberRoles.admin &&
+            widget.member.hasLinkedAccount);
     final licenseValue =
         _loadingExtras ? '…' : (_license?.isNotEmpty == true ? _license! : '—');
 
@@ -377,7 +392,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
             accent: accent,
             accentStyle: accentStyle,
             subtitle:
-                _canSeeContact && widget.member.email?.trim().isNotEmpty == true
+                canSeeContact && widget.member.email?.trim().isNotEmpty == true
                     ? widget.member.email!.trim()
                     : AppCopy.members.accountLinked,
           ),
@@ -396,12 +411,14 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                   value: AppCopy.members.accountLinked,
                   accent: accent,
                 ),
-                _InfoDivider(color: accentStyle.border),
-                _InfoRow(
-                  label: AppCopy.members.labelEmail,
-                  value: emailDisplay,
-                  accent: accent,
-                ),
+                if (canSeeContact) ...[
+                  _InfoDivider(color: accentStyle.border),
+                  _InfoRow(
+                    label: AppCopy.members.labelEmail,
+                    value: emailDisplay,
+                    accent: accent,
+                  ),
+                ],
                 _InfoDivider(color: accentStyle.border),
                 _InfoRow(
                   label: AppCopy.members.labelTeams,
@@ -409,13 +426,15 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                       teamLabels.isNotEmpty ? teamLabels.join(', ') : AppCopy.common.none,
                   accent: accent,
                 ),
-                _InfoDivider(color: accentStyle.border),
-                _InfoRow(
-                  label: AppCopy.members.labelFee,
-                  value: feeLabel,
-                  accent: accent,
-                ),
-                if (canEditLicense || _isAdmin) ...[
+                if (canSeeFee) ...[
+                  _InfoDivider(color: accentStyle.border),
+                  _InfoRow(
+                    label: AppCopy.members.labelFee,
+                    value: feeLabel,
+                    accent: accent,
+                  ),
+                ],
+                if (canSeeLicense) ...[
                   _InfoDivider(color: accentStyle.border),
                   if (canEditLicense)
                     _ActionRow(
@@ -457,12 +476,19 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                       onTap: _busy ? null : _openParentSheet,
                     ),
                   if (showParentAction) _InfoDivider(color: accentStyle.border),
-                  _ActionRow(
-                    label: AppCopy.members.labelRole,
-                    subtitle: _roleLabel(widget.member.role),
-                    accent: accent,
-                    onTap: _busy ? null : _changeRole,
-                  ),
+                  if (canChangeRole)
+                    _ActionRow(
+                      label: AppCopy.members.labelRole,
+                      subtitle: _roleLabel(widget.member.role),
+                      accent: accent,
+                      onTap: _busy ? null : _changeRole,
+                    )
+                  else
+                    _InfoRow(
+                      label: AppCopy.members.labelRole,
+                      value: _roleLabel(widget.member.role),
+                      accent: accent,
+                    ),
                 ],
               ),
             ),

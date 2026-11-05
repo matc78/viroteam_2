@@ -13,6 +13,7 @@ import {
   decrementCount,
   accountUidOf,
   isLastAdmin,
+  isSelfMemberTarget,
   nextAdminIds,
   parseRemoveMemberArgs,
   parseResolveJoinRequestArgs,
@@ -66,7 +67,8 @@ async function loadAdminMembers(
 
 /**
  * Lit (dans [tx]) tout ce qu'il faut pour passer `memberId` à `newRole`,
- * applique la garde « dernier admin », puis renvoie les écritures à jouer.
+ * applique la garde « dernier admin » (et refuse l'auto-modification si
+ * `callerUid` est fourni), puis renvoie les écritures à jouer.
  * Séparer lectures et écritures permet de combiner ce changement avec
  * d'autres écritures dans la même transaction (Firestore : lectures d'abord).
  */
@@ -75,6 +77,7 @@ async function prepareRoleChange(
   clubId: string,
   memberId: string,
   newRole: MemberRole,
+  callerUid?: string,
 ): Promise<() => void> {
   const clubRef = db().collection("clubs").doc(clubId);
   const memberRef = clubRef.collection("members").doc(memberId);
@@ -96,6 +99,13 @@ async function prepareRoleChange(
   const accountUid = accountUidOf(member);
   const adminIds = stringArray(clubSnap.data()?.adminIds);
   const target: AdminMemberRef = { memberId, accountUid };
+
+  if (callerUid && isSelfMemberTarget({ callerUid, memberId, accountUid })) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Tu ne peux pas modifier ton propre rôle — un autre admin doit le faire.",
+    );
+  }
 
   if (
     oldRole === ROLE_ADMIN &&
@@ -138,7 +148,8 @@ async function prepareRoleChange(
 }
 
 /**
- * Change le rôle d'un membre. Appelant admin du club. Garde « dernier admin ».
+ * Change le rôle d'un membre. Appelant admin du club.
+ * Gardes : pas d’auto-modification de rôle ; « dernier admin ».
  * Effets : `members/{memberId}.role`, `club.adminIds`, `users/{accountUid}.clubMemberships[].role`.
  * Prod → v2-prod ; `setMemberRoleDev` → v2-dev.
  */
@@ -150,7 +161,13 @@ async function handleSetMemberRole(
   await assertClubAdmin(clubId, callerUid);
 
   await db().runTransaction(async (tx) => {
-    const commit = await prepareRoleChange(tx, clubId, memberId, newRole);
+    const commit = await prepareRoleChange(
+      tx,
+      clubId,
+      memberId,
+      newRole,
+      callerUid,
+    );
     commit();
   });
 

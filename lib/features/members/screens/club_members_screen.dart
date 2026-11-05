@@ -254,6 +254,11 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   }
 
   Future<void> _changeRole(ClubMember member) async {
+    if (member.isAccountOf(ref.read(authStateProvider).value?.uid)) {
+      ViroSnackBar.show(context, AppCopy.members.cannotChangeOwnRole);
+      return;
+    }
+
     final accent = ref.read(clubMemberAccentProvider(widget.clubId));
     final newRole = await showChangeRoleSheet(
       context,

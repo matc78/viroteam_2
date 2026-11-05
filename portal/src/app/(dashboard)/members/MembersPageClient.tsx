@@ -12,6 +12,7 @@ import { MemberDetailPanel } from "@/components/dashboard/MemberDetailPanel";
 import { MembersTable } from "@/components/dashboard/MembersTable";
 import { ParentsTable } from "@/components/dashboard/ParentsTable";
 import { TeamsPanel } from "@/components/dashboard/TeamsPanel";
+import { isCurrentUserMember } from "@/components/dashboard/YouChip";
 import type { TeamFormValues } from "@/components/dashboard/CreateTeamDialog";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
@@ -107,6 +108,9 @@ const DEFAULT_PARENT_FILTERS: ParentsFilters = {
   search: "",
   status: "all",
 };
+
+const OWN_ROLE_CHANGE_ERROR =
+  "Tu ne peux pas modifier ton propre rôle — un autre admin doit le faire.";
 
 type MembersTab = "activation" | "roster" | "parents" | "teams";
 
@@ -282,6 +286,8 @@ function MembersPageContent() {
     user?.uid,
     linkedMemberId,
   ]);
+  const selectedIsCurrentUser =
+    selectedMember !== null && isCurrentUserMember(selectedMember, user?.uid);
 
   // Parents : une requête guardians par membre → chargés seulement quand
   // l’onglet Parents ou l’invitation parent est ouvert, puis à chaque reload.
@@ -623,6 +629,10 @@ function MembersPageContent() {
 
   async function handleChangeRole(role: ClubMemberRole) {
     if (!activeClub || !selectedMember) return;
+    if (isCurrentUserMember(selectedMember, user?.uid)) {
+      showToast(OWN_ROLE_CHANGE_ERROR, "error");
+      return;
+    }
     await runMemberAction(
       async () => {
         await updateMemberRole({
@@ -1274,8 +1284,13 @@ function MembersPageContent() {
       return;
     }
 
-    const memberIds = [...selectedIds];
-    if (memberIds.length === 0) return;
+    const memberIds = selectedMemberRows()
+      .filter((row) => !isCurrentUserMember(row, user?.uid))
+      .map((row) => row.memberId);
+    if (memberIds.length === 0) {
+      showToast(OWN_ROLE_CHANGE_ERROR, "error");
+      return;
+    }
 
     const roleLabel =
       role === MemberRoles.admin
@@ -1699,7 +1714,8 @@ function MembersPageContent() {
           error={actionError}
           canSeeContact={memberContactVisible(selectedMember)}
           canEditMember={caps.canAddMember}
-          canEditRole={caps.canEditRole}
+          canEditRole={caps.canEditRole && !selectedIsCurrentUser}
+          isOwnProfile={selectedIsCurrentUser}
           canRemoveMember={caps.canRemoveMember}
           canManageParents={caps.canManageParents}
           onClose={() => {

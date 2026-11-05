@@ -52,6 +52,14 @@ class ClubMember {
 
   bool get isActive => status == 'active';
 
+  /// `true` si la fiche est celle du compte Auth [uid] (`accountUid`, ou
+  /// `memberId` legacy = uid).
+  bool isAccountOf(String? uid) {
+    if (uid == null || uid.isEmpty) return false;
+    if (accountUid != null && accountUid == uid) return true;
+    return memberId == uid;
+  }
+
   String get fullName {
     if (firstName != null || lastName != null) {
       return '${firstName ?? ''} ${lastName ?? ''}'.trim();

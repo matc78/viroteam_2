@@ -96,6 +96,21 @@ export function isLastAdmin(params: {
 }
 
 /**
+ * Vrai si la fiche cible est celle de l’appelant (`accountUid` ou
+ * `memberId` legacy = uid Auth).
+ */
+export function isSelfMemberTarget(params: {
+  callerUid: string;
+  memberId: string;
+  accountUid: string | null;
+}): boolean {
+  const { callerUid, memberId, accountUid } = params;
+  if (!callerUid) return false;
+  if (accountUid && accountUid === callerUid) return true;
+  return memberId === callerUid;
+}
+
+/**
  * Nouveau `club.adminIds` après changement de rôle : ajoute `accountUid`
  * si le membre devient admin, le retire s'il cesse de l'être.
  * Sans `accountUid` (fiche non liée), la liste est inchangée.

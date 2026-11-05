@@ -27,6 +27,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Membres : un admin ne peut plus modifier son propre rôle (app + callable) — seul un autre admin peut le faire descendre
+- Membres : un admin en attente (pas encore inscrit) peut à nouveau être supprimé depuis la liste / la fiche
 - Rules Firestore : un coach / admin ne peut plus patcher le `rsvp` d’un autre membre côté client ; l’édition staff passe uniquement par la callable
 - Messagerie (masquée), app : le clavier se ferme en glissant vers le bas ou en touchant le fil, même quand la conversation tient sur un écran (avant, il fallait quitter la page)
 

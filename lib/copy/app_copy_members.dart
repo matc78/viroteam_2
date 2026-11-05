@@ -90,6 +90,8 @@ final class AppCopyMembers {
   String get memberAlreadyLinked => 'Ce membre a déjà un compte lié.';
 
   String get roleChangeImpossible => 'Changement de rôle impossible.';
+  String get cannotChangeOwnRole =>
+      'Tu ne peux pas modifier ton propre rôle — un autre admin doit le faire.';
   String get roleUpdated => 'Rôle mis à jour — c’est bon.';
   String get memberRemoved => 'Membre retiré du club';
   String get changeRole => 'Changer le rôle';

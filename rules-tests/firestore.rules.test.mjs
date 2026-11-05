@@ -881,6 +881,22 @@ test("un membre répond présent uniquement pour lui-même", async () => {
   );
 });
 
+test("un coach ne peut pas patcher le RSVP d'un joueur côté client", async () => {
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), {
+      [`rsvp.${PLAYER.uid}`]: "yes",
+      [`rsvpUpdatedAt.${PLAYER.uid}`]: serverTimestamp(),
+    }),
+  );
+  // Le coach peut toujours répondre pour lui-même.
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), {
+      [`rsvp.${COACH.uid}`]: "yes",
+      [`rsvpUpdatedAt.${COACH.uid}`]: serverTimestamp(),
+    }),
+  );
+});
+
 test("fiche pré-créée : RSVP sous auth uid, pas sous memberId legacy", async () => {
   const linkedUid = "linkedPlayer1";
   const legacyMemberId = "mem-pre-linked";
@@ -1231,6 +1247,42 @@ test("un participant vote sur un sondage, uniquement avec son uid", async () => 
   const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/pollOld`);
   await assertSucceeds(updateDoc(ref, { pollVotes: { o0: [PLAYER.uid], o1: [] } }));
   await assertFails(updateDoc(ref, { pollVotes: { o0: [PLAYER.uid], o1: [COACH.uid] } }));
+});
+
+test("vote sondage : heure du vote (pollVoteTimes) seulement pour soi, horodatage serveur", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/pollTimes`), {
+      type: "poll",
+      text: "Q ?",
+      pollQuestion: "Q ?",
+      pollOptions: [{ id: "o0", text: "A" }, { id: "o1", text: "B" }],
+      pollVotes: { o0: [], o1: [] },
+      pollAllowMultiple: false,
+      senderUid: COACH.uid,
+      createdAt: Timestamp.now(),
+      reactions: {},
+    });
+  });
+  const ref = doc(as(PLAYER), `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/pollTimes`);
+  // Parcours nominal (app / portail) : vote + mon heure, puis changement de vote.
+  await assertSucceeds(updateDoc(ref, {
+    pollVotes: { o0: [PLAYER.uid], o1: [] },
+    [`pollVoteTimes.${PLAYER.uid}`]: { at: serverTimestamp(), edited: false },
+  }));
+  await assertSucceeds(updateDoc(ref, {
+    pollVotes: { o0: [], o1: [PLAYER.uid] },
+    [`pollVoteTimes.${PLAYER.uid}`]: { at: serverTimestamp(), edited: true },
+  }));
+  // Pas l'heure d'un autre, pas d'heure choisie par le client, pas de champ en plus.
+  await assertFails(updateDoc(ref, {
+    [`pollVoteTimes.${COACH.uid}`]: { at: serverTimestamp(), edited: false },
+  }));
+  await assertFails(updateDoc(ref, {
+    [`pollVoteTimes.${PLAYER.uid}`]: { at: Timestamp.fromMillis(0), edited: false },
+  }));
+  await assertFails(updateDoc(ref, {
+    [`pollVoteTimes.${PLAYER.uid}`]: { at: serverTimestamp(), edited: false, x: 1 },
+  }));
 });
 
 // ————————————————————————————————————————————————————————————————

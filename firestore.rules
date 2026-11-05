@@ -282,6 +282,18 @@ service cloud.firestore {
         && ownServerTimestampOk('seenAt', clubId);
     }
 
+    /// Staff : MAJ event OK sauf écriture du RSVP d’un autre (passe par callable).
+    function staffEventUpdateOk(clubId) {
+      return isClubCoachOrAdmin(clubId)
+        && (
+          !affectedKeys().hasAny(['rsvp', 'rsvpUpdatedAt'])
+          || (
+            ownRsvpMapOk(clubId)
+            && ownServerTimestampOk('rsvpUpdatedAt', clubId)
+          )
+        );
+    }
+
     /// Le titulaire d'une fiche ne modifie que son profil affiché.
     function isOwnProfileUpdate(clubId, memberId) {
       return ownsMemberDoc(clubId, memberId)
@@ -501,7 +513,7 @@ service cloud.firestore {
         allow read: if isClubMember(clubId)
           || guardianCanSeeTeams(clubId, resource.data.get('teamIds', []));
         allow create: if isClubCoachOrAdmin(clubId);
-        allow update: if isClubCoachOrAdmin(clubId) || onlyOwnAudienceUpdate(clubId);
+        allow update: if onlyOwnAudienceUpdate(clubId) || staffEventUpdateOk(clubId);
         allow delete: if isClubAdmin(clubId);
       }
 
@@ -709,6 +721,23 @@ service cloud.firestore {
               && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o9')
               && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o10')
               && mapEntryListOnlyOwn(oldVotes, newVotes, changed, 'o11');
+          }
+
+          /// `pollVoteTimes` : seule mon entrée change, `{at: horodatage
+          /// serveur, edited: bool}`. Absent de l'update = anciens clients.
+          function onlyOwnPollVoteTimeUpdate() {
+            let oldTimes = resource.data.get('pollVoteTimes', {});
+            let newTimes = request.resource.data.get('pollVoteTimes', {});
+            let mine = newTimes.get(request.auth.uid, null);
+            return !affectedKeys().hasAny(['pollVoteTimes'])
+              || (
+                oldTimes is map && newTimes is map
+                && newTimes.diff(oldTimes).affectedKeys().hasOnly([request.auth.uid])
+                && mine is map
+                && mine.keys().hasOnly(['at', 'edited'])
+                && mine.get('at', null) == request.time
+                && mine.get('edited', false) is bool
+              );
           }
 
           /// Réactions autorisées (aligné picker app). Chaque liste ≠ que par mon uid.
@@ -999,11 +1028,12 @@ service cloud.firestore {
               && resource.data.get('deletedAt', null) == null
               && onlyOwnReactionsUpdate()
             ) || (
-              affectedKeys().hasOnly(['pollVotes'])
+              affectedKeys().hasOnly(['pollVotes', 'pollVoteTimes'])
               && resource.data.get('type', '') == 'poll'
               && resource.data.get('deletedAt', null) == null
               && request.resource.data.get('type', '') == 'poll'
               && onlyOwnPollVotesUpdate()
+              && onlyOwnPollVoteTimeUpdate()
             ) || (
               affectedKeys().hasOnly(['deletedAt', 'deletedByUid'])
               && resource.data.get('deletedAt', null) == null

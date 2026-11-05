@@ -57,6 +57,7 @@ Les règles Firestore restent simples ; tout ce qui touche à plusieurs document
 
 - Rôle club ∈ `player` ⊂ `coach` ⊂ `admin` (héritage cumulatif). `sessionProvider` (`lib/providers/session_provider.dart`) porte le club actif + rôle membre.
 - **Parent n'est pas un rôle** : relation `clubs/{clubId}/members/{memberId}/guardians/{parentUid}` + index `users/{uid}.parentLinks[]`. Les deux faces s'écrivent uniquement via Functions (`functions/src/guardians.ts`). La cible des actions (moi vs enfant) vit dans `clubAudienceSelectionProvider`. Spec : `docs/specs/viroteam_v2_parents_spec.md`.
+- **Une seule clé membre** : une fiche liée à un compte vit à `members/{uid}` ; son id est la seule clé membre partout (rosters, RSVP, guardians, cotisations, annonces, invitations, `parentLinks`, `adminIds`). Une fiche pré-inscrite (id aléatoire) est re-clée à la liaison par `functions/src/memberRekey.ts` (anciens ids dans `formerMemberIds`). Jamais de fiche de compte à id aléatoire ni de repli `accountUid ?? memberId` (garde-fou `functions/src/memberKeyUsage.test.ts`). Nom / photo du compte → fiche : trigger `onUserWrittenSyncMemberProfile` uniquement. Code de transition marqué `COMPAT-REKEY`.
 - Noms de collections/sous-collections : constantes dans `ProjectConfig`, champs dans `lib/constants/firestore_fields.dart`.
 
 ### App Flutter

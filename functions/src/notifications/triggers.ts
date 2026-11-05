@@ -229,8 +229,9 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
 
 /**
  * Alias legacy → canonique des clés `rsvp` hors convocation : fiche
- * `members/{clé}` rattachée à un compte (`accountUid`). Ne lit Firestore que
- * si la map `rsvp` a changé et contient de telles clés.
+ * `members/{clé}` rattachée à un compte (`accountUid`), ou fiche re-clée dont
+ * `formerMemberIds` contient la clé. Ne lit Firestore que si la map `rsvp` a
+ * changé et contient de telles clés.
  */
 async function resolveLegacyRsvpAliases(params: {
   firestore: Firestore;
@@ -248,10 +249,25 @@ async function resolveLegacyRsvpAliases(params: {
   const members = firestore.collection("clubs").doc(clubId).collection("members");
   const snaps = await firestore.getAll(...candidateIds.map((id) => members.doc(id)));
   const aliases: Record<string, string> = {};
+  const missingIds: string[] = [];
   for (const snap of snaps) {
-    if (!snap.exists) continue;
+    if (!snap.exists) {
+      missingIds.push(snap.id);
+      continue;
+    }
     const accountUid = String(snap.get("accountUid") ?? "").trim();
     if (accountUid && accountUid !== snap.id) aliases[snap.id] = accountUid;
+  }
+  // Fiche re-clée sur l'uid : l'ancien id vit dans `formerMemberIds`
+  // (vote d'une ancienne app). `array-contains-any` : 30 valeurs max.
+  for (let start = 0; start < missingIds.length; start += 30) {
+    const chunk = missingIds.slice(start, start + 30);
+    const moved = await members.where("formerMemberIds", "array-contains-any", chunk).get();
+    for (const doc of moved.docs) {
+      for (const formerId of stringArray(doc.get("formerMemberIds"))) {
+        if (chunk.includes(formerId)) aliases[formerId] = doc.id;
+      }
+    }
   }
   return aliases;
 }

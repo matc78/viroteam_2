@@ -15,6 +15,7 @@ import {
 } from "./email";
 import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
 import { db, defineDualCallable } from "./db";
+import { resolveCurrentMemberId } from "./memberRekey";
 import { recomputeParentTeamIdsSafe } from "./parentTeams";
 
 const MAX_ACTIVE_GUARDIANS_PER_MEMBER = 1;
@@ -54,6 +55,14 @@ function requireString(value: unknown, name: string): string {
     throw new HttpsError("invalid-argument", `${name} requis`);
   }
   return value.trim();
+}
+
+/**
+ * `memberId` reçu d'un client, suivi jusqu'à la fiche actuelle si elle a été
+ * re-clée sur l'uid de son compte. COMPAT-REKEY : à retirer au nettoyage.
+ */
+async function requireCurrentMemberId(clubId: string, value: unknown): Promise<string> {
+  return resolveCurrentMemberId(db(), clubId, requireString(value, "memberId"));
 }
 
 function normalizeEmail(email: string): string {
@@ -485,7 +494,7 @@ export const {
   async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = requireString(request.data?.memberId, "memberId");
+  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
   const email = requireEmail(request.data?.email);
   const relation = RELATION_PARENT;
 
@@ -794,7 +803,7 @@ export const {
 } = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = requireString(request.data?.memberId, "memberId");
+  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
   await assertCanManageGuardian({ clubId, memberId, uid: callerUid });
 
   const parentUidArg =
@@ -866,7 +875,7 @@ export const {
 } = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = requireString(request.data?.memberId, "memberId");
+  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
   const email = requireEmail(request.data?.email);
   const invitationIdArg =
     typeof request.data?.invitationId === "string"
@@ -951,7 +960,7 @@ export const {
 } = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = requireString(request.data?.memberId, "memberId");
+  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
   const invitationIdArg =
     typeof request.data?.invitationId === "string"
       ? request.data.invitationId.trim()
@@ -997,7 +1006,7 @@ export const {
   async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = requireString(request.data?.memberId, "memberId");
+  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
   const invitationIdArg =
     typeof request.data?.invitationId === "string"
       ? request.data.invitationId.trim()
@@ -1097,7 +1106,7 @@ export const {
   const uid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const eventId = requireString(request.data?.eventId, "eventId");
-  const memberId = requireString(request.data?.memberId, "memberId");
+  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
   const value = String(request.data?.value ?? "").trim();
   if (!RSVP_VALUES.has(value)) {
     throw new HttpsError("invalid-argument", "Réponse RSVP invalide");
@@ -1156,7 +1165,7 @@ export const {
   const uid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const eventId = requireString(request.data?.eventId, "eventId");
-  const memberId = requireString(request.data?.memberId, "memberId");
+  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
 
   await assertCanActForMember({
     clubId,

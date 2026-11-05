@@ -77,6 +77,9 @@ jobs:
               - 'storage.rules'
               - 'rules-tests/**'
               - 'firebase.json'
+              - 'functions/src/memberRekey*.ts'
+              - 'functions/src/eventAudienceMigrate.ts'
+              - 'functions/src/notifications/silentWrite.ts'
               - '.github/workflows/ci.yml'
 
   flutter:
@@ -185,6 +188,11 @@ jobs:
 
       - run: npm ci
       - run: npm install -g firebase-tools
+
+      # member_rekey.test.mjs exécute functions/lib/memberRekey.js dans l'émulateur.
+      - name: Build Functions
+        working-directory: functions
+        run: npm ci && npm run build
 
       - uses: actions/setup-java@v5
         with:

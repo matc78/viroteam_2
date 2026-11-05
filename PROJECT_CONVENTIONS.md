@@ -186,6 +186,13 @@ lib/
 - Parent ≠ rôle club : relation `members/{memberId}/guardians/{parentUid}` + index `users.parentLinks`. Spec : [`docs/specs/viroteam_v2_parents_spec.md`](docs/specs/viroteam_v2_parents_spec.md). Écriture des deux faces via Function, jamais un seul côté client.
 - Éviter les `get()` multiples et conditions imbriquées dans les rules.
 
+### Une seule clé membre (obligatoire)
+
+- Une fiche liée à un compte vit à **`members/{uid}`** : son id est la seule clé membre partout (rosters, RSVP / `seenAt`, guardians, cotisations, annonces « Personnes », invitations, `parentLinks`, `adminIds`). Une fiche pré-inscrite garde un id aléatoire jusqu'à la liaison ; elle est alors **re-clée** côté Functions (`functions/src/memberRekey.ts`), anciens ids gardés dans `formerMemberIds`.
+- Interdit : créer une fiche de compte à id aléatoire, écrire `member_accounts` ailleurs que dans `memberRekey.ts`, ajouter un repli `accountUid ?? memberId` (deux clés pour une personne). Garde-fou : `functions/src/memberKeyUsage.test.ts`.
+- Nom / photo d'un compte → fiche : uniquement le trigger `onUserWrittenSyncMemberProfile` (le client écrit `users/{uid}`, jamais la fiche).
+- Transition : code de compatibilité marqué `COMPAT-REKEY`, à retirer après la migration prod (`tool/rekey_linked_members.mjs`).
+
 ---
 
 ## 5. Unification & cohérence
@@ -287,3 +294,4 @@ Plus tard :
 | 2026-10 | Événements clés envoyés par les Functions, rattachés au club seul (pas d’uid, pas besoin du consentement client) ; plan de taggage `docs/analytics_events.csv` ; liens stores marqués par campagne (`utm_source` = surface, `utm_campaign` = emplacement) ; replay de sessions portail écarté pour l’instant |
 | 2026-11 | Messagerie : mes bulles en `accentFill`, les autres en `surfaceCard`, messages consécutifs regroupés (app + portail) ; bouton Messagerie du header portail = page Messages ; portail mobile = bascule liste ↔ fil ; « en train d’écrire », accusés de lecture et multi-photos hors MVP |
 | 2026-11 | A11y portail : `useDialogA11y({ modal: false })` pour panneaux latéraux et fenêtre flottante, `useMenuA11y` pour les menus, bouton d’actions au focus à la place du seul clic droit ; points de rupture du chat 767 / 1024 px ; ouverture de la messagerie conditionnée à `docs/CHAT_SMOKE.md` |
+| 2026-11 | Une seule clé membre : une fiche liée vit à `members/{uid}` (re-keying à la liaison + migration `tool/rekey_linked_members.mjs`) ; profil compte → fiche par trigger serveur ; `member_accounts` et résolveurs uid ↔ memberId voués à disparaître après la migration prod |

@@ -81,6 +81,7 @@ export function remainingAdminIdentities(params: {
 
   const identities = [
     ...params.adminIds,
+    // COMPAT-REKEY : après re-keying, accountUid === memberId pour toute fiche liée.
     ...params.adminMembers.map((member) => member.accountUid ?? member.memberId),
   ].filter((id) => id.length > 0 && !targetIds.has(id));
   return uniq(identities);

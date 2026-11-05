@@ -9,6 +9,7 @@ import type { Response } from "express";
 import type Stripe from "stripe";
 import { db, defineDualCallable, defineDualRequest, isProdDatabase } from "./db";
 import { assertCanActForMember, assertClubAdmin } from "./guardians";
+import { resolveCurrentMemberId } from "./memberRekey";
 import {
   aidLabel,
   creditMemberFeeFromCardPayment,
@@ -397,7 +398,12 @@ export const {
     const uid = requireUid(request);
     const clubId = requireString(request.data?.clubId, "clubId");
     const seasonId = requireString(request.data?.seasonId, "seasonId");
-    const memberId = requireString(request.data?.memberId, "memberId");
+    // COMPAT-REKEY : suit une fiche re-clée sur l'uid de son compte.
+    const memberId = await resolveCurrentMemberId(
+      db(),
+      clubId,
+      requireString(request.data?.memberId, "memberId"),
+    );
     const clientAmountCents = Number(request.data?.amountCents ?? 0);
     // Devise : `eur` imposée côté serveur. Toute autre valeur est refusée
     // (le webhook re-vérifie la devise du PaymentIntent avant de créditer).
@@ -817,13 +823,15 @@ async function handlePaymentIntentSucceeded(
   const metadata = paymentIntent.metadata ?? {};
   const clubId = String(metadata.clubId ?? "");
   const seasonId = String(metadata.seasonId ?? "");
-  const memberId = String(metadata.memberId ?? "");
+  const metadataMemberId = String(metadata.memberId ?? "");
   const sessionId = String(metadata.sessionId ?? "");
 
-  if (!clubId || !seasonId || !memberId) {
+  if (!clubId || !seasonId || !metadataMemberId) {
     console.warn("payment_intent.succeeded metadata incomplete", paymentIntent.id);
     return;
   }
+  // COMPAT-REKEY : checkout créé avant le re-keying de la fiche sur l'uid.
+  const memberId = await resolveCurrentMemberId(db(), clubId, metadataMemberId);
 
   // Devise : seul l'EUR est crédité (le checkout ne crée que des PI en EUR ;
   // tout autre cas est une anomalie à investiguer, pas un paiement à créditer).

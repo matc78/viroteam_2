@@ -27,6 +27,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Membres : une seule clé par personne — à la liaison d’un compte (invitation, code d’équipe), la fiche pré-inscrite passe sous `members/{uid}` avec toutes ses références (rosters, tous les events en écriture silencieuse, guardians et `parentLinks`, cotisations et paiements, annonces, invitations, `adminIds`). Un code d’équipe ne crée plus de fiche à id aléatoire. Migration de l’existant : `tool/rekey_linked_members.mjs` (dry-run par défaut). Les callables et le webhook Stripe suivent un ancien id via `formerMemberIds` pendant la transition
+- Membres : changer son nom ou sa photo dans les paramètres met à jour sa fiche dans tous ses clubs, même pré-inscrite (trigger serveur `onUserWrittenSyncMemberProfile`, au lieu d’une écriture client qui ratait les fiches dont l’id n’était pas l’uid)
 - Membres : un admin ne peut plus modifier son propre rôle (app + callable) — seul un autre admin peut le faire descendre
 - Membres : un admin en attente (pas encore inscrit) peut à nouveau être supprimé depuis la liste / la fiche
 - Rules Firestore : un coach / admin ne peut plus patcher le `rsvp` d’un autre membre côté client ; l’édition staff passe uniquement par la callable

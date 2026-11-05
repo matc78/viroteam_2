@@ -8,6 +8,7 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable } from "./db";
 import { requireUid, stringArray, uniq } from "./common";
 import { assertClubAdmin } from "./guardians";
+import { resolveCurrentMemberId } from "./memberRekey";
 import {
   adminIdsWithout,
   decrementCount,
@@ -157,7 +158,10 @@ async function handleSetMemberRole(
   request: CallableRequest,
 ): Promise<{ ok: true }> {
   const callerUid = requireUid(request);
-  const { clubId, memberId, role: newRole } = parseSetMemberRoleArgs(request.data);
+  const { clubId, memberId: requestedMemberId, role: newRole } =
+    parseSetMemberRoleArgs(request.data);
+  // COMPAT-REKEY : suit une fiche re-clée sur l'uid de son compte.
+  const memberId = await resolveCurrentMemberId(db(), clubId, requestedMemberId);
   await assertClubAdmin(clubId, callerUid);
 
   await db().runTransaction(async (tx) => {
@@ -316,7 +320,9 @@ async function handleRemoveMember(
   request: CallableRequest,
 ): Promise<{ ok: true }> {
   const callerUid = requireUid(request);
-  const { clubId, memberId } = parseRemoveMemberArgs(request.data);
+  const { clubId, memberId: requestedMemberId } = parseRemoveMemberArgs(request.data);
+  // COMPAT-REKEY : suit une fiche re-clée sur l'uid de son compte.
+  const memberId = await resolveCurrentMemberId(db(), clubId, requestedMemberId);
   await assertClubAdmin(clubId, callerUid);
 
   const clubRef = db().collection("clubs").doc(clubId);

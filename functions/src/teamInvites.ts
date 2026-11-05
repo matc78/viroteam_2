@@ -11,6 +11,13 @@ import {
 import { db, defineDualCallable } from "./db";
 import { assertClubAdmin } from "./guardians";
 import {
+  MemberRekeyError,
+  readRekeyCore,
+  rewriteMemberReferences,
+  writeRekeyCore,
+} from "./memberRekey";
+import { mergeMemberDocs } from "./memberRekeyPlan";
+import {
   INVITATION_STATUS_EXPIRED,
   INVITATION_STATUS_PENDING,
   INVITATION_TYPE_TEAM,
@@ -500,89 +507,59 @@ async function handleAcceptTeamInvitation(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    let memberId = existingMemberId;
+    // Une seule clé membre : la fiche du compte vit à `members/{uid}`. Une
+    // fiche revendiquée, ou encore liée sous un ancien id, est re-clée.
+    const memberRef = clubRef.collection("members").doc(uid);
+    const rekeyFrom =
+      existingMemberId && existingMemberId !== uid ? existingMemberId : claimMemberId;
+    const [memberSnap, rekeyState] = await Promise.all([
+      tx.get(memberRef),
+      rekeyFrom
+        ? readRekeyCore(tx, { firestore: db(), clubId, fromMemberId: rekeyFrom, uid })
+        : Promise.resolve(null),
+    ]);
+    const rekey = rekeyState?.source.exists ? rekeyState : null;
+    const currentData = rekey
+      ? rekey.target.exists
+        ? mergeMemberDocs(rekey.source.data()!, rekey.target.data()!)
+        : rekey.source.data()!
+      : memberSnap.exists
+        ? memberSnap.data()!
+        : null;
+    const wasMember = Boolean(existingMemberId) && currentData != null;
+    const teamIds = stringArray(currentData?.teamIds);
+    const alreadyInTeam = teamIds.includes(teamId);
+    const playerIds = stringArray(teamTx.data()?.playerIds);
+    const alreadyOnRoster =
+      playerIds.includes(uid) || (rekeyFrom != null && playerIds.includes(rekeyFrom));
+    const alreadyInTeamAndRoster = wasMember && alreadyInTeam && alreadyOnRoster;
 
-    if (memberId) {
-      const memberRef = clubRef.collection("members").doc(memberId);
-      const memberSnap = await tx.get(memberRef);
-      if (!memberSnap.exists) {
-        throw new HttpsError("not-found", "Membre du club introuvable");
-      }
-      const memberData = memberSnap.data()!;
-      const teamIds = Array.isArray(memberData.teamIds)
-        ? (memberData.teamIds as unknown[]).filter(
-            (id): id is string => typeof id === "string",
-          )
-        : [];
-      const alreadyInTeam = teamIds.includes(teamId);
-      const playerIds = Array.isArray(teamTx.data()?.playerIds)
-        ? (teamTx.data()!.playerIds as unknown[]).filter(
-            (id): id is string => typeof id === "string",
-          )
-        : [];
-      const alreadyOnRoster = playerIds.includes(memberId);
-
-      if (alreadyInTeam && alreadyOnRoster) {
-        return { memberId, alreadyInTeam: true };
-      }
-
-      if (!alreadyInTeam) {
-        tx.update(memberRef, {
-          teamIds: admin.firestore.FieldValue.arrayUnion(teamId),
-          ...profilePatch,
-        });
-      } else {
-        tx.update(memberRef, profilePatch);
-      }
-      if (!alreadyOnRoster) {
-        tx.update(teamRef, {
-          playerIds: admin.firestore.FieldValue.arrayUnion(memberId),
-          pendingPlayerIds: admin.firestore.FieldValue.arrayRemove(memberId),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-      tx.update(inviteRef, {
-        useCount: admin.firestore.FieldValue.increment(1),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-      return { memberId, alreadyInTeam: false };
+    if (alreadyInTeamAndRoster && !rekey) {
+      return { memberId: uid, alreadyInTeam: true, rekeyFrom: null };
     }
 
-    if (claimMemberId) {
-      const memberRef = clubRef.collection("members").doc(claimMemberId);
-      const memberSnap = await tx.get(memberRef);
-      if (!memberSnap.exists) {
-        claimMemberId = null;
-      } else {
-        const data = memberSnap.data()!;
-        if (memberHasLinkedAccount(data as Record<string, unknown>)) {
-          const linkedUid = String(data.accountUid ?? data.userId ?? "").trim();
-          if (linkedUid && linkedUid !== uid) {
-            throw new HttpsError(
-              "failed-precondition",
-              "Cette fiche est déjà liée à un autre compte",
-            );
-          }
+    if (rekey) {
+      try {
+        writeRekeyCore(tx, rekey, {
+          extraFields: { ...profilePatch, teamIds: [...new Set([...teamIds, teamId])] },
+          mergeDuplicates: true,
+        });
+      } catch (error) {
+        if (error instanceof MemberRekeyError) {
+          throw new HttpsError("failed-precondition", error.message);
         }
-        memberId = claimMemberId;
-        tx.update(memberRef, {
-          accountUid: uid,
-          userId: uid,
-          teamIds: admin.firestore.FieldValue.arrayUnion(teamId),
-          activeInvitationId: admin.firestore.FieldValue.delete(),
-          ...profilePatch,
-        });
-        tx.set(clubRef.collection("member_accounts").doc(uid), {
-          memberId: claimMemberId,
-        });
+        throw error;
       }
-    }
-
-    if (!memberId) {
-      const memberRef = clubRef.collection("members").doc();
-      memberId = memberRef.id;
+    } else if (currentData) {
+      tx.update(memberRef, {
+        ...(alreadyInTeam
+          ? {}
+          : { teamIds: admin.firestore.FieldValue.arrayUnion(teamId) }),
+        ...profilePatch,
+      });
+    } else {
       tx.set(memberRef, {
-        memberId,
+        memberId: uid,
         accountUid: uid,
         userId: uid,
         firstName,
@@ -599,41 +576,51 @@ async function handleAcceptTeamInvitation(
         joinedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      tx.set(clubRef.collection("member_accounts").doc(uid), { memberId });
       const memberCount = Number(clubTx.data()?.memberCount ?? 0);
       tx.update(clubRef, {
         memberCount: memberCount + 1,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
+    const appliedRekeyFrom = rekey ? rekeyFrom : null;
 
-    tx.update(teamRef, {
-      playerIds: admin.firestore.FieldValue.arrayUnion(memberId),
-      pendingPlayerIds: admin.firestore.FieldValue.arrayRemove(memberId),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    if (alreadyInTeamAndRoster) {
+      return { memberId: uid, alreadyInTeam: true, rekeyFrom: appliedRekeyFrom };
+    }
 
-    const memberships = Array.isArray(userData.clubMemberships)
-      ? (userData.clubMemberships as unknown[]).filter(
-          (item): item is Record<string, unknown> =>
-            Boolean(item) && typeof item === "object",
-        )
-      : [];
-    const already = memberships.some((m) => String(m.clubId ?? "") === clubId);
-    if (!already) {
-      memberships.push({ clubId, role: ROLE_PLAYER });
-      tx.set(
-        userRef,
-        {
-          clubMemberships: memberships,
-          flags: {
-            profileCompleted: true,
-            disabled: false,
+    if (!alreadyOnRoster) {
+      tx.update(teamRef, {
+        playerIds: admin.firestore.FieldValue.arrayUnion(uid),
+        pendingPlayerIds: admin.firestore.FieldValue.arrayRemove(
+          ...[uid, rekeyFrom].filter((id): id is string => Boolean(id)),
+        ),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    if (!wasMember) {
+      const memberships = Array.isArray(userData.clubMemberships)
+        ? (userData.clubMemberships as unknown[]).filter(
+            (item): item is Record<string, unknown> =>
+              Boolean(item) && typeof item === "object",
+          )
+        : [];
+      const already = memberships.some((m) => String(m.clubId ?? "") === clubId);
+      if (!already) {
+        memberships.push({ clubId, role: ROLE_PLAYER });
+        tx.set(
+          userRef,
+          {
+            clubMemberships: memberships,
+            flags: {
+              profileCompleted: true,
+              disabled: false,
+            },
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           },
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true },
-      );
+          { merge: true },
+        );
+      }
     }
 
     tx.update(inviteRef, {
@@ -642,10 +629,29 @@ async function handleAcceptTeamInvitation(
     });
 
     return {
-      memberId,
+      memberId: uid,
       alreadyInTeam: false,
+      rekeyFrom: appliedRekeyFrom,
     };
   });
+
+  if (result.rekeyFrom) {
+    try {
+      await rewriteMemberReferences({
+        firestore: db(),
+        clubId,
+        from: result.rekeyFrom,
+        uid,
+      });
+    } catch (error) {
+      // Fiche déjà sous l'uid ; reprise via tool/rekey_linked_members.mjs.
+      console.error("rewriteMemberReferences failed", {
+        clubId,
+        from: result.rekeyFrom,
+        error,
+      });
+    }
+  }
 
   await captureClubEvent({
     clubId,

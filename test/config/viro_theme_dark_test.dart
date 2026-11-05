@@ -23,6 +23,24 @@ void main() {
       );
     });
 
+    test('textes secondaire et muté restent plus clairs que la carte en sombre',
+        () {
+      final palette = ViroPalette.dark;
+      final cardLuminance = palette.surfaceCard.computeLuminance();
+      expect(
+        palette.textSecondary.computeLuminance(),
+        greaterThan(cardLuminance),
+      );
+      expect(
+        palette.textMuted.computeLuminance(),
+        greaterThan(cardLuminance),
+      );
+      expect(
+        palette.textSecondary.computeLuminance(),
+        greaterThan(palette.textMuted.computeLuminance()),
+      );
+    });
+
     test('readableAccent éclaircit une couleur club foncée en sombre', () {
       const nearBlack = Color(0xFF171717);
       expect(ViroPalette.light.readableAccent(nearBlack), nearBlack);

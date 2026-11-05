@@ -7,6 +7,7 @@ import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_member_rsvp_row.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart';
@@ -443,6 +444,11 @@ class _PlanningEventDetailSheetState
   List<Widget> _memberRows(
     List<({String id, ClubMember member, bool isCoach})> entries,
   ) {
+    final club = ref.watch(clubProvider(widget.clubId)).value;
+    final viewerRole =
+        ref.watch(clubMemberProvider(widget.clubId)).value?.role ??
+            MemberRoles.player;
+    final accent = ref.watch(clubMemberAccentProvider(widget.clubId));
     var seenRank = 0;
     final rows = <Widget>[];
     for (final entry in entries) {
@@ -454,10 +460,11 @@ class _PlanningEventDetailSheetState
             status: status,
             lastUpdatedAt: lastUpdatedAt,
           );
+      final member = entry.member;
       rows.add(
         PlanningMemberRsvpRow(
           key: ValueKey(entry.id),
-          member: entry.member,
+          member: member,
           status: status,
           lastUpdatedAt: lastUpdatedAt,
           seenAt: seenAt,
@@ -470,6 +477,16 @@ class _PlanningEventDetailSheetState
               ? (next) => _setMemberRsvp(
                     audienceId: entry.id,
                     status: next,
+                  )
+              : null,
+          onProfileTap: club != null && member.hasLinkedAccount
+              ? () => showMemberDetailSheet(
+                    context,
+                    ref: ref,
+                    club: club,
+                    member: member,
+                    viewerRole: viewerRole,
+                    accentColor: accent,
                   )
               : null,
         ),

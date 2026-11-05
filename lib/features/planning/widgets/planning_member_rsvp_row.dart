@@ -25,6 +25,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
     this.seenEyeDelay = Duration.zero,
     this.isTeamCoach = false,
     this.onRsvpSelected,
+    this.onProfileTap,
   });
 
   /// `true` si la ligne affiche l'œil « vu » (fermé ou ouvert) : membre
@@ -52,6 +53,9 @@ class PlanningMemberRsvpRow extends StatelessWidget {
 
   /// Si non null, le badge RSVP ouvre un menu pour changer la réponse (staff).
   final ValueChanged<RsvpStatus>? onRsvpSelected;
+
+  /// Tap sur la ligne (avatar / nom) pour ouvrir la fiche membre.
+  final VoidCallback? onProfileTap;
 
   String get _seenLabel =>
       AppCopy.planning.seenNotAnswered(formatDayMonthAtTime(seenAt!));
@@ -110,12 +114,18 @@ class PlanningMemberRsvpRow extends StatelessWidget {
             child: badge,
           );
 
+    final memberName = member.fullName.isNotEmpty
+        ? member.fullName
+        : AppCopy.planning.unnamedMember;
+
     return ViroCard(
       margin: const EdgeInsets.only(bottom: ViroSpacing.sm),
       padding: const EdgeInsets.symmetric(
         horizontal: ViroSpacing.md,
         vertical: ViroSpacing.sm,
       ),
+      onTap: onProfileTap,
+      semanticLabel: memberName,
       child: Row(
         children: [
           MemberAvatar(member: member),
@@ -125,9 +135,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  member.fullName.isNotEmpty
-                      ? member.fullName
-                      : AppCopy.planning.unnamedMember,
+                  memberName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.titleSmall?.copyWith(

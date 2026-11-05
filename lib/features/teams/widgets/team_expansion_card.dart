@@ -8,6 +8,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_messaging_links_section.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -224,6 +225,16 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
           viewerRole: viewerRole,
           accentColor: widget.accent,
           showClubAdminActions: false,
+          onTap: member.hasLinkedAccount
+              ? () => showMemberDetailSheet(
+                    context,
+                    ref: ref,
+                    club: widget.club,
+                    member: member,
+                    viewerRole: viewerRole,
+                    accentColor: widget.accent,
+                  )
+              : null,
         );
       }),
     ];

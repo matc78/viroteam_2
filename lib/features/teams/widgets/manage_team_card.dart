@@ -7,6 +7,7 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
@@ -84,6 +85,19 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Ouvre la fiche membre si le compte est lié ; sinon `null` (pas de tap).
+  VoidCallback? _memberProfileTap(ClubMember member) {
+    if (!member.hasLinkedAccount) return null;
+    return () => showMemberDetailSheet(
+          context,
+          ref: ref,
+          club: widget.club,
+          member: member,
+          viewerRole: widget.viewerRole,
+          accentColor: widget.accent,
+        );
   }
 
   @override
@@ -211,6 +225,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         viewerRole: widget.viewerRole,
                         accentColor: widget.accent,
                         showClubAdminActions: false,
+                        onTap: _memberProfileTap(member),
                         onRemove: canRemoveCoach
                             ? () => _removeCoach(uid, member)
                             : null,
@@ -234,6 +249,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         viewerRole: widget.viewerRole,
                         accentColor: widget.accent,
                         showClubAdminActions: false,
+                        onTap: _memberProfileTap(member),
                         onRemove: canRemovePlayer
                             ? () => _removePlayer(uid, member)
                             : null,

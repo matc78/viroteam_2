@@ -25,6 +25,7 @@ import {
   membersVisibleToViewer,
   teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
+import { useMobileLayout } from "@/lib/ui/useMobileLayout";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import {
@@ -112,11 +113,13 @@ type MembersTab = "activation" | "roster" | "parents" | "teams";
 /** Contenu page Membres branché sur Firestore. */
 function MembersPageContent() {
   const { activeClub, activeClubRole, user } = useAuth();
+  const isMobileLayout = useMobileLayout();
   const caps = useMemo(
     () =>
       bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
     [activeClubRole, activeClub?.coachPermissions],
   );
+  const canImportMembers = caps.canImportMembers && !isMobileLayout;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -161,6 +164,10 @@ function MembersPageContent() {
   const [importReport, setImportReport] = useState<MemberImportReport | null>(
     null,
   );
+
+  useEffect(() => {
+    if (!canImportMembers && showImport) setShowImport(false);
+  }, [canImportMembers, showImport]);
 
   useEffect(() => {
     setFilters(DEFAULT_FILTERS);
@@ -1544,7 +1551,7 @@ function MembersPageContent() {
             bulkBusy={busy}
             inviteableSelectedCount={selectedInviteableCount}
             canAddMember={caps.canAddMember}
-            canImportMembers={caps.canImportMembers}
+            canImportMembers={canImportMembers}
             canSelectRows={!caps.isPlayer}
             canInviteActions={caps.canAddMember}
             showAdminBulkActions={caps.isAdmin}
@@ -1744,7 +1751,7 @@ function MembersPageContent() {
         />
       ) : null}
 
-      {showImport && data && activeClub && caps.canImportMembers ? (
+      {showImport && data && activeClub && canImportMembers ? (
         <ImportMembersDialog
           sport={activeClub.sport}
           existingMembers={data.members}

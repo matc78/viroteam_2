@@ -9,6 +9,10 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Sécurité
+
+- Dépendances : Next.js 15.5.29, `@sentry/nextjs` 10.78 (tunnel `/monitoring`), remplacement de `xlsx` par `exceljs` pour l’import / modèle membres, overrides npm pour les transitives critiques/hautes (`@grpc/grpc-js`, `postcss`, `glob`, `uuid`, `tinypool`) — `npm audit --omit=dev` à 0
+
 ### Ajouté
 
 - Planning : un admin (ou coach avec le droit `canEditMemberRsvp`) peut modifier le RSVP des convoqués depuis le détail d’événement
@@ -17,6 +21,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Modifié
 
 - Membres : bouton « Importer CSV » masqué sur téléphone (≤ 767 px)
+- Membres : lecture / écriture Excel via `exceljs` (lazy-load) à la place de SheetJS `xlsx@0.18.5`
 
 ### Corrigé
 

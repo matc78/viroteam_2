@@ -8,6 +8,11 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Sécurité
+
+- Cloud Functions : `npm audit fix` (proxy-addr, busboy, body-parser, grpc, qs) + override `uuid` ≥ 11.1.1 — `npm audit` à 0 faille
+- Portail : bumps Next 15.5.29, Sentry 10.78, remplacement de `xlsx` (sans patch npm) par `exceljs`, overrides ciblés (`@grpc/grpc-js`, `postcss`, `glob`, `uuid`, `tinypool`) — graphe prod à 0 faille
+
 ## [2.2.14] - 2026-11-05
 
 ### Ajouté

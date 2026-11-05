@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,7 +18,8 @@ import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
-/// Sélecteur de clubs flottant en bas (logos + ajout + chat, sans bandeau).
+/// Sélecteur de clubs flottant en bas (logos + ajout + chat) sur un fond
+/// flouté qui détache les boutons du contenu.
 class ClubSelectorBar extends ConsumerWidget {
   const ClubSelectorBar({
     super.key,
@@ -80,58 +83,62 @@ class ClubSelectorBar extends ConsumerWidget {
     // Un seul club : le logo seul passe inaperçu à côté du +, on affiche
     // une pastille large (logo + nom) pour rendre l’accès au club évident.
     if (items.length == 1) {
-      return _SingleClubBar(
-        clubItem: items.single,
-        bottomInset: bottomInset,
-        onAddClub: onAddClub,
-        chatButton: chatButton,
+      return _FrostedBarBackground(
+        child: _SingleClubBar(
+          clubItem: items.single,
+          bottomInset: bottomInset,
+          onAddClub: onAddClub,
+          chatButton: chatButton,
+        ),
       );
     }
 
-    return SizedBox(
-      height: barHeight + bottomInset,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottomInset),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // Padding symétrique : le centrage ignore l’icône chat
-                  // (superposée à droite via Positioned).
-                  const horizontalPad = ViroSpacing.screenHorizontal;
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: horizontalPad,
-                    ),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: constraints.maxWidth - 2 * horizontalPad,
-                        minHeight: constraints.maxHeight,
+    return _FrostedBarBackground(
+      child: SizedBox(
+        height: barHeight + bottomInset,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Padding symétrique : le centrage ignore l’icône chat
+                    // (superposée à droite via Positioned).
+                    const horizontalPad = ViroSpacing.screenHorizontal;
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: horizontalPad,
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          ...items,
-                          if (onAddClub != null)
-                            _AddClubBarItem(onTap: onAddClub!),
-                        ],
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: constraints.maxWidth - 2 * horizontalPad,
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            ...items,
+                            if (onAddClub != null)
+                              _AddClubBarItem(onTap: onAddClub!),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-            if (chatButton != null)
-              Positioned(
-                right: ViroSpacing.screenHorizontal,
-                top: 0,
-                bottom: 0,
-                child: Center(child: chatButton),
-              ),
-          ],
+              if (chatButton != null)
+                Positioned(
+                  right: ViroSpacing.screenHorizontal,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(child: chatButton),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -140,6 +147,85 @@ class ClubSelectorBar extends ConsumerWidget {
   String _shortName(String name) {
     if (name.length <= 12) return name;
     return '${name.substring(0, 10)}…';
+  }
+}
+
+/// Fond « verre dépoli » sous la barre : le contenu qui défile dessous se
+/// floute et se fond progressivement dans le fond d’écran, sans bord net.
+///
+/// Le fondu démarre au milieu des boutons ([_fadeTop]) : un seul flou, dont
+/// l’intensité est masquée par un dégradé (0 en haut → plein en bas), et un
+/// voile qui monte en douceur (courbe en t²) jusqu’à 50 % en bas de l’écran.
+class _FrostedBarBackground extends StatelessWidget {
+  const _FrostedBarBackground({required this.child});
+
+  final Widget child;
+
+  /// Le fondu démarre à mi-hauteur des boutons (centrés dans la barre).
+  static const double _fadeTop = ClubSelectorBar.barHeight / 2 - 80;
+  static const double _blur = 200;
+  static const double _veilBottomAlpha = 2;
+
+  /// Positions du dégradé ; l’opacité suit t² (départ imperceptible).
+  static const List<double> _stops = [0, 0.2, 0.4, 0.6, 0.8, 1];
+
+  @override
+  Widget build(BuildContext context) {
+    final background = context.viroPalette.background;
+    final easedStops = [for (final t in _stops) t * t];
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          top: _fadeTop,
+          child: IgnorePointer(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Flou masqué : aucun bord net, il apparaît progressivement.
+                ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (bounds) => LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      for (final alpha in easedStops)
+                        ViroColors.white.withValues(alpha: alpha),
+                    ],
+                    stops: _stops,
+                  ).createShader(bounds),
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: _blur, sigmaY: _blur),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        for (final alpha in easedStops)
+                          background.withValues(
+                            alpha: alpha * _veilBottomAlpha,
+                          ),
+                      ],
+                      stops: _stops,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        child,
+      ],
+    );
   }
 }
 
@@ -345,10 +431,7 @@ class _AddClubBarItem extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: palette.accentSofter,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: palette.accentSoft,
-                        width: 1,
-                      ),
+                      border: Border.all(color: palette.accentSoft, width: 1),
                       boxShadow: ViroMotion.floatingShadow(
                         palette,
                         opacity: 0.1,

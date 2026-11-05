@@ -8,6 +8,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.2.14] - 2026-11-05
+
 ### Ajouté
 
 - Notifications : digest multi-événements pour l’opt-in « Réponses des coéquipiers » (fenêtre 2 min) — une seule push du type « Marie a répondu à 3 convocations, vérifie dans l’app » au lieu d’une notif par event

@@ -1,0 +1,4 @@
+- Ta présence s'affiche enfin comme il faut, même si tu as rejoint le club par invitation
+- Admins et coachs autorisés : tu peux modifier la réponse d'un joueur depuis le détail d'un événement
+- Réponses des coéquipiers : une seule notif quand quelqu'un répond à plusieurs convocations
+- Coachs : une notif claire quand un joueur ne vient plus

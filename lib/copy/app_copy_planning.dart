@@ -66,6 +66,11 @@ final class AppCopyPlanning {
   String get rsvpPresent => 'Présent';
   String get rsvpAbsent => 'Absent';
   String get rsvpPending => 'En attente';
+  String get rsvpMaybe => 'Peut-être';
+  /// Menu staff : changer la réponse d’un convoqué.
+  String get editMemberRsvpTooltip => 'Modifier la réponse';
+  String get staffRsvpUpdated => 'Réponse mise à jour';
+  String get staffRsvpUpdateFailed => 'Impossible de modifier la réponse';
 
   /// Lecteur d’écran : date du vote RSVP ([when] ex. « 12/10 à 13h45 »).
   String rsvpAnsweredAt(String when) => 'Répondu le $when';

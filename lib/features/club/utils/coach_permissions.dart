@@ -9,6 +9,7 @@ class CoachPermissions {
     this.canTakeAttendance = true,
     this.canViewFees = false,
     this.canEditMemberLicenses = false,
+    this.canEditMemberRsvp = false,
   });
 
   final bool canCreateEvents;
@@ -17,6 +18,9 @@ class CoachPermissions {
   final bool canTakeAttendance;
   final bool canViewFees;
   final bool canEditMemberLicenses;
+
+  /// Modifier le RSVP d’un autre membre (défaut false : réservé admin).
+  final bool canEditMemberRsvp;
 
   /// Defaults si le map est absent (clubs existants).
   static const CoachPermissions defaults = CoachPermissions();
@@ -34,6 +38,8 @@ class CoachPermissions {
       canViewFees: map[FirestoreFields.canViewFees] as bool? ?? false,
       canEditMemberLicenses:
           map[FirestoreFields.canEditMemberLicenses] as bool? ?? false,
+      canEditMemberRsvp:
+          map[FirestoreFields.canEditMemberRsvp] as bool? ?? false,
     );
   }
 
@@ -76,6 +82,15 @@ class CoachPermissions {
     return isCoach && canEditMemberLicenses;
   }
 
+  /// True si le viewer peut modifier le RSVP d’un autre membre.
+  bool allowsEditMemberRsvp({
+    required bool isAdmin,
+    required bool isCoach,
+  }) {
+    if (isAdmin) return true;
+    return isCoach && canEditMemberRsvp;
+  }
+
   /// Payload Firestore pour `clubs/{clubId}.coachPermissions`.
   Map<String, bool> toMap() => {
         FirestoreFields.canCreateEvents: canCreateEvents,
@@ -84,6 +99,7 @@ class CoachPermissions {
         FirestoreFields.canTakeAttendance: canTakeAttendance,
         FirestoreFields.canViewFees: canViewFees,
         FirestoreFields.canEditMemberLicenses: canEditMemberLicenses,
+        FirestoreFields.canEditMemberRsvp: canEditMemberRsvp,
       };
 
   CoachPermissions copyWith({
@@ -93,6 +109,7 @@ class CoachPermissions {
     bool? canTakeAttendance,
     bool? canViewFees,
     bool? canEditMemberLicenses,
+    bool? canEditMemberRsvp,
   }) {
     return CoachPermissions(
       canCreateEvents: canCreateEvents ?? this.canCreateEvents,
@@ -102,6 +119,7 @@ class CoachPermissions {
       canViewFees: canViewFees ?? this.canViewFees,
       canEditMemberLicenses:
           canEditMemberLicenses ?? this.canEditMemberLicenses,
+      canEditMemberRsvp: canEditMemberRsvp ?? this.canEditMemberRsvp,
     );
   }
 }

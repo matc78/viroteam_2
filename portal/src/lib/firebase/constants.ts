@@ -39,6 +39,8 @@ export const Fields = {
   canInvitePlayers: "canInvitePlayers",
   canTakeAttendance: "canTakeAttendance",
   canViewFees: "canViewFees",
+  canEditMemberLicenses: "canEditMemberLicenses",
+  canEditMemberRsvp: "canEditMemberRsvp",
   clubMemberships: "clubMemberships",
   parentLinks: "parentLinks",
   parentClubIds: "parentClubIds",

@@ -7,6 +7,8 @@ export type CoachPermissions = {
   canInvitePlayers: boolean;
   canTakeAttendance: boolean;
   canViewFees: boolean;
+  canEditMemberLicenses: boolean;
+  canEditMemberRsvp: boolean;
 };
 
 /** Defaults si le map est absent (clubs existants). */
@@ -16,6 +18,8 @@ export const DEFAULT_COACH_PERMISSIONS: CoachPermissions = {
   canInvitePlayers: true,
   canTakeAttendance: true,
   canViewFees: false,
+  canEditMemberLicenses: false,
+  canEditMemberRsvp: false,
 };
 
 /** Parse `clubs/{id}.coachPermissions` avec defaults. */
@@ -45,6 +49,14 @@ export function parseCoachPermissions(raw: unknown): CoachPermissions {
       map[Fields.canViewFees] === undefined
         ? DEFAULT_COACH_PERMISSIONS.canViewFees
         : Boolean(map[Fields.canViewFees]),
+    canEditMemberLicenses:
+      map[Fields.canEditMemberLicenses] === undefined
+        ? DEFAULT_COACH_PERMISSIONS.canEditMemberLicenses
+        : Boolean(map[Fields.canEditMemberLicenses]),
+    canEditMemberRsvp:
+      map[Fields.canEditMemberRsvp] === undefined
+        ? DEFAULT_COACH_PERMISSIONS.canEditMemberRsvp
+        : Boolean(map[Fields.canEditMemberRsvp]),
   };
 }
 
@@ -58,7 +70,19 @@ export function coachPermissionsToFirestore(
     [Fields.canInvitePlayers]: permissions.canInvitePlayers,
     [Fields.canTakeAttendance]: permissions.canTakeAttendance,
     [Fields.canViewFees]: permissions.canViewFees,
+    [Fields.canEditMemberLicenses]: permissions.canEditMemberLicenses,
+    [Fields.canEditMemberRsvp]: permissions.canEditMemberRsvp,
   };
+}
+
+/** True si admin, ou coach avec le flag `canEditMemberRsvp`. */
+export function allowsEditMemberRsvp(params: {
+  isAdmin: boolean;
+  isCoach: boolean;
+  permissions: CoachPermissions;
+}): boolean {
+  if (params.isAdmin) return true;
+  return params.isCoach && params.permissions.canEditMemberRsvp;
 }
 
 /** Libellés FR des toggles paramètres. */
@@ -91,5 +115,16 @@ export const COACH_PERMISSION_LABELS: {
     key: "canViewFees",
     label: "Voir les cotisations",
     description: "Accès lecture au suivi des cotisations du club.",
+  },
+  {
+    key: "canEditMemberLicenses",
+    label: "Modifier les licences",
+    description: "Éditer le numéro de licence des joueurs.",
+  },
+  {
+    key: "canEditMemberRsvp",
+    label: "Modifier les réponses RSVP",
+    description:
+      "Changer la réponse (oui / non / peut-être) d’un joueur ou coach convoqué.",
   },
 ];

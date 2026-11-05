@@ -47,7 +47,8 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
         draft.canInvitePlayers != current.canInvitePlayers ||
         draft.canTakeAttendance != current.canTakeAttendance ||
         draft.canViewFees != current.canViewFees ||
-        draft.canEditMemberLicenses != current.canEditMemberLicenses;
+        draft.canEditMemberLicenses != current.canEditMemberLicenses ||
+        draft.canEditMemberRsvp != current.canEditMemberRsvp;
   }
 
   bool _seasonDirty(DateTime? configured) {
@@ -171,7 +172,9 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
       2 => permissions.canInvitePlayers,
       3 => permissions.canTakeAttendance,
       4 => permissions.canViewFees,
-      _ => permissions.canEditMemberLicenses,
+      5 => permissions.canEditMemberLicenses,
+      6 => permissions.canEditMemberRsvp,
+      _ => false,
     };
   }
 

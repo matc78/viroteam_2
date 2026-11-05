@@ -11,6 +11,8 @@ type RsvpRowStatus = "yes" | "no" | "pending";
 /** Ligne affichée dans la liste des convoqués du popover. */
 export type EventGuestRow = {
   key: string;
+  /** Id écrit dans `events.rsvp` / callable `setEventRsvp`. */
+  audienceId: string;
   name: string;
   avatarUrl: string | null;
   isCoach: boolean;
@@ -127,6 +129,7 @@ export function buildEventGuestRows(params: {
     seenKeys.add(guest.name + "::coach");
     coachRows.push({
       key: guest.name + "::coach::" + coachId,
+      audienceId: coachId,
       name: guest.name,
       avatarUrl: guest.avatarUrl,
       isCoach: true,
@@ -148,6 +151,7 @@ export function buildEventGuestRows(params: {
     markSeen(aliases);
     playerRows.push({
       key: memberId,
+      audienceId: memberId,
       name: guest.name,
       avatarUrl: guest.avatarUrl,
       isCoach: false,

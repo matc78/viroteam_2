@@ -58,6 +58,8 @@ type PlanningEventDetailPanelProps = {
   onManageConvocations?: () => void;
   /** Si fourni, affiche « Modifier » (date, heures, lieu, titre). */
   onEdit?: () => void;
+  /** Admin / coach autorisé : éditer le RSVP des convoqués. */
+  canEditMemberRsvp?: boolean;
 };
 
 function rsvpRowLabel(status: RsvpRowStatus): string {
@@ -130,6 +132,7 @@ export function PlanningEventDetailPanel({
   canSendPush = false,
   onManageConvocations,
   onEdit,
+  canEditMemberRsvp = false,
 }: PlanningEventDetailPanelProps) {
   const { showToast } = useToast();
   const [sendingPush, setSendingPush] = useState(false);
@@ -172,22 +175,30 @@ export function PlanningEventDetailPanel({
 
   useEffect(() => {
     if (!localRsvp) return;
-    const matched = linkedAliasIds.some(
+    const ids =
+      linkedMemberId && localRsvp.memberId === linkedMemberId
+        ? linkedAliasIds
+        : [localRsvp.memberId];
+    const matched = ids.some(
       (id) =>
         (event.rsvpByMemberId[id] ?? "").toLowerCase() === localRsvp.value,
     );
     if (matched) setLocalRsvp(null);
-  }, [event.rsvpByMemberId, localRsvp, linkedAliasIds]);
+  }, [event.rsvpByMemberId, localRsvp, linkedAliasIds, linkedMemberId]);
 
   const displayEvent = useMemo(() => {
     if (!localRsvp) return event;
+    const aliases =
+      linkedMemberId && localRsvp.memberId === linkedMemberId
+        ? linkedAliasIds
+        : [];
     return withLocalRsvp(
       event,
       localRsvp.memberId,
       localRsvp.value,
-      linkedAliasIds,
+      aliases,
     );
-  }, [event, localRsvp, linkedAliasIds]);
+  }, [event, localRsvp, linkedAliasIds, linkedMemberId]);
 
   const guestRows = useMemo(
     () =>
@@ -378,6 +389,30 @@ export function PlanningEventDetailPanel({
                         <span className={styles.rsvpRole}>Coach</span>
                       ) : null}
                     </div>
+                    {canEditMemberRsvp && clubId ? (
+                      <div className={styles.staffRsvpEdit}>
+                        <FamilyRsvpButtons
+                          clubId={clubId}
+                          event={displayEvent}
+                          memberId={row.audienceId}
+                          forceShow
+                          onOptimisticChange={(value) => {
+                            if (!value) {
+                              setLocalRsvp(null);
+                              return;
+                            }
+                            setLocalRsvp({
+                              memberId: row.audienceId,
+                              value,
+                            });
+                          }}
+                          onUpdated={() => {
+                            setLocalRsvp(null);
+                            onRsvpUpdated?.();
+                          }}
+                        />
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>

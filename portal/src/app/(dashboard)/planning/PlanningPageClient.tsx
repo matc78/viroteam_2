@@ -577,6 +577,7 @@ function PlanningPageContent() {
           canSendPush={Boolean(
             activeClub && (caps.isAdmin || caps.isCoach),
           )}
+          canEditMemberRsvp={caps.canEditMemberRsvp}
           onManageConvocations={
             canManageConvocationsOf(selectedEvent)
               ? () => setConvocationsEvent(selectedEvent)

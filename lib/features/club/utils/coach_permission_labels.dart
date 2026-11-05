@@ -46,6 +46,11 @@ final coachPermissionLabels = <CoachPermissionLabel>[
     description: AppCopy.club.permEditLicensesDesc,
     apply: _applyCanEditMemberLicenses,
   ),
+  CoachPermissionLabel(
+    label: AppCopy.club.permEditMemberRsvpLabel,
+    description: AppCopy.club.permEditMemberRsvpDesc,
+    apply: _applyCanEditMemberRsvp,
+  ),
 ];
 
 CoachPermissions _applyCanCreateEvents(CoachPermissions current, bool v) =>
@@ -66,3 +71,6 @@ CoachPermissions _applyCanViewFees(CoachPermissions current, bool v) =>
 CoachPermissions _applyCanEditMemberLicenses(
         CoachPermissions current, bool v) =>
     current.copyWith(canEditMemberLicenses: v);
+
+CoachPermissions _applyCanEditMemberRsvp(CoachPermissions current, bool v) =>
+    current.copyWith(canEditMemberRsvp: v);

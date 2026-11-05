@@ -65,6 +65,9 @@ final class AppCopyClub {
   String get permEditLicensesLabel => 'Modifier les licences';
   String get permEditLicensesDesc =>
       'Éditer le numéro de licence des joueurs.';
+  String get permEditMemberRsvpLabel => 'Modifier les réponses RSVP';
+  String get permEditMemberRsvpDesc =>
+      'Changer la réponse (oui / non / peut-être) d’un joueur ou coach convoqué.';
 
   String get locationsScreenTitle => 'Lieux du club';
   String get locationsRegisteredTitle => 'Lieux enregistrés';

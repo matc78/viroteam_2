@@ -1047,7 +1047,47 @@ export const {
 });
 
 /**
- * RSVP pour soi ou pour un enfant lié (clé events.rsvp[memberId]).
+ * Admin club, ou coach avec `coachPermissions.canEditMemberRsvp` (défaut false).
+ */
+async function assertCanEditMemberRsvpAsStaff(
+  clubId: string,
+  uid: string,
+): Promise<void> {
+  if (await isClubAdmin(clubId, uid)) return;
+
+  const clubSnap = await clubRef(clubId).get();
+  if (!clubSnap.exists) {
+    throw new HttpsError("not-found", "Club introuvable");
+  }
+  const club = clubSnap.data()!;
+  const callerMemberId = await resolveCallerMemberId(clubId, uid);
+  if (!callerMemberId) {
+    throw new HttpsError(
+      "permission-denied",
+      "Réservé aux admins ou coachs autorisés",
+    );
+  }
+  const memberSnap = await memberRef(clubId, callerMemberId).get();
+  if (!memberSnap.exists || memberSnap.data()?.role !== "coach") {
+    throw new HttpsError(
+      "permission-denied",
+      "Réservé aux admins ou coachs autorisés",
+    );
+  }
+  const rawPerms =
+    club.coachPermissions && typeof club.coachPermissions === "object"
+      ? (club.coachPermissions as Record<string, unknown>)
+      : {};
+  if (rawPerms.canEditMemberRsvp !== true) {
+    throw new HttpsError(
+      "permission-denied",
+      "Tu n’as pas le droit de modifier les réponses des joueurs",
+    );
+  }
+}
+
+/**
+ * RSVP pour soi, un enfant lié, ou (admin / coach autorisé) un autre membre.
  * Prod → v2-prod ; `setEventRsvpDev` → v2-dev.
  */
 export const {
@@ -1063,12 +1103,23 @@ export const {
     throw new HttpsError("invalid-argument", "Réponse RSVP invalide");
   }
 
-  const { forChild } = await assertCanActForMember({
-    clubId,
-    memberId,
-    uid,
-    permission: "canRsvp",
-  });
+  let forChild = false;
+  let via: "callable" | "staff" = "callable";
+  try {
+    const result = await assertCanActForMember({
+      clubId,
+      memberId,
+      uid,
+      permission: "canRsvp",
+    });
+    forChild = result.forChild;
+  } catch (error) {
+    if (!(error instanceof HttpsError) || error.code !== "permission-denied") {
+      throw error;
+    }
+    await assertCanEditMemberRsvpAsStaff(clubId, uid);
+    via = "staff";
+  }
 
   const eventRef = clubRef(clubId).collection("events").doc(eventId);
   const eventSnap = await eventRef.get();
@@ -1087,7 +1138,7 @@ export const {
   await captureClubEvent({
     clubId,
     event: ServerAnalyticsEvents.rsvpSet,
-    properties: { status: value, for_child: forChild, via: "callable" },
+    properties: { status: value, for_child: forChild, via },
   });
 
   return { ok: true };

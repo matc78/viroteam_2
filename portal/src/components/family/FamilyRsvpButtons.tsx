@@ -22,6 +22,11 @@ type FamilyRsvpButtonsProps = {
   onUpdated?: (value: RsvpValue) => void;
   /** `footer` : barre style popover « Tu viens ? ». */
   variant?: "default" | "footer";
+  /**
+   * Affiche les boutons même si le membre n’est pas dans `teamMemberIds`
+   * (ex. coach listé pour édition staff du RSVP).
+   */
+  forceShow?: boolean;
 };
 
 const OPTIONS: Array<{ value: RsvpValue; label: string }> = [
@@ -56,6 +61,7 @@ export function FamilyRsvpButtons({
   onOptimisticChange,
   onUpdated,
   variant = "default",
+  forceShow = false,
 }: FamilyRsvpButtonsProps) {
   const aliases = useMemo(
     () => resolveAudienceAliases(memberId, audienceIds),
@@ -112,6 +118,7 @@ export function FamilyRsvpButtons({
   }
 
   const invited =
+    forceShow ||
     event.teamMemberIds.length === 0 ||
     event.teamMemberIds.some((id) => aliases.includes(id));
   if (!invited) return null;

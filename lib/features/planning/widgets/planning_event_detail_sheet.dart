@@ -152,6 +152,47 @@ class _PlanningEventDetailSheetState
     );
   }
 
+  /// Admin (ou coach avec `canEditMemberRsvp`) : éditer le RSVP d’un convoqué.
+  bool get _canEditMemberRsvp {
+    if (_event.canceled) return false;
+    final club = ref.watch(clubProvider(widget.clubId)).value;
+    final member = ref.watch(clubMemberProvider(widget.clubId)).value;
+    if (club == null || member == null) return false;
+    return club.coachPermissions.allowsEditMemberRsvp(
+      isAdmin: member.role == MemberRoles.admin,
+      isCoach: member.role == MemberRoles.coach,
+    );
+  }
+
+  /// Met à jour le RSVP d’un convoqué via callable staff.
+  Future<void> _setMemberRsvp({
+    required String audienceId,
+    required RsvpStatus status,
+  }) async {
+    final eventService = ref.read(eventServiceProvider);
+    try {
+      await eventService.updateRsvp(
+        clubId: widget.clubId,
+        eventId: _event.id,
+        uid: audienceId,
+        status: status,
+        viaCallable: true,
+      );
+      if (!mounted) return;
+      final fresh = await eventService.getEvent(
+        clubId: widget.clubId,
+        eventId: _event.id,
+      );
+      if (!mounted) return;
+      if (fresh != null) setState(() => _event = fresh);
+      widget.onRsvpUpdated?.call();
+      ViroSnackBar.show(context, AppCopy.planning.staffRsvpUpdated);
+    } catch (_) {
+      if (!mounted) return;
+      ViroSnackBar.show(context, AppCopy.planning.staffRsvpUpdateFailed);
+    }
+  }
+
   Future<void> _openRollCall() async {
     final saved = await PlanningRollCallSheet.show(
       context: context,
@@ -425,6 +466,12 @@ class _PlanningEventDetailSheetState
                   ViroMotion.seenEyeStagger * seenRank++
               : Duration.zero,
           isTeamCoach: entry.isCoach,
+          onRsvpSelected: _canEditMemberRsvp
+              ? (next) => _setMemberRsvp(
+                    audienceId: entry.id,
+                    status: next,
+                  )
+              : null,
         ),
       );
     }

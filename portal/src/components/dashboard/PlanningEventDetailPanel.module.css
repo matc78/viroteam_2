@@ -277,6 +277,21 @@
   line-height: 1.15;
 }
 
+.staffRsvpEdit {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.staffRsvpEdit :global([data-variant="default"]) {
+  gap: 0.2rem;
+}
+
+.staffRsvpEdit :global(button) {
+  min-height: 1.55rem;
+  padding: 0.12rem 0.45rem;
+  font-size: 0.7rem;
+}
+
 .rsvpFooter {
   flex-shrink: 0;
   margin-top: auto;

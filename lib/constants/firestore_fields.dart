@@ -177,6 +177,7 @@ abstract final class FirestoreFields {
   static const String canTakeAttendance = 'canTakeAttendance';
   static const String canViewFees = 'canViewFees';
   static const String canEditMemberLicenses = 'canEditMemberLicenses';
+  static const String canEditMemberRsvp = 'canEditMemberRsvp';
 
   // fee_seasons / member_fees
   static const String seasonLabel = 'seasonLabel';

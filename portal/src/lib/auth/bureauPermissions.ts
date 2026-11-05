@@ -44,6 +44,8 @@ export type BureauCapabilities = {
   canRemoveMember: boolean;
   canManageParents: boolean;
   canImportMembers: boolean;
+  /** Admin, ou coach avec `canEditMemberRsvp`. */
+  canEditMemberRsvp: boolean;
   canCreateTeam: boolean;
   canManageTeamRoster: boolean;
   canSeeAllContacts: boolean;
@@ -93,6 +95,8 @@ export function bureauCapabilities(
   const canAddMember = isAdmin || (isCoach && coach.canInvitePlayers);
   const canManageTeamRoster =
     isAdmin || (isCoach && coach.canManageTeamRoster);
+  const canEditMemberRsvp =
+    isAdmin || (isCoach && coach.canEditMemberRsvp);
   const canAccessFeesCoachRead = isCoach && coach.canViewFees;
 
   let navHrefs: readonly string[] = NAV_ADMIN;
@@ -119,6 +123,7 @@ export function bureauCapabilities(
     canRemoveMember: isAdmin,
     canManageParents: isAdmin,
     canImportMembers: isAdmin,
+    canEditMemberRsvp,
     canCreateTeam: isAdmin,
     canManageTeamRoster,
     canSeeAllContacts: isAdmin,

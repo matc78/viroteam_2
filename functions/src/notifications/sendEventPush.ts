@@ -1,10 +1,14 @@
 import * as admin from "firebase-admin";
+import type { Firestore } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { captureConvocationSent } from "../analytics";
 import { db, defineDualCallable, isProdDatabase } from "../db";
 import { requireString, requireUid, stringArray } from "../common";
 import { ClubDirectory, resolveEventAudience } from "./audience";
-import { eventManualPushCopy } from "./copy";
+import {
+  eventManualPushCopy,
+  eventManualPushSentCopy,
+} from "./copy";
 import {
   contextForEntry,
   eventPushContext,
@@ -87,6 +91,11 @@ export const {
     entries.push({ uid, relation: "coach", rsvp: "none" });
   }
   const base = eventPushContext(event);
+  const coachFirstName = await resolveCoachFirstName({
+    firestore,
+    clubId,
+    uid,
+  });
 
   const result = await sendEventPushToAudience({
     firestore,
@@ -96,11 +105,18 @@ export const {
     type: "event_manual",
     entries,
     copyFor: (entry) => {
-      // Qui a déjà dit non n'a pas besoin d'être relancé.
-      if (entry.relation !== "coach" && entry.rsvp === "no") return null;
+      // Confirmation à l'expéditeur (coach / admin), pas une relance.
+      if (entry.uid === uid) {
+        return eventManualPushSentCopy(base);
+      }
+      // Autres coachs : pas de relance manuelle.
+      if (entry.relation === "coach") return null;
+      // Seulement sans réponse ou « peut-être ».
+      if (entry.rsvp !== "none" && entry.rsvp !== "maybe") return null;
       return eventManualPushCopy({
         ...contextForEntry(base, entry),
-        rsvp: entry.relation === "coach" ? "yes" : entry.rsvp,
+        rsvp: entry.rsvp,
+        coachFirstName,
       });
     },
   });
@@ -165,6 +181,31 @@ export async function assertEventCoachOrAdmin(params: {
     "permission-denied",
     "Réservé aux coaches de l’événement ou aux admins",
   );
+}
+
+/**
+ * Prénom du coach / admin expéditeur pour la signature « Signé coach … ».
+ * Fiche membre d'abord, puis profil user.
+ */
+async function resolveCoachFirstName(params: {
+  firestore: Firestore;
+  clubId: string;
+  uid: string;
+}): Promise<string> {
+  const memberSnap = await params.firestore
+    .collection("clubs")
+    .doc(params.clubId)
+    .collection("members")
+    .doc(params.uid)
+    .get();
+  const fromMember = String(memberSnap.data()?.firstName ?? "").trim();
+  if (fromMember) return fromMember;
+
+  const userSnap = await params.firestore
+    .collection("users")
+    .doc(params.uid)
+    .get();
+  return String(userSnap.data()?.firstName ?? "").trim();
 }
 
 function timestampMillis(value: unknown): number | null {

@@ -20,9 +20,11 @@ import { eventPushContext } from "./eventPush";
 import {
   dateIdToShortDayLabel,
   memberPlanningDeepLink,
+  latestStatusByEvent,
   parisDateId,
   planningDeepLink,
   planningWebPath,
+  withRsvpHighlights,
 } from "./deepLinks";
 import { buildPushData, sendPushToUids } from "./send";
 import { TEAMMATE_RSVP_DIGEST_MS } from "./types";
@@ -43,6 +45,8 @@ export type TeammateDigestQueueItem = {
   tallyNo: number;
   tallyMaybe: number;
   tallyNone: number;
+  /** Instant de la réponse (0 sur les anciennes entrées). */
+  respondedAtMs: number;
 };
 
 type TeammateDigestDoc = {
@@ -198,9 +202,19 @@ async function flushOneTeammateDigest(params: {
   const multiEvent = new Set(itemList.map((item) => item.eventId)).size > 1;
   const primary = itemList[0]!;
   const dateId = primary.dateId || parisDateId(new Date());
-  const deepLink = multiEvent
-    ? memberPlanningDeepLink()
-    : planningDeepLink(params.clubId, dateId, { eventId: primary.eventId });
+  const deepLink = withRsvpHighlights(
+    multiEvent
+      ? memberPlanningDeepLink()
+      : planningDeepLink(params.clubId, dateId, { eventId: primary.eventId }),
+    params.clubId,
+    latestStatusByEvent(
+      itemList.map((item) => ({
+        eventId: item.eventId,
+        status: item.status,
+        atMs: item.respondedAtMs,
+      })),
+    ),
+  );
   const webPath = multiEvent
     ? "/planning"
     : planningWebPath(params.clubId, dateId, { eventId: primary.eventId });
@@ -266,6 +280,7 @@ export async function enqueueTeammateDigestsForEvent(params: {
   const dateId =
     String(params.eventData.dateId ?? "").trim() || parisDateId(new Date());
 
+  const respondedAtMs = Date.now();
   const items: TeammateDigestQueueItem[] = [];
   for (const entry of params.claimed) {
     const memberId =
@@ -283,6 +298,7 @@ export async function enqueueTeammateDigestsForEvent(params: {
       tallyNo: tally.no,
       tallyMaybe: tally.maybe,
       tallyNone: tally.none,
+      respondedAtMs,
     });
   }
 
@@ -323,6 +339,7 @@ function readItemsMap(raw: unknown): Record<string, TeammateDigestQueueItem> {
       tallyNo: Number(entry.tallyNo ?? 0) || 0,
       tallyMaybe: Number(entry.tallyMaybe ?? 0) || 0,
       tallyNone: Number(entry.tallyNone ?? 0) || 0,
+      respondedAtMs: Number(entry.respondedAtMs ?? 0) || 0,
     };
   }
   return out;

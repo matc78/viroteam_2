@@ -24,6 +24,7 @@ import {
   eventPushContext,
   sendEventPushToAudience,
 } from "./eventPush";
+import { latestStatusByEvent } from "./deepLinks";
 import { memberAccountUid } from "./recipients";
 import { RSVP_NOTIFY_DEBOUNCE_MS } from "./types";
 import {
@@ -126,6 +127,7 @@ async function flushEventRsvpNotifications(params: {
         memberId: string;
         status: string;
         previousStatus: string;
+        dueAtMs: number;
         excludeUid?: string;
       }>;
     }
@@ -145,6 +147,7 @@ async function flushEventRsvpNotifications(params: {
       memberId: string;
       status: string;
       previousStatus: string;
+      dueAtMs: number;
       excludeUid?: string;
     }> = [];
 
@@ -157,6 +160,7 @@ async function flushEventRsvpNotifications(params: {
         memberId,
         status: entry.status,
         previousStatus: entry.previousStatus,
+        dueAtMs: entry.dueAt.toMillis(),
         ...(entry.excludeUid ? { excludeUid: entry.excludeUid } : {}),
       });
     }
@@ -236,8 +240,16 @@ async function flushEventRsvpNotifications(params: {
   };
 
   // Staff (coachs, ou admins à défaut) : le digest avec le décompte.
+  const staffHighlights = latestStatusByEvent(
+    claimed.map((entry) => ({
+      eventId: params.eventId,
+      status: entry.status,
+      atMs: entry.dueAtMs,
+    })),
+  );
   await sendEventPushToAudience({
     ...common,
+    rsvpHighlights: () => staffHighlights,
     entries: [...staff].map((uid) => ({ uid, relation: "coach", rsvp: "none" })),
     copyFor: () => digestCopy,
   });
@@ -245,6 +257,12 @@ async function flushEventRsvpNotifications(params: {
   // Parents du joueur : confirmation de la réponse posée pour leur enfant.
   await sendEventPushToAudience({
     ...common,
+    rsvpHighlights: (forMemberId) => [
+      {
+        eventId: params.eventId,
+        status: (forMemberId && responders.get(forMemberId)) || "none",
+      },
+    ],
     entries: entries.filter(
       (entry) =>
         entry.relation === "guardian" &&

@@ -39,9 +39,13 @@ import {
   feesDeepLink,
   formatTimeFr,
   homeDeepLink,
+  latestStatusByEvent,
+  memberPlanningDeepLink,
   parisDateId,
   planningDeepLink,
   planningWebPath,
+  RSVP_HIGHLIGHT_MAX,
+  withRsvpHighlights,
 } from "./notifications/deepLinks";
 import {
   creationReminderFlags,
@@ -406,6 +410,52 @@ test("deep links, dateId et libellés", () => {
   assert.equal(formatTimeFr("18:00"), "18h00");
   assert.equal(formatTimeFr("9:30"), "9h30");
   assert.equal(formatTimeFr(""), "");
+});
+
+test("deep links RSVP : events à encadrer sur la home", () => {
+  assert.equal(
+    withRsvpHighlights(memberPlanningDeepLink(), "c 1", [
+      { eventId: "e1", status: "yes" },
+      { eventId: "e2", status: "no" },
+    ]),
+    "viroteam://planning?rsvpClubId=c%201&rsvpHighlights=e1%3Ayes%2Ce2%3Ano",
+  );
+  assert.equal(
+    withRsvpHighlights(planningDeepLink("c1", "20260908", { eventId: "e1" }), "c1", [
+      { eventId: "e1", status: "maybe" },
+    ]),
+    "viroteam://planning?clubId=c1&date=2026-09-08&eventId=e1" +
+      "&rsvpClubId=c1&rsvpHighlights=e1%3Amaybe",
+  );
+  // Retour à « sans réponse » : rien à encadrer, lien inchangé.
+  assert.equal(
+    withRsvpHighlights(memberPlanningDeepLink(), "c1", [
+      { eventId: "e1", status: "none" },
+    ]),
+    "viroteam://planning",
+  );
+  const many = Array.from({ length: RSVP_HIGHLIGHT_MAX + 3 }, (_, index) => ({
+    eventId: `e${index}`,
+    status: "yes",
+  }));
+  const capped = new URL(withRsvpHighlights("viroteam://planning", "c1", many));
+  assert.equal(
+    capped.searchParams.get("rsvpHighlights")!.split(",").length,
+    RSVP_HIGHLIGHT_MAX,
+  );
+
+  assert.deepEqual(
+    latestStatusByEvent([
+      { eventId: "e1", status: "yes", atMs: 10 },
+      { eventId: "e2", status: "maybe", atMs: 5 },
+      { eventId: "e1", status: "no", atMs: 20 },
+      { eventId: "e2", status: "yes", atMs: 1 },
+    ]),
+    [
+      { eventId: "e1", status: "no" },
+      { eventId: "e2", status: "maybe" },
+    ],
+  );
 });
 
 test("calendarDaysUntil et parisDateId", () => {

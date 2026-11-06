@@ -7,6 +7,8 @@ import {
   parisDateId,
   planningDeepLink,
   planningWebPath,
+  withRsvpHighlights,
+  type RsvpHighlight,
 } from "./deepLinks";
 import { buildPushData, sendPushToUids } from "./send";
 import type { NotificationPreferenceKey } from "./types";
@@ -45,6 +47,9 @@ export function contextForEntry(
  * Les entrées qui partagent la même copy (et le même enfant pour un parent)
  * partent dans un seul envoi. Le lien ouvre le planning sur l'event, avec
  * l'enfant sélectionné pour un parent.
+ *
+ * [rsvpHighlights] (push RSVP) : events à encadrer sur la home, par enfant
+ * visé (`undefined` pour une push qui ne vise pas d'enfant).
  */
 export async function sendEventPushToAudience(params: {
   firestore: Firestore;
@@ -59,6 +64,7 @@ export async function sendEventPushToAudience(params: {
   alsoRequire?: NotificationPreferenceKey;
   onlyIfDisabled?: NotificationPreferenceKey;
   extraData?: Record<string, string>;
+  rsvpHighlights?: (forMemberId: string | undefined) => RsvpHighlight[];
 }): Promise<{ recipientCount: number; tokenCount: number }> {
   const exclude = new Set(params.excludeUids ?? []);
   const dateId = eventDateId(params.eventData);
@@ -99,6 +105,14 @@ export async function sendEventPushToAudience(params: {
       ...(group.forMemberId ? { forMemberId: group.forMemberId } : {}),
       ...(params.extraData ?? {}),
     };
+    const planningLink = planningDeepLink(params.clubId, dateId, target);
+    const deepLink = params.rsvpHighlights
+      ? withRsvpHighlights(
+          planningLink,
+          params.clubId,
+          params.rsvpHighlights(group.forMemberId),
+        )
+      : planningLink;
     const result = await sendPushToUids({
       firestore: params.firestore,
       uids: [...group.uids],
@@ -111,7 +125,7 @@ export async function sendEventPushToAudience(params: {
         data: buildPushData({
           type: params.type,
           clubId: params.clubId,
-          deepLink: planningDeepLink(params.clubId, dateId, target),
+          deepLink,
           webPath: planningWebPath(params.clubId, dateId, target),
           preferenceKey,
           extra,

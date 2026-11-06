@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -9,6 +10,8 @@ import 'package:viro_team_v2/features/home/providers/event_seen_provider.dart';
 import 'package:viro_team_v2/features/home/widgets/event_planning_card.dart';
 import 'package:viro_team_v2/features/home/widgets/event_seen_visibility_tracker.dart';
 import 'package:viro_team_v2/features/home/widgets/planning_day_section_header.dart';
+import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
+import 'package:viro_team_v2/features/planning/widgets/planning_focused_event_highlight.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
@@ -20,6 +23,24 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 
 /// Limite d'événements affichés en aperçu sur la home membre.
 const memberHomePlanningPreviewLimit = 5;
+
+/// Nombre d'events de l'aperçu home : [memberHomePlanningPreviewLimit],
+/// étendu jusqu'au dernier event encadré (push RSVP) pour qu'il soit visible.
+int memberHomePreviewCount(
+  List<ClubEvent> events, {
+  Iterable<String> highlightedKeys = const [],
+}) {
+  final keys = highlightedKeys.toSet();
+  var count = memberHomePlanningPreviewLimit;
+  if (keys.isEmpty) return count;
+  for (var index = count; index < events.length; index++) {
+    final event = events[index];
+    if (keys.contains(RsvpPushHighlight.eventKey(event.clubId, event.id))) {
+      count = index + 1;
+    }
+  }
+  return count;
+}
 
 /// Clé RSVP lecture/écriture — même logique que [EventService.resolveAudienceId].
 final memberEventAudienceIdProvider =
@@ -73,6 +94,7 @@ class MemberUpcomingEventsList extends ConsumerWidget {
     required this.onShowDetail,
     required this.onSetRsvp,
     this.maxEvents,
+    this.highlightStatuses = const {},
   });
 
   final List<ClubEvent> events;
@@ -87,6 +109,10 @@ class MemberUpcomingEventsList extends ConsumerWidget {
   }) onShowDetail;
   final Future<void> Function(ClubEvent event, RsvpStatus status) onSetRsvp;
   final int? maxEvents;
+
+  /// Events encadrés (push RSVP), par [RsvpPushHighlight.eventKey] : couleur
+  /// de la réponse, liseré clignotant.
+  final Map<String, RsvpStatus> highlightStatuses;
 
   static DateTime _dateOnly(DateTime date) =>
       DateTime(date.year, date.month, date.day);
@@ -107,6 +133,7 @@ class MemberUpcomingEventsList extends ConsumerWidget {
     }
 
     final children = <Widget>[];
+    var scrollTargetAssigned = false;
     for (var groupIndex = 0; groupIndex < groups.length; groupIndex++) {
       final group = groups[groupIndex];
       children.add(
@@ -116,8 +143,15 @@ class MemberUpcomingEventsList extends ConsumerWidget {
         ),
       );
       for (final event in group.events) {
+        final highlightStatus = highlightStatuses[
+            RsvpPushHighlight.eventKey(event.clubId, event.id)];
+        // Seul le premier event encadré défile à l'écran.
+        final scrollIntoView = highlightStatus != null && !scrollTargetAssigned;
+        if (highlightStatus != null) scrollTargetAssigned = true;
         children.add(
           _MemberEventCard(
+            highlightStatus: highlightStatus,
+            highlightScrollIntoView: scrollIntoView,
             event: event,
             clubNames: clubNames,
             clubColors: clubColors,
@@ -146,6 +180,8 @@ class _MemberEventCard extends ConsumerWidget {
     required this.teamsByClub,
     required this.onShowDetail,
     required this.onSetRsvp,
+    this.highlightStatus,
+    this.highlightScrollIntoView = false,
   });
 
   final ClubEvent event;
@@ -159,6 +195,8 @@ class _MemberEventCard extends ConsumerWidget {
     required bool canManageEvents,
   }) onShowDetail;
   final Future<void> Function(ClubEvent event, RsvpStatus status) onSetRsvp;
+  final RsvpStatus? highlightStatus;
+  final bool highlightScrollIntoView;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -225,7 +263,26 @@ class _MemberEventCard extends ConsumerWidget {
           clubAudienceId: audienceId,
           memberAudienceKeys: audienceKeys,
         );
-    if (!needsSeen) return card;
+    final trackedCard = needsSeen ? _trackSeen(ref, card, audienceId) : card;
+    final highlightColor = _highlightColor(highlightStatus);
+    if (highlightColor == null) return trackedCard;
+    return PlanningFocusedEventHighlight(
+      color: highlightColor,
+      blinking: true,
+      scrollIntoView: highlightScrollIntoView,
+      child: trackedCard,
+    );
+  }
+
+  /// Couleur du liseré pour une réponse (mêmes teintes que le choix RSVP).
+  static Color? _highlightColor(RsvpStatus? status) => switch (status) {
+        RsvpStatus.yes => ViroColors.success,
+        RsvpStatus.maybe => ViroColors.warning,
+        RsvpStatus.no => ViroColors.error,
+        RsvpStatus.none || null => null,
+      };
+
+  Widget _trackSeen(WidgetRef ref, Widget card, String audienceId) {
     return EventSeenVisibilityTracker(
       trackingKey: '${event.clubId}/${event.id}',
       onSeen: () => ref.read(eventSeenControllerProvider).markSeen(
@@ -250,6 +307,7 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
     required this.onShowDetail,
     required this.onSetRsvp,
     this.maxEvents,
+    this.highlightStatuses = const {},
   });
 
   final List<ClubEvent> events;
@@ -264,6 +322,10 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
   }) onShowDetail;
   final Future<void> Function(ClubEvent event, RsvpStatus status) onSetRsvp;
   final int? maxEvents;
+
+  /// Events encadrés (push RSVP), par [RsvpPushHighlight.eventKey] : couleur
+  /// de la réponse, liseré clignotant.
+  final Map<String, RsvpStatus> highlightStatuses;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -284,6 +346,7 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
           onShowDetail: onShowDetail,
           onSetRsvp: onSetRsvp,
           maxEvents: maxEvents,
+          highlightStatuses: highlightStatuses,
         ),
       ),
     );

@@ -5,6 +5,8 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
+import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
+import 'package:viro_team_v2/features/home/providers/rsvp_push_highlight_provider.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
 
@@ -181,11 +183,19 @@ void handleDeepLinkUri({
   required GoRouter router,
   required Uri uri,
 }) {
-  final route = deepLinkRouteFromUri(
+  final linkRoute = deepLinkRouteFromUri(
     uri,
     chatMessagingLive: ref.read(chatMessagingLiveProvider),
   );
-  if (route == null) return;
+  if (linkRoute == null) return;
+  // Push RSVP : la home encadre les events concernés ; le planning d'origine
+  // ne sert plus que de repli.
+  final rsvpHighlight =
+      rsvpPushHighlightFromUri(uri, fallbackRoute: linkRoute);
+  if (rsvpHighlight != null) {
+    ref.read(rsvpPushHighlightProvider.notifier).set(rsvpHighlight);
+  }
+  final route = rsvpHighlight != null ? AppRoutes.home : linkRoute;
   final clubId = deepLinkClubId(uri);
   final memberId = deepLinkMemberId(uri);
 

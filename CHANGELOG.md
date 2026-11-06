@@ -15,6 +15,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Notifications RSVP : un tap ouvre la home et encadre d’un liseré clignotant les events concernés, couleur de la dernière réponse (vert présent, orange peut-être, rouge absent), pendant 10 s ou jusqu’au changement de page. Si aucun de ces events n’est sur la home (coach hors convocation, event au-delà de 14 jours), on retombe sur le planning comme avant. Cloud Functions : les liens planning des push RSVP (staff, parent, digest coéquipiers) portent `rsvpClubId` + `rsvpHighlights` ; les anciennes versions de l’app les ignorent
 - Messagerie (masquée), sondages : l’heure de chaque vote est enregistrée (`pollVoteTimes`, horodatage serveur, app + portail) et affichée dans le détail des votes (« Voté à 14:43 », « Modifié le 4/11 à 09:12 » si le membre a changé d’avis). Rules Firestore : un membre n’écrit que sa propre heure ; les anciens clients qui votent sans heure restent acceptés
 
 ### Modifié

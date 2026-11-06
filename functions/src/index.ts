@@ -4,7 +4,6 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { defineSecret, defineString } from "firebase-functions/params";
 import { db, defineDualCallable, defineDualRequest } from "./db";
 import { assertCanActForMember } from "./guardians";
-import { resolveCurrentMemberId } from "./memberRekey";
 import {
   aidLabel,
   creditMemberFeeFromCardPayment,
@@ -438,10 +437,10 @@ export const {
 
       const clubId = String(metadata.clubId ?? "");
       const seasonId = String(metadata.seasonId ?? "");
-      const metadataMemberId = String(metadata.memberId ?? "");
+      const memberId = String(metadata.memberId ?? "");
       const sessionId = String(metadata.sessionId ?? "");
 
-      if (!clubId || !seasonId || !metadataMemberId) {
+      if (!clubId || !seasonId || !memberId) {
         // Fallback : retrouver via checkoutIntentId / session
         res.status(200).json({
           ok: true,
@@ -449,8 +448,6 @@ export const {
         });
         return;
       }
-      // COMPAT-REKEY : checkout créé avant le re-keying de la fiche sur l'uid.
-      const memberId = await resolveCurrentMemberId(db(), clubId, metadataMemberId);
 
       const paymentState = String(
         data.state ?? data.paymentState ?? "",

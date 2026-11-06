@@ -40,7 +40,7 @@ import type { PopoverAnchorRect } from "@/lib/planning/anchoredPopoverPosition";
 import { findEventBlockAnchor } from "@/lib/planning/anchoredPopoverPosition";
 import { buildGuestDirectoryFromPeople } from "@/lib/planning/eventGuestRows";
 import { colorForFilter } from "@/lib/planning/calendarColors";
-import { getLinkedMemberId } from "@/lib/firebase/memberService";
+import { getOwnMemberId } from "@/lib/firebase/memberRefs";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
 import {
   arePlanningFiltersEqual,
@@ -49,10 +49,7 @@ import {
   resolveAdminPlanningFilters,
   writePlanningFilters,
 } from "@/lib/planning/planningFiltersStorage";
-import {
-  eventVisibleToRosterMember,
-  viewerMatchIds,
-} from "@/lib/teams/viewerTeamScope";
+import { eventVisibleToPlayer } from "@/lib/teams/viewerTeamScope";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import styles from "./page.module.css";
@@ -132,7 +129,7 @@ function PlanningPageContent() {
         setLinkedMemberId(null);
         return;
       }
-      const id = await getLinkedMemberId(activeClub.id, user.uid);
+      const id = await getOwnMemberId(activeClub.id, user.uid);
       if (!cancelled) setLinkedMemberId(id);
     }
     void loadLinked();
@@ -141,24 +138,17 @@ function PlanningPageContent() {
     };
   }, [activeClub?.id, user?.uid]);
 
-  const viewerIds = useMemo(
-    () =>
-      viewerMatchIds({
-        uid: user?.uid ?? null,
-        memberId: linkedMemberId,
-      }),
-    [user?.uid, linkedMemberId],
-  );
+  /** Clé roster / RSVP du viewer : sa fiche vit à `members/{uid}`. */
+  const viewerMemberId = user?.uid ?? null;
 
   const scopedTeams = useMemo(() => {
     if (!data) return [];
     return teamsVisibleToViewer({
       role: activeClubRole,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
     });
-  }, [data, activeClubRole, user?.uid, linkedMemberId]);
+  }, [data, activeClubRole, user?.uid]);
 
   /** Équipes où le viewer peut créer (coach = entraînées, admin = toutes). */
   const creatableTeams = useMemo(() => {
@@ -168,7 +158,6 @@ function PlanningPageContent() {
       return coachedTeamsForViewer({
         role: activeClubRole,
         uid: user?.uid ?? null,
-        linkedMemberId,
         teams: data.teams,
       });
     }
@@ -179,7 +168,6 @@ function PlanningPageContent() {
     caps.isCoach,
     activeClubRole,
     user?.uid,
-    linkedMemberId,
   ]);
 
   const creatableTeamIdSet = useMemo(
@@ -292,13 +280,13 @@ function PlanningPageContent() {
     if (!data) return [];
     if (caps.isAdmin) return data.events;
     return data.events.filter((event) =>
-      eventVisibleToRosterMember({
+      eventVisibleToPlayer({
         event,
-        rosterTeamIds: scopedTeamIdSet,
-        matchIds: viewerIds,
+        viewerTeamIds: scopedTeamIdSet,
+        memberId: viewerMemberId,
       }),
     );
-  }, [data, caps.isAdmin, scopedTeamIdSet, viewerIds]);
+  }, [data, caps.isAdmin, scopedTeamIdSet, viewerMemberId]);
 
   const eventBlocks = useMemo(() => {
     if (!data || !roleScopeReady) return [];
@@ -380,10 +368,10 @@ function PlanningPageContent() {
           return;
         }
         if (!caps.isAdmin) {
-          const allowed = eventVisibleToRosterMember({
+          const allowed = eventVisibleToPlayer({
             event: matchedEvent,
-            rosterTeamIds: scopedTeamIdSet,
-            matchIds: viewerIds,
+            viewerTeamIds: scopedTeamIdSet,
+            memberId: viewerMemberId,
           });
           if (!allowed) {
             clearPlanningDeepLinkParams();
@@ -434,24 +422,18 @@ function PlanningPageContent() {
     scopedTeamIdSet,
     scopedTeams,
     caps.isAdmin,
-    viewerIds,
+    viewerMemberId,
   ]);
 
   const createEventPeople = useMemo(() => {
     if (!data) return [];
     if (caps.isCoach) {
       const people = [...data.players, ...data.coaches].filter((person) =>
-        person.matchIds.some((id) => {
-          for (const team of creatableTeams) {
-            if (
-              team.playerIds.includes(id) ||
-              team.coachIds.includes(id)
-            ) {
-              return true;
-            }
-          }
-          return false;
-        }),
+        creatableTeams.some(
+          (team) =>
+            team.playerIds.includes(person.id) ||
+            team.coachIds.includes(person.id),
+        ),
       );
       return people.sort((a, b) => a.name.localeCompare(b.name, "fr"));
     }
@@ -553,7 +535,7 @@ function PlanningPageContent() {
                   : () => undefined
               }
               pendingCreate={caps.canCreateEvent ? createEventDraft : null}
-              viewerMatchIds={[...viewerIds]}
+              viewerMemberIds={viewerMemberId ? [viewerMemberId] : []}
             />
           </div>
         </div>

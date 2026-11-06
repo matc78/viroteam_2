@@ -169,7 +169,7 @@ class _PlanningConvocationSheetState
         final eventTeamIds = widget.event.teamIds.toSet();
         final players = teamPlayerEntries(
           teams.where((team) => eventTeamIds.contains(team.id)).toList(),
-          indexClubMembersByUid(members),
+          indexClubMembersById(members),
         );
         _seed(players);
 

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/config/project_config.dart';
+import 'package:viro_team_v2/services/member/member_paths.dart';
 
 /// Chemins Firestore partagés pour les modules événement.
 class EventPaths {
@@ -21,25 +22,10 @@ class EventPaths {
       .doc(clubId)
       .collection(ProjectConfig.teamsSubcollection);
 
-  /// Document `clubs/{clubId}/members/{uid}`.
+  /// Document `clubs/{clubId}/members/{memberId}` (soi : `memberId` = authUid).
   DocumentReference<Map<String, dynamic>> memberRef(
     String clubId,
-    String uid,
+    String memberId,
   ) =>
-      db
-          .collection(ProjectConfig.clubsCollection)
-          .doc(clubId)
-          .collection(ProjectConfig.membersSubcollection)
-          .doc(uid);
-
-  /// Document `clubs/{clubId}/memberAccounts/{authUid}`.
-  DocumentReference<Map<String, dynamic>> memberAccountRef(
-    String clubId,
-    String authUid,
-  ) =>
-      db
-          .collection(ProjectConfig.clubsCollection)
-          .doc(clubId)
-          .collection(ProjectConfig.memberAccountsSubcollection)
-          .doc(authUid);
+      clubMemberRef(db, clubId, memberId);
 }

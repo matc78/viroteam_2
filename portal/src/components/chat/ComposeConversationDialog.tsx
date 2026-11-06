@@ -10,7 +10,7 @@ import {
   listClubMembers,
   memberRoleLabel,
 } from "@/lib/firebase/memberService";
-import { rosterContains, viewerMatchIds } from "@/lib/teams/viewerTeamScope";
+import { rosterContains } from "@/lib/teams/viewerTeamScope";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./ComposeConversationDialog.module.css";
 import { chatCopy } from "@/lib/copy/chatCopy";
@@ -65,42 +65,30 @@ export function ComposeConversationDialog() {
         const club = [...bureauClubs, ...familyClubs].find(
           (item) => item.id === clubId,
         );
+        // Une seule clé membre : rosters et `adminIds` portent l’id de fiche,
+        // égal à l’uid du compte (participant du chat) quand la fiche est liée.
         const adminIds = new Set<string>(club?.adminIds ?? []);
-        const rosterToAccountUid = new Map<string, string>();
-
         for (const member of members) {
-          const accountUid = member.accountUid?.trim();
-          if (!accountUid) continue;
-          rosterToAccountUid.set(member.memberId, accountUid);
-          rosterToAccountUid.set(accountUid, accountUid);
-          if (member.role === MemberRoles.admin) adminIds.add(accountUid);
+          if (member.accountUid && member.role === MemberRoles.admin) {
+            adminIds.add(member.accountUid);
+          }
         }
 
-        const myMember = members.find(
-          (member) => member.accountUid === user.uid,
-        );
-        const myMatchIds = viewerMatchIds({
-          uid: user.uid,
-          memberId: myMember?.memberId,
-          accountUid: myMember?.accountUid,
-        });
         // Parents : équipes des enfants via parentTeamIds
         const parentTeamIds = new Set(
           (profile?.parentTeamIds ?? []).filter(Boolean),
         );
         const myTeams = teams.filter(
           (team) =>
-            rosterContains(team.playerIds, myMatchIds) ||
-            rosterContains(team.coachIds, myMatchIds) ||
+            rosterContains(team.playerIds, user.uid) ||
+            rosterContains(team.coachIds, user.uid) ||
             parentTeamIds.has(team.id),
         );
 
         const allowedUids = new Set<string>(adminIds);
         for (const team of myTeams) {
-          for (const coachRosterId of team.coachIds) {
-            const accountUid = rosterToAccountUid.get(coachRosterId);
-            if (accountUid) allowedUids.add(accountUid);
-            else if (coachRosterId) allowedUids.add(coachRosterId);
+          for (const coachId of team.coachIds) {
+            if (coachId) allowedUids.add(coachId);
           }
         }
         allowedUids.delete(user.uid);

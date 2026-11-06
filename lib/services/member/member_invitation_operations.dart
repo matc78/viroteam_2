@@ -56,9 +56,7 @@ class MemberInvitationOperations {
       final data = memberSnap.data()!;
       final accountUid =
           (data[FirestoreFields.accountUid] as String?)?.trim() ?? '';
-      final legacyUserId =
-          (data[FirestoreFields.userId] as String?)?.trim() ?? '';
-      if (accountUid.isNotEmpty || legacyUserId.isNotEmpty) {
+      if (accountUid.isNotEmpty) {
         throw StateError(AppCopy.members.identityLocked);
       }
 

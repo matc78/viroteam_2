@@ -61,16 +61,6 @@ export function memberEmailFromData(data: Record<string, unknown>): string {
   );
 }
 
-/** True si la fiche a déjà un compte Auth lié. */
-export function memberHasLinkedAccount(data: Record<string, unknown>): boolean {
-  const accountUid = String(data.accountUid ?? "").trim();
-  if (accountUid) return true;
-  // Legacy : userId = Auth uid seulement s’il diffère du memberId doc.
-  const userId = String(data.userId ?? "").trim();
-  const memberId = String(data.memberId ?? "").trim();
-  return Boolean(userId && userId !== memberId);
-}
-
 /**
  * Choisit la fiche à claimer : e-mail exact prioritaire, sinon prénom+nom unique.
  * Retourne `null` si aucun match sûr (pas de match, ou homonymes).

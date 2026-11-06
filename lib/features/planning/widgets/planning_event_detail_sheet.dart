@@ -266,7 +266,7 @@ class _PlanningEventDetailSheetState
       await eventService.updateRsvp(
         clubId: widget.clubId,
         eventId: _event.id,
-        uid: rsvpTarget.audienceId,
+        uid: rsvpTarget.memberId,
         status: status,
         viaCallable: rsvpTarget.viaCallable,
       );
@@ -315,34 +315,10 @@ class _PlanningEventDetailSheetState
     }
   }
 
-  /// RSVP d'un membre en tenant compte de toutes ses clés audience.
-  RsvpStatus _rsvpForMember(String id, ClubMember member) =>
-      _event.rsvpStatusForUser(
-        id,
-        clubAudienceId: member.memberId,
-        memberAudienceKeys: eventAudienceKeys(member),
-      );
-
-  /// Date de dernier vote RSVP du membre, si connue.
-  DateTime? _rsvpUpdatedAtForMember(String id, ClubMember member) =>
-      _event.rsvpUpdatedAtForUser(
-        id,
-        clubAudienceId: member.memberId,
-        memberAudienceKeys: eventAudienceKeys(member),
-      );
-
-  /// Date à laquelle le membre a vu l'événement sur sa home, si connue.
-  DateTime? _seenAtForMember(String id, ClubMember member) =>
-      _event.seenAtForUser(
-        id,
-        clubAudienceId: member.memberId,
-        memberAudienceKeys: eventAudienceKeys(member),
-      );
-
   /// Coachs en tête, puis joueurs ; dans chaque groupe : présent → en attente →
   /// absent, puis alphabétique.
   List<({String id, ClubMember member, bool isCoach})> _sortedEntries(
-    Map<String, ClubMember> byUid,
+    Map<String, ClubMember> byId,
     List<ClubTeam> eventTeams,
   ) {
     int order(RsvpStatus status) => switch (status) {
@@ -355,40 +331,30 @@ class _PlanningEventDetailSheetState
       ({String id, ClubMember member, bool isCoach}) left,
       ({String id, ClubMember member, bool isCoach}) right,
     ) {
-      final statusOrder = order(_rsvpForMember(left.id, left.member))
-          .compareTo(order(_rsvpForMember(right.id, right.member)));
+      final statusOrder = order(_event.rsvpStatusForUser(left.id))
+          .compareTo(order(_event.rsvpStatusForUser(right.id)));
       if (statusOrder != 0) return statusOrder;
       return left.member.fullName
           .toLowerCase()
           .compareTo(right.member.fullName.toLowerCase());
     }
 
-    final seenKeys = <String>{};
+    final seenIds = <String>{};
     final coachEntries = <({String id, ClubMember member, bool isCoach})>[];
 
     for (final team in eventTeams) {
-      for (final coachRosterId in team.coachIds) {
-        final member = clubMemberForTeamUid(byUid, coachRosterId);
-        if (member == null) continue;
-        final keys = eventAudienceKeys(member);
-        if (keys.any(seenKeys.contains)) continue;
-        seenKeys.addAll(keys);
-        coachEntries.add((
-          id: rosterAudienceId(member),
-          member: member,
-          isCoach: true,
-        ));
+      for (final coachId in team.coachIds) {
+        final member = byId[coachId];
+        if (member == null || !seenIds.add(coachId)) continue;
+        coachEntries.add((id: coachId, member: member, isCoach: true));
       }
     }
     coachEntries.sort(compareEntries);
 
     final playerEntries = <({String id, ClubMember member, bool isCoach})>[];
     for (final id in _event.playerMemberIds(widget.excludeCoachUids)) {
-      final member = clubMemberForTeamUid(byUid, id);
-      if (member == null) continue;
-      final keys = eventAudienceKeys(member);
-      if (keys.any(seenKeys.contains)) continue;
-      seenKeys.addAll(keys);
+      final member = byId[id];
+      if (member == null || !seenIds.add(id)) continue;
       playerEntries.add((id: id, member: member, isCoach: false));
     }
     playerEntries.sort(compareEntries);
@@ -409,8 +375,8 @@ class _PlanningEventDetailSheetState
       ),
       error: (_, __) => const ViroErrorState(),
       data: (members) {
-        final byUid = indexClubMembersByUid(members);
-        final entries = _sortedEntries(byUid, eventTeams);
+        final entries =
+            _sortedEntries(indexClubMembersById(members), eventTeams);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -452,9 +418,9 @@ class _PlanningEventDetailSheetState
     var seenRank = 0;
     final rows = <Widget>[];
     for (final entry in entries) {
-      final status = _rsvpForMember(entry.id, entry.member);
-      final lastUpdatedAt = _rsvpUpdatedAtForMember(entry.id, entry.member);
-      final seenAt = _seenAtForMember(entry.id, entry.member);
+      final status = _event.rsvpStatusForUser(entry.id);
+      final lastUpdatedAt = _event.rsvpUpdatedAtForUser(entry.id);
+      final seenAt = _event.seenAtForUser(entry.id);
       final opensEye = seenAt != null &&
           PlanningMemberRsvpRow.showsSeenEye(
             status: status,
@@ -604,36 +570,19 @@ class _PlanningEventDetailSheetState
       for (final team in ref.watch(clubTeamsProvider(widget.clubId)).value ?? [])
         team.id: team,
     };
-    final members = ref.watch(clubMembersProvider(widget.clubId)).value;
-    final membersByUid =
-        members != null ? indexClubMembersByUid(members) : null;
-    final counts = PlanningEventDisplay.rsvpCountsIncludingCoaches(
-      event,
-      teamsById,
-      membersByUid: membersByUid,
-    );
+    final counts =
+        PlanningEventDisplay.rsvpCountsIncludingCoaches(event, teamsById);
     final rsvpTarget =
         ref.watch(rsvpTargetProvider(widget.clubId)).asData?.value;
-    final rsvpMember = rsvpTarget?.member;
-    final audienceKeys =
-        rsvpMember != null ? eventAudienceKeys(rsvpMember) : null;
     final canRsvp = !event.canceled &&
         rsvpTarget != null &&
         PlanningEventDisplay.canRsvpOnEvent(
           event,
-          rsvpTarget.subjectId,
+          rsvpTarget.memberId,
           teamsById,
-          clubAudienceId: rsvpTarget.audienceId,
-          member: rsvpMember,
-          membersByUid: membersByUid,
         );
-    final rsvpStatus = canRsvp
-        ? event.rsvpStatusForUser(
-            rsvpTarget.subjectId,
-            clubAudienceId: rsvpTarget.audienceId,
-            memberAudienceKeys: audienceKeys,
-          )
-        : null;
+    final rsvpStatus =
+        canRsvp ? event.rsvpStatusForUser(rsvpTarget.memberId) : null;
     final rsvpRow = canRsvp
         ? PlanningRsvpCountChoiceRow(
             counts: counts,

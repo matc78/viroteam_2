@@ -35,14 +35,13 @@ import {
 } from "@/lib/firebase/eventService";
 import {
   getClubMember,
-  loadMembersByRosterIds,
+  loadMembersByIds,
 } from "@/lib/firebase/memberService";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
 import type { PopoverAnchorRect } from "@/lib/planning/anchoredPopoverPosition";
 import { buildGuestDirectoryFromMembers } from "@/lib/planning/eventGuestRows";
 import {
   eventVisibleToPlayer,
-  memberMatchIds,
   rosterContains,
 } from "@/lib/teams/viewerTeamScope";
 import familyStyles from "./FamilyPlanningClient.module.css";
@@ -91,15 +90,10 @@ export function FamilyPlanningClient() {
             ReturnType<typeof loadPlanningEventsForGuardian>
           >["teams"],
           guestDirectory: {},
-          viewerMatchIds: [] as string[],
         };
       }
 
       const member = await getClubMember(club.id, selectedMemberId);
-      const childMatchIds = memberMatchIds({
-        memberId: selectedMemberId,
-        accountUid: member?.accountUid ?? null,
-      });
 
       const teamIds = [
         ...new Set([
@@ -116,15 +110,15 @@ export function FamilyPlanningClient() {
       // Ne garder que les équipes / events de la fiche sélectionnée.
       const teams = loaded.teams.filter(
         (team) =>
-          rosterContains(team.playerIds, childMatchIds) ||
-          rosterContains(team.coachIds, childMatchIds),
+          rosterContains(team.playerIds, selectedMemberId) ||
+          rosterContains(team.coachIds, selectedMemberId),
       );
       const teamIdSet = new Set(teams.map((team) => team.id));
       const events = loaded.events.filter((event) =>
         eventVisibleToPlayer({
           event,
           viewerTeamIds: teamIdSet,
-          playerMatchIds: childMatchIds,
+          memberId: selectedMemberId,
         }),
       );
 
@@ -133,14 +127,13 @@ export function FamilyPlanningClient() {
           teams.flatMap((team) => [...team.playerIds, ...team.coachIds]),
         ),
       ];
-      const rosterMembers = await loadMembersByRosterIds(club.id, rosterIds);
+      const rosterMembers = await loadMembersByIds(club.id, rosterIds);
       const guestDirectory = buildGuestDirectoryFromMembers(rosterMembers);
 
       return {
         events,
         teams,
         guestDirectory,
-        viewerMatchIds: [...childMatchIds],
       };
     },
     [
@@ -300,7 +293,7 @@ export function FamilyPlanningClient() {
               }}
               onCreateEvent={() => undefined}
               pendingCreate={null}
-              viewerMatchIds={data?.viewerMatchIds ?? []}
+              viewerMemberIds={selectedMemberId ? [selectedMemberId] : []}
             />
           </div>
         </div>

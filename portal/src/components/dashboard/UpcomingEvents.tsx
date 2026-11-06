@@ -21,8 +21,6 @@ type UpcomingEventsProps = {
   /** Si fourni avec linkedMemberId, tente d’afficher le RSVP perso (si convoqué). */
   clubId?: string;
   linkedMemberId?: string | null;
-  /** Aliases audience (uid, etc.) pour matcher teamMemberIds / rsvp. */
-  audienceIds?: string[];
   onRsvpUpdated?: () => void;
 };
 
@@ -47,7 +45,6 @@ export function UpcomingEvents({
   detailedRsvp = true,
   clubId,
   linkedMemberId = null,
-  audienceIds,
   onRsvpUpdated,
 }: UpcomingEventsProps) {
   const router = useRouter();
@@ -102,7 +99,6 @@ export function UpcomingEvents({
                     clubId={clubId}
                     event={event}
                     memberId={linkedMemberId}
-                    audienceIds={audienceIds}
                     onUpdated={() => onRsvpUpdated?.()}
                   />
                 </div>

@@ -215,14 +215,16 @@ export function addEventToDigests(params: {
   const type = String(params.eventData.type ?? "");
   const seen = new Set<string>();
   for (const entry of params.entries) {
+    const uid = entry.uid;
+    if (!uid) continue;
     if (entry.rsvp === "no" && entry.relation !== "coach") continue;
-    const key = `${entry.uid}\u0000${entry.memberId ?? ""}`;
+    const key = `${uid}\u0000${entry.memberId ?? ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    let digest = params.digests.get(entry.uid);
+    let digest = params.digests.get(uid);
     if (!digest) {
       digest = { items: [], clubIds: new Set() };
-      params.digests.set(entry.uid, digest);
+      params.digests.set(uid, digest);
     }
     digest.clubIds.add(params.clubId);
     digest.items.push({

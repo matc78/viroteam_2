@@ -3,12 +3,6 @@ import { stringArray } from "./common";
 /** Maps d'un event indexées par id d'audience, nettoyées au retrait. */
 export const PER_MEMBER_EVENT_MAPS = ["rsvp", "rsvpUpdatedAt", "seenAt"] as const;
 
-/** Joueur ciblé : id envoyé par le client + toutes ses variantes connues. */
-export type ConvocationTarget = {
-  id: string;
-  aliases: string[];
-};
-
 export type ConvocationPlan = {
   teamMemberIds: string[];
   excludedMemberIds: string[];
@@ -20,15 +14,16 @@ export type ConvocationPlan = {
 /**
  * Applique retraits / réintégrations de convoqués sur un event.
  *
- * Retrait : toutes les variantes quittent `teamMemberIds` (et leurs réponses),
- * l'id rejoint `excludedMemberIds`. Réintégration : les variantes quittent
- * `excludedMemberIds` ; l'id revient dans `teamMemberIds` s'il en était exclu,
- * ou toujours sur l'event ouvert par le coach ([isPrimary]).
+ * Ids = ids de fiche (une seule clé membre). Retrait : l'id quitte
+ * `teamMemberIds` (et ses réponses) et rejoint `excludedMemberIds`.
+ * Réintégration : l'id quitte `excludedMemberIds` et revient dans
+ * `teamMemberIds` s'il en était exclu, ou toujours sur l'event ouvert par le
+ * coach ([isPrimary]).
  */
 export function planConvocationChange(params: {
   eventData: Record<string, unknown>;
-  exclude: ConvocationTarget[];
-  reintegrate: ConvocationTarget[];
+  exclude: string[];
+  reintegrate: string[];
   isPrimary: boolean;
 }): ConvocationPlan {
   const { eventData, exclude, reintegrate, isPrimary } = params;
@@ -38,25 +33,20 @@ export function planConvocationChange(params: {
   const excluded = new Set(currentExcluded);
   const deletedMapPaths: string[] = [];
 
-  for (const target of exclude) {
-    for (const alias of target.aliases) {
-      members.delete(alias);
-      excluded.delete(alias);
-      for (const field of PER_MEMBER_EVENT_MAPS) {
-        const values = eventData[field];
-        if (values && typeof values === "object" && alias in values) {
-          deletedMapPaths.push(`${field}.${alias}`);
-        }
+  for (const id of exclude) {
+    members.delete(id);
+    for (const field of PER_MEMBER_EVENT_MAPS) {
+      const values = eventData[field];
+      if (values && typeof values === "object" && id in values) {
+        deletedMapPaths.push(`${field}.${id}`);
       }
     }
-    excluded.add(target.id);
+    excluded.add(id);
   }
 
-  for (const target of reintegrate) {
-    const wasExcluded = target.aliases.some((alias) => excluded.has(alias));
-    const isPresent = target.aliases.some((alias) => members.has(alias));
-    for (const alias of target.aliases) excluded.delete(alias);
-    if (!isPresent && (wasExcluded || isPrimary)) members.add(target.id);
+  for (const id of reintegrate) {
+    const wasExcluded = excluded.delete(id);
+    if (!members.has(id) && (wasExcluded || isPrimary)) members.add(id);
   }
 
   const teamMemberIds = [...members];

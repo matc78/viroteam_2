@@ -6,12 +6,7 @@ import type {
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable } from "./db";
 import { authEmailOf, normalizeEmail, requireUid, stringArray, uniq } from "./common";
-import {
-  accountUidOf,
-  decrementCount,
-  isLastAdmin,
-  type AdminMemberRef,
-} from "./memberAdminUtils";
+import { decrementCount, isLastAdmin } from "./memberAdminUtils";
 import { activeGuardianUids, recomputeParentTeamIdsSafe } from "./parentTeams";
 
 const MEMBER_STATUS_ARCHIVED = "archived";
@@ -41,7 +36,13 @@ function logStep(
   console.error(`deleteMyAccount: ${step} échoué`, details);
 }
 
-/** Fiches liées au compte (`accountUid` puis `userId` en compat v1), dédoublonnées. */
+/**
+ * Fiches liées au compte (`accountUid` puis `userId` en compat v1),
+ * dédoublonnées. Une seule clé membre : ce sont les `members/{uid}` des
+ * clubs, mais la requête par champ reste la source (indépendante de
+ * `users.clubMemberships`) et exclut d'office les fiches déjà anonymisées
+ * (champs de lien supprimés) — ce qui rend la suppression relançable.
+ */
 async function findMemberDocs(uid: string): Promise<QueryDocumentSnapshot[]> {
   const [byAccount, byUserId] = await Promise.all([
     db().collectionGroup("members").where("accountUid", "==", uid).get(),
@@ -88,15 +89,15 @@ async function detachFromClub(clubRef: DocumentReference, uid: string): Promise<
   });
 }
 
-/** Retire `memberId` et `uid` de tous les rosters d'équipe du club. */
+/** Retire `memberId` (= uid du compte) de tous les rosters d'équipe du club. */
 async function removeFromTeams(
   clubRef: DocumentReference,
-  rosterIds: string[],
+  memberId: string,
 ): Promise<void> {
   const teamsCol = clubRef.collection("teams");
   const snaps = await Promise.all(
-    TEAM_ROSTER_FIELDS.flatMap((field) =>
-      rosterIds.map((id) => teamsCol.where(field, "array-contains", id).get()),
+    TEAM_ROSTER_FIELDS.map((field) =>
+      teamsCol.where(field, "array-contains", memberId).get(),
     ),
   );
   const patches = new Map<DocumentReference, Record<string, unknown>>();
@@ -106,7 +107,7 @@ async function removeFromTeams(
       const patch = patches.get(teamDoc.ref) ?? {};
       for (const field of TEAM_ROSTER_FIELDS) {
         const ids = stringArray(data[field]);
-        const next = ids.filter((id) => !rosterIds.includes(id));
+        const next = ids.filter((id) => id !== memberId);
         if (next.length !== ids.length) patch[field] = next;
       }
       if (Object.keys(patch).length > 0) patches.set(teamDoc.ref, patch);
@@ -129,12 +130,9 @@ async function assertNotLastAdmin(
   uid: string,
   memberDocs: QueryDocumentSnapshot[],
 ): Promise<void> {
-  const targetByClub = new Map<string, AdminMemberRef>();
   const clubIds = new Set<string>();
   for (const memberDoc of memberDocs) {
-    const clubId = memberDoc.ref.parent.parent!.id;
-    targetByClub.set(clubId, { memberId: memberDoc.id, accountUid: uid });
-    if (memberDoc.data().role === "admin") clubIds.add(clubId);
+    if (memberDoc.data().role === "admin") clubIds.add(memberDoc.ref.parent.parent!.id);
   }
   const adminClubs = await db()
     .collection("clubs")
@@ -148,15 +146,15 @@ async function assertNotLastAdmin(
       clubRef.get(),
       clubRef.collection("members").where("role", "==", "admin").get(),
     ]);
-    const adminMembers = adminsSnap.docs
+    const adminMemberIds = adminsSnap.docs
       .filter((doc) => doc.data().status !== MEMBER_STATUS_ARCHIVED)
-      .map((doc) => ({ memberId: doc.id, accountUid: accountUidOf(doc.data()) }));
-    const target = targetByClub.get(clubId) ?? { memberId: uid, accountUid: uid };
+      .map((doc) => doc.id);
+    // Une seule clé membre : la fiche du compte est members/{uid}.
     if (
       isLastAdmin({
         adminIds: stringArray(clubSnap.data()?.adminIds),
-        adminMembers,
-        target,
+        adminMemberIds,
+        targetMemberId: uid,
       })
     ) {
       const clubName = String(clubSnap.data()?.name ?? "").trim() || clubId;
@@ -202,13 +200,7 @@ async function anonymizeMemberships(
     }
 
     try {
-      await clubRef.collection("member_accounts").doc(uid).delete();
-    } catch (error) {
-      logStep(failures, "suppression member_accounts", { ...context, error });
-    }
-
-    try {
-      await removeFromTeams(clubRef, uniq([memberId, uid]));
+      await removeFromTeams(clubRef, memberId);
     } catch (error) {
       logStep(failures, "retrait des équipes", { ...context, error });
     }

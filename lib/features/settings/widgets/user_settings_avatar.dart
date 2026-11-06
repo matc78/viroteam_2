@@ -5,7 +5,6 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
-import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
@@ -33,11 +32,9 @@ Future<bool> pickAndUploadUserAvatar(
           bytes: bytes,
           contentType: contentType,
         );
-    final activeClubId = ref.read(sessionProvider).activeClubId;
     await ref.read(userServiceProvider).updateAvatarUrl(
           uid: user.uid,
           avatarUrl: avatarUrl,
-          syncMemberClubId: activeClubId,
         );
     if (context.mounted) {
       ViroSnackBar.show(context, AppCopy.settings.avatarUpdated);

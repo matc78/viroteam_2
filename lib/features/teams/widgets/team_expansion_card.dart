@@ -72,7 +72,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
         ref.watch(clubMemberProvider(team.clubId)).value?.role ??
             MemberRoles.player;
     final membersByUid = membersAsync.value != null
-        ? indexClubMembersByUid(membersAsync.value!)
+        ? indexClubMembersById(membersAsync.value!)
         : <String, ClubMember>{};
 
     return ViroCard(
@@ -217,7 +217,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
     return [
       _sectionHeader(context, title, titleColor),
       ...uids.map((uid) {
-        final member = clubMemberForTeamUid(membersByUid, uid);
+        final member = membersByUid[uid];
         if (member == null) return const SizedBox.shrink();
         return MemberListTile(
           member: member,

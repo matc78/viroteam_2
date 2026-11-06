@@ -11,18 +11,21 @@ export type ViewerEventFill = "filled" | "outline" | "default";
 export function resolveViewerEventFill(params: {
   teamMemberIds: string[];
   rsvpByMemberId: Record<string, string>;
-  viewerMatchIds: string[];
+  /**
+   * Ids de fiche pour lesquels le viewer répond (lui-même = son uid, ses
+   * enfants en planning perso).
+   */
+  viewerMemberIds: string[];
 }): ViewerEventFill {
-  const matchIds = params.viewerMatchIds.map(String).filter(Boolean);
-  if (matchIds.length === 0) return "default";
+  const memberIds = params.viewerMemberIds.map(String).filter(Boolean);
+  if (memberIds.length === 0) return "default";
 
-  const matchSet = new Set(matchIds);
-  const audience = params.teamMemberIds.map(String).filter(Boolean);
+  const audience = new Set(params.teamMemberIds.map(String).filter(Boolean));
   const isInvited =
-    audience.length === 0 || audience.some((id) => matchSet.has(id));
+    audience.size === 0 || memberIds.some((id) => audience.has(id));
   if (!isInvited) return "default";
 
-  for (const id of matchIds) {
+  for (const id of memberIds) {
     const value = (params.rsvpByMemberId[id] ?? "").toLowerCase();
     if (value === "yes") return "filled";
     if (value === "no" || value === "maybe") return "outline";

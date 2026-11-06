@@ -109,6 +109,29 @@ class MemberFee {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// Copie avec [name] comme nom affiché (nom courant de la fiche membre).
+  MemberFee withMemberDisplayName(String name) => MemberFee(
+        memberId: memberId,
+        memberDisplayName: name,
+        status: status,
+        tierId: tierId,
+        notesAdmin: notesAdmin,
+        paidAt: paidAt,
+        markedBy: markedBy,
+        paidVia: paidVia,
+        paymentProvider: paymentProvider,
+        externalPaymentId: externalPaymentId,
+        externalOrderId: externalOrderId,
+        checkoutIntentId: checkoutIntentId,
+        amountPaidCents: amountPaidCents,
+        aids: aids,
+        installmentCount: installmentCount,
+        offlineMethod: offlineMethod,
+        receiptUrl: receiptUrl,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
+
   factory MemberFee.fromFirestore(
     String memberId,
     DocumentSnapshot<Map<String, dynamic>> doc,

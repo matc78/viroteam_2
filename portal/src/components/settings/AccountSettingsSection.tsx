@@ -24,7 +24,7 @@ import shared from "@/components/settings/settingsShared.module.css";
 
 /** Section compte partagée (bureau + famille). */
 export function AccountSettingsSection() {
-  const { user, profile, activeClub, logout, refreshProfile } = useAuth();
+  const { user, profile, logout, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -76,7 +76,6 @@ export function AccountSettingsSection() {
       await updateUserAvatarUrl({
         uid: user.uid,
         avatarUrl: url,
-        syncMemberClubId: activeClub?.id ?? null,
       });
       await refreshProfile();
       showToast("Avatar mis à jour.", "success");

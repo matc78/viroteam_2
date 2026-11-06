@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { setEventRsvp } from "@/lib/firebase/callableService";
 import type { ClubEventView } from "@/lib/firebase/eventService";
 import styles from "./FamilyRsvpButtons.module.css";
@@ -10,12 +10,8 @@ type RsvpValue = "yes" | "maybe" | "no";
 type FamilyRsvpButtonsProps = {
   clubId: string;
   event: ClubEventView;
+  /** Id de fiche (= uid si liée) : clé de `teamMemberIds` et `rsvp`. */
   memberId: string;
-  /**
-   * Identifiants alternatifs (uid, memberId, etc.) pour lire / détecter
-   * la convocation quand `teamMemberIds` / `rsvp` mélangent les clés.
-   */
-  audienceIds?: string[];
   /** Mise à jour locale immédiate (sans reload parent). */
   onOptimisticChange?: (value: RsvpValue | null) => void;
   /** Appelé une fois après persistance réussie (resync parent). */
@@ -39,42 +35,17 @@ function isRsvpValue(value: string): value is RsvpValue {
   return value === "yes" || value === "maybe" || value === "no";
 }
 
-/** Normalise la liste d’IDs audience (memberId + aliases). */
-function resolveAudienceAliases(
-  memberId: string,
-  audienceIds?: string[],
-): string[] {
-  const ids = new Set<string>();
-  for (const value of [memberId, ...(audienceIds ?? [])]) {
-    const trimmed = String(value ?? "").trim();
-    if (trimmed) ids.add(trimmed);
-  }
-  return [...ids];
-}
-
 /** Boutons RSVP Oui / Peut-être / Non pour la fiche cible. */
 export function FamilyRsvpButtons({
   clubId,
   event,
   memberId,
-  audienceIds,
   onOptimisticChange,
   onUpdated,
   variant = "default",
   forceShow = false,
 }: FamilyRsvpButtonsProps) {
-  const aliases = useMemo(
-    () => resolveAudienceAliases(memberId, audienceIds),
-    [memberId, audienceIds],
-  );
-
-  const current = useMemo(() => {
-    for (const id of aliases) {
-      const value = event.rsvpByMemberId[id];
-      if (value) return value;
-    }
-    return "";
-  }, [aliases, event.rsvpByMemberId]);
+  const current = event.rsvpByMemberId[memberId] ?? "";
 
   const [error, setError] = useState<string | null>(null);
   const [localValue, setLocalValue] = useState(current);
@@ -120,7 +91,7 @@ export function FamilyRsvpButtons({
   const invited =
     forceShow ||
     event.teamMemberIds.length === 0 ||
-    event.teamMemberIds.some((id) => aliases.includes(id));
+    event.teamMemberIds.includes(memberId);
   if (!invited) return null;
 
   return (

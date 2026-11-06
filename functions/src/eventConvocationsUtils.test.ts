@@ -2,20 +2,20 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { planConvocationChange } from "./eventConvocationsUtils";
 
-test("planConvocationChange retire toutes les variantes et leurs réponses", () => {
+test("planConvocationChange retire l'id et ses réponses", () => {
   const plan = planConvocationChange({
     eventData: {
-      teamMemberIds: ["mem-a", "uid-a", "mem-b"],
-      rsvp: { "uid-a": "yes", "mem-b": "no" },
+      teamMemberIds: ["mem-a", "mem-b"],
+      rsvp: { "mem-a": "yes", "mem-b": "no" },
       seenAt: { "mem-a": 1 },
     },
-    exclude: [{ id: "mem-a", aliases: ["mem-a", "uid-a"] }],
+    exclude: ["mem-a"],
     reintegrate: [],
     isPrimary: true,
   });
   assert.deepEqual(plan.teamMemberIds, ["mem-b"]);
   assert.deepEqual(plan.excludedMemberIds, ["mem-a"]);
-  assert.deepEqual(plan.deletedMapPaths.sort(), ["rsvp.uid-a", "seenAt.mem-a"]);
+  assert.deepEqual(plan.deletedMapPaths.sort(), ["rsvp.mem-a", "seenAt.mem-a"]);
   assert.equal(plan.changed, true);
 });
 
@@ -23,7 +23,7 @@ test("planConvocationChange réintègre un exclu", () => {
   const plan = planConvocationChange({
     eventData: { teamMemberIds: ["mem-b"], excludedMemberIds: ["mem-a"] },
     exclude: [],
-    reintegrate: [{ id: "mem-a", aliases: ["mem-a", "uid-a"] }],
+    reintegrate: ["mem-a"],
     isPrimary: false,
   });
   assert.deepEqual(plan.teamMemberIds.sort(), ["mem-a", "mem-b"]);
@@ -35,7 +35,7 @@ test("planConvocationChange : occurrence suivante non exclue = inchangée", () =
   const plan = planConvocationChange({
     eventData: { teamMemberIds: ["mem-b"] },
     exclude: [],
-    reintegrate: [{ id: "mem-a", aliases: ["mem-a"] }],
+    reintegrate: ["mem-a"],
     isPrimary: false,
   });
   assert.deepEqual(plan.teamMemberIds, ["mem-b"]);
@@ -46,7 +46,7 @@ test("planConvocationChange : event ouvert, réintégration même sans exclusion
   const plan = planConvocationChange({
     eventData: { teamMemberIds: ["mem-b"] },
     exclude: [],
-    reintegrate: [{ id: "mem-a", aliases: ["mem-a"] }],
+    reintegrate: ["mem-a"],
     isPrimary: true,
   });
   assert.deepEqual(plan.teamMemberIds.sort(), ["mem-a", "mem-b"]);
@@ -56,7 +56,7 @@ test("planConvocationChange : event ouvert, réintégration même sans exclusion
 test("planConvocationChange idempotent sur un retrait déjà fait", () => {
   const plan = planConvocationChange({
     eventData: { teamMemberIds: ["mem-b"], excludedMemberIds: ["mem-a"] },
-    exclude: [{ id: "mem-a", aliases: ["mem-a"] }],
+    exclude: ["mem-a"],
     reintegrate: [],
     isPrimary: true,
   });

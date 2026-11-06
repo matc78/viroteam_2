@@ -5,60 +5,53 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 
 void main() {
-  group('rosterAudienceId / RSVP dual-key', () {
+  group('RSVP / convocation : clé unique = id de la fiche', () {
     const authUid = 'VsTt-auth';
-    const memberId = 'TfRU-member';
 
-    final linkedMember = ClubMember(
-      memberId: memberId,
+    const linkedMember = ClubMember(
+      memberId: authUid,
       accountUid: authUid,
       role: MemberRoles.player,
       status: 'active',
     );
 
-    test('rosterAudienceId préfère accountUid', () {
-      expect(rosterAudienceId(linkedMember), authUid);
+    ClubEvent event({
+      List<String> teamMemberIds = const [authUid],
+      List<String> excludedMemberIds = const [],
+      Map<String, String> rsvp = const {},
+    }) =>
+        ClubEvent(
+          id: 'e1',
+          clubId: 'c1',
+          type: EventTypes.training,
+          title: 'Entraînement',
+          date: DateTime(2026, 11, 4),
+          teamMemberIds: teamMemberIds,
+          excludedMemberIds: excludedMemberIds,
+          rsvp: rsvp,
+        );
+
+    test('statut et convocation lus sous l’uid du compte connecté', () {
+      final e = event(rsvp: const {authUid: 'yes', 'autre': 'no'});
+      expect(e.rsvpStatusForUser(authUid), RsvpStatus.yes);
+      expect(e.isInvitedAsPlayer(authUid), isTrue);
+      expect(e.isInvitedAsPlayer('autre'), isFalse);
     });
 
-    test('rsvpStatusForUser lit la clé présente dans teamMemberIds en premier', () {
-      final event = ClubEvent(
-        id: 'e1',
-        clubId: 'c1',
-        type: EventTypes.training,
-        title: 'Entraînement',
-        date: DateTime(2026, 11, 4),
-        teamMemberIds: const [authUid],
-        rsvp: const {authUid: 'yes', memberId: 'no'},
+    test('joueur retiré par le coach : plus convoqué', () {
+      final e = event(
+        teamMemberIds: const [],
+        excludedMemberIds: const [authUid],
       );
-
-      expect(
-        event.rsvpStatusForUser(
-          authUid,
-          clubAudienceId: authUid,
-          memberAudienceKeys: eventAudienceKeys(linkedMember),
-        ),
-        RsvpStatus.yes,
-      );
+      expect(isConvokedOnEvent(e, linkedMember), isFalse);
+      expect(isConvokedOnEvent(event(), linkedMember), isTrue);
     });
 
-    test('après nettoyage legacy, le statut suit la clé canonique', () {
-      final event = ClubEvent(
-        id: 'e1',
-        clubId: 'c1',
-        type: EventTypes.training,
-        title: 'Entraînement',
-        date: DateTime(2026, 11, 4),
-        teamMemberIds: const [authUid],
-        rsvp: const {authUid: 'no'},
-      );
-
+    test('dedupedPlayerMemberIds : sans coachs ni doublons', () {
+      final e = event(teamMemberIds: const [authUid, 'coach', authUid, 'p2']);
       expect(
-        event.rsvpStatusForUser(
-          authUid,
-          clubAudienceId: authUid,
-          memberAudienceKeys: eventAudienceKeys(linkedMember),
-        ),
-        RsvpStatus.no,
+        dedupedPlayerMemberIds(event: e, excludeCoachUids: const {'coach'}),
+        [authUid, 'p2'],
       );
     });
   });

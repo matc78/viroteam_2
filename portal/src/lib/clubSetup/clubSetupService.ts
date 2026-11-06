@@ -19,6 +19,7 @@ import { defaultSeasonEndDate } from "@/lib/planning/seasonEnd";
 import { getAppFirestore } from "@/lib/firebase/app";
 import { uploadClubLogo } from "@/lib/firebase/callableService";
 import { Collections, Fields, MemberRoles } from "@/lib/firebase/constants";
+import { ownMemberRef } from "@/lib/firebase/memberRefs";
 import type { ViroUserProfile } from "@/lib/firebase/types";
 import { saveClubSetupObjectives } from "./retourUserService";
 
@@ -40,13 +41,8 @@ export async function createClubFromDraft(params: {
 }): Promise<string> {
   const firestore = getAppFirestore();
   const clubRef = doc(collection(firestore, Collections.clubs));
-  const memberRef = doc(
-    firestore,
-    Collections.clubs,
-    clubRef.id,
-    Collections.members,
-    params.founderUid,
-  );
+  // Fiche du fondateur : `members/{uid}` (une seule clé membre).
+  const memberRef = ownMemberRef(clubRef.id, params.founderUid);
   const userRef = doc(firestore, Collections.users, params.founderUid);
 
   const displayName =

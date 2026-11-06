@@ -4,7 +4,6 @@ export const Collections = {
   clubs: "clubs",
   retourUser: "retour_user",
   members: "members",
-  memberAccounts: "member_accounts",
   events: "events",
   feeSeasons: "fee_seasons",
   memberFees: "member_fees",
@@ -148,7 +147,7 @@ export const Fields = {
   canceled: "canceled",
   memberId: "memberId",
   accountUid: "accountUid",
-  /** Legacy fondateurs / membres inscrits avant accountUid. */
+  /** Uid du compte (fiches fondateur historiques) ; lu via `linkedAccountUid`. */
   userId: "userId",
   code: "code",
   /** Champ `status` dans `invitations` (pending, accepted, declined, expired). */

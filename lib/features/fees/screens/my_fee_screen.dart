@@ -46,39 +46,12 @@ class MyFeeScreen extends ConsumerStatefulWidget {
 }
 
 class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
-  String? _audienceId;
-
-  @override
-  void initState() {
-    super.initState();
-    _resolveAudience();
-  }
-
-  Future<void> _resolveAudience() async {
-    final clubId = widget.clubId;
-    final target = ref.read(selectedClubAudienceProvider(clubId));
-    if (target != null) {
-      if (mounted) setState(() => _audienceId = target.memberId);
-      return;
-    }
-    final authUid = ref.read(authStateProvider).value?.uid;
-    if (authUid == null) return;
-    final id = await ref.read(eventServiceProvider).resolveMemberDocId(
-          clubId: clubId,
-          authUid: authUid,
-        );
-    if (mounted) setState(() => _audienceId = id);
-  }
-
   @override
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedClubAudienceProvider(widget.clubId));
-    final selectedId = selected?.memberId;
-    if (selectedId != null && selectedId != _audienceId) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _audienceId = selectedId);
-      });
-    }
+    // Fiche ciblée : enfant sélectionné, sinon sa propre fiche members/{uid}.
+    final audienceId =
+        selected?.memberId ?? ref.watch(authStateProvider).value?.uid;
 
     final title = selected?.isChild == true
         ? AppCopy.fees.childFeeTitle(selected!.label)
@@ -86,7 +59,6 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
 
     final memberAccent = ref.watch(clubMemberAccentProvider(widget.clubId));
 
-    final audienceId = _audienceId;
     if (audienceId == null) {
       return ClubAccentTheme(
         accentColor: memberAccent,

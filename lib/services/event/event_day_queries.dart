@@ -91,11 +91,11 @@ class EventDayQueries {
   /// l'enfant ([childTeamIds]) dont le jour est entre [start] inclus et
   /// [endExclusive] exclu. Une requête `array-contains` par équipe — seul
   /// chemin lisible par un parent selon les rules. Sans les événements
-  /// annulés ni ceux dont l'enfant ([childAudienceKeys]) a été retiré.
+  /// annulés ni ceux dont l'enfant ([childMemberId]) a été retiré.
   Stream<List<ClubEvent>> watchGuardianEventsInRange({
     required String clubId,
     required List<String> childTeamIds,
-    Set<String> childAudienceKeys = const {},
+    String? childMemberId,
     required DateTime start,
     required DateTime endExclusive,
   }) {
@@ -129,7 +129,8 @@ class EventDayQueries {
     return combineLatestListStreams(streams).map(
       (events) => EventDateHelpers.sortedByDate(
         EventDateHelpers.dedupeEvents(events).where((event) {
-          if (event.canceled || event.isExcludedFor(childAudienceKeys)) {
+          if (event.canceled ||
+              (childMemberId != null && event.isExcludedFor(childMemberId))) {
             return false;
           }
           final day = EventDateHelpers.startOfDay(event.date);

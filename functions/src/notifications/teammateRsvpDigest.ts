@@ -283,8 +283,7 @@ export async function enqueueTeammateDigestsForEvent(params: {
   const respondedAtMs = Date.now();
   const items: TeammateDigestQueueItem[] = [];
   for (const entry of params.claimed) {
-    const memberId =
-      (await directory.resolveMemberId(entry.memberId)) ?? entry.memberId;
+    const memberId = entry.memberId;
     items.push({
       responderMemberId: memberId,
       responderName: params.responderNames.get(memberId) ?? "Un membre",

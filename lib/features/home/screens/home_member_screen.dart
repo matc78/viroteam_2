@@ -12,8 +12,6 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
@@ -172,18 +170,12 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
     required Map<String, ClubTeam> teams,
     required bool canManageEvents,
   }) {
-    final members = ref.read(clubMembersProvider(event.clubId)).value;
     PlanningEventDetailSheet.show(
       context: context,
       clubId: event.clubId,
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
-      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(
-        event,
-        teams,
-        membersByUid:
-            members != null ? indexClubMembersByUid(members) : null,
-      ),
+      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
       canManageEvents: canManageEvents,
       onCanceled: () {},
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),

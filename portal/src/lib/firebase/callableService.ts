@@ -86,7 +86,7 @@ export async function setMemberRole(params: {
 
 /**
  * Retire un membre du club (admin du club uniquement).
- * Le serveur nettoie `member_accounts`, `adminIds`, `memberCount`, les équipes,
+ * Le serveur nettoie `adminIds`, `memberCount`, les équipes,
  * l’invitation pending et `users/{uid}.clubMemberships`.
  */
 export async function removeMember(params: {

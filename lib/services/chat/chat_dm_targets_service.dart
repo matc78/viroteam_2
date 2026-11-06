@@ -44,9 +44,9 @@ final class ChatDmTarget {
 
 /// Résout les coaches / admins joignables en DM (miroir de `createCoachDm`).
 ///
-/// Lectures Firestore regroupées : un membre du club lit les fiches et l'index
-/// `member_accounts` par paquets `whereIn` ; un parent seul (pas de `list`
-/// permis par les règles) fait des `get` unitaires, dédupliqués et parallèles.
+/// Lectures Firestore regroupées : un membre du club lit les fiches par paquets
+/// `whereIn` ; un parent seul (pas de `list` permis par les règles) fait des
+/// `get` unitaires, dédupliqués et parallèles.
 class ChatDmTargetsService {
   /// Crée le service ; [firestore] par défaut : [appFirestore].
   ChatDmTargetsService({
@@ -66,14 +66,8 @@ class ChatDmTargetsService {
       .doc(clubId)
       .collection(ProjectConfig.membersSubcollection);
 
-  CollectionReference<Map<String, dynamic>> _memberAccounts(String clubId) =>
-      _db
-          .collection(ProjectConfig.clubsCollection)
-          .doc(clubId)
-          .collection(ProjectConfig.memberAccountsSubcollection);
-
   /// Équipes du caller : équipes des enfants pour un parent seul
-  /// ([guardianChildTeamIds]), sinon équipes de [callerMemberId] / [uid].
+  /// ([guardianChildTeamIds]), sinon équipes de [uid] (= id de sa fiche).
   ///
   /// Retourne une liste vide en cas d'erreur ou de timeout.
   Future<List<ClubTeam>> loadCallerTeams({
@@ -81,7 +75,6 @@ class ChatDmTargetsService {
     required String uid,
     required bool isGuardianOnly,
     List<String> guardianChildTeamIds = const [],
-    String? callerMemberId,
   }) async {
     try {
       if (isGuardianOnly) {
@@ -91,11 +84,7 @@ class ChatDmTargetsService {
             .timeout(kChatDmTargetsLoadTimeout);
       }
       return await _teamService
-          .watchUserTeams(
-            clubId: clubId,
-            uid: callerMemberId ?? uid,
-            alternateUid: uid,
-          )
+          .watchUserTeams(clubId: clubId, uid: uid)
           .first
           .timeout(kChatDmTargetsLoadTimeout);
     } catch (_) {
@@ -133,7 +122,7 @@ class ChatDmTargetsService {
     );
     final known = indexChatDmMembers(members);
     final missingIds = rosterIds.where((id) => !known.containsKey(id)).toList();
-    final fetched = await fetchMembersByRosterOrAuthIds(
+    final fetched = await fetchMembersByIds(
       clubId: clubId,
       ids: missingIds,
       canListMembers: !isGuardianOnly,
@@ -146,14 +135,11 @@ class ChatDmTargetsService {
     );
   }
 
-  /// Résout des ids (memberId ou uid Auth) en fiches membres, sans N+1 :
-  /// 1. fiches `members/{id}` ;
-  /// 2. ids restants → index `member_accounts/{id}.linkedMemberId` ;
-  /// 3. fiches liées encore inconnues.
+  /// Résout des ids roster (= ids de fiche) en fiches membres, sans N+1.
   ///
   /// [canListMembers] : `whereIn` par paquets de 30 (règle `list`) ; sinon
   /// `get` unitaires parallèles (parent). Un échec / timeout est ignoré.
-  Future<List<ClubMember>> fetchMembersByRosterOrAuthIds({
+  Future<List<ClubMember>> fetchMembersByIds({
     required String clubId,
     required Iterable<String> ids,
     required bool canListMembers,
@@ -162,32 +148,12 @@ class ChatDmTargetsService {
         ids.map((id) => id.trim()).where((id) => id.isNotEmpty).toSet();
     if (wanted.isEmpty) return const [];
 
-    final direct = await _readDocs(
+    final docs = await _readDocs(
       _members(clubId),
       wanted,
       canList: canListMembers,
     );
-    final members = direct.values.map(ClubMember.fromFirestore).toList();
-
-    final unresolved = wanted.difference(direct.keys.toSet());
-    if (unresolved.isEmpty) return members;
-
-    final accounts = await _readDocs(
-      _memberAccounts(clubId),
-      unresolved,
-      canList: canListMembers,
-    );
-    final linkedIds = linkedMemberIdsFromAccounts({
-      for (final entry in accounts.entries) entry.key: entry.value.data(),
-    }).difference(direct.keys.toSet());
-    if (linkedIds.isEmpty) return members;
-
-    final linked = await _readDocs(
-      _members(clubId),
-      linkedIds,
-      canList: canListMembers,
-    );
-    return [...members, ...linked.values.map(ClubMember.fromFirestore)];
+    return docs.values.map(ClubMember.fromFirestore).toList();
   }
 
   /// Lit les documents [ids] de [collection] (existants seulement), indexés
@@ -248,7 +214,7 @@ List<List<String>> chunkIds(Iterable<String> ids, int size) {
 }
 
 /// Ids roster à contacter, dans l'ordre : [clubAdminIds], coaches de
-/// [callerTeams], puis fiches `admin` de [members] (uid Auth + memberId).
+/// [callerTeams], puis fiches `admin` de [members].
 Set<String> collectChatDmRosterIds({
   required List<String> clubAdminIds,
   required List<ClubTeam> callerTeams,
@@ -259,40 +225,15 @@ Set<String> collectChatDmRosterIds({
     rosterIds.addAll(team.coachIds.where((id) => id.trim().isNotEmpty));
   }
   for (final member in members) {
-    if (member.role != MemberRoles.admin) continue;
-    final accountUid = member.accountUid?.trim();
-    if (accountUid != null && accountUid.isNotEmpty) rosterIds.add(accountUid);
-    rosterIds.add(member.memberId);
+    if (member.role == MemberRoles.admin) rosterIds.add(member.memberId);
   }
   return rosterIds;
 }
 
-/// Index des fiches par memberId et par uid Auth (le dernier l'emporte).
-Map<String, ClubMember> indexChatDmMembers(Iterable<ClubMember> members) {
-  final memberByKey = <String, ClubMember>{};
-  for (final member in members) {
-    memberByKey[member.memberId] = member;
-    final accountUid = member.accountUid?.trim();
-    if (accountUid != null && accountUid.isNotEmpty) {
-      memberByKey[accountUid] = member;
-    }
-  }
-  return memberByKey;
-}
-
-/// memberIds liés (`linkedMemberId`) des docs `member_accounts` [accounts]
-/// (clé = uid Auth), hors ceux identiques à leur uid.
-Set<String> linkedMemberIdsFromAccounts(
-  Map<String, Map<String, dynamic>?> accounts,
-) {
-  final linked = <String>{};
-  accounts.forEach((authUid, data) {
-    final memberId =
-        (data?[FirestoreFields.linkedMemberId] as String?)?.trim() ?? '';
-    if (memberId.isNotEmpty && memberId != authUid) linked.add(memberId);
-  });
-  return linked;
-}
+/// Index des fiches par id (= clé roster ; uid Auth une fois le compte lié).
+Map<String, ClubMember> indexChatDmMembers(Iterable<ClubMember> members) => {
+      for (final member in members) member.memberId: member,
+    };
 
 /// Construit les cibles DM : une par compte Auth (hors [callerUid]), fiches
 /// sans compte ignorées, triées par libellé insensible à la casse.
@@ -303,8 +244,8 @@ List<ChatDmTarget> buildChatDmTargets({
 }) {
   final seenAuthUids = <String>{};
   final targets = <ChatDmTarget>[];
-  for (final rosterOrAuthId in rosterIds) {
-    final member = memberByKey[rosterOrAuthId];
+  for (final rosterId in rosterIds) {
+    final member = memberByKey[rosterId];
     final accountUid = member?.accountUid?.trim();
     if (member == null ||
         accountUid == null ||

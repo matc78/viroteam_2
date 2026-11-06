@@ -3,8 +3,6 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/event_service.dart';
-import 'package:viro_team_v2/utils/stream_combine.dart';
-import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
 class MemberEventsState {
   const MemberEventsState({
@@ -31,29 +29,16 @@ final memberEventsProvider = StreamProvider<MemberEventsState>((ref) {
   final authUid = auth.uid;
   final eventService = ref.read(eventServiceProvider);
 
-  final audienceStreams = clubIds.map((clubId) {
-    return eventService.watchClubMember(clubId: clubId, uid: authUid).map(
-      (member) => [MapEntry(clubId, member?.memberId ?? authUid)],
-    );
-  }).toList();
-
-  return combineLatestListStreams(audienceStreams).switchMap((entries) {
-    final audienceByClub = Map<String, String>.fromEntries(entries);
-
-    return eventService
-        .watchUpcomingEventsForUser(clubIds: clubIds, authUid: authUid)
-        .map((events) => categorizeMemberEvents(
-              events,
-              authUid: authUid,
-              audienceByClub: audienceByClub,
-            ));
-  });
+  return eventService
+      .watchUpcomingEventsForUser(clubIds: clubIds, authUid: authUid)
+      .map((events) => categorizeMemberEvents(events, memberId: authUid));
 });
 
+/// Répartit [events] entre « à répondre » (sans RSVP de [memberId]) et « à
+/// venir » ; [memberId] = id de la fiche (soi : authUid, ou enfant).
 MemberEventsState categorizeMemberEvents(
   List<ClubEvent> events, {
-  required String authUid,
-  required Map<String, String> audienceByClub,
+  required String memberId,
 }) {
   final pending = <ClubEvent>[];
   final upcoming = <ClubEvent>[];
@@ -63,14 +48,7 @@ MemberEventsState categorizeMemberEvents(
 
     upcoming.add(event);
 
-    final audienceId = audienceByClub[event.clubId] ?? authUid;
-    final audienceKeys = {authUid, audienceId};
-    final needsRsvp = event.rsvpStatusForUser(
-          authUid,
-          clubAudienceId: audienceId,
-          memberAudienceKeys: audienceKeys,
-        ) ==
-        RsvpStatus.none;
+    final needsRsvp = event.rsvpStatusForUser(memberId) == RsvpStatus.none;
 
     if (needsRsvp) pending.add(event);
   }

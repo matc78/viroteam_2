@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
-import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -22,21 +21,12 @@ final chatDmTargetsProvider = FutureProvider.autoDispose
     final isGuardianOnly = ref.read(isGuardianOnlyInClubProvider(clubId));
 
     var guardianChildTeamIds = const <String>[];
-    String? callerMemberId;
     if (isGuardianOnly) {
       try {
         guardianChildTeamIds = await ref
             .read(guardianChildTeamIdsProvider(clubId).future)
             .timeout(kChatDmTargetsLoadTimeout);
       } catch (_) {}
-    } else {
-      // Warm fiche membre (best-effort) pour résoudre memberId → équipes.
-      try {
-        await ref
-            .read(clubMemberProvider(clubId).future)
-            .timeout(kChatDmTargetsFetchTimeout);
-      } catch (_) {}
-      callerMemberId = ref.read(clubMemberProvider(clubId)).value?.memberId;
     }
 
     final callerTeams = await service.loadCallerTeams(
@@ -44,7 +34,6 @@ final chatDmTargetsProvider = FutureProvider.autoDispose
       uid: uid,
       isGuardianOnly: isGuardianOnly,
       guardianChildTeamIds: guardianChildTeamIds,
-      callerMemberId: callerMemberId,
     );
 
     return await service.loadTargets(

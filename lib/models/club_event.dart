@@ -120,141 +120,34 @@ class ClubEvent {
 
   RsvpStatus rsvpFor(String uid) => RsvpStatus.fromString(rsvp[uid]);
 
-  /// `true` si une des clés d'audience [keys] a été retirée par le coach.
-  bool isExcludedFor(Iterable<String> keys) =>
-      excludedMemberIds.isNotEmpty && keys.any(excludedMemberIds.contains);
+  /// `true` si le membre [memberId] a été retiré par le coach.
+  bool isExcludedFor(String memberId) => excludedMemberIds.contains(memberId);
 
-  /// Clé RSVP / audience réellement présente dans [teamMemberIds].
-  String audienceKeyFor(String authUid, {String? clubAudienceId}) {
-    final primary = clubAudienceId ?? authUid;
-    if (teamMemberIds.contains(primary)) return primary;
-    if (teamMemberIds.contains(authUid)) return authUid;
-    return primary;
+  /// `true` si [memberId] (id de la fiche membre) est convoqué.
+  bool isInvitedAsPlayer(String memberId) => teamMemberIds.contains(memberId);
+
+  /// Statut RSVP de [memberId] ; bascule sur l'`attendance` v1 si absent.
+  RsvpStatus rsvpStatusForUser(String memberId) {
+    final value = rsvp[memberId];
+    if (value != null) return RsvpStatus.fromString(value);
+    return _rsvpFromLegacyAttendance(legacyAttendance[memberId]);
   }
 
-  bool isInvitedAsPlayer(
-    String authUid, {
-    String? clubAudienceId,
-    Set<String>? memberAudienceKeys,
-  }) => _audienceKeysForUser(
-    authUid,
-    clubAudienceId: clubAudienceId,
-    memberAudienceKeys: memberAudienceKeys,
-  ).any(teamMemberIds.contains);
-
-  RsvpStatus rsvpStatusForUser(
-    String authUid, {
-    String? clubAudienceId,
-    Set<String>? memberAudienceKeys,
-  }) {
-    final keys = _audienceKeysForUser(
-      authUid,
-      clubAudienceId: clubAudienceId,
-      memberAudienceKeys: memberAudienceKeys,
-    );
-    final rsvpKey = _rsvpKeyIn(keys);
-    if (rsvpKey != null) return RsvpStatus.fromString(rsvp[rsvpKey]);
-    if (legacyAttendance.isNotEmpty) {
-      for (final key in keys) {
-        final entry = legacyAttendance[key];
-        final mapped = _rsvpFromLegacyAttendance(entry);
-        if (mapped != RsvpStatus.none) return mapped;
-      }
-    }
-    return RsvpStatus.none;
-  }
-
-  /// Date du vote RSVP de l'utilisateur, lue sur la clé qui porte le statut.
+  /// Date du vote RSVP de [memberId].
   ///
   /// Retourne `null` sans réponse (statut `none`) ou sans timestamp associé.
-  DateTime? rsvpUpdatedAtForUser(
-    String authUid, {
-    String? clubAudienceId,
-    Set<String>? memberAudienceKeys,
-  }) {
-    final rsvpKey = _rsvpKeyIn(
-      _audienceKeysForUser(
-        authUid,
-        clubAudienceId: clubAudienceId,
-        memberAudienceKeys: memberAudienceKeys,
-      ),
-    );
-    if (rsvpKey == null) return null;
-    if (RsvpStatus.fromString(rsvp[rsvpKey]) == RsvpStatus.none) return null;
-    return rsvpUpdatedAt[rsvpKey];
+  DateTime? rsvpUpdatedAtForUser(String memberId) {
+    if (RsvpStatus.fromString(rsvp[memberId]) == RsvpStatus.none) return null;
+    return rsvpUpdatedAt[memberId];
   }
 
-  /// Date à laquelle l'utilisateur a vu l'événement sur sa home, si connue.
-  DateTime? seenAtForUser(
-    String authUid, {
-    String? clubAudienceId,
-    Set<String>? memberAudienceKeys,
-  }) {
-    if (seenAt.isEmpty) return null;
-    final keys = _audienceKeysForUser(
-      authUid,
-      clubAudienceId: clubAudienceId,
-      memberAudienceKeys: memberAudienceKeys,
-    );
-    for (final key in keys) {
-      final value = seenAt[key];
-      if (value != null) return value;
-    }
-    return null;
-  }
+  /// Date à laquelle [memberId] a vu l'événement sur sa home, si connue.
+  DateTime? seenAtForUser(String memberId) => seenAt[memberId];
 
-  /// `true` si l'utilisateur n'a ni répondu ni encore vu l'événement.
-  bool awaitsSeenBy(
-    String authUid, {
-    String? clubAudienceId,
-    Set<String>? memberAudienceKeys,
-  }) =>
-      rsvpStatusForUser(
-            authUid,
-            clubAudienceId: clubAudienceId,
-            memberAudienceKeys: memberAudienceKeys,
-          ) ==
-          RsvpStatus.none &&
-      seenAtForUser(
-            authUid,
-            clubAudienceId: clubAudienceId,
-            memberAudienceKeys: memberAudienceKeys,
-          ) ==
-          null;
-
-  /// Clé de [keys] présente dans [rsvp] ; si plusieurs (memberId legacy +
-  /// accountUid), celle au `rsvpUpdatedAt` le plus récent.
-  String? _rsvpKeyIn(Set<String> keys) {
-    String? found;
-    for (final key in keys) {
-      if (rsvp[key] == null) continue;
-      if (found == null) {
-        found = key;
-        continue;
-      }
-      final current = rsvpUpdatedAt[found];
-      final candidate = rsvpUpdatedAt[key];
-      if (candidate != null && (current == null || candidate.isAfter(current))) {
-        found = key;
-      }
-    }
-    return found;
-  }
-
-  /// Identifiants possibles de l'utilisateur sur l'événement (jamais d'autres joueurs).
-  Set<String> _audienceKeysForUser(
-    String authUid, {
-    String? clubAudienceId,
-    Set<String>? memberAudienceKeys,
-  }) {
-    final keys = <String>{
-      audienceKeyFor(authUid, clubAudienceId: clubAudienceId),
-      authUid,
-      if (clubAudienceId != null && clubAudienceId.isNotEmpty) clubAudienceId,
-      ...?memberAudienceKeys,
-    };
-    return keys.where((id) => id.isNotEmpty).toSet();
-  }
+  /// `true` si [memberId] n'a ni répondu ni encore vu l'événement.
+  bool awaitsSeenBy(String memberId) =>
+      rsvpStatusForUser(memberId) == RsvpStatus.none &&
+      seenAtForUser(memberId) == null;
 
   static RsvpStatus _rsvpFromLegacyAttendance(dynamic entry) {
     // Appel coach (attendance avec markedBy/markedAt) ≠ RSVP joueur.
@@ -294,8 +187,7 @@ class ClubEvent {
 
   /// Compteurs RSVP en excluant les coachs (et autres UIDs à ignorer).
   ///
-  /// Sans map membres : un id = une entrée. Avec alias memberId/accountUid,
-  /// préférer `PlanningEventDisplay.rsvpCountsIncludingCoaches`.
+  /// Un id = une entrée (clé unique : id de la fiche membre).
   ({int yes, int no, int none}) rsvpCountsExcluding(Set<String> excludeUids) {
     var yes = 0;
     var no = 0;

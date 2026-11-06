@@ -75,7 +75,6 @@ function formatAnnouncementWhen(date: Date | null): string {
 /** Home admin (KPIs + charts cotisations). */
 function AdminHomeView({
   clubId,
-  viewerUid,
   data,
   refreshing,
   error,
@@ -83,7 +82,6 @@ function AdminHomeView({
   showHelloAsso,
 }: {
   clubId: string;
-  viewerUid: string | null;
   data: HomeDashboardData | null;
   refreshing: boolean;
   error: string | null;
@@ -95,11 +93,6 @@ function AdminHomeView({
     Boolean(data?.hasPlayerTeams) ||
     (data?.coachedUpcomingEvents.length ?? 0) > 0 ||
     (data?.playerUpcomingEvents.length ?? 0) > 0;
-  const rsvpAudienceIds = [
-    data?.linkedMemberId,
-    viewerUid,
-  ].filter((id): id is string => Boolean(id));
-
   return (
     <div className={refreshing ? transitionStyles.refreshing : undefined}>
       {!data ? (
@@ -154,7 +147,6 @@ function AdminHomeView({
                   detailedRsvp
                   clubId={clubId}
                   linkedMemberId={data.linkedMemberId}
-                  audienceIds={rsvpAudienceIds}
                   onRsvpUpdated={reload}
                 />
               ) : null}
@@ -172,7 +164,6 @@ function AdminHomeView({
                   detailedRsvp={false}
                   clubId={clubId}
                   linkedMemberId={data.linkedMemberId}
-                  audienceIds={rsvpAudienceIds}
                   onRsvpUpdated={reload}
                 />
               </section>
@@ -252,24 +243,17 @@ function AdminHomeView({
 /** Home coach (scope équipes). */
 function CoachHomeView({
   clubId,
-  viewerUid,
   data,
   refreshing,
   error,
   reload,
 }: {
   clubId: string;
-  viewerUid: string | null;
   data: CoachHomeDashboardData | null;
   refreshing: boolean;
   error: string | null;
   reload: () => void;
 }) {
-  const rsvpAudienceIds = [
-    data?.linkedMemberId,
-    viewerUid,
-  ].filter((id): id is string => Boolean(id));
-
   return (
     <div className={refreshing ? transitionStyles.refreshing : undefined}>
       <DashboardPageIntro
@@ -383,7 +367,6 @@ function CoachHomeView({
               detailedRsvp
               clubId={clubId}
               linkedMemberId={data.linkedMemberId}
-              audienceIds={rsvpAudienceIds}
               onRsvpUpdated={reload}
             />
             <RecentActivityPreview clubId={clubId} />
@@ -399,7 +382,6 @@ function CoachHomeView({
                 detailedRsvp={false}
                 clubId={clubId}
                 linkedMemberId={data.linkedMemberId}
-                audienceIds={rsvpAudienceIds}
                 onRsvpUpdated={reload}
               />
             </section>
@@ -448,7 +430,6 @@ function CoachHomeView({
 /** Home joueur (events + RSVP + annonces). */
 function PlayerHomeView({
   clubId,
-  viewerUid,
   brandColorHex,
   data,
   refreshing,
@@ -456,7 +437,6 @@ function PlayerHomeView({
   reload,
 }: {
   clubId: string;
-  viewerUid: string | null;
   brandColorHex: string | null;
   data: PlayerHomeDashboardData | null;
   refreshing: boolean;
@@ -635,10 +615,6 @@ function PlayerHomeView({
                           clubId={clubId}
                           event={event}
                           memberId={data.linkedMemberId}
-                          audienceIds={[
-                            data.linkedMemberId,
-                            ...(viewerUid ? [viewerUid] : []),
-                          ]}
                           onUpdated={reload}
                         />
                       ) : null}
@@ -734,7 +710,6 @@ export function HomePageClient() {
     return (
       <CoachHomeView
         clubId={activeClub?.id ?? ""}
-        viewerUid={user?.uid ?? null}
         data={coachResource.data}
         refreshing={coachResource.refreshing}
         error={coachResource.error}
@@ -747,7 +722,6 @@ export function HomePageClient() {
     return (
       <PlayerHomeView
         clubId={activeClub?.id ?? ""}
-        viewerUid={user?.uid ?? null}
         brandColorHex={activeClub?.brandColorHex ?? null}
         data={playerResource.data}
         refreshing={playerResource.refreshing}
@@ -760,7 +734,6 @@ export function HomePageClient() {
   return (
     <AdminHomeView
       clubId={activeClub?.id ?? ""}
-      viewerUid={user?.uid ?? null}
       data={adminResource.data}
       refreshing={adminResource.refreshing}
       error={adminResource.error}

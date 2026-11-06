@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
+import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
@@ -69,8 +70,7 @@ class ClubService {
     required ClubSetupDraft draft,
   }) async {
     final clubRef = _clubs.doc();
-    final memberRef =
-        clubRef.collection(ProjectConfig.membersSubcollection).doc(founderUid);
+    final memberRef = clubMemberRef(_db, clubRef.id, founderUid);
     final userRef =
         _db.collection(ProjectConfig.usersCollection).doc(founderUid);
 
@@ -130,7 +130,6 @@ class ClubService {
       tx.set(memberRef, {
         FirestoreFields.memberId: founderUid,
         FirestoreFields.accountUid: founderUid,
-        FirestoreFields.userId: founderUid,
         FirestoreFields.firstName: founder.firstName,
         FirestoreFields.lastName: founder.lastName,
         FirestoreFields.role: MemberRoles.admin,

@@ -8,7 +8,7 @@ import {
   getMemberFee,
   isFeeDeadlineUrgentDay,
 } from "@/lib/firebase/feeService";
-import { getLinkedMemberId } from "@/lib/firebase/memberService";
+import { getOwnMemberId } from "@/lib/firebase/memberRefs";
 
 async function loadFeeDeadlineUrgent(
   club: ClubRecord,
@@ -34,7 +34,7 @@ export function usePlayerFeeDeadlineUrgency(): boolean {
 
     let cancelled = false;
     void (async () => {
-      const memberId = await getLinkedMemberId(activeClub.id, user.uid);
+      const memberId = await getOwnMemberId(activeClub.id, user.uid);
       if (!memberId || cancelled) {
         if (!cancelled) setUrgent(false);
         return;

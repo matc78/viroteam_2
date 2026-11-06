@@ -12,9 +12,7 @@ import 'package:viro_team_v2/features/home/widgets/event_seen_visibility_tracker
 import 'package:viro_team_v2/features/home/widgets/planning_day_section_header.dart';
 import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_focused_event_highlight.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -42,22 +40,10 @@ int memberHomePreviewCount(
   return count;
 }
 
-/// Clé RSVP lecture/écriture — même logique que [EventService.resolveAudienceId].
-final memberEventAudienceIdProvider =
-    FutureProvider.family<String?, String>((ref, clubId) async {
-  final uid = ref.watch(authStateProvider).value?.uid;
-  if (uid == null) return null;
-  return ref.read(eventServiceProvider).resolveAudienceId(
-        clubId: clubId,
-        authUid: uid,
-      );
-});
-
 /// RSVP du membre connecté sur un événement de son planning (home, planning).
 ///
-/// La clé d'audience vient de [memberEventAudienceIdProvider] (même cache que
-/// la carte, pas de lecture en plus) et est lue dans le `try` : une erreur
-/// réseau affiche [failureMessage]. L'écriture directe est reflétée tout de
+/// Clé RSVP = UID Auth (id de sa fiche). Une erreur réseau affiche
+/// [failureMessage]. L'écriture directe est reflétée tout de
 /// suite par le flux Firestore (latence compensée) et annulée par Firestore
 /// si le serveur la refuse : pas besoin d'invalider le planning.
 Future<void> setMemberEventRsvp({
@@ -67,14 +53,13 @@ Future<void> setMemberEventRsvp({
   required RsvpStatus status,
   required String failureMessage,
 }) async {
+  final uid = ref.read(authStateProvider).value?.uid;
+  if (uid == null) return;
   try {
-    final audienceId =
-        await ref.read(memberEventAudienceIdProvider(event.clubId).future);
-    if (audienceId == null) return;
     await ref.read(eventServiceProvider).updateRsvp(
           clubId: event.clubId,
           eventId: event.id,
-          uid: audienceId,
+          uid: uid,
           status: status,
         );
   } catch (_) {
@@ -202,38 +187,13 @@ class _MemberEventCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final uid = ref.read(authStateProvider).value?.uid;
     final teams = teamsByClub[event.clubId] ?? {};
-    final clubMembers = ref.watch(clubMembersProvider(event.clubId)).value;
-    final membersByUid =
-        clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
-    final counts = PlanningEventDisplay.rsvpCountsIncludingCoaches(
-      event,
-      teams,
-      membersByUid: membersByUid,
-    );
+    final counts =
+        PlanningEventDisplay.rsvpCountsIncludingCoaches(event, teams);
     final clubMember = ref.watch(clubMemberProvider(event.clubId)).value;
-    final audienceAsync =
-        ref.watch(memberEventAudienceIdProvider(event.clubId));
-    // Pas de fallback uid tant que resolveAudienceId n'a pas répondu (asymétrie écriture).
-    final audienceId = audienceAsync.asData?.value;
-    final audienceKeys =
-        clubMember != null ? eventAudienceKeys(clubMember) : null;
-    final canRsvp = uid != null &&
-        audienceId != null &&
-        PlanningEventDisplay.canRsvpOnEvent(
-          event,
-          uid,
-          teams,
-          clubAudienceId: audienceId,
-          member: clubMember,
-          membersByUid: membersByUid,
-        );
-    final status = uid != null && audienceId != null
-        ? event.rsvpStatusForUser(
-            uid,
-            clubAudienceId: audienceId,
-            memberAudienceKeys: audienceKeys,
-          )
-        : RsvpStatus.none;
+    final canRsvp =
+        uid != null && PlanningEventDisplay.canRsvpOnEvent(event, uid, teams);
+    final status =
+        uid != null ? event.rsvpStatusForUser(uid) : RsvpStatus.none;
     final canManageEvents = clubMember != null &&
         MemberRoleHierarchy.isCoachOrAbove(clubMember.role);
 
@@ -257,13 +217,8 @@ class _MemberEventCard extends ConsumerWidget {
           canRsvp ? (next) => onSetRsvp(event, next) : null,
     );
 
-    final needsSeen = canRsvp &&
-        event.awaitsSeenBy(
-          uid,
-          clubAudienceId: audienceId,
-          memberAudienceKeys: audienceKeys,
-        );
-    final trackedCard = needsSeen ? _trackSeen(ref, card, audienceId) : card;
+    final needsSeen = canRsvp && event.awaitsSeenBy(uid);
+    final trackedCard = needsSeen ? _trackSeen(ref, card, uid) : card;
     final highlightColor = _highlightColor(highlightStatus);
     if (highlightColor == null) return trackedCard;
     return PlanningFocusedEventHighlight(

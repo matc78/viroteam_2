@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ClubEventView,
-  PlanningGuestDirectoryEntry,
-  TeamOption,
-} from "@/lib/firebase/eventService";
+import type { ClubEventView, TeamOption } from "@/lib/firebase/eventService";
 import {
   buildEventGuestRows,
   buildGuestDirectoryFromPeople,
@@ -34,54 +30,28 @@ function makeEvent(
 }
 
 describe("buildEventGuestRows", () => {
-  it("déduplique memberId + accountUid pour la même personne", () => {
-    const directory = buildGuestDirectoryFromPeople([
-      {
-        id: "mem-alix",
-        matchIds: ["mem-alix", "uid-alix"],
-        name: "Alix MOREAU",
-        role: "player",
-        avatarUrl: null,
-      },
-      {
-        id: "mem-matia",
-        matchIds: ["mem-matia", "uid-matia"],
-        name: "Matia CILLY",
-        role: "player",
-        avatarUrl: null,
-      },
-    ]);
-    const teams: TeamOption[] = [
-      {
-        id: "team1",
-        name: "Séniors",
-        category: "Sénior",
-        playerIds: ["uid-alix", "uid-matia"],
-        coachIds: [],
-      },
-    ];
+  const directory = buildGuestDirectoryFromPeople([
+    { id: "uid-alix", name: "Alix MOREAU", role: "player", avatarUrl: null },
+    { id: "uid-matia", name: "Matia CILLY", role: "player", avatarUrl: null },
+    { id: "uid-paul", name: "Paul DEL PERUGIA", role: "coach", avatarUrl: null },
+  ]);
+
+  it("liste les joueurs convoqués triés par nom, avec leur RSVP", () => {
     const rows = buildEventGuestRows({
       event: makeEvent({
-        teamMemberIds: ["mem-alix", "uid-alix", "mem-matia", "uid-matia"],
+        teamMemberIds: ["uid-matia", "uid-alix", "uid-matia"],
+        rsvpByMemberId: { "uid-alix": "yes", "uid-matia": "maybe" },
       }),
-      teams,
+      teams: [],
       directory,
     });
-    expect(rows.map((row) => row.name)).toEqual([
-      "Alix MOREAU",
-      "Matia CILLY",
+    expect(rows.map((row) => [row.name, row.status])).toEqual([
+      ["Alix MOREAU", "yes"],
+      ["Matia CILLY", "pending"],
     ]);
   });
 
   it("n’affiche qu’une fois un coach aussi présent dans teamMemberIds", () => {
-    const paulEntry: PlanningGuestDirectoryEntry = {
-      name: "Paul DEL PERUGIA",
-      avatarUrl: null,
-    };
-    const directory: Record<string, PlanningGuestDirectoryEntry> = {
-      "mem-paul": paulEntry,
-      "uid-paul": paulEntry,
-    };
     const teams: TeamOption[] = [
       {
         id: "team1",
@@ -92,14 +62,23 @@ describe("buildEventGuestRows", () => {
       },
     ];
     const rows = buildEventGuestRows({
-      event: makeEvent({
-        teamMemberIds: ["mem-paul", "uid-paul"],
-      }),
+      event: makeEvent({ teamMemberIds: ["uid-paul", "uid-alix"] }),
       teams,
       directory,
     });
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.isCoach).toBe(true);
-    expect(rows[0]?.name).toBe("Paul DEL PERUGIA");
+    expect(rows.map((row) => [row.name, row.isCoach])).toEqual([
+      ["Paul DEL PERUGIA", true],
+      ["Alix MOREAU", false],
+    ]);
+  });
+
+  it("affiche « Membre » pour un id absent de l’annuaire", () => {
+    const rows = buildEventGuestRows({
+      event: makeEvent({ teamMemberIds: ["mem-inconnu"] }),
+      teams: [],
+      directory,
+    });
+    expect(rows[0]?.name).toBe("Membre");
+    expect(rows[0]?.audienceId).toBe("mem-inconnu");
   });
 });

@@ -65,43 +65,18 @@ export async function createUserProfile(params: {
   });
 }
 
-/** Met à jour l’avatar utilisateur (et snapshot membre du club actif si fourni). */
+/**
+ * Met à jour l’avatar utilisateur (`users/{uid}` uniquement). Les fiches
+ * membres `members/{uid}` sont synchronisées par un trigger serveur.
+ */
 export async function updateUserAvatarUrl(params: {
   uid: string;
   avatarUrl: string;
-  /** Club dont la fiche membre `members/{uid}` doit être sync. */
-  syncMemberClubId?: string | null;
 }): Promise<void> {
   await updateDoc(doc(getAppFirestore(), Collections.users, params.uid), {
     [Fields.avatarUrl]: params.avatarUrl,
     [Fields.updatedAt]: serverTimestamp(),
   });
-
-  const clubId = params.syncMemberClubId?.trim();
-  if (!clubId) return;
-  try {
-    const memberRef = doc(
-      getAppFirestore(),
-      Collections.clubs,
-      clubId,
-      Collections.members,
-      params.uid,
-    );
-    const memberSnap = await getDoc(memberRef);
-    if (!memberSnap.exists()) return;
-    const data = memberSnap.data() as Record<string, unknown>;
-    const snapshot =
-      data[Fields.snapshot] && typeof data[Fields.snapshot] === "object"
-        ? { ...(data[Fields.snapshot] as Record<string, unknown>) }
-        : {};
-    snapshot[Fields.avatarUrl] = params.avatarUrl;
-    await updateDoc(memberRef, {
-      [Fields.snapshot]: snapshot,
-      [Fields.updatedAt]: serverTimestamp(),
-    });
-  } catch {
-    // Sync membre best-effort — ne bloque pas l’avatar user.
-  }
 }
 
 /** Met à jour le profil utilisateur avant d’accepter une invitation club. */

@@ -1,91 +1,68 @@
 import type { TeamOption } from "@/lib/firebase/eventService";
-import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 
-/** Identifiants possibles pour matcher un viewer dans les rosters équipes. */
-export function viewerMatchIds(params: {
-  uid: string | null | undefined;
-  memberId?: string | null;
-  accountUid?: string | null;
-}): Set<string> {
-  const ids = new Set<string>();
-  for (const value of [params.uid, params.memberId, params.accountUid]) {
-    const trimmed = String(value ?? "").trim();
-    if (trimmed) ids.add(trimmed);
-  }
-  return ids;
-}
+/*
+ * « Une seule clé membre » : rosters (`playerIds` / `coachIds`), audiences
+ * (`teamMemberIds` / `excludedMemberIds`) et RSVP sont clés par l’id de fiche,
+ * égal à l’uid du compte quand la fiche est liée. Un viewer se matche donc
+ * par un seul id (`null` : pas de fiche, ne matche rien).
+ */
 
-/** Identifiants possibles d’un membre pour le matching roster. */
-export function memberMatchIds(member: {
-  memberId: string;
-  accountUid?: string | null;
-}): Set<string> {
-  return viewerMatchIds({
-    uid: null,
-    memberId: member.memberId,
-    accountUid: member.accountUid,
-  });
-}
-
-/** True si le set d’IDs intersecte le roster. */
+/** True si [memberId] figure dans le roster. */
 export function rosterContains(
   rosterIds: string[],
-  matchIds: Set<string>,
+  memberId: string | null | undefined,
 ): boolean {
-  return rosterIds.some((id) => matchIds.has(id));
+  return Boolean(memberId) && rosterIds.includes(memberId!);
 }
 
-/** Équipes où le viewer apparaît dans coachIds. */
+/** Équipes où le membre apparaît dans coachIds. */
 export function teamsCoachedByViewer(
   teams: TeamOption[],
-  matchIds: Set<string>,
+  memberId: string | null | undefined,
 ): TeamOption[] {
-  return teams.filter((team) => rosterContains(team.coachIds, matchIds));
+  return teams.filter((team) => rosterContains(team.coachIds, memberId));
 }
 
-/** Équipes où le viewer apparaît dans playerIds. */
+/** Équipes où le membre apparaît dans playerIds. */
 export function teamsPlayedByViewer(
   teams: TeamOption[],
-  matchIds: Set<string>,
+  memberId: string | null | undefined,
 ): TeamOption[] {
-  return teams.filter((team) => rosterContains(team.playerIds, matchIds));
+  return teams.filter((team) => rosterContains(team.playerIds, memberId));
 }
 
 /**
- * Équipes du viewer via roster : coachIds ∪ playerIds.
+ * Équipes du membre via roster : coachIds ∪ playerIds.
  * Couvre le double rôle (ex. coach d’une équipe et joueur d’une autre).
  */
 export function rosterTeamsForViewer(
   teams: TeamOption[],
-  matchIds: Set<string>,
+  memberId: string | null | undefined,
 ): TeamOption[] {
-  const byId = new Map<string, TeamOption>();
-  for (const team of teamsCoachedByViewer(teams, matchIds)) {
-    byId.set(team.id, team);
-  }
-  for (const team of teamsPlayedByViewer(teams, matchIds)) {
-    byId.set(team.id, team);
-  }
-  return [...byId.values()];
+  return teams.filter(
+    (team) =>
+      rosterContains(team.coachIds, memberId) ||
+      rosterContains(team.playerIds, memberId),
+  );
 }
 
 /** IDs d’équipes du viewer selon son rôle club. */
 export function viewerTeamIdsForRole(params: {
   role: string | null;
   teams: TeamOption[];
-  matchIds: Set<string>;
+  memberId: string | null | undefined;
 }): string[] {
   if (params.role === "admin") {
     return params.teams.map((team) => team.id);
   }
   if (params.role === "coach") {
     // Coach (+ éventuel rôle joueur) : union des rosters.
-    return rosterTeamsForViewer(params.teams, params.matchIds).map(
+    return rosterTeamsForViewer(params.teams, params.memberId).map(
       (team) => team.id,
     );
   }
   if (params.role === "player") {
-    return teamsPlayedByViewer(params.teams, params.matchIds).map(
+    return teamsPlayedByViewer(params.teams, params.memberId).map(
       (team) => team.id,
     );
   }
@@ -107,18 +84,6 @@ export function coachRosterIdsForPlayerTeams(
   return coachIds;
 }
 
-/** True si le membre est coach d’au moins une équipe du joueur. */
-export function memberIsCoachOfPlayerTeams(params: {
-  member: Pick<ClubMemberRecord, "memberId" | "accountUid">;
-  coachRosterIds: Set<string>;
-}): boolean {
-  const ids = memberMatchIds(params.member);
-  for (const id of ids) {
-    if (params.coachRosterIds.has(id)) return true;
-  }
-  return false;
-}
-
 /** Filtre les événements dont l’audience croise les équipes du viewer. */
 export function eventTouchesTeams(
   event: { teamIds: string[]; allTeams?: boolean },
@@ -132,16 +97,14 @@ export function eventTouchesTeams(
 }
 
 /**
- * True si le membre (un de ses ids : memberId, accountUid…) a été retiré des
- * convoqués : l’événement lui est alors totalement invisible.
+ * True si le membre a été retiré des convoqués : l’événement lui est alors
+ * totalement invisible.
  */
 export function isExcludedFromEvent(
   event: { excludedMemberIds?: string[] },
-  matchIds: Set<string>,
+  memberId: string | null | undefined,
 ): boolean {
-  const excluded = event.excludedMemberIds ?? [];
-  if (excluded.length === 0 || matchIds.size === 0) return false;
-  return excluded.some((id) => matchIds.has(id));
+  return rosterContains(event.excludedMemberIds ?? [], memberId);
 }
 
 /**
@@ -156,34 +119,9 @@ export function eventVisibleToPlayer(params: {
     allTeams?: boolean;
   };
   viewerTeamIds: Set<string>;
-  playerMatchIds: Set<string>;
+  memberId: string | null | undefined;
 }): boolean {
-  if (isExcludedFromEvent(params.event, params.playerMatchIds)) return false;
-  if (
-    params.event.teamMemberIds.some((id) => params.playerMatchIds.has(id))
-  ) {
-    return true;
-  }
+  if (isExcludedFromEvent(params.event, params.memberId)) return false;
+  if (rosterContains(params.event.teamMemberIds, params.memberId)) return true;
   return eventTouchesTeams(params.event, params.viewerTeamIds);
-}
-
-/**
- * Visibilité planning membre (non-admin) : équipes roster ∪ convocations perso.
- * Utilisé aussi pour un coach qui joue dans d’autres équipes.
- */
-export function eventVisibleToRosterMember(params: {
-  event: {
-    teamIds: string[];
-    teamMemberIds: string[];
-    excludedMemberIds?: string[];
-    allTeams?: boolean;
-  };
-  rosterTeamIds: Set<string>;
-  matchIds: Set<string>;
-}): boolean {
-  return eventVisibleToPlayer({
-    event: params.event,
-    viewerTeamIds: params.rosterTeamIds,
-    playerMatchIds: params.matchIds,
-  });
 }

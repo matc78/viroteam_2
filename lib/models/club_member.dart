@@ -22,10 +22,11 @@ class ClubMember {
     this.dismissedAnnouncementIds = const [],
   });
 
-  /// ID stable du document `members/{memberId}`.
+  /// Id du document `members/{memberId}` : clé unique du membre (rosters,
+  /// convocations, RSVP, cotisations…), égale à l'UID Auth une fois lié.
   final String memberId;
 
-  /// UID Firebase Auth si le membre a créé son compte.
+  /// UID Firebase Auth si le membre a créé son compte (== [memberId]).
   final String? accountUid;
 
   final String role;
@@ -47,18 +48,7 @@ class ClubMember {
   /// Annonces masquées par le membre sur la home (croix).
   final List<String> dismissedAnnouncementIds;
 
-  /// Compatibilité : identifiant utilisé pour RSVP/events (accountUid ou memberId).
-  String get effectiveUid => accountUid ?? memberId;
-
   bool get isActive => status == 'active';
-
-  /// `true` si la fiche est celle du compte Auth [uid] (`accountUid`, ou
-  /// `memberId` legacy = uid).
-  bool isAccountOf(String? uid) {
-    if (uid == null || uid.isEmpty) return false;
-    if (accountUid != null && accountUid == uid) return true;
-    return memberId == uid;
-  }
 
   String get fullName {
     if (firstName != null || lastName != null) {
@@ -126,14 +116,12 @@ class ClubMember {
             ? '${firstName ?? ''} ${lastName ?? ''}'.trim()
             : null);
 
-    // Legacy : fondateurs / membres inscrits avant accountUid utilisaient userId.
-    final legacyUserId = data[FirestoreFields.userId] as String?;
-    final accountUid = data[FirestoreFields.accountUid] as String? ??
-        (legacyUserId != null && legacyUserId.isNotEmpty ? legacyUserId : null);
+    final accountUid = (data[FirestoreFields.accountUid] as String?)?.trim();
 
     return ClubMember(
-      memberId: data[FirestoreFields.memberId] as String? ?? doc.id,
-      accountUid: accountUid,
+      memberId: doc.id,
+      accountUid:
+          accountUid != null && accountUid.isNotEmpty ? accountUid : null,
       role: data[FirestoreFields.role] as String? ?? MemberRoles.player,
       status: data[FirestoreFields.status] as String? ?? 'active',
       firstName: firstName,
@@ -156,7 +144,6 @@ class ClubMember {
   }
 
   ClubMember copyWith({
-    String? accountUid,
     bool? hasLinkedAccount,
     String? firstName,
     String? lastName,
@@ -169,7 +156,7 @@ class ClubMember {
   }) {
     return ClubMember(
       memberId: memberId,
-      accountUid: accountUid ?? this.accountUid,
+      accountUid: accountUid,
       role: role ?? this.role,
       status: status,
       firstName: firstName ?? this.firstName,

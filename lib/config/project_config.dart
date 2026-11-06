@@ -10,7 +10,7 @@ abstract final class ProjectConfig {
 
   // —— Version app (doit matcher `pubspec.yaml` et les tags `v*` / `release-v*`) ——
   /// Nom marketing (ex. `2.2.12`). Vérifié en CI contre le tag de release.
-  static const String appVersionName = '2.2.15';
+  static const String appVersionName = '2.3.0';
 
   /// Build number local (`+N` du pubspec). La CI release peut le surcharger.
   static const int appVersionCode = 21;
@@ -100,7 +100,6 @@ abstract final class ProjectConfig {
   static const String usersCollection = 'users';
   static const String clubsCollection = 'clubs';
   static const String membersSubcollection = 'members';
-  static const String memberAccountsSubcollection = 'member_accounts';
   static const String guardiansSubcollection = 'guardians';
   static const String invitationsSubcollection = 'invitations';
   static const String joinRequestsCollection = 'join_requests';

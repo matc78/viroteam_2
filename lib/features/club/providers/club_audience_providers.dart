@@ -154,12 +154,11 @@ bool shouldShowAudienceSwitcher(List<FamilyAudienceTarget> targets) {
 
 /// Cible d'un RSVP dans un club.
 ///
-/// [subjectId] : clé passée aux helpers RSVP de `ClubEvent` (`authUid` pour
-/// soi, `memberId` de l'enfant sinon) ; [audienceId] : clé écrite dans `rsvp` ;
-/// [viaCallable] : écriture via `setEventRsvp` (parent pour un enfant).
+/// [memberId] : id de la fiche ciblée (`authUid` pour soi, `memberId` de
+/// l'enfant sinon), clé lue et écrite dans `rsvp` ; [viaCallable] : écriture
+/// via `setEventRsvp` (parent pour un enfant).
 typedef RsvpTarget = ({
-  String subjectId,
-  String audienceId,
+  String memberId,
   ClubMember? member,
   bool viaCallable,
 });
@@ -171,8 +170,7 @@ RsvpTarget? childRsvpTarget({
 }) {
   if (selected == null || !selected.isChild) return null;
   return (
-    subjectId: selected.memberId,
-    audienceId: selected.memberId,
+    memberId: selected.memberId,
     member: childMember,
     viaCallable: true,
   );
@@ -192,13 +190,8 @@ final rsvpTargetProvider =
   }
 
   final selfMember = ref.watch(clubMemberProvider(clubId)).value;
-  final audienceId = await ref.read(eventServiceProvider).resolveAudienceId(
-        clubId: clubId,
-        authUid: authUid,
-      );
   return (
-    subjectId: authUid,
-    audienceId: audienceId,
+    memberId: authUid,
     member: selfMember,
     viaCallable: false,
   );

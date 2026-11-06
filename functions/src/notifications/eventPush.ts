@@ -76,11 +76,13 @@ export async function sendEventPushToAudience(params: {
   >();
   const sentKeys = new Set<string>();
   for (const entry of params.entries) {
-    if (exclude.has(entry.uid)) continue;
+    const uid = entry.uid;
+    // Fiche non liée : pas de compte à notifier (ses parents ont leur entrée).
+    if (!uid || exclude.has(uid)) continue;
     const forMemberId =
       entry.relation === "guardian" ? entry.memberId : undefined;
     // Une même personne n'est notifiée qu'une fois par sujet (soi / chaque enfant).
-    const subjectKey = `${entry.uid}\u0000${forMemberId ?? ""}`;
+    const subjectKey = `${uid}\u0000${forMemberId ?? ""}`;
     if (sentKeys.has(subjectKey)) continue;
     const copy = params.copyFor(entry);
     if (!copy) continue;
@@ -92,7 +94,7 @@ export async function sendEventPushToAudience(params: {
       group = { copy, forMemberId, uids: new Set() };
       groups.set(groupKey, group);
     }
-    group.uids.add(entry.uid);
+    group.uids.add(uid);
   }
 
   let recipientCount = 0;

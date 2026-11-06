@@ -24,11 +24,11 @@ async function handleEnsureClubChatSynced(request: CallableRequest): Promise<{
     throw new HttpsError("not-found", "Club introuvable");
   }
 
-  const account = await clubRef.collection("member_accounts").doc(uid).get();
+  // Une seule clé membre : la fiche du compte est members/{uid}.
   const directMember = await clubRef.collection("members").doc(uid).get();
   const userSnap = await firestore.collection("users").doc(uid).get();
   const parentClubIds = stringArray(userSnap.data()?.parentClubIds);
-  const isMember = account.exists || directMember.exists;
+  const isMember = directMember.exists;
   const isParent = parentClubIds.includes(clubId);
   const isAdmin = stringArray(clubSnap.data()?.adminIds).includes(uid);
 

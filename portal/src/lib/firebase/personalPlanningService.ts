@@ -1,3 +1,4 @@
+import { getOwnMemberId } from "@/lib/firebase/memberRefs";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import {
   loadPlanningEventsForGuardian,
@@ -8,8 +9,7 @@ import {
 } from "@/lib/firebase/eventService";
 import {
   getClubMember,
-  getLinkedMemberId,
-  loadMembersByRosterIds,
+  loadMembersByIds,
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
 import {
@@ -21,11 +21,9 @@ import { splitBrandColorHex } from "@/lib/clubSetup/clubBrandColors";
 import { buildGuestDirectoryFromMembers } from "@/lib/planning/eventGuestRows";
 import {
   isExcludedFromEvent,
-  memberMatchIds,
   rosterContains,
   teamsCoachedByViewer,
   teamsPlayedByViewer,
-  viewerMatchIds,
 } from "@/lib/teams/viewerTeamScope";
 
 /** Event enrichi du club d’origine (agrégat multi-clubs). */
@@ -62,7 +60,6 @@ export type PersonalPlanningData = {
 
 type PersonScope = {
   memberId: string;
-  matchIds: Set<string>;
   teamIds: Set<string>;
 };
 
@@ -92,14 +89,10 @@ function hasBureauMembership(
 function eventVisibleToPersonalScope(params: {
   event: ClubEventView;
   viewerTeamIds: Set<string>;
-  playerMatchIds: Set<string>;
+  memberId: string;
 }): boolean {
-  if (isExcludedFromEvent(params.event, params.playerMatchIds)) return false;
-  if (
-    params.event.teamMemberIds.some((id) => params.playerMatchIds.has(id))
-  ) {
-    return true;
-  }
+  if (isExcludedFromEvent(params.event, params.memberId)) return false;
+  if (params.event.teamMemberIds.includes(params.memberId)) return true;
   if (params.event.teamIds.length === 0) return false;
   if (params.viewerTeamIds.size === 0) return false;
   return params.event.teamIds.some((teamId) =>
@@ -107,30 +100,25 @@ function eventVisibleToPersonalScope(params: {
   );
 }
 
-/** Construit le scope d’une personne (matchIds + équipes roster). */
+/** Construit le scope d’une personne (id de fiche + équipes roster). */
 function buildPersonScope(
   memberId: string,
-  accountUid: string | null | undefined,
   teams: TeamOption[],
   extraTeamIds: string[] = [],
 ): PersonScope {
-  const matchIds = memberMatchIds({
-    memberId,
-    accountUid: accountUid ?? null,
-  });
   const teamIds = new Set(
     teams
       .filter(
         (team) =>
-          rosterContains(team.playerIds, matchIds) ||
-          rosterContains(team.coachIds, matchIds),
+          rosterContains(team.playerIds, memberId) ||
+          rosterContains(team.coachIds, memberId),
       )
       .map((team) => team.id),
   );
   for (const teamId of extraTeamIds) {
     if (teamId) teamIds.add(teamId);
   }
-  return { memberId, matchIds, teamIds };
+  return { memberId, teamIds };
 }
 
 /**
@@ -154,12 +142,8 @@ async function loadPersonalEventsForClub(params: {
   }
 
   const viewerMemberId = isMember
-    ? await getLinkedMemberId(club.id, uid)
+    ? await getOwnMemberId(club.id, uid)
     : null;
-  const selfMatchIds = viewerMatchIds({
-    uid,
-    memberId: viewerMemberId,
-  });
 
   const childMembers = await Promise.all(
     childLinks.map((link) => getClubMember(club.id, link.memberId)),
@@ -194,21 +178,16 @@ async function loadPersonalEventsForClub(params: {
   }
 
   const coachedTeamIds = new Set(
-    teamsCoachedByViewer(teams, selfMatchIds).map((team) => team.id),
+    teamsCoachedByViewer(teams, uid).map((team) => team.id),
   );
   const playedTeamIds = new Set(
-    teamsPlayedByViewer(teams, selfMatchIds).map((team) => team.id),
+    teamsPlayedByViewer(teams, uid).map((team) => team.id),
   );
   const selfTeamIds = new Set([...coachedTeamIds, ...playedTeamIds]);
 
   const childScopes = childLinks.map((link) => {
     const member = childMemberById.get(link.memberId) ?? null;
-    return buildPersonScope(
-      link.memberId,
-      member?.accountUid,
-      teams,
-      member?.teamIds ?? [],
-    );
+    return buildPersonScope(link.memberId, teams, member?.teamIds ?? []);
   });
 
   const relevantTeamIds = new Set(selfTeamIds);
@@ -217,12 +196,12 @@ async function loadPersonalEventsForClub(params: {
   }
 
   const visibleEvents = rawEvents.filter((event) => {
+    // Le viewer se matche par son uid (sa fiche vit à `members/{uid}`).
     if (
-      selfMatchIds.size > 0 &&
       eventVisibleToPersonalScope({
         event,
         viewerTeamIds: selfTeamIds,
-        playerMatchIds: selfMatchIds,
+        memberId: uid,
       })
     ) {
       return true;
@@ -232,7 +211,7 @@ async function loadPersonalEventsForClub(params: {
         eventVisibleToPersonalScope({
           event,
           viewerTeamIds: child.teamIds,
-          playerMatchIds: child.matchIds,
+          memberId: child.memberId,
         })
       ) {
         return true;
@@ -249,7 +228,7 @@ async function loadPersonalEventsForClub(params: {
   ];
   const rosterMembers =
     rosterIds.length > 0
-      ? await loadMembersByRosterIds(club.id, rosterIds)
+      ? await loadMembersByIds(club.id, rosterIds)
       : [];
   const guestDirectory = buildGuestDirectoryFromMembers(rosterMembers);
 
@@ -364,22 +343,14 @@ export function resolvePersonalRsvpMemberId(params: {
   event: PersonalClubEventView;
   viewerMemberId: string | null | undefined;
   childMemberIds: string[];
-  viewerUid?: string | null;
 }): string | null {
   const audience = new Set(
     params.event.teamMemberIds.map(String).filter(Boolean),
   );
   if (audience.size === 0) return null;
 
-  const viewerCandidates = [
-    params.viewerMemberId,
-    params.viewerUid,
-  ].filter((value): value is string => Boolean(value?.trim()));
-
-  for (const candidate of viewerCandidates) {
-    if (audience.has(candidate)) {
-      return params.viewerMemberId?.trim() || candidate;
-    }
+  if (params.viewerMemberId && audience.has(params.viewerMemberId)) {
+    return params.viewerMemberId;
   }
   for (const childId of params.childMemberIds) {
     if (audience.has(childId)) return childId;

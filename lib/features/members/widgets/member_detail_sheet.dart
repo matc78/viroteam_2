@@ -157,8 +157,6 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
   MemberFee? _feeForMember(List<MemberFee> fees) {
     for (final fee in fees) {
       if (fee.memberId == widget.member.memberId) return fee;
-      final accountUid = widget.member.accountUid;
-      if (accountUid != null && fee.memberId == accountUid) return fee;
     }
     return null;
   }
@@ -184,7 +182,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
   }
 
   Future<void> _changeRole() async {
-    if (widget.member.isAccountOf(ref.read(authStateProvider).value?.uid)) {
+    if (widget.member.memberId == ref.read(authStateProvider).value?.uid) {
       ViroSnackBar.show(context, AppCopy.members.cannotChangeOwnRole);
       return;
     }
@@ -354,7 +352,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
     final viewerMember = ref.watch(clubMemberProvider(widget.club.id)).value;
     final canEditLicense = _canEditLicense(viewerMember);
     final isOwnProfile =
-        widget.member.isAccountOf(ref.watch(authStateProvider).value?.uid);
+        widget.member.memberId == ref.watch(authStateProvider).value?.uid;
     final canSeeContact = _isAdmin || isOwnProfile;
     final canSeeFee = _canSeeFee(isOwnProfile: isOwnProfile);
     final canSeeLicense = canEditLicense || _isAdmin;

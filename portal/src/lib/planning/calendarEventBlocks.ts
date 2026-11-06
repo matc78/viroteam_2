@@ -42,20 +42,15 @@ export function hasActiveLabelFilters(filters: PlanningLabelFilters): boolean {
   );
 }
 
-function collectMatchIds(
-  people: PlanningPersonOption[],
+/** Ids des coachs cochés (id de fiche = clé des `coachIds` d’équipe). */
+function selectedCoachIds(
+  coaches: PlanningPersonOption[],
   selectedIds: string[],
-): Map<string, string> {
+): Set<string> {
   const selected = new Set(selectedIds);
-  /** matchId → id option filtre (pour couleur / blockId stables). */
-  const matchIdToFilterId = new Map<string, string>();
-  for (const person of people) {
-    if (!selected.has(person.id)) continue;
-    for (const matchId of person.matchIds) {
-      matchIdToFilterId.set(matchId, person.id);
-    }
-  }
-  return matchIdToFilterId;
+  return new Set(
+    coaches.filter((coach) => selected.has(coach.id)).map((coach) => coach.id),
+  );
 }
 
 /**
@@ -66,7 +61,7 @@ function matchingLabelsForEvent(
   event: ClubEventView,
   teamById: Map<string, TeamOption>,
   filters: PlanningLabelFilters,
-  coachMatchToFilterId: Map<string, string>,
+  checkedCoachIds: Set<string>,
 ): MatchedLabel[] {
   const matched: MatchedLabel[] = [];
   const seen = new Set<string>();
@@ -111,8 +106,7 @@ function matchingLabelsForEvent(
     const matchedCoachFilterIds = new Set<string>();
     for (const teamId of event.teamIds) {
       for (const coachId of teamById.get(teamId)?.coachIds ?? []) {
-        const filterId = coachMatchToFilterId.get(coachId);
-        if (filterId) matchedCoachFilterIds.add(filterId);
+        if (checkedCoachIds.has(coachId)) matchedCoachFilterIds.add(coachId);
       }
     }
     for (const coachFilterId of matchedCoachFilterIds) {
@@ -141,7 +135,7 @@ export function expandEventsToLabelBlocks(
   }
 
   const teamById = new Map(teams.map((team) => [team.id, team]));
-  const coachMatchToFilterId = collectMatchIds(coaches, filters.coachIds);
+  const checkedCoachIds = selectedCoachIds(coaches, filters.coachIds);
   const teamColors = mergeTeamFilterColors(
     teams.map((team) => team.id),
     teamColorById,
@@ -163,7 +157,7 @@ export function expandEventsToLabelBlocks(
       event,
       teamById,
       filters,
-      coachMatchToFilterId,
+      checkedCoachIds,
     );
     for (const label of labels) {
       const palette =

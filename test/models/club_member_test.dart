@@ -1,37 +1,64 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/models/club_team.dart';
 
 void main() {
-  group('ClubMember.isAccountOf', () {
-    test('reconnaît le compte via accountUid', () {
-      const member = ClubMember(
-        memberId: 'm-a',
+  group('ClubTeam roster (clé unique = id de la fiche)', () {
+    const linked = ClubMember(
+      memberId: 'uid-a',
+      accountUid: 'uid-a',
+      role: MemberRoles.coach,
+      status: 'active',
+    );
+    const preRostered = ClubMember(
+      memberId: 'm-pending',
+      role: MemberRoles.player,
+      status: 'active',
+    );
+    const team = ClubTeam(
+      id: 't1',
+      clubId: 'c1',
+      name: 'U13',
+      playerIds: ['m-pending'],
+      coachIds: ['uid-a'],
+    );
+
+    test('reconnaît joueurs et coachs par id de fiche', () {
+      expect(team.isOnCoachRoster(linked), isTrue);
+      expect(team.isOnPlayerRoster(linked), isFalse);
+      expect(team.isOnPlayerRoster(preRostered), isTrue);
+      expect(team.isOnCoachRoster(preRostered), isFalse);
+    });
+
+    test('seul l’id de la fiche compte (plus d’alias accountUid)', () {
+      const other = ClubMember(
+        memberId: 'm-x',
         accountUid: 'uid-a',
-        role: MemberRoles.admin,
+        role: MemberRoles.coach,
         status: 'active',
       );
-      expect(member.isAccountOf('uid-a'), isTrue);
-      expect(member.isAccountOf('uid-b'), isFalse);
+      expect(team.isOnCoachRoster(other), isFalse);
     });
+  });
 
-    test('reconnaît le compte legacy via memberId', () {
-      const member = ClubMember(
+  group('indexClubMembersById', () {
+    test('une entrée par fiche, clé = memberId', () {
+      const a = ClubMember(
         memberId: 'uid-a',
+        accountUid: 'uid-a',
         role: MemberRoles.player,
         status: 'active',
       );
-      expect(member.isAccountOf('uid-a'), isTrue);
-    });
-
-    test('uid absent ou vide ⇒ jamais sa fiche', () {
-      const pending = ClubMember(
-        memberId: 'm-pending',
+      const b = ClubMember(
+        memberId: 'm-b',
         role: MemberRoles.player,
         status: 'active',
       );
-      expect(pending.isAccountOf(null), isFalse);
-      expect(pending.isAccountOf(''), isFalse);
+      final index = indexClubMembersById(const [a, b]);
+      expect(index.keys, unorderedEquals(['uid-a', 'm-b']));
+      expect(index['uid-a'], same(a));
     });
   });
 }

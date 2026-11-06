@@ -423,7 +423,7 @@ async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
     throw new HttpsError("invalid-argument", "writePolicy inconnue");
   }
 
-  // Admin via `adminIds`, index `member_accounts` ou fiche directe à son uid
+  // Admin via `adminIds` ou fiche `members/{uid}` de rôle admin
   // (même résolution que les autres callables admin).
   await assertClubAdmin(clubId, uid);
   const firestore = db();

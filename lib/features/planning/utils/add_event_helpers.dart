@@ -110,17 +110,6 @@ String? addEventResolveAwayLocation({
   return '$trimmedAddress, $trimmedPostal $trimmedCity';
 }
 
-/// Audience (uids) d’une équipe à partir des membres du club.
-List<String> addEventAudienceForTeam(
-  ClubTeam team,
-  List<ClubMember>? members,
-) {
-  if (members == null || members.isEmpty) {
-    return {...team.playerIds, ...team.coachIds}.toList();
-  }
-  return audienceIdsForTeam(team, indexClubMembersByUid(members));
-}
-
 /// Convoqués (`teamMemberIds`) de plusieurs équipes, dédupliqués.
 ///
 /// Avec [wholeClub], ajoute aussi chaque membre du club (y compris ceux
@@ -131,9 +120,8 @@ List<String> addEventAudienceForTeams(
   bool wholeClub = false,
 }) {
   return {
-    for (final team in teams) ...addEventAudienceForTeam(team, members),
+    for (final team in teams) ...audienceIdsForTeam(team),
     if (wholeClub)
-      for (final member in members ?? const <ClubMember>[])
-        rosterAudienceId(member),
+      for (final member in members ?? const <ClubMember>[]) member.memberId,
   }.toList();
 }

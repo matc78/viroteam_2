@@ -8,6 +8,7 @@ import {
 } from "firebase-functions/v2/firestore";
 import { db, runWithDatabase, type FirestoreDatabaseId } from "./db";
 import { stringArray, uniq } from "./common";
+import { PER_MEMBER_EVENT_MAPS } from "./eventConvocationsUtils";
 import {
   coachIdsOf,
   computeParentTeamIds,
@@ -24,19 +25,6 @@ const GUARDIAN_STATUS_ACTIVE = "active";
 const REGION = "europe-west1";
 
 /**
- * Identifiants sous lesquels une fiche peut apparaître dans un roster :
- * `memberId`, et `accountUid`/`userId` si le compte est lié (les clients
- * écrivent l'uid du compte dans `playerIds` quand il existe).
- */
-function rosterIdsOf(memberId: string, member: DocumentData): string[] {
-  return uniq(
-    [memberId, member.accountUid, member.userId].filter(
-      (id): id is string => typeof id === "string" && id.trim().length > 0,
-    ),
-  );
-}
-
-/**
  * Équipes d'une fiche enfant : `members.teamIds` ∪ équipes dont `playerIds`
  * contient la fiche (robuste si `teamIds` n'est pas à jour).
  */
@@ -46,15 +34,15 @@ async function childTeamIds(
   memberId: string,
   member: DocumentData,
 ): Promise<string[]> {
-  const teamsCol = firestore.collection("clubs").doc(clubId).collection("teams");
-  const rosterSnaps = await Promise.all(
-    rosterIdsOf(memberId, member).map((id) =>
-      teamsCol.where("playerIds", "array-contains", id).get(),
-    ),
-  );
+  const rosterSnap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("teams")
+    .where("playerIds", "array-contains", memberId)
+    .get();
   return uniq([
     ...stringArray(member.teamIds),
-    ...rosterSnaps.flatMap((snap) => snap.docs.map((doc) => doc.id)),
+    ...rosterSnap.docs.map((doc) => doc.id),
   ]);
 }
 
@@ -129,31 +117,6 @@ export async function recomputeParentTeamIdsSafe(
   }
 }
 
-/**
- * Retrouve le `memberId` derrière un identifiant de roster (memberId direct,
- * uid indexé dans `member_accounts`, ou `accountUid` sur la fiche).
- */
-async function resolveMemberId(
-  firestore: Firestore,
-  clubId: string,
-  rosterId: string,
-): Promise<string | null> {
-  const clubRef = firestore.collection("clubs").doc(clubId);
-  const direct = await clubRef.collection("members").doc(rosterId).get();
-  if (direct.exists) return rosterId;
-
-  const account = await clubRef.collection("member_accounts").doc(rosterId).get();
-  const linked = String(account.data()?.memberId ?? "").trim();
-  if (account.exists && linked) return linked;
-
-  const byAccount = await clubRef
-    .collection("members")
-    .where("accountUid", "==", rosterId)
-    .limit(1)
-    .get();
-  return byAccount.docs[0]?.id ?? null;
-}
-
 /** Uids des guardians actifs d'une fiche. */
 export async function activeGuardianUids(
   firestore: Firestore,
@@ -175,7 +138,8 @@ export async function activeGuardianUids(
 
 /**
  * Maintient `members.teamIds` depuis les rosters (l'équipe fait foi) pour
- * les fiches dont la présence a changé. Remplace les réparations côté client
+ * les fiches dont la présence a changé. Ids de roster = ids de fiche (une
+ * seule clé membre). Remplace les réparations côté client
  * (`reconcileMemberTeamIds` portail, `reconcileStaleRosterIds` app).
  */
 async function syncMemberTeamIds(params: {
@@ -188,18 +152,14 @@ async function syncMemberTeamIds(params: {
   const { firestore, clubId, teamId, changedRosterIds } = params;
   const remaining = new Set(params.remainingRosterIds);
   const membersCol = firestore.collection("clubs").doc(clubId).collection("members");
-  const handled = new Set<string>();
 
-  for (const rosterId of changedRosterIds) {
+  for (const memberId of changedRosterIds) {
     try {
-      const memberId = await resolveMemberId(firestore, clubId, rosterId);
-      if (!memberId || handled.has(memberId)) continue;
-      handled.add(memberId);
       const memberRef = membersCol.doc(memberId);
       const memberSnap = await memberRef.get();
       if (!memberSnap.exists) continue;
       const member = memberSnap.data()!;
-      const onTeam = rosterIdsOf(memberId, member).some((id) => remaining.has(id));
+      const onTeam = remaining.has(memberId);
       if (onTeam === stringArray(member.teamIds).includes(teamId)) continue;
       await memberRef.update({
         teamIds: onTeam
@@ -210,7 +170,7 @@ async function syncMemberTeamIds(params: {
       console.error("onTeamWritten: synchro members.teamIds échouée", {
         clubId,
         teamId,
-        rosterId,
+        memberId,
         error,
       });
     }
@@ -237,28 +197,22 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
   const teamId = event.params.teamId;
   const firestore = db();
 
+  const remainingRosterIds = uniq([...playerIdsOf(after), ...coachIdsOf(after)]);
+  const remaining = new Set(remainingRosterIds);
   const audienceAdded = uniq([...playerDiff.added, ...coachDiff.added]);
   const audienceRemovedRaw = uniq([
     ...playerDiff.removed,
     ...coachDiff.removed,
   ]);
-  // Conservé si encore joueur ou coach (variantes memberId / accountUid).
-  const audienceRemoved = await filterRemovedStillOnTeamRoster({
-    firestore,
-    clubId,
-    remainingRosterIds: uniq([
-      ...playerIdsOf(after),
-      ...coachIdsOf(after),
-    ]),
-    removed: audienceRemovedRaw,
-  });
+  // Conservé si encore joueur ou coach (passage joueur ↔ coach).
+  const audienceRemoved = audienceRemovedRaw.filter((id) => !remaining.has(id));
 
   await syncMemberTeamIds({
     firestore,
     clubId,
     teamId,
     changedRosterIds: uniq([...audienceAdded, ...audienceRemovedRaw]),
-    remainingRosterIds: uniq([...playerIdsOf(after), ...coachIdsOf(after)]),
+    remainingRosterIds,
   });
 
   if (audienceAdded.length > 0 || audienceRemoved.length > 0) {
@@ -289,17 +243,15 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
 
   const parentUids = new Set<string>();
 
-  for (const rosterId of changedPlayers) {
+  for (const memberId of changedPlayers) {
     try {
-      const memberId = await resolveMemberId(firestore, clubId, rosterId);
-      if (!memberId) continue;
       for (const uid of await activeGuardianUids(firestore, clubId, memberId)) {
         parentUids.add(uid);
       }
     } catch (error) {
       console.error("onTeamWritten: résolution guardians échouée", {
         clubId,
-        rosterId,
+        memberId,
         error,
       });
     }
@@ -310,52 +262,6 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
   }
 }
 
-/**
- * Retire de [removed] les ids encore présents sur le roster (joueur ou coach),
- * y compris via une variante d'identifiant (memberId / accountUid).
- */
-async function filterRemovedStillOnTeamRoster(params: {
-  firestore: Firestore;
-  clubId: string;
-  remainingRosterIds: string[];
-  removed: string[];
-}): Promise<string[]> {
-  const remaining = new Set(params.remainingRosterIds);
-  if (remaining.size === 0) return params.removed;
-
-  const trulyRemoved: string[] = [];
-  for (const rosterId of params.removed) {
-    const keys = await audienceKeysForRosterId(
-      params.firestore,
-      params.clubId,
-      rosterId,
-    );
-    if (keys.some((key) => remaining.has(key))) continue;
-    trulyRemoved.push(rosterId);
-  }
-  return trulyRemoved;
-}
-
-/**
- * Clés audience / RSVP possibles pour un id roster (memberId, accountUid…).
- */
-export async function audienceKeysForRosterId(
-  firestore: Firestore,
-  clubId: string,
-  rosterId: string,
-): Promise<string[]> {
-  const memberId = await resolveMemberId(firestore, clubId, rosterId);
-  if (!memberId) return [rosterId];
-  const snap = await firestore
-    .collection("clubs")
-    .doc(clubId)
-    .collection("members")
-    .doc(memberId)
-    .get();
-  if (!snap.exists) return uniq([rosterId, memberId]);
-  return rosterIdsOf(memberId, snap.data() ?? {});
-}
-
 /** Début du jour UTC (fenêtre « à venir » côté trigger). */
 function startOfTodayUtc(): Date {
   const now = new Date();
@@ -364,11 +270,9 @@ function startOfTodayUtc(): Date {
 
 /**
  * Ajoute / retire les convocations des events à venir d'une équipe quand le
- * roster (joueurs / coachs) change. Idempotent.
- *
- * À l’ajout : seulement l’id roster posé sur l’équipe (évite d’empiler
- * memberId + accountUid). Au retrait : toutes les variantes. Les alias
- * non-canoniques d’un id ajouté sont aussi retirés (avec migration RSVP).
+ * roster (joueurs / coachs) change. Ids = ids de fiche (une seule clé
+ * membre). Un retrait efface aussi la réponse, le timestamp et le « vu ».
+ * Idempotent.
  */
 async function syncUpcomingEventAudienceForRosterChange(params: {
   firestore: Firestore;
@@ -377,33 +281,11 @@ async function syncUpcomingEventAudienceForRosterChange(params: {
   added: string[];
   removed: string[];
 }): Promise<void> {
-  const { firestore, clubId, teamId, added, removed } = params;
-  if (added.length === 0 && removed.length === 0) return;
-
-  // Id réellement écrit sur le roster — un seul par ajout.
-  const keysToAdd = new Set<string>(added.filter(Boolean));
-  const keysToRemove = new Set<string>();
-  // Alias legacy → id canonique (pour migrer le RSVP).
-  const rsvpMigrateTo = new Map<string, string>();
-  // Toutes les variantes d'un id ajouté (respect de `excludedMemberIds`).
-  const aliasesByAddedKey = new Map<string, string[]>();
-
-  for (const rosterId of added) {
-    const aliases = await audienceKeysForRosterId(firestore, clubId, rosterId);
-    aliasesByAddedKey.set(rosterId, uniq([rosterId, ...aliases]));
-    for (const key of aliases) {
-      if (key === rosterId) continue;
-      keysToRemove.add(key);
-      rsvpMigrateTo.set(key, rosterId);
-    }
-  }
-  for (const rosterId of removed) {
-    for (const key of await audienceKeysForRosterId(firestore, clubId, rosterId)) {
-      keysToRemove.add(key);
-    }
-  }
-  for (const key of keysToAdd) keysToRemove.delete(key);
-
+  const { firestore, clubId, teamId } = params;
+  const keysToAdd = new Set<string>(params.added.filter(Boolean));
+  const keysToRemove = new Set<string>(
+    params.removed.filter((id) => id && !keysToAdd.has(id)),
+  );
   if (keysToAdd.size === 0 && keysToRemove.size === 0) return;
 
   const eventsSnap = await firestore
@@ -424,18 +306,11 @@ async function syncUpcomingEventAudienceForRosterChange(params: {
     if (data.canceled === true) continue;
 
     const members = new Set(stringArray(data.teamMemberIds));
-    const rsvp =
-      data.rsvp && typeof data.rsvp === "object"
-        ? (data.rsvp as Record<string, unknown>)
-        : {};
-
     // Un joueur retiré par le coach n'est jamais reconvoqué par la synchro.
     const excluded = new Set(stringArray(data.excludedMemberIds));
     const nextMembers = new Set(members);
     for (const key of keysToAdd) {
-      const aliases = aliasesByAddedKey.get(key) ?? [key];
-      if (aliases.some((alias) => excluded.has(alias))) continue;
-      nextMembers.add(key);
+      if (!excluded.has(key)) nextMembers.add(key);
     }
     for (const key of keysToRemove) nextMembers.delete(key);
 
@@ -448,46 +323,13 @@ async function syncUpcomingEventAudienceForRosterChange(params: {
       patch.teamMemberIds = [...nextMembers];
     }
 
-    const rsvpUpdatedAt =
-      data.rsvpUpdatedAt && typeof data.rsvpUpdatedAt === "object"
-        ? (data.rsvpUpdatedAt as Record<string, unknown>)
-        : {};
-    const seenAt =
-      data.seenAt && typeof data.seenAt === "object"
-        ? (data.seenAt as Record<string, unknown>)
-        : {};
-
-    for (const key of keysToRemove) {
-      const target = rsvpMigrateTo.get(key);
-      let rsvpMoved = false;
-      if (key in rsvp) {
-        const legacyValue = rsvp[key];
-        const hasTarget =
-          target &&
-          rsvp[target] !== undefined &&
-          rsvp[target] !== null &&
-          String(rsvp[target]).trim() !== "";
-        if (target && !hasTarget && legacyValue != null) {
-          patch[`rsvp.${target}`] = legacyValue;
-          rsvpMoved = true;
+    for (const field of PER_MEMBER_EVENT_MAPS) {
+      const values = data[field];
+      if (!values || typeof values !== "object") continue;
+      for (const key of keysToRemove) {
+        if (key in values) {
+          patch[`${field}.${key}`] = admin.firestore.FieldValue.delete();
         }
-        patch[`rsvp.${key}`] = admin.firestore.FieldValue.delete();
-      }
-      // Le timestamp suit le vote : déplacé seulement avec le RSVP legacy.
-      if (key in rsvpUpdatedAt) {
-        const legacyValue = rsvpUpdatedAt[key];
-        if (target && rsvpMoved && legacyValue != null) {
-          patch[`rsvpUpdatedAt.${target}`] = legacyValue;
-        }
-        patch[`rsvpUpdatedAt.${key}`] = admin.firestore.FieldValue.delete();
-      }
-      if (key in seenAt) {
-        const legacyValue = seenAt[key];
-        const hasTarget = target && seenAt[target] != null;
-        if (target && !hasTarget && legacyValue != null) {
-          patch[`seenAt.${target}`] = legacyValue;
-        }
-        patch[`seenAt.${key}`] = admin.firestore.FieldValue.delete();
       }
     }
 

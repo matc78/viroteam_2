@@ -32,7 +32,6 @@ const {
   readRekeyCore,
   writeRekeyCore,
   rekeyMemberToAccount,
-  resolveCurrentMemberId,
 } = functionsRequire(REKEY_JS);
 
 const PROJECT_ID = "viroteam-rekey-test";
@@ -78,6 +77,7 @@ beforeEach(async () => {
     [club.collection("members").doc("uid-b"), {
       memberId: "uid-b", accountUid: "uid-b", role: "player", status: "active",
     }],
+    // Ancien index compte → fiche (avant migration) : supprimé par le cœur.
     [club.collection("member_accounts").doc(UID), { memberId: FROM }],
     [club.collection("members").doc(FROM).collection("guardians").doc(PARENT), {
       parentUid: PARENT, memberId: FROM, status: "active", relation: "parent",
@@ -132,7 +132,7 @@ test("re-keying : reprise après le cœur, toutes les références, idempotent",
   assert.deepEqual(moved.get("formerMemberIds"), [FROM]);
   assert.equal(moved.get("lastName"), "COCK");
   assert.equal((await clubDoc("members", FROM)).exists, false);
-  assert.equal((await clubDoc("member_accounts", UID)).get("memberId"), UID);
+  assert.equal((await clubDoc("member_accounts", UID)).exists, false);
 
   const resumed = await rekeyMemberToAccount({ firestore, clubId: CLUB, fromMemberId: FROM, uid: UID });
   assert.equal(resumed.core, "already");
@@ -188,7 +188,9 @@ test("re-keying : reprise après le cœur, toutes les références, idempotent",
     feesDropped: 0,
     feeConflictSeasonIds: [],
   });
-  assert.equal(await resolveCurrentMemberId(firestore, CLUB, FROM), UID);
+  // L'ancien id ne survit que dans `formerMemberIds` (traçabilité).
+  assert.deepEqual((await clubDoc("members", UID)).get("formerMemberIds"), [FROM]);
+  assert.equal((await clubDoc("member_accounts", UID)).exists, false);
 });
 
 test("re-keying : une fiche déjà à l'uid est signalée sans --merge-duplicates", async () => {

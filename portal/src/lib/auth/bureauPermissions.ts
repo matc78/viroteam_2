@@ -9,12 +9,10 @@ import {
   type CoachPermissions,
 } from "@/lib/auth/coachPermissions";
 import {
-  memberIsCoachOfPlayerTeams,
-  memberMatchIds,
+  coachRosterIdsForPlayerTeams,
   rosterContains,
   rosterTeamsForViewer,
   teamsCoachedByViewer,
-  viewerMatchIds,
   viewerTeamIdsForRole,
 } from "@/lib/teams/viewerTeamScope";
 
@@ -22,8 +20,6 @@ import {
 export type BureauPermissionContext = {
   role: string | null;
   uid: string | null;
-  /** memberId lié au compte sur ce club, si connu. */
-  linkedMemberId: string | null;
 };
 
 /** Capacités UI / actions dérivées du rôle club (+ flags coach). */
@@ -134,11 +130,15 @@ export function bureauCapabilities(
   };
 }
 
+/*
+ * Le viewer se matche dans les rosters par son uid : sa fiche vit à
+ * `members/{uid}` (une seule clé membre). Sans fiche, l’uid ne matche rien.
+ */
+
 /** True si le viewer peut ajouter un joueur à cette équipe. */
 export function canAddPlayerToTeam(params: {
   role: string | null;
   uid: string | null;
-  linkedMemberId?: string | null;
   team: TeamOption;
   coachPermissions?: CoachPermissions;
 }): boolean {
@@ -146,18 +146,13 @@ export function canAddPlayerToTeam(params: {
   if (params.role !== MemberRoles.coach) return false;
   const permissions = params.coachPermissions ?? DEFAULT_COACH_PERMISSIONS;
   if (!permissions.canManageTeamRoster) return false;
-  const matchIds = viewerMatchIds({
-    uid: params.uid,
-    memberId: params.linkedMemberId,
-  });
-  return rosterContains(params.team.coachIds, matchIds);
+  return rosterContains(params.team.coachIds, params.uid);
 }
 
 /** True si le viewer peut partager le code d’équipe multi-usage. */
 export function canShareTeamInvite(params: {
   role: string | null;
   uid: string | null;
-  linkedMemberId?: string | null;
   team: TeamOption;
   coachPermissions?: CoachPermissions;
 }): boolean {
@@ -165,11 +160,7 @@ export function canShareTeamInvite(params: {
   if (params.role !== MemberRoles.coach) return false;
   const permissions = params.coachPermissions ?? DEFAULT_COACH_PERMISSIONS;
   if (!permissions.canInvitePlayers) return false;
-  const matchIds = viewerMatchIds({
-    uid: params.uid,
-    memberId: params.linkedMemberId,
-  });
-  return rosterContains(params.team.coachIds, matchIds);
+  return rosterContains(params.team.coachIds, params.uid);
 }
 
 /** True si le viewer peut retirer un joueur de l’équipe. */
@@ -189,19 +180,12 @@ export function canManageTeamCoaches(role: string | null): boolean {
 export function canSeeMemberContact(params: {
   role: string | null;
   viewerUid: string | null;
-  viewerLinkedMemberId?: string | null;
-  target: Pick<ClubMemberRecord, "memberId" | "accountUid">;
+  target: Pick<ClubMemberRecord, "memberId">;
   teams: TeamOption[];
 }): boolean {
   if (params.role === MemberRoles.admin) return true;
-
-  const viewerIds = viewerMatchIds({
-    uid: params.viewerUid,
-    memberId: params.viewerLinkedMemberId,
-  });
-  const targetIds = memberMatchIds(params.target);
-  for (const id of targetIds) {
-    if (viewerIds.has(id)) return true;
+  if (params.viewerUid && params.target.memberId === params.viewerUid) {
+    return true;
   }
 
   if (params.role !== MemberRoles.player) return false;
@@ -210,38 +194,23 @@ export function canSeeMemberContact(params: {
     viewerTeamIdsForRole({
       role: MemberRoles.player,
       teams: params.teams,
-      matchIds: viewerIds,
+      memberId: params.viewerUid,
     }),
   );
-  const coachRosterIds = new Set<string>();
-  for (const team of params.teams) {
-    if (!playerTeamIds.has(team.id)) continue;
-    for (const coachId of team.coachIds) {
-      if (coachId) coachRosterIds.add(coachId);
-    }
-  }
-  return memberIsCoachOfPlayerTeams({
-    member: params.target,
-    coachRosterIds,
-  });
+  return coachRosterIdsForPlayerTeams(params.teams, playerTeamIds).has(
+    params.target.memberId,
+  );
 }
 
 /** Équipes entraînées par le viewer (rôle coach). */
 export function coachedTeamsForViewer(params: {
   role: string | null;
   uid: string | null;
-  linkedMemberId?: string | null;
   teams: TeamOption[];
 }): TeamOption[] {
   if (params.role === MemberRoles.admin) return params.teams;
   if (params.role !== MemberRoles.coach) return [];
-  return teamsCoachedByViewer(
-    params.teams,
-    viewerMatchIds({
-      uid: params.uid,
-      memberId: params.linkedMemberId,
-    }),
-  );
+  return teamsCoachedByViewer(params.teams, params.uid);
 }
 
 /**
@@ -251,19 +220,14 @@ export function coachedTeamsForViewer(params: {
 export function teamsVisibleToViewer(params: {
   role: string | null;
   uid: string | null;
-  linkedMemberId?: string | null;
   teams: TeamOption[];
 }): TeamOption[] {
   if (params.role === MemberRoles.admin) return params.teams;
-  const matchIds = viewerMatchIds({
-    uid: params.uid,
-    memberId: params.linkedMemberId,
-  });
   if (
     params.role === MemberRoles.coach ||
     params.role === MemberRoles.player
   ) {
-    return rosterTeamsForViewer(params.teams, matchIds);
+    return rosterTeamsForViewer(params.teams, params.uid);
   }
   return [];
 }
@@ -272,44 +236,31 @@ export function teamsVisibleToViewer(params: {
  * Membres visibles pour le viewer : admin = tous ;
  * coach/joueur = membres des équipes dans le scope (+ soi-même).
  */
-export function membersVisibleToViewer<
-  T extends { memberId: string; accountUid?: string | null },
->(params: {
+export function membersVisibleToViewer<T extends { memberId: string }>(params: {
   role: string | null;
   uid: string | null;
-  linkedMemberId?: string | null;
   teams: TeamOption[];
   members: T[];
 }): T[] {
   if (params.role === MemberRoles.admin) return params.members;
 
-  const viewerIds = viewerMatchIds({
-    uid: params.uid,
-    memberId: params.linkedMemberId,
-  });
   const scopedTeams = teamsVisibleToViewer({
     role: params.role,
     uid: params.uid,
-    linkedMemberId: params.linkedMemberId,
     teams: params.teams,
   });
-  const rosterIds = new Set<string>();
+  const visibleIds = new Set<string>();
+  if (params.uid) visibleIds.add(params.uid);
   for (const team of scopedTeams) {
     for (const id of team.playerIds) {
-      if (id) rosterIds.add(id);
+      if (id) visibleIds.add(id);
     }
     for (const id of team.coachIds) {
-      if (id) rosterIds.add(id);
+      if (id) visibleIds.add(id);
     }
   }
 
-  return params.members.filter((member) => {
-    const ids = memberMatchIds(member);
-    for (const id of ids) {
-      if (viewerIds.has(id) || rosterIds.has(id)) return true;
-    }
-    return false;
-  });
+  return params.members.filter((member) => visibleIds.has(member.memberId));
 }
 
 /** Libellé court du rôle pour le chip header. */

@@ -156,7 +156,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                           m.isActive &&
                           (m.role == MemberRoles.coach ||
                               m.role == MemberRoles.admin) &&
-                          m.effectiveUid.isNotEmpty &&
+                          m.memberId.isNotEmpty &&
                           !widget.team.isOnCoachRoster(m) &&
                           _matchesSearch(m),
                     )
@@ -244,7 +244,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                         ...players.map(
                           (m) => _MemberPickTile(
                             member: m,
-                            onTap: () => _add(context, m.effectiveUid),
+                            onTap: () => _add(context, m.memberId),
                           ),
                         ),
                       ],
@@ -255,7 +255,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                         ...staffAsPlayers.map(
                           (m) => _MemberPickTile(
                             member: m,
-                            onTap: () => _add(context, m.effectiveUid),
+                            onTap: () => _add(context, m.memberId),
                           ),
                         ),
                       ],
@@ -328,7 +328,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
         final m = items[index];
         return _MemberPickTile(
           member: m,
-          onTap: () => _add(context, m.effectiveUid),
+          onTap: () => _add(context, m.memberId),
         );
       },
     );
@@ -355,7 +355,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
 
   bool _canAddAsPlayer(ClubMember m) =>
       m.isActive &&
-      m.effectiveUid.isNotEmpty &&
+      m.memberId.isNotEmpty &&
       !widget.team.isOnPlayerRoster(m) &&
       (m.role == MemberRoles.player ||
           m.role == MemberRoles.coach ||

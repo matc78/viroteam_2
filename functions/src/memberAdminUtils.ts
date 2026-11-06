@@ -52,63 +52,34 @@ export function parseRemoveMemberArgs(data: unknown): {
   };
 }
 
-/** `accountUid` (ou `userId` en compat v1) d'une fiche, sinon null. */
-export function accountUidOf(member: { accountUid?: unknown; userId?: unknown }): string | null {
-  const accountUid = String(member.accountUid ?? member.userId ?? "").trim();
-  return accountUid.length > 0 ? accountUid : null;
-}
-
-export type AdminMemberRef = {
-  memberId: string;
-  accountUid: string | null;
-};
+export { accountUidOf } from "./common";
 
 /**
- * Identités admin restantes si `target` perd son rôle admin (ou est retiré).
+ * Identités admin restantes si `targetMemberId` perd son rôle admin (ou est
+ * retiré).
  *
- * Une identité admin = un uid de `club.adminIds` OU une fiche `role == admin`
- * (représentée par son `accountUid`, sinon son `memberId`). On retire toutes
- * les identités de la cible (memberId + accountUid) et on regarde ce qu'il
- * reste : vide ⇒ la cible est le dernier admin.
+ * Une identité admin = un id de `club.adminIds` OU une fiche `role == admin`.
+ * Une seule clé membre : l'id d'une fiche liée est l'uid de son compte, donc
+ * identité = id de fiche. Vide ⇒ la cible est le dernier admin.
  */
 export function remainingAdminIdentities(params: {
   adminIds: string[];
-  adminMembers: AdminMemberRef[];
-  target: AdminMemberRef;
+  adminMemberIds: string[];
+  targetMemberId: string;
 }): string[] {
-  const targetIds = new Set<string>([params.target.memberId]);
-  if (params.target.accountUid) targetIds.add(params.target.accountUid);
-
-  const identities = [
-    ...params.adminIds,
-    // COMPAT-REKEY : après re-keying, accountUid === memberId pour toute fiche liée.
-    ...params.adminMembers.map((member) => member.accountUid ?? member.memberId),
-  ].filter((id) => id.length > 0 && !targetIds.has(id));
+  const identities = [...params.adminIds, ...params.adminMemberIds].filter(
+    (id) => id.length > 0 && id !== params.targetMemberId,
+  );
   return uniq(identities);
 }
 
-/** Vrai si retirer/rétrograder `target` laisserait le club sans admin. */
+/** Vrai si retirer/rétrograder `targetMemberId` laisserait le club sans admin. */
 export function isLastAdmin(params: {
   adminIds: string[];
-  adminMembers: AdminMemberRef[];
-  target: AdminMemberRef;
+  adminMemberIds: string[];
+  targetMemberId: string;
 }): boolean {
   return remainingAdminIdentities(params).length === 0;
-}
-
-/**
- * Vrai si la fiche cible est celle de l’appelant (`accountUid` ou
- * `memberId` legacy = uid Auth).
- */
-export function isSelfMemberTarget(params: {
-  callerUid: string;
-  memberId: string;
-  accountUid: string | null;
-}): boolean {
-  const { callerUid, memberId, accountUid } = params;
-  if (!callerUid) return false;
-  if (accountUid && accountUid === callerUid) return true;
-  return memberId === callerUid;
 }
 
 /**
@@ -133,16 +104,9 @@ export function nextAdminIds(params: {
   return uniq(adminIds);
 }
 
-/** `club.adminIds` sans les identités d'un membre retiré. */
-export function adminIdsWithout(
-  adminIds: string[],
-  target: AdminMemberRef,
-): string[] {
-  return uniq(
-    adminIds.filter(
-      (id) => id !== target.memberId && id !== target.accountUid,
-    ),
-  );
+/** `club.adminIds` sans le membre retiré (id de fiche = uid si liée). */
+export function adminIdsWithout(adminIds: string[], memberId: string): string[] {
+  return uniq(adminIds.filter((id) => id !== memberId));
 }
 
 type Membership = Record<string, unknown>;

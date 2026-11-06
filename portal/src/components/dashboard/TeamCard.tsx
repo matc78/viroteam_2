@@ -16,7 +16,6 @@ import styles from "./TeamsPanel.module.css";
 type RosterPerson = {
   memberId: string;
   displayName: string;
-  accountUid: string | null;
 };
 
 type TeamCardProps = {
@@ -113,32 +112,13 @@ function resolveRosterPeople(
   rosterIds: string[],
   members: ClubMemberRecord[],
 ): RosterPerson[] {
+  const membersById = new Map(members.map((member) => [member.memberId, member]));
   const people: RosterPerson[] = [];
-  const seen = new Set<string>();
 
-  for (const rosterId of rosterIds) {
-    const member = members.find(
-      (row) =>
-        row.memberId === rosterId ||
-        (row.accountUid != null && row.accountUid === rosterId),
-    );
-    if (!member) {
-      if (!seen.has(rosterId)) {
-        seen.add(rosterId);
-        people.push({
-          memberId: rosterId,
-          displayName: "Membre inconnu",
-          accountUid: null,
-        });
-      }
-      continue;
-    }
-    if (seen.has(member.memberId)) continue;
-    seen.add(member.memberId);
+  for (const memberId of new Set(rosterIds)) {
     people.push({
-      memberId: member.memberId,
-      displayName: member.displayName,
-      accountUid: member.accountUid,
+      memberId,
+      displayName: membersById.get(memberId)?.displayName ?? "Membre inconnu",
     });
   }
 

@@ -70,15 +70,11 @@ export function resolveMemberTeams(
   teamLabels: string[];
   assignments: MemberTeamAssignment[];
 } {
-  const matchIds = new Set(
-    [member.memberId, member.accountUid].filter(Boolean) as string[],
-  );
-
   const assignmentsById = new Map<string, MemberTeamAssignment>();
 
   for (const team of teams) {
-    const isPlayer = team.playerIds.some((id) => matchIds.has(id));
-    const isCoach = team.coachIds.some((id) => matchIds.has(id));
+    const isPlayer = team.playerIds.includes(member.memberId);
+    const isCoach = team.coachIds.includes(member.memberId);
     const inDoc = member.teamIds.includes(team.id);
     if (!isPlayer && !isCoach && !inDoc) continue;
     assignmentsById.set(team.id, {
@@ -105,13 +101,7 @@ function feeStatusForMember(
   member: ClubMemberRecord,
   feesById: Map<string, MemberFeeRecord>,
 ): string | null {
-  const byMemberId = feesById.get(member.memberId);
-  if (byMemberId) return byMemberId.status;
-  if (member.accountUid) {
-    const byAccount = feesById.get(member.accountUid);
-    if (byAccount) return byAccount.status;
-  }
-  return null;
+  return feesById.get(member.memberId)?.status ?? null;
 }
 
 /** Options de chargement page Membres (droits selon rôle). */

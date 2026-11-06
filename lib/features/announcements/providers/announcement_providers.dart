@@ -176,7 +176,7 @@ final homeActiveAnnouncementsProvider =
         }
 
         return eventService
-            .watchClubMember(clubId: club.id, uid: authUid)
+            .watchClubMember(clubId: club.id, memberId: authUid)
             .switchMap((member) {
               final dismissed =
                   member?.dismissedAnnouncementIds.toSet() ?? <String>{};

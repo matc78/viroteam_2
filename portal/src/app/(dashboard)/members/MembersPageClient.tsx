@@ -55,7 +55,6 @@ import {
   assignMemberToTeam,
   buildInviteMessage,
   extendMemberInvitation,
-  getLinkedMemberId,
   regenerateMemberInvitation,
   removeMember,
   updateMemberLicense,
@@ -146,7 +145,6 @@ function MembersPageContent() {
     enabled: membersActive,
   });
 
-  const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(
     null,
   );
@@ -188,31 +186,14 @@ function MembersPageContent() {
     setHighlightedTeamId(null);
   }, [activeClub?.id]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadLinked() {
-      if (!activeClub || !user) {
-        setLinkedMemberId(null);
-        return;
-      }
-      const id = await getLinkedMemberId(activeClub.id, user.uid);
-      if (!cancelled) setLinkedMemberId(id);
-    }
-    void loadLinked();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeClub?.id, user?.uid]);
-
   const scopedTeams = useMemo(() => {
     if (!data) return [];
     return teamsVisibleToViewer({
       role: activeClubRole,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
     });
-  }, [data, activeClubRole, user?.uid, linkedMemberId]);
+  }, [data, activeClubRole, user?.uid]);
 
   useEffect(() => {
     if (!teamQuery || !data) return;
@@ -238,19 +219,17 @@ function MembersPageContent() {
     const scopedMembers = membersVisibleToViewer({
       role: activeClubRole,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
       members: data.members,
     });
     return filterMemberRows(scopedMembers, filters);
-  }, [data, filters, activeClubRole, user?.uid, linkedMemberId]);
+  }, [data, filters, activeClubRole, user?.uid]);
 
   const selectedInviteableCount = useMemo(() => {
     if (!data) return 0;
     const scopedMembers = membersVisibleToViewer({
       role: activeClubRole,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
       members: data.members,
     });
@@ -263,7 +242,6 @@ function MembersPageContent() {
     selectedIds,
     activeClubRole,
     user?.uid,
-    linkedMemberId,
   ]);
 
   const selectedMember = useMemo(() => {
@@ -271,7 +249,6 @@ function MembersPageContent() {
     const scopedMembers = membersVisibleToViewer({
       role: activeClubRole,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
       members: data.members,
     });
@@ -284,7 +261,6 @@ function MembersPageContent() {
     selectedMemberId,
     activeClubRole,
     user?.uid,
-    linkedMemberId,
   ]);
   const selectedIsCurrentUser =
     selectedMember !== null && isCurrentUserMember(selectedMember, user?.uid);
@@ -338,18 +314,11 @@ function MembersPageContent() {
     [data?.members, parentRows],
   );
 
-  function memberContactVisible(member: {
-    memberId: string;
-    accountUid?: string | null;
-  }): boolean {
+  function memberContactVisible(member: { memberId: string }): boolean {
     return canSeeMemberContact({
       role: activeClubRole,
       viewerUid: user?.uid ?? null,
-      viewerLinkedMemberId: linkedMemberId,
-      target: {
-        memberId: member.memberId,
-        accountUid: member.accountUid ?? null,
-      },
+      target: { memberId: member.memberId },
       teams: data?.teams ?? [],
     });
   }
@@ -509,7 +478,6 @@ function MembersPageContent() {
         !canAddPlayerToTeam({
           role: activeClubRole,
           uid: user?.uid ?? null,
-          linkedMemberId,
           team,
           coachPermissions: activeClub?.coachPermissions,
         })
@@ -538,7 +506,6 @@ function MembersPageContent() {
   async function handleRemoveTeamMember(params: {
     teamId: string;
     memberId: string;
-    accountUid: string | null;
     role: TeamRosterRole;
   }) {
     if (!activeClub) return;
@@ -549,7 +516,6 @@ function MembersPageContent() {
           teamId: params.teamId,
           memberId: params.memberId,
           role: params.role,
-          accountUid: params.accountUid,
         });
         reload();
       },
@@ -969,25 +935,14 @@ function MembersPageContent() {
                   (item) => item.id === previousTeamId,
                 );
                 if (!previousTeam) continue;
-                const matchIds = new Set(
-                  [
-                    existingMember?.memberId,
-                    existingMember?.accountUid,
-                  ].filter(Boolean) as string[],
-                );
-                const wasCoach = previousTeam.coachIds.some((id) =>
-                  matchIds.has(id),
-                );
-                const wasPlayer = previousTeam.playerIds.some((id) =>
-                  matchIds.has(id),
-                );
+                const wasCoach = previousTeam.coachIds.includes(memberId);
+                const wasPlayer = previousTeam.playerIds.includes(memberId);
                 if (wasCoach) {
                   await removeMemberFromTeam({
                     clubId: activeClub.id,
                     memberId,
                     teamId: previousTeamId,
                     role: MemberRoles.coach,
-                    accountUid: existingMember?.accountUid,
                   });
                 }
                 if (wasPlayer || (!wasCoach && !wasPlayer)) {
@@ -996,7 +951,6 @@ function MembersPageContent() {
                     memberId,
                     teamId: previousTeamId,
                     role: MemberRoles.player,
-                    accountUid: existingMember?.accountUid,
                   });
                 }
               }
@@ -1543,7 +1497,6 @@ function MembersPageContent() {
             members={membersVisibleToViewer({
               role: activeClubRole,
               uid: user?.uid ?? null,
-              linkedMemberId,
               teams: data.teams,
               members: data.members,
             })}
@@ -1663,7 +1616,6 @@ function MembersPageContent() {
             members={membersVisibleToViewer({
               role: activeClubRole,
               uid: user?.uid ?? null,
-              linkedMemberId,
               teams: data.teams,
               members: data.members,
             })}
@@ -1680,7 +1632,6 @@ function MembersPageContent() {
               canAddPlayerToTeam({
                 role: activeClubRole,
                 uid: user?.uid ?? null,
-                linkedMemberId,
                 team,
                 coachPermissions: activeClub?.coachPermissions,
               })
@@ -1689,7 +1640,6 @@ function MembersPageContent() {
               canShareTeamInvite({
                 role: activeClubRole,
                 uid: user?.uid ?? null,
-                linkedMemberId,
                 team,
                 coachPermissions: activeClub?.coachPermissions,
               })

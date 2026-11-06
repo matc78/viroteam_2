@@ -114,7 +114,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
 
     final membersAsync = ref.watch(clubMembersProvider(team.clubId));
     final membersByUid = membersAsync.value != null
-        ? indexClubMembersByUid(membersAsync.value!)
+        ? indexClubMembersById(membersAsync.value!)
         : <String, ClubMember>{};
 
     return ViroCard(
@@ -217,7 +217,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         ? () => _openAddSheet(TeamRosterSlot.coach)
                         : null,
                     children: team.coachIds.map((uid) {
-                      final member = clubMemberForTeamUid(membersByUid, uid);
+                      final member = membersByUid[uid];
                       if (member == null) return const SizedBox.shrink();
                       return MemberListTile(
                         member: member,
@@ -241,7 +241,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         ? () => _openAddSheet(TeamRosterSlot.player)
                         : null,
                     children: team.playerIds.map((uid) {
-                      final member = clubMemberForTeamUid(membersByUid, uid);
+                      final member = membersByUid[uid];
                       if (member == null) return const SizedBox.shrink();
                       return MemberListTile(
                         member: member,

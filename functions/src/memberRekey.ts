@@ -201,8 +201,8 @@ export function writeRekeyCore(
     if (nextLinks) tx.update(parent.ref, { parentLinks: nextLinks });
   }
 
-  // Auto-pointeur gardé pendant la transition (anciennes apps, règles).
-  tx.set(state.clubRef.collection("member_accounts").doc(uid), { memberId: uid });
+  // Une seule clé membre : l'ancien index compte → fiche disparaît.
+  tx.delete(state.clubRef.collection("member_accounts").doc(uid));
   tx.delete(state.sourceRef);
 
   const clubData = state.club.data() ?? {};
@@ -444,24 +444,4 @@ export async function rekeyMemberToAccount(params: {
     uid,
   });
   return { core, references };
-}
-
-/**
- * Id de fiche actuel pour [id] : lui-même si `members/{id}` existe, sinon la
- * fiche qui l'a remplacé (`formerMemberIds`). Compat transition re-keying
- * (anciens clients, sessions Stripe créées avant le déplacement).
- */
-export async function resolveCurrentMemberId(
-  firestore: Firestore,
-  clubId: string,
-  id: string,
-): Promise<string> {
-  const members = firestore.collection("clubs").doc(clubId).collection("members");
-  const snap = await members.doc(id).get();
-  if (snap.exists) return id;
-  const moved = await members
-    .where("formerMemberIds", "array-contains", id)
-    .limit(1)
-    .get();
-  return moved.empty ? id : moved.docs[0].id;
 }

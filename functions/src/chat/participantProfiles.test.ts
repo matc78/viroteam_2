@@ -52,29 +52,17 @@ describe("profileFromUser", () => {
 describe("memberDirectoryFromDocs", () => {
   it("indexe par uid Auth et ignore les fiches sans compte", () => {
     const directory = memberDirectoryFromDocs([
-      doc("m1", { accountUid: "u1", firstName: "A", role: "player" }),
-      doc("m2", { userId: "u2", firstName: "B", role: "coach" }),
+      doc("u1", { accountUid: "u1", firstName: "A", role: "player" }),
+      doc("u2", { userId: "u2", firstName: "B", role: "coach" }),
       doc("m3", { firstName: "C" }),
     ]);
     assert.deepEqual([...directory.keys()], ["u1", "u2"]);
     assert.equal(directory.get("u2")?.role, "coach");
   });
 
-  it("la fiche active l’emporte sur l’archivée, quel que soit l’ordre", () => {
-    const archived = doc("old", {
-      accountUid: "u1",
-      role: "player",
-      status: "archived",
-    });
-    const active = doc("new", { accountUid: "u1", role: "coach" });
-    assert.equal(
-      memberDirectoryFromDocs([archived, active]).get("u1")?.role,
-      "coach",
-    );
-    assert.equal(
-      memberDirectoryFromDocs([active, archived]).get("u1")?.role,
-      "coach",
-    );
+  it("n’utilise jamais l’id d’une fiche non liée comme uid", () => {
+    const directory = memberDirectoryFromDocs([doc("m3", { firstName: "C" })]);
+    assert.equal(directory.has("m3"), false);
   });
 });
 

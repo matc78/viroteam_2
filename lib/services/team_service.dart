@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
+import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
@@ -97,39 +97,25 @@ class TeamService {
     );
   }
 
-  /// Équipes où [uid] (et [alternateUid] si fourni) est joueur ou coach.
+  /// Équipes où [uid] (id de fiche, = UID Auth du compte) est joueur ou coach.
   Stream<List<ClubTeam>> watchUserTeams({
     required String clubId,
     required String uid,
-    String? alternateUid,
   }) {
-    final ids = <String>{uid};
-    final alt = alternateUid;
-    if (alt != null && alt.isNotEmpty) ids.add(alt);
-
-    final streams = <Stream<List<ClubTeam>>>[];
-    for (final id in ids) {
-      streams.add(
+    final streams = <Stream<List<ClubTeam>>>[
+      for (final rosterField in [
+        FirestoreFields.playerIds,
+        FirestoreFields.coachIds,
+      ])
         _teams(clubId)
-            .where(FirestoreFields.playerIds, arrayContains: id)
+            .where(rosterField, arrayContains: uid)
             .snapshots()
             .map(
               (snap) => snap.docs
                   .map((d) => ClubTeam.fromFirestore(clubId: clubId, doc: d))
                   .toList(),
             ),
-      );
-      streams.add(
-        _teams(clubId)
-            .where(FirestoreFields.coachIds, arrayContains: id)
-            .snapshots()
-            .map(
-              (snap) => snap.docs
-                  .map((d) => ClubTeam.fromFirestore(clubId: clubId, doc: d))
-                  .toList(),
-            ),
-      );
-    }
+    ];
 
     return combineLatestListStreams(streams).map((teams) {
       final byId = <String, ClubTeam>{};
@@ -332,7 +318,7 @@ class TeamService {
       batch.update(teamRef, {
         if (linked.isNotEmpty)
           FirestoreFields.playerIds: FieldValue.arrayUnion(
-            linked.map((m) => m.effectiveUid).toList(),
+            linked.map((m) => m.memberId).toList(),
           ),
         if (pending.isNotEmpty)
           FirestoreFields.pendingPlayerIds: FieldValue.arrayUnion(
@@ -361,7 +347,7 @@ class TeamService {
         await _syncUpcomingAudienceForPlayer(
           clubId: clubId,
           teamId: team.id,
-          rosterUid: member.effectiveUid,
+          rosterUid: member.memberId,
           add: true,
         );
       } catch (_) {
@@ -484,30 +470,6 @@ class TeamService {
       .doc(clubId)
       .collection(ProjectConfig.membersSubcollection);
 
-  /// Résout le document membre à partir d’un id roster (memberId ou accountUid).
-  Future<DocumentReference<Map<String, dynamic>>?> _memberRefForRosterUid({
-    required String clubId,
-    required String rosterUid,
-  }) async {
-    final byId = _members(clubId).doc(rosterUid);
-    final byIdSnap = await byId.get();
-    if (byIdSnap.exists) return byId;
-
-    final byAccount = await _members(clubId)
-        .where(FirestoreFields.accountUid, isEqualTo: rosterUid)
-        .limit(1)
-        .get();
-    if (byAccount.docs.isNotEmpty) return byAccount.docs.first.reference;
-
-    final byUserId = await _members(clubId)
-        .where(FirestoreFields.userId, isEqualTo: rosterUid)
-        .limit(1)
-        .get();
-    if (byUserId.docs.isNotEmpty) return byUserId.docs.first.reference;
-
-    return null;
-  }
-
   /// Met à jour roster équipe + `members.teamIds` dans une transaction.
   Future<void> _syncRosterAndMemberTeamIds({
     required String clubId,
@@ -516,10 +478,7 @@ class TeamService {
     required String rosterField,
     required bool add,
   }) async {
-    final memberRef = await _memberRefForRosterUid(
-      clubId: clubId,
-      rosterUid: rosterUid,
-    );
+    final memberRef = clubMemberRef(_db, clubId, rosterUid);
     final teamRef = _teams(clubId).doc(teamId);
 
     await _db.runTransaction((tx) async {
@@ -529,24 +488,8 @@ class TeamService {
       }
 
       final teamData = teamSnap.data() ?? {};
-      final matchIds = <String>{rosterUid};
-      Map<String, dynamic>? memberData;
-      if (memberRef != null) {
-        final memberSnap = await tx.get(memberRef);
-        if (memberSnap.exists) {
-          memberData = memberSnap.data();
-          final accountUid =
-              (memberData?[FirestoreFields.accountUid] as String?)?.trim();
-          final userId = (memberData?[FirestoreFields.userId] as String?)?.trim();
-          if (accountUid != null && accountUid.isNotEmpty) {
-            matchIds.add(accountUid);
-          }
-          if (userId != null && userId.isNotEmpty) {
-            matchIds.add(userId);
-          }
-          matchIds.add(memberRef.id);
-        }
-      }
+      final memberSnap = await tx.get(memberRef);
+      final memberData = memberSnap.exists ? memberSnap.data() : null;
 
       List<String> readIds(String field) =>
           ((teamData[field] as List<dynamic>?)?.whereType<String>() ??
@@ -556,14 +499,11 @@ class TeamService {
       final currentIds = readIds(rosterField);
       late final List<String> nextIds;
       if (add) {
-        final alreadyOnRoster = currentIds.any(matchIds.contains);
-        if (alreadyOnRoster) {
-          nextIds = currentIds;
-        } else {
-          nextIds = [...currentIds, rosterUid];
-        }
+        nextIds = currentIds.contains(rosterUid)
+            ? currentIds
+            : [...currentIds, rosterUid];
       } else {
-        nextIds = currentIds.where((id) => !matchIds.contains(id)).toList();
+        nextIds = currentIds.where((id) => id != rosterUid).toList();
       }
 
       tx.update(teamRef, {
@@ -571,7 +511,7 @@ class TeamService {
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       });
 
-      if (memberRef == null || memberData == null) return;
+      if (memberData == null) return;
 
       final playerIds = rosterField == FirestoreFields.playerIds
           ? nextIds
@@ -579,8 +519,8 @@ class TeamService {
       final coachIds = rosterField == FirestoreFields.coachIds
           ? nextIds
           : readIds(FirestoreFields.coachIds);
-      final stillOnTeam = playerIds.any(matchIds.contains) ||
-          coachIds.any(matchIds.contains);
+      final stillOnTeam =
+          playerIds.contains(rosterUid) || coachIds.contains(rosterUid);
 
       final currentTeamIds =
           ((memberData[FirestoreFields.teamIds] as List<dynamic>?)
@@ -615,19 +555,12 @@ class TeamService {
     final teamSnap = await _teams(clubId).doc(teamId).get();
     if (!teamSnap.exists) return false;
     final team = ClubTeam.fromFirestore(clubId: clubId, doc: teamSnap);
-    final matchIds = await _audienceIdsForRosterUid(
-      clubId: clubId,
-      rosterUid: rosterUid,
-    );
-    return team.playerIds.any(matchIds.contains) ||
-        team.coachIds.any(matchIds.contains);
+    return team.playerIds.contains(rosterUid) ||
+        team.coachIds.contains(rosterUid);
   }
 
   /// Synchronise `teamMemberIds` / RSVP des events à venir après un changement
-  /// de roster joueur ou coach.
-  ///
-  /// À l’ajout : un seul id canonique (`effectiveUid`) pour éviter d’empiler
-  /// memberId + accountUid. Au retrait : toutes les clés alias.
+  /// de roster joueur ou coach ([rosterUid] = id de la fiche membre).
   Future<void> _syncUpcomingAudienceForPlayer({
     required String clubId,
     required String teamId,
@@ -635,64 +568,17 @@ class TeamService {
     required bool add,
   }) async {
     if (add) {
-      final canonicalId = await _canonicalAudienceIdForRosterUid(
-        clubId: clubId,
-        rosterUid: rosterUid,
-      );
       await _eventService.addAudienceToUpcomingTeamEvents(
         clubId: clubId,
         teamId: teamId,
-        audienceId: canonicalId,
+        audienceId: rosterUid,
       );
       return;
     }
-
-    final audienceIds = await _audienceIdsForRosterUid(
+    await _eventService.removeAudienceFromUpcomingTeamEvents(
       clubId: clubId,
-      rosterUid: rosterUid,
+      teamId: teamId,
+      audienceId: rosterUid,
     );
-    for (final audienceId in audienceIds) {
-      await _eventService.removeAudienceFromUpcomingTeamEvents(
-        clubId: clubId,
-        teamId: teamId,
-        audienceId: audienceId,
-      );
-    }
-  }
-
-  /// Id roster canonique pour les convocations (`accountUid` si lié).
-  Future<String> _canonicalAudienceIdForRosterUid({
-    required String clubId,
-    required String rosterUid,
-  }) async {
-    final memberRef = await _memberRefForRosterUid(
-      clubId: clubId,
-      rosterUid: rosterUid,
-    );
-    if (memberRef == null) return rosterUid;
-    final snap = await memberRef.get();
-    if (!snap.exists) return rosterUid;
-    final member = ClubMember.fromFirestore(snap);
-    return member.effectiveUid;
-  }
-
-  /// Clés RSVP / convocation pour un uid roster (memberId, accountUid, etc.).
-  Future<Set<String>> _audienceIdsForRosterUid({
-    required String clubId,
-    required String rosterUid,
-  }) async {
-    final ids = <String>{rosterUid};
-    final memberRef = await _memberRefForRosterUid(
-      clubId: clubId,
-      rosterUid: rosterUid,
-    );
-    if (memberRef == null) return ids;
-
-    final snap = await memberRef.get();
-    if (!snap.exists) return ids;
-
-    final member = ClubMember.fromFirestore(snap);
-    ids.addAll(eventAudienceKeys(member));
-    return ids;
   }
 }

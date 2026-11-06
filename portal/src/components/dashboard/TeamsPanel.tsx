@@ -59,7 +59,6 @@ type TeamsPanelProps = {
   onRemoveMember: (params: {
     teamId: string;
     memberId: string;
-    accountUid: string | null;
     role: TeamRosterRole;
   }) => Promise<void>;
 };
@@ -114,14 +113,10 @@ export function TeamsPanel({
     ];
   }, [teams]);
 
-  const membersByRosterId = useMemo(() => {
-    const byId = new Map<string, ClubMemberRecord>();
-    for (const member of members) {
-      byId.set(member.memberId, member);
-      if (member.accountUid) byId.set(member.accountUid, member);
-    }
-    return byId;
-  }, [members]);
+  const membersById = useMemo(
+    () => new Map(members.map((member) => [member.memberId, member])),
+    [members],
+  );
 
   const filteredTeams = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -141,12 +136,12 @@ export function TeamsPanel({
       ) {
         return true;
       }
-      return [...team.playerIds, ...team.coachIds].some((rosterId) => {
-        const member = membersByRosterId.get(rosterId);
+      return [...team.playerIds, ...team.coachIds].some((memberId) => {
+        const member = membersById.get(memberId);
         return member?.displayName.toLowerCase().includes(needle) ?? false;
       });
     });
-  }, [teams, search, categoryFilter, membersByRosterId]);
+  }, [teams, search, categoryFilter, membersById]);
 
   const grouped = useMemo(
     () => groupTeamsByCategory(filteredTeams),
@@ -293,7 +288,6 @@ export function TeamsPanel({
                       void onRemoveMember({
                         teamId: team.id,
                         memberId: person.memberId,
-                        accountUid: person.accountUid,
                         role,
                       });
                     }}

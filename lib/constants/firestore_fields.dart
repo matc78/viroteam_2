@@ -76,8 +76,10 @@ abstract final class FirestoreFields {
   /// Dernier envoi groupé « inviter tous les non inscrits » (cooldown 1 h).
   static const String lastBulkMemberInviteAt = 'lastBulkMemberInviteAt';
 
-  // members/{memberId}
+  // join_requests, retour_user
   static const String userId = 'userId';
+
+  // members/{memberId}
   static const String memberId = 'memberId';
   static const String accountUid = 'accountUid';
   static const String status = 'status';
@@ -88,9 +90,6 @@ abstract final class FirestoreFields {
   static const String coachInfo = 'coachInfo';
   static const String license = 'license';
   static const String activeInvitationId = 'activeInvitationId';
-
-  // member_accounts/{accountUid} → { memberId }
-  static const String linkedMemberId = 'memberId';
 
   // invitations
   static const String code = 'code';

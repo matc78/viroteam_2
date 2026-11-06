@@ -7,7 +7,6 @@ import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.da
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_event.dart';
@@ -97,7 +96,7 @@ final clubMemberProvider =
   }
   return ref.read(eventServiceProvider).watchClubMember(
         clubId: clubId,
-        uid: auth.uid,
+        memberId: auth.uid,
       );
 });
 
@@ -164,7 +163,7 @@ final clubEventsForMemberProvider = StreamProvider.family<ClubEventsState,
       (child) => eventService.watchUpcomingEventsForGuardian(
         clubId: params.clubId,
         childTeamIds: child?.teamIds ?? const [],
-        childAudienceKeys: child != null ? eventAudienceKeys(child) : const {},
+        childMemberId: child?.memberId,
       ),
     );
   } else {
@@ -176,11 +175,7 @@ final clubEventsForMemberProvider = StreamProvider.family<ClubEventsState,
 
   return eventsStream
       .map(
-        (events) => categorizeMemberEvents(
-          events,
-          authUid: params.memberId,
-          audienceByClub: {params.clubId: params.memberId},
-        ),
+        (events) => categorizeMemberEvents(events, memberId: params.memberId),
       )
       .map(
         (state) => ClubEventsState(

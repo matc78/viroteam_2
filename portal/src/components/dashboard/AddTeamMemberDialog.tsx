@@ -17,7 +17,7 @@ import addStyles from "./AddTeamMemberDialog.module.css";
 type AddTeamMemberDialogProps = {
   role: TeamRosterRole;
   members: ClubMemberRecord[];
-  /** IDs déjà sur le roster du slot (memberId + accountUid). */
+  /** IDs de fiche déjà sur le roster du slot. */
   excludedIds: Set<string>;
   busy: boolean;
   error: string | null;
@@ -43,12 +43,9 @@ function isEligibleForRosterRole(
   );
 }
 
-/** Indique si le membre est exclu du roster (memberId ou accountUid). */
+/** Indique si le membre est déjà sur le roster du slot. */
 function isExcluded(member: ClubMemberRecord, excludedIds: Set<string>): boolean {
-  const matchIds = [member.memberId, member.accountUid].filter(
-    Boolean,
-  ) as string[];
-  return matchIds.some((id) => excludedIds.has(id));
+  return excludedIds.has(member.memberId);
 }
 
 /** Filtre texte sur nom / e-mail. */

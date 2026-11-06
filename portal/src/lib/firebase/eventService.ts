@@ -25,16 +25,7 @@ import { Collections, Fields, MemberRoles } from "./constants";
 import { getClub } from "./clubService";
 import { toDate } from "./types";
 import { resolveSeasonEndDate } from "@/lib/planning/seasonEnd";
-import {
-  audienceMapKeys,
-  buildAudienceMapsPatch,
-  buildCanonicalByAnyId,
-  excludedCanonicalIds,
-  isAudienceIdExcluded,
-  planAudienceSync,
-  type AudienceAliasPair,
-  type AudienceKeyedMaps,
-} from "@/lib/planning/audienceAliasSync";
+import { missingAudienceIds } from "@/lib/planning/audienceSync";
 import {
   appendClubActivityToBatch,
   ClubActivityTypes,
@@ -109,9 +100,8 @@ export type TeamOption = {
 
 /** Membre club pour filtres planning et invités (coach / joueur / admin). */
 export type PlanningPersonOption = {
+  /** Id de fiche (= uid si liée) : clé des rosters et de l’audience. */
   id: string;
-  /** Identifiants possibles (memberId, accountUid) pour matcher les rosters. */
-  matchIds: string[];
   name: string;
   role: "coach" | "player" | "admin" | "other";
   avatarUrl: string | null;
@@ -441,10 +431,6 @@ export async function loadPlanningPeopleForClub(
         [firstName, lastName].filter(Boolean).join(" ") ||
         displayName ||
         "Membre";
-      const accountUid = String(data[Fields.accountUid] ?? "").trim();
-      const matchIds = Array.from(
-        new Set([docSnap.id, accountUid].filter(Boolean)),
-      );
       const roleRaw = String(data[Fields.role] ?? "");
       const role =
         roleRaw === MemberRoles.coach ||
@@ -459,7 +445,6 @@ export async function loadPlanningPeopleForClub(
         typeof avatarRaw === "string" ? avatarRaw.trim() || null : null;
       return {
         id: docSnap.id,
-        matchIds,
         name,
         role,
         avatarUrl,
@@ -626,8 +611,8 @@ export async function updateClubEventDetails(
 /**
  * Ajoute un convoqué aux événements à venir d'une équipe
  * (aligné EventService Flutter `addAudienceToUpcomingTeamEvents`).
- * Ignore les événements où ce joueur (ou un de ses alias) a été retiré des
- * convoqués (`excludedMemberIds`).
+ * Ignore les événements où ce joueur a été retiré des convoqués
+ * (`excludedMemberIds`).
  */
 export async function addAudienceToUpcomingTeamEvents(params: {
   clubId: string;
@@ -638,13 +623,6 @@ export async function addAudienceToUpcomingTeamEvents(params: {
   if (!audienceId) return;
 
   const snap = await queryUpcomingTeamEvents(params.clubId, params.teamId);
-  const hasExclusions = snap.some(
-    ({ data }) => stringArrayField(data, Fields.excludedMemberIds).length > 0,
-  );
-  // Alias chargés seulement si un event porte des exclus (une seule requête).
-  const canonicalByAnyId = hasExclusions
-    ? buildCanonicalByAnyId(await loadAudienceAliasPairs(params.clubId))
-    : new Map<string, string>();
   const db = getAppFirestore();
   let batch = writeBatch(db);
   let pending = 0;
@@ -656,11 +634,9 @@ export async function addAudienceToUpcomingTeamEvents(params: {
       ? (data[Fields.teamMemberIds] as unknown[]).map(String)
       : [];
     if (members.includes(audienceId)) continue;
-    const excluded = excludedCanonicalIds(
-      stringArrayField(data, Fields.excludedMemberIds),
-      canonicalByAnyId,
-    );
-    if (isAudienceIdExcluded(audienceId, excluded, canonicalByAnyId)) continue;
+    if (stringArrayField(data, Fields.excludedMemberIds).includes(audienceId)) {
+      continue;
+    }
 
     batch.update(doc(eventsCollection(params.clubId), docSnap.id), {
       [Fields.teamMemberIds]: arrayUnion(audienceId),
@@ -721,31 +697,9 @@ export async function removeAudienceFromUpcomingTeamEvents(params: {
   if (pending > 0) await batch.commit();
 }
 
-/** Charge les paires memberId / canonicalId pour la sync audience. */
-async function loadAudienceAliasPairs(
-  clubId: string,
-): Promise<AudienceAliasPair[]> {
-  const membersCol = collection(
-    getAppFirestore(),
-    Collections.clubs,
-    clubId,
-    Collections.members,
-  );
-  const snap = await getDocs(query(membersCol, limit(300)));
-  return snap.docs.map((docSnap) => {
-    const data = docSnap.data() as Record<string, unknown>;
-    const accountUid = String(data[Fields.accountUid] ?? "").trim();
-    return {
-      memberId: docSnap.id,
-      canonicalId: accountUid || docSnap.id,
-    };
-  });
-}
-
 /**
  * Aligne `teamMemberIds` des événements à venir sur les rosters joueurs actuels.
- * Ajoute les manquants, migre les alias legacy → uid Auth, ne retire pas les
- * invités manuels hors alias.
+ * Ajoute les manquants (hors exclus), ne retire pas les invités manuels.
  * @returns nombre d’événements mis à jour.
  */
 export async function syncUpcomingEventsAudienceFromTeams(
@@ -755,9 +709,6 @@ export async function syncUpcomingEventsAudienceFromTeams(
   const teamById = new Map(teams.map((team) => [team.id, team]));
   const today = dateOnly(new Date());
   const eventsCol = eventsCollection(clubId);
-  const canonicalByAnyId = buildCanonicalByAnyId(
-    await loadAudienceAliasPairs(clubId),
-  );
 
   let raw: Array<{ id: string; data: Record<string, unknown> }>;
   try {
@@ -804,26 +755,16 @@ export async function syncUpcomingEventsAudienceFromTeams(
     const currentMemberIds = Array.isArray(data[Fields.teamMemberIds])
       ? (data[Fields.teamMemberIds] as unknown[]).map(String)
       : [];
-    const maps: AudienceKeyedMaps = {
-      rsvp: objectField(data, Fields.rsvp),
-      rsvpUpdatedAt: objectField(data, Fields.rsvpUpdatedAt),
-      seenAt: objectField(data, Fields.seenAt),
-    };
-    const plan = planAudienceSync({
+    const missing = missingAudienceIds({
       currentMemberIds,
-      expectedCanonicalIds: expected,
-      canonicalByAnyId,
-      rsvpKeys: audienceMapKeys(maps),
+      expectedMemberIds: expected,
       excludedMemberIds: stringArrayField(data, Fields.excludedMemberIds),
     });
-    if (!plan.changed) continue;
+    if (missing.length === 0) continue;
 
-    const patch: Record<string, unknown> = {
-      [Fields.teamMemberIds]: plan.nextMemberIds,
-      ...buildAudienceMapsPatch({ plan, maps, deleteField: deleteField() }),
-    };
-
-    batch.update(doc(eventsCol, id), patch);
+    batch.update(doc(eventsCol, id), {
+      [Fields.teamMemberIds]: arrayUnion(...missing),
+    });
     pending += 1;
     updated += 1;
     if (pending >= 400) {
@@ -1295,24 +1236,18 @@ function splitPlanningPeopleByRoster(
   coaches: PlanningPersonOption[];
   players: PlanningPersonOption[];
 } {
-  const peopleByMatchId = new Map<string, PlanningPersonOption>();
-  for (const person of people) {
-    peopleByMatchId.set(person.id, person);
-    for (const matchId of person.matchIds) {
-      peopleByMatchId.set(matchId, person);
-    }
-  }
+  const peopleById = new Map(people.map((person) => [person.id, person]));
 
   const coachesById = new Map<string, PlanningPersonOption>();
   const playersById = new Map<string, PlanningPersonOption>();
 
   for (const team of teams) {
     for (const coachId of team.coachIds) {
-      const person = peopleByMatchId.get(coachId);
+      const person = peopleById.get(coachId);
       if (person) coachesById.set(person.id, person);
     }
     for (const playerId of team.playerIds) {
-      const person = peopleByMatchId.get(playerId);
+      const person = peopleById.get(playerId);
       if (person) playersById.set(person.id, person);
     }
   }

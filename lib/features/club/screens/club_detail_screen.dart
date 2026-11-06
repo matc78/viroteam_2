@@ -22,7 +22,6 @@ import 'package:viro_team_v2/features/club/widgets/club_hero_header.dart';
 import 'package:viro_team_v2/features/club/widgets/club_management_list.dart';
 import 'package:viro_team_v2/features/club/widgets/club_shortcuts_grid.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/members/widgets/my_parent_section.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
@@ -35,7 +34,6 @@ import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart
 import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/models/club_event.dart';
@@ -94,15 +92,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final viaCallable = target?.isChild == true;
 
     // Optimistic : l'événement quitte « à répondre » tout de suite, et y
-    // revient si la résolution d'audience ou l'écriture échoue.
+    // revient si l'écriture échoue.
     setState(() => _hiddenPendingIds.add(event.id));
 
     try {
-      final audienceId = target?.memberId ??
-          await eventService.resolveAudienceId(
-            clubId: event.clubId,
-            authUid: authUid,
-          );
+      final audienceId = target?.memberId ?? authUid;
       await eventService.updateRsvp(
         clubId: event.clubId,
         eventId: event.id,
@@ -124,17 +118,12 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     required Map<String, ClubTeam> teams,
     required bool canManageEvents,
   }) {
-    final members = ref.read(clubMembersProvider(event.clubId)).value;
     PlanningEventDetailSheet.show(
       context: context,
       clubId: event.clubId,
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
-      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(
-        event,
-        teams,
-        membersByUid: members != null ? indexClubMembersByUid(members) : null,
-      ),
+      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
       canManageEvents: canManageEvents,
       onCanceled: () {},
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),

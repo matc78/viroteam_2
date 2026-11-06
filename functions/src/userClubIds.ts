@@ -6,8 +6,8 @@ const REGION = "europe-west1";
 
 /**
  * Clubs dont le compte [uid] est réellement membre : parmi ceux déclarés dans
- * `clubMemberships`, ne garde que ceux où existe `member_accounts/{uid}`
- * (fiche liée) ou `members/{uid}` (fondateur, fiche à l'uid).
+ * `clubMemberships`, ne garde que ceux où existe sa fiche `members/{uid}`
+ * (une seule clé membre).
  */
 export async function verifiedMemberClubIds(
   uid: string,
@@ -16,12 +16,13 @@ export async function verifiedMemberClubIds(
   const candidates = declaredClubIds(clubMemberships);
   const checks = await Promise.all(
     candidates.map(async (clubId) => {
-      const clubRef = db().collection("clubs").doc(clubId);
-      const [accountSnap, memberSnap] = await Promise.all([
-        clubRef.collection("member_accounts").doc(uid).get(),
-        clubRef.collection("members").doc(uid).get(),
-      ]);
-      return accountSnap.exists || memberSnap.exists ? clubId : null;
+      const memberSnap = await db()
+        .collection("clubs")
+        .doc(clubId)
+        .collection("members")
+        .doc(uid)
+        .get();
+      return memberSnap.exists ? clubId : null;
     }),
   );
   return checks.filter((clubId): clubId is string => clubId !== null);

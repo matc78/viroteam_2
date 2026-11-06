@@ -1,8 +1,7 @@
 /**
  * Garde-fou « une seule clé membre » : une fiche liée vit à `members/{uid}`
- * (voir `memberRekeyPlan.ts`). Scanne les sources TypeScript des Functions.
- * Un site de transition reste toléré s'il porte `COMPAT-REKEY` sur sa ligne
- * ou la précédente (à retirer à la phase de nettoyage).
+ * (voir `memberRekeyPlan.ts`) et l'index `member_accounts` n'existe plus.
+ * Scanne les sources TypeScript des Functions (hors tests).
  */
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -27,13 +26,22 @@ const RULES: Rule[] = [
     pattern: /collection\(\s*["']members["']\s*\)\s*\.doc\(\s*\)/g,
   },
   {
-    label: "écriture de l'index member_accounts hors memberRekey.ts",
-    pattern: /\.set\(\s*[^;]*?collection\(\s*["']member_accounts["']\s*\)/g,
+    // Seul le re-keying supprime encore `member_accounts/{uid}` (restes).
+    label: "index member_accounts (supprimé) hors memberRekey.ts",
+    pattern: /member_accounts/g,
     allowedFiles: ["memberRekey.ts"],
   },
   {
     label: "repli accountUid ?? memberId (deux clés pour une personne)",
     pattern: /accountUid\s*\?\?\s*[\w.]*\b(memberId|id)\b/g,
+  },
+  {
+    label: "marqueur de transition COMPAT-REKEY (nettoyage fait)",
+    pattern: /COMPAT-REKEY/g,
+  },
+  {
+    label: "résolution d'un ancien memberId (resolveCurrentMemberId)",
+    pattern: /resolveCurrentMemberId/g,
   },
 ];
 
@@ -45,13 +53,10 @@ test("aucune double clé membre dans les sources Functions", () => {
   const violations: string[] = [];
   for (const file of sourceFiles(SRC_DIR)) {
     const content = readFileSync(file, "utf8");
-    const lines = content.split("\n");
     for (const rule of RULES) {
       if (rule.allowedFiles?.includes(path.basename(file))) continue;
       for (const match of content.matchAll(rule.pattern)) {
         const line = lineOf(content, match.index ?? 0);
-        const context = `${lines[line - 2] ?? ""}\n${lines[line - 1] ?? ""}`;
-        if (context.includes("COMPAT-REKEY")) continue;
         violations.push(`${path.relative(SRC_DIR, file)}:${line} — ${rule.label}`);
       }
     }

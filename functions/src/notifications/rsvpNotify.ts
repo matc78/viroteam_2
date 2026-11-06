@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import type { DocumentData, Firestore, Timestamp } from "firebase-admin/firestore";
+import { accountUidOf } from "../common";
 import { db } from "../db";
 import {
   ClubDirectory,
@@ -25,7 +26,6 @@ import {
   sendEventPushToAudience,
 } from "./eventPush";
 import { latestStatusByEvent } from "./deepLinks";
-import { memberAccountUid } from "./recipients";
 import { RSVP_NOTIFY_DEBOUNCE_MS } from "./types";
 import {
   enqueueTeammateDigestsForEvent,
@@ -198,13 +198,11 @@ async function flushEventRsvpNotifications(params: {
 
   for (const entry of claimed) {
     if (entry.excludeUid) exclude.add(entry.excludeUid);
-    const memberId =
-      (await directory.resolveMemberId(entry.memberId)) ?? entry.memberId;
+    const memberId = entry.memberId;
     const member = await directory.member(memberId);
     // Le joueur qui a répondu n'a pas besoin d'être prévenu de sa réponse.
-    exclude.add(
-      member ? (memberAccountUid(member, memberId) ?? memberId) : entry.memberId,
-    );
+    const responderUid = accountUidOf(member);
+    if (responderUid) exclude.add(responderUid);
     responders.set(memberId, entry.status);
     const memberName = member
       ? formatMemberShortName({
@@ -266,6 +264,7 @@ async function flushEventRsvpNotifications(params: {
     entries: entries.filter(
       (entry) =>
         entry.relation === "guardian" &&
+        entry.uid != null &&
         entry.memberId != null &&
         responders.has(entry.memberId) &&
         !staff.has(entry.uid),
@@ -280,15 +279,15 @@ async function flushEventRsvpNotifications(params: {
   // Coéquipiers : file multi-events (2 min) plutôt qu'une push immédiate.
   const teammateUids = [
     ...new Set(
-      entries
-        .filter(
-          (entry) =>
-            entry.relation !== "coach" &&
-            !staff.has(entry.uid) &&
-            !(entry.memberId != null && responders.has(entry.memberId)) &&
-            !exclude.has(entry.uid),
-        )
-        .map((entry) => entry.uid),
+      entries.flatMap((entry) =>
+        entry.uid != null &&
+        entry.relation !== "coach" &&
+        !staff.has(entry.uid) &&
+        !(entry.memberId != null && responders.has(entry.memberId)) &&
+        !exclude.has(entry.uid)
+          ? [entry.uid]
+          : [],
+      ),
     ),
   ];
   await enqueueTeammateDigestsForEvent({

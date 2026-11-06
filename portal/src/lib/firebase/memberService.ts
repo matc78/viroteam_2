@@ -13,7 +13,7 @@ import {
   type DocumentReference,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
-import { dedupeInFlight } from "./dedupeInFlight";
+import { linkedAccountUid } from "./memberRefs";
 import { validateEmail } from "@/lib/auth/validateEmail";
 import {
   formatFirstName,
@@ -245,19 +245,14 @@ export function parseClubMember(
     [firstName, lastName].filter(Boolean).join(" ") ||
     String(data[Fields.displayName] ?? "").trim();
 
-  const legacyUserId = String(data[Fields.userId] ?? "").trim();
-  const accountUidRaw = String(data[Fields.accountUid] ?? "").trim();
-  const accountUid =
-    accountUidRaw || (legacyUserId ? legacyUserId : null);
-
   return {
-    memberId: String(data[Fields.memberId] ?? id),
+    memberId: id,
     role: normalizeRole(String(data[Fields.role] ?? MemberRoles.player)),
     status: String(data[Fields.status] ?? "active"),
     firstName,
     lastName,
     displayName: displayName || "Membre",
-    accountUid,
+    accountUid: linkedAccountUid(data),
     email:
       typeof snapshot[Fields.email] === "string"
         ? String(snapshot[Fields.email]).trim() || null
@@ -290,31 +285,24 @@ export async function getClubMember(
 }
 
 /**
- * Charge des fiches membres à partir d’IDs roster (`memberId` ou `accountUid`).
+ * Charge des fiches membres par id (= uid quand la fiche est liée).
  * Un getDoc par id — adapté aux parents (pas de `list` sur `members`).
  * Les docs absents / refusés sont ignorés.
  */
-export async function loadMembersByRosterIds(
+export async function loadMembersByIds(
   clubId: string,
-  rosterIds: string[],
+  memberIds: string[],
 ): Promise<ClubMemberRecord[]> {
-  const uniqueIds = [...new Set(rosterIds.map(String).filter(Boolean))];
+  const uniqueIds = [...new Set(memberIds.map(String).filter(Boolean))];
   if (uniqueIds.length === 0) return [];
 
   const byMemberId = new Map<string, ClubMemberRecord>();
 
   await Promise.all(
-    uniqueIds.map(async (rosterId) => {
+    uniqueIds.map(async (memberId) => {
       try {
-        let member = await getClubMember(clubId, rosterId);
-        if (!member) {
-          const linkedMemberId = await getLinkedMemberId(clubId, rosterId);
-          if (linkedMemberId && linkedMemberId !== rosterId) {
-            member = await getClubMember(clubId, linkedMemberId);
-          }
-        }
-        if (!member) return;
-        byMemberId.set(member.memberId, member);
+        const member = await getClubMember(clubId, memberId);
+        if (member) byMemberId.set(member.memberId, member);
       } catch {
         // Doc non lisible pour ce compte : on ignore.
       }
@@ -326,56 +314,6 @@ export async function loadMembersByRosterIds(
     if (roleCmp !== 0) return roleCmp;
     return sortKeyFirstName(a).localeCompare(sortKeyFirstName(b), "fr");
   });
-}
-
-/** Liens compte → fiche déjà résolus (un lien établi ne change pas en session). */
-const linkedMemberIdCache = new Map<string, string>();
-
-/** Vide le cache des liens compte → fiche (déconnexion / changement de compte). */
-export function clearLinkedMemberIdCache(): void {
-  linkedMemberIdCache.clear();
-}
-
-/**
- * Résout la fiche licencié liée au compte Auth (Moi).
- * Appelé par la plupart des pages : résultat non nul mis en cache pour la
- * session, appels concurrents mutualisés. Un « pas de fiche » est relu à
- * chaque fois (le lien peut apparaître après une invitation acceptée).
- */
-export async function getLinkedMemberId(
-  clubId: string,
-  accountUid: string,
-): Promise<string | null> {
-  const key = `${clubId}:${accountUid}`;
-  const cached = linkedMemberIdCache.get(key);
-  if (cached) return cached;
-  const linked = await dedupeInFlight(`linkedMember:${key}`, () =>
-    queryLinkedMemberId(clubId, accountUid),
-  );
-  if (linked) linkedMemberIdCache.set(key, linked);
-  return linked;
-}
-
-async function queryLinkedMemberId(
-  clubId: string,
-  accountUid: string,
-): Promise<string | null> {
-  const indexSnap = await getDoc(
-    doc(
-      getAppFirestore(),
-      Collections.clubs,
-      clubId,
-      Collections.memberAccounts,
-      accountUid,
-    ),
-  );
-  if (indexSnap.exists()) {
-    const linked = String(indexSnap.data()?.[Fields.memberId] ?? "").trim();
-    if (linked) return linked;
-  }
-  const selfSnap = await getDoc(doc(membersCol(clubId), accountUid));
-  if (selfSnap.exists()) return accountUid;
-  return null;
 }
 
 /** Complète nom / avatar / e-mail depuis `users/{uid}` (repli si snapshot incomplet). */
@@ -768,10 +706,7 @@ export async function extendMemberInvitation(params: {
     }
 
     const memberData = memberSnap.data() as Record<string, unknown>;
-    const accountUid = String(
-      memberData[Fields.accountUid] ?? memberData[Fields.userId] ?? "",
-    ).trim();
-    if (accountUid) {
+    if (linkedAccountUid(memberData)) {
       throw new Error("Ce membre a déjà un compte lié.");
     }
 
@@ -836,10 +771,7 @@ export async function regenerateMemberInvitation(params: {
     }
 
     const memberData = memberSnap.data() as Record<string, unknown>;
-    const accountUid = String(
-      memberData[Fields.accountUid] ?? memberData[Fields.userId] ?? "",
-    ).trim();
-    if (accountUid) {
+    if (linkedAccountUid(memberData)) {
       throw new Error("Ce membre a déjà un compte lié.");
     }
 
@@ -933,8 +865,8 @@ export async function updateMemberRole(params: {
 
 /**
  * Retire un membre du club via la callable `removeMember`.
- * Le serveur refuse de retirer le dernier admin, supprime la fiche et l’index
- * `member_accounts`, décrémente `memberCount`, retire des équipes, révoque
+ * Le serveur refuse de retirer le dernier admin, supprime la fiche,
+ * décrémente `memberCount`, retire des équipes, révoque
  * l’invitation pending et nettoie `users/{uid}.clubMemberships`.
  */
 export async function removeMember(params: {
@@ -993,9 +925,7 @@ export async function updatePendingMemberNames(params: {
       throw new Error("Membre introuvable.");
     }
     const data = memberSnap.data() as Record<string, unknown>;
-    const accountUid = String(data[Fields.accountUid] ?? "").trim();
-    const legacyUserId = String(data[Fields.userId] ?? "").trim();
-    if (accountUid || legacyUserId) {
+    if (linkedAccountUid(data)) {
       throw new Error(
         "Impossible de modifier l’identité d’un membre déjà inscrit.",
       );
@@ -1062,9 +992,7 @@ export async function updatePendingMemberProfile(params: {
       throw new Error("Membre introuvable.");
     }
     const data = memberSnap.data() as Record<string, unknown>;
-    const accountUid = String(data[Fields.accountUid] ?? "").trim();
-    const legacyUserId = String(data[Fields.userId] ?? "").trim();
-    if (accountUid || legacyUserId) {
+    if (linkedAccountUid(data)) {
       throw new Error(
         "Impossible de modifier l’identité d’un membre déjà inscrit.",
       );

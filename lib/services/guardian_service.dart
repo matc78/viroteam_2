@@ -5,6 +5,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/member_guardian.dart';
+import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 
@@ -24,11 +25,7 @@ class GuardianService {
     String clubId,
     String memberId,
   ) =>
-      _db
-          .collection(ProjectConfig.clubsCollection)
-          .doc(clubId)
-          .collection(ProjectConfig.membersSubcollection)
-          .doc(memberId)
+      _memberRef(clubId, memberId)
           .collection(ProjectConfig.guardiansSubcollection);
 
   CollectionReference<Map<String, dynamic>> _invitations(String clubId) => _db
@@ -40,11 +37,7 @@ class GuardianService {
     String clubId,
     String memberId,
   ) =>
-      _db
-          .collection(ProjectConfig.clubsCollection)
-          .doc(clubId)
-          .collection(ProjectConfig.membersSubcollection)
-          .doc(memberId);
+      clubMemberRef(_db, clubId, memberId);
 
   /// Profil `users/{uid}`, ou null si les règles le refusent.
   Future<DocumentSnapshot<Map<String, dynamic>>?> _readUserOrNull(

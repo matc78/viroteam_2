@@ -4,7 +4,6 @@ import {
   adminIdsWithout,
   decrementCount,
   isLastAdmin,
-  isSelfMemberTarget,
   nextAdminIds,
   parseRemoveMemberArgs,
   parseResolveJoinRequestArgs,
@@ -50,39 +49,12 @@ test("parseRemoveMemberArgs exige clubId et memberId", () => {
   assert.throws(() => parseRemoveMemberArgs(undefined), isInvalidArgument);
 });
 
-test("isSelfMemberTarget : accountUid ou memberId legacy = caller", () => {
-  assert.equal(
-    isSelfMemberTarget({
-      callerUid: "uid-a",
-      memberId: "m-a",
-      accountUid: "uid-a",
-    }),
-    true,
-  );
-  assert.equal(
-    isSelfMemberTarget({
-      callerUid: "uid-a",
-      memberId: "uid-a",
-      accountUid: null,
-    }),
-    true,
-  );
-  assert.equal(
-    isSelfMemberTarget({
-      callerUid: "uid-a",
-      memberId: "m-b",
-      accountUid: "uid-b",
-    }),
-    false,
-  );
-});
-
 test("isLastAdmin : seul admin (adminIds + fiche) ⇒ true", () => {
   assert.equal(
     isLastAdmin({
       adminIds: ["uid-a"],
-      adminMembers: [{ memberId: "m-a", accountUid: "uid-a" }],
-      target: { memberId: "m-a", accountUid: "uid-a" },
+      adminMemberIds: ["uid-a"],
+      targetMemberId: "uid-a",
     }),
     true,
   );
@@ -92,33 +64,30 @@ test("isLastAdmin : un autre uid dans adminIds ⇒ false", () => {
   assert.equal(
     isLastAdmin({
       adminIds: ["uid-a", "uid-b"],
-      adminMembers: [{ memberId: "m-a", accountUid: "uid-a" }],
-      target: { memberId: "m-a", accountUid: "uid-a" },
+      adminMemberIds: ["uid-a"],
+      targetMemberId: "uid-a",
     }),
     false,
   );
 });
 
-test("isLastAdmin : autre fiche admin non liée compte (memberId) ⇒ false", () => {
+test("isLastAdmin : autre fiche admin non liée (id aléatoire) ⇒ false", () => {
   assert.equal(
     isLastAdmin({
       adminIds: ["uid-a"],
-      adminMembers: [
-        { memberId: "m-a", accountUid: "uid-a" },
-        { memberId: "m-b", accountUid: null },
-      ],
-      target: { memberId: "m-a", accountUid: "uid-a" },
+      adminMemberIds: ["uid-a", "m-b"],
+      targetMemberId: "uid-a",
     }),
     false,
   );
 });
 
-test("isLastAdmin : fiche non liée, seule dans adminIds par memberId ⇒ true", () => {
+test("isLastAdmin : fiche non liée, seule dans adminIds par son id ⇒ true", () => {
   assert.equal(
     isLastAdmin({
       adminIds: ["m-a"],
-      adminMembers: [{ memberId: "m-a", accountUid: null }],
-      target: { memberId: "m-a", accountUid: null },
+      adminMemberIds: ["m-a"],
+      targetMemberId: "m-a",
     }),
     true,
   );
@@ -128,11 +97,8 @@ test("remainingAdminIdentities dédoublonne et exclut la cible", () => {
   assert.deepEqual(
     remainingAdminIdentities({
       adminIds: ["uid-a", "uid-b", "uid-b"],
-      adminMembers: [
-        { memberId: "m-a", accountUid: "uid-a" },
-        { memberId: "m-b", accountUid: "uid-b" },
-      ],
-      target: { memberId: "m-a", accountUid: "uid-a" },
+      adminMemberIds: ["uid-a", "uid-b"],
+      targetMemberId: "uid-a",
     }),
     ["uid-b"],
   );
@@ -164,11 +130,8 @@ test("nextAdminIds ajoute à la promotion, retire à la rétrogradation", () => 
   );
 });
 
-test("adminIdsWithout retire memberId et accountUid", () => {
-  assert.deepEqual(
-    adminIdsWithout(["u1", "m2", "u2", "u3"], { memberId: "m2", accountUid: "u2" }),
-    ["u1", "u3"],
-  );
+test("adminIdsWithout retire l'id de la fiche (= uid si liée)", () => {
+  assert.deepEqual(adminIdsWithout(["u1", "u2", "u3", "u2"], "u2"), ["u1", "u3"]);
 });
 
 test("withMembershipRole met à jour l'entrée du club sans perdre les autres champs", () => {

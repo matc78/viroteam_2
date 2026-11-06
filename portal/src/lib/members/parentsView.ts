@@ -114,12 +114,6 @@ export async function listClubParentRows(
 ): Promise<ClubParentRow[]> {
   const membersList = members ?? (await listClubMembers(clubId));
   const membersById = new Map(membersList.map((m) => [m.memberId, m]));
-  const membersByAccount = new Map<string, ClubMemberRecord>();
-  for (const member of membersList) {
-    if (member.accountUid) {
-      membersByAccount.set(member.accountUid, member);
-    }
-  }
 
   type AccChild = ParentChildRef & { aggregateKey: string };
   const byKey = new Map<
@@ -330,10 +324,9 @@ export async function listClubParentRows(
     const pendingChild =
       acc.children.find((c) => c.status === "pending" && c.invitationId) ??
       null;
+    // Fiche du parent licencié au club : elle vit à `members/{uid}`.
     const rosterMember = acc.parentUid
-      ? membersByAccount.get(acc.parentUid) ??
-        membersById.get(acc.parentUid) ??
-        null
+      ? membersById.get(acc.parentUid) ?? null
       : null;
 
     rows.push({

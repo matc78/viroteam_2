@@ -42,7 +42,7 @@ type ImportMembersDialogProps = {
     role?: string;
     accountUid?: string | null;
   }>;
-  /** UIDs admin du club (validation dernier administrateur). */
+  /** Ids de fiche admin du club (`club.adminIds`, validation dernier admin). */
   adminIds?: string[];
   teams: TeamOption[];
   busy: boolean;

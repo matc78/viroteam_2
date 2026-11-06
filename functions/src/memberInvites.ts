@@ -12,6 +12,7 @@ import {
   sendGuyTransactionalEmail,
 } from "./email";
 import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
+import { accountUidOf } from "./common";
 import { db, defineDualCallable } from "./db";
 import { assertClubAdmin } from "./guardians";
 import { ClubActivityTypes, logClubActivity } from "./clubActivity";
@@ -277,15 +278,7 @@ export const {
         }
 
         const memberData = memberSnap.data()!;
-        const accountUid = String(memberData.accountUid ?? "").trim();
-        const legacyUserId = String(memberData.userId ?? "").trim();
-        let linkedUid = accountUid;
-        // Legacy `userId` : ne considérer comme lié que si le profil users existe.
-        if (!linkedUid && legacyUserId) {
-          const userSnap = await db().collection("users").doc(legacyUserId).get();
-          if (userSnap.exists) linkedUid = legacyUserId;
-        }
-        if (linkedUid) {
+        if (accountUidOf(memberData)) {
           skipped += 1;
           results.push({
             memberId,

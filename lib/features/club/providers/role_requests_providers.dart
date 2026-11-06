@@ -26,9 +26,8 @@ List<ActionableRoleRequest> actionableRoleRequests(
   final result = <ActionableRoleRequest>[];
   for (final request in requests) {
     if (!request.isPending || request.userId.isEmpty) continue;
-    final member = members.where(
-      (m) => m.accountUid == request.userId || m.memberId == request.userId,
-    ).firstOrNull;
+    final member =
+        members.where((m) => m.memberId == request.userId).firstOrNull;
     if (member == null) continue;
     if (member.role == request.roleRequested) continue;
     if (MemberRoleHierarchy.isAdmin(member.role)) continue;

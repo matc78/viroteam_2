@@ -1,7 +1,7 @@
 import * as admin from "firebase-admin";
 import type { DocumentData } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { stringArray } from "./common";
+import { accountUidOf, stringArray } from "./common";
 import { buildJoinUrl } from "./email";
 import {
   ServerAnalyticsEvents,
@@ -25,7 +25,6 @@ import {
   TEAM_INVITE_TTL_DAYS,
   type ClaimableMember,
   memberEmailFromData,
-  memberHasLinkedAccount,
   normalizeEmail,
   parseTeamInviteArgs,
   parseTeamInviteIdArgs,
@@ -40,7 +39,6 @@ const ROLE_ADMIN = "admin";
 type TeamInviteCaller = {
   club: DocumentData;
   uid: string;
-  memberId: string;
   isAdmin: boolean;
 };
 
@@ -83,7 +81,7 @@ async function resolveTeamInviteCaller(
 ): Promise<TeamInviteCaller> {
   try {
     const club = await assertClubAdmin(clubId, uid);
-    return { club, uid, memberId: uid, isAdmin: true };
+    return { club, uid, isAdmin: true };
   } catch (error) {
     if (!(error instanceof HttpsError) || error.code !== "permission-denied") {
       throw error;
@@ -97,12 +95,8 @@ async function resolveTeamInviteCaller(
   }
   const club = clubSnap.data()!;
 
-  const accountSnap = await clubRef.collection("member_accounts").doc(uid).get();
-  const linkedMemberId = accountSnap.exists
-    ? String(accountSnap.data()?.memberId ?? "").trim()
-    : "";
-  const memberId = linkedMemberId || uid;
-  const memberSnap = await clubRef.collection("members").doc(memberId).get();
+  // Une seule clé membre : la fiche de l'appelant est members/{uid}.
+  const memberSnap = await clubRef.collection("members").doc(uid).get();
   if (!memberSnap.exists) {
     throw new HttpsError(
       "permission-denied",
@@ -135,7 +129,6 @@ async function resolveTeamInviteCaller(
   return {
     club,
     uid,
-    memberId,
     isAdmin: role === ROLE_ADMIN,
   };
 }
@@ -147,10 +140,7 @@ function assertCallerCoachesTeam(
 ): void {
   if (caller.isAdmin) return;
   const coachIds = stringArray(teamData?.coachIds);
-  if (
-    !coachIds.includes(caller.uid) &&
-    !coachIds.includes(caller.memberId)
-  ) {
+  if (!coachIds.includes(caller.uid)) {
     throw new HttpsError(
       "permission-denied",
       "Réservé aux coaches de cette équipe",
@@ -348,10 +338,7 @@ async function loadClaimableMembers(clubId: string): Promise<ClaimableMember[]> 
     .get();
   return snap.docs.map((doc) => {
     const data = doc.data() as Record<string, unknown>;
-    const linked = memberHasLinkedAccount(data);
-    const accountUid = linked
-      ? String(data.accountUid ?? data.userId ?? "").trim() || null
-      : null;
+    const accountUid = accountUidOf(data);
     const teamIds = Array.isArray(data.teamIds)
       ? (data.teamIds as unknown[]).filter(
           (id): id is string => typeof id === "string" && id.length > 0,
@@ -366,30 +353,6 @@ async function loadClaimableMembers(clubId: string): Promise<ClaimableMember[]> 
       teamIds,
     };
   });
-}
-
-async function resolveExistingMemberId(
-  clubId: string,
-  uid: string,
-): Promise<string | null> {
-  const accountSnap = await db()
-    .collection("clubs")
-    .doc(clubId)
-    .collection("member_accounts")
-    .doc(uid)
-    .get();
-  if (accountSnap.exists) {
-    const linked = String(accountSnap.data()?.memberId ?? "").trim();
-    if (linked) return linked;
-  }
-  const selfSnap = await db()
-    .collection("clubs")
-    .doc(clubId)
-    .collection("members")
-    .doc(uid)
-    .get();
-  if (selfSnap.exists) return uid;
-  return null;
 }
 
 /**
@@ -435,7 +398,8 @@ async function handleAcceptTeamInvitation(
   }
   const teamRef = clubRef.collection("teams").doc(teamId);
 
-  const existingMemberId = await resolveExistingMemberId(clubId, uid);
+  // Une seule clé membre : déjà membre ⇔ members/{uid} existe.
+  const alreadyMember = (await clubRef.collection("members").doc(uid).get()).exists;
   const userSnap = await userRef.get();
   const userData = (userSnap.data() ?? {}) as Record<string, unknown>;
   const firstName = String(userData.firstName ?? "").trim();
@@ -445,7 +409,7 @@ async function handleAcceptTeamInvitation(
     typeof userData.avatarUrl === "string" ? userData.avatarUrl : null;
 
   let claimMemberId: string | null = null;
-  if (!existingMemberId) {
+  if (!alreadyMember) {
     const members = await loadClaimableMembers(clubId);
     // Conflit : e-mail déjà sur une fiche liée à un autre compte.
     const emailConflict = members.find(
@@ -508,10 +472,9 @@ async function handleAcceptTeamInvitation(
     };
 
     // Une seule clé membre : la fiche du compte vit à `members/{uid}`. Une
-    // fiche revendiquée, ou encore liée sous un ancien id, est re-clée.
+    // fiche pré-créée revendiquée est re-clée sur l'uid.
     const memberRef = clubRef.collection("members").doc(uid);
-    const rekeyFrom =
-      existingMemberId && existingMemberId !== uid ? existingMemberId : claimMemberId;
+    const rekeyFrom = claimMemberId;
     const [memberSnap, rekeyState] = await Promise.all([
       tx.get(memberRef),
       rekeyFrom
@@ -526,7 +489,7 @@ async function handleAcceptTeamInvitation(
       : memberSnap.exists
         ? memberSnap.data()!
         : null;
-    const wasMember = Boolean(existingMemberId) && currentData != null;
+    const wasMember = alreadyMember && currentData != null;
     const teamIds = stringArray(currentData?.teamIds);
     const alreadyInTeam = teamIds.includes(teamId);
     const playerIds = stringArray(teamTx.data()?.playerIds);

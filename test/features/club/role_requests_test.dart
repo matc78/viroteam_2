@@ -12,29 +12,21 @@ JoinRequest _request(String id, String userId, String role) => JoinRequest(
       status: JoinRequestStatus.pending,
     );
 
-ClubMember _member(String memberId, String role, {String? accountUid}) =>
-    ClubMember(
-      memberId: memberId,
+/// Fiche liée : id du document = uid Auth (clé unique).
+ClubMember _member(String uid, String role) => ClubMember(
+      memberId: uid,
       role: role,
       status: 'active',
-      accountUid: accountUid,
+      accountUid: uid,
     );
 
 void main() {
   test('garde la demande d’un membre dont le rôle diffère', () {
     final result = actionableRoleRequests(
       [_request('r1', 'u1', MemberRoles.coach)],
-      [_member('m1', MemberRoles.player, accountUid: 'u1')],
-    );
-    expect(result.single.member.memberId, 'm1');
-  });
-
-  test('retrouve aussi une fiche dont l’id est l’uid', () {
-    final result = actionableRoleRequests(
-      [_request('r1', 'u1', MemberRoles.coach)],
       [_member('u1', MemberRoles.player)],
     );
-    expect(result, hasLength(1));
+    expect(result.single.member.memberId, 'u1');
   });
 
   test('masque les demandes pas encore traitables ou sans objet', () {
@@ -45,8 +37,8 @@ void main() {
         _request('admin', 'u3', MemberRoles.player),
       ],
       [
-        _member('m2', MemberRoles.coach, accountUid: 'u2'),
-        _member('m3', MemberRoles.admin, accountUid: 'u3'),
+        _member('u2', MemberRoles.coach),
+        _member('u3', MemberRoles.admin),
       ],
     );
     expect(result, isEmpty);

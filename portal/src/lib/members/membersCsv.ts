@@ -298,7 +298,7 @@ type ExistingMemberRef = {
   lastName: string;
   /** Rôle actuel dans le club (pour valider le dernier admin). */
   role?: string;
-  /** UID compte lié, si présent. */
+  /** UID compte lié (= memberId), si présent. */
   accountUid?: string | null;
 };
 
@@ -328,9 +328,7 @@ function blockingErrorsForLastAdmin(params: {
   if (nextAdminIds.size === 0) {
     for (const member of params.existingMembers) {
       if (member.role !== MemberRoles.admin) continue;
-      nextAdminIds.add(
-        (member.accountUid ?? member.memberId).trim() || member.memberId,
-      );
+      nextAdminIds.add(member.memberId);
     }
   }
 
@@ -343,17 +341,15 @@ function blockingErrorsForLastAdmin(params: {
 
     const wasAdmin = existing.role === MemberRoles.admin;
     const willBeAdmin = action.role === MemberRoles.admin;
-    const adminKey =
-      (existing.accountUid ?? existing.memberId).trim() || existing.memberId;
-
+    // `adminIds` porte l’id de fiche (= uid du compte quand elle est liée).
     if (wasAdmin && !willBeAdmin) {
       demotionLineNumbers.push(action.lineNumber);
-      nextAdminIds.delete(adminKey);
+      nextAdminIds.delete(existing.memberId);
       continue;
     }
 
-    if (!wasAdmin && willBeAdmin && existing.accountUid?.trim()) {
-      nextAdminIds.add(existing.accountUid.trim());
+    if (!wasAdmin && willBeAdmin && existing.accountUid) {
+      nextAdminIds.add(existing.memberId);
     }
   }
 
@@ -376,7 +372,7 @@ export function buildMembersImportPlan(params: {
   sport: string;
   existingMembers: ExistingMemberRef[];
   existingTeams: ExistingTeamRef[];
-  /** UIDs admin du club (garde-fou dernier administrateur). */
+  /** Ids de fiche admin du club (`club.adminIds`, garde-fou dernier admin). */
   adminIds?: string[];
 }): MembersImportPlan {
   const allowedCategories = teamCategoriesForSport(params.sport);

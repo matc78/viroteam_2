@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/fees/models/fee_payment_event.dart';
@@ -119,13 +120,14 @@ final homeFeeRemindersProvider =
     final club = entry.club;
     final clubStreams = <Stream<List<HomeFeeReminderItem>>>[];
 
-    // Cotisations des enfants suivis — prénom depuis la fiche fee, sinon lecture membre.
+    // Cotisations des enfants suivis — prénom courant de la fiche enfant,
+    // sinon celui figé sur la cotisation.
     if (entry.hasFamilyLinks) {
       final guardianService = ref.read(guardianServiceProvider);
       for (final link in entry.parentLinks) {
         // Lecture de la fiche enfant au plus une fois par flux (avant : à
         // chaque émission de la cotisation).
-        Future<String?>? fallbackChildName;
+        Future<String?>? currentChildName;
         clubStreams.add(
           feeService
               .watchActiveMemberFee(
@@ -133,13 +135,17 @@ final homeFeeRemindersProvider =
                 memberId: link.memberId,
               )
               .asyncMap((data) async {
-                var childName = _firstNameFromDisplayName(
-                  data.fee?.memberDisplayName,
-                );
-                childName ??= await (fallbackChildName ??= guardianService
+                final current = await (currentChildName ??= guardianService
                     .childFirstName(clubId: club.id, memberId: link.memberId)
                     .then<String?>((name) => name)
                     .catchError((Object _) => null));
+                final childName =
+                    current != null && current != AppCopy.common.childFallback
+                        ? current
+                        : _firstNameFromDisplayName(
+                              data.fee?.memberDisplayName,
+                            ) ??
+                            current;
                 return _reminderFromFee(
                   club: club,
                   data: data,
@@ -157,7 +163,7 @@ final homeFeeRemindersProvider =
       };
       clubStreams.add(
         eventService
-            .watchClubMember(clubId: club.id, uid: authUid)
+            .watchClubMember(clubId: club.id, memberId: authUid)
             .switchMap((member) {
           if (member == null) {
             return Stream.value(<HomeFeeReminderItem>[]);

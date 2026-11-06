@@ -15,7 +15,6 @@ import {
 } from "./email";
 import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
 import { db, defineDualCallable } from "./db";
-import { resolveCurrentMemberId } from "./memberRekey";
 import { recomputeParentTeamIdsSafe } from "./parentTeams";
 
 const MAX_ACTIVE_GUARDIANS_PER_MEMBER = 1;
@@ -55,14 +54,6 @@ function requireString(value: unknown, name: string): string {
     throw new HttpsError("invalid-argument", `${name} requis`);
   }
   return value.trim();
-}
-
-/**
- * `memberId` reçu d'un client, suivi jusqu'à la fiche actuelle si elle a été
- * re-clée sur l'uid de son compte. COMPAT-REKEY : à retirer au nettoyage.
- */
-async function requireCurrentMemberId(clubId: string, value: unknown): Promise<string> {
-  return resolveCurrentMemberId(db(), clubId, requireString(value, "memberId"));
 }
 
 function normalizeEmail(email: string): string {
@@ -106,10 +97,6 @@ function userRef(uid: string) {
   return db().collection("users").doc(uid);
 }
 
-function memberAccountRef(clubId: string, accountUid: string) {
-  return clubRef(clubId).collection("member_accounts").doc(accountUid);
-}
-
 function parseParentLinks(raw: unknown): ParentLink[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -149,11 +136,7 @@ export async function assertClubAdmin(
     return club;
   }
 
-  const accountSnap = await memberAccountRef(clubId, uid).get();
-  const linkedMemberId = accountSnap.exists
-    ? String(accountSnap.data()?.memberId ?? "")
-    : uid;
-  const memberSnap = await memberRef(clubId, linkedMemberId).get();
+  const memberSnap = await memberRef(clubId, uid).get();
   if (memberSnap.exists && memberSnap.data()?.role === "admin") {
     return club;
   }
@@ -195,8 +178,8 @@ async function assertCanManageGuardian(params: {
   if (!memberSnap.exists) {
     throw new HttpsError("not-found", "Fiche membre introuvable");
   }
-  const ownerUid = childAccountUid(memberSnap.data()!, params.memberId);
-  if (ownerUid && ownerUid === params.uid) {
+  // Une seule clé membre : la fiche d'un compte vit à members/{uid}.
+  if (params.memberId === params.uid) {
     return club;
   }
 
@@ -215,17 +198,6 @@ function removeParentLink(
   return links.filter(
     (link) => !(link.clubId === clubId && link.memberId === memberId),
   );
-}
-
-async function resolveCallerMemberId(clubId: string, uid: string): Promise<string | null> {
-  const accountSnap = await memberAccountRef(clubId, uid).get();
-  if (accountSnap.exists) {
-    const linked = String(accountSnap.data()?.memberId ?? "").trim();
-    if (linked) return linked;
-  }
-  const selfSnap = await memberRef(clubId, uid).get();
-  if (selfSnap.exists) return uid;
-  return null;
 }
 
 function guardianPermissions(data: DocumentData | undefined): GuardianPermissions {
@@ -247,8 +219,11 @@ export async function assertCanActForMember(params: {
   uid: string;
   permission: "canRsvp" | "canPay";
 }): Promise<{ forChild: boolean }> {
-  const ownMemberId = await resolveCallerMemberId(params.clubId, params.uid);
-  if (ownMemberId === params.memberId) return { forChild: false };
+  // Sa propre fiche : members/{uid}, qui doit exister.
+  if (params.memberId === params.uid) {
+    const ownSnap = await memberRef(params.clubId, params.uid).get();
+    if (ownSnap.exists) return { forChild: false };
+  }
 
   const snap = await guardianRef(params.clubId, params.memberId, params.uid).get();
   if (!snap.exists) {
@@ -299,14 +274,6 @@ async function countGuardiansOccupyingSlot(
     }
     return true;
   }).length;
-}
-
-function childAccountUid(memberData: DocumentData, memberId: string): string | null {
-  const accountUid = String(memberData.accountUid ?? "").trim();
-  if (accountUid) return accountUid;
-  const userId = String(memberData.userId ?? "").trim();
-  if (userId) return userId;
-  return memberId;
 }
 
 async function writeGuardianAndParentLinks(params: {
@@ -494,7 +461,7 @@ export const {
   async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
+  const memberId = requireString(request.data?.memberId, "memberId");
   const email = requireEmail(request.data?.email);
   const relation = RELATION_PARENT;
 
@@ -509,7 +476,6 @@ export const {
     throw new HttpsError("not-found", "Fiche membre introuvable");
   }
   const member = memberSnap.data()!;
-  const childUid = childAccountUid(member, memberId);
 
   let existingParentUid: string | null = null;
   try {
@@ -522,7 +488,7 @@ export const {
     }
   }
 
-  if (existingParentUid && (existingParentUid === childUid || existingParentUid === memberId)) {
+  if (existingParentUid && existingParentUid === memberId) {
     throw new HttpsError(
       "failed-precondition",
       "Impossible de lier un adulte à sa propre fiche",
@@ -701,8 +667,8 @@ export const {
     throw new HttpsError("not-found", "Fiche membre introuvable");
   }
   const memberData = memberSnap.data()!;
-  const childUid = childAccountUid(memberData, memberId);
-  if (parentUid === childUid || parentUid === memberId) {
+  // Fiche liée : son id est l'uid du compte (une seule clé membre).
+  if (parentUid === memberId) {
     throw new HttpsError(
       "failed-precondition",
       "Impossible de lier un adulte à sa propre fiche",
@@ -803,7 +769,7 @@ export const {
 } = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
+  const memberId = requireString(request.data?.memberId, "memberId");
   await assertCanManageGuardian({ clubId, memberId, uid: callerUid });
 
   const parentUidArg =
@@ -875,7 +841,7 @@ export const {
 } = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
+  const memberId = requireString(request.data?.memberId, "memberId");
   const email = requireEmail(request.data?.email);
   const invitationIdArg =
     typeof request.data?.invitationId === "string"
@@ -931,11 +897,7 @@ export const {
     }
   }
   if (newParentUid) {
-    const memberSnap = await memberRef(clubId, memberId).get();
-    const childUid = memberSnap.exists
-      ? childAccountUid(memberSnap.data()!, memberId)
-      : null;
-    if (newParentUid !== childUid && newParentUid !== memberId) {
+    if (newParentUid !== memberId) {
       await writeGuardianAndParentLinks({
         clubId,
         memberId,
@@ -960,7 +922,7 @@ export const {
 } = defineDualCallable(async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
+  const memberId = requireString(request.data?.memberId, "memberId");
   const invitationIdArg =
     typeof request.data?.invitationId === "string"
       ? request.data.invitationId.trim()
@@ -1006,7 +968,7 @@ export const {
   async (request: CallableRequest) => {
   const callerUid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
-  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
+  const memberId = requireString(request.data?.memberId, "memberId");
   const invitationIdArg =
     typeof request.data?.invitationId === "string"
       ? request.data.invitationId.trim()
@@ -1069,14 +1031,7 @@ async function assertCanEditMemberRsvpAsStaff(
     throw new HttpsError("not-found", "Club introuvable");
   }
   const club = clubSnap.data()!;
-  const callerMemberId = await resolveCallerMemberId(clubId, uid);
-  if (!callerMemberId) {
-    throw new HttpsError(
-      "permission-denied",
-      "Réservé aux admins ou coachs autorisés",
-    );
-  }
-  const memberSnap = await memberRef(clubId, callerMemberId).get();
+  const memberSnap = await memberRef(clubId, uid).get();
   if (!memberSnap.exists || memberSnap.data()?.role !== "coach") {
     throw new HttpsError(
       "permission-denied",
@@ -1106,7 +1061,7 @@ export const {
   const uid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const eventId = requireString(request.data?.eventId, "eventId");
-  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
+  const memberId = requireString(request.data?.memberId, "memberId");
   const value = String(request.data?.value ?? "").trim();
   if (!RSVP_VALUES.has(value)) {
     throw new HttpsError("invalid-argument", "Réponse RSVP invalide");
@@ -1165,7 +1120,7 @@ export const {
   const uid = requireUid(request);
   const clubId = requireString(request.data?.clubId, "clubId");
   const eventId = requireString(request.data?.eventId, "eventId");
-  const memberId = await requireCurrentMemberId(clubId, request.data?.memberId);
+  const memberId = requireString(request.data?.memberId, "memberId");
 
   await assertCanActForMember({
     clubId,

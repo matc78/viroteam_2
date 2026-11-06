@@ -43,7 +43,7 @@ type PlanningEventDetailPanelProps = {
   eventColor?: string | null;
   /** Équipes pour résoudre les coachs du roster. */
   teams?: TeamOption[];
-  /** Annuaire noms / avatars indexé par memberId ou accountUid. */
+  /** Annuaire noms / avatars indexé par id de fiche. */
   guestDirectory?: Record<string, PlanningGuestDirectoryEntry>;
   clubId?: string;
   /** Si fourni, affiche les boutons RSVP pour ce membre. */
@@ -96,12 +96,8 @@ function withLocalRsvp(
   event: ClubEventView,
   memberId: string,
   value: RsvpValue,
-  aliasIds: string[] = [],
 ): ClubEventView {
-  const nextMap = { ...event.rsvpByMemberId };
-  for (const id of [memberId, ...aliasIds]) {
-    if (id) nextMap[id] = value;
-  }
+  const nextMap = { ...event.rsvpByMemberId, [memberId]: value };
   const values = Object.values(nextMap).map((entry) => entry.toLowerCase());
   const rsvpYes = values.filter((entry) => entry === "yes").length;
   const rsvpNo = values.filter((entry) => entry === "no").length;
@@ -160,45 +156,22 @@ export function PlanningEventDetailPanel({
   const showRsvpFooter = Boolean(clubId && linkedMemberId);
   const swatchColor = resolveSwatchColor(event, eventColor);
 
-  const linkedAliasIds = useMemo(() => {
-    if (!linkedMemberId) return [] as string[];
-    const entry = guestDirectory[linkedMemberId];
-    if (!entry) return [linkedMemberId];
-    return Object.entries(guestDirectory)
-      .filter(([, other]) => other === entry)
-      .map(([id]) => id);
-  }, [guestDirectory, linkedMemberId]);
-
   useEffect(() => {
     setLocalRsvp(null);
   }, [event.id]);
 
   useEffect(() => {
     if (!localRsvp) return;
-    const ids =
-      linkedMemberId && localRsvp.memberId === linkedMemberId
-        ? linkedAliasIds
-        : [localRsvp.memberId];
-    const matched = ids.some(
-      (id) =>
-        (event.rsvpByMemberId[id] ?? "").toLowerCase() === localRsvp.value,
-    );
-    if (matched) setLocalRsvp(null);
-  }, [event.rsvpByMemberId, localRsvp, linkedAliasIds, linkedMemberId]);
+    const persisted = (
+      event.rsvpByMemberId[localRsvp.memberId] ?? ""
+    ).toLowerCase();
+    if (persisted === localRsvp.value) setLocalRsvp(null);
+  }, [event.rsvpByMemberId, localRsvp]);
 
   const displayEvent = useMemo(() => {
     if (!localRsvp) return event;
-    const aliases =
-      linkedMemberId && localRsvp.memberId === linkedMemberId
-        ? linkedAliasIds
-        : [];
-    return withLocalRsvp(
-      event,
-      localRsvp.memberId,
-      localRsvp.value,
-      aliases,
-    );
-  }, [event, localRsvp, linkedAliasIds, linkedMemberId]);
+    return withLocalRsvp(event, localRsvp.memberId, localRsvp.value);
+  }, [event, localRsvp]);
 
   const guestRows = useMemo(
     () =>
@@ -235,7 +208,7 @@ export function PlanningEventDetailPanel({
   }, [resolvedAnchor, event.id, guestRows.length, showRsvpFooter]);
 
   const anchored = Boolean(resolvedAnchor && position);
-  // Total / oui / non / attente alignés sur la liste dédupliquée (alias memberId/uid).
+  // Total / oui / non / attente alignés sur la liste dédupliquée.
   const guestYes = guestRows.filter((row) => row.status === "yes").length;
   const guestNo = guestRows.filter((row) => row.status === "no").length;
   const guestPending = guestRows.filter((row) => row.status === "pending").length;
@@ -463,7 +436,6 @@ export function PlanningEventDetailPanel({
               clubId={clubId}
               event={displayEvent}
               memberId={linkedMemberId}
-              audienceIds={linkedAliasIds}
               onOptimisticChange={handleRsvpOptimistic}
               onUpdated={handleRsvpPersisted}
               variant="footer"

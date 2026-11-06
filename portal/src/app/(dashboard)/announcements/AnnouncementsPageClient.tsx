@@ -34,7 +34,6 @@ import {
   type PlanningPersonOption,
   type TeamOption,
 } from "@/lib/firebase/eventService";
-import { getLinkedMemberId } from "@/lib/firebase/memberService";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import tabStyles from "@/components/dashboard/MembersTabs.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
@@ -106,23 +105,6 @@ export function AnnouncementsPageClient() {
   const [createBusy, setCreateBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadLinked() {
-      if (!activeClub || !user) {
-        setLinkedMemberId(null);
-        return;
-      }
-      const id = await getLinkedMemberId(activeClub.id, user.uid);
-      if (!cancelled) setLinkedMemberId(id);
-    }
-    void loadLinked();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeClub?.id, user?.uid]);
 
   const coachedTeams = useMemo(() => {
     if (!data) return [];
@@ -130,10 +112,9 @@ export function AnnouncementsPageClient() {
     return coachedTeamsForViewer({
       role: activeClubRole,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
     });
-  }, [data, caps.isAdmin, activeClubRole, user?.uid, linkedMemberId]);
+  }, [data, caps.isAdmin, activeClubRole, user?.uid]);
 
   const coachedTeamIds = useMemo(
     () => new Set(coachedTeams.map((team) => team.id)),

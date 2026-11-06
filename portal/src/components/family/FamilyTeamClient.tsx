@@ -22,18 +22,15 @@ import { loadTeamsByIds } from "@/lib/firebase/eventService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   getClubMember,
-  loadMembersByRosterIds,
+  loadMembersByIds,
 } from "@/lib/firebase/memberService";
-import {
-  memberMatchIds,
-  rosterContains,
-} from "@/lib/teams/viewerTeamScope";
+import { rosterContains } from "@/lib/teams/viewerTeamScope";
 
 async function noopAsync(): Promise<void> {}
 
 type FamilyTeamData = {
   teams: Awaited<ReturnType<typeof loadTeamsByIds>>;
-  members: Awaited<ReturnType<typeof loadMembersByRosterIds>>;
+  members: Awaited<ReturnType<typeof loadMembersByIds>>;
 };
 
 /** Page Équipe espace famille : roster lecture seule (Moi / enfant). */
@@ -55,10 +52,6 @@ export function FamilyTeamClient() {
       }
 
       const member = await getClubMember(club.id, selectedMemberId);
-      const childMatchIds = memberMatchIds({
-        memberId: selectedMemberId,
-        accountUid: member?.accountUid ?? null,
-      });
 
       // Parent : uniquement teams ∈ parentTeamIds (règles). member.teamIds en secours.
       const candidateTeamIds = [
@@ -71,12 +64,12 @@ export function FamilyTeamClient() {
       const teams =
         selectedTarget?.kind === "child"
           ? loadedTeams.filter((team) =>
-              rosterContains(team.playerIds, childMatchIds),
+              rosterContains(team.playerIds, selectedMemberId),
             )
           : loadedTeams.filter(
               (team) =>
-                rosterContains(team.playerIds, childMatchIds) ||
-                rosterContains(team.coachIds, childMatchIds),
+                rosterContains(team.playerIds, selectedMemberId) ||
+                rosterContains(team.coachIds, selectedMemberId),
             );
 
       const rosterIds = new Set<string>();
@@ -89,9 +82,8 @@ export function FamilyTeamClient() {
         }
       }
       rosterIds.add(selectedMemberId);
-      if (member?.accountUid) rosterIds.add(member.accountUid);
 
-      const members = await loadMembersByRosterIds(club.id, [...rosterIds]);
+      const members = await loadMembersByIds(club.id, [...rosterIds]);
       return { teams, members };
     },
     [

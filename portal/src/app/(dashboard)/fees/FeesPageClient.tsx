@@ -35,7 +35,7 @@ import {
   type FeeSeasonRecord,
   type MemberFeeRecord,
 } from "@/lib/firebase/feeService";
-import { getLinkedMemberId } from "@/lib/firebase/memberService";
+import { getOwnMemberId } from "@/lib/firebase/memberRefs";
 import { feeStatusLabel } from "@/lib/members/membersView";
 import { StripeFeeCheckout } from "@/components/fees/StripeFeeCheckout";
 import { useToast } from "@/components/ToastProvider";
@@ -88,7 +88,7 @@ async function loadPlayerSelfFee(
   uid: string,
 ): Promise<PlayerFeeData> {
   const [linkedMemberId, season] = await Promise.all([
-    getLinkedMemberId(club.id, uid),
+    getOwnMemberId(club.id, uid),
     getActiveSeason(club.id),
   ]);
   if (!season || !linkedMemberId) {

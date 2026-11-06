@@ -133,20 +133,12 @@ export async function assertEventCoachOrAdmin(params: {
     : [];
   if (adminIds.includes(params.uid)) return;
 
-  const accountSnap = await firestore
-    .collection("clubs")
-    .doc(params.clubId)
-    .collection("member_accounts")
-    .doc(params.uid)
-    .get();
-  const linkedMemberId = accountSnap.exists
-    ? String(accountSnap.data()?.memberId ?? "")
-    : params.uid;
+  // Une seule clé membre : la fiche de l'appelant est members/{uid}.
   const memberSnap = await firestore
     .collection("clubs")
     .doc(params.clubId)
     .collection("members")
-    .doc(linkedMemberId)
+    .doc(params.uid)
     .get();
   if (memberSnap.exists && memberSnap.data()?.role === "admin") return;
 
@@ -166,9 +158,7 @@ export async function assertEventCoachOrAdmin(params: {
       .get();
     if (!teamSnap.exists) continue;
     const coachIds = stringArray(teamSnap.data()?.coachIds);
-    if (coachIds.includes(params.uid) || coachIds.includes(linkedMemberId)) {
-      return;
-    }
+    if (coachIds.includes(params.uid)) return;
   }
 
   throw new HttpsError(

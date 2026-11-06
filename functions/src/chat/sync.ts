@@ -1,7 +1,7 @@
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import type { DocumentData, Firestore } from "firebase-admin/firestore";
-import { stringArray, uniq } from "../common";
+import { accountUidOf, stringArray, uniq } from "../common";
 import { activeGuardianUids } from "../parentTeams";
 import {
   memberDirectoryFromDocs,
@@ -239,42 +239,22 @@ export async function backfillConversationProfiles(params: {
   return updated;
 }
 
-/** Résout un id roster → Auth uid (accountUid / userId). */
+/**
+ * Uid Auth de `members/{memberId}` (ids roster = ids de fiche, une seule clé
+ * membre). Fiche absente ou pré-créée sans compte : `null` (pas de participant).
+ */
 export async function resolveAuthUid(
   firestore: Firestore,
   clubId: string,
-  rosterId: string,
+  memberId: string,
 ): Promise<string | null> {
-  const clubRef = firestore.collection("clubs").doc(clubId);
-  const direct = await clubRef.collection("members").doc(rosterId).get();
-  if (direct.exists) {
-    return authUidFromMember(rosterId, direct.data() ?? {});
-  }
-
-  const account = await clubRef.collection("member_accounts").doc(rosterId).get();
-  if (account.exists) {
-    // rosterId est déjà un accountUid
-    return rosterId;
-  }
-
-  const byAccount = await clubRef
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
     .collection("members")
-    .where("accountUid", "==", rosterId)
-    .limit(1)
+    .doc(memberId)
     .get();
-  if (!byAccount.empty) return rosterId;
-
-  return null;
-}
-
-function authUidFromMember(memberId: string, data: DocumentData): string | null {
-  const accountUid = String(data.accountUid ?? "").trim();
-  if (accountUid) return accountUid;
-  const userId = String(data.userId ?? "").trim();
-  if (userId) return userId;
-  // Fiche pré-créée sans compte : pas de participant pushable.
-  if (memberId && data.accountUid == null && data.userId == null) return null;
-  return null;
+  return accountUidOf(snap.data());
 }
 
 /** Uids Auth pour une liste d’ids roster. */
@@ -335,9 +315,7 @@ export async function syncTeamConversations(params: {
   });
 
   const parentUids: string[] = [];
-  for (const rosterId of playerIds) {
-    const memberId = await resolveMemberIdForChat(firestore, clubId, rosterId);
-    if (!memberId) continue;
+  for (const memberId of playerIds) {
     parentUids.push(
       ...(await activeGuardianUids(firestore, clubId, memberId)),
     );
@@ -376,25 +354,6 @@ async function clearSystemConversationParticipants(
   });
 }
 
-async function resolveMemberIdForChat(
-  firestore: Firestore,
-  clubId: string,
-  rosterId: string,
-): Promise<string | null> {
-  const clubRef = firestore.collection("clubs").doc(clubId);
-  const direct = await clubRef.collection("members").doc(rosterId).get();
-  if (direct.exists) return rosterId;
-  const account = await clubRef.collection("member_accounts").doc(rosterId).get();
-  const linked = String(account.data()?.memberId ?? "").trim();
-  if (account.exists && linked) return linked;
-  const byAccount = await clubRef
-    .collection("members")
-    .where("accountUid", "==", rosterId)
-    .limit(1)
-    .get();
-  return byAccount.docs[0]?.id ?? null;
-}
-
 /**
  * Sync `staff` (coachs + admins) et `club` (tous les licenciés, écriture admin).
  */
@@ -420,7 +379,7 @@ export async function syncClubWideConversations(params: {
   for (const doc of membersSnap.docs) {
     const data = doc.data();
     if (String(data.status ?? "") === "archived") continue;
-    const uid = authUidFromMember(doc.id, data);
+    const uid = accountUidOf(data);
     if (!uid) continue;
     licensedUids.push(uid);
     const role = String(data.role ?? "");
@@ -545,15 +504,15 @@ export async function resolveScopedChannelParticipants(params: {
     coachIds.push(...stringArray(data.coachIds));
   }
 
-  // adminIds peut être memberId ou Auth uid — toujours résoudre.
-  const adminUids = await resolveAuthUids(firestore, clubId, adminIds);
-  // Filet : admins déclarés par rôle fiche (adminIds parfois incomplet).
+  // `adminIds` = uids des admins ; filet : fiches `role == admin` liées
+  // (adminIds parfois incomplet).
+  const adminUids = [...adminIds];
   const adminMembersSnap = await clubRef
     .collection("members")
     .where("role", "==", "admin")
     .get();
   for (const adminDoc of adminMembersSnap.docs) {
-    const adminUid = await resolveAuthUid(firestore, clubId, adminDoc.id);
+    const adminUid = accountUidOf(adminDoc.data());
     if (adminUid) adminUids.push(adminUid);
   }
 
@@ -561,9 +520,7 @@ export async function resolveScopedChannelParticipants(params: {
   const participantUids = [...adminUids, ...coachUids];
 
   if (scopeType === "parents") {
-    for (const rosterId of uniq(playerIds)) {
-      const memberId = await resolveMemberIdForChat(firestore, clubId, rosterId);
-      if (!memberId) continue;
+    for (const memberId of uniq(playerIds)) {
       participantUids.push(
         ...(await activeGuardianUids(firestore, clubId, memberId)),
       );

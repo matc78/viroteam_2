@@ -20,7 +20,7 @@ import {
   useState,
 } from "react";
 import { getFirebaseAuth, resetAppFirestore } from "@/lib/firebase/app";
-import { clearLinkedMemberIdCache } from "@/lib/firebase/memberService";
+import { clearOwnMemberIdCache } from "@/lib/firebase/memberRefs";
 import {
   passwordResetErrorMessage,
   toAuthActionError,
@@ -231,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!firebaseUser) {
       lastUidRef.current = null;
       claimedUidsRef.current.clear();
-      clearLinkedMemberIdCache();
+      clearOwnMemberIdCache();
       setUser(null);
       setProfile(null);
       setAdminClubs([]);
@@ -250,7 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const previousUid = lastUidRef.current;
     lastUidRef.current = firebaseUser.uid;
     if (previousUid && previousUid !== firebaseUser.uid) {
-      clearLinkedMemberIdCache();
+      clearOwnMemberIdCache();
       await resetAppFirestore();
       if (isStale()) return;
     }

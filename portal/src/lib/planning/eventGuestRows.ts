@@ -19,20 +19,16 @@ export type EventGuestRow = {
   status: RsvpRowStatus;
 };
 
-/** Construit un annuaire indexé par memberId / accountUid / matchIds. */
+/** Construit un annuaire indexé par id de fiche (= uid si liée). */
 export function buildGuestDirectoryFromPeople(
   people: PlanningPersonOption[],
 ): Record<string, PlanningGuestDirectoryEntry> {
   const directory: Record<string, PlanningGuestDirectoryEntry> = {};
   for (const person of people) {
-    const entry: PlanningGuestDirectoryEntry = {
+    directory[person.id] = {
       name: person.name.trim() || "Membre",
       avatarUrl: person.avatarUrl,
     };
-    directory[person.id] = entry;
-    for (const matchId of person.matchIds) {
-      if (matchId) directory[matchId] = entry;
-    }
   }
   return directory;
 }
@@ -43,12 +39,10 @@ export function buildGuestDirectoryFromMembers(
 ): Record<string, PlanningGuestDirectoryEntry> {
   const directory: Record<string, PlanningGuestDirectoryEntry> = {};
   for (const member of members) {
-    const entry: PlanningGuestDirectoryEntry = {
+    directory[member.memberId] = {
       name: member.displayName.trim() || "Membre",
       avatarUrl: member.avatarUrl,
     };
-    directory[member.memberId] = entry;
-    if (member.accountUid) directory[member.accountUid] = entry;
   }
   return directory;
 }
@@ -65,36 +59,37 @@ function lookupGuest(
   );
 }
 
-function resolveRsvpForIds(
-  ids: string[],
+function rsvpStatus(
+  memberId: string,
   rsvpByMemberId: Record<string, string>,
 ): RsvpRowStatus {
-  for (const id of ids) {
-    const value = (rsvpByMemberId[id] ?? "").toLowerCase();
-    if (value === "yes") return "yes";
-    if (value === "no") return "no";
-    if (value === "maybe") return "pending";
-  }
+  const value = (rsvpByMemberId[memberId] ?? "").toLowerCase();
+  if (value === "yes") return "yes";
+  if (value === "no") return "no";
   return "pending";
 }
 
-/** Collecte memberId + accountUid (et autres alias) pointant vers la même fiche. */
-function aliasIdsForGuest(
-  primaryId: string,
+function guestRow(
+  memberId: string,
+  isCoach: boolean,
+  event: ClubEventView,
   directory: Record<string, PlanningGuestDirectoryEntry>,
-): string[] {
-  const entry = directory[primaryId];
-  if (!entry) return [primaryId];
-  const ids = [primaryId];
-  for (const [id, other] of Object.entries(directory)) {
-    if (other === entry) ids.push(id);
-  }
-  return [...new Set(ids)];
+): EventGuestRow {
+  const guest = lookupGuest(directory, memberId);
+  return {
+    key: isCoach ? `${memberId}::coach` : memberId,
+    audienceId: memberId,
+    name: guest.name,
+    avatarUrl: guest.avatarUrl,
+    isCoach,
+    status: rsvpStatus(memberId, event.rsvpByMemberId),
+  };
 }
 
 /**
  * Liste des invités : coachs des équipes de l'événement en tête (alpha),
- * puis joueurs convoqués (alpha).
+ * puis joueurs convoqués (alpha). Un coach aussi convoqué n'apparaît qu'une
+ * fois, côté coachs.
  */
 export function buildEventGuestRows(params: {
   event: ClubEventView;
@@ -112,53 +107,18 @@ export function buildEventGuestRows(params: {
       if (coachId) coachIds.add(coachId);
     }
   }
+  const playerIds = new Set(
+    event.teamMemberIds.filter((id) => Boolean(id) && !coachIds.has(id)),
+  );
 
-  const coachRows: EventGuestRow[] = [];
-  const seenKeys = new Set<string>();
-
-  function markSeen(ids: string[]) {
-    for (const id of ids) seenKeys.add(id);
-  }
-
-  for (const coachId of coachIds) {
-    const aliases = aliasIdsForGuest(coachId, directory);
-    if (aliases.some((id) => seenKeys.has(id))) continue;
-    const guest = lookupGuest(directory, coachId);
-    if (seenKeys.has(guest.name + "::coach")) continue;
-    markSeen(aliases);
-    seenKeys.add(guest.name + "::coach");
-    coachRows.push({
-      key: guest.name + "::coach::" + coachId,
-      audienceId: coachId,
-      name: guest.name,
-      avatarUrl: guest.avatarUrl,
-      isCoach: true,
-      status: resolveRsvpForIds(aliases, event.rsvpByMemberId),
-    });
-  }
-  coachRows.sort((left, right) => left.name.localeCompare(right.name, "fr"));
-
-  const playerRows: EventGuestRow[] = [];
-  for (const memberId of event.teamMemberIds) {
-    const aliases = aliasIdsForGuest(memberId, directory);
-    if (aliases.some((id) => seenKeys.has(id) || coachIds.has(id))) continue;
-    const guest = lookupGuest(directory, memberId);
-    // Évite de doubler un coach déjà listé sous un autre id (accountUid / nom).
-    const alreadyCoach = coachRows.some(
-      (row) => row.name === guest.name && row.isCoach,
-    );
-    if (alreadyCoach) continue;
-    markSeen(aliases);
-    playerRows.push({
-      key: memberId,
-      audienceId: memberId,
-      name: guest.name,
-      avatarUrl: guest.avatarUrl,
-      isCoach: false,
-      status: resolveRsvpForIds(aliases, event.rsvpByMemberId),
-    });
-  }
-  playerRows.sort((left, right) => left.name.localeCompare(right.name, "fr"));
+  const byName = (left: EventGuestRow, right: EventGuestRow) =>
+    left.name.localeCompare(right.name, "fr");
+  const coachRows = [...coachIds]
+    .map((id) => guestRow(id, true, event, directory))
+    .sort(byName);
+  const playerRows = [...playerIds]
+    .map((id) => guestRow(id, false, event, directory))
+    .sort(byName);
 
   return [...coachRows, ...playerRows];
 }

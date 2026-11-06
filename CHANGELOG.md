@@ -8,7 +8,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
-## [2.2.15] - 2026-11-06
+## [2.3.0] - 2026-11-06
 
 ### Sécurité
 
@@ -30,7 +30,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
-- Membres : une seule clé par personne — à la liaison d’un compte (invitation, code d’équipe), la fiche pré-inscrite passe sous `members/{uid}` avec toutes ses références (rosters, tous les events en écriture silencieuse, guardians et `parentLinks`, cotisations et paiements, annonces, invitations, `adminIds`). Un code d’équipe ne crée plus de fiche à id aléatoire. Migration de l’existant : `tool/rekey_linked_members.mjs` (dry-run par défaut). Les callables et le webhook Stripe suivent un ancien id via `formerMemberIds` pendant la transition
+- Membres : une seule clé par personne — à la liaison d’un compte (invitation, code d’équipe), la fiche pré-inscrite passe sous `members/{uid}` avec toutes ses références (rosters, tous les events en écriture silencieuse, guardians et `parentLinks`, cotisations et paiements, annonces, invitations, `adminIds`). Un code d’équipe ne crée plus de fiche à id aléatoire. Migration de l’existant : `tool/rekey_linked_members.mjs` (dry-run par défaut ; complète aussi `accountUid` sur les fiches liées par le seul `userId` legacy et supprime l’index `member_accounts`)
+- Membres : nettoyage de la double clé — index `member_accounts` et résolveurs uid ↔ memberId supprimés dans l’app, le portail, les Cloud Functions et les rules (ma fiche = `members/{monUid}`, RSVP sous une seule clé) ; les push ne visent plus jamais un id de fiche non liée pris pour un uid (coachs et joueurs passent par `accountUid`) ; cotisations affichées au nom actuel du membre. Ordre de déploiement : migration des données, puis Functions / rules / portail, puis relance du script, puis app 2.3.0 forcée
 - Membres : changer son nom ou sa photo dans les paramètres met à jour sa fiche dans tous ses clubs, même pré-inscrite (trigger serveur `onUserWrittenSyncMemberProfile`, au lieu d’une écriture client qui ratait les fiches dont l’id n’était pas l’uid)
 - Membres : un admin ne peut plus modifier son propre rôle (app + callable) — seul un autre admin peut le faire descendre
 - Membres : un admin en attente (pas encore inscrit) peut à nouveau être supprimé depuis la liste / la fiche

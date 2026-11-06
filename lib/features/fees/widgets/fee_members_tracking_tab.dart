@@ -9,6 +9,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/features/fees/utils/fee_member_names.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_mark_paid_dialogs.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_tracking_stats_card.dart';
@@ -252,7 +253,10 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   Future<void> _exportCsv(BuildContext context, WidgetRef ref) async {
     final season = ref.read(activeSeasonProvider(clubId)).value;
     if (season == null) return;
-    final fees = ref.read(allMemberFeesProvider(clubId)).value ?? [];
+    final fees = withCurrentMemberNames(
+      ref.read(allMemberFeesProvider(clubId)).value ?? [],
+      ref.read(clubMembersProvider(clubId)).value ?? [],
+    );
     try {
       final csv = await ref.read(feeServiceProvider).exportCsv(
             clubId: clubId,
@@ -493,7 +497,8 @@ class FeeMembersTrackingTab extends ConsumerWidget {
           error: (error, stackTrace) => ViroErrorState(
             onRetry: () => ref.invalidate(allMemberFeesProvider(clubId)),
           ),
-          data: (allFees) {
+          data: (storedFees) {
+            final allFees = withCurrentMemberNames(storedFees, members);
             final lists = _splitFees(allFees, season);
             final existingIds = allFees.map((f) => f.memberId).toSet();
             final pendingCount = pendingFeeInitCount(

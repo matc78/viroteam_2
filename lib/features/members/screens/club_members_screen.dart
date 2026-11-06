@@ -254,7 +254,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   }
 
   Future<void> _changeRole(ClubMember member) async {
-    if (member.isAccountOf(ref.read(authStateProvider).value?.uid)) {
+    if (member.memberId == ref.read(authStateProvider).value?.uid) {
       ViroSnackBar.show(context, AppCopy.members.cannotChangeOwnRole);
       return;
     }

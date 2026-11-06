@@ -12,31 +12,31 @@ const teams: TeamOption[] = [
     id: "team1",
     name: "Séniors",
     category: "",
-    playerIds: ["mem-a", "uid-b", "mem-c"],
+    playerIds: ["uid-a", "uid-b", "mem-c"],
     coachIds: ["uid-coach"],
   },
 ];
 
 const directory = buildGuestDirectoryFromPeople([
-  { id: "mem-a", matchIds: ["mem-a", "uid-a"], name: "Alix", role: "player", avatarUrl: null },
-  { id: "mem-b", matchIds: ["mem-b", "uid-b"], name: "Basile", role: "player", avatarUrl: null },
-  { id: "mem-c", matchIds: ["mem-c"], name: "Chloé", role: "player", avatarUrl: null },
+  { id: "uid-a", name: "Alix", role: "player", avatarUrl: null },
+  { id: "uid-b", name: "Basile", role: "player", avatarUrl: null },
+  { id: "mem-c", name: "Chloé", role: "player", avatarUrl: null },
 ]);
 
 describe("buildConvocationRows", () => {
-  it("coche les convoqués, décoche les exclus (via alias), trie par nom", () => {
+  it("coche les convoqués, décoche les exclus, trie par nom", () => {
     const rows = buildConvocationRows({
       event: {
         teamIds: ["team1"],
         teamMemberIds: ["uid-a", "mem-c"],
-        excludedMemberIds: ["mem-b"],
+        excludedMemberIds: ["uid-b"],
       },
       teams,
       directory,
     });
     expect(rows.map((row) => [row.name, row.convoked, row.audienceId])).toEqual([
       ["Alix", true, "uid-a"],
-      ["Basile", false, "mem-b"],
+      ["Basile", false, "uid-b"],
       ["Chloé", true, "mem-c"],
     ]);
   });
@@ -58,14 +58,14 @@ describe("computeConvocationDeltas", () => {
       event: {
         teamIds: ["team1"],
         teamMemberIds: ["uid-a", "mem-c"],
-        excludedMemberIds: ["mem-b"],
+        excludedMemberIds: ["uid-b"],
       },
       teams,
       directory,
     });
     // Alix décochée, Basile recoché, Chloé inchangée.
     const deltas = computeConvocationDeltas(rows, new Set(["uid-b", "mem-c"]));
-    expect(deltas).toEqual({ excludeIds: ["uid-a"], reintegrateIds: ["mem-b"] });
+    expect(deltas).toEqual({ excludeIds: ["uid-a"], reintegrateIds: ["uid-b"] });
   });
 });
 

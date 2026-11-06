@@ -72,77 +72,37 @@ void main() {
 
   group('ClubEvent.rsvpStatusForUser', () {
     test('none quand aucune réponse', () {
-      final event = _event();
-      expect(
-        event.rsvpStatusForUser(
-          'coachUid',
-          clubAudienceId: 'coachMemberId',
-          memberAudienceKeys: {'coachMemberId', 'coachUid'},
-        ),
-        RsvpStatus.none,
-      );
+      expect(_event().rsvpStatusForUser('coachUid'), RsvpStatus.none);
     });
 
-    test('ne reprend pas le RSVP d\'un autre joueur', () {
+    test("ne reprend pas le RSVP d'un autre joueur", () {
       final event = _event(rsvp: {'playerB': 'yes'});
-      expect(
-        event.rsvpStatusForUser(
-          'coachUid',
-          clubAudienceId: 'coachMemberId',
-          memberAudienceKeys: {'coachMemberId', 'coachUid'},
-        ),
-        RsvpStatus.none,
-      );
+      expect(event.rsvpStatusForUser('coachUid'), RsvpStatus.none);
     });
 
-    test('lit le RSVP sous la clé membre du club', () {
-      final event = _event(rsvp: {'coachMemberId': 'yes'});
-      expect(
-        event.rsvpStatusForUser(
-          'coachUid',
-          clubAudienceId: 'coachMemberId',
-          memberAudienceKeys: {'coachMemberId', 'coachUid'},
-        ),
-        RsvpStatus.yes,
-      );
+    test("lit le RSVP sous l'id de la fiche membre", () {
+      final event = _event(rsvp: {'coachUid': 'yes'});
+      expect(event.rsvpStatusForUser('coachUid'), RsvpStatus.yes);
     });
 
-    test('double clé memberId + accountUid : le vote le plus récent gagne', () {
-      // Ancienne app : « oui » sous memberId, `none` périmé sous accountUid.
+    test("lit la présence legacy v1 pour l'utilisateur uniquement", () {
       final event = _event(
-        teamMemberIds: ['accountUid'],
-        rsvp: {'memberId': 'yes', 'accountUid': 'none'},
-        rsvpUpdatedAt: {
-          'memberId': DateTime(2026, 11, 4, 23, 28),
-          'accountUid': DateTime(2026, 11, 3, 23, 22),
+        legacyAttendance: {'coachUid': 'none', 'playerB': 'present'},
+      );
+      expect(event.rsvpStatusForUser('coachUid'), RsvpStatus.none);
+      expect(event.rsvpStatusForUser('playerB'), RsvpStatus.yes);
+    });
+
+    test("un appel coach (markedBy) n'est pas un RSVP", () {
+      final event = _event(
+        legacyAttendance: {
+          'playerB': {
+            FirestoreFields.status: 'present',
+            FirestoreFields.markedBy: 'coachUid',
+          },
         },
       );
-      expect(
-        event.rsvpStatusForUser(
-          'accountUid',
-          clubAudienceId: 'memberId',
-          memberAudienceKeys: {'memberId', 'accountUid'},
-        ),
-        RsvpStatus.yes,
-      );
-      expect(
-        event.rsvpUpdatedAtForUser(
-          'accountUid',
-          clubAudienceId: 'memberId',
-          memberAudienceKeys: {'memberId', 'accountUid'},
-        ),
-        DateTime(2026, 11, 4, 23, 28),
-      );
-    });
-
-    test('lit la présence legacy v1 pour l\'utilisateur uniquement', () {
-      final event = _event(
-        legacyAttendance: {'coachMemberId': 'none', 'playerB': 'present'},
-      );
-      expect(
-        event.rsvpStatusForUser('coachUid', clubAudienceId: 'coachMemberId'),
-        RsvpStatus.none,
-      );
+      expect(event.rsvpStatusForUser('playerB'), RsvpStatus.none);
     });
   });
 
@@ -162,10 +122,7 @@ void main() {
         rsvp: {'uidA': 'no'},
         rsvpUpdatedAt: {'playerA': t1},
       );
-      expect(
-        event.rsvpUpdatedAtForUser('uidA', clubAudienceId: 'playerA'),
-        isNull,
-      );
+      expect(event.rsvpUpdatedAtForUser('uidA'), isNull);
     });
 
     test('null sans réponse, même avec un timestamp résiduel', () {
@@ -177,10 +134,12 @@ void main() {
   group('ClubEvent.seenAtForUser / awaitsSeenBy', () {
     final seen = DateTime(2026, 10, 12, 9, 0);
 
-    test('retrouve la vue sous un alias du membre', () {
+    test("retrouve la vue sous l'id de la fiche, pas celle d'un autre", () {
       final event = _event(seenAt: {'playerA': seen});
-      expect(event.seenAtForUser('uidA', clubAudienceId: 'playerA'), seen);
-      expect(event.awaitsSeenBy('uidA', clubAudienceId: 'playerA'), isFalse);
+      expect(event.seenAtForUser('playerA'), seen);
+      expect(event.awaitsSeenBy('playerA'), isFalse);
+      expect(event.seenAtForUser('playerB'), isNull);
+      expect(event.awaitsSeenBy('playerB'), isTrue);
     });
 
     test('awaitsSeenBy : vrai sans réponse ni vue, faux après réponse', () {

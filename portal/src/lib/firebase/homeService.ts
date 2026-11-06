@@ -1,3 +1,4 @@
+import { getOwnMemberId } from "@/lib/firebase/memberRefs";
 import { ClubRecord } from "./clubService";
 import {
   HOME_PREVIEW_EVENT_LIMIT,
@@ -17,7 +18,6 @@ import {
 } from "./feeService";
 import {
   getClubMember,
-  getLinkedMemberId,
   listClubMembers,
   type ClubMemberRecord,
 } from "./memberService";
@@ -30,10 +30,8 @@ import {
 import {
   eventTouchesTeams,
   eventVisibleToPlayer,
-  eventVisibleToRosterMember,
   teamsCoachedByViewer,
   teamsPlayedByViewer,
-  viewerMatchIds,
 } from "@/lib/teams/viewerTeamScope";
 import { resolveMemberTeams } from "@/lib/members/membersView";
 
@@ -383,7 +381,8 @@ function splitPersonalUpcomingEvents(params: {
   events: UpcomingEvent[];
   coachedTeamIds: Set<string>;
   playedTeamIds: Set<string>;
-  matchIds: Set<string>;
+  /** Id de fiche du viewer (= son uid). */
+  memberId: string | null;
 }): {
   coachedUpcomingEvents: UpcomingEvent[];
   playerUpcomingEvents: UpcomingEvent[];
@@ -398,7 +397,7 @@ function splitPersonalUpcomingEvents(params: {
       return eventVisibleToPlayer({
         event,
         viewerTeamIds: params.playedTeamIds,
-        playerMatchIds: params.matchIds,
+        memberId: params.memberId,
       });
     })
     .slice(0, HOME_PREVIEW_EVENT_LIMIT);
@@ -421,7 +420,7 @@ export async function loadHomeDashboard(params: {
   const [linkedMemberId, { season, fees }, teams, allUpcomingEvents, clubAnnouncements] =
     await Promise.all([
       params.uid
-        ? getLinkedMemberId(params.club.id, params.uid)
+        ? getOwnMemberId(params.club.id, params.uid)
         : Promise.resolve(null),
       getActiveSeason(params.club.id).then(async (activeSeason) => ({
         season: activeSeason,
@@ -458,18 +457,15 @@ export async function loadHomeDashboard(params: {
   const pendingAids = countPendingAids(fees);
   const segments = buildFeeSegments(fees);
 
-  const matchIds = viewerMatchIds({
-    uid: params.uid ?? null,
-    memberId: linkedMemberId,
-  });
-  const coachedTeams = teamsCoachedByViewer(teams, matchIds);
-  const playedTeams = teamsPlayedByViewer(teams, matchIds);
+  const viewerMemberId = params.uid ?? null;
+  const coachedTeams = teamsCoachedByViewer(teams, viewerMemberId);
+  const playedTeams = teamsPlayedByViewer(teams, viewerMemberId);
   const { coachedUpcomingEvents, playerUpcomingEvents } =
     splitPersonalUpcomingEvents({
       events: allUpcomingEvents,
       coachedTeamIds: new Set(coachedTeams.map((team) => team.id)),
       playedTeamIds: new Set(playedTeams.map((team) => team.id)),
-      matchIds,
+      memberId: viewerMemberId,
     });
 
   const billableFees = fees.filter(
@@ -571,15 +567,11 @@ export async function loadCoachHomeDashboard(params: {
     loadTeamsForClub(params.club.id),
     listClubMembers(params.club.id),
     loadUpcomingEvents(params.club.id, { repairAudience: true }),
-    getLinkedMemberId(params.club.id, params.uid),
+    getOwnMemberId(params.club.id, params.uid),
   ]);
 
-  const matchIds = viewerMatchIds({
-    uid: params.uid,
-    memberId: linkedMemberId,
-  });
-  const coachedTeams = teamsCoachedByViewer(teams, matchIds);
-  const playedTeams = teamsPlayedByViewer(teams, matchIds);
+  const coachedTeams = teamsCoachedByViewer(teams, params.uid);
+  const playedTeams = teamsPlayedByViewer(teams, params.uid);
   const coachedTeamIdSet = new Set(coachedTeams.map((team) => team.id));
   const playedTeamIdSet = new Set(playedTeams.map((team) => team.id));
 
@@ -596,21 +588,19 @@ export async function loadCoachHomeDashboard(params: {
     const resolved = resolveMemberTeams(member, teams);
     if (resolved.teamIds.some((teamId) => coachedTeamIdSet.has(teamId))) {
       memberIdSet.add(member.memberId);
-      if (member.accountUid) memberIdSet.add(member.accountUid);
     }
   }
 
-  const scopedMembers = members.filter((member) => {
-    const ids = [member.memberId, member.accountUid].filter(Boolean) as string[];
-    return ids.some((id) => memberIdSet.has(id));
-  });
+  const scopedMembers = members.filter((member) =>
+    memberIdSet.has(member.memberId),
+  );
 
   const { coachedUpcomingEvents, playerUpcomingEvents } =
     splitPersonalUpcomingEvents({
       events: allUpcomingEvents,
       coachedTeamIds: coachedTeamIdSet,
       playedTeamIds: playedTeamIdSet,
-      matchIds,
+      memberId: params.uid,
     });
 
   const { start, end } = nextWeekWindow();
@@ -640,7 +630,7 @@ export async function loadCoachHomeDashboard(params: {
     return eventVisibleToPlayer({
       event,
       viewerTeamIds: playedTeamIdSet,
-      playerMatchIds: matchIds,
+      memberId: params.uid,
     });
   }).length;
 
@@ -673,7 +663,7 @@ export async function loadPlayerHomeDashboard(params: {
 }): Promise<PlayerHomeDashboardData> {
   // Sa propre fiche suffit : pas de liste complète des membres.
   const [linkedMemberId, teams, allUpcomingEvents, season] = await Promise.all([
-    getLinkedMemberId(params.club.id, params.uid),
+    getOwnMemberId(params.club.id, params.uid),
     loadTeamsForClub(params.club.id),
     loadUpcomingEvents(params.club.id),
     getActiveSeason(params.club.id),
@@ -682,26 +672,22 @@ export async function loadPlayerHomeDashboard(params: {
     ? await getClubMember(params.club.id, linkedMemberId).catch(() => null)
     : null;
 
-  const matchIds = viewerMatchIds({
-    uid: params.uid,
-    memberId: linkedMemberId,
-  });
   const playerTeams = teams.filter((team) =>
-    team.playerIds.some((id) => matchIds.has(id)),
+    team.playerIds.includes(params.uid),
   );
   const viewerTeamIdSet = new Set(playerTeams.map((team) => team.id));
 
   const scopedEvents = allUpcomingEvents
     .filter((event) =>
-      eventVisibleToRosterMember({
+      eventVisibleToPlayer({
         event,
-        rosterTeamIds: viewerTeamIdSet,
-        matchIds,
+        viewerTeamIds: viewerTeamIdSet,
+        memberId: params.uid,
       }),
     )
     .slice(0, HOME_PREVIEW_EVENT_LIMIT);
 
-  const feeMemberId = linkedMemberId ?? member?.memberId ?? null;
+  const feeMemberId = linkedMemberId;
   const loadFee = async (): Promise<MemberFeeRecord | null> => {
     if (!season || !feeMemberId) return null;
     try {

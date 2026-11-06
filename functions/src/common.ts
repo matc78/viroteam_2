@@ -57,6 +57,16 @@ export function stringArray(raw: unknown): string[] {
 }
 
 /** Dédoublonne en conservant l'ordre. */
+/**
+ * Uid du compte lié à une fiche membre (`accountUid`, ou `userId` v1),
+ * sinon null. Une seule clé membre : quand il existe, il égale l'id de la
+ * fiche. Fiche non liée ⇒ pas d'uid (jamais de repli sur l'id de fiche).
+ */
+export function accountUidOf(member: { accountUid?: unknown; userId?: unknown } | undefined | null): string | null {
+  const accountUid = String(member?.accountUid ?? member?.userId ?? "").trim();
+  return accountUid.length > 0 ? accountUid : null;
+}
+
 export function uniq(values: string[]): string[] {
   return [...new Set(values)];
 }

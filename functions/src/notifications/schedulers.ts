@@ -93,7 +93,9 @@ async function processEventReminder(params: {
   const entries = await resolveEventAudience(directory, data);
   const coachPrefs = await loadPreferences(
     firestore,
-    entries.filter((entry) => entry.relation === "coach").map((entry) => entry.uid),
+    entries
+      .filter((entry) => entry.relation === "coach")
+      .flatMap((entry) => (entry.uid ? [entry.uid] : [])),
   );
   await sendEventPushToAudience({
     firestore,
@@ -108,7 +110,7 @@ async function processEventReminder(params: {
         data,
         entry,
         entries,
-        coachPrefs.get(entry.uid)?.coachSummaryTiming ??
+        (entry.uid ? coachPrefs.get(entry.uid)?.coachSummaryTiming : undefined) ??
           DEFAULT_COACH_SUMMARY_TIMING,
       ),
   });

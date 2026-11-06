@@ -2,38 +2,19 @@ import { describe, expect, it } from "vitest";
 import { resolveGuestAudience } from "./resolveGuestAudience";
 
 describe("resolveGuestAudience", () => {
-  it("n’écrit qu’un id canonique par personne (pas tous les matchIds)", () => {
+  it("convoque une personne par son id de fiche (= uid si liée)", () => {
     const result = resolveGuestAudience(
-      [{ kind: "person", id: "mem-a" }],
+      [
+        { kind: "person", id: "uid-a" },
+        { kind: "person", id: "mem-b" },
+      ],
       [],
       [
-        {
-          id: "mem-a",
-          matchIds: ["mem-a", "uid-a"],
-          name: "Alix",
-          role: "player",
-          avatarUrl: null,
-        },
+        { id: "uid-a", name: "Alix", role: "player", avatarUrl: null },
+        { id: "mem-b", name: "Matia", role: "player", avatarUrl: null },
       ],
     );
-    expect(result.teamMemberIds).toEqual(["uid-a"]);
-  });
-
-  it("utilise le memberId si le compte n’est pas lié", () => {
-    const result = resolveGuestAudience(
-      [{ kind: "person", id: "mem-b" }],
-      [],
-      [
-        {
-          id: "mem-b",
-          matchIds: ["mem-b"],
-          name: "Matia",
-          role: "player",
-          avatarUrl: null,
-        },
-      ],
-    );
-    expect(result.teamMemberIds).toEqual(["mem-b"]);
+    expect(result.teamMemberIds).toEqual(["uid-a", "mem-b"]);
   });
 
   it("« Tout le club » convoque chaque équipe et chaque membre", () => {
@@ -49,20 +30,8 @@ describe("resolveGuestAudience", () => {
         },
       ],
       [
-        {
-          id: "mem-a",
-          matchIds: ["mem-a", "uid-a"],
-          name: "Alix",
-          role: "player",
-          avatarUrl: null,
-        },
-        {
-          id: "mem-c",
-          matchIds: ["mem-c"],
-          name: "Sans équipe",
-          role: "admin",
-          avatarUrl: null,
-        },
+        { id: "uid-a", name: "Alix", role: "player", avatarUrl: null },
+        { id: "mem-c", name: "Sans équipe", role: "admin", avatarUrl: null },
       ],
     );
     expect(result.allTeams).toBe(true);

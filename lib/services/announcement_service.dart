@@ -5,6 +5,7 @@ import 'package:viro_team_v2/features/announcements/announcement_target_types.da
 import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/services/club_activity_service.dart';
+import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
 
@@ -29,11 +30,7 @@ class AnnouncementService {
     String clubId,
     String memberId,
   ) =>
-      _db
-          .collection(ProjectConfig.clubsCollection)
-          .doc(clubId)
-          .collection(ProjectConfig.membersSubcollection)
-          .doc(memberId);
+      clubMemberRef(_db, clubId, memberId);
 
   Stream<List<ClubAnnouncement>> watchAnnouncements({
     required String clubId,

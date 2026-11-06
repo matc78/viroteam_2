@@ -10,21 +10,19 @@ const REGION = "europe-west1";
 
 /**
  * Fiche membre du compte [uid] dans [clubId] : `members/{uid}` (une seule clé
- * membre), sinon la fiche indexée par `member_accounts/{uid}` tant qu'elle
- * n'est pas re-clée (COMPAT-REKEY : à retirer au nettoyage).
+ * membre), ou null si le compte n'a pas de fiche dans ce club.
  */
 async function accountMemberSnap(
   clubId: string,
   uid: string,
 ): Promise<DocumentSnapshot | null> {
-  const clubRef = db().collection("clubs").doc(clubId);
-  const own = await clubRef.collection("members").doc(uid).get();
-  if (own.exists) return own;
-  const index = await clubRef.collection("member_accounts").doc(uid).get();
-  const memberId = String(index.get("memberId") ?? "").trim();
-  if (!memberId || memberId === uid) return null;
-  const linked = await clubRef.collection("members").doc(memberId).get();
-  return linked.exists ? linked : null;
+  const own = await db()
+    .collection("clubs")
+    .doc(clubId)
+    .collection("members")
+    .doc(uid)
+    .get();
+  return own.exists ? own : null;
 }
 
 /**

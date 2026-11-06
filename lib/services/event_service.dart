@@ -28,11 +28,7 @@ class EventService {
             activityService ?? ClubActivityService(firestore: firestore) {
     final paths = EventPaths(_db);
     _rsvp = EventRsvpOperations(paths: paths, functions: _functions);
-    _upcoming = EventUpcomingQueries(
-      paths: paths,
-      watchClubMember: _rsvp.watchClubMember,
-      rosterAudienceId: _rsvp.rosterAudienceId,
-    );
+    _upcoming = EventUpcomingQueries(paths: paths);
     _day = EventDayQueries(paths: paths);
     _mutations = EventMutations(paths: paths, activity: _activity);
   }
@@ -69,16 +65,14 @@ class EventService {
   static List<ClubEvent> sortedByDate(Iterable<ClubEvent> events) =>
       EventDateHelpers.sortedByDate(events);
 
-  /// Événements à venir où [uid] (et optionnellement [alternateUid]) est convoqué.
+  /// Événements à venir où [memberId] (id de fiche) est convoqué.
   Stream<List<ClubEvent>> watchUpcomingEventsForClub({
     required String clubId,
-    required String uid,
-    String? alternateUid,
+    required String memberId,
   }) =>
       _upcoming.watchUpcomingEventsForClub(
         clubId: clubId,
-        uid: uid,
-        alternateUid: alternateUid,
+        memberId: memberId,
       );
 
   /// Événements des équipes où [authUid] est coach (hors convocation joueur).
@@ -91,41 +85,39 @@ class EventService {
         authUid: authUid,
       );
 
-  /// Joueur convoqué + entraînements des équipes coachées.
+  /// Joueur convoqué + entraînements des équipes coachées (fiche
+  /// `members/{authUid}`).
   Stream<List<ClubEvent>> watchUpcomingEventsForClubMember({
     required String clubId,
-    required String audienceId,
     required String authUid,
   }) =>
       _upcoming.watchUpcomingEventsForClubMember(
         clubId: clubId,
-        audienceId: audienceId,
         authUid: authUid,
       );
 
-  /// Événements des équipes du joueur (compat. v1 : `teamIds` / `teamName`).
+  /// Événements des équipes du joueur [memberId] (compat. v1 : `teamIds` /
+  /// `teamName`).
   Stream<List<ClubEvent>> watchUpcomingEventsForPlayerTeams({
     required String clubId,
-    required String audienceId,
-    required String authUid,
+    required String memberId,
   }) =>
       _upcoming.watchUpcomingEventsForPlayerTeams(
         clubId: clubId,
-        audienceId: audienceId,
-        authUid: authUid,
+        memberId: memberId,
       );
 
   /// Événements à venir visibles par un parent (équipes de l'enfant, hors
-  /// ceux dont l'enfant [childAudienceKeys] a été retiré).
+  /// ceux dont l'enfant [childMemberId] a été retiré).
   Stream<List<ClubEvent>> watchUpcomingEventsForGuardian({
     required String clubId,
     required List<String> childTeamIds,
-    Set<String> childAudienceKeys = const {},
+    String? childMemberId,
   }) =>
       _upcoming.watchUpcomingEventsForGuardian(
         clubId: clubId,
         childTeamIds: childTeamIds,
-        childAudienceKeys: childAudienceKeys,
+        childMemberId: childMemberId,
       );
 
   /// Aperçu club côté parent : prochain à venir, sinon plus récent passé.
@@ -147,20 +139,6 @@ class EventService {
         clubId: clubId,
         memberId: memberId,
       );
-
-  /// Identifiant utilisé dans `teamMemberIds` / `rsvp` pour un membre du club.
-  Future<String> resolveAudienceId({
-    required String clubId,
-    required String authUid,
-  }) =>
-      _rsvp.resolveAudienceId(clubId: clubId, authUid: authUid);
-
-  /// Id du document `members/{memberId}` (cotisations) — distinct de la clé RSVP.
-  Future<String> resolveMemberDocId({
-    required String clubId,
-    required String authUid,
-  }) =>
-      _rsvp.resolveMemberDocId(clubId: clubId, authUid: authUid);
 
   /// Événements à venir pour un membre, tous ses clubs (spec home globale).
   Stream<List<ClubEvent>> watchUpcomingEventsForUser({
@@ -196,14 +174,14 @@ class EventService {
   Stream<List<ClubEvent>> watchGuardianEventsInRange({
     required String clubId,
     required List<String> childTeamIds,
-    Set<String> childAudienceKeys = const {},
+    String? childMemberId,
     required DateTime start,
     required DateTime endExclusive,
   }) =>
       _day.watchGuardianEventsInRange(
         clubId: clubId,
         childTeamIds: childTeamIds,
-        childAudienceKeys: childAudienceKeys,
+        childMemberId: childMemberId,
         start: start,
         endExclusive: endExclusive,
       );
@@ -364,12 +342,12 @@ class EventService {
         markedByUid: markedByUid,
       );
 
-  /// Stream de la fiche membre liée à [uid].
+  /// Stream de la fiche `members/{memberId}` (soi : [memberId] = authUid).
   Stream<ClubMember?> watchClubMember({
     required String clubId,
-    required String uid,
+    required String memberId,
   }) =>
-      _rsvp.watchClubMember(clubId: clubId, uid: uid);
+      _rsvp.watchClubMember(clubId: clubId, memberId: memberId);
 
   /// Prochain événement à venir, ou le plus récent passé (aperçu club).
   Future<ClubEvent?> getHighlightEventForClub(String clubId) =>

@@ -15,7 +15,6 @@ rules_version = '2';
 // Lot 2 (revue chat / parents, 28 sept. 2026) :
 // - Un parent ne lit une fiche membre que si c'est son enfant, un membre des
 //   équipes de ses enfants (coach, coéquipier) ou un admin (cible de DM).
-//   `member_accounts` : `get` seul pour un parent (résolution uid → fiche), pas de `list`.
 // - Conversation : rename réservé aux participants qui ont le droit d'écrire,
 //   `titleOverride` string ≤ 80 (ou null pour effacer) ; preview inbox bornée.
 // - Message : liste fermée de champs à la création, `createdAt` = horodatage
@@ -28,6 +27,14 @@ rules_version = '2';
 //   rôle `admin` réservé aux admins.
 // - Invitation : `role` figé après création ; un coach ne modifie plus une
 //   invitation admin ; `guardian` / `team` réservées aux Cloud Functions.
+//
+// Une seule clé membre (nov. 2026) :
+// - La fiche d'un compte est `members/{auth.uid}` ; rosters, RSVP, guardians,
+//   cotisations sont indexés par cet id. Plus d'index `member_accounts` ni de
+//   clé RSVP « legacy » sous un ancien memberId.
+// - `member_accounts` (vide) : `get` gardé pour les anciennes apps (un doc
+//   absent répond « inexistant », un refus lèverait une erreur) ; ni `list`
+//   ni écriture.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -59,11 +66,9 @@ service cloud.firestore {
     // Appartenance au club
     // ————————————————————————————————————————————————————————————
 
+    /// Fiche du compte connecté (une seule clé membre : id = Auth uid).
     function memberDocRef(clubId) {
-      let accountIndex = /databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid);
-      return exists(accountIndex)
-        ? /databases/$(database)/documents/clubs/$(clubId)/members/$(get(accountIndex).data.memberId)
-        : /databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid);
+      return /databases/$(database)/documents/clubs/$(clubId)/members/$(request.auth.uid);
     }
 
     function isClubMember(clubId) {
@@ -120,45 +125,15 @@ service cloud.firestore {
         || (isClubCoach(clubId) && coachPermission(clubId, 'canInvitePlayers', true));
     }
 
-    /// Identifiants roster du compte connecté : uid, et fiche liée si indexée.
-    function myRosterIds(clubId) {
-      let accountIndex = /databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid);
-      return exists(accountIndex)
-        ? [request.auth.uid, get(accountIndex).data.memberId]
-        : [request.auth.uid];
-    }
-
     /// Un coach ne modifie que les équipes qu'il encadre, sans toucher à la
     /// liste des coachs (réservée à l'admin) ; le roster joueurs suit le droit
     /// `canManageTeamRoster` (vrai par défaut).
     function isCoachTeamUpdate(clubId) {
       return isClubCoach(clubId)
-        && resource.data.get('coachIds', []).hasAny(myRosterIds(clubId))
+        && request.auth.uid in resource.data.get('coachIds', [])
         && !affectedKeys().hasAny(['coachIds'])
         && (!affectedKeys().hasAny(['playerIds', 'pendingPlayerIds'])
           || coachPermission(clubId, 'canManageTeamRoster', true));
-    }
-
-    /// Le compte connecté est le titulaire de la fiche `memberId`
-    /// (fiche à son uid, ou index `member_accounts` qui pointe vers elle).
-    function ownsMemberDoc(clubId, memberId) {
-      return isOwner(memberId)
-        || (isSignedIn()
-          && exists(/databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid))
-          && get(/databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid)).data.memberId == memberId);
-    }
-
-    /// Clé RSVP / seenAt canonique = Auth uid (aligné reconcile / app).
-    function audienceMemberId(clubId) {
-      return request.auth.uid;
-    }
-
-    /// `memberId` pré-créé lié au compte, s'il diffère de l'Auth uid.
-    function linkedLegacyMemberId(clubId) {
-      let accountIndex = /databases/$(database)/documents/clubs/$(clubId)/member_accounts/$(request.auth.uid);
-      return exists(accountIndex)
-        ? get(accountIndex).data.memberId
-        : request.auth.uid;
     }
 
     // ————————————————————————————————————————————————————————————
@@ -225,61 +200,31 @@ service cloud.firestore {
       ];
     }
 
-    /// Map audience → Timestamp : Auth uid et/ou memberId lié (transition app).
-    function ownServerTimestampOk(field, clubId) {
-      let ownId = audienceMemberId(clubId);
-      let legacyId = linkedLegacyMemberId(clubId);
-      let before = resource.data.get(field, {});
+    /// Map audience → Timestamp : seule la clé du compte (= id de sa fiche,
+    /// l'Auth uid), posée à l'horodatage serveur.
+    function ownServerTimestampOk(field) {
       let after = request.resource.data.get(field, {});
-      let changed = after.diff(before).affectedKeys();
       return !affectedKeys().hasAny([field]) || (
-        (
-          changed.hasOnly([ownId])
-          && after[ownId] == request.time
-        ) || (
-          // Ancienne app : écrit encore sous memberId.
-          legacyId != ownId
-          && changed.hasOnly([legacyId])
-          && after[legacyId] == request.time
-        ) || (
-          // Nouvelle app : Auth uid + delete de la clé memberId.
-          legacyId != ownId
-          && changed.hasOnly([ownId, legacyId])
-          && after[ownId] == request.time
-          && !(legacyId in after)
-        )
+        after.diff(resource.data.get(field, {})).affectedKeys().hasOnly([request.auth.uid])
+        && after[request.auth.uid] == request.time
       );
     }
 
-    /// RSVP : Auth uid (canon), memberId lié (ancienne app), ou uid + delete legacy.
-    function ownRsvpMapOk(clubId) {
-      let ownId = audienceMemberId(clubId);
-      let legacyId = linkedLegacyMemberId(clubId);
-      let before = resource.data.get('rsvp', {});
-      let after = request.resource.data.get('rsvp', {});
-      let changed = after.diff(before).affectedKeys();
-      return !affectedKeys().hasAny(['rsvp']) || (
-        changed.hasOnly([ownId])
-        || (
-          legacyId != ownId
-          && changed.hasOnly([legacyId])
-        )
-        || (
-          legacyId != ownId
-          && changed.hasOnly([ownId, legacyId])
-          && !(legacyId in after)
-        )
-      );
+    /// RSVP : seule la clé du compte (= id de sa fiche, l'Auth uid).
+    function ownRsvpMapOk() {
+      return !affectedKeys().hasAny(['rsvp'])
+        || request.resource.data.get('rsvp', {})
+          .diff(resource.data.get('rsvp', {})).affectedKeys().hasOnly([request.auth.uid]);
     }
 
     /// Le membre ne modifie que ses propres clés : `rsvp`, son horodatage
-    /// `rsvpUpdatedAt` et sa vue `seenAt` (plus nettoyage d'alias memberId).
+    /// `rsvpUpdatedAt` et sa vue `seenAt`.
     function onlyOwnAudienceUpdate(clubId) {
       return isClubMember(clubId)
         && affectedKeys().hasOnly(['rsvp', 'rsvpUpdatedAt', 'seenAt', 'updatedAt'])
-        && ownRsvpMapOk(clubId)
-        && ownServerTimestampOk('rsvpUpdatedAt', clubId)
-        && ownServerTimestampOk('seenAt', clubId);
+        && ownRsvpMapOk()
+        && ownServerTimestampOk('rsvpUpdatedAt')
+        && ownServerTimestampOk('seenAt');
     }
 
     /// Staff : MAJ event OK sauf écriture du RSVP d’un autre (passe par callable).
@@ -288,15 +233,15 @@ service cloud.firestore {
         && (
           !affectedKeys().hasAny(['rsvp', 'rsvpUpdatedAt'])
           || (
-            ownRsvpMapOk(clubId)
-            && ownServerTimestampOk('rsvpUpdatedAt', clubId)
+            ownRsvpMapOk()
+            && ownServerTimestampOk('rsvpUpdatedAt')
           )
         );
     }
 
     /// Le titulaire d'une fiche ne modifie que son profil affiché.
-    function isOwnProfileUpdate(clubId, memberId) {
-      return ownsMemberDoc(clubId, memberId)
+    function isOwnProfileUpdate(memberId) {
+      return isOwner(memberId)
         && affectedKeys().hasOnly([
           'firstName', 'lastName', 'snapshot', 'dismissedAnnouncementIds', 'updatedAt'
         ]);
@@ -320,7 +265,7 @@ service cloud.firestore {
     /// Fiche pré-créée par un coach/admin : `memberId` = id du doc, aucun compte
     /// lié (la liaison passe par `acceptInvitation`), rôle plafonné. Sans ça,
     /// un coach créait `members/{uidQuelconque}` en `admin` et ce compte
-    /// devenait admin via le repli `memberDocRef` → `members/{auth.uid}`.
+    /// devenait admin via `memberDocRef` → `members/{auth.uid}`.
     function isPreCreatedMemberCreate(clubId, memberId) {
       return canInviteMembers(clubId)
         && request.resource.data.get('memberId', memberId) == memberId
@@ -362,7 +307,7 @@ service cloud.firestore {
     /// vue depuis « Mon parent » sur la fiche club du joueur).
     function isOwnMemberInvite(clubId) {
       return resource.data.get('memberId', '') is string
-        && ownsMemberDoc(clubId, resource.data.memberId);
+        && isOwner(resource.data.memberId);
     }
 
     // ————————————————————————————————————————————————————————————
@@ -458,7 +403,7 @@ service cloud.firestore {
             && isInClubAdminIdsAfter(clubId));
         allow update: if isClubAdmin(clubId)
           || isCoachMemberUpdate(clubId)
-          || isOwnProfileUpdate(clubId, memberId);
+          || isOwnProfileUpdate(memberId);
         // Retrait d'un membre : callable `removeMember`.
         allow delete: if false;
 
@@ -467,22 +412,21 @@ service cloud.firestore {
           // Écriture : Cloud Functions uniquement.
           allow read: if isClubMember(clubId)
             || isOwner(parentUid)
-            || ownsMemberDoc(clubId, memberId);
+            || isOwner(memberId);
           allow write: if false;
         }
       }
 
-      // ——— Index compte → fiche (Cloud Functions uniquement) ———
+      // ——— Ancien index compte → fiche (supprimé : une seule clé membre) ———
       match /member_accounts/{accountUid} {
-        // Parent : `get` seul — résout un uid Auth (adminIds / coachIds) vers
-        // la fiche pour ses cibles de DM (new_conversation_sheet). Pas de
-        // `list` : le doc ne contient que `memberId`, mais on ne donne pas
-        // l'annuaire complet du club.
+        // Collection vide. `get` conservé tant que les apps ≤ 2.2.15 tournent :
+        // elles lisent `member_accounts/{uid}` puis se replient sur l'uid ; un
+        // doc absent répond « inexistant », un refus lèverait une erreur.
+        // Pas de `list` (le repli de l'ancienne app passe par des `get`).
         allow get: if isClubMember(clubId)
           || isOwner(accountUid)
           || isClubGuardian(clubId);
-        allow list: if isClubMember(clubId);
-        allow write: if false;
+        allow list, write: if false;
       }
 
       // ——— Invitations ———
@@ -1082,7 +1026,7 @@ service cloud.firestore {
         match /member_fees/{memberId} {
           // Admin / coach : list + get. Joueur / parent : sa fiche seulement.
           allow read: if isClubCoachOrAdmin(clubId)
-            || ownsMemberDoc(clubId, memberId)
+            || isOwner(memberId)
             || isActiveGuardianOf(clubId, memberId);
           // Admin manuel (hors-ligne / aides) ; CB via Cloud Functions (Admin SDK).
           // Les champs de rapprochement CB (idempotence webhook, excédent) ne
@@ -1099,7 +1043,7 @@ service cloud.firestore {
           // (même batch / transaction que la mise à jour de `member_fees`).
           match /payment_events/{eventId} {
             allow read: if isClubCoachOrAdmin(clubId)
-              || ownsMemberDoc(clubId, memberId)
+              || isOwner(memberId)
               || isActiveGuardianOf(clubId, memberId);
             allow create: if isClubAdmin(clubId)
               && request.resource.data.get('actorUid', '') == request.auth.uid

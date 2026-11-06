@@ -129,23 +129,17 @@ class _PlanningRollCallSheetState extends ConsumerState<PlanningRollCallSheet> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (_, __) => const ViroErrorState(),
       data: (members) {
-        final byUid = indexClubMembersByUid(members);
+        final byId = indexClubMembersById(members);
         final playerIds = dedupedPlayerMemberIds(
           event: widget.event,
           excludeCoachUids: widget.excludeCoachUids,
-          membersByUid: byUid,
         );
         _seedFromEvent(playerIds);
 
-        final entries = <({String id, ClubMember member})>[];
-        final seenMembers = <String>{};
-        for (final id in playerIds) {
-          final member = clubMemberForTeamUid(byUid, id);
-          if (member == null) continue;
-          if (seenMembers.contains(member.memberId)) continue;
-          seenMembers.add(member.memberId);
-          entries.add((id: id, member: member));
-        }
+        final entries = <({String id, ClubMember member})>[
+          for (final id in playerIds)
+            if (byId[id] case final member?) (id: id, member: member),
+        ];
         entries.sort((a, b) {
           final an = a.member.fullName.toLowerCase();
           final bn = b.member.fullName.toLowerCase();

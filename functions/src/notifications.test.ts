@@ -700,6 +700,24 @@ test("tallyRsvp : une voix par joueur convoqué", () => {
   assert.deepEqual(tallyRsvp(audience), { yes: 1, no: 1, maybe: 0, none: 1 });
 });
 
+test("fiche non liée (uid null) : comptée au décompte, absente des récaps", () => {
+  const withUnlinked: EventAudienceEntry[] = [
+    ...audience,
+    { uid: null, relation: "self", memberId: "m-kid", rsvp: "yes" },
+    { uid: "p-kid", relation: "guardian", memberId: "m-kid", rsvp: "yes" },
+  ];
+  assert.deepEqual(tallyRsvp(withUnlinked), { yes: 2, no: 1, maybe: 0, none: 1 });
+  const digests = new Map<string, DigestRecipient>();
+  addEventToDigests({
+    digests,
+    clubId: "c1",
+    eventData: { type: "training", dateId: "20261027" },
+    entries: withUnlinked,
+  });
+  assert.equal(digests.has("m-kid"), false);
+  assert.equal(digests.get("p-kid")!.items.length, 1);
+});
+
 test("isEventPostponedChange / champs modifiés / bookkeeping", () => {
   assert.equal(
     isEventPostponedChange(

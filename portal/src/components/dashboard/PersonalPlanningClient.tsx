@@ -299,12 +299,11 @@ export function PersonalPlanningClient({
           data?.viewerMemberIdByClub[selectedEvent.clubId] ?? null,
         childMemberIds:
           data?.childMemberIdsByClub[selectedEvent.clubId] ?? [],
-        viewerUid: user?.uid ?? null,
       })
     : null;
 
   /** Ids viewer + enfants pour filled/outline RSVP sur les blocs agenda. */
-  const calendarViewerMatchIds = useMemo(() => {
+  const calendarViewerMemberIds = useMemo(() => {
     const ids = new Set<string>();
     if (user?.uid) ids.add(user.uid);
     if (!data) return [...ids];
@@ -411,7 +410,7 @@ export function PersonalPlanningClient({
               }}
               onCreateEvent={() => undefined}
               pendingCreate={null}
-              viewerMatchIds={calendarViewerMatchIds}
+              viewerMemberIds={calendarViewerMemberIds}
             />
           </div>
         </div>

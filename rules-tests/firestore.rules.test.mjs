@@ -180,9 +180,6 @@ beforeEach(async () => {
     for (const u of [STRANGER, INVITEE]) {
       await setDoc(doc(db, `users/${u.uid}`), { email: u.email, emailNorm: u.email });
     }
-    for (const u of [ADMIN, COACH, PLAYER, OTHER_PLAYER]) {
-      await setDoc(doc(db, `clubs/${CLUB}/member_accounts/${u.uid}`), { memberId: u.uid });
-    }
     // Conversations système (participants maintenus par les Cloud Functions).
     await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_TEAM}`), {
       type: "team",
@@ -382,7 +379,7 @@ test("un membre ne peut pas s'approprier une fiche pré-créée (accountUid)", a
   );
 });
 
-test("le client ne peut pas écrire member_accounts (index compte → fiche)", async () => {
+test("le client ne peut pas écrire member_accounts (ancien index compte → fiche)", async () => {
   await assertFails(
     setDoc(doc(as(INVITEE), `clubs/${CLUB}/member_accounts/${INVITEE.uid}`), {
       memberId: "precreated1",
@@ -897,9 +894,9 @@ test("un coach ne peut pas patcher le RSVP d'un joueur côté client", async () 
   );
 });
 
-test("fiche pré-créée : RSVP sous auth uid, pas sous memberId legacy", async () => {
+test("fiche re-clée sur l'uid : RSVP sous sa seule clé, plus sous l'ancien memberId", async () => {
   const linkedUid = "linkedPlayer1";
-  const legacyMemberId = "mem-pre-linked";
+  const formerMemberId = "mem-pre-linked";
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, `users/${linkedUid}`), {
@@ -907,21 +904,21 @@ test("fiche pré-créée : RSVP sous auth uid, pas sous memberId legacy", async 
       emailNorm: "linked@club.fr",
       memberClubIds: [CLUB],
     });
-    await setDoc(doc(db, `clubs/${CLUB}/members/${legacyMemberId}`), {
-      memberId: legacyMemberId,
+    // Une seule clé membre : la fiche liée vit à members/{uid}.
+    await setDoc(doc(db, `clubs/${CLUB}/members/${linkedUid}`), {
+      memberId: linkedUid,
       accountUid: linkedUid,
+      userId: linkedUid,
+      formerMemberIds: [formerMemberId],
       role: "player",
       status: "active",
       teamIds: ["teamA"],
-    });
-    await setDoc(doc(db, `clubs/${CLUB}/member_accounts/${linkedUid}`), {
-      memberId: legacyMemberId,
     });
     await setDoc(doc(db, `clubs/${CLUB}/events/evLinked`), {
       title: "Entraînement lié",
       teamIds: ["teamA"],
       teamMemberIds: [linkedUid],
-      rsvp: { [linkedUid]: "yes", [legacyMemberId]: "yes" },
+      rsvp: { [linkedUid]: "yes" },
     });
   });
 
@@ -934,19 +931,17 @@ test("fiche pré-créée : RSVP sous auth uid, pas sous memberId legacy", async 
       [`rsvpUpdatedAt.${linkedUid}`]: serverTimestamp(),
     }),
   );
-  // Ancienne app : encore autorisée sous memberId (transition store).
-  await assertSucceeds(
+  // L'ancien memberId n'est plus une clé du compte.
+  await assertFails(
     updateDoc(doc(asLinked(), eventPath), {
-      [`rsvp.${legacyMemberId}`]: "yes",
-      [`rsvpUpdatedAt.${legacyMemberId}`]: serverTimestamp(),
+      [`rsvp.${formerMemberId}`]: "yes",
+      [`rsvpUpdatedAt.${formerMemberId}`]: serverTimestamp(),
     }),
   );
-  await assertSucceeds(
+  await assertFails(
     updateDoc(doc(asLinked(), eventPath), {
       [`rsvp.${linkedUid}`]: "maybe",
-      [`rsvpUpdatedAt.${linkedUid}`]: serverTimestamp(),
-      [`rsvp.${legacyMemberId}`]: deleteField(),
-      [`rsvpUpdatedAt.${legacyMemberId}`]: deleteField(),
+      [`rsvp.${formerMemberId}`]: "maybe",
     }),
   );
 });
@@ -1008,10 +1003,15 @@ test("un parent ne lit pas la fiche d'un joueur d'une autre équipe", async () =
   await assertFails(getDocs(collection(as(PARENT), `clubs/${CLUB}/members`)));
 });
 
-test("un parent résout un uid via member_accounts (get) mais ne liste pas l'index", async () => {
-  await assertSucceeds(getDoc(doc(as(PARENT), `clubs/${CLUB}/member_accounts/${COACH.uid}`)));
+test("member_accounts supprimé : get (doc absent) toléré pour les anciennes apps, jamais list", async () => {
+  // Les apps ≤ 2.2.15 lisent member_accounts/{uid} puis se replient sur l'uid :
+  // la lecture d'un doc absent doit répondre « inexistant », pas lever.
+  const asParent = await getDoc(doc(as(PARENT), `clubs/${CLUB}/member_accounts/${COACH.uid}`));
+  assert.equal(asParent.exists(), false);
+  await assertSucceeds(getDoc(doc(as(PLAYER), `clubs/${CLUB}/member_accounts/${PLAYER.uid}`)));
+  await assertFails(getDoc(doc(as(STRANGER), `clubs/${CLUB}/member_accounts/${PLAYER.uid}`)));
   await assertFails(getDocs(collection(as(PARENT), `clubs/${CLUB}/member_accounts`)));
-  await assertSucceeds(getDocs(collection(as(PLAYER), `clubs/${CLUB}/member_accounts`)));
+  await assertFails(getDocs(collection(as(PLAYER), `clubs/${CLUB}/member_accounts`)));
 });
 
 // ————————————————————————————————————————————————————————————————

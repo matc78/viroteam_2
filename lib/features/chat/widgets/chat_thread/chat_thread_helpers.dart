@@ -78,11 +78,7 @@ String chatThreadReplyPreviewText(ChatMessage message) {
 /// Prénom affiché pour un uid participant (réactions).
 String chatThreadReactorNameFor(String uid, List<ClubMember> members) {
   for (final member in members) {
-    if (member.accountUid != uid &&
-        member.effectiveUid != uid &&
-        member.memberId != uid) {
-      continue;
-    }
+    if (member.accountUid != uid) continue;
     final first = member.preferredFirstName.trim();
     if (first.isNotEmpty && first != AppCopy.common.childFallback) {
       return first;

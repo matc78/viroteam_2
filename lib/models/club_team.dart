@@ -30,28 +30,12 @@ class ClubTeam {
   String get categoryLabel =>
       (category != null && category!.isNotEmpty) ? category! : 'Sans catégorie';
 
-  /// Identifiants possibles d'un membre sur le roster (memberId, UID Auth, etc.).
-  static Set<String> rosterIdVariants(ClubMember member) {
-    final ids = <String>{
-      member.memberId,
-      member.effectiveUid,
-    };
-    final accountUid = member.accountUid;
-    if (accountUid != null && accountUid.isNotEmpty) {
-      ids.add(accountUid);
-    }
-    return ids.where((id) => id.isNotEmpty).toSet();
-  }
+  /// `true` si [member] est sur le roster joueurs (clé = id de la fiche).
+  bool isOnPlayerRoster(ClubMember member) =>
+      playerIds.contains(member.memberId);
 
-  bool isOnPlayerRoster(ClubMember member) {
-    final ids = rosterIdVariants(member);
-    return playerIds.any(ids.contains);
-  }
-
-  bool isOnCoachRoster(ClubMember member) {
-    final ids = rosterIdVariants(member);
-    return coachIds.any(ids.contains);
-  }
+  /// `true` si [member] est sur le roster coachs (clé = id de la fiche).
+  bool isOnCoachRoster(ClubMember member) => coachIds.contains(member.memberId);
 
   bool isPendingOnRoster(String pendingId) =>
       pendingPlayerIds.contains(pendingId);

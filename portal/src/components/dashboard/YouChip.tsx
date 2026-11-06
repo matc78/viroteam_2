@@ -13,14 +13,12 @@ export function YouChip({ className }: { className?: string }) {
 }
 
 /**
- * True si la fiche membre correspond au compte Auth courant
- * (`accountUid` ou `memberId` legacy = uid).
+ * True si la fiche membre est celle du compte Auth courant
+ * (une fiche liée vit à `members/{uid}`).
  */
 export function isCurrentUserMember(
-  member: { memberId: string; accountUid?: string | null },
+  member: { memberId: string },
   uid: string | null | undefined,
 ): boolean {
-  if (!uid) return false;
-  if (member.accountUid && member.accountUid === uid) return true;
-  return member.memberId === uid;
+  return Boolean(uid) && member.memberId === uid;
 }

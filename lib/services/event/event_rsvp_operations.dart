@@ -6,9 +6,8 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/event/event_paths.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
-import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
-/// RSVP, appel coach, résolution d'audience et stats de présence.
+/// RSVP, appel coach, fiche membre et stats de présence.
 class EventRsvpOperations {
   /// Crée le module RSVP / attendance / audience.
   EventRsvpOperations({
@@ -27,66 +26,9 @@ class EventRsvpOperations {
     FirestoreFields.seenAt,
   ];
 
-  /// ID présent dans `teamMemberIds` / `playerIds` (`accountUid` si lié).
-  String rosterAudienceId(ClubMember member, String authUid) =>
-      member.effectiveUid;
-
-  /// Clé RSVP / convocation pour le compte connecté (`authUid` si lié).
-  ///
-  /// Aligné sur `reconcileRosterIds` / portail : canon = accountUid une fois
-  /// le compte rattaché, sinon `memberId` de la fiche.
-  Future<String> resolveAudienceId({
-    required String clubId,
-    required String authUid,
-  }) async {
-    final indexSnap = await _paths.memberAccountRef(clubId, authUid).get();
-    if (indexSnap.exists) return authUid;
-
-    final memberSnap = await _paths.memberRef(clubId, authUid).get();
-    if (memberSnap.exists) {
-      final accountUid =
-          memberSnap.data()?[FirestoreFields.accountUid] as String?;
-      if (accountUid != null && accountUid.isNotEmpty) return authUid;
-      return memberSnap.id;
-    }
-
-    return authUid;
-  }
-
-  /// Id du document `members/{memberId}` (cotisations, fiche) — pas la clé RSVP.
-  Future<String> resolveMemberDocId({
-    required String clubId,
-    required String authUid,
-  }) async {
-    final indexSnap = await _paths.memberAccountRef(clubId, authUid).get();
-    if (indexSnap.exists) {
-      final linked =
-          indexSnap.data()?[FirestoreFields.linkedMemberId] as String?;
-      if (linked != null && linked.isNotEmpty) return linked;
-    }
-
-    final memberSnap = await _paths.memberRef(clubId, authUid).get();
-    if (memberSnap.exists) return memberSnap.id;
-    return authUid;
-  }
-
-  /// `memberId` pré-créé distinct de [authUid], ou null.
-  Future<String?> _legacyLinkedMemberId({
-    required String clubId,
-    required String authUid,
-  }) async {
-    final indexSnap = await _paths.memberAccountRef(clubId, authUid).get();
-    if (!indexSnap.exists) return null;
-    final linked =
-        indexSnap.data()?[FirestoreFields.linkedMemberId] as String?;
-    if (linked == null || linked.isEmpty || linked == authUid) return null;
-    return linked;
-  }
-
-  /// Enregistre le RSVP de [uid] (clé audience : soi = authUid, ou enfant).
+  /// Enregistre le RSVP de [uid] (id de fiche : soi = authUid, ou enfant).
   ///
   /// [viaCallable] : parent pour un enfant (rules : clé du connecté seulement).
-  /// Pour soi : nettoie aussi une éventuelle clé `memberId` legacy.
   Future<void> updateRsvp({
     required String clubId,
     required String eventId,
@@ -105,23 +47,15 @@ class EventRsvpOperations {
       });
       return;
     }
-    final updates = <String, dynamic>{
+    await _paths.events(clubId).doc(eventId).update({
       '${FirestoreFields.rsvp}.$uid': status.firestoreValue,
       '${FirestoreFields.rsvpUpdatedAt}.$uid': FieldValue.serverTimestamp(),
-    };
-    final legacyId = await _legacyLinkedMemberId(clubId: clubId, authUid: uid);
-    if (legacyId != null) {
-      updates['${FirestoreFields.rsvp}.$legacyId'] = FieldValue.delete();
-      updates['${FirestoreFields.rsvpUpdatedAt}.$legacyId'] =
-          FieldValue.delete();
-    }
-    await _paths.events(clubId).doc(eventId).update(updates);
+    });
   }
 
   /// Marque l'événement comme vu par [audienceId] (soi ou enfant).
   ///
   /// [viaCallable] : parent pour un enfant (callable `markEventSeen`).
-  /// Pour soi : nettoie aussi une éventuelle clé `memberId` legacy.
   Future<void> markSeen({
     required String clubId,
     required String eventId,
@@ -138,17 +72,9 @@ class EventRsvpOperations {
       });
       return;
     }
-    final updates = <String, dynamic>{
+    await _paths.events(clubId).doc(eventId).update({
       '${FirestoreFields.seenAt}.$audienceId': FieldValue.serverTimestamp(),
-    };
-    final legacyId = await _legacyLinkedMemberId(
-      clubId: clubId,
-      authUid: audienceId,
-    );
-    if (legacyId != null) {
-      updates['${FirestoreFields.seenAt}.$legacyId'] = FieldValue.delete();
-    }
-    await _paths.events(clubId).doc(eventId).update(updates);
+    });
   }
 
   /// Enregistre l'appel coach (`attendance`) sans modifier `rsvp`.
@@ -173,25 +99,14 @@ class EventRsvpOperations {
     await _paths.events(clubId).doc(eventId).update(updates);
   }
 
-  /// Stream de la fiche membre liée à [uid] (via `memberAccounts` si besoin).
+  /// Stream de la fiche `members/{memberId}` (soi : [memberId] = authUid).
   Stream<ClubMember?> watchClubMember({
     required String clubId,
-    required String uid,
+    required String memberId,
   }) {
-    final accountIndexRef = _paths.memberAccountRef(clubId, uid);
-
-    return accountIndexRef.snapshots().switchMap((indexSnap) {
-      String? linkedMemberId;
-      if (indexSnap.exists) {
-        final indexData = indexSnap.data();
-        linkedMemberId =
-            indexData?[FirestoreFields.linkedMemberId] as String?;
-      }
-      final targetId = linkedMemberId ?? uid;
-      return _paths.memberRef(clubId, targetId).snapshots().map((doc) {
-        if (!doc.exists) return null;
-        return ClubMember.fromFirestore(doc);
-      });
+    return _paths.memberRef(clubId, memberId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return ClubMember.fromFirestore(doc);
     });
   }
 
@@ -203,14 +118,10 @@ class EventRsvpOperations {
     required String clubId,
     required String authUid,
   }) async {
-    final audienceId = await resolveAudienceId(
-      clubId: clubId,
-      authUid: authUid,
-    );
     final since = DateTime.now().subtract(const Duration(days: 30));
     final snap = await _paths
         .events(clubId)
-        .where(FirestoreFields.teamMemberIds, arrayContains: audienceId)
+        .where(FirestoreFields.teamMemberIds, arrayContains: authUid)
         .where(
           FirestoreFields.date,
           isGreaterThanOrEqualTo: Timestamp.fromDate(since),
@@ -227,10 +138,7 @@ class EventRsvpOperations {
     for (final doc in snap.docs) {
       final event = ClubEvent.fromFirestore(clubId: clubId, doc: doc);
       if (event.canceled) continue;
-      final status = event.rsvpStatusForUser(
-        authUid,
-        clubAudienceId: audienceId,
-      );
+      final status = event.rsvpStatusForUser(authUid);
       if (status == RsvpStatus.none) continue;
       answered++;
       if (status == RsvpStatus.yes) yesCount++;

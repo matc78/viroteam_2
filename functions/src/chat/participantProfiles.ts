@@ -7,6 +7,7 @@
  *
  * Helpers purs (aucune dépendance à firebase-admin) pour `node --test`.
  */
+import { accountUidOf } from "../common";
 
 /** Profil affichable d’un participant (clé = uid Auth). */
 export type ChatParticipantProfile = {
@@ -37,9 +38,12 @@ function withAvatar(
   return avatarUrl ? { ...profile, avatarUrl } : profile;
 }
 
-/** Uid Auth d’une fiche membre (`accountUid`, sinon `userId`), ou `null`. */
+/**
+ * Uid Auth d’une fiche membre (`accountUid`, sinon `userId`), ou `null` si
+ * non liée. Une seule clé membre : quand il existe, il égale l’id de la fiche.
+ */
 export function memberAuthUid(data: Record<string, unknown>): string | null {
-  return text(data.accountUid) || text(data.userId) || null;
+  return accountUidOf(data);
 }
 
 /** Profil depuis une fiche `members/{id}` (nom + avatar du snapshot). */
@@ -74,23 +78,17 @@ export function profileFromUser(
 }
 
 /**
- * Annuaire uid Auth → profil depuis les fiches membres du club.
- * Une fiche active l’emporte sur une fiche archivée du même compte.
+ * Annuaire uid Auth → profil depuis les fiches membres du club (une seule
+ * clé membre : une fiche par compte). Fiches sans compte ignorées.
  */
 export function memberDirectoryFromDocs(
   docs: MemberDocLike[],
 ): Map<string, ChatParticipantProfile> {
   const directory = new Map<string, ChatParticipantProfile>();
-  const archivedUids = new Set<string>();
   for (const doc of docs) {
     const data = doc.data();
     const uid = memberAuthUid(data);
-    if (!uid) continue;
-    const archived = text(data.status) === "archived";
-    if (directory.has(uid) && (archived || !archivedUids.has(uid))) continue;
-    directory.set(uid, profileFromMember(data));
-    if (archived) archivedUids.add(uid);
-    else archivedUids.delete(uid);
+    if (uid) directory.set(uid, profileFromMember(data));
   }
   return directory;
 }

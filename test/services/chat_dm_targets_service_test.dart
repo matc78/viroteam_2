@@ -5,16 +5,17 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/services/chat/chat_dm_targets_service.dart';
 
+/// Fiche liée : id = uid Auth ; [linked] à `false` → fiche sans compte.
 ClubMember _member(
   String memberId, {
-  String? accountUid,
+  bool linked = true,
   String role = MemberRoles.coach,
   String? firstName,
   String? lastName,
 }) =>
     ClubMember(
       memberId: memberId,
-      accountUid: accountUid,
+      accountUid: linked ? memberId : null,
       role: role,
       status: 'active',
       firstName: firstName,
@@ -35,40 +36,24 @@ void main() {
           _team('t2', const ['coachB']),
         ],
         members: [
-          _member('m-admin', accountUid: 'adminAuth', role: MemberRoles.admin),
-          _member('m-admin2', role: MemberRoles.admin),
-          _member('m-player', accountUid: 'p', role: MemberRoles.player),
+          _member('adminAuth', role: MemberRoles.admin),
+          _member('m-admin2', linked: false, role: MemberRoles.admin),
+          _member('p', role: MemberRoles.player),
         ],
       );
 
-      expect(
-        ids.toList(),
-        ['adminAuth', 'coachA', 'coachB', 'm-admin', 'm-admin2'],
-      );
+      expect(ids.toList(), ['adminAuth', 'coachA', 'coachB', 'm-admin2']);
     });
   });
 
   group('indexChatDmMembers', () {
-    test('indexe par memberId et par uid Auth', () {
-      final coach = _member('m1', accountUid: 'auth1');
-      final index = indexChatDmMembers([coach, _member('m2')]);
+    test('indexe par id de fiche', () {
+      final coach = _member('auth1');
+      final index = indexChatDmMembers([coach, _member('m2', linked: false)]);
 
-      expect(index['m1'], same(coach));
       expect(index['auth1'], same(coach));
       expect(index.containsKey('m2'), isTrue);
-    });
-  });
-
-  group('linkedMemberIdsFromAccounts', () {
-    test('garde les memberId liés différents de l’uid', () {
-      final linked = linkedMemberIdsFromAccounts({
-        'auth1': {FirestoreFields.linkedMemberId: 'm1'},
-        'auth2': {FirestoreFields.linkedMemberId: 'auth2'},
-        'auth3': {FirestoreFields.linkedMemberId: '  '},
-        'auth4': null,
-      });
-
-      expect(linked, {'m1'});
+      expect(index, hasLength(2));
     });
   });
 
@@ -88,20 +73,15 @@ void main() {
 
   group('buildChatDmTargets', () {
     test('une cible par compte, hors caller et fiches sans compte, triée', () {
-      final zoe = _member('m-zoe', accountUid: 'zoe', firstName: 'zoé');
-      final alex = _member(
-        'm-alex',
-        accountUid: 'alex',
-        firstName: 'Alex',
-        role: MemberRoles.admin,
-      );
-      final me = _member('m-me', accountUid: 'me', firstName: 'Moi');
-      final noAccount = _member('m-ghost', firstName: 'Ghost');
+      final zoe = _member('zoe', firstName: 'zoé');
+      final alex = _member('alex', firstName: 'Alex', role: MemberRoles.admin);
+      final me = _member('me', firstName: 'Moi');
+      final noAccount = _member('m-ghost', linked: false, firstName: 'Ghost');
       final memberByKey = indexChatDmMembers([zoe, alex, me, noAccount]);
 
       final targets = buildChatDmTargets(
-        // `alex` présent deux fois (uid Auth + memberId) → une seule cible.
-        rosterIds: const ['zoe', 'alex', 'm-alex', 'me', 'm-ghost', 'inconnu'],
+        // `alex` présent deux fois (admin club + coach) → une seule cible.
+        rosterIds: const ['zoe', 'alex', 'alex', 'me', 'm-ghost', 'inconnu'],
         memberByKey: memberByKey,
         callerUid: 'me',
       );
@@ -115,7 +95,7 @@ void main() {
     test('libellé de repli quand la fiche n’a pas de nom', () {
       final targets = buildChatDmTargets(
         rosterIds: const ['anon'],
-        memberByKey: indexChatDmMembers([_member('m', accountUid: 'anon')]),
+        memberByKey: indexChatDmMembers([_member('anon')]),
         callerUid: 'me',
       );
 

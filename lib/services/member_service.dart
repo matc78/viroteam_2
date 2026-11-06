@@ -198,8 +198,7 @@ class MemberService {
 
     final accountUid = member.accountUid?.trim();
     if (accountUid != null && accountUid.isNotEmpty) {
-      // Aligné portal / CF : lié seulement si le profil `users` existe
-      // (un `userId` legacy mappé en accountUid ne suffit pas).
+      // Aligné portal / CF : lié seulement si le profil `users` existe.
       final userData = membersByAccountUid[accountUid];
       if (userData != null) {
         enriched = enriched.copyWith(
@@ -452,8 +451,8 @@ class MemberService {
   );
 
   /// Retire un membre du club via la callable `removeMember`
-  /// (fiche, index `member_accounts`, équipes, invitation et
-  /// `clubMemberships` nettoyés côté serveur).
+  /// (fiche, équipes, invitation et `clubMemberships` nettoyés côté
+  /// serveur).
   Future<void> removeMember({
     required String clubId,
     required String memberId,
@@ -466,16 +465,10 @@ class MemberService {
   /// et invitations `type: guardian` pending. Une entrée = un parent (uid/email).
   Future<List<ClubParentEntry>> fetchClubParents(String clubId) async {
     final membersSnap = await _members(clubId).get();
-    final membersById = <String, ClubMember>{};
-    final membersByAccount = <String, ClubMember>{};
-    for (final memberDoc in membersSnap.docs) {
-      final member = ClubMember.fromFirestore(memberDoc);
-      membersById[member.memberId] = member;
-      final accountUid = member.accountUid?.trim();
-      if (accountUid != null && accountUid.isNotEmpty) {
-        membersByAccount[accountUid] = member;
-      }
-    }
+    final membersById = <String, ClubMember>{
+      for (final memberDoc in membersSnap.docs)
+        memberDoc.id: ClubMember.fromFirestore(memberDoc),
+    };
 
     // Une seule lecture des invitations pending du club (évite N requêtes).
     final pendingGuardianByMember =
@@ -682,11 +675,8 @@ class MemberService {
       );
       final status =
           hasActive ? GuardianStatuses.active : GuardianStatuses.pending;
-      ClubMember? roster;
-      if (acc.parentUid != null) {
-        roster =
-            membersByAccount[acc.parentUid!] ?? membersById[acc.parentUid!];
-      }
+      // Fiche du parent dans le club (members/{uid}), s'il est aussi membre.
+      final roster = acc.parentUid != null ? membersById[acc.parentUid!] : null;
       entries.add(
         ClubParentEntry(
           rowKey: entry.key,

@@ -27,8 +27,6 @@ import {
 /** Ligne suivi cotisation (une action claire par membre). */
 export type FeeTrackingRow = {
   memberId: string;
-  /** UID Auth lié, si le membre a un compte. */
-  accountUid: string | null;
   /** Rôle club (admin / coach / player). */
   role: string;
   displayName: string;
@@ -73,20 +71,6 @@ export type FeesTrackingData = {
     partial: number;
   };
 };
-
-function feeForMember(
-  memberId: string,
-  accountUid: string | null,
-  feesById: Map<string, MemberFeeRecord>,
-): MemberFeeRecord | null {
-  const byMemberId = feesById.get(memberId);
-  if (byMemberId) return byMemberId;
-  if (accountUid) {
-    const byAccount = feesById.get(accountUid);
-    if (byAccount) return byAccount;
-  }
-  return null;
-}
 
 /** Indique si le membre demande encore une action bureau. */
 export function rowNeedsAction(
@@ -139,10 +123,11 @@ export async function loadFeesTrackingData(
     listMemberFees(club.id, season.id),
     loadTeamsForClub(club.id),
   ]);
+  // Fiches cotisation clées par id de fiche membre (`member_fees/{memberId}`).
   const feesById = new Map(fees.map((fee) => [fee.id, fee]));
 
   const rows: FeeTrackingRow[] = members.map((member) => {
-    const fee = feeForMember(member.memberId, member.accountUid, feesById);
+    const fee = feesById.get(member.memberId) ?? null;
     const pendingAids =
       fee?.aids.filter((aid) => aid.status === FeeAidStatuses.pendingProof) ??
       [];
@@ -164,9 +149,9 @@ export async function loadFeesTrackingData(
 
     return {
       memberId: member.memberId,
-      accountUid: member.accountUid,
       role: member.role,
-      displayName: fee?.memberDisplayName || member.displayName,
+      // Nom courant de la fiche (synchronisé serveur) avant la copie figée de la cotisation.
+      displayName: member.displayName || fee?.memberDisplayName || "",
       firstName: member.firstName,
       lastName: member.lastName,
       email: member.email,

@@ -4,7 +4,8 @@
  * (`accountUid`, ou `userId` legacy) dont l'id n'est pas l'uid, vers
  * `members/{uid}`, et réécrit toutes ses références (rosters, events,
  * guardians, parentLinks, cotisations, annonces, invitations, adminIds).
- * Reprend aussi les re-keyings interrompus (`rekeyPendingFrom`).
+ * Reprend aussi les re-keyings interrompus (`rekeyPendingFrom`), puis supprime
+ * l'ancien index `clubs/{clubId}/member_accounts` (plus lu par personne).
  *
  * Même code que les Functions : `functions/lib/memberRekey.js`.
  *
@@ -70,7 +71,7 @@ function parseArgs(argv) {
     if (arg === "--help" || arg === "-h") {
       console.log(`Usage: node tool/rekey_linked_members.mjs [options]
   --dry-run            Affiche le plan sans écrire (défaut)
-  --apply              Re-keye et réécrit les références
+  --apply              Re-keye, réécrit les références, supprime member_accounts
   --merge-duplicates   Fusionne quand une fiche existe déjà à l'uid (sinon : signalé)
   --club=id            Limite à un club
   --databases=ids      Bases Firestore (défaut: v2-dev)`);
@@ -160,6 +161,7 @@ async function analyseClub(clubRef) {
   const byAccount = new Map();
   const rekeys = [];
   const pending = [];
+  const accountBackfills = [];
   for (const doc of membersSnap.docs) {
     const data = doc.data();
     for (const formerId of data.formerMemberIds ?? []) formerIds.set(formerId, doc.id);
@@ -167,6 +169,9 @@ async function analyseClub(clubRef) {
     if (account) {
       byAccount.set(account, [...(byAccount.get(account) ?? []), doc.id]);
       if (doc.id !== account) rekeys.push({ from: doc.id, uid: account });
+      // Fiche déjà à l'uid mais liée par le seul champ legacy `userId` :
+      // les clients ne lisent plus que `accountUid`.
+      else if (!String(data.accountUid ?? "").trim()) accountBackfills.push(doc.id);
     }
     const pendingFrom = String(data.rekeyPendingFrom ?? "").trim();
     if (pendingFrom) pending.push({ from: pendingFrom, uid: doc.id });
@@ -180,7 +185,29 @@ async function analyseClub(clubRef) {
   const orphanIndexes = accountsSnap.docs
     .filter((doc) => !memberIds.has(String(doc.get("memberId") ?? "")))
     .map((doc) => doc.id);
-  return { rekeys, pending, collisions, ghosts, orphanIndexes };
+  return {
+    rekeys,
+    pending,
+    accountBackfills,
+    collisions,
+    ghosts,
+    orphanIndexes,
+    accountIndexCount: accountsSnap.size,
+  };
+}
+
+/**
+ * Supprime tous les docs `member_accounts` restants du club (index compte →
+ * fiche abandonné : une seule clé membre). Retourne le nombre supprimé.
+ */
+async function deleteAccountIndexes(firestore, clubRef) {
+  const snap = await clubRef.collection("member_accounts").get();
+  for (let start = 0; start < snap.docs.length; start += 400) {
+    const batch = firestore.batch();
+    for (const doc of snap.docs.slice(start, start + 400)) batch.delete(doc.ref);
+    await batch.commit();
+  }
+  return snap.size;
 }
 
 /** Décision cotisation par saison pour un re-keying (dry-run). */
@@ -210,7 +237,16 @@ async function runDatabase({ getFirestore, app, rekey, plan, databaseId, options
   const clubsQuery = options.clubId
     ? [await firestore.collection("clubs").doc(options.clubId).get()]
     : (await firestore.collection("clubs").get()).docs;
-  const totals = { rekeyed: 0, resumed: 0, skipped: 0, feeConflicts: 0, remaining: 0 };
+  const totals = {
+    rekeyed: 0,
+    resumed: 0,
+    accountBackfilled: 0,
+    skipped: 0,
+    feeConflicts: 0,
+    remaining: 0,
+    accountIndexesDeleted: 0,
+    accountIndexesToDelete: 0,
+  };
 
   for (const club of clubsQuery) {
     if (!club.exists) {
@@ -220,7 +256,8 @@ async function runDatabase({ getFirestore, app, rekey, plan, databaseId, options
     const analysis = await analyseClub(club.ref);
     const nothing =
       analysis.rekeys.length + analysis.pending.length + analysis.collisions.length +
-      analysis.ghosts.length + analysis.orphanIndexes.length === 0;
+      analysis.accountBackfills.length +
+      analysis.ghosts.length + analysis.accountIndexCount === 0;
     if (nothing) continue;
     console.log(`\n🏟️  ${club.id} (${String(club.get("name") ?? "")})`);
     for (const { uid, ids } of analysis.collisions) {
@@ -231,6 +268,13 @@ async function runDatabase({ getFirestore, app, rekey, plan, databaseId, options
     }
     for (const accountUid of analysis.orphanIndexes) {
       console.log(`  ⚠️ member_accounts/${accountUid} pointe vers une fiche absente`);
+    }
+
+    for (const memberId of analysis.accountBackfills) {
+      console.log(`  ＋ accountUid ← userId sur ${memberId}`);
+      if (!options.apply) continue;
+      await club.ref.collection("members").doc(memberId).update({ accountUid: memberId });
+      totals.accountBackfilled += 1;
     }
 
     for (const { from, uid } of analysis.pending) {
@@ -265,10 +309,21 @@ async function runDatabase({ getFirestore, app, rekey, plan, databaseId, options
     }
 
     if (options.apply) {
+      // Après les re-keyings (le cœur supprime déjà member_accounts/{uid}) :
+      // les restes (index des fiches déjà à l'uid, orphelins) disparaissent.
+      const deleted = await deleteAccountIndexes(firestore, club.ref);
+      if (deleted > 0) console.log(`  🗑️ member_accounts : ${deleted} doc(s) supprimé(s)`);
+      totals.accountIndexesDeleted += deleted;
       const after = await analyseClub(club.ref);
-      totals.remaining += after.rekeys.length + after.pending.length;
+      totals.remaining +=
+        after.rekeys.length + after.pending.length + after.accountBackfills.length;
     } else {
-      totals.remaining += analysis.rekeys.length + analysis.pending.length;
+      if (analysis.accountIndexCount > 0) {
+        console.log(`  🗑️ member_accounts : ${analysis.accountIndexCount} doc(s) à supprimer`);
+      }
+      totals.accountIndexesToDelete += analysis.accountIndexCount;
+      totals.remaining +=
+        analysis.rekeys.length + analysis.pending.length + analysis.accountBackfills.length;
     }
   }
   return totals;

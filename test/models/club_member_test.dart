@@ -61,4 +61,17 @@ void main() {
       expect(index['uid-a'], same(a));
     });
   });
+
+  test('copyWith conserve les annonces masquées', () {
+    const member = ClubMember(
+      memberId: 'uid-a',
+      role: 'player',
+      status: 'active',
+      dismissedAnnouncementIds: ['ann-1'],
+    );
+    expect(
+      member.copyWith(displayName: 'Louka COCQ').dismissedAnnouncementIds,
+      ['ann-1'],
+    );
+  });
 }

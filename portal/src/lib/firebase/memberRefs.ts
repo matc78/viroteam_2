@@ -49,6 +49,9 @@ export function clearOwnMemberIdCache(): void {
  * Résultat positif mis en cache pour la session, appels concurrents
  * mutualisés ; un « pas de fiche » est relu à chaque fois (une invitation
  * acceptée peut la créer).
+ * Un refus des rules vaut « pas de fiche » : tout membre du club (= titulaire
+ * de `members/{uid}`) peut lire cette fiche, donc un refus (parent seul)
+ * signifie qu'elle n'existe pas.
  */
 export async function getOwnMemberId(
   clubId: string,
@@ -57,8 +60,13 @@ export async function getOwnMemberId(
   const key = `${clubId}:${uid}`;
   if (ownMemberIdCache.has(key)) return uid;
   const exists = await dedupeInFlight(`ownMember:${key}`, async () => {
-    const snap = await getDoc(ownMemberRef(clubId, uid));
-    return snap.exists();
+    try {
+      const snap = await getDoc(ownMemberRef(clubId, uid));
+      return snap.exists();
+    } catch (error) {
+      if ((error as { code?: string })?.code === "permission-denied") return false;
+      throw error;
+    }
   });
   if (!exists) return null;
   ownMemberIdCache.add(key);

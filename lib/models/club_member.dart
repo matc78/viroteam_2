@@ -171,6 +171,7 @@ class ClubMember {
       pendingInviteExpiresAt:
           pendingInviteExpiresAt ?? this.pendingInviteExpiresAt,
       hasLinkedAccount: hasLinkedAccount ?? this.hasLinkedAccount,
+      dismissedAnnouncementIds: dismissedAnnouncementIds,
     );
   }
 }

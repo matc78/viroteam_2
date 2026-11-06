@@ -8,6 +8,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.2.15] - 2026-11-06
+
 ### Sécurité
 
 - Cloud Functions : `npm audit fix` (proxy-addr, busboy, body-parser, grpc, qs) + override `uuid` ≥ 11.1.1 — `npm audit` à 0 faille

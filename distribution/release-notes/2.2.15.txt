@@ -1,0 +1,4 @@
+- Tap sur une notif de réponse : la home s'ouvre et les events concernés clignotent selon la réponse
+- Ton nom et ta photo changés dans les paramètres se mettent à jour partout dans ton club
+- Fini les fiches en double quand tu rejoins avec un code d'équipe
+- Admins : tu ne peux plus changer ton propre rôle, et un admin en attente peut de nouveau être supprimé

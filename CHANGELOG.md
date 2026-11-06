@@ -8,6 +8,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+
+- Vue club : l’encadré « Mon parent » ne s’affiche plus que pour les joueurs d’au moins une équipe en catégorie moins de 15 ans (U15 / M15 / -15 et équivalents par sport) ; masqué s’il n’y a aucune équipe
+
 ## [2.3.0] - 2026-11-06
 
 ### Sécurité

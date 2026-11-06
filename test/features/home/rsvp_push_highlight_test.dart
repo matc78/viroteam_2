@@ -3,17 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
+import 'package:viro_team_v2/features/home/providers/rsvp_highlight_offscreen_provider.dart';
 import 'package:viro_team_v2/features/home/providers/rsvp_push_highlight_provider.dart';
-import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/models/club_event.dart';
-
-ClubEvent _event(String id, {String clubId = 'c1'}) => ClubEvent(
-      id: id,
-      clubId: clubId,
-      type: EventTypes.training,
-      title: 'Entraînement',
-      date: DateTime(2026, 11, 10),
-    );
 
 RsvpPushHighlight _highlight({Map<String, RsvpStatus>? statuses}) =>
     RsvpPushHighlight(
@@ -130,21 +122,62 @@ void main() {
     });
   });
 
-  group('memberHomePreviewCount', () {
-    final events = [for (var i = 0; i < 8; i++) _event('e$i')];
+  group('rsvpHighlightOffscreenProvider', () {
+    test('agrège haut et bas, reveal appelle le bon callback', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(rsvpHighlightOffscreenProvider.notifier);
+      var revealedUp = 0;
+      var revealedDown = 0;
 
-    test('aperçu standard sans liseré', () {
-      expect(memberHomePreviewCount(events), memberHomePlanningPreviewLimit);
+      notifier.report(
+        'c1/e1',
+        RsvpHighlightOffscreenSide.up,
+        reveal: () => revealedUp++,
+      );
+      notifier.report(
+        'c1/e2',
+        RsvpHighlightOffscreenSide.down,
+        reveal: () => revealedDown++,
+      );
+
+      expect(
+        container.read(rsvpHighlightOffscreenProvider),
+        const RsvpHighlightOffscreenHints(up: true, down: true),
+      );
+
+      notifier.reveal(RsvpHighlightOffscreenSide.up);
+      notifier.reveal(RsvpHighlightOffscreenSide.down);
+      expect(revealedUp, 1);
+      expect(revealedDown, 1);
+
+      notifier.report('c1/e1', null);
+      expect(
+        container.read(rsvpHighlightOffscreenProvider),
+        const RsvpHighlightOffscreenHints(up: false, down: true),
+      );
     });
 
-    test('étendu jusqu’au dernier event encadré', () {
-      expect(
-        memberHomePreviewCount(events, highlightedKeys: ['c1/e1', 'c1/e6']),
-        7,
+    test('clear quand le liseré RSVP tombe', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final highlight = container.read(rsvpPushHighlightProvider.notifier);
+      final offscreen = container.read(rsvpHighlightOffscreenProvider.notifier);
+
+      highlight.set(_highlight());
+      // Force l’écoute (build) du provider offscreen.
+      container.read(rsvpHighlightOffscreenProvider);
+      offscreen.report(
+        'c1/e1',
+        RsvpHighlightOffscreenSide.down,
+        reveal: () {},
       );
+      expect(container.read(rsvpHighlightOffscreenProvider).down, isTrue);
+
+      highlight.clear();
       expect(
-        memberHomePreviewCount(events, highlightedKeys: ['c2/e6']),
-        memberHomePlanningPreviewLimit,
+        container.read(rsvpHighlightOffscreenProvider),
+        RsvpHighlightOffscreenHints.none,
       );
     });
   });

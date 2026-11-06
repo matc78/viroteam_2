@@ -1,5 +1,14 @@
 import 'package:viro_team_v2/models/club_event.dart';
 
+/// Côté du viewport où un event encadré (push RSVP) est entièrement hors écran.
+enum RsvpHighlightOffscreenSide {
+  /// Au-dessus de la zone visible (scroll vers le haut).
+  up,
+
+  /// En dessous de la zone visible (scroll vers le bas).
+  down,
+}
+
 /// Events à encadrer sur la home après un tap sur une push RSVP, avec la
 /// couleur de la réponse la plus récente.
 class RsvpPushHighlight {

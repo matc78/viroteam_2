@@ -10,6 +10,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Accueil membre : tous les événements des 14 prochains jours s’affichent directement ; le bouton « Voir mes 14 prochains jours » (aperçu limité) est retiré
+- Notifications RSVP : liseré des events plus visible (trait plus épais, halo, clignotement plus contrasté) et voile coloré sur la tuile (vert / orange / rouge selon la réponse) ; petite flèche haut / bas pendant les 10 s si un event encadré est hors écran (tap pour y défiler) — pastille bleue / flèche blanche en clair, pastille claire / flèche bleue + halo en sombre
 - Vue club : l’encadré « Mon parent » ne s’affiche plus que pour les joueurs d’au moins une équipe en catégorie moins de 15 ans (U15 / M15 / -15 et équivalents par sport) ; masqué s’il n’y a aucune équipe
 
 ## [2.3.0] - 2026-11-06

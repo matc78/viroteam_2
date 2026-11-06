@@ -11,6 +11,7 @@ import 'package:viro_team_v2/features/home/widgets/event_planning_card.dart';
 import 'package:viro_team_v2/features/home/widgets/event_seen_visibility_tracker.dart';
 import 'package:viro_team_v2/features/home/widgets/planning_day_section_header.dart';
 import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
+import 'package:viro_team_v2/features/home/providers/rsvp_highlight_offscreen_provider.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_focused_event_highlight.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/models/club_event.dart';
@@ -18,27 +19,6 @@ import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
-
-/// Limite d'événements affichés en aperçu sur la home membre.
-const memberHomePlanningPreviewLimit = 5;
-
-/// Nombre d'events de l'aperçu home : [memberHomePlanningPreviewLimit],
-/// étendu jusqu'au dernier event encadré (push RSVP) pour qu'il soit visible.
-int memberHomePreviewCount(
-  List<ClubEvent> events, {
-  Iterable<String> highlightedKeys = const [],
-}) {
-  final keys = highlightedKeys.toSet();
-  var count = memberHomePlanningPreviewLimit;
-  if (keys.isEmpty) return count;
-  for (var index = count; index < events.length; index++) {
-    final event = events[index];
-    if (keys.contains(RsvpPushHighlight.eventKey(event.clubId, event.id))) {
-      count = index + 1;
-    }
-  }
-  return count;
-}
 
 /// RSVP du membre connecté sur un événement de son planning (home, planning).
 ///
@@ -221,10 +201,18 @@ class _MemberEventCard extends ConsumerWidget {
     final trackedCard = needsSeen ? _trackSeen(ref, card, uid) : card;
     final highlightColor = _highlightColor(highlightStatus);
     if (highlightColor == null) return trackedCard;
+    final eventKey = RsvpPushHighlight.eventKey(event.clubId, event.id);
     return PlanningFocusedEventHighlight(
       color: highlightColor,
       blinking: true,
       scrollIntoView: highlightScrollIntoView,
+      onOffscreenChanged: (side, {reveal}) {
+        ref.read(rsvpHighlightOffscreenProvider.notifier).report(
+              eventKey,
+              side,
+              reveal: reveal,
+            );
+      },
       child: trackedCard,
     );
   }

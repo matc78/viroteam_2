@@ -12,6 +12,9 @@ abstract final class ViroIcons {
   static IconData get add => PhosphorIconsBold.plus;
   static IconData get arrowUp => PhosphorIconsRegular.arrowUp;
   static IconData get arrowDown => PhosphorIconsRegular.arrowDown;
+  /// Flèches d’indication (hint scroll RSVP) — trait épais pour le contraste.
+  static IconData get arrowUpBold => PhosphorIconsBold.arrowUp;
+  static IconData get arrowDownBold => PhosphorIconsBold.arrowDown;
   static IconData get chevronRight => PhosphorIconsRegular.caretRight;
   static IconData get chevronLeft => PhosphorIconsRegular.caretLeft;
   static IconData get chevronDown => PhosphorIconsRegular.caretDown;
@@ -116,6 +119,8 @@ abstract final class ViroIcons {
             ('settings', settings),
             ('add', add),
             ('arrowUp', arrowUp),
+            ('arrowUpBold', arrowUpBold),
+            ('arrowDownBold', arrowDownBold),
             ('chevronRight', chevronRight),
             ('chevronDown', chevronDown),
             ('club', club),

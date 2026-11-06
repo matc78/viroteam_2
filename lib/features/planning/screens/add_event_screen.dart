@@ -30,6 +30,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Écran de création d’événement (composition + wiring Riverpod).
 class AddEventScreen extends ConsumerStatefulWidget {
@@ -245,7 +246,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
             title: Text(AppCopy.planning.newEventTitle),
           ),
           body: teamsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: ViroLogoLoader()),
             error: (error, stackTrace) => ViroErrorState(
               onRetry: () => ref.invalidate(clubTeamsProvider(widget.clubId)),
             ),

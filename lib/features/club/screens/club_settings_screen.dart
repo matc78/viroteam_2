@@ -21,6 +21,7 @@ import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Paramètres club admin : fin de saison et droits coachs (aligné portail `/settings`).
 class ClubSettingsScreen extends ConsumerStatefulWidget {
@@ -239,7 +240,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
           title: Text(AppCopy.club.settingsTitle),
         ),
         body: clubAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => ViroErrorState(
             onRetry: () => ref.invalidate(clubProvider(clubId)),
           ),

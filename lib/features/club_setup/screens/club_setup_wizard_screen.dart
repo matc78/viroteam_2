@@ -29,6 +29,7 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_portal_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Écran wizard de création de club (7 étapes, format téléphone).
 class ClubSetupWizardScreen extends ConsumerStatefulWidget {
@@ -285,7 +286,7 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
   Widget build(BuildContext context) {
     if (!_isInitialized || _pageController == null) {
       return const ViroScaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: ViroLogoLoader()),
       );
     }
 

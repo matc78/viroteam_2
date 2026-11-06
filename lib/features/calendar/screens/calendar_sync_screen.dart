@@ -17,6 +17,7 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Page d'aide : ajouter le planning club (calendrier dynamique) à l'agenda.
 class CalendarSyncScreen extends ConsumerStatefulWidget {
@@ -95,7 +96,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
               ),
               const SizedBox(height: ViroSpacing.sm),
               eventsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: ViroLogoLoader()),
                 error: (_, __) => const ViroErrorState(),
                 data: (state) {
                   final events = <ClubEvent>[

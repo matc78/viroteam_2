@@ -13,6 +13,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 enum TeamRosterSlot { player, coach }
 
@@ -144,7 +145,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
         ),
         Expanded(
           child: membersAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: ViroLogoLoader()),
             error: (error, stackTrace) => ViroErrorState(
               onRetry: () => ref.invalidate(clubMembersProvider(widget.clubId)),
             ),
@@ -171,7 +172,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
               }
 
               return pendingAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: ViroLogoLoader()),
                 error: (error, stackTrace) => ViroErrorState(
                   onRetry: () => ref.invalidate(
                     pendingTeamMembersProvider(widget.clubId),

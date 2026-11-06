@@ -22,6 +22,7 @@ import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Gestion admin des lieux de pratique du club (ajout / suppression).
 class ClubLocationsScreen extends ConsumerStatefulWidget {
@@ -180,7 +181,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
         if (mounted) context.pop();
       });
       return const ViroScaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: ViroLogoLoader()),
       );
     }
 
@@ -195,7 +196,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
           title: Text(AppCopy.club.locationsScreenTitle),
         ),
         body: clubAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => const ViroErrorState(),
           data: (club) {
             if (club == null) {

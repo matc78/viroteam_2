@@ -21,6 +21,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Admin cotisations : configuration saison + suivi membres.
 class AdminFeesScreen extends ConsumerStatefulWidget {
@@ -105,7 +106,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
         if (mounted) context.replace(AppRoutes.clubMyFeePath(widget.clubId));
       });
       return const ViroScaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: ViroLogoLoader()),
       );
     }
 
@@ -128,7 +129,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
           ],
         ),
         body: section == null
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: ViroLogoLoader())
             : Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

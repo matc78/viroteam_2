@@ -16,6 +16,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Ouvre la feuille d’invitation / révocation du parent (V1, plafond 1).
 Future<void> showInviteParentSheet(
@@ -199,7 +200,7 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
           if (_loading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: ViroSpacing.lg),
-              child: Center(child: CircularProgressIndicator()),
+              child: const Center(child: ViroLogoLoader()),
             )
           else if (occupying) ...[
             Text(

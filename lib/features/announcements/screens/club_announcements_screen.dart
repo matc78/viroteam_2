@@ -22,6 +22,7 @@ import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 class ClubAnnouncementsScreen extends ConsumerStatefulWidget {
   const ClubAnnouncementsScreen({super.key, required this.clubId});
@@ -89,7 +90,7 @@ class _ClubAnnouncementsScreenState
               )
             : null,
         body: sectionsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => ViroErrorState(
             onRetry: () => ref.invalidate(clubAnnouncementsProvider(clubId)),
           ),

@@ -5,6 +5,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/widgets/add_event/add_event_field_label.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/lists/convocation_player_list_tile.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Match : joueurs de l'équipe choisie, tous convoqués par défaut ; le coach
 /// décoche ceux qui ne sont pas du match (et peut les recocher).
@@ -58,7 +59,7 @@ class AddEventConvocationSection extends StatelessWidget {
         if (entries == null)
           const Padding(
             padding: EdgeInsets.all(ViroSpacing.md),
-            child: Center(child: CircularProgressIndicator()),
+            child: const Center(child: ViroLogoLoader()),
           )
         else if (entries.isEmpty)
           Text(AppCopy.planning.teamNoPlayers, style: hintStyle)

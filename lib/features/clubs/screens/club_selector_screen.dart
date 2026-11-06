@@ -27,6 +27,7 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 class ClubSelectorScreen extends ConsumerWidget {
   const ClubSelectorScreen({super.key});
@@ -41,13 +42,13 @@ class ClubSelectorScreen extends ConsumerWidget {
       appBar: ViroAppBar(title: Text(AppCopy.club.myClubsTitle)),
       body: SafeArea(
         child: clubsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (_, _) => ViroErrorState(
             onRetry: () => ref.invalidate(userClubsWithEventsProvider),
           ),
           data: (clubs) {
             return invitationsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: ViroLogoLoader()),
               error: (_, _) => ViroErrorState(
                 onRetry: () => ref.invalidate(pendingInvitationsProvider),
               ),

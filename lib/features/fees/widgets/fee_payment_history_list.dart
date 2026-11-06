@@ -8,6 +8,7 @@ import 'package:viro_team_v2/features/fees/models/fee_payment_event.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Liste chronologique des transactions cotisation (ledger `payment_events`).
 class FeePaymentHistoryList extends ConsumerWidget {
@@ -41,7 +42,7 @@ class FeePaymentHistoryList extends ConsumerWidget {
     return eventsAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: ViroSpacing.md),
-        child: Center(child: CircularProgressIndicator()),
+        child: const Center(child: ViroLogoLoader()),
       ),
       error: (_, _) => ViroErrorState(
         message: AppCopy.fees.paymentHistoryLoadError,

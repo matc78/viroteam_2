@@ -16,6 +16,7 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/lists/convocation_player_list_tile.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 enum _ConvocationScope { single, following }
 
@@ -160,11 +161,11 @@ class _PlanningConvocationSheetState
     final teams = ref.watch(clubTeamsProvider(widget.clubId)).value;
 
     return membersAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: ViroLogoLoader()),
       error: (_, _) => const ViroErrorState(),
       data: (members) {
         if (teams == null) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: ViroLogoLoader());
         }
         final eventTeamIds = widget.event.teamIds.toSet();
         final players = teamPlayerEntries(

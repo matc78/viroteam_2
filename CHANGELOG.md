@@ -10,6 +10,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Loader : animation d’assemblage du logo ViroTeam (cycle ~1,4 s) à la place du spinner circulaire pour tous les chargements plein contenu
 - Notifications push : voix vestiaire pour les joueurs (titres en rotation — relance manuelle, convoc’, J-7 / J-2 / jour J), plus familier pour le staff (bilan, RSVP) ; parents adoucis ; cotisation / annonces / annulation inchangés. Relance manuelle réservée aux sans-réponse et « peut-être », signature « Signé coach {prénom} »
 - Accueil membre : tous les événements des 14 prochains jours s’affichent directement ; le bouton « Voir mes 14 prochains jours » (aperçu limité) est retiré
 - Notifications RSVP : liseré des events plus visible (trait plus épais, halo, clignotement plus contrasté) et voile coloré sur la tuile (vert / orange / rouge selon la réponse) ; petite flèche haut / bas pendant les 10 s si un event encadré est hors écran (tap pour y défiler) — pastille bleue / flèche blanche en clair, pastille claire / flèche bleue + halo en sombre

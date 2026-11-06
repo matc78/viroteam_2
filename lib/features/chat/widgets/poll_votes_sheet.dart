@@ -7,6 +7,7 @@ import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/lists/poll_voter_list_tile.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Ouvre le détail des votes d’un sondage en bottom sheet (glissable) :
 /// question, résumé, votants groupés par option avec l’heure du vote.
@@ -87,7 +88,7 @@ class _PollVotesSheetContent extends ConsumerWidget {
     ).textTheme.bodyMedium?.copyWith(color: palette.textSecondary);
 
     return messageAsync.when(
-      loading: () => centered(const CircularProgressIndicator()),
+      loading: () => centered(const ViroLogoLoader()),
       error: (_, _) =>
           centered(Text(AppCopy.chat.loadError, style: messageStyle)),
       data: (message) {

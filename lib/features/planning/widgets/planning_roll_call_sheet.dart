@@ -16,6 +16,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Sheet coach : pointer Présent / Absent sans modifier le RSVP.
 class PlanningRollCallSheet extends ConsumerStatefulWidget {
@@ -126,7 +127,7 @@ class _PlanningRollCallSheetState extends ConsumerState<PlanningRollCallSheet> {
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
 
     return membersAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: ViroLogoLoader()),
       error: (_, __) => const ViroErrorState(),
       data: (members) {
         final byId = indexClubMembersById(members);

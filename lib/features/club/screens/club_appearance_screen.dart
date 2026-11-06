@@ -23,6 +23,7 @@ import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Écran admin : logo et couleur de marque du club.
 class ClubAppearanceScreen extends ConsumerStatefulWidget {
@@ -65,7 +66,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
         if (mounted) context.pop();
       });
       return const ViroScaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: ViroLogoLoader()),
       );
     }
 
@@ -90,7 +91,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
         title: Text(AppCopy.club.appearanceTitle),
       ),
       body: clubAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: ViroLogoLoader()),
         error: (_, __) => const ViroErrorState(),
         data: (club) {
           if (club == null) {

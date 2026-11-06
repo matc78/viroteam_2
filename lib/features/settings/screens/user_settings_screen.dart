@@ -20,6 +20,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/club_list_tile.dart';
 import 'package:viro_team_v2/widgets/lists/settings_list_tile.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Hub paramètres utilisateur : profil, catégories (sous-pages), clubs,
 /// puis déconnexion discrète en bas.
@@ -62,7 +63,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
         title: Text(AppCopy.settings.screenTitle),
       ),
       body: userAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: ViroLogoLoader()),
         error: (error, _) => ViroErrorState(
           message: AppCopy.settings.loadProfileError,
           onRetry: () => ref.invalidate(viroUserProvider),
@@ -174,7 +175,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 clubsAsync.when(
                   loading: () => const Padding(
                     padding: EdgeInsets.all(ViroSpacing.md),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: const Center(child: ViroLogoLoader()),
                   ),
                   error: (error, _) => ViroEmptyState(
                     message: AppCopy.settings.loadClubsError,

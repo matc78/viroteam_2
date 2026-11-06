@@ -21,6 +21,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/equipment_list_tile.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Inventaire équipements club (aligné portail `/equipment`).
 class ClubEquipmentScreen extends ConsumerStatefulWidget {
@@ -202,7 +203,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
         if (mounted) context.pop();
       });
       return const ViroScaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: ViroLogoLoader()),
       );
     }
 
@@ -227,7 +228,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                 onPressed: () => _openForm(),
               ),
         body: itemsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => const ViroErrorState(),
           data: (items) {
             final categories = _categories(items).toList()..sort();

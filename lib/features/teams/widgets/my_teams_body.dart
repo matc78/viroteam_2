@@ -12,6 +12,7 @@ import 'package:viro_team_v2/features/teams/widgets/manage_teams_body.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_expansion_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Liste « Mes équipes » (roster lecture) — corps du hub Équipes.
 class MyTeamsBody extends ConsumerWidget {
@@ -28,7 +29,7 @@ class MyTeamsBody extends ConsumerWidget {
     final authUid = ref.watch(authStateProvider).value?.uid;
 
     return clubAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: ViroLogoLoader()),
       error: (error, stackTrace) => ViroErrorState(
         onRetry: () => ref.invalidate(clubProvider(clubId)),
       ),
@@ -45,7 +46,7 @@ class MyTeamsBody extends ConsumerWidget {
         ).canCreateTeam();
 
         return teamsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => ViroErrorState(
             onRetry: () => ref.invalidate(myTeamsProvider(clubId)),
           ),

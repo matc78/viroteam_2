@@ -35,6 +35,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 class MyFeeScreen extends ConsumerStatefulWidget {
   const MyFeeScreen({super.key, required this.clubId});
@@ -68,7 +69,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
           fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
           title: Text(title),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: ViroLogoLoader()),
         ),
       );
     }
@@ -95,7 +96,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
           ClubAudienceSwitcher(clubId: widget.clubId),
           Expanded(
             child: feeAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: ViroLogoLoader()),
         error: (error, stackTrace) => ViroErrorState(
           message: AppCopy.fees.loadFeeError,
           onRetry: () => ref.invalidate(

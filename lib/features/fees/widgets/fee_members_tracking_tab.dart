@@ -25,6 +25,7 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/lists/member_fee_list_tile.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Membres du club sans fiche `member_fees` pour la saison en cours.
 int pendingFeeInitCount({
@@ -477,7 +478,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
             .toList();
 
     return seasonAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: ViroLogoLoader()),
       error: (error, stackTrace) => ViroErrorState(
         onRetry: () => ref.invalidate(activeSeasonProvider(clubId)),
       ),
@@ -493,7 +494,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
         }
 
         return feesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => ViroErrorState(
             onRetry: () => ref.invalidate(allMemberFeesProvider(clubId)),
           ),

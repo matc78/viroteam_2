@@ -14,6 +14,7 @@ import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Ouvre les actions de masse disponibles sur la sélection des membres.
 ///
@@ -187,7 +188,7 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
               if (_busy)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: ViroSpacing.lg),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: const Center(child: ViroLogoLoader()),
                 )
               else if (_pickingTeam)
                 ..._buildTeamPicker(context)

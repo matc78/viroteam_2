@@ -31,6 +31,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_convocation_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_edit_event_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_roll_call_sheet.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 enum _CancelScope { single, series }
 
@@ -371,7 +372,7 @@ class _PlanningEventDetailSheetState
     return membersAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(ViroSpacing.xl),
-        child: Center(child: CircularProgressIndicator()),
+        child: const Center(child: ViroLogoLoader()),
       ),
       error: (_, __) => const ViroErrorState(),
       data: (members) {

@@ -22,6 +22,7 @@ import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Formulaire admin : configuration saison cotisations (aligné portail `/fees`).
 class FeeConfigTab extends ConsumerStatefulWidget {
@@ -496,13 +497,13 @@ class _FeeConfigTabState extends ConsumerState<FeeConfigTab> {
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     return seasonAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: ViroLogoLoader()),
       error: (error, stackTrace) => ViroErrorState(
         onRetry: () => ref.invalidate(activeSeasonProvider(widget.clubId)),
       ),
       data: (season) {
         return clubAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => ViroErrorState(
             onRetry: () => ref.invalidate(clubProvider(widget.clubId)),
           ),

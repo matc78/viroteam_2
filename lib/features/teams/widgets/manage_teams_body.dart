@@ -15,6 +15,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Ouvre le dialog de création d’équipe et persiste en Firestore.
 Future<void> createClubTeam({
@@ -69,7 +70,7 @@ class ManageTeamsBody extends ConsumerWidget {
     );
 
     return clubAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: ViroLogoLoader()),
       error: (error, stackTrace) => ViroErrorState(
         onRetry: () => ref.invalidate(clubProvider(clubId)),
       ),
@@ -81,7 +82,7 @@ class ManageTeamsBody extends ConsumerWidget {
         final accent = ref.watch(clubManagementAccentProvider(clubId));
 
         return teamsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => ViroErrorState(
             onRetry: () => ref.invalidate(clubTeamsProvider(clubId)),
           ),

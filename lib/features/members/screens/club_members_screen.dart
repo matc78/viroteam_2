@@ -41,6 +41,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 class ClubMembersScreen extends ConsumerStatefulWidget {
   const ClubMembersScreen({super.key, required this.clubId});
@@ -617,7 +618,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                         )
                       : null,
               body: clubAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: ViroLogoLoader()),
                 error: (error, stackTrace) => ViroErrorState(
                   onRetry: () =>
                       ref.invalidate(clubForMembersProvider(clubId)),
@@ -629,7 +630,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
 
                   return membersAsync.when(
                     loading: () =>
-                        const Center(child: CircularProgressIndicator()),
+                        const Center(child: ViroLogoLoader()),
                     error: (error, stackTrace) => ViroErrorState(
                       onRetry: () => ref.invalidate(
                         clubMembersWithInvitesProvider(clubId),

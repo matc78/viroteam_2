@@ -2,8 +2,18 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 
-/// Valeur de `max_role` pour un compte sans fiche membre (parent seul).
+/// Valeur de `max_role` / `active_role` pour un compte sans fiche membre
+/// (parent seul ou session sans rôle).
 const String analyticsNoRole = 'none';
+
+/// Clé super-propriété PostHog du rôle du club actif (app uniquement).
+const String analyticsActiveRoleKey = 'active_role';
+
+/// Rôle analytics pour la session club : rôle membre, sinon [analyticsNoRole].
+String analyticsActiveRole(String? sessionRole) {
+  final role = sessionRole?.trim() ?? '';
+  return role.isEmpty ? analyticsNoRole : role;
+}
 
 /// Propriétés « personne » PostHog tirées de [user], sans PII (ni nom, ni
 /// e-mail, ni téléphone) : rôle club le plus élevé, parent ou non, nombre

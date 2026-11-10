@@ -8,6 +8,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Analytics : événements `notification_opened` (tap push par type) et `club_action_tapped` (CTA fiche club + rôle) ; super-propriété app `active_role` ; tableau de bord PostHog **Usage** (events, RSVP, taux proxy, notifs, vue club, top écrans)
+
 ### Modifié
 
 - Loader : animation d’assemblage du logo ViroTeam (cycle ~1,4 s) à la place du spinner circulaire pour tous les chargements plein contenu

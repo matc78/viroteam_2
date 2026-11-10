@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Crée les tableaux de bord PostHog décrits dans docs/ANALYTICS.md
- * (Santé, Activation, Rétention, Cotisations, Portail) via l'API privée PostHog.
+ * (Santé, Activation, Rétention, Cotisations, Portail, Usage) via l'API privée PostHog.
  *
  * Variables d'environnement :
  *   POSTHOG_PERSONAL_API_KEY  clé personnelle (scopes : dashboard, insight,
@@ -102,8 +102,10 @@ async function ensureMemberJoinedAction() {
 
 const notServer = [{ key: "surface", value: ["server"], operator: "is_not", type: "event" }];
 const portalSurface = [{ key: "surface", value: ["portal"], operator: "exact", type: "event" }];
+const appSurface = [{ key: "surface", value: ["app"], operator: "exact", type: "event" }];
 /** Événements serveur issus d'une callable appelée depuis le portail. */
 const portalClient = [{ key: "client", value: ["portal"], operator: "exact", type: "event" }];
+const clubScreenName = "/club/:clubId";
 /** Événements serveur émis par une callable (le client y est connu). */
 const PORTAL_CALLABLE_EVENTS = [
   "invitation_sent",
@@ -369,6 +371,168 @@ ORDER BY portail DESC`),
                 { kind: "EventsNode", event: "fee_payment_started", name: "fee_payment_started" },
                 { kind: "EventsNode", event: "fee_payment_submitted", name: "fee_payment_submitted" },
               ],
+            },
+          },
+        },
+      ],
+    },
+    {
+      name: "Usage",
+      description:
+        "Events, RSVP, ouvertures de notifs, vue club et CTA — pour repérer les pages / actions peu utiles.",
+      insights: [
+        {
+          name: "Événements créés par semaine",
+          description: "Compteur serveur event_created (prod = projet PostHog prod).",
+          query: trends([
+            { kind: "EventsNode", event: "event_created", name: "event_created", math: "total" },
+          ]),
+        },
+        {
+          name: "Événements créés par type (12 semaines)",
+          query: {
+            kind: "InsightVizNode",
+            source: {
+              kind: "TrendsQuery",
+              series: [{ kind: "EventsNode", event: "event_created", name: "event_created", math: "total" }],
+              dateRange: { date_from: "-12w" },
+              breakdownFilter: { breakdown: "event_type", breakdown_type: "event", breakdown_limit: 10 },
+              trendsFilter: { display: "ActionsTable" },
+            },
+          },
+        },
+        {
+          name: "Réponses RSVP par semaine",
+          query: trends([
+            { kind: "EventsNode", event: "rsvp_set", name: "rsvp_set", math: "total" },
+          ]),
+        },
+        {
+          name: "Réponses RSVP par statut (12 semaines)",
+          query: {
+            kind: "InsightVizNode",
+            source: {
+              kind: "TrendsQuery",
+              series: [{ kind: "EventsNode", event: "rsvp_set", name: "rsvp_set", math: "total" }],
+              dateRange: { date_from: "-12w" },
+              breakdownFilter: { breakdown: "status", breakdown_type: "event", breakdown_limit: 10 },
+              trendsFilter: { display: "ActionsTable" },
+            },
+          },
+        },
+        {
+          name: "Taux de réponse proxy (RSVP / destinataires convocation)",
+          description:
+            "Imparfait (multi-réponses, rappels) : count(rsvp_set) / sum(recipient_count) des convocation_sent.",
+          query: sql(`SELECT toStartOfWeek(timestamp, 1) AS semaine,
+       countIf(event = 'rsvp_set') AS reponses,
+       sumIf(toFloat(properties.recipient_count), event = 'convocation_sent') AS destinataires,
+       if(destinataires = 0, NULL, round(reponses / destinataires, 3)) AS taux_proxy
+FROM events
+WHERE event IN ('rsvp_set', 'convocation_sent')
+  AND timestamp >= toStartOfWeek(now(), 1) - INTERVAL 12 WEEK
+GROUP BY semaine
+ORDER BY semaine`),
+        },
+        {
+          name: "Ouvertures de notif par semaine",
+          description: "Taps app (consentement requis) ; breakdown par type ci-dessous.",
+          query: trends(
+            [{ kind: "EventsNode", event: "notification_opened", name: "notification_opened", math: "total" }],
+            { properties: appSurface },
+          ),
+        },
+        {
+          name: "Ouvertures de notif par type (12 semaines)",
+          query: {
+            kind: "InsightVizNode",
+            source: {
+              kind: "TrendsQuery",
+              series: [
+                { kind: "EventsNode", event: "notification_opened", name: "notification_opened", math: "total" },
+              ],
+              properties: appSurface,
+              dateRange: { date_from: "-12w" },
+              breakdownFilter: {
+                breakdown: "notification_type",
+                breakdown_type: "event",
+                breakdown_limit: 25,
+              },
+              trendsFilter: { display: "ActionsTable" },
+            },
+          },
+        },
+        {
+          name: "Visites fiche club (/club/:clubId) par semaine",
+          description: "Volume $screen + personnes uniques (consentement).",
+          query: trends(
+            [
+              {
+                kind: "EventsNode",
+                event: "$screen",
+                name: "vues",
+                math: "total",
+                properties: [
+                  { key: "$screen_name", value: [clubScreenName], operator: "exact", type: "event" },
+                ],
+              },
+              {
+                kind: "EventsNode",
+                event: "$screen",
+                name: "personnes",
+                math: "dau",
+                properties: [
+                  { key: "$screen_name", value: [clubScreenName], operator: "exact", type: "event" },
+                ],
+              },
+            ],
+            { properties: appSurface },
+          ),
+        },
+        {
+          name: "CTA fiche club par action (12 semaines)",
+          query: {
+            kind: "InsightVizNode",
+            source: {
+              kind: "TrendsQuery",
+              series: [
+                { kind: "EventsNode", event: "club_action_tapped", name: "club_action_tapped", math: "total" },
+              ],
+              properties: appSurface,
+              dateRange: { date_from: "-12w" },
+              breakdownFilter: { breakdown: "action", breakdown_type: "event", breakdown_limit: 25 },
+              trendsFilter: { display: "ActionsTable" },
+            },
+          },
+        },
+        {
+          name: "CTA fiche club par rôle (12 semaines)",
+          query: {
+            kind: "InsightVizNode",
+            source: {
+              kind: "TrendsQuery",
+              series: [
+                { kind: "EventsNode", event: "club_action_tapped", name: "club_action_tapped", math: "total" },
+              ],
+              properties: appSurface,
+              dateRange: { date_from: "-12w" },
+              breakdownFilter: { breakdown: "role", breakdown_type: "event", breakdown_limit: 10 },
+              trendsFilter: { display: "ActionsTable" },
+            },
+          },
+        },
+        {
+          name: "Top écrans app (30 jours)",
+          description: "Repérer les pages peu vues (motif de route, sans id).",
+          query: {
+            kind: "InsightVizNode",
+            source: {
+              kind: "TrendsQuery",
+              series: [{ kind: "EventsNode", event: "$screen", name: "$screen", math: "total" }],
+              properties: appSurface,
+              dateRange: { date_from: "-30d" },
+              breakdownFilter: { breakdown: "$screen_name", breakdown_type: "event", breakdown_limit: 30 },
+              trendsFilter: { display: "ActionsTable" },
             },
           },
         },

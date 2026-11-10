@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:viro_team_v2/config/push_channels.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/services/notification_analytics.dart';
 
 /// Affichage local des push reçues app ouverte (Android et iOS) et création
 /// des canaux Android.
@@ -86,17 +87,23 @@ class LocalNotificationService {
   /// Affiche une push reçue au premier plan.
   ///
   /// [tag] (`data.tag` serveur) : même tag = remplace la notif précédente.
-  /// [deepLink] est rendu à `onTap` au tap.
+  /// [deepLink] est rendu à `onTap` au tap (payload JSON si type connu).
   Future<void> showPush({
     required String title,
     required String body,
     required String? preferenceKey,
     required String? tag,
     required String? deepLink,
+    String? notificationType,
   }) async {
     if (!_initialized) return;
     final channel = PushChannel.forPreferenceKey(preferenceKey);
     final hasTag = tag != null && tag.isNotEmpty;
+    final payload = encodeLocalNotificationPayload(
+      deepLink: deepLink,
+      notificationType: notificationType,
+      preferenceKey: preferenceKey,
+    );
 
     await _plugin.show(
       // Android : FCM affiche une notif taguée avec l'id 0 ; même couple
@@ -106,7 +113,7 @@ class LocalNotificationService {
           : _nextUntaggedId(),
       title: title,
       body: body,
-      payload: deepLink,
+      payload: payload.isEmpty ? null : payload,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           channel.id,

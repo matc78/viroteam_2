@@ -79,4 +79,13 @@ void main() {
       'member_count': 42,
     });
   });
+
+  group('analyticsActiveRole', () {
+    test('renvoie le rôle session ou none', () {
+      expect(analyticsActiveRole('coach'), 'coach');
+      expect(analyticsActiveRole(''), analyticsNoRole);
+      expect(analyticsActiveRole(null), analyticsNoRole);
+      expect(analyticsActiveRoleKey, 'active_role');
+    });
+  });
 }

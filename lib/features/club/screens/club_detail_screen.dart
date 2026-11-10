@@ -16,11 +16,13 @@ import 'package:viro_team_v2/features/club/providers/club_audience_providers.dar
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_overview_providers.dart';
 import 'package:viro_team_v2/features/club/providers/role_requests_providers.dart';
+import 'package:viro_team_v2/features/club/services/club_analytics.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/features/club/widgets/club_hero_header.dart';
 import 'package:viro_team_v2/features/club/widgets/club_management_list.dart';
 import 'package:viro_team_v2/features/club/widgets/club_shortcuts_grid.dart';
+import 'package:viro_team_v2/services/analytics_identity.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/members/widgets/my_parent_section.dart';
@@ -82,6 +84,23 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           widget.clubId,
           role: user?.membershipInClub(widget.clubId)?.role,
         );
+  }
+
+  /// Capture un CTA fiche club puis navigue vers [route].
+  void _trackClubActionAndPush({
+    required String action,
+    required String zone,
+    required String route,
+    String? roleOverride,
+  }) {
+    final role = roleOverride ??
+        analyticsActiveRole(ref.read(sessionProvider).activeRole);
+    ref.read(clubAnalyticsProvider).trackActionTapped(
+          action: action,
+          role: role,
+          zone: zone,
+        );
+    context.push(route);
   }
 
   Future<void> _setRsvp(ClubEvent event, RsvpStatus status) async {
@@ -370,13 +389,27 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               latestAnnouncementTitle: latestAnnouncement == null
                   ? null
                   : _announcementHeadline(latestAnnouncement),
-              onPlanning: () =>
-                  context.push(AppRoutes.clubPlanningPath(clubId)),
-              onTeams: () => context.push(AppRoutes.clubMyTeamsPath(clubId)),
-              onAnnouncements: () =>
-                  context.push(AppRoutes.clubAnnouncementsPath(clubId)),
+              onPlanning: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionPlanning,
+                zone: ClubAnalytics.zoneShortcut,
+                route: AppRoutes.clubPlanningPath(clubId),
+              ),
+              onTeams: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionTeams,
+                zone: ClubAnalytics.zoneShortcut,
+                route: AppRoutes.clubMyTeamsPath(clubId),
+              ),
+              onAnnouncements: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionAnnouncements,
+                zone: ClubAnalytics.zoneShortcut,
+                route: AppRoutes.clubAnnouncementsPath(clubId),
+              ),
               onMyFee: hasActiveSeason
-                  ? () => context.push(AppRoutes.clubMyFeePath(clubId))
+                  ? () => _trackClubActionAndPush(
+                        action: ClubAnalytics.actionMyFee,
+                        zone: ClubAnalytics.zoneShortcut,
+                        route: AppRoutes.clubMyFeePath(clubId),
+                      )
                   : null,
             ),
           ),
@@ -407,18 +440,41 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               accentColor: managementAccent,
               memberCount: club.memberCount,
               pendingCount: pendingCount,
-              onMembers: () => context.push(AppRoutes.clubMembersPath(clubId)),
-              onActivity: () =>
-                  context.push(AppRoutes.clubActivityPath(clubId)),
-              onFees: () => context.push(AppRoutes.clubFeesPath(clubId)),
-              onAppearance: () =>
-                  context.push(AppRoutes.clubAppearancePath(clubId)),
-              onLocations: () =>
-                  context.push(AppRoutes.clubLocationsPath(clubId)),
-              onEquipment: () =>
-                  context.push(AppRoutes.clubEquipmentPath(clubId)),
-              onSettings: () =>
-                  context.push(AppRoutes.clubSettingsPath(clubId)),
+              onMembers: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionMembers,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubMembersPath(clubId),
+              ),
+              onActivity: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionActivity,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubActivityPath(clubId),
+              ),
+              onFees: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionFees,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubFeesPath(clubId),
+              ),
+              onAppearance: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionAppearance,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubAppearancePath(clubId),
+              ),
+              onLocations: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionLocations,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubLocationsPath(clubId),
+              ),
+              onEquipment: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionEquipment,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubEquipmentPath(clubId),
+              ),
+              onSettings: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionSettings,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubSettingsPath(clubId),
+              ),
             ),
           ),
         ],
@@ -705,12 +761,23 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             ),
             FamilyQuickActionsGrid(
               accentColor: memberAccent,
-              onPlanning: () => context.push(
-                AppRoutes.clubPlanningPath(clubId),
+              onPlanning: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionPlanning,
+                zone: ClubAnalytics.zoneFamily,
+                route: AppRoutes.clubPlanningPath(clubId),
+                roleOverride: 'parent',
               ),
-              onFee: () => context.push(AppRoutes.clubMyFeePath(clubId)),
-              onInfos: () => context.push(
-                AppRoutes.clubAnnouncementsPath(clubId),
+              onFee: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionMyFee,
+                zone: ClubAnalytics.zoneFamily,
+                route: AppRoutes.clubMyFeePath(clubId),
+                roleOverride: 'parent',
+              ),
+              onInfos: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionAnnouncements,
+                zone: ClubAnalytics.zoneFamily,
+                route: AppRoutes.clubAnnouncementsPath(clubId),
+                roleOverride: 'parent',
               ),
             ),
             const SizedBox(height: ViroSpacing.xl),

@@ -18,6 +18,7 @@ final analyticsIdentitySyncProvider = Provider<void>((ref) {
   String? signedInUid;
   String? sentPerson;
   String? sentClub;
+  String? sentActiveRole;
 
   void sync() {
     final authUser = ref.read(authStateProvider).value;
@@ -26,6 +27,7 @@ final analyticsIdentitySyncProvider = Provider<void>((ref) {
       signedInUid = null;
       sentPerson = null;
       sentClub = null;
+      sentActiveRole = null;
       return;
     }
     signedInUid = authUser.uid;
@@ -34,6 +36,7 @@ final analyticsIdentitySyncProvider = Provider<void>((ref) {
       // Renvoyé tel quel si l'utilisateur accepte plus tard.
       sentPerson = null;
       sentClub = null;
+      sentActiveRole = null;
       return;
     }
 
@@ -56,7 +59,14 @@ final analyticsIdentitySyncProvider = Provider<void>((ref) {
       }
     }
 
-    final clubId = ref.read(sessionProvider).activeClubId;
+    final session = ref.read(sessionProvider);
+    final activeRole = analyticsActiveRole(session.activeRole);
+    if (activeRole != sentActiveRole) {
+      sentActiveRole = activeRole;
+      unawaited(analytics.register(analyticsActiveRoleKey, activeRole));
+    }
+
+    final clubId = session.activeClubId;
     if (clubId == null || clubId.isEmpty) return;
     final club = (ref.read(userClubsProvider).value ?? const [])
         .where((entry) => entry.club.id == clubId)

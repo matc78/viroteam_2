@@ -16,6 +16,7 @@ import 'package:viro_team_v2/services/join_request_service.dart';
 import 'package:viro_team_v2/services/member_invite_service.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
+import 'package:viro_team_v2/features/club/services/club_analytics.dart';
 import 'package:viro_team_v2/features/fees/services/fee_payment_analytics.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/services/notification_permission_service.dart';
@@ -46,6 +47,10 @@ final feePaymentAnalyticsProvider = Provider<FeePaymentAnalytics>(
   (ref) => FeePaymentAnalytics(analytics: ref.watch(analyticsServiceProvider)),
 );
 
+final clubAnalyticsProvider = Provider<ClubAnalytics>(
+  (ref) => ClubAnalytics(analytics: ref.watch(analyticsServiceProvider)),
+);
+
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 final accountServiceProvider =
@@ -60,7 +65,9 @@ final conversationAvatarStorageProvider =
 final userServiceProvider = Provider<UserService>((ref) => UserService());
 
 final pushNotificationServiceProvider = Provider<PushNotificationService>(
-  (ref) => PushNotificationService(),
+  (ref) => PushNotificationService(
+    analytics: ref.watch(analyticsServiceProvider),
+  ),
 );
 
 final notificationPermissionServiceProvider =

@@ -19,7 +19,7 @@ Projet PostHog : la base `v2-prod` envoie au projet « ViroTeam prod », `v2-dev
 
 ## Tableaux de bord (PostHog)
 
-Le script [`tool/posthog_dashboards.mjs`](../tool/posthog_dashboards.mjs) crée les cinq tableaux ci-dessous (`--only=<nom>` pour n'en créer qu'un, ex. `--only=Portail`). Il ne recrée pas un tableau qui existe déjà avec le même nom.
+Le script [`tool/posthog_dashboards.mjs`](../tool/posthog_dashboards.mjs) crée les six tableaux ci-dessous (`--only=<nom>` pour n'en créer qu'un, ex. `--only=Usage`). Il ne recrée pas un tableau qui existe déjà avec le même nom.
 
 1. Dans PostHog › Paramètres personnels › Personal API keys, crée une clé avec les droits en écriture sur `dashboard`, `insight` et `action`, et en lecture sur `group`.
 2. Lance d'abord le script sur le projet **dev**, après avoir déployé les Functions dev. Il faut qu'au moins un événement soit rattaché à un club, sinon le type de groupe `club` n'existe pas encore :
@@ -37,8 +37,11 @@ Le script [`tool/posthog_dashboards.mjs`](../tool/posthog_dashboards.mjs) crée 
 | **Rétention** | Cohortes hebdomadaires (première identification) et part des personnes qui reviennent sur 8 semaines |
 | **Cotisations** | Entonnoir `fee_payment_started` → `fee_payment_submitted` → `fee_payment_succeeded` par club, et montant encaissé par semaine |
 | **Portail** | Portail web seul (`surface = portal`) : utilisateurs et clubs actifs, pages vues et pages les plus vues, actions serveur faites depuis le portail (`client = portal`) et leur part face à l'app, création de club et paiement des cotisations sur le portail |
+| **Usage** | Events créés et RSVP (volume + breakdown), taux de réponse proxy (`rsvp_set` / `recipient_count` des `convocation_sent`), ouvertures de notif par type (`notification_opened`), visites fiche club (`$screen` `/club/:clubId`), CTA fiche club (`club_action_tapped` par action / rôle), top écrans app |
 
-Les requêtes SQL (clubs actifs, plateformes) s'affichent en tableau. Pour les voir en courbe : dans l'insight, Visualisation › Line chart.
+Les requêtes SQL (clubs actifs, plateformes, taux proxy) s'affichent en tableau. Pour les voir en courbe : dans l'insight, Visualisation › Line chart.
+
+Les ouvertures de notif et les CTA fiche club partent du client (consentement requis). La super-propriété app `active_role` (rôle du club actif) enrichit aussi les `$screen`. Pas de CTR notif exact pour l’instant : on compte les ouvertures par type ; le dénominateur d’envoi exhaustif n’est pas encore taggé.
 
 ### Stripe dans PostHog (optionnel)
 

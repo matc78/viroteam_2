@@ -189,6 +189,12 @@ class AnalyticsService {
     );
   }
 
+  /// Propriété super ajoutée à tous les événements suivants (ex. `active_role`).
+  Future<void> register(String key, Object value) {
+    if (!_started) return Future.value();
+    return _safe(() => _client.register(key, value));
+  }
+
   /// Déconnexion : oublie l'utilisateur et le club, garde les propriétés
   /// communes (`surface`, `app_env`).
   Future<void> resetIdentity() {

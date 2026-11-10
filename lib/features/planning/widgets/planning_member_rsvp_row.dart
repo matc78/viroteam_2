@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -97,6 +98,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
       },
     );
     if (chosen == null || chosen == status) return;
+    ViroHaptics.confirm();
     onSelected(chosen);
   }
 

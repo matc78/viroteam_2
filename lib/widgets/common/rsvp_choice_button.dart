@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
 /// Bouton d'action RSVP (Présent / Absent).
@@ -39,7 +40,11 @@ class RsvpChoiceButton extends StatelessWidget {
             : BorderSide.none,
       ),
       child: InkWell(
-        onTap: onTap,
+        // Vibration au tap, avant l'appel réseau (optimistic UI).
+        onTap: () {
+          ViroHaptics.confirm();
+          onTap();
+        },
         borderRadius: radius,
         child: SizedBox(
           height: height,

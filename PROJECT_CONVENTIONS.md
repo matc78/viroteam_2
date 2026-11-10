@@ -92,6 +92,7 @@ Scaffold(
 | Tap avec animation | `ViroPressable` |
 | Bouton pleine largeur | `ElevatedButton` / `OutlinedButton` (thème) |
 | Avatar de conversation (DM, groupe, canal) | `ViroConversationAvatar` (tailles `ViroChat.avatar*`) |
+| Retour haptique | `ViroHaptics` (voir « Retour haptique ») |
 
 ### Messagerie : tokens partagés app ↔ portail
 
@@ -111,6 +112,13 @@ Scaffold(
 - Boutons icône, menus, FAB → **`ViroPressable`** ou widgets flottants dédiés.
 - Menus / sheets / dialogs → thème Material (`ViroMotion.elevationMenu`).
 - Transitions d’écran : fade / Cupertino, pas de slides lourds.
+
+### Retour haptique
+
+- Toujours via **`ViroHaptics`** (`lib/config/viro_haptics.dart`), jamais `HapticFeedback` en direct (garde-fou `test/haptics_usage_test.dart`). Réglage « Vibrations » (Paramètres > Apparence, activé par défaut) respecté automatiquement.
+- Vocabulaire : `confirm()` action rapide validée (RSVP, envoi de message, au tap, avant le réseau) ; `selection()` valeur d’un sélecteur qui change vraiment ; `threshold()` seuil de geste franchi (swipe, pull-to-refresh) ou appui long reconnu ; `success()` / `error()` résultat (toasts, échec de RSVP).
+- Déjà branché dans les briques communes : `RsvpChoiceButton`, `ViroPressable.onLongPress`, `ViroSwipeToReveal`, `ViroRefreshIndicator`, `ViroStatusToast`. Appui long hors `ViroPressable` (`GestureDetector`, `InkWell`) → `onLongPress: ViroHaptics.longPress(action)`.
+- Pas de vibration sur la navigation, les taps génériques, les formulaires, la réception de message, les animations, ni les confirmations destructives. `ViroSnackBar` (info neutre) reste muet. `Switch.adaptive` vibre déjà sur iOS : ne rien ajouter.
 
 ### Icônes
 
@@ -296,3 +304,4 @@ Plus tard :
 | 2026-11 | Messagerie : mes bulles en `accentFill`, les autres en `surfaceCard`, messages consécutifs regroupés (app + portail) ; bouton Messagerie du header portail = page Messages ; portail mobile = bascule liste ↔ fil ; « en train d’écrire », accusés de lecture et multi-photos hors MVP |
 | 2026-11 | A11y portail : `useDialogA11y({ modal: false })` pour panneaux latéraux et fenêtre flottante, `useMenuA11y` pour les menus, bouton d’actions au focus à la place du seul clic droit ; points de rupture du chat 767 / 1024 px ; ouverture de la messagerie conditionnée à `docs/CHAT_SMOKE.md` |
 | 2026-11 | Une seule clé membre : une fiche liée vit à `members/{uid}` (re-keying à la liaison + migration `tool/rekey_linked_members.mjs`) ; profil compte → fiche par trigger serveur ; `member_accounts` et résolveurs uid ↔ memberId supprimés en 2.3.0 (app, portail, Functions, rules) |
+| 2026-11 | Retour haptique : `ViroHaptics` seul point d’entrée (confirm / selection / threshold / success / error, anti-rafale 60 ms), sans paquet ; peu de vibrations, sur les actions clés et les gestes à seuil ; réglage « Vibrations » local, activé par défaut |

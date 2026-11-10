@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 
@@ -25,7 +26,11 @@ class ViroRefreshIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
     return RefreshIndicator(
-      onRefresh: onRefresh,
+      // Appelé au relâchement après le seuil : on le fait sentir.
+      onRefresh: () {
+        ViroHaptics.threshold();
+        return onRefresh();
+      },
       color: palette.accent,
       backgroundColor: palette.surfaceCard,
       displacement: ViroSpacing.xl,

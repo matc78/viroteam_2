@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_calendar_range.dart';
@@ -37,7 +38,10 @@ class PlanningViewModeSwitcher extends StatelessWidget {
           ),
         ],
         selected: {mode},
-        onSelectionChanged: (selected) => onChanged(selected.first),
+        onSelectionChanged: (selected) {
+          ViroHaptics.selection();
+          onChanged(selected.first);
+        },
       ),
     );
   }

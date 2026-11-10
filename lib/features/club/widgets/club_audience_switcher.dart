@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
@@ -42,9 +43,14 @@ class ClubAudienceSwitcher extends ConsumerWidget {
                 ChoiceChip(
                   label: Text(target.label),
                   selected: selected?.memberId == target.memberId,
-                  onSelected: (_) => ref
-                      .read(clubAudienceSelectionProvider.notifier)
-                      .select(clubId: clubId, memberId: target.memberId),
+                  onSelected: (_) {
+                    if (selected?.memberId != target.memberId) {
+                      ViroHaptics.selection();
+                    }
+                    ref
+                        .read(clubAudienceSelectionProvider.notifier)
+                        .select(clubId: clubId, memberId: target.memberId);
+                  },
                   selectedColor: accent,
                   labelStyle: TextStyle(
                     color: selected?.memberId == target.memberId

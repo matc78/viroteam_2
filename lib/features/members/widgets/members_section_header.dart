@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -58,7 +59,10 @@ class MembersSectionHeader extends StatelessWidget {
               ),
             ],
             selected: {section},
-            onSelectionChanged: (selected) => onSectionChanged(selected.first),
+            onSelectionChanged: (selected) {
+              ViroHaptics.selection();
+              onSectionChanged(selected.first);
+            },
           ),
           const SizedBox(height: ViroSpacing.sm),
           ViroCard(

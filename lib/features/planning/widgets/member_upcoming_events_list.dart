@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
@@ -43,7 +44,10 @@ Future<void> setMemberEventRsvp({
           status: status,
         );
   } catch (_) {
-    if (context.mounted) ViroSnackBar.show(context, failureMessage);
+    if (context.mounted) {
+      ViroHaptics.error();
+      ViroSnackBar.show(context, failureMessage);
+    }
   }
 }
 

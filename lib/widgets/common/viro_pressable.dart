@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -96,7 +97,10 @@ class _ViroPressableState extends State<ViroPressable>
         onTapUp: widget.enabled ? _onTapUp : null,
         onTapCancel: widget.enabled ? _onTapCancel : null,
         onTap: widget.enabled ? widget.onTap : null,
-        onLongPress: widget.enabled ? widget.onLongPress : null,
+        // Appui long reconnu : vibration de seuil (convention iOS / Android).
+        onLongPress: widget.enabled && widget.onLongPress != null
+            ? ViroHaptics.longPress(widget.onLongPress!)
+            : null,
         child: AnimatedBuilder(
           animation: _scale,
           builder: (context, child) {

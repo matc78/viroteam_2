@@ -29,6 +29,7 @@ Ne créer un widget/service neuf que si rien d’existant ne convient (après ad
 - Couleurs / espacements / motion : uniquement `lib/config/` (pas de magic numbers).
 - Dark mode : couleurs neutres / de marque via `context.viroPalette` (`ViroPalette`), jamais `ViroColors.gray*` / `primary*` / `surface*` dans features et widgets (garde-fou `test/theme_palette_usage_test.dart`).
 - Interactions : `ViroPressable` / boutons flottants Viro.
+- Retour haptique : uniquement `ViroHaptics` (`confirm` / `selection` / `threshold` / `success` / `error`, `longPress(action)` hors `ViroPressable`), jamais `HapticFeedback` (garde-fou `test/haptics_usage_test.dart`) ; pas de vibration sur la navigation, les taps génériques ni les actions destructives.
 - **Textes UI** : via `AppCopy` (`lib/copy/`) — pas de littéraux FR dans widgets/écrans. Voix « pote de vestiaire » (tutoiement).
 
 ## Firestore

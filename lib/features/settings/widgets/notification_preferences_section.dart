@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -243,11 +244,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
                         // Le bilan part avec les convocations et rappels.
                         onSelectionChanged: !systemAllowed || !prefs.events
                             ? null
-                            : (selected) => _setCoachSummaryTiming(
+                            : (selected) {
+                                ViroHaptics.selection();
+                                _setCoachSummaryTiming(
                                   context: context,
                                   ref: ref,
                                   timing: selected.first,
-                                ),
+                                );
+                              },
                       ),
                     ],
                   ),

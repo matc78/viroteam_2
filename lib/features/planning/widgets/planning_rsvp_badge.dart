@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club_event.dart';
@@ -167,6 +168,12 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
   final RsvpStatus status;
   final ValueChanged<RsvpStatus> onSelected;
 
+  /// Vibre si le statut change, puis transmet le choix.
+  void _choose(RsvpStatus next) {
+    if (next != status) ViroHaptics.confirm();
+    onSelected(next);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -181,7 +188,7 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
             AppCopy.planning.rsvpPresent,
             counts.yes,
           ),
-          onTap: () => onSelected(RsvpStatus.yes),
+          onTap: () => _choose(RsvpStatus.yes),
         ),
         const SizedBox(width: ViroSpacing.sm),
         PlanningRsvpCountBadge(
@@ -193,7 +200,7 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
             AppCopy.planning.rsvpAbsent,
             counts.no,
           ),
-          onTap: () => onSelected(RsvpStatus.no),
+          onTap: () => _choose(RsvpStatus.no),
         ),
         const SizedBox(width: ViroSpacing.sm),
         PlanningRsvpCountBadge(
@@ -205,7 +212,7 @@ class PlanningRsvpCountChoiceRow extends StatelessWidget {
             AppCopy.planning.rsvpPending,
             counts.none,
           ),
-          onTap: () => onSelected(RsvpStatus.none),
+          onTap: () => _choose(RsvpStatus.none),
         ),
       ],
     );

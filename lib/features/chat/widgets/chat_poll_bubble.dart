@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_chat.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -67,7 +68,7 @@ class ChatPollBubble extends StatelessWidget {
     return Align(
       alignment: align,
       child: GestureDetector(
-        onLongPress: onLongPress,
+        onLongPress: ViroHaptics.longPress(onLongPress),
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: ViroChat.messageGap / 2),
           padding: const EdgeInsets.symmetric(

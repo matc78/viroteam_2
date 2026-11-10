@@ -91,6 +91,7 @@ Chercher d'abord dans `lib/widgets/common/`, `lib/widgets/lists/`, `lib/config/v
 | États vide / erreur | `ViroEmptyState`, `ViroErrorState` (`viro_empty_error_state.dart`) |
 | Ligne de liste | une tuile `lib/widgets/lists/<nom>_list_tile.dart` |
 | Avatar de conversation | `ViroConversationAvatar` (tailles `ViroChat.avatar*`) |
+| Retour haptique | `ViroHaptics` (`confirm` / `selection` / `threshold` / `success` / `error` ; appui long hors `ViroPressable` → `ViroHaptics.longPress(action)`) — jamais `HapticFeedback` direct (garde-fou `test/haptics_usage_test.dart`) ; pas de vibration sur la navigation, les taps génériques ni les actions destructives |
 
 ### Thème
 

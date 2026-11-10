@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -42,7 +43,10 @@ class AppearanceSettingsSection extends ConsumerWidget {
             isSelected ? ViroIcons.radioOn : ViroIcons.radioOff,
             color: isSelected ? palette.accent : palette.textMuted,
           ),
-          onTap: () => ref.read(themeModeProvider.notifier).select(mode),
+          onTap: () {
+            if (!isSelected) ViroHaptics.selection();
+            ref.read(themeModeProvider.notifier).select(mode);
+          },
         ),
       );
     }

@@ -11,6 +11,7 @@ import 'package:viro_team_v2/services/equipment_service.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/services/fee_service.dart';
 import 'package:viro_team_v2/services/guardian_service.dart';
+import 'package:viro_team_v2/services/haptics_preference_service.dart';
 import 'package:viro_team_v2/services/invitation_service.dart';
 import 'package:viro_team_v2/services/join_request_service.dart';
 import 'package:viro_team_v2/services/member_invite_service.dart';
@@ -153,4 +154,10 @@ final portalBannerPrefsServiceProvider = Provider<PortalBannerPrefsService>(
 /// la première frame).
 final themePreferenceServiceProvider = Provider<ThemePreferenceService>(
   (ref) => ThemePreferenceService(),
+);
+
+/// Surchargé dans `main` avec des préférences préchargées (réglage
+/// « Vibrations » connu dès la première frame).
+final hapticsPreferenceServiceProvider = Provider<HapticsPreferenceService>(
+  (ref) => HapticsPreferenceService(),
 );

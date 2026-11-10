@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -141,7 +142,12 @@ class ChatThreadComposer extends StatelessWidget {
                         tooltip: editing
                             ? AppCopy.chat.saveEdit
                             : AppCopy.chat.sendMessage,
-                        onPressed: canSend ? onSend : null,
+                        onPressed: canSend
+                            ? () {
+                                ViroHaptics.confirm();
+                                onSend();
+                              }
+                            : null,
                         style: IconButton.styleFrom(
                           backgroundColor: palette.accentFill,
                           disabledBackgroundColor: palette.accentSofter,

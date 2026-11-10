@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:viro_team_v2/config/viro_chat.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
@@ -114,6 +115,8 @@ class ChatMessageBubble extends StatelessWidget {
             ? ViroChat.messageGap
             : ViroChat.messageGroupGap) /
         2;
+    // Menu d'actions : vibration de seuil à l'appui long (bulle ou chips).
+    final longPress = ViroHaptics.longPress(onLongPress);
 
     if (message.isDeleted) {
       return Align(
@@ -195,7 +198,7 @@ class ChatMessageBubble extends StatelessWidget {
                   hasReactions: hasReactions,
                 ),
                 child: GestureDetector(
-                  onLongPress: onLongPress,
+                  onLongPress: longPress,
                   onDoubleTap: onDoubleTap,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -373,7 +376,7 @@ class ChatMessageBubble extends StatelessWidget {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(999),
                       onTap: onOpenReactors,
-                      onLongPress: onLongPress,
+                      onLongPress: longPress,
                       // Zone de tap ≥ 44 : remonte sur le bas de la bulle,
                       // les chips restent à leur place (4 px sous le bord).
                       child: ConstrainedBox(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -307,6 +308,7 @@ class _RollCallRow extends StatelessWidget {
                 ? null
                 : (selected) {
                     if (selected.isEmpty) return;
+                    ViroHaptics.selection();
                     onChanged(selected.first);
                   },
           ),

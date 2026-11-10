@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -19,6 +20,11 @@ abstract final class ViroStatusToast {
   }) {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return;
+    if (success) {
+      ViroHaptics.success();
+    } else {
+      ViroHaptics.error();
+    }
 
     late final OverlayEntry entry;
     entry = OverlayEntry(

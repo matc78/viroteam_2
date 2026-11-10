@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -127,6 +128,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _hiddenPendingIds.remove(event.id));
+        ViroHaptics.error();
         ViroSnackBar.show(context, AppCopy.club.rsvpFailed);
       }
     }

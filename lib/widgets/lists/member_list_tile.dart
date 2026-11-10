@@ -34,6 +34,8 @@ class MemberListTile extends StatelessWidget {
     this.parentLinkStatus,
     this.selectionMode = false,
     this.selected = false,
+    this.displayRole,
+    this.isSessionMember = false,
   });
 
   final ClubMember member;
@@ -52,6 +54,12 @@ class MemberListTile extends StatelessWidget {
   final ParentLinkStatus? parentLinkStatus;
   final bool selectionMode;
   final bool selected;
+
+  /// Rôle affiché à la place du rôle club (ex. slot roster Entraîneur / Joueur).
+  final ViroRole? displayRole;
+
+  /// `true` pour le membre en session : nom en gras pour le repérer dans la liste.
+  final bool isSessionMember;
 
   bool get _isAdmin => viewerRole == MemberRoles.admin;
   bool get _canEmailInvite =>
@@ -120,7 +128,8 @@ class MemberListTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                        isSessionMember ? FontWeight.w800 : FontWeight.w600,
                     color: accent,
                   ),
                 ),
@@ -131,7 +140,7 @@ class MemberListTile extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     ViroRoleBadge(
-                      role: viroRoleFromMemberRole(member.role),
+                      role: displayRole ?? viroRoleFromMemberRole(member.role),
                       compact: true,
                     ),
                     if (!member.hasLinkedAccount)

@@ -143,6 +143,22 @@ final selectedClubAudienceProvider =
   return targets.first;
 });
 
+/// Fiche à mettre en avant (épinglée, en gras) dans les effectifs d'équipe :
+/// l'enfant si un enfant est sélectionné, sinon sa propre fiche.
+///
+/// Pendant le chargement des cibles, s'appuie sur la sélection déjà connue
+/// (synchrone) pour ne pas afficher sa fiche puis basculer sur l'enfant.
+final rosterSessionMemberIdProvider =
+    Provider.family<String?, String>((ref, clubId) {
+  final selfMemberId = ref.watch(clubMemberProvider(clubId)).value?.memberId;
+  final targetsAsync = ref.watch(clubFamilyTargetsProvider(clubId));
+  if (!targetsAsync.hasValue) {
+    return ref.watch(clubAudienceSelectionProvider)[clubId] ?? selfMemberId;
+  }
+  return ref.watch(selectedClubAudienceProvider(clubId))?.memberId ??
+      selfMemberId;
+});
+
 /// `true` si le segment Moi | enfant (ou puces multi-enfants) doit s’afficher.
 bool shouldShowAudienceSwitcher(List<FamilyAudienceTarget> targets) {
   final hasSelf = targets.any((target) => target.isSelf);

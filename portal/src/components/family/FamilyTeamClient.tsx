@@ -149,6 +149,7 @@ export function FamilyTeamClient() {
           sport={activeClub.sport}
           busy={false}
           error={null}
+          viewerMemberId={selectedMemberId}
           canCreateTeam={false}
           canEditTeam={false}
           canDeleteTeam={false}

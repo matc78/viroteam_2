@@ -93,6 +93,7 @@ export function TeamPageClient() {
           sport={activeClub.sport}
           busy={false}
           error={null}
+          viewerMemberId={user?.uid ?? null}
           canCreateTeam={false}
           canEditTeam={false}
           canDeleteTeam={false}

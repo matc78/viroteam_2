@@ -637,6 +637,10 @@
   white-space: nowrap;
 }
 
+.chipLabelSession {
+  font-weight: 800;
+}
+
 .searchHighlight {
   margin: 0;
   padding: 0.05em 0.12em;

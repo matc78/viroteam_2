@@ -16,6 +16,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Accueil : la barre clubs / + / messagerie remonte via `viewPadding` (barre 3 boutons Android) avec une petite marge seulement quand cet inset est présent — inchangé sans barre système
 - Loader : animation d’assemblage du logo ViroTeam (cycle ~1,4 s) à la place du spinner circulaire pour tous les chargements plein contenu
 - Notifications push : voix vestiaire pour les joueurs (titres en rotation — relance manuelle, convoc’, J-7 / J-2 / jour J), plus familier pour le staff (bilan, RSVP) ; parents adoucis ; cotisation / annonces / annulation inchangés. Relance manuelle réservée aux sans-réponse et « peut-être », signature « Signé coach {prénom} »
 - Accueil membre : tous les événements des 14 prochains jours s’affichent directement ; le bouton « Voir mes 14 prochains jours » (aperçu limité) est retiré

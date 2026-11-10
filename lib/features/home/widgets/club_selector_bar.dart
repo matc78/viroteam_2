@@ -44,7 +44,15 @@ class ClubSelectorBar extends ConsumerWidget {
 
   /// Espace à laisser en bas du body pour que le contenu ne passe pas sous les boutons.
   static double bottomClearance(BuildContext context) =>
-      barHeight + MediaQuery.paddingOf(context).bottom;
+      barHeight + _bottomPad(context);
+
+  /// Inset système bas ([MediaQuery.viewPadding]) + petite marge si une barre
+  /// de navigation (ex. 3 boutons Android) est présente ; 0 sinon.
+  static double _bottomPad(BuildContext context) {
+    final systemInset = MediaQuery.viewPaddingOf(context).bottom;
+    if (systemInset <= 0) return 0;
+    return systemInset + ViroSpacing.sm;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -72,7 +80,7 @@ class ClubSelectorBar extends ConsumerWidget {
       );
     }).toList();
 
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final bottomInset = _bottomPad(context);
     final chatButton = onOpenChat != null
         ? _ChatBarItem(
             badgeCount: chatUnread > 0 ? chatUnread : null,

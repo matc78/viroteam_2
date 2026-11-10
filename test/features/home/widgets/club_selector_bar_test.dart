@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/config/viro_theme.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
@@ -47,4 +48,49 @@ void main() {
     expect(find.text('Viro FC'), findsOneWidget);
     expect(find.text('Rugby'), findsOneWidget);
   });
+
+  testWidgets(
+    'bottomClearance : 0 sans barre système, inset + marge avec barre',
+    (tester) async {
+      late double clearanceWithoutInset;
+      late double clearanceWithInset;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(),
+            child: Builder(
+              builder: (context) {
+                clearanceWithoutInset =
+                    ClubSelectorBar.bottomClearance(context);
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              viewPadding: EdgeInsets.only(bottom: 48),
+            ),
+            child: Builder(
+              builder: (context) {
+                clearanceWithInset = ClubSelectorBar.bottomClearance(context);
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(clearanceWithoutInset, ClubSelectorBar.barHeight);
+      expect(
+        clearanceWithInset,
+        ClubSelectorBar.barHeight + 48 + ViroSpacing.sm,
+      );
+    },
+  );
 }

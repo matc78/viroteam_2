@@ -128,8 +128,8 @@ Pour forcer les utilisateurs à passer sur une nouvelle version, **une fois la v
 
 | Champ | Exemple |
 |-------|---------|
-| `minVersionAndroid` | `2.2.7` (après publication Play Store) |
-| `minVersionIos` | `2.2.7` (après publication App Store) |
+| `minVersionAndroid` | `2.3.0` (après publication Play Store) |
+| `minVersionIos` | `2.3.0` (après publication App Store) |
 
 Format : `X.Y.Z` ; un `v` en tête, un build `+N` ou un suffixe `-xxx` sont ignorés. Une valeur illisible ne bloque personne.
 

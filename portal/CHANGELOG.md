@@ -21,6 +21,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ### Modifié
 
+- Équipes : la puce de ta fiche (ou de l’enfant sélectionné dans l’espace famille) est épinglée en tête du roster et en gras ; le dialog d’ajout à une équipe n’affiche plus le rôle club, seulement l’e-mail
 - Membres : bouton « Importer CSV » masqué sur téléphone (≤ 767 px)
 - Membres : lecture / écriture Excel via `exceljs` (lazy-load) à la place de SheetJS `xlsx@0.18.5`
 - Une seule clé membre (à déployer après la migration `rekey_linked_members`) : la fiche d’un compte est lue à `members/{uid}` via `src/lib/firebase/memberRefs.ts` ; plus de lecture de `member_accounts` ni de résolveurs uid ↔ memberId (rosters, convocations, RSVP, cotisations, contacts, messagerie). La sync des convocations ne fait plus qu’ajouter les joueurs du roster manquants (hors exclus). L’avatar n’écrit plus que `users/{uid}` (fiche membre synchronisée côté serveur). Le suivi des cotisations affiche le nom courant de la fiche. Garde-fou `memberKeyUsage.test.ts`

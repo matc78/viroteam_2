@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
@@ -16,6 +17,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
 
@@ -68,9 +70,10 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
         !hasAvatar && club.logoUrl != null && club.logoUrl!.isNotEmpty;
 
     final membersAsync = ref.watch(clubMembersProvider(team.clubId));
-    final viewerRole =
-        ref.watch(clubMemberProvider(team.clubId)).value?.role ??
-            MemberRoles.player;
+    final viewerMember = ref.watch(clubMemberProvider(team.clubId)).value;
+    final viewerRole = viewerMember?.role ?? MemberRoles.player;
+    final sessionMemberId =
+        ref.watch(rosterSessionMemberIdProvider(team.clubId));
     final membersByUid = membersAsync.value != null
         ? indexClubMembersById(membersAsync.value!)
         : <String, ClubMember>{};
@@ -158,6 +161,8 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                 uids: team.coachIds,
                 membersByUid: membersByUid,
                 viewerRole: viewerRole,
+                sessionMemberId: sessionMemberId,
+                displayRole: ViroRole.coach,
               ),
               ..._buildMemberSection(
                 context,
@@ -165,6 +170,8 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                 uids: team.playerIds,
                 membersByUid: membersByUid,
                 viewerRole: viewerRole,
+                sessionMemberId: sessionMemberId,
+                displayRole: ViroRole.player,
               ),
               if (team.pendingPlayerIds.isNotEmpty) ...[
                 if (_loadingPending)
@@ -191,6 +198,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                       viewerRole: viewerRole,
                       accentColor: widget.accent,
                       showClubAdminActions: false,
+                      displayRole: ViroRole.player,
                     ),
                   ),
                 ],
@@ -208,15 +216,21 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
     required List<String> uids,
     required Map<String, ClubMember> membersByUid,
     required String viewerRole,
+    required String? sessionMemberId,
+    required ViroRole displayRole,
   }) {
     if (uids.isEmpty) return [];
 
     final titleColor =
         title.contains('Coach') ? ViroColors.coachBadgeEnd : widget.accent;
+    final orderedIds = pinSessionMemberIdFirst(
+      uids,
+      sessionMemberId: sessionMemberId,
+    );
 
     return [
       _sectionHeader(context, title, titleColor),
-      ...uids.map((uid) {
+      ...orderedIds.map((uid) {
         final member = membersByUid[uid];
         if (member == null) return const SizedBox.shrink();
         return MemberListTile(
@@ -225,6 +239,8 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
           viewerRole: viewerRole,
           accentColor: widget.accent,
           showClubAdminActions: false,
+          displayRole: displayRole,
+          isSessionMember: member.memberId == sessionMemberId,
           onTap: member.hasLinkedAccount
               ? () => showMemberDetailSheet(
                     context,

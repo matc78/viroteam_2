@@ -3,10 +3,7 @@
 import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { MemberRoles } from "@/lib/firebase/constants";
-import {
-  memberRoleLabel,
-  type ClubMemberRecord,
-} from "@/lib/firebase/memberService";
+import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import type { TeamRosterRole } from "@/lib/firebase/teamService";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
@@ -136,10 +133,9 @@ export function AddTeamMemberDialog({
         <span className={addStyles.memberName}>
           {member.displayName || "Membre"}
         </span>
-        <span className={addStyles.memberMeta}>
-          {memberRoleLabel(member.role)}
-          {member.email ? ` · ${member.email}` : ""}
-        </span>
+        {member.email ? (
+          <span className={addStyles.memberMeta}>{member.email}</span>
+        ) : null}
       </button>
     );
   }

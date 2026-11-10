@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -21,6 +22,7 @@ import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
 
 class ManageTeamCard extends ConsumerStatefulWidget {
@@ -116,6 +118,16 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     final membersByUid = membersAsync.value != null
         ? indexClubMembersById(membersAsync.value!)
         : <String, ClubMember>{};
+    final sessionMemberId =
+        ref.watch(rosterSessionMemberIdProvider(team.clubId));
+    final orderedCoachIds = pinSessionMemberIdFirst(
+      team.coachIds,
+      sessionMemberId: sessionMemberId,
+    );
+    final orderedPlayerIds = pinSessionMemberIdFirst(
+      team.playerIds,
+      sessionMemberId: sessionMemberId,
+    );
 
     return ViroCard(
       accentColor: widget.accent,
@@ -216,7 +228,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     onAdd: canAddCoach
                         ? () => _openAddSheet(TeamRosterSlot.coach)
                         : null,
-                    children: team.coachIds.map((uid) {
+                    children: orderedCoachIds.map((uid) {
                       final member = membersByUid[uid];
                       if (member == null) return const SizedBox.shrink();
                       return MemberListTile(
@@ -225,6 +237,8 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         viewerRole: widget.viewerRole,
                         accentColor: widget.accent,
                         showClubAdminActions: false,
+                        displayRole: ViroRole.coach,
+                        isSessionMember: member.memberId == sessionMemberId,
                         onTap: _memberProfileTap(member),
                         onRemove: canRemoveCoach
                             ? () => _removeCoach(uid, member)
@@ -240,7 +254,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     onAdd: canAddPlayer
                         ? () => _openAddSheet(TeamRosterSlot.player)
                         : null,
-                    children: team.playerIds.map((uid) {
+                    children: orderedPlayerIds.map((uid) {
                       final member = membersByUid[uid];
                       if (member == null) return const SizedBox.shrink();
                       return MemberListTile(
@@ -249,6 +263,8 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                         viewerRole: widget.viewerRole,
                         accentColor: widget.accent,
                         showClubAdminActions: false,
+                        displayRole: ViroRole.player,
+                        isSessionMember: member.memberId == sessionMemberId,
                         onTap: _memberProfileTap(member),
                         onRemove: canRemovePlayer
                             ? () => _removePlayer(uid, member)
@@ -280,6 +296,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                             viewerRole: widget.viewerRole,
                             accentColor: widget.accent,
                             showClubAdminActions: false,
+                            displayRole: ViroRole.player,
                             onRemove: canRemovePending
                                 ? () => _removePending(p)
                                 : null,

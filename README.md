@@ -235,6 +235,7 @@ firebase deploy --only firestore
 | Sentry | Monitoring erreurs portail | [sentry.io](https://sentry.io) |
 | GitHub Actions | CI, Release Android / Play Store, deploy portal / functions / Firestore | onglet **Actions** du repo |
 | Google Cloud Billing | Budget / alertes (5 €/mois) | [console.cloud.google.com/billing](https://console.cloud.google.com/billing) |
+| Suivi des coûts | Inventaire vendors, alertes, tableau mensuel | [`docs/COUTS.md`](docs/COUTS.md) · [`docs/couts_mensuel.csv`](docs/couts_mensuel.csv) |
 
 ## Conventions
 

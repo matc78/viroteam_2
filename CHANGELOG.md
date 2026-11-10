@@ -11,6 +11,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 ### Ajouté
 
 - Analytics : événements `notification_opened` (tap push par type) et `club_action_tapped` (CTA fiche club + rôle) ; super-propriété app `active_role` ; tableau de bord PostHog **Usage** (events, RSVP, taux proxy, notifs, vue club, top écrans)
+- Coûts : fiche [`docs/COUTS.md`](docs/COUTS.md) (inventaire Firebase/GCP, PostHog, Sentry, Brevo, GitHub, stores ; alertes vs saisie) + modèle mensuel [`docs/couts_mensuel.csv`](docs/couts_mensuel.csv)
 
 ### Modifié
 

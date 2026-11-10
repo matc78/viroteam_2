@@ -30,6 +30,8 @@ type TeamsPanelProps = {
   busy: boolean;
   error: string | null;
   highlightedTeamId?: string | null;
+  /** Id de fiche du viewer (Moi / enfant) pour pin + gras sur les puces. */
+  viewerMemberId?: string | null;
   canCreateTeam?: boolean;
   canEditTeam?: boolean;
   canDeleteTeam?: boolean;
@@ -73,6 +75,7 @@ export function TeamsPanel({
   busy,
   error,
   highlightedTeamId = null,
+  viewerMemberId = null,
   canCreateTeam = true,
   canEditTeam = true,
   canDeleteTeam = true,
@@ -245,6 +248,7 @@ export function TeamsPanel({
                     busy={busy}
                     searchQuery={search}
                     highlighted={highlightedTeamId === team.id}
+                    viewerMemberId={viewerMemberId}
                     canEdit={canEditTeam}
                     canDelete={canDeleteTeam}
                     canAddCoach={canManageCoaches}

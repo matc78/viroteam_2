@@ -1623,6 +1623,7 @@ function MembersPageContent() {
             busy={busy}
             error={actionError}
             highlightedTeamId={highlightedTeamId}
+            viewerMemberId={user?.uid ?? null}
             canCreateTeam={caps.canCreateTeam}
             canEditTeam={caps.isAdmin}
             canDeleteTeam={caps.isAdmin}

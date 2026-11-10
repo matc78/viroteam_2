@@ -26,6 +26,8 @@ type TeamCardProps = {
   /** Texte de recherche à surligner dans les noms (joueurs / coachs). */
   searchQuery?: string;
   highlighted?: boolean;
+  /** Id de fiche du viewer (Moi / enfant) à remonter et mettre en gras. */
+  viewerMemberId?: string | null;
   canEdit?: boolean;
   canDelete?: boolean;
   canAddPlayer?: boolean;
@@ -108,9 +110,13 @@ function SearchHighlightedText({
   );
 }
 
+/**
+ * Construit la liste roster triée par nom, avec [viewerMemberId] piné en tête.
+ */
 function resolveRosterPeople(
   rosterIds: string[],
   members: ClubMemberRecord[],
+  viewerMemberId?: string | null,
 ): RosterPerson[] {
   const membersById = new Map(members.map((member) => [member.memberId, member]));
   const people: RosterPerson[] = [];
@@ -122,9 +128,15 @@ function resolveRosterPeople(
     });
   }
 
-  return people.sort((a, b) =>
-    a.displayName.localeCompare(b.displayName, "fr"),
+  people.sort((a, b) => a.displayName.localeCompare(b.displayName, "fr"));
+
+  if (!viewerMemberId) return people;
+  const pinnedIndex = people.findIndex(
+    (person) => person.memberId === viewerMemberId,
   );
+  if (pinnedIndex <= 0) return people;
+  const [pinned] = people.splice(pinnedIndex, 1);
+  return [pinned, ...people];
 }
 
 /** Carte équipe expandable : coachs et joueurs en chips, actions discrètes. */
@@ -135,6 +147,7 @@ export function TeamCard({
   busy,
   searchQuery = "",
   highlighted = false,
+  viewerMemberId = null,
   canEdit = true,
   canDelete = true,
   canAddPlayer = true,
@@ -165,12 +178,12 @@ export function TeamCard({
   }
 
   const players = useMemo(
-    () => resolveRosterPeople(team.playerIds, members),
-    [team.playerIds, members],
+    () => resolveRosterPeople(team.playerIds, members, viewerMemberId),
+    [team.playerIds, members, viewerMemberId],
   );
   const coaches = useMemo(
-    () => resolveRosterPeople(team.coachIds, members),
-    [team.coachIds, members],
+    () => resolveRosterPeople(team.coachIds, members, viewerMemberId),
+    [team.coachIds, members, viewerMemberId],
   );
 
   const categoryLabel = team.category.trim() || "Sans catégorie";
@@ -320,28 +333,35 @@ export function TeamCard({
           <p className={styles.rosterEmpty}>Aucun coach</p>
         ) : (
           <ul className={styles.chipList}>
-            {coaches.map((person) => (
-              <li key={`coach-${person.memberId}`} className={styles.chip}>
-                <span className={styles.chipLabel}>
-                  <SearchHighlightedText
-                    text={person.displayName}
-                    query={searchQuery}
-                  />
-                </span>
-                {canRemoveCoach ? (
-                  <button
-                    type="button"
-                    className={styles.chipRemove}
-                    disabled={busy}
-                    aria-label={`Retirer ${person.displayName}`}
-                    title="Retirer"
-                    onClick={() => onRemoveMember(person, MemberRoles.coach)}
+            {coaches.map((person) => {
+              const isSessionMember = person.memberId === viewerMemberId;
+              return (
+                <li key={`coach-${person.memberId}`} className={styles.chip}>
+                  <span
+                    className={`${styles.chipLabel}${
+                      isSessionMember ? ` ${styles.chipLabelSession}` : ""
+                    }`}
                   >
-                    ×
-                  </button>
-                ) : null}
-              </li>
-            ))}
+                    <SearchHighlightedText
+                      text={person.displayName}
+                      query={searchQuery}
+                    />
+                  </span>
+                  {canRemoveCoach ? (
+                    <button
+                      type="button"
+                      className={styles.chipRemove}
+                      disabled={busy}
+                      aria-label={`Retirer ${person.displayName}`}
+                      title="Retirer"
+                      onClick={() => onRemoveMember(person, MemberRoles.coach)}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -368,30 +388,40 @@ export function TeamCard({
               <p className={styles.rosterEmpty}>Aucun joueur</p>
             ) : (
               <ul className={styles.chipList}>
-                {players.map((person) => (
-                  <li key={`player-${person.memberId}`} className={styles.chip}>
-                    <span className={styles.chipLabel}>
-                      <SearchHighlightedText
-                        text={person.displayName}
-                        query={searchQuery}
-                      />
-                    </span>
-                    {canRemovePlayer ? (
-                      <button
-                        type="button"
-                        className={styles.chipRemove}
-                        disabled={busy}
-                        aria-label={`Retirer ${person.displayName}`}
-                        title="Retirer"
-                        onClick={() =>
-                          onRemoveMember(person, MemberRoles.player)
-                        }
+                {players.map((person) => {
+                  const isSessionMember = person.memberId === viewerMemberId;
+                  return (
+                    <li
+                      key={`player-${person.memberId}`}
+                      className={styles.chip}
+                    >
+                      <span
+                        className={`${styles.chipLabel}${
+                          isSessionMember ? ` ${styles.chipLabelSession}` : ""
+                        }`}
                       >
-                        ×
-                      </button>
-                    ) : null}
-                  </li>
-                ))}
+                        <SearchHighlightedText
+                          text={person.displayName}
+                          query={searchQuery}
+                        />
+                      </span>
+                      {canRemovePlayer ? (
+                        <button
+                          type="button"
+                          className={styles.chipRemove}
+                          disabled={busy}
+                          aria-label={`Retirer ${person.displayName}`}
+                          title="Retirer"
+                          onClick={() =>
+                            onRemoveMember(person, MemberRoles.player)
+                          }
+                        >
+                          ×
+                        </button>
+                      ) : null}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>

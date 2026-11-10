@@ -49,6 +49,24 @@ Map<String, ClubMember> indexClubMembersById(List<ClubMember> members) => {
       for (final member in members) member.memberId: member,
     };
 
+/// Remonte [sessionMemberId] en tête de [memberIds] s’il y figure, sans
+/// changer l’ordre relatif des autres ids.
+List<String> pinSessionMemberIdFirst(
+  List<String> memberIds, {
+  String? sessionMemberId,
+}) {
+  if (sessionMemberId == null || sessionMemberId.isEmpty) {
+    return List<String>.of(memberIds);
+  }
+  final pinnedIndex = memberIds.indexOf(sessionMemberId);
+  if (pinnedIndex <= 0) return List<String>.of(memberIds);
+
+  return [
+    sessionMemberId,
+    ...memberIds.where((id) => id != sessionMemberId),
+  ];
+}
+
 /// Fiche affichable d'un joueur invité sans compte (`pending_members`).
 ClubMember pendingAsClubMember(PendingTeamMember pending) {
   return ClubMember.fromPendingRoster(

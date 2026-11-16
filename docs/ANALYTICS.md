@@ -41,7 +41,7 @@ Le script [`tool/posthog_dashboards.mjs`](../tool/posthog_dashboards.mjs) crée 
 
 Les requêtes SQL (clubs actifs, plateformes, taux proxy) s'affichent en tableau. Pour les voir en courbe : dans l'insight, Visualisation › Line chart.
 
-Les ouvertures de notif et les CTA fiche club partent du client (consentement requis). La super-propriété app `active_role` (rôle du club actif) enrichit aussi les `$screen`. Pas de CTR notif exact pour l’instant : on compte les ouvertures par type ; le dénominateur d’envoi exhaustif n’est pas encore taggé.
+Les ouvertures de notif et les CTA fiche club partent du client (consentement requis). La super-propriété app `active_role` (badge de la fiche dans le club actif : `admin`, `coach`, `player`, `member` sans badge, `none` sans fiche) enrichit aussi les `$screen`. Pas de CTR notif exact pour l’instant : on compte les ouvertures par type ; le dénominateur d’envoi exhaustif n’est pas encore taggé.
 
 ### Stripe dans PostHog (optionnel)
 
@@ -61,12 +61,7 @@ Les alertes arrivent par e-mail. Garde-les peu nombreuses : une alerte qui sonne
 
 ## Stores et acquisition
 
-### Appfigures
-
-1. Crée un compte sur appfigures.com. L'offre gratuite suffit pour une app.
-2. Connecte la **Play Console** : invite le compte de service ou l'e-mail fourni par Appfigures avec les droits « Afficher les informations sur l'application » et « Afficher les données financières ».
-3. Connecte **App Store Connect** : une clé API App Store Connect avec le rôle *Sales and Reports*.
-4. Dans Account › Reports, active le **résumé hebdo par e-mail** : installations, notes et avis des deux stores sur un seul écran.
+Les installs se lisent dans **Play Console** et **App Store Connect** (pas dans PostHog).
 
 ### Liens « Télécharger l'app » marqués
 

@@ -17,7 +17,7 @@ Si Firebase / GCP dépasse souvent le budget, on pourra ajouter plus tard un exp
 
 | | Quoi | Dans le tableau ? |
 |---|---|---|
-| **Plateforme ViroTeam** | Firebase/GCP, PostHog, Sentry, Brevo, GitHub, Apple, Play, Appfigures… | Oui |
+| **Plateforme ViroTeam** | Firebase/GCP, PostHog, Sentry, Brevo, GitHub, Apple, Play… | Oui |
 | **Stripe Connect** | Commissions / frais carte sur les cotisations des clubs | Non — coût du club (ou du payeur), pas un abonnement ViroTeam. Suivi via Stripe Dashboard / PostHog cotisations si besoin |
 
 ## Inventaire
@@ -31,7 +31,6 @@ Si Firebase / GCP dépasse souvent le budget, on pourra ajouter plus tard un exp
 | **GitHub Actions** | CI, releases, deploys | Repo › Settings › Billing / Actions | Minutes gratuites (compte perso) | Spending limit si payant |
 | **Apple Developer** | TestFlight / App Store | [developer.apple.com](https://developer.apple.com/account) | **99 € / an** quand activé | Non — **pas payé pour l’instant** ; passer la colonne `apple` à ~8.25 le mois où l’abo démarre |
 | **Google Play Console** | Publication Android | [play.google.com/console](https://play.google.com/console) | **25 $ one-shot** — **déjà payé** | Non — `play_prorata_eur` = **0** |
-| **Appfigures** | Stats stores (optionnel) | [appfigures.com](https://appfigures.com) | Free souvent suffisant | Non |
 
 Crashlytics est inclus côté Firebase ; pas de ligne séparée.
 

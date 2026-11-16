@@ -77,7 +77,7 @@ Scaffold(
 | AppBar | `ViroAppBar` transparente (laisse voir le fond), titre `palette.brandText`, icônes `palette.accent` (thème) |
 | Cartes / listes | `ViroCard`, fond `palette.surfaceCard`, bordure `palette.cardBorder` légère |
 | Bleu fort (`palette.accent` / `accentFill`) | Boutons primaires, liens, accents, badges — **pas** en plein écran |
-| Badges rôles | `ViroRoleBadge` (dégradés vifs, texte blanc) |
+| Badges rôles | `ViroRoleBadge` (dégradés vifs, texte blanc ; badge Membre en aplat gris simple) |
 
 ### Composants UI à réutiliser
 
@@ -190,7 +190,8 @@ lib/
 - Peu de règles complexes côté Firestore ; préférer :
   - `request.auth != null`
   - appartenance club via un champ / sous-doc vérifiable
-- Logique sensible (acceptation invitation, fusion de rôles, **lien parent** `linkGuardian`) → **Cloud Functions** callable.
+- Logique sensible (acceptation invitation, attribution de droits, **lien parent** `linkGuardian`) → **Cloud Functions** callable.
+- **Droits purs** : seule `members/{id}.permissions` autorise (droit `admin` = tous), écrite par les Functions ; pas de modèle de rôle (bascule Administrateur, « fonctions » = groupes de droits non stockés, droits à la carte), pas de demande de rôle. Champs d'accès d'une fiche (Functions seules) : `permissions`, `coachTeamIds`, `teamIds` (trigger d'équipe), `accountUid` ; clubs d'un compte : `users.memberClubIds` seul. Badges dérivés : Admin > Entraîneur > Joueur > Membre (gris simple) ; vue équipe sans Admin ; RSVP d'événement d'équipe : Entraîneur seul ; RSVP d'événement spécial (toutes équipes ou aucune) : Admin aussi. Coach d'équipe = relation (`teams.coachIds` → `coachTeamIds`) avec capacités `clubs.coachPermissions` sur ses seules équipes. `adminIds` = index d'audience, jamais une autorisation. Vérifier un droit via le point d'entrée de la couche (`permissions.ts`, `ClubAccess` / `clubAccessProvider`, `useBureauCapabilities`, `can()` dans les règles), jamais par comparaison de rôle (garde-fous `permissionUsage`). Spec : [`docs/specs/viroteam_v2_permissions_spec.md`](docs/specs/viroteam_v2_permissions_spec.md).
 - Parent ≠ rôle club : relation `members/{memberId}/guardians/{parentUid}` + index `users.parentLinks`. Spec : [`docs/specs/viroteam_v2_parents_spec.md`](docs/specs/viroteam_v2_parents_spec.md). Écriture des deux faces via Function, jamais un seul côté client.
 - Éviter les `get()` multiples et conditions imbriquées dans les rules.
 
@@ -198,9 +199,11 @@ lib/
 
 - Une fiche liée à un compte vit à **`members/{uid}`** : son id est la seule clé membre partout (rosters, RSVP / `seenAt`, guardians, cotisations, annonces « Personnes », invitations, `parentLinks`, `adminIds`). Une fiche pré-inscrite garde un id aléatoire jusqu'à la liaison ; elle est alors **re-clée** côté Functions (`functions/src/memberRekey.ts`), anciens ids gardés dans `formerMemberIds`.
 - Ma fiche = `members/{monUid}` ; l'uid Auth d'une fiche = son `accountUid` (aucun si la fiche n'est pas liée — jamais son id aléatoire).
-- Référence d'une fiche : `clubMemberRef` (`lib/services/member/member_paths.dart`) dans l'app, `src/lib/firebase/memberRefs.ts` dans le portail.
-- Interdit : l'index `member_accounts` (supprimé en 2.3.0), tout résolveur uid ↔ memberId, créer une fiche de compte à id aléatoire, un repli `accountUid ?? memberId`. Garde-fous : `functions/src/memberKeyUsage.test.ts`, `test/member_key_usage_test.dart`, `portal/src/lib/members/memberKeyUsage.test.ts`.
+- Référence d'une fiche : `clubMemberRef` / `clubMembersCollection` (`lib/services/member/member_paths.dart`, seul fichier qui construit la collection) dans l'app, `src/lib/firebase/memberRefs.ts` dans le portail.
+- Interdit : l'index `member_accounts` (supprimé en 2.3.0), les champs `userId` / `memberId` sur une fiche (`accountUid` seul), tout résolveur uid ↔ memberId, créer une fiche de compte à id aléatoire, un repli `accountUid ?? memberId`. Garde-fous : `functions/src/memberKeyUsage.test.ts`, `test/member_key_usage_test.dart`, `portal/src/lib/members/memberKeyUsage.test.ts`.
 - Nom / photo d'un compte → fiche : uniquement le trigger `onUserWrittenSyncMemberProfile` (le client écrit `users/{uid}`, jamais la fiche).
+- Index `clubs.adminIds` : calculé uniquement par `adminIdsUpdate` (`functions/src/permissionsCatalog.ts`) ; jamais lu pour autoriser (garde-fous Functions et app).
+- Portée coach sur un événement : modifier / annuler / notifier = coach de **toutes** les équipes, jamais un événement `allTeams` ; appel et RSVP d'autrui = coach d'une des équipes, hors `allTeams` (`ClubAccess`, règles, Functions alignés). « Encadrement » d'une fiche = `ClubMember.hasStaffBadge` (source unique).
 
 ---
 
@@ -304,4 +307,6 @@ Plus tard :
 | 2026-11 | Messagerie : mes bulles en `accentFill`, les autres en `surfaceCard`, messages consécutifs regroupés (app + portail) ; bouton Messagerie du header portail = page Messages ; portail mobile = bascule liste ↔ fil ; « en train d’écrire », accusés de lecture et multi-photos hors MVP |
 | 2026-11 | A11y portail : `useDialogA11y({ modal: false })` pour panneaux latéraux et fenêtre flottante, `useMenuA11y` pour les menus, bouton d’actions au focus à la place du seul clic droit ; points de rupture du chat 767 / 1024 px ; ouverture de la messagerie conditionnée à `docs/CHAT_SMOKE.md` |
 | 2026-11 | Une seule clé membre : une fiche liée vit à `members/{uid}` (re-keying à la liaison + migration `tool/rekey_linked_members.mjs`) ; profil compte → fiche par trigger serveur ; `member_accounts` et résolveurs uid ↔ memberId supprimés en 2.3.0 (app, portail, Functions, rules) |
+| 2026-11 | Droits purs (app 2.4.0, mise à jour obligatoire) : `members.permissions` seule autorité, catalogue partagé `shared/permissions_catalog.json`, droit `admin` protégé (≥ 1 par club), fonctions prédéfinies + droits à la carte, coach d'équipe = relation (`coachTeamIds` + `coachPermissions`), badges dérivés ; `role` supprimé (migration `tool/migrate_roles_to_permissions.mjs`) ; spec `viroteam_v2_permissions_spec.md` |
+| 2026-11 | Fin des droits purs : plus de modèles Entraîneur / Joueur ni de demande de rôle (`join_requests`, `resolveJoinRequest` supprimés) ; fiche = `permissions`, `coachTeamIds`, `teamIds`, `accountUid` écrits par les Functions seules (`userId` / `memberId` abandonnés) ; `users.memberClubIds` seul index des clubs (`clubMemberships` et trigger `onUserWrittenSyncClubIds` supprimés) ; badge Membre gris pour une fiche sans admin ni équipe |
 | 2026-11 | Retour haptique : `ViroHaptics` seul point d’entrée (confirm / selection / threshold / success / error, anti-rafale 60 ms), sans paquet ; peu de vibrations, sur les actions clés et les gestes à seuil ; réglage « Vibrations » local, activé par défaut |

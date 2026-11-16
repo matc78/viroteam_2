@@ -10,19 +10,52 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Droits des membres (« droits purs », mise à jour obligatoire 2.4.0) : un admin confie des droits précis sans faire de quelqu’un un coach ou un admin — fonctions prédéfinies (Responsable cotisations, annonces, membres, sportif, matériel) et réglage droit par droit dans la nouvelle feuille « Droits » d’une fiche, avec une bascule Administrateur (plus de modèles Entraîneur / Joueur : être coach ou joueur, c’est figurer dans une équipe). Droit Administrateur protégé (seul à attribuer des droits, toujours au moins un par club). Spec [`docs/specs/viroteam_v2_permissions_spec.md`](docs/specs/viroteam_v2_permissions_spec.md)
+- Coachs : nouvelle capacité « Publier des annonces pour ses équipes » dans les réglages coach du club
+- Functions : callables `setMemberPermissions` (remplace `setMemberRole`) et `createClub` (création de club côté serveur) ; script de migration `tool/migrate_roles_to_permissions.mjs` (dry-run par défaut, `--apply`, `--drop-legacy`)
+
 - Analytics : événements `notification_opened` (tap push par type) et `club_action_tapped` (CTA fiche club + rôle) ; super-propriété app `active_role` ; tableau de bord PostHog **Usage** (events, RSVP, taux proxy, notifs, vue club, top écrans)
 - Coûts : fiche [`docs/COUTS.md`](docs/COUTS.md) (inventaire Firebase/GCP, PostHog, Sentry, Brevo, GitHub, stores ; alertes vs saisie) + modèle mensuel [`docs/couts_mensuel.csv`](docs/couts_mensuel.csv)
 - Retour haptique (app) : petite vibration au RSVP, à l’envoi d’un message, au changement de sélecteur (Jour / Semaine / Mois, Moi / enfant, Membres / Parents, appel, thème, moment du bilan coach), au seuil du swipe vers la messagerie et du pull-to-refresh, à l’appui long (dont le menu d’un message), et sur les toasts succès / erreur (double impulsion si un RSVP échoue, y compris saisi par le staff). Réglage « Vibrations » dans Paramètres > Apparence (activé par défaut). Point d’entrée unique `ViroHaptics`
 
 ### Modifié
 
+- Droits : feuille d’attribution séparée en **capacités d’équipe** (lecture seule : équipes entraînées + flags `coachPermissions` du club) et **droits club** (admin, raccourcis Responsable…, détail) ; résumé fiche « Entraîneur · N droits club »
+- Rôles → droits : `members.role` n’autorise plus rien (supprimé après la bascule) ; seule `members.permissions` fait foi, écrite par les Functions. Coach d’équipe = relation (`teams.coachIds` → `members.coachTeamIds`, trigger) avec les capacités `clubs.coachPermissions` sur ses seules équipes. Badges Admin / Entraîneur / Joueur dérivés, et **Membre** (gris) pour une fiche sans droit admin ni équipe ; Admin s’affiche sur la fiche, dans la vue Membres et dans les réponses d’un événement spécial (tout le club ou sans équipe), jamais dans la vue équipe ni dans les réponses d’un événement d’équipe. `adminIds` devient un simple index d’audience. Point d’entrée unique par couche (`ClubAccess`, `permissions.ts`, `useBureauCapabilities`, `can()` dans les règles) + garde-fous `permissionUsage`
+- **Changement de comportement** : un coach ne publie plus d’annonce pour tout le club ou une catégorie (droit Annonces), seulement pour ses équipes ; il ne voit plus les cotisations du club sans le droit « Voir les cotisations » (remplace le réglage coach `canViewFees`) ; un coach sans équipe ne crée plus d’événement
+- Analytics : super-propriété `active_role` = badge principal ; `max_role` retiré
 - Équipes : dans l’effectif, ta fiche (ou celle de l’enfant sélectionné via Moi / enfant) est épinglée en tête de sa section et son nom passe en gras ; le badge affiche le rôle dans l’équipe (Coach / Joueur) au lieu du rôle club
+- Modèle de données : une fiche ne porte plus `userId` ni `memberId` (`accountUid` seul lien au compte) ; ses équipes (`teamIds`) sont maintenues par le trigger d’équipe, plus par les clients ; `users.memberClubIds` devient le seul index des clubs d’un compte, écrit par les Functions (`clubMemberships` et le trigger `onUserWrittenSyncClubIds` retirés). Migration : `tool/migrate_roles_to_permissions.mjs` (recopie `accountUid`, `--drop-legacy` efface les anciens champs et `join_requests`)
 - Accueil : la barre clubs / + / messagerie remonte via `viewPadding` (barre 3 boutons Android) avec une petite marge seulement quand cet inset est présent — inchangé sans barre système
 - Loader : animation d’assemblage du logo ViroTeam (cycle ~1,4 s) à la place du spinner circulaire pour tous les chargements plein contenu
 - Notifications push : voix vestiaire pour les joueurs (titres en rotation — relance manuelle, convoc’, J-7 / J-2 / jour J), plus familier pour le staff (bilan, RSVP) ; parents adoucis ; cotisation / annonces / annulation inchangés. Relance manuelle réservée aux sans-réponse et « peut-être », signature « Signé coach {prénom} »
 - Accueil membre : tous les événements des 14 prochains jours s’affichent directement ; le bouton « Voir mes 14 prochains jours » (aperçu limité) est retiré
 - Notifications RSVP : liseré des events plus visible (trait plus épais, halo, clignotement plus contrasté) et voile coloré sur la tuile (vert / orange / rouge selon la réponse) ; petite flèche haut / bas pendant les 10 s si un event encadré est hors écran (tap pour y défiler) — pastille bleue / flèche blanche en clair, pastille claire / flèche bleue + halo en sombre
 - Vue club : l’encadré « Mon parent » ne s’affiche plus que pour les joueurs d’au moins une équipe en catégorie moins de 15 ans (U15 / M15 / -15 et équivalents par sport) ; masqué s’il n’y a aucune équipe
+- E-mails d’invitation : une fiche « Membre » (ni admin ni équipe) reçoit une invitation et une confirmation « membre », plus « joueur »
+- Droits, affichages : « Gérer les membres » et « Mon parent » suivent les bons droits ; un seul badge sur la fiche ; un droit inclus par un autre est coché et grisé ; réglages coach du club suivis en temps réel
+
+### Supprimé
+
+- Demandes de rôle : écran « Demander un rôle », liste des demandes côté admin, « Rôle proposé » sur l’aperçu d’invitation, callable `resolveJoinRequest` et collection `join_requests`
+
+### Corrigé
+
+- Ajout d’un membre refusé par les règles pendant la refonte des droits (la fiche pré-créée portait encore `memberId`)
+- Messagerie : un membre avec le droit « Messagerie » mais pas admin ne voyait pas le canal qu’il venait de créer
+- Coach d’équipe : `coachTeamIds` recalculé depuis l’équipe courante (des déclenchements traités dans le désordre pouvaient laisser une relation coach périmée)
+- Invitations : un coach autorisé peut de nouveau envoyer l’e-mail d’invitation d’un joueur de ses équipes (`sendMemberInvites` exigeait le droit Membres)
+- Arrivée par code d’équipe : une fiche déjà à l’uid du compte est bien liée (`accountUid`, index `adminIds`) — elle échappait sinon à l’anonymisation à la suppression du compte
+- Règles : le droit « Gérer les cotisations » implique la lecture des cotisations même sur une fiche non normalisée
+- Re-keying d’une fiche : les champs v1 `role` / `coachInfo` ne sont plus recopiés
+- Functions : index `adminIds` calculé en un seul endroit, helpers dédoublonnés, code mort retiré
+
+### Sécurité
+
+- Règles Firestore réécrites sur les droits : un admin ne peut plus écrire un rôle ou des droits en direct (callable seulement), `users.clubMemberships` / `memberClubIds` ne sont pas modifiables par leur titulaire, aucun client n’écrit `teamIds`, `coachTeamIds`, `accountUid` ni `permissions` d’une fiche (même à sa création), `member_accounts` et `join_requests` refusés, les cotisations ne sont plus lisibles par tout coach, les capacités coach (`canCreateEvents`, `canTakeAttendance`, annonces…) sont appliquées côté serveur et limitées aux équipes du coach, création de club uniquement via `createClub` ; scénarios rejoués dans `rules-tests/`
+- Coachs : plus de modification, d’annulation ni de notification d’un événement « tout le club » ou d’un événement multi-équipes dont ils n’entraînent pas toutes les équipes
+- Coachs : invitations et fiches pré-inscrites limitées à leurs équipes et aux fiches sans droit (un coach ne peut plus détourner l’invitation d’un futur admin) ; modération limitée aux conversations de leurs équipes
+- Règles : champs de re-clé / anonymisation réservés aux Functions ; une fiche pré-créée ne prend plus l’id d’un compte existant
 
 ## [2.3.0] - 2026-11-06
 

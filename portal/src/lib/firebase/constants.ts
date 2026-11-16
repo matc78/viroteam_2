@@ -1,3 +1,4 @@
+
 /** Collections Firestore alignées sur ProjectConfig Flutter. */
 export const Collections = {
   users: "users",
@@ -37,10 +38,13 @@ export const Fields = {
   canManageTeamRoster: "canManageTeamRoster",
   canInvitePlayers: "canInvitePlayers",
   canTakeAttendance: "canTakeAttendance",
-  canViewFees: "canViewFees",
   canEditMemberLicenses: "canEditMemberLicenses",
   canEditMemberRsvp: "canEditMemberRsvp",
-  clubMemberships: "clubMemberships",
+  canPublishTeamAnnouncements: "canPublishTeamAnnouncements",
+  /** `members/{id}.coachTeamIds` : équipes entraînées (Functions). */
+  coachTeamIds: "coachTeamIds",
+  /** `users/{uid}.memberClubIds` : clubs où le compte a une fiche (Functions). */
+  memberClubIds: "memberClubIds",
   parentLinks: "parentLinks",
   parentClubIds: "parentClubIds",
   parentTeamIds: "parentTeamIds",
@@ -65,7 +69,6 @@ export const Fields = {
   createdAt: "createdAt",
   updatedAt: "updatedAt",
   clubId: "clubId",
-  role: "role",
   name: "name",
   adminIds: "adminIds",
   memberCount: "memberCount",
@@ -147,7 +150,7 @@ export const Fields = {
   canceled: "canceled",
   memberId: "memberId",
   accountUid: "accountUid",
-  /** Uid du compte (fiches fondateur historiques) ; lu via `linkedAccountUid`. */
+  /** Uid de l’auteur d’un retour (`retour_user`) ; jamais sur une fiche membre. */
   userId: "userId",
   code: "code",
   /** Champ `status` dans `invitations` (pending, accepted, declined, expired). */
@@ -261,21 +264,6 @@ export const EquipmentConditions = {
 
 export type EquipmentCondition =
   (typeof EquipmentConditions)[keyof typeof EquipmentConditions];
-
-/** Rôles membre club. */
-export const MemberRoles = {
-  admin: "admin",
-  coach: "coach",
-  player: "player",
-} as const;
-
-/**
- * Contexte UI portail hors membership (`parentLinks`).
- * Pas un rôle `members/{id}.role` — badge / tuile uniquement.
- */
-export const PortalUiRoles = {
-  parent: "parent",
-} as const;
 
 /** Statuts cotisation member_fees. */
 export const MemberFeeStatuses = {

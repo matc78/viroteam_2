@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { buildClubAccess } from "@/lib/auth/permissions";
 import {
   makeChatState,
   makeConversation,
@@ -15,7 +16,14 @@ const { canWriteToConversation, sortInboxConversations } = await import(
 );
 
 describe("canWriteToConversation", () => {
-  const roles = ["admin", "coach", "player", null] as const;
+  /** Admin, coach d’équipe, responsable messagerie, membre sans droit, parent. */
+  const roles = [
+    buildClubAccess({ permissions: ["admin"] }),
+    buildClubAccess({ coachTeamIds: ["t1"] }),
+    buildClubAccess({ permissions: ["manageChat"] }),
+    buildClubAccess({ teamIds: ["t1"] }),
+    null,
+  ];
 
   it("non-participant → jamais, quelle que soit la policy", () => {
     for (const writePolicy of ["open", "admins_only", "coaches_and_admins"]) {
@@ -24,7 +32,7 @@ describe("canWriteToConversation", () => {
           canWriteToConversation({
             conversation: makeConversation({ writePolicy }),
             uid: "intrus",
-            clubRole,
+            access: clubRole,
           }),
         ).toBe(false);
       }
@@ -37,28 +45,28 @@ describe("canWriteToConversation", () => {
         canWriteToConversation({
           conversation: makeConversation({ writePolicy: "open" }),
           uid: "me",
-          clubRole,
+          access: clubRole,
         }),
       ).toBe(true);
     }
   });
 
-  it("admins_only : admin seulement", () => {
+  it("admins_only : droit messagerie (ou admin) seulement", () => {
     const conversation = makeConversation({ writePolicy: "admins_only" });
     expect(
       roles.map((clubRole) =>
-        canWriteToConversation({ conversation, uid: "me", clubRole }),
+        canWriteToConversation({ conversation, uid: "me", access: clubRole }),
       ),
-    ).toEqual([true, false, false, false]);
+    ).toEqual([true, false, true, false, false]);
   });
 
-  it("coaches_and_admins : admin et coach", () => {
+  it("coaches_and_admins : droit messagerie ou coach d’équipe", () => {
     const conversation = makeConversation({ writePolicy: "coaches_and_admins" });
     expect(
       roles.map((clubRole) =>
-        canWriteToConversation({ conversation, uid: "me", clubRole }),
+        canWriteToConversation({ conversation, uid: "me", access: clubRole }),
       ),
-    ).toEqual([true, true, false, false]);
+    ).toEqual([true, true, true, false, false]);
   });
 
   it("policy inconnue ou vide → traitée comme open", () => {
@@ -66,7 +74,7 @@ describe("canWriteToConversation", () => {
       canWriteToConversation({
         conversation: makeConversation({ writePolicy: "" }),
         uid: "me",
-        clubRole: null,
+        access: null,
       }),
     ).toBe(true);
   });

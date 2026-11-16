@@ -252,6 +252,11 @@
   --avatar-to: var(--color-role-admin);
 }
 
+.avatarToneMember {
+  --avatar-from: var(--color-gray-400);
+  --avatar-to: var(--color-gray-500);
+}
+
 .avatarTonePlayer {
   --avatar-from: #60a5fa;
   --avatar-to: var(--color-role-player);

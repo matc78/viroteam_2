@@ -10,8 +10,8 @@ describe("resolveGuestAudience", () => {
       ],
       [],
       [
-        { id: "uid-a", name: "Alix", role: "player", avatarUrl: null },
-        { id: "mem-b", name: "Matia", role: "player", avatarUrl: null },
+        { id: "uid-a", name: "Alix", badge: "player", avatarUrl: null },
+        { id: "mem-b", name: "Matia", badge: "player", avatarUrl: null },
       ],
     );
     expect(result.teamMemberIds).toEqual(["uid-a", "mem-b"]);
@@ -30,8 +30,8 @@ describe("resolveGuestAudience", () => {
         },
       ],
       [
-        { id: "uid-a", name: "Alix", role: "player", avatarUrl: null },
-        { id: "mem-c", name: "Sans équipe", role: "admin", avatarUrl: null },
+        { id: "uid-a", name: "Alix", badge: "player", avatarUrl: null },
+        { id: "mem-c", name: "Sans équipe", badge: "admin", avatarUrl: null },
       ],
     );
     expect(result.allTeams).toBe(true);

@@ -5,8 +5,15 @@ import type {
   TeamOption,
 } from "@/lib/firebase/eventService";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
+import { isAdminMember } from "@/lib/auth/permissions";
 
 type RsvpRowStatus = "yes" | "no" | "pending";
+
+/**
+ * Badge d'une ligne RSVP : Entraîneur si coach d'une équipe de l'événement ;
+ * Admin seulement sur un événement spécial (tout le club ou sans équipe).
+ */
+export type EventGuestBadge = "admin" | "coach";
 
 /** Ligne affichée dans la liste des convoqués du popover. */
 export type EventGuestRow = {
@@ -15,9 +22,19 @@ export type EventGuestRow = {
   audienceId: string;
   name: string;
   avatarUrl: string | null;
+  /** Coach d'une équipe de l'événement (groupé en tête). */
   isCoach: boolean;
+  /** Badge affiché à côté du nom, `null` : aucun. */
+  badge: EventGuestBadge | null;
   status: RsvpRowStatus;
 };
+
+/** Événement spécial : « Tout le club » ou aucune équipe ciblée. */
+export function isSpecialEvent(
+  event: Pick<ClubEventView, "allTeams" | "teamIds">,
+): boolean {
+  return event.allTeams === true || event.teamIds.length === 0;
+}
 
 /** Construit un annuaire indexé par id de fiche (= uid si liée). */
 export function buildGuestDirectoryFromPeople(
@@ -28,6 +45,7 @@ export function buildGuestDirectoryFromPeople(
     directory[person.id] = {
       name: person.name.trim() || "Membre",
       avatarUrl: person.avatarUrl,
+      isAdmin: person.badge === "admin",
     };
   }
   return directory;
@@ -42,6 +60,7 @@ export function buildGuestDirectoryFromMembers(
     directory[member.memberId] = {
       name: member.displayName.trim() || "Membre",
       avatarUrl: member.avatarUrl,
+      isAdmin: isAdminMember(member),
     };
   }
   return directory;
@@ -55,6 +74,7 @@ function lookupGuest(
     directory[id] ?? {
       name: "Membre",
       avatarUrl: null,
+      isAdmin: false,
     }
   );
 }
@@ -76,12 +96,19 @@ function guestRow(
   directory: Record<string, PlanningGuestDirectoryEntry>,
 ): EventGuestRow {
   const guest = lookupGuest(directory, memberId);
+  const badge: EventGuestBadge | null =
+    isSpecialEvent(event) && guest.isAdmin
+      ? "admin"
+      : isCoach
+        ? "coach"
+        : null;
   return {
     key: isCoach ? `${memberId}::coach` : memberId,
     audienceId: memberId,
     name: guest.name,
     avatarUrl: guest.avatarUrl,
     isCoach,
+    badge,
     status: rsvpStatus(memberId, event.rsvpByMemberId),
   };
 }
@@ -89,7 +116,8 @@ function guestRow(
 /**
  * Liste des invités : coachs des équipes de l'événement en tête (alpha),
  * puis joueurs convoqués (alpha). Un coach aussi convoqué n'apparaît qu'une
- * fois, côté coachs.
+ * fois, côté coachs. Badges : voir `EventGuestBadge` (jamais Admin sur un
+ * événement d'équipe).
  */
 export function buildEventGuestRows(params: {
   event: ClubEventView;

@@ -24,6 +24,7 @@ import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import { useToast } from "@/components/ToastProvider";
 import { sendEventPush } from "@/lib/firebase/callableService";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import { convocationsCopy } from "@/lib/copy/convocationsCopy";
 import { eventEditCopy } from "@/lib/copy/eventEditCopy";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
@@ -358,8 +359,10 @@ export function PlanningEventDetailPanel({
                     </span>
                     <div className={styles.rsvpIdentity}>
                       <span className={styles.rsvpName}>{row.name}</span>
-                      {row.isCoach ? (
-                        <span className={styles.rsvpRole}>Coach</span>
+                      {row.badge ? (
+                        <span className={styles.rsvpRole}>
+                          {badgeLabel(row.badge)}
+                        </span>
                       ) : null}
                     </div>
                     {canEditMemberRsvp && clubId ? (

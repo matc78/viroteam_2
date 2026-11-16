@@ -21,7 +21,7 @@ import { isFamilyRouteAllowed } from "@/lib/auth/bureauPermissions";
 import { isFamilyMessagesPath } from "@/lib/chat/isMessagesPath";
 import { useFamilyFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { PortalUiRoles } from "@/lib/firebase/constants";
+
 import { site } from "@/lib/site";
 import {
   buildClubMembershipTiles,
@@ -67,6 +67,7 @@ function FamilyShellChrome() {
     activeSpace,
     bureauClubs,
     familyClubs,
+    accessByClub,
     profile,
     selectClubContext,
   } = useAuth();
@@ -80,8 +81,8 @@ function FamilyShellChrome() {
   const profileAvatarUrl = profile?.avatarUrl?.trim() || null;
 
   const clubsWithRoles = useMemo(
-    () => buildClubMembershipTiles(bureauClubs, familyClubs, profile),
-    [bureauClubs, familyClubs, profile],
+    () => buildClubMembershipTiles(bureauClubs, familyClubs, accessByClub),
+    [bureauClubs, familyClubs, accessByClub],
   );
 
   const childHeaderLabel =
@@ -210,7 +211,7 @@ function FamilyShellChrome() {
                   <span className={styles.userName}>{resolvedName}</span>
                   {!onCrossClub ? (
                     <RoleBadge
-                      role={PortalUiRoles.parent}
+                      role={"parent"}
                       className={styles.roleChip}
                     />
                   ) : null}

@@ -1,8 +1,9 @@
+import { primaryBadge } from "@/lib/auth/permissions";
 import type { ChatPreviewSender } from "@/lib/chat/conversationPreview";
 import { previewSenderKey } from "@/lib/chat/conversationPreview";
 import { splitParticipantsByProfiles } from "@/lib/chat/participantProfiles";
 import type { ChatParticipantProfile } from "@/lib/firebase/chatTypes";
-import { PortalUiRoles } from "@/lib/firebase/constants";
+
 import {
   listClubMembers,
   type ClubMemberRecord,
@@ -57,7 +58,7 @@ export function seedParticipantsFromPreviewCache(params: {
         uid,
         firstName,
         displayName: firstName,
-        role: fromDir.role || PortalUiRoles.parent,
+        role: fromDir.role || "parent",
         avatarUrl: null,
         hasLinkedAccount: true,
       });
@@ -68,7 +69,7 @@ export function seedParticipantsFromPreviewCache(params: {
         uid,
         firstName: peerFirst,
         displayName: peerName || peerFirst,
-        role: PortalUiRoles.parent,
+        role: "parent",
         avatarUrl: null,
         hasLinkedAccount: false,
       });
@@ -81,7 +82,7 @@ export function seedParticipantsFromPreviewCache(params: {
         uid,
         firstName,
         displayName: fromProfile,
-        role: PortalUiRoles.parent,
+        role: "parent",
         avatarUrl: null,
         hasLinkedAccount: false,
       });
@@ -175,7 +176,7 @@ export async function resolveConversationParticipants(params: {
         uid,
         firstName: member.firstName,
         displayName: member.displayName,
-        role: member.role,
+        role: primaryBadge(member),
         avatarUrl: member.avatarUrl,
         hasLinkedAccount: member.hasLinkedAccount,
       });
@@ -186,7 +187,7 @@ export async function resolveConversationParticipants(params: {
       uid,
       firstName: profile?.firstName ?? "",
       displayName: profile?.displayName ?? chatCopy.unknownParent,
-      role: PortalUiRoles.parent,
+      role: "parent",
       avatarUrl: profile?.avatarUrl ?? null,
       hasLinkedAccount: false,
     });

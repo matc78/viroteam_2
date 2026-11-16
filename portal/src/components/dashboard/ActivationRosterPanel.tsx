@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { memberRoleLabel } from "@/lib/firebase/memberService";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import {
   computeActivationStats,
   filterActivationRows,
@@ -178,7 +178,7 @@ export function ActivationRosterPanel({
               <thead>
                 <tr>
                   <th scope="col">Nom</th>
-                  <th scope="col">Rôle</th>
+                  <th scope="col">Badge</th>
                   <th scope="col">E-mail</th>
                   <th scope="col">Statut</th>
                   <th scope="col">Équipes</th>
@@ -205,7 +205,7 @@ export function ActivationRosterPanel({
                           {row.displayName}
                         </button>
                       </td>
-                      <td>{memberRoleLabel(row.role)}</td>
+                      <td>{badgeLabel(row.badge)}</td>
                       <td className={styles.muted}>
                         {row.email?.trim() || "—"}
                       </td>

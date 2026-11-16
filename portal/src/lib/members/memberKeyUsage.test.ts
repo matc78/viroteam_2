@@ -8,12 +8,18 @@ import { describe, expect, it } from "vitest";
  * son id est la seule clé (rosters, audiences, RSVP, cotisations, adminIds…).
  * Plus d’index `member_accounts`, plus de résolveur uid ↔ memberId, et le
  * chemin de la fiche du compte connecté ne se construit que via
- * `src/lib/firebase/memberRefs.ts`.
+ * `src/lib/firebase/memberRefs.ts`. Le lien au compte est `accountUid` seul
+ * (plus de `userId` sur la fiche), et le client
+ * n’écrit jamais les champs dérivés ou protégés d’une fiche.
  */
 
 const SRC_DIR = fileURLToPath(new URL("../..", import.meta.url));
 const SOURCE_EXTENSIONS = [".ts", ".tsx"];
 const MEMBER_REFS_FILE = join("lib", "firebase", "memberRefs.ts");
+/** `retour_user.userId` (retours de création de club), pas une fiche. */
+const RETOUR_USER_FILE = join("lib", "clubSetup", "retourUserService.ts");
+/** `events.teamIds` (équipes convoquées), pas une fiche. */
+const EVENT_SERVICE_FILE = join("lib", "firebase", "eventService.ts");
 
 function listSourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -55,6 +61,20 @@ const RULES: Rule[] = [
     ),
     allowedFiles: [MEMBER_REFS_FILE],
   },
+  {
+    label: "champ userId d’une fiche supprimé (accountUid seul)",
+    pattern: /\bFields\.userId\b/g,
+    allowedFiles: [RETOUR_USER_FILE],
+  },
+  {
+    label: "champ protégé d’une fiche écrit par le client (Functions / trigger seulement)",
+    pattern: /\[Fields\.(?:permissions|coachTeamIds|accountUid)\]\s*:/g,
+  },
+  {
+    label: "members.teamIds écrit par le client (trigger onTeamWritten seulement)",
+    pattern: /\[Fields\.teamIds\]\s*:/g,
+    allowedFiles: [EVENT_SERVICE_FILE],
+  },
 ];
 
 function lineOf(content: string, index: number): number {
@@ -92,5 +112,14 @@ describe("une seule clé membre", () => {
     expect(
       "doc(membersCol(clubId), params.memberId)".match(rule.pattern),
     ).toBeNull();
+  });
+
+  it("le garde-fou détecte une écriture de champ protégé de fiche", () => {
+    const [userIdRule, protectedRule, teamIdsRule] = RULES.slice(4);
+    expect("data[Fields.userId]".match(userIdRule!.pattern)).not.toBeNull();
+    expect("{ [Fields.permissions]: [] }".match(protectedRule!.pattern)).not.toBeNull();
+    expect("{ [Fields.accountUid]: uid }".match(protectedRule!.pattern)).not.toBeNull();
+    expect("parsePermissions(data[Fields.permissions])".match(protectedRule!.pattern)).toBeNull();
+    expect("{ [Fields.teamIds]: [] }".match(teamIdsRule!.pattern)).not.toBeNull();
   });
 });

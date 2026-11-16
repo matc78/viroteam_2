@@ -9,11 +9,8 @@ import { EmailVerificationPanel } from "@/components/auth/EmailVerificationPanel
 import { isInvitationAlreadyProcessed } from "@/lib/auth/invitationAcceptErrors";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { isEmailNotVerifiedError } from "@/lib/firebase/callableService";
-import { MemberRoles, InvitationTypes } from "@/lib/firebase/constants";
-import type {
-  InvitationLookupResult,
-  InvitationMemberRole,
-} from "@/lib/firebase/invitationService";
+import { InvitationTypes } from "@/lib/firebase/constants";
+import type { InvitationLookupResult } from "@/lib/firebase/invitationService";
 import { acceptLookupInvitation } from "@/lib/firebase/invitationService";
 import { splitDisplayName } from "@/lib/firebase/types";
 import { updateUserProfileForJoin } from "@/lib/firebase/userService";
@@ -30,15 +27,8 @@ type JoinMemberAcceptProps = {
   };
 };
 
-/** Libellé rôle pour le copy d’invitation membre. */
-function memberRoleLabel(role: InvitationMemberRole): string {
-  if (role === MemberRoles.coach) return "entraîneur";
-  if (role === MemberRoles.admin) return "admin";
-  return "joueur";
-}
-
 /**
- * Accepte une invitation joueur / coach sur le portail (même callable que l’app).
+ * Accepte une invitation membre sur le portail (même callable que l’app).
  */
 export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
   const { status, user, profile, refreshProfile } = useAuth();
@@ -48,7 +38,6 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
   const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
   /** Incrémenté pour relancer l’acceptation après confirmation de l’e-mail. */
   const [attempt, setAttempt] = useState(0);
-  const roleLabel = memberRoleLabel(invitation.role);
   const userRef = useRef(user);
   const profileRef = useRef(profile);
   userRef.current = user;
@@ -141,7 +130,7 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
         accent="cyan"
         eyebrow="Rejoindre un club"
         title={`Rejoindre ${invitation.clubName}`}
-        lead={`Tu es invité·e en tant que ${roleLabel}. Connecte-toi avec l’e-mail invité pour valider ton entrée dans l’équipe.`}
+        lead="Tu es invité·e à rejoindre le club. Connecte-toi avec l’e-mail invité pour valider ton entrée."
       >
         <div className={deniedStyles.actions}>
           <Link href={loginHref} className={deniedStyles.submitLink}>

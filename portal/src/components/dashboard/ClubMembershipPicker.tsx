@@ -6,7 +6,6 @@ import type {
   ClubMembershipTile,
   PortalSpace,
 } from "@/lib/firebase/types";
-import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
 import {
   readableTextOnBrand,
   splitBrandColorHex,
@@ -30,7 +29,7 @@ type ClubMembershipPickerProps = {
   showCreateClub?: boolean;
   /**
    * Sous-titre custom (ex. nom de l’enfant en espace famille).
-   * Si fourni, remplace le badge rôle pour cette pastille.
+   * Si fourni, remplace le badge pour cette pastille.
    */
   formatSecondaryLabel?: (club: ClubMembershipTile) => string | null;
   onClubChange: (clubId: string, space: PortalSpace) => void;
@@ -40,18 +39,9 @@ type ClubMembershipPickerProps = {
   pendingSpace?: PortalSpace | null;
 };
 
-function hasRoleBadge(role: string | null): boolean {
-  return (
-    role === MemberRoles.admin ||
-    role === MemberRoles.coach ||
-    role === MemberRoles.player ||
-    role === PortalUiRoles.parent
-  );
-}
-
 /**
- * Liste horizontale des clubs rattachés : logo/emoji à gauche, nom + rôle à droite.
- * Club actif zoomé + couleur de marque ; badge rôle coloré si sélectionné.
+ * Liste horizontale des clubs rattachés : logo/emoji à gauche, nom + badge à droite.
+ * Club actif zoomé + couleur de marque ; badge coloré si sélectionné.
  * Pastille « + » optionnelle vers le wizard de création de club.
  */
 export function ClubMembershipPicker({
@@ -142,9 +132,9 @@ export function ClubMembershipPicker({
                   >
                     {secondaryLabel}
                   </span>
-                ) : hasRoleBadge(club.role) ? (
+                ) : club.badge ? (
                   <RoleBadge
-                    role={club.role}
+                    role={club.badge}
                     muted={!isActive}
                     size="sm"
                   />

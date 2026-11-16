@@ -25,14 +25,12 @@ export function ownMemberRef(clubId: string, uid: string): DocumentReference {
 }
 
 /**
- * Uid du compte lié à une fiche membre (`accountUid`, ou `userId` des fiches
- * fondateur historiques), `null` si la fiche n’est pas liée. Quand il est
- * présent, il est égal à l’id de la fiche.
+ * Uid du compte lié à une fiche membre (`accountUid`, seul lien au compte),
+ * `null` si la fiche n’est pas liée. Quand il est présent, il est égal à l’id
+ * de la fiche.
  */
 export function linkedAccountUid(data: Record<string, unknown>): string | null {
-  const accountUid = String(data[Fields.accountUid] ?? "").trim();
-  if (accountUid) return accountUid;
-  return String(data[Fields.userId] ?? "").trim() || null;
+  return String(data[Fields.accountUid] ?? "").trim() || null;
 }
 
 /** Fiches « Moi » déjà trouvées (une fiche existante ne disparaît pas en session). */

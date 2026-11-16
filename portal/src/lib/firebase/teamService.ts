@@ -1,20 +1,16 @@
 import {
   collection,
   doc,
+  deleteDoc,
   getDoc,
-  getDocs,
-  query,
   runTransaction,
   serverTimestamp,
   updateDoc,
-  where,
-  writeBatch,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
 import {
   Collections,
   Fields,
-  MemberRoles,
 } from "./constants";
 import {
   addAudienceToUpcomingTeamEvents,
@@ -28,8 +24,8 @@ import {
 
 /** Rôle roster équipe (joueur ou coach). */
 export type TeamRosterRole =
-  | typeof MemberRoles.player
-  | typeof MemberRoles.coach;
+  | "player"
+  | "coach";
 
 function teamsCol(clubId: string) {
   return collection(
@@ -52,10 +48,6 @@ function membersCol(clubId: string) {
 function parseStringIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw.map(String).filter(Boolean);
-}
-
-function parseTeamIds(raw: unknown): string[] {
-  return parseStringIds(raw);
 }
 
 /** Crée une équipe vide (nom + catégorie). */
@@ -115,8 +107,9 @@ export async function updateTeam(params: {
 }
 
 /**
- * Ajoute un membre au roster (playerIds ou coachIds) et synchronise
- * `members.teamIds`. L’id roster est l’id de fiche (= uid si liée).
+ * Ajoute un membre au roster (playerIds ou coachIds). L’id roster est l’id de
+ * fiche (= uid si liée). `members.teamIds` / `coachTeamIds` sont dérivés par
+ * le trigger `onTeamWritten` (jamais écrits par le client).
  */
 export async function addMemberToTeam(params: {
   clubId: string;
@@ -139,24 +132,15 @@ export async function addMemberToTeam(params: {
       throw new Error("Membre introuvable.");
     }
 
-    const memberData = memberSnap.data() as Record<string, unknown>;
     const teamData = teamSnap.data() as Record<string, unknown>;
     const field =
-      params.role === MemberRoles.coach ? Fields.coachIds : Fields.playerIds;
+      params.role === "coach" ? Fields.coachIds : Fields.playerIds;
     const currentIds = parseStringIds(teamData[field]);
     rosterChanged = !currentIds.includes(params.memberId);
 
     if (rosterChanged) {
       tx.update(teamDocument, {
         [field]: [...currentIds, params.memberId],
-        [Fields.updatedAt]: serverTimestamp(),
-      });
-    }
-
-    const teamIds = parseTeamIds(memberData[Fields.teamIds]);
-    if (!teamIds.includes(params.teamId)) {
-      tx.update(memberDocument, {
-        [Fields.teamIds]: [...teamIds, params.teamId],
         [Fields.updatedAt]: serverTimestamp(),
       });
     }
@@ -173,8 +157,8 @@ export async function addMemberToTeam(params: {
 }
 
 /**
- * Retire un membre du roster et met à jour `members.teamIds` s’il n’est plus
- * présent sur aucun roster de l’équipe.
+ * Retire un membre du roster (`members.teamIds` suit via le trigger
+ * `onTeamWritten`).
  */
 export async function removeMemberFromTeam(params: {
   clubId: string;
@@ -197,10 +181,9 @@ export async function removeMemberFromTeam(params: {
       throw new Error("Membre introuvable.");
     }
 
-    const memberData = memberSnap.data() as Record<string, unknown>;
     const teamData = teamSnap.data() as Record<string, unknown>;
     const field =
-      params.role === MemberRoles.coach ? Fields.coachIds : Fields.playerIds;
+      params.role === "coach" ? Fields.coachIds : Fields.playerIds;
     const currentIds = parseStringIds(teamData[field]);
     const nextIds = currentIds.filter((id) => id !== params.memberId);
     const rosterChanged = nextIds.length !== currentIds.length;
@@ -222,16 +205,6 @@ export async function removeMemberFromTeam(params: {
     if (rosterChanged && !stillOnTeam) {
       shouldSyncAudience = true;
     }
-
-    if (!stillOnTeam) {
-      const teamIds = parseTeamIds(memberData[Fields.teamIds]).filter(
-        (id) => id !== params.teamId,
-      );
-      tx.update(memberDocument, {
-        [Fields.teamIds]: teamIds,
-        [Fields.updatedAt]: serverTimestamp(),
-      });
-    }
   });
 
   if (shouldSyncAudience) {
@@ -244,44 +217,21 @@ export async function removeMemberFromTeam(params: {
 }
 
 /**
- * Supprime une équipe et retire son id des `teamIds` des membres concernés.
+ * Supprime une équipe. Le trigger `onTeamWritten` retire son id des
+ * `teamIds` / `coachTeamIds` des fiches concernées.
  */
 export async function deleteTeam(params: {
   clubId: string;
   teamId: string;
 }): Promise<void> {
-  const db = getAppFirestore();
   const teamDocument = doc(teamsCol(params.clubId), params.teamId);
   const teamSnap = await getDoc(teamDocument);
   if (!teamSnap.exists()) {
     throw new Error("Équipe introuvable.");
   }
-
-  const membersWithTeamSnap = await getDocs(
-    query(
-      membersCol(params.clubId),
-      where(Fields.teamIds, "array-contains", params.teamId),
-    ),
-  );
-
-  const batch = writeBatch(db);
-  for (const memberSnap of membersWithTeamSnap.docs) {
-    const memberData = memberSnap.data() as Record<string, unknown>;
-    const nextTeamIds = parseTeamIds(memberData[Fields.teamIds]).filter(
-      (id) => id !== params.teamId,
-    );
-    batch.update(memberSnap.ref, {
-      [Fields.teamIds]: nextTeamIds,
-      [Fields.updatedAt]: serverTimestamp(),
-    });
-  }
-
-  batch.delete(teamDocument);
-  await batch.commit();
+  await deleteDoc(teamDocument);
 }
 
-/** Alias pour l’import CSV / API historique — préférer `addMemberToTeam`. */
-export { addMemberToTeam as assignMemberToTeam };
 /** Groupe les équipes par catégorie (libellé FR pour le vide). */
 export function groupTeamsByCategory(
   teams: TeamOption[],

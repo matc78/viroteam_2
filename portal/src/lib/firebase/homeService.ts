@@ -236,6 +236,8 @@ function buildAttention(params: {
   season: FeeSeasonRecord | null;
   events: UpcomingEvent[];
   pendingAids: number;
+  /** Sans droit `viewFees` : alertes cotisations omises. */
+  includeFees: boolean;
 }): AttentionItem[] {
   const items: AttentionItem[] = [];
 
@@ -280,7 +282,7 @@ function buildAttention(params: {
     });
   }
 
-  if (!params.season && items.length < MAX_ATTENTION_ITEMS) {
+  if (params.includeFees && !params.season && items.length < MAX_ATTENTION_ITEMS) {
     items.push({
       id: "no-season",
       severity: "medium",
@@ -415,6 +417,8 @@ export async function loadHomeDashboard(params: {
   club: ClubRecord;
   adminDisplayName: string;
   uid?: string;
+  /** Droit `viewFees` : sans lui, aucune lecture ni indicateur cotisations. */
+  includeFees: boolean;
 }): Promise<HomeDashboardData> {
   // Tout en parallèle ; les cotisations suivent la saison sans attendre le reste.
   const [linkedMemberId, { season, fees }, teams, allUpcomingEvents, clubAnnouncements] =
@@ -424,9 +428,10 @@ export async function loadHomeDashboard(params: {
         : Promise.resolve(null),
       getActiveSeason(params.club.id).then(async (activeSeason) => ({
         season: activeSeason,
-        fees: activeSeason
-          ? await listMemberFees(params.club.id, activeSeason.id)
-          : [],
+        fees:
+          activeSeason && params.includeFees
+            ? await listMemberFees(params.club.id, activeSeason.id)
+            : [],
       })),
       loadTeamsForClub(params.club.id),
       loadUpcomingEvents(params.club.id, { repairAudience: true }),
@@ -507,7 +512,7 @@ export async function loadHomeDashboard(params: {
     linkedMemberId,
     hasCoachedTeams: coachedTeams.length > 0,
     hasPlayerTeams: playedTeams.length > 0,
-    kpis: [
+    kpis: ([
       {
         id: "events",
         label: "Événements à venir",
@@ -539,7 +544,10 @@ export async function loadHomeDashboard(params: {
         hint: season ? "À encaisser" : "Crée une saison",
         tone: "warning",
       },
-    ],
+    ] satisfies HomeKpi[]).filter(
+      (kpi) =>
+        params.includeFees || (kpi.id !== "paid-rate" && kpi.id !== "due-euros"),
+    ),
     announcements,
     feeStatus: segments,
     collections: buildCollections(fees),
@@ -551,6 +559,7 @@ export async function loadHomeDashboard(params: {
       season,
       events: allUpcomingEvents,
       pendingAids,
+      includeFees: params.includeFees,
     }),
   };
 }

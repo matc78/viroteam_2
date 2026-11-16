@@ -51,7 +51,6 @@ describe("listClubMembers", () => {
     for (let index = 0; index < 50; index += 1) {
       memberDocs.push(
         memberDoc(`uid${index}`, {
-          role: "player",
           firstName: `Joueur${index}`,
           accountUid: `uid${index}`,
           snapshot: { displayName: `Joueur ${index}`, email: `j${index}@club.fr` },
@@ -71,7 +70,6 @@ describe("listClubMembers", () => {
   it("joint les invitations en attente en mémoire", async () => {
     memberDocs.push(
       memberDoc("m1", {
-        role: "player",
         firstName: "Léa",
         activeInvitationId: "inv1",
       }),
@@ -87,7 +85,7 @@ describe("listClubMembers", () => {
 
   it("repli users/{uid} seulement si le snapshot n’a pas d’e-mail", async () => {
     memberDocs.push(
-      memberDoc("u1", { role: "coach", firstName: "Tom", accountUid: "u1" }),
+      memberDoc("u1", { firstName: "Tom", accountUid: "u1" }),
     );
     const [member] = await listClubMembers("club1");
     expect(getDocCalls).toEqual(["users/u1"]);

@@ -10,7 +10,7 @@ import {
 import { InviteTeamDialog } from "@/components/dashboard/InviteTeamDialog";
 import { TeamCard } from "@/components/dashboard/TeamCard";
 import type { TeamOption } from "@/lib/firebase/eventService";
-import { MemberRoles } from "@/lib/firebase/constants";
+
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import {
   groupTeamsByCategory,
@@ -157,7 +157,7 @@ export function TeamsPanel({
     role: TeamRosterRole,
   ): Set<string> {
     return new Set(
-      role === MemberRoles.coach ? team.coachIds : team.playerIds,
+      role === "coach" ? team.coachIds : team.playerIds,
     );
   }
 

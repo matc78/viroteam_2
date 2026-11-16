@@ -48,7 +48,7 @@ export async function createUserProfile(params: {
     [Fields.firstName]: firstName,
     [Fields.lastName]: lastName,
     [Fields.displayName]: displayName,
-    [Fields.clubMemberships]: [],
+    [Fields.memberClubIds]: [],
     [Fields.parentLinks]: [],
     [Fields.parentClubIds]: [],
     [Fields.parentTeamIds]: [],

@@ -1,93 +1,47 @@
-import { Fields } from "@/lib/firebase/constants";
+import {
+  COACH_FLAG_DEFAULTS,
+  type CoachFlag,
+} from "@/lib/auth/permissions";
 
-/** Droits coach configurables sur le doc club. */
-export type CoachPermissions = {
-  canCreateEvents: boolean;
-  canManageTeamRoster: boolean;
-  canInvitePlayers: boolean;
-  canTakeAttendance: boolean;
-  canViewFees: boolean;
-  canEditMemberLicenses: boolean;
-  canEditMemberRsvp: boolean;
-};
+/**
+ * Capacités des coachs d'équipe, réglées pour tout le club sur
+ * `clubs/{clubId}.coachPermissions`. Elles ne valent que pour les équipes
+ * qu'un coach entraîne (voir `ClubAccess`). Flags et défauts : catalogue
+ * partagé (`shared/permissions_catalog.json`).
+ */
+export type CoachPermissions = Record<CoachFlag, boolean>;
 
-/** Defaults si le map est absent (clubs existants). */
+/** Valeurs par défaut si la map est absente (clubs existants). */
 export const DEFAULT_COACH_PERMISSIONS: CoachPermissions = {
-  canCreateEvents: true,
-  canManageTeamRoster: true,
-  canInvitePlayers: true,
-  canTakeAttendance: true,
-  canViewFees: false,
-  canEditMemberLicenses: false,
-  canEditMemberRsvp: false,
+  ...COACH_FLAG_DEFAULTS,
 };
 
-/** Parse `clubs/{id}.coachPermissions` avec defaults. */
+const COACH_FLAGS = Object.keys(COACH_FLAG_DEFAULTS) as CoachFlag[];
+
+/** Parse `clubs/{id}.coachPermissions` ; clé absente ou invalide → défaut. */
 export function parseCoachPermissions(raw: unknown): CoachPermissions {
   const map =
     raw && typeof raw === "object" && !Array.isArray(raw)
       ? (raw as Record<string, unknown>)
       : {};
-  return {
-    canCreateEvents:
-      map[Fields.canCreateEvents] === undefined
-        ? DEFAULT_COACH_PERMISSIONS.canCreateEvents
-        : Boolean(map[Fields.canCreateEvents]),
-    canManageTeamRoster:
-      map[Fields.canManageTeamRoster] === undefined
-        ? DEFAULT_COACH_PERMISSIONS.canManageTeamRoster
-        : Boolean(map[Fields.canManageTeamRoster]),
-    canInvitePlayers:
-      map[Fields.canInvitePlayers] === undefined
-        ? DEFAULT_COACH_PERMISSIONS.canInvitePlayers
-        : Boolean(map[Fields.canInvitePlayers]),
-    canTakeAttendance:
-      map[Fields.canTakeAttendance] === undefined
-        ? DEFAULT_COACH_PERMISSIONS.canTakeAttendance
-        : Boolean(map[Fields.canTakeAttendance]),
-    canViewFees:
-      map[Fields.canViewFees] === undefined
-        ? DEFAULT_COACH_PERMISSIONS.canViewFees
-        : Boolean(map[Fields.canViewFees]),
-    canEditMemberLicenses:
-      map[Fields.canEditMemberLicenses] === undefined
-        ? DEFAULT_COACH_PERMISSIONS.canEditMemberLicenses
-        : Boolean(map[Fields.canEditMemberLicenses]),
-    canEditMemberRsvp:
-      map[Fields.canEditMemberRsvp] === undefined
-        ? DEFAULT_COACH_PERMISSIONS.canEditMemberRsvp
-        : Boolean(map[Fields.canEditMemberRsvp]),
-  };
+  const parsed = { ...DEFAULT_COACH_PERMISSIONS };
+  for (const flag of COACH_FLAGS) {
+    const value = map[flag];
+    if (typeof value === "boolean") parsed[flag] = value;
+  }
+  return parsed;
 }
 
-/** Payload Firestore pour coachPermissions. */
+/** Payload Firestore pour `coachPermissions` (tous les flags du catalogue). */
 export function coachPermissionsToFirestore(
   permissions: CoachPermissions,
 ): Record<string, boolean> {
-  return {
-    [Fields.canCreateEvents]: permissions.canCreateEvents,
-    [Fields.canManageTeamRoster]: permissions.canManageTeamRoster,
-    [Fields.canInvitePlayers]: permissions.canInvitePlayers,
-    [Fields.canTakeAttendance]: permissions.canTakeAttendance,
-    [Fields.canViewFees]: permissions.canViewFees,
-    [Fields.canEditMemberLicenses]: permissions.canEditMemberLicenses,
-    [Fields.canEditMemberRsvp]: permissions.canEditMemberRsvp,
-  };
+  return Object.fromEntries(COACH_FLAGS.map((flag) => [flag, permissions[flag]]));
 }
 
-/** True si admin, ou coach avec le flag `canEditMemberRsvp`. */
-export function allowsEditMemberRsvp(params: {
-  isAdmin: boolean;
-  isCoach: boolean;
-  permissions: CoachPermissions;
-}): boolean {
-  if (params.isAdmin) return true;
-  return params.isCoach && params.permissions.canEditMemberRsvp;
-}
-
-/** Libellés FR des toggles paramètres. */
+/** Libellés FR des réglages coach (ordre du catalogue, aligné app). */
 export const COACH_PERMISSION_LABELS: {
-  key: keyof CoachPermissions;
+  key: CoachFlag;
   label: string;
   description: string;
 }[] = [
@@ -109,12 +63,14 @@ export const COACH_PERMISSION_LABELS: {
   {
     key: "canTakeAttendance",
     label: "Prendre les présences",
-    description: "Réserver pour une future UI présences (flag stocké).",
+    description:
+      "Pointer après la séance pour les stats (optionnel — le RSVP reste prioritaire).",
   },
   {
-    key: "canViewFees",
-    label: "Voir les cotisations",
-    description: "Accès lecture au suivi des cotisations du club.",
+    key: "canPublishTeamAnnouncements",
+    label: "Publier des annonces",
+    description:
+      "Envoyer des annonces aux équipes qu’il entraîne (pas au club entier).",
   },
   {
     key: "canEditMemberLicenses",

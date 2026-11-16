@@ -7,24 +7,26 @@ import {
   lastNameError,
   licenseError,
 } from "@/lib/format/personDataFormat";
-import { MemberRoles } from "@/lib/firebase/constants";
 import {
   getMemberGuardian,
   inviteMemberGuardian,
   revokeMemberGuardian,
   type MemberGuardianView,
 } from "@/lib/firebase/guardianService";
+import { isMemberInviteValid } from "@/lib/firebase/memberService";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import {
-  isMemberInviteValid,
-  memberRoleLabel,
-  type ClubMemberRole,
-} from "@/lib/firebase/memberService";
+  isAdminMember,
+  type ClubPermission,
+} from "@/lib/auth/permissions";
+import { permissionsCopy } from "@/lib/copy/permissionsCopy";
+import { useAuth } from "@/lib/firebase/AuthProvider";
+import { MemberPermissionsEditor } from "./MemberPermissionsEditor";
 import type { MemberRow } from "@/lib/members/membersView";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
-import { PlanningSelect } from "./PlanningSelect";
 import { InviteEmailButton } from "./InviteEmailButton";
 import { MemberAvatar } from "./MemberAvatar";
 import styles from "./MemberDetailPanel.module.css";
@@ -37,11 +39,15 @@ type MemberDetailPanelProps = {
   error: string | null;
   /** Affiche l’e-mail (sinon masqué). */
   canSeeContact?: boolean;
-  /** Édition profil / licence / invitations. */
+  /** Édition profil / invitations. */
   canEditMember?: boolean;
-  canEditRole?: boolean;
-  /** Fiche du compte connecté : le rôle reste visible mais non modifiable. */
+  /** Édition de la licence (`canEditMemberLicense`). */
+  canEditLicense?: boolean;
+  /** Attribuer des droits (droit Administrateur, jamais sur sa propre fiche). */
+  canEditRights?: boolean;
+  /** Fiche du compte connecté : ses droits restent visibles, non modifiables. */
   isOwnProfile?: boolean;
+  /** Retirer un admin exige le droit Administrateur. */
   canRemoveMember?: boolean;
   canManageParents?: boolean;
   onClose: () => void;
@@ -51,7 +57,7 @@ type MemberDetailPanelProps = {
     email: string;
   }) => Promise<void>;
   onSaveLicense: (license: string) => Promise<void>;
-  onChangeRole: (role: ClubMemberRole) => Promise<void>;
+  onChangePermissions: (permissions: ClubPermission[]) => Promise<void>;
   onCopyInvite: () => void;
   onEmailInvite: () => Promise<boolean>;
   onExtendInvite: () => Promise<void>;
@@ -67,16 +73,17 @@ export function MemberDetailPanel({
   member,
   busy,
   error,
-  canSeeContact = true,
-  canEditMember = true,
-  canEditRole = true,
+  canSeeContact = false,
+  canEditMember = false,
+  canEditLicense = false,
+  canEditRights = false,
   isOwnProfile = false,
-  canRemoveMember = true,
-  canManageParents = true,
+  canRemoveMember = false,
+  canManageParents = false,
   onClose,
   onSaveProfile,
   onSaveLicense,
-  onChangeRole,
+  onChangePermissions,
   onCopyInvite,
   onEmailInvite,
   onExtendInvite,
@@ -84,11 +91,15 @@ export function MemberDetailPanel({
   onRemove,
   onParentsChanged,
 }: MemberDetailPanelProps) {
+  const { activeClub } = useAuth();
+  const isTeamCoach = member.coachTeamIds.length > 0;
+  const coachedTeamNames = member.teamLabels
+    .filter((label) => label.includes("(coach"))
+    .map((label) => label.replace(/\s*\([^)]*\)$/, "").trim());
   const [firstName, setFirstName] = useState(member.firstName);
   const [lastName, setLastName] = useState(member.lastName);
   const [email, setEmail] = useState(member.email ?? "");
   const [license, setLicense] = useState(member.license);
-  const [role, setRole] = useState<ClubMemberRole>(member.role);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [guardian, setGuardian] = useState<MemberGuardianView | null>(null);
   const [guardianEmail, setGuardianEmail] = useState("");
@@ -103,7 +114,6 @@ export function MemberDetailPanel({
     setLastName(member.lastName);
     setEmail(member.email ?? "");
     setLicense(member.license);
-    setRole(member.role);
     setConfirmRemove(false);
     setGuardianEmail("");
     setGuardianError(null);
@@ -116,7 +126,6 @@ export function MemberDetailPanel({
     member.lastName,
     member.email,
     member.license,
-    member.role,
   ]);
 
   useEffect(() => {
@@ -242,12 +251,6 @@ export function MemberDetailPanel({
     await onSaveLicense(license);
   }
 
-  async function handleRoleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (role === member.role) return;
-    await onChangeRole(role);
-  }
-
   async function reloadGuardian() {
     const view = await getMemberGuardian(clubId, member.memberId);
     setGuardian(view);
@@ -316,7 +319,8 @@ export function MemberDetailPanel({
   const emailDisplay = canSeeContact
     ? member.email?.trim() || "—"
     : "—";
-  const showAdminSection = canEditMember || canEditRole || isOwnProfile;
+  const showAdminSection =
+    canEditMember || canEditLicense || canEditRights || isOwnProfile;
   const showDangerSection = canRemoveMember;
 
   return (
@@ -337,7 +341,9 @@ export function MemberDetailPanel({
       >
         <header className={dialogStyles.header}>
           <div className={styles.headerMain}>
-            <p className={dialogStyles.eyebrow}>{memberRoleLabel(member.role)}</p>
+            <p className={dialogStyles.eyebrow}>
+              {badgeLabel(member.badge)}
+            </p>
             {editingName ? (
               <form
                 id="member-detail-title"
@@ -708,7 +714,7 @@ export function MemberDetailPanel({
             <h3 className={styles.sectionTitle}>Admin</h3>
             <div className={styles.sectionBody}>
               <div className={styles.gridTwo}>
-                {canEditMember ? (
+                {canEditLicense ? (
                   <form className={styles.block} onSubmit={handleLicenseSubmit}>
                     <label
                       className={styles.blockLabel}
@@ -743,43 +749,35 @@ export function MemberDetailPanel({
                   </div>
                 )}
 
-                {canEditRole ? (
-                  <form className={styles.block} onSubmit={handleRoleSubmit}>
-                    <label className={styles.blockLabel} htmlFor="member-role">
-                      Rôle
-                    </label>
-                    <div className={styles.row}>
-                      <div className={styles.grow}>
-                        <PlanningSelect
-                          id="member-role"
-                          value={role}
-                          disabled={panelBusy}
-                          options={[
-                            { value: MemberRoles.admin, label: "Admin" },
-                            { value: MemberRoles.coach, label: "Coach" },
-                            { value: MemberRoles.player, label: "Joueur" },
-                          ]}
-                          onChange={(next) => setRole(next as ClubMemberRole)}
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className={`${dialogStyles.buttonSecondary} ${styles.rowActionCompact}`}
-                        disabled={busy || role === member.role}
-                      >
-                        OK
-                      </button>
-                    </div>
-                  </form>
+                {canEditRights ? (
+                  <div className={styles.block}>
+                    <p className={styles.blockLabel}>
+                      {permissionsCopy.sectionTitle}
+                    </p>
+                    <MemberPermissionsEditor
+                      permissions={member.permissions}
+                      isTeamCoach={isTeamCoach}
+                      coachedTeamNames={coachedTeamNames}
+                      coachPermissions={activeClub?.coachPermissions}
+                      busy={panelBusy}
+                      onSave={onChangePermissions}
+                    />
+                  </div>
                 ) : (
                   <div className={styles.block}>
-                    <p className={styles.blockLabel}>Rôle</p>
+                    <p className={styles.blockLabel}>
+                      {permissionsCopy.sectionTitle}
+                    </p>
                     <p className={styles.centeredNote}>
-                      {memberRoleLabel(member.role)}
+                      {permissionsCopy.rightsSummary({
+                        isAdmin: isAdminMember(member),
+                        permissionCount: member.permissions.length,
+                        isTeamCoach,
+                      })}
                     </p>
                     {isOwnProfile ? (
                       <p className={styles.centeredNote}>
-                        Seul un autre admin peut modifier ton rôle.
+                        {permissionsCopy.ownRightsReadonly}
                       </p>
                     ) : null}
                   </div>
@@ -793,7 +791,7 @@ export function MemberDetailPanel({
           <section className={styles.section} data-tone="danger">
             <h3 className={styles.sectionTitle}>Zone sensible</h3>
             <div className={styles.sectionBody}>
-              {member.role !== MemberRoles.admin || !member.hasLinkedAccount ? (
+              {canRemoveMember ? (
                 confirmRemove ? (
                   <div className={styles.dangerRow}>
                     <p className={styles.centeredNote}>

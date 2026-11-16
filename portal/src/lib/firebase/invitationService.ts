@@ -3,23 +3,16 @@ import {
   acceptTeamInvitation,
   lookupInvitationByCode,
 } from "./callableService";
-import { InvitationTypes, MemberRoles } from "./constants";
+import { InvitationTypes } from "./constants";
 
 /** Type d’invitation renvoyé par le lookup. */
 export type InvitationType =
   (typeof InvitationTypes)[keyof typeof InvitationTypes];
 
-/** Rôle membre normalisé pour une invitation. */
-export type InvitationMemberRole =
-  | typeof MemberRoles.player
-  | typeof MemberRoles.coach
-  | typeof MemberRoles.admin;
-
 export type InvitationLookupResult = {
   invitationId: string;
   clubId: string;
   code: string;
-  role: InvitationMemberRole;
   type: InvitationType;
   memberId: string;
   clubName: string;
@@ -41,13 +34,6 @@ function normalizeInvitationType(raw: string): InvitationType {
   return InvitationTypes.member;
 }
 
-/** Normalise le rôle d’invitation membre (défaut : joueur). */
-function normalizeInvitationRole(raw: string): InvitationMemberRole {
-  if (raw === MemberRoles.coach) return MemberRoles.coach;
-  if (raw === MemberRoles.admin) return MemberRoles.admin;
-  return MemberRoles.player;
-}
-
 /** True si l’invitation est de type parent. */
 export function isGuardianInvitation(
   invitation: InvitationLookupResult,
@@ -57,7 +43,7 @@ export function isGuardianInvitation(
   return invitation.type === InvitationTypes.guardian;
 }
 
-/** True si l’invitation est de type membre (joueur / coach / admin). */
+/** True si l’invitation est de type membre (fiche nominative pré-inscrite). */
 export function isMemberInvitation(
   invitation: InvitationLookupResult,
 ): invitation is InvitationLookupResult & {
@@ -100,7 +86,6 @@ export async function findInvitationByCode(
     invitationId: invitation.invitationId,
     clubId: invitation.clubId,
     code: invitation.code || code,
-    role: normalizeInvitationRole(invitation.role),
     type: normalizeInvitationType(invitation.type),
     memberId: invitation.memberId ?? "",
     clubName: invitation.clubName,

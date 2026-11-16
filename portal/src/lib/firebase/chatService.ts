@@ -1,4 +1,9 @@
 import {
+  can,
+  canWriteStaffChannels,
+  type ClubAccess,
+} from "@/lib/auth/permissions";
+import {
   collection,
   doc,
   type DocumentData,
@@ -29,7 +34,6 @@ import {
   ChatWritePolicies,
   Collections,
   Fields,
-  MemberRoles,
 } from "./constants";
 import { prepareChatImageUpload } from "@/lib/chat/createImageThumbnail";
 import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
@@ -472,23 +476,23 @@ export function totalUnreadCount(
 }
 
 /**
- * True si l’utilisateur peut écrire selon writePolicy + rôle club.
- * Parents participants : rôle null → autorisé seulement si policy `open`.
+ * True si l’utilisateur peut écrire selon `writePolicy` et ses droits dans
+ * le club (mêmes conditions que les règles Firestore) : `admins_only` →
+ * droit `manageChat` ; `coaches_and_admins` → `manageChat` ou coach
+ * d’équipe. Parent participant (`access` null) : seulement `open`.
  */
 export function canWriteToConversation(params: {
   conversation: ChatConversation;
   uid: string;
-  clubRole: string | null;
+  access: ClubAccess | null;
 }): boolean {
-  const { conversation, uid, clubRole } = params;
+  const { conversation, uid, access } = params;
   if (!conversation.participantUids.includes(uid)) return false;
   switch (conversation.writePolicy) {
     case ChatWritePolicies.adminsOnly:
-      return clubRole === MemberRoles.admin;
+      return access !== null && can(access, "manageChat");
     case ChatWritePolicies.coachesAndAdmins:
-      return (
-        clubRole === MemberRoles.admin || clubRole === MemberRoles.coach
-      );
+      return access !== null && canWriteStaffChannels(access);
     default:
       return true;
   }

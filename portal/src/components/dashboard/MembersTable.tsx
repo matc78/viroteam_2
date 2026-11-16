@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import type { TeamOption } from "@/lib/firebase/eventService";
 import {
   isMemberInviteValid,
-  memberRoleLevel,
+  memberBadgeRank,
 } from "@/lib/firebase/memberService";
-import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
+import { MemberFeeStatuses } from "@/lib/firebase/constants";
+import { MEMBER_BADGES } from "@/lib/auth/permissions";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import type { MemberRow, MembersFilters } from "@/lib/members/membersView";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { useAuth } from "@/lib/firebase/AuthProvider";
@@ -20,7 +22,7 @@ import styles from "./MembersTable.module.css";
 
 type SortColumn =
   | "name"
-  | "role"
+  | "badge"
   | "teams"
   | "registration"
   | "license"
@@ -48,14 +50,14 @@ type MembersTableProps = {
   inviteableSelectedCount: number;
   /** Affiche le bouton d’ajout (admin / coach). */
   canAddMember?: boolean;
-  /** Affiche l’import CSV (admin). */
+  /** Affiche l’import CSV (droits membres et équipes). */
   canImportMembers?: boolean;
   /** Affiche cases à cocher + barre groupée. */
   canSelectRows?: boolean;
   /** Affiche les actions invitation en ligne. */
   canInviteActions?: boolean;
-  /** Cotisation / rôle groupés (admin). */
-  showAdminBulkActions?: boolean;
+  /** Cotisation groupée (droit « Gérer les cotisations »). */
+  showFeeBulkActions?: boolean;
   /** True si l’e-mail du membre peut être affiché. */
   canSeeContact?: (member: MemberRow) => boolean;
   onFiltersChange: (next: MembersFilters) => void;
@@ -65,7 +67,6 @@ type MembersTableProps = {
   onClearSelection: () => void;
   onBulkSendInvites: () => void;
   onBulkSetFeeStatus: (status: string) => void;
-  onBulkSetRole: (role: string) => void;
   onBulkExport: () => void;
   onCopyInvite: (member: MemberRow) => void;
   onEmailInvite: (member: MemberRow) => Promise<boolean>;
@@ -90,7 +91,7 @@ export function MembersTable({
   canImportMembers = true,
   canSelectRows = true,
   canInviteActions = true,
-  showAdminBulkActions = true,
+  showFeeBulkActions = false,
   canSeeContact,
   onFiltersChange,
   onSelectMember,
@@ -99,7 +100,6 @@ export function MembersTable({
   onClearSelection,
   onBulkSendInvites,
   onBulkSetFeeStatus,
-  onBulkSetRole,
   onBulkExport,
   onCopyInvite,
   onEmailInvite,
@@ -150,21 +150,22 @@ export function MembersTable({
           </label>
 
           <label className={styles.field}>
-            <span className={styles.label}>Rôle</span>
+            <span className={styles.label}>Badge</span>
             <PlanningSelect
-              id="members-filter-role"
-              value={filters.role}
-              aria-label="Filtrer par rôle"
+              id="members-filter-badge"
+              value={filters.badge}
+              aria-label="Filtrer par badge"
               options={[
                 { value: "all", label: "Tous" },
-                { value: MemberRoles.admin, label: "Admin" },
-                { value: MemberRoles.coach, label: "Coach" },
-                { value: MemberRoles.player, label: "Joueur" },
+                ...MEMBER_BADGES.map((badge) => ({
+                  value: badge,
+                  label: badgeLabel(badge),
+                })),
               ]}
               onChange={(next) =>
                 onFiltersChange({
                   ...filters,
-                  role: next as MembersFilters["role"],
+                  badge: next as MembersFilters["badge"],
                 })
               }
             />
@@ -298,8 +299,8 @@ export function MembersTable({
                     onSort={handleSort}
                   />
                   <SortableHeader
-                    label="Rôle"
-                    column="role"
+                    label="Badge"
+                    column="badge"
                     activeColumn={sortColumn}
                     direction={sortDirection}
                     onSort={handleSort}
@@ -383,7 +384,7 @@ export function MembersTable({
                         </div>
                       </td>
                       <td>
-                        <RoleBadge role={row.role} iconOnly />
+                        <RoleBadge role={row.badge} iconOnly />
                       </td>
                       <td>
                         {row.teamLabels.length > 0
@@ -466,11 +467,10 @@ export function MembersTable({
           hasSeason={hasSeason}
           inviteableCount={inviteableSelectedCount}
           showInviteActions={canInviteActions}
-          showAdminBulkActions={showAdminBulkActions}
+          showFeeBulkActions={showFeeBulkActions}
           onClear={onClearSelection}
           onSendInvites={onBulkSendInvites}
           onSetFeeStatus={onBulkSetFeeStatus}
-          onSetRole={onBulkSetRole}
           onExportSelected={onBulkExport}
         />
       ) : null}
@@ -541,8 +541,8 @@ function compareMemberRows(
   switch (column) {
     case "name":
       return left.displayName.localeCompare(right.displayName, "fr");
-    case "role":
-      return memberRoleLevel(right.role) - memberRoleLevel(left.role);
+    case "badge":
+      return memberBadgeRank(left) - memberBadgeRank(right);
     case "teams":
       return (left.teamLabels[0] ?? "").localeCompare(
         right.teamLabels[0] ?? "",

@@ -61,6 +61,8 @@ type FeesConfigFormProps = {
   initial: FeesConfig;
   clubId: string;
   uid: string;
+  /** Connecter / rafraîchir le compte Stripe : droit Administrateur seul. */
+  canConnectStripe: boolean;
   onSaved?: () => void;
 };
 
@@ -142,6 +144,7 @@ export function FeesConfigForm({
   initial,
   clubId,
   uid,
+  canConnectStripe,
   onSaved,
 }: FeesConfigFormProps) {
   const { showToast } = useToast();
@@ -313,6 +316,7 @@ export function FeesConfigForm({
   useEffect(() => {
     const stripeParam = searchParams.get("stripe");
     if (stripeParam !== "return" && stripeParam !== "refresh") return;
+    if (!canConnectStripe) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -341,7 +345,7 @@ export function FeesConfigForm({
     return () => {
       cancelled = true;
     };
-  }, [clubId, searchParams, showToast, router]);
+  }, [clubId, canConnectStripe, searchParams, showToast, router]);
 
   function setOnlinePayment(enabled: boolean) {
     setOnlinePaymentEnabled(enabled);
@@ -974,10 +978,15 @@ export function FeesConfigForm({
               <code>NEXT_PUBLIC_STRIPE_LIVE=true</code> en local après avoir
               posé les secrets Functions.
             </p>
-          ) : (
+          ) : canConnectStripe ? (
             <p className={styles.sectionLead}>
               Connecte le compte bancaire du club via Stripe Express, puis
               active le bouton « Payer en ligne » pour les membres.
+            </p>
+          ) : (
+            <p className={styles.sectionLead}>
+              Seul un administrateur du club peut connecter ou mettre à jour
+              le compte Stripe.
             </p>
           )}
           {stripeAccountId ? (
@@ -998,6 +1007,7 @@ export function FeesConfigForm({
               {saving ? "Activation…" : "Activer les paiements CB maintenant"}
             </button>
           ) : null}
+          {canConnectStripe ? (
           <div className={styles.chips}>
             <button
               type="button"
@@ -1030,6 +1040,7 @@ export function FeesConfigForm({
               </button>
             ) : null}
           </div>
+          ) : null}
         </div>
       </section>
 

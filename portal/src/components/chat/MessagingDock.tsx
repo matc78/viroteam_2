@@ -31,9 +31,9 @@ export function MessagingDock() {
     setDockExpanded,
     openCompose,
     openCategoryChannel,
-    isAdminSomewhere,
+    canManageChatSomewhere,
     openThread,
-    roleForClub,
+    badgeForClub,
     isMobileLayout,
     dmPeerNameByKey,
   } = useChat();
@@ -112,7 +112,7 @@ export function MessagingDock() {
       <header className={styles.header}>
         <h2 className={styles.title}>{chatCopy.chatEntry}</h2>
         <div className={styles.headerActions}>
-          {isAdminSomewhere ? (
+          {canManageChatSomewhere ? (
             <button
               type="button"
               className={styles.iconBtn}
@@ -194,7 +194,7 @@ export function MessagingDock() {
                 chatState={chatStates[stateId]}
                 clubName={clubNameById[conversation.clubId]}
                 clubColor={clubColorById[conversation.clubId]}
-                clubRole={roleForClub(conversation.clubId)}
+                clubBadge={badgeForClub(conversation.clubId)}
                 previewSenderByKey={previewSenderByKey}
                 peerDisplayName={dmPeerNameByKey[stateId]}
                 selected={selected}

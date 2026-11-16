@@ -14,7 +14,7 @@ import {
   isChannelConversation,
   type ChatConversation,
 } from "@/lib/firebase/chatTypes";
-import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
+
 import styles from "./ConversationIntroCard.module.css";
 import { chatCopy } from "@/lib/copy/chatCopy";
 
@@ -35,38 +35,43 @@ type RoleCount = {
 
 /** Pluriel FR pour les stats de rôles dans l’intro de discussion. */
 function roleCountLabel(role: string, count: number): string {
-  if (role === MemberRoles.admin) {
+  if (role === "admin") {
     return chatCopy.roleCountAdmins(count);
   }
-  if (role === MemberRoles.coach) {
+  if (role === "coach") {
     return chatCopy.roleCountCoaches(count);
   }
-  if (role === MemberRoles.player) {
+  if (role === "player") {
     return chatCopy.roleCountPlayers(count);
   }
-  if (role === PortalUiRoles.parent) {
+  if (role === "member") {
+    return chatCopy.roleCountMembers(count);
+  }
+  if (role === "parent") {
     return chatCopy.roleCountParents(count);
   }
   return `${count}`;
 }
 
 /**
- * Agrège les participants par rôle (ordre admin → coach → joueur → parent).
+ * Agrège les participants par rôle (ordre admin → coach → joueur → membre →
+ * parent).
  */
 export function countParticipantsByRole(
   participants: ConversationParticipant[],
 ): RoleCount[] {
   const counts = new Map<string, number>();
   for (const participant of participants) {
-    const role = participant.role || MemberRoles.player;
+    const role = participant.role || "member";
     counts.set(role, (counts.get(role) ?? 0) + 1);
   }
 
   const order = [
-    MemberRoles.admin,
-    MemberRoles.coach,
-    MemberRoles.player,
-    PortalUiRoles.parent,
+    "admin",
+    "coach",
+    "player",
+    "member",
+    "parent",
   ];
 
   const rows: RoleCount[] = [];

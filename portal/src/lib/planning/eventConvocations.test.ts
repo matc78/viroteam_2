@@ -18,9 +18,9 @@ const teams: TeamOption[] = [
 ];
 
 const directory = buildGuestDirectoryFromPeople([
-  { id: "uid-a", name: "Alix", role: "player", avatarUrl: null },
-  { id: "uid-b", name: "Basile", role: "player", avatarUrl: null },
-  { id: "mem-c", name: "Chloé", role: "player", avatarUrl: null },
+  { id: "uid-a", name: "Alix", badge: "player", avatarUrl: null },
+  { id: "uid-b", name: "Basile", badge: "player", avatarUrl: null },
+  { id: "mem-c", name: "Chloé", badge: "player", avatarUrl: null },
 ]);
 
 describe("buildConvocationRows", () => {

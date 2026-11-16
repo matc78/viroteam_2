@@ -101,7 +101,7 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
     }
 
     denyingRef.current = true;
-    router.replace("/access-denied?reason=role");
+    router.replace("/access-denied?reason=no-access");
   }, [
     status,
     isBureauUser,

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
-import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { FeesConfigForm } from "@/components/dashboard/FeesConfigForm";
@@ -26,7 +25,8 @@ import {
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { createStripeCheckout } from "@/lib/firebase/callableService";
-import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
+import { MemberFeeStatuses } from "@/lib/firebase/constants";
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
 import {
   amountDueCents,
   getActiveSeason,
@@ -128,7 +128,7 @@ function playerFeeEmptyMessage(data: PlayerFeeData): string {
   return "";
 }
 
-/** Vue cotisation self pour le rôle joueur. */
+/** Vue de sa propre cotisation (sans droit `viewFees`). */
 function PlayerFeesSelfView() {
   const { activeClub, user } = useAuth();
   const { showToast } = useToast();
@@ -324,33 +324,21 @@ function PlayerFeesSelfView() {
   );
 }
 
-/** Accès refusé cotisations (ni admin ni coach lecture). */
-function FeesNoAccessView() {
-  useReportPageReady(true, "/fees");
-  return (
-    <div>
-      <DashboardPageIntro
-        eyebrow="Espace club"
-        heading="Cotisations"
-        lead="Accès réservé aux administrateurs."
-      />
-    </div>
-  );
-}
-
-/** Vue admin / coach lecture : config + suivi. */
+/**
+ * Vue suivi : configuration et écriture avec `manageFees`, lecture seule
+ * avec `viewFees`.
+ */
 function FeesStaffView() {
-  const { activeClub, activeClubRole, user, refreshProfile } = useAuth();
-  const isAdmin = activeClubRole === MemberRoles.admin;
-  const isCoachRead =
-    activeClubRole === MemberRoles.coach &&
-    Boolean(activeClub?.coachPermissions.canViewFees);
+  const { activeClub, user, refreshProfile } = useAuth();
+  const caps = useBureauCapabilities();
+  const canManageFees = caps.canManageFees;
+  const isReadOnly = caps.canViewFees && !caps.canManageFees;
 
   const { data: config, loading, refreshing, error, reload } =
     useAsyncClubPageResource(
       activeClub,
       loadFeesConfigForClub,
-      [isAdmin, isCoachRead],
+      [canManageFees, isReadOnly],
       "/fees",
     );
   const feesActive = useIsPortalRouteActive(["/fees"]);
@@ -373,7 +361,7 @@ function FeesStaffView() {
         eyebrow="Espace club"
         heading="Cotisations"
         lead={
-          isCoachRead && !isAdmin
+          isReadOnly
             ? `Suivi en lecture des cotisations de ${activeClub?.name ?? "votre club"}.`
             : `Configurez la saison et suivez les paiements de ${activeClub?.name ?? "votre club"}.`
         }
@@ -389,7 +377,7 @@ function FeesStaffView() {
 
       {config && user && activeClub ? (
         <>
-          {isAdmin ? (
+          {canManageFees ? (
             <div className={tabStyles.tabs} role="tablist" aria-label="Cotisations">
               <button
                 type="button"
@@ -416,7 +404,7 @@ function FeesStaffView() {
             </div>
           ) : null}
 
-          {isAdmin && tab === "config" ? (
+          {canManageFees && tab === "config" ? (
             <div
               id="fees-panel-config"
               role="tabpanel"
@@ -427,6 +415,7 @@ function FeesStaffView() {
                 initial={config}
                 clubId={activeClub.id}
                 uid={user.uid}
+                canConnectStripe={caps.isClubAdmin}
                 onSaved={() => {
                   void refreshProfile().then(reload);
                 }}
@@ -438,16 +427,16 @@ function FeesStaffView() {
               role="tabpanel"
               aria-labelledby="fees-tab-tracking"
             >
-              {isCoachRead && !isAdmin ? (
+              {isReadOnly ? (
                 <p className={introStyles.lead}>
                   Lecture seule — les actions d’encaissement restent réservées
-                  aux administrateurs.
+                  au droit « Gérer les cotisations ».
                 </p>
               ) : null}
               <FeesTrackingPanel
                 key={activeClub.id}
                 club={activeClub}
-                readOnly={isCoachRead && !isAdmin}
+                readOnly={isReadOnly}
               />
             </div>
           )}
@@ -458,23 +447,10 @@ function FeesStaffView() {
 }
 
 /**
- * Contenu page Cotisations : routeur par rôle (un seul `markPageReady` actif).
+ * Contenu page Cotisations : suivi du club avec le droit `viewFees`, sinon
+ * sa propre cotisation (un seul `markPageReady` actif).
  */
 export function FeesPageClient() {
-  const { activeClub, activeClubRole } = useAuth();
-  const isPlayer = activeClubRole === MemberRoles.player;
-  const isAdmin = activeClubRole === MemberRoles.admin;
-  const isCoachRead =
-    activeClubRole === MemberRoles.coach &&
-    Boolean(activeClub?.coachPermissions.canViewFees);
-
-  if (isPlayer || (activeClubRole === MemberRoles.coach && !isCoachRead)) {
-    return <PlayerFeesSelfView />;
-  }
-
-  if (!isAdmin && !isCoachRead) {
-    return <FeesNoAccessView />;
-  }
-
-  return <FeesStaffView />;
+  const caps = useBureauCapabilities();
+  return caps.canViewFees ? <FeesStaffView /> : <PlayerFeesSelfView />;
 }

@@ -82,9 +82,7 @@ export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
         (link) =>
           link.clubId === clubId && link.status === GuardianStatuses.active,
       );
-      const isLicensed = profile.clubMemberships.some(
-        (membership) => membership.clubId === clubId,
-      );
+      const isLicensed = profile.memberClubIds.includes(clubId);
 
       // « Moi » et chaque enfant en parallèle (une lecture par fiche).
       const [selfId, children] = await Promise.all([

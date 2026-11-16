@@ -46,27 +46,19 @@ export function rosterTeamsForViewer(
   );
 }
 
-/** IDs d’équipes du viewer selon son rôle club. */
-export function viewerTeamIdsForRole(params: {
-  role: string | null;
+/**
+ * IDs d’équipes du viewer : toutes si [seesWholeClub] (droit de gestion
+ * membres / équipes / planning), sinon ses rosters (coach ∪ joueur).
+ */
+export function viewerTeamIds(params: {
+  seesWholeClub: boolean;
   teams: TeamOption[];
   memberId: string | null | undefined;
 }): string[] {
-  if (params.role === "admin") {
-    return params.teams.map((team) => team.id);
-  }
-  if (params.role === "coach") {
-    // Coach (+ éventuel rôle joueur) : union des rosters.
-    return rosterTeamsForViewer(params.teams, params.memberId).map(
-      (team) => team.id,
-    );
-  }
-  if (params.role === "player") {
-    return teamsPlayedByViewer(params.teams, params.memberId).map(
-      (team) => team.id,
-    );
-  }
-  return [];
+  if (params.seesWholeClub) return params.teams.map((team) => team.id);
+  return rosterTeamsForViewer(params.teams, params.memberId).map(
+    (team) => team.id,
+  );
 }
 
 /** IDs des coachs (roster) des équipes du joueur. */

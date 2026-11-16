@@ -19,21 +19,25 @@ import {
 } from "@/lib/auth/bureauPermissions";
 import { isBureauMessagesPath } from "@/lib/chat/isMessagesPath";
 import { usePlayerFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
+import { NO_CLUB_ACCESS, type DisplayBadge } from "@/lib/auth/permissions";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { MemberRoles } from "@/lib/firebase/constants";
+
 import { site } from "@/lib/site";
 import {
+  accountClubBadge,
   buildClubMembershipTiles,
-  membershipRoleForClub,
   type PortalSpace,
 } from "@/lib/firebase/types";
 import styles from "./DashboardShell.module.css";
 
-/** Classe CSS avatar selon le rôle bureau actif. */
-function avatarToneClass(role: string | null): string {
-  if (role === MemberRoles.admin) return styles.avatarToneAdmin;
-  if (role === MemberRoles.coach) return styles.avatarToneCoach;
-  if (role === MemberRoles.player) return styles.avatarTonePlayer;
+/** Classe CSS avatar selon le badge du compte dans le club actif. */
+function avatarToneClass(badge: DisplayBadge | null): string {
+  if (badge === "admin") return styles.avatarToneAdmin;
+  if (badge === "coach") return styles.avatarToneCoach;
+  if (badge === "player") return styles.avatarTonePlayer;
+  if (badge === "member") return styles.avatarToneMember;
+  if (badge === "parent") return styles.avatarToneParent;
   return "";
 }
 
@@ -93,10 +97,21 @@ export function DashboardShell() {
     activeSpace,
     bureauClubs,
     familyClubs,
-    activeClubRole,
+    accessByClub,
+    activeClubAccessLoading,
     profile,
     selectClubContext,
   } = useAuth();
+  const caps = useBureauCapabilities();
+  // Badge principal du compte dans le club actif (pastille + avatar) ; aucun
+  // tant que la fiche charge (évite le flash « Membre »).
+  const activeBadge =
+    activeClubAccessLoading || !activeClub
+      ? null
+      : accountClubBadge(
+          caps.access,
+          familyClubs.some((club) => club.id === activeClub.id),
+        );
   const { pendingHref, pendingClubId, pendingSpace, beginPageLoad } =
     usePageLoad();
   const feeDeadlineUrgent = usePlayerFeeDeadlineUrgency();
@@ -104,15 +119,10 @@ export function DashboardShell() {
   const profileAvatarUrl = profile?.avatarUrl?.trim() || null;
 
   const clubsWithRoles = useMemo(
-    () => buildClubMembershipTiles(bureauClubs, familyClubs, profile),
-    [bureauClubs, familyClubs, profile],
+    () => buildClubMembershipTiles(bureauClubs, familyClubs, accessByClub),
+    [bureauClubs, familyClubs, accessByClub],
   );
 
-  const caps = useMemo(
-    () =>
-      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
-    [activeClubRole, activeClub?.coachPermissions],
-  );
   const allowedHrefs = useMemo(() => new Set(caps.navHrefs), [caps.navHrefs]);
   const visibleNavItems = useMemo(
     () => NAV_ITEMS.filter((item) => allowedHrefs.has(item.href)),
@@ -128,9 +138,9 @@ export function DashboardShell() {
       return;
     }
 
-    const club = bureauClubs.find((item) => item.id === clubId);
-    const nextRole = membershipRoleForClub(profile, clubId);
-    const nextCaps = bureauCapabilities(nextRole, club?.coachPermissions);
+    const nextCaps = bureauCapabilities(
+      accessByClub[clubId] ?? NO_CLUB_ACCESS,
+    );
     const stayOnPage =
       !isCrossClubPath(pathname) &&
       isBureauRouteAllowed(pathname, nextCaps);
@@ -223,7 +233,7 @@ export function DashboardShell() {
                   }}
                 >
                   <span
-                    className={[styles.avatar, avatarToneClass(activeClubRole)]
+                    className={[styles.avatar, avatarToneClass(activeBadge)]
                       .filter(Boolean)
                       .join(" ")}
                     aria-hidden="true"
@@ -242,9 +252,9 @@ export function DashboardShell() {
               >
                 <div className={styles.userMeta}>
                   <span className={styles.userName}>{resolvedUserName}</span>
-                  {!onCrossClub ? (
+                  {!onCrossClub && activeBadge ? (
                     <RoleBadge
-                      role={activeClubRole}
+                      role={activeBadge}
                       className={styles.roleChip}
                     />
                   ) : null}

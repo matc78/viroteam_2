@@ -1,6 +1,6 @@
 "use client";
 
-import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
+import { MemberFeeStatuses } from "@/lib/firebase/constants";
 import { PlanningSelect } from "./PlanningSelect";
 import styles from "./MembersBulkBar.module.css";
 
@@ -12,12 +12,11 @@ type MembersBulkBarProps = {
   inviteableCount: number;
   /** Affiche l’envoi groupé d’invitations (admin / coach). */
   showInviteActions?: boolean;
-  /** Affiche cotisation / rôle groupés (admin uniquement). */
-  showAdminBulkActions?: boolean;
+  /** Affiche la cotisation groupée (droit « Gérer les cotisations »). */
+  showFeeBulkActions?: boolean;
   onClear: () => void;
   onSendInvites: () => void;
   onSetFeeStatus: (status: string) => void;
-  onSetRole: (role: string) => void;
   onExportSelected: () => void;
 };
 
@@ -30,11 +29,10 @@ export function MembersBulkBar({
   hasSeason,
   inviteableCount,
   showInviteActions = true,
-  showAdminBulkActions = true,
+  showFeeBulkActions = false,
   onClear,
   onSendInvites,
   onSetFeeStatus,
-  onSetRole,
   onExportSelected,
 }: MembersBulkBarProps) {
   if (selectedCount === 0) return null;
@@ -74,49 +72,26 @@ export function MembersBulkBar({
           </button>
         ) : null}
 
-        {showAdminBulkActions ? (
-          <>
-            <label className={styles.selectField}>
-              <span className={styles.selectLabel}>Cotisation</span>
-              <PlanningSelect
-                id="bulk-fee-status"
-                value=""
-                aria-label="Définir le statut cotisation"
-                disabled={busy || !hasSeason}
-                placement="up"
-                options={[
-                  { value: "", label: hasSeason ? "Changer…" : "Pas de saison" },
-                  { value: MemberFeeStatuses.aPayer, label: "À payer" },
-                  { value: MemberFeeStatuses.exonere, label: "Exonéré" },
-                ]}
-                onChange={(next) => {
-                  if (!next) return;
-                  onSetFeeStatus(next);
-                }}
-              />
-            </label>
-
-            <label className={styles.selectField}>
-              <span className={styles.selectLabel}>Rôle</span>
-              <PlanningSelect
-                id="bulk-role"
-                value=""
-                aria-label="Définir le rôle"
-                disabled={busy}
-                placement="up"
-                options={[
-                  { value: "", label: "Changer…" },
-                  { value: MemberRoles.player, label: "Joueur" },
-                  { value: MemberRoles.coach, label: "Coach" },
-                  { value: MemberRoles.admin, label: "Admin" },
-                ]}
-                onChange={(next) => {
-                  if (!next) return;
-                  onSetRole(next);
-                }}
-              />
-            </label>
-          </>
+        {showFeeBulkActions ? (
+          <label className={styles.selectField}>
+            <span className={styles.selectLabel}>Cotisation</span>
+            <PlanningSelect
+              id="bulk-fee-status"
+              value=""
+              aria-label="Définir le statut cotisation"
+              disabled={busy || !hasSeason}
+              placement="up"
+              options={[
+                { value: "", label: hasSeason ? "Changer…" : "Pas de saison" },
+                { value: MemberFeeStatuses.aPayer, label: "À payer" },
+                { value: MemberFeeStatuses.exonere, label: "Exonéré" },
+              ]}
+              onChange={(next) => {
+                if (!next) return;
+                onSetFeeStatus(next);
+              }}
+            />
+          </label>
         ) : null}
 
         <button

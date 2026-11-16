@@ -43,7 +43,7 @@ import {
   setMuted,
   uploadAndSetConversationAvatar,
 } from "@/lib/firebase/chatService";
-import { ChatMessageTypes, PortalUiRoles } from "@/lib/firebase/constants";
+import { ChatMessageTypes } from "@/lib/firebase/constants";
 import {
   chatDisplayTitle,
   chatStateDocId,
@@ -60,7 +60,7 @@ import { chatCopy } from "@/lib/copy/chatCopy";
 type ChatThreadViewProps = {
   clubId: string;
   conversationId: string;
-  clubRole: string | null;
+  clubBadge: string | null;
   chatState?: ChatUserState;
   compact?: boolean;
   /** `false` quand la vue reste montée mais masquée (page keep-alive) : pas de `markRead`. */
@@ -83,7 +83,7 @@ type ChatThreadViewProps = {
 export function ChatThreadView({
   clubId,
   conversationId,
-  clubRole,
+  clubBadge,
   chatState,
   compact = false,
   isActive = true,
@@ -94,7 +94,9 @@ export function ChatThreadView({
   clubName,
   clubColor,
 }: ChatThreadViewProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, accessByClub } = useAuth();
+  // Droits dans le club (`null` : parent seul, pas de fiche).
+  const clubAccess = accessByClub[clubId] ?? null;
   const viewerUid = user?.uid;
   const chat = useChatOptional();
   const inboxPeerName =
@@ -198,9 +200,9 @@ export function ChatThreadView({
     return canWriteToConversation({
       conversation,
       uid: user.uid,
-      clubRole,
+      access: clubAccess,
     });
-  }, [conversation, user, clubRole]);
+  }, [conversation, user, clubAccess]);
 
   const canPoll =
     canWrite && conversation != null && isGroupConversation(conversation);
@@ -214,7 +216,13 @@ export function ChatThreadView({
     profile?.firstName?.trim() ||
     profile?.displayName?.trim().split(/\s+/)[0] ||
     "";
-  const senderRole = clubRole || PortalUiRoles.parent;
+  // Badge écrit sur l’aperçu : badge de la fiche, `member` sans badge,
+  // `parent` sans fiche (mêmes valeurs que l’app).
+  const senderRole =
+    clubBadge ||
+    (clubAccess
+      ? "member"
+      : "parent");
   const title = conversation
     ? chatDisplayTitle(conversation, {
         peerDisplayName:

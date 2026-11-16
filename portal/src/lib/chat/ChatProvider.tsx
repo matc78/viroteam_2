@@ -41,9 +41,13 @@ import {
   type ChatThreadKey,
   type ChatUserState,
 } from "@/lib/firebase/chatTypes";
-import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
+import {
+  can,
+  primaryBadge,
+  type ClubAccess,
+} from "@/lib/auth/permissions";
 import { listClubMembers } from "@/lib/firebase/memberService";
-import { membershipRoleForClub, splitDisplayName } from "@/lib/firebase/types";
+import { accountClubBadge, splitDisplayName } from "@/lib/firebase/types";
 import { getUserProfile } from "@/lib/firebase/userService";
 import { isChatMessagingLive } from "@/lib/featureFlags";
 import { chatMobileMediaQuery } from "@/lib/chat/chatBreakpoints";
@@ -53,7 +57,8 @@ type ChatContextValue = {
   dockExpanded: boolean;
   composeOpen: boolean;
   categoryChannelOpen: boolean;
-  isAdminSomewhere: boolean;
+  /** Droit `manageChat` dans au moins un club (création de canal). */
+  canManageChatSomewhere: boolean;
   activeThread: ChatThreadKey | null;
   conversations: ChatConversation[];
   chatStates: Record<string, ChatUserState>;
@@ -76,7 +81,7 @@ type ChatContextValue = {
   }) => Promise<void>;
   clubNameById: Record<string, string>;
   clubColorById: Record<string, string | null>;
-  /** Annuaire `clubId:uid` → prénom + rôle (fallback preview). */
+  /** Annuaire `clubId:uid` → prénom + badge (fallback preview). */
   previewSenderByKey: Record<string, ChatPreviewSender>;
   /**
    * Titres DM résolus pour le viewer : `clubId_convId` → nom du pair.
@@ -97,7 +102,13 @@ type ChatContextValue = {
   openThread: (thread: ChatThreadKey) => void;
   closeFloatingThread: () => void;
   maximizeThread: () => void;
-  roleForClub: (clubId: string) => string | null;
+  /**
+   * Badge du compte dans le club (`admin` | `coach` | `player`), `parent`
+   * s’il n’y suit qu’un enfant, `null` sans badge.
+   */
+  badgeForClub: (clubId: string) => string | null;
+  /** Droits du compte dans le club (`null` : parent seul, pas de fiche). */
+  accessForClub: (clubId: string) => ClubAccess | null;
 };
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -142,10 +153,10 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
   const {
     user,
     status,
-    profile,
     activeSpace,
     bureauClubs,
     familyClubs,
+    accessByClub,
   } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -352,7 +363,7 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
               if (!firstName) continue;
               directory[key] = {
                 firstName,
-                role: member.role,
+                role: primaryBadge(member),
               };
             }
           } catch {
@@ -449,14 +460,15 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
     [familyClubs],
   );
 
-  const roleForClub = useCallback(
-    (clubId: string) => {
-      const membershipRole = membershipRoleForClub(profile, clubId);
-      if (membershipRole) return membershipRole;
-      if (familyClubIdSet.has(clubId)) return PortalUiRoles.parent;
-      return null;
-    },
-    [profile, familyClubIdSet],
+  const accessForClub = useCallback(
+    (clubId: string) => accessByClub[clubId] ?? null,
+    [accessByClub],
+  );
+
+  const badgeForClub = useCallback(
+    (clubId: string) =>
+      accountClubBadge(accessByClub[clubId], familyClubIdSet.has(clubId)),
+    [accessByClub, familyClubIdSet],
   );
 
   const toggleDock = useCallback(() => {
@@ -478,12 +490,13 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
     [],
   );
 
-  const isAdminSomewhere = useMemo(
+  const canManageChatSomewhere = useMemo(
     () =>
-      bureauClubs.some(
-        (club) => membershipRoleForClub(profile, club.id) === MemberRoles.admin,
-      ),
-    [bureauClubs, profile],
+      bureauClubs.some((club) => {
+        const access = accessByClub[club.id];
+        return access !== undefined && can(access, "manageChat");
+      }),
+    [bureauClubs, accessByClub],
   );
 
   const openThread = useCallback(
@@ -528,7 +541,7 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
       dockExpanded,
       composeOpen,
       categoryChannelOpen,
-      isAdminSomewhere,
+      canManageChatSomewhere,
       activeThread,
       conversations,
       chatStates,
@@ -554,14 +567,15 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
       openThread,
       closeFloatingThread,
       maximizeThread,
-      roleForClub,
+      badgeForClub,
+      accessForClub,
     }),
     [
       dockOpen,
       dockExpanded,
       composeOpen,
       categoryChannelOpen,
-      isAdminSomewhere,
+      canManageChatSomewhere,
       activeThread,
       conversations,
       chatStates,
@@ -585,7 +599,8 @@ function ChatProviderLive({ children }: { children: ReactNode }) {
       openThread,
       closeFloatingThread,
       maximizeThread,
-      roleForClub,
+      badgeForClub,
+      accessForClub,
     ],
   );
 

@@ -18,7 +18,7 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
     chatStates,
     clubNameById,
     clubColorById,
-    roleForClub,
+    badgeForClub,
     closeFloatingThread,
     maximizeThread,
   } = useChat();
@@ -41,7 +41,7 @@ export function FloatingThread({ thread }: FloatingThreadProps) {
         key={`${thread.clubId}-${thread.conversationId}`}
         clubId={thread.clubId}
         conversationId={thread.conversationId}
-        clubRole={roleForClub(thread.clubId)}
+        clubBadge={badgeForClub(thread.clubId)}
         chatState={chatStates[stateId]}
         compact
         clubName={clubName}

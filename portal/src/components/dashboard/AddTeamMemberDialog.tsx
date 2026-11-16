@@ -2,7 +2,7 @@
 
 import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
-import { MemberRoles } from "@/lib/firebase/constants";
+import { hasStaffBadge } from "@/lib/auth/permissions";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import type { TeamRosterRole } from "@/lib/firebase/teamService";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
@@ -22,22 +22,12 @@ type AddTeamMemberDialogProps = {
   onSubmit: (memberId: string) => Promise<void>;
 };
 
-/** Indique si le membre peut être proposé pour le slot roster (aligné app Flutter). */
-function isEligibleForRosterRole(
-  member: ClubMemberRecord,
-  role: TeamRosterRole,
-): boolean {
-  if (member.status !== "active") return false;
-  if (role === MemberRoles.coach) {
-    return (
-      member.role === MemberRoles.coach || member.role === MemberRoles.admin
-    );
-  }
-  return (
-    member.role === MemberRoles.player ||
-    member.role === MemberRoles.coach ||
-    member.role === MemberRoles.admin
-  );
+/**
+ * Indique si le membre peut être proposé pour le slot roster : tout membre
+ * actif (être coach est une relation d’équipe, pas un rôle ; aligné app).
+ */
+function isEligibleForRosterRole(member: ClubMemberRecord): boolean {
+  return member.status === "active";
 }
 
 /** Indique si le membre est déjà sur le roster du slot. */
@@ -72,17 +62,17 @@ export function AddTeamMemberDialog({
   const [search, setSearch] = useState("");
   const [memberId, setMemberId] = useState("");
 
-  const roleLabel = role === MemberRoles.coach ? "coach" : "joueur";
+  const roleLabel = role === "coach" ? "coach" : "joueur";
 
   const eligible = useMemo(() => {
     return members
       .filter(
         (member) =>
-          isEligibleForRosterRole(member, role) &&
+          isEligibleForRosterRole(member) &&
           !isExcluded(member, excludedIds),
       )
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "fr"));
-  }, [members, excludedIds, role]);
+  }, [members, excludedIds]);
 
   const candidates = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -90,20 +80,16 @@ export function AddTeamMemberDialog({
   }, [eligible, search]);
 
   const playerCandidates = useMemo(
-    () => candidates.filter((member) => member.role === MemberRoles.player),
+    () => candidates.filter((member) => !hasStaffBadge(member)),
     [candidates],
   );
   const staffCandidates = useMemo(
     () =>
-      candidates.filter(
-        (member) =>
-          member.role === MemberRoles.coach ||
-          member.role === MemberRoles.admin,
-      ),
+      candidates.filter(hasStaffBadge),
     [candidates],
   );
 
-  const showPlayerSections = role === MemberRoles.player;
+  const showPlayerSections = role === "player";
 
   function requestClose() {
     if (busy) return;

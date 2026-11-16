@@ -21,7 +21,12 @@ import type {
 } from "@/lib/planning/eventDetailsEdit";
 import { getAppFirestore } from "./app";
 import { dedupeInFlight } from "./dedupeInFlight";
-import { Collections, Fields, MemberRoles } from "./constants";
+import { Collections, Fields } from "./constants";
+import {
+  parsePermissions,
+  primaryBadge,
+  type MemberBadge,
+} from "@/lib/auth/permissions";
 import { getClub } from "./clubService";
 import { toDate } from "./types";
 import { resolveSeasonEndDate } from "@/lib/planning/seasonEnd";
@@ -78,6 +83,8 @@ export type ClubEventView = {
   excludedMemberIds: string[];
   /** Série récurrente (un doc par occurrence), sinon null. */
   seriesId: string | null;
+  /** « Tout le club » : événement spécial (avec `teamIds` vide). */
+  allTeams?: boolean;
   /** Map memberId → yes | maybe | no. */
   rsvpByMemberId: Record<string, string>;
   rsvpYes: number;
@@ -103,7 +110,8 @@ export type PlanningPersonOption = {
   /** Id de fiche (= uid si liée) : clé des rosters et de l’audience. */
   id: string;
   name: string;
-  role: "coach" | "player" | "admin" | "other";
+  /** Badge principal de la fiche (Admin > Entraîneur > Joueur > Membre). */
+  badge: MemberBadge;
   avatarUrl: string | null;
 };
 
@@ -111,6 +119,8 @@ export type PlanningPersonOption = {
 export type PlanningGuestDirectoryEntry = {
   name: string;
   avatarUrl: string | null;
+  /** Droit `admin` sur la fiche (badge Admin des événements spéciaux). */
+  isAdmin: boolean;
 };
 
 export type PlanningPageData = {
@@ -339,6 +349,7 @@ export function parseClubEvent(
       typeof data[Fields.seriesId] === "string" && data[Fields.seriesId]
         ? String(data[Fields.seriesId])
         : null,
+    allTeams: data[Fields.allTeams] === true,
     rsvpByMemberId,
     rsvpYes,
     rsvpNo,
@@ -431,13 +442,12 @@ export async function loadPlanningPeopleForClub(
         [firstName, lastName].filter(Boolean).join(" ") ||
         displayName ||
         "Membre";
-      const roleRaw = String(data[Fields.role] ?? "");
-      const role =
-        roleRaw === MemberRoles.coach ||
-        roleRaw === MemberRoles.player ||
-        roleRaw === MemberRoles.admin
-          ? roleRaw
-          : "other";
+      // Badge principal de la fiche (regroupement du sélecteur d’invités).
+      const badge = primaryBadge({
+        permissions: parsePermissions(data[Fields.permissions]),
+        coachTeamIds: stringIds(data[Fields.coachTeamIds]),
+        teamIds: stringIds(data[Fields.teamIds]),
+      });
       const snapshot =
         (data[Fields.snapshot] as Record<string, unknown> | undefined) ?? {};
       const avatarRaw = snapshot[Fields.avatarUrl];
@@ -446,7 +456,7 @@ export async function loadPlanningPeopleForClub(
       return {
         id: docSnap.id,
         name,
-        role,
+        badge,
         avatarUrl,
       } satisfies PlanningPersonOption;
     })
@@ -1205,7 +1215,7 @@ export async function loadPlanningPageData(
     );
 
   const { coaches, players } = splitPlanningPeopleByRoster(people, teams);
-  const admins = people.filter((person) => person.role === "admin");
+  const admins = people.filter((person) => person.badge === "admin");
   const categories = Array.from(
     new Set(
       teams
@@ -1227,7 +1237,7 @@ export async function loadPlanningPageData(
 
 /**
  * Sépare coachs / joueurs à partir des rosters d’équipes (prioritaire),
- * puis complète avec le rôle club pour les membres hors roster.
+ * puis complète avec le badge de la fiche pour les membres hors roster.
  */
 function splitPlanningPeopleByRoster(
   people: PlanningPersonOption[],
@@ -1252,11 +1262,11 @@ function splitPlanningPeopleByRoster(
     }
   }
 
-  // Membres hors roster : classés via le rôle club.
+  // Membres hors roster : classés via le badge de la fiche.
   for (const person of people) {
     if (coachesById.has(person.id) || playersById.has(person.id)) continue;
-    if (person.role === "coach") coachesById.set(person.id, person);
-    if (person.role === "player") playersById.set(person.id, person);
+    if (person.badge === "coach") coachesById.set(person.id, person);
+    if (person.badge === "player") playersById.set(person.id, person);
   }
 
   const byName = (a: PlanningPersonOption, b: PlanningPersonOption) =>
@@ -1378,4 +1388,11 @@ export function formatDayHeading(date: Date): string {
     day: "numeric",
     month: "long",
   }).format(date);
+}
+
+/** Liste d’ids non vides d’un champ Firestore. */
+function stringIds(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
 }

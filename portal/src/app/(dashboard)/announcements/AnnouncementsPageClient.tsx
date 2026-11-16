@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CreateAnnouncementDialog } from "@/components/dashboard/CreateAnnouncementDialog";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import {
   announcementVisibleToCoach,
-  bureauCapabilities,
   coachedTeamsForViewer,
 } from "@/lib/auth/bureauPermissions";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
@@ -26,6 +25,8 @@ import {
   type ClubAnnouncementRecord,
 } from "@/lib/firebase/announcementService";
 import { AnnouncementTargetTypes } from "@/lib/firebase/constants";
+import { canPublishAnnouncementToTeams } from "@/lib/auth/permissions";
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import {
@@ -80,12 +81,11 @@ function formatDateTime(value: Date | null): string {
 
 /** Contenu page Annonces branché sur Firestore. */
 export function AnnouncementsPageClient() {
-  const { activeClub, activeClubRole, user, profile } = useAuth();
-  const caps = useMemo(
-    () =>
-      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
-    [activeClubRole, activeClub?.coachPermissions],
-  );
+  const { activeClub, user, profile } = useAuth();
+  const caps = useBureauCapabilities();
+  // Droit annonces : tout le club. Sinon coach autorisé : ses équipes seules.
+  const clubWide = caps.canManageAnnouncements;
+  const teamOnly = !clubWide;
   const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub,
     loadAnnouncementsPageData,
@@ -108,13 +108,9 @@ export function AnnouncementsPageClient() {
 
   const coachedTeams = useMemo(() => {
     if (!data) return [];
-    if (caps.isAdmin) return data.teams;
-    return coachedTeamsForViewer({
-      role: activeClubRole,
-      uid: user?.uid ?? null,
-      teams: data.teams,
-    });
-  }, [data, caps.isAdmin, activeClubRole, user?.uid]);
+    if (clubWide) return data.teams;
+    return coachedTeamsForViewer({ access: caps.access, teams: data.teams });
+  }, [data, clubWide, caps.access]);
 
   const coachedTeamIds = useMemo(
     () => new Set(coachedTeams.map((team) => team.id)),
@@ -131,8 +127,8 @@ export function AnnouncementsPageClient() {
 
   const roleFilteredAnnouncements = useMemo(() => {
     const all = data?.announcements ?? [];
-    if (caps.isAdmin) return all;
-    if (caps.isCoach) {
+    if (clubWide) return all;
+    if (caps.isTeamCoach) {
       return all.filter((announcement) =>
         announcementVisibleToCoach({
           announcement,
@@ -141,7 +137,7 @@ export function AnnouncementsPageClient() {
       );
     }
     return [];
-  }, [data?.announcements, caps.isAdmin, caps.isCoach, coachedTeamIds]);
+  }, [data?.announcements, clubWide, caps.isTeamCoach, coachedTeamIds]);
 
   const { active, finished } = useMemo(
     () => partitionAnnouncements(roleFilteredAnnouncements),
@@ -150,16 +146,16 @@ export function AnnouncementsPageClient() {
 
   const visibleList = tab === "active" ? active : finished;
 
-  const createTeams = caps.isCoach ? coachedTeams : (data?.teams ?? []);
-  const createCategories = caps.isCoach
-    ? Array.from(
-        new Set(
-          coachedTeams
-            .map((team) => team.category.trim())
-            .filter((category) => category.length > 0),
-        ),
-      ).sort((a, b) => a.localeCompare(b, "fr"))
-    : (data?.categories ?? []);
+  const createTeams = teamOnly ? coachedTeams : (data?.teams ?? []);
+  // Ciblage par catégorie : droit annonces seulement (vérifiable par les règles
+  // uniquement pour des équipes).
+  const createCategories = teamOnly ? [] : (data?.categories ?? []);
+
+  /** Clôture / suppression : droit annonces, ou annonce ciblant ses équipes. */
+  const canManageRow = (announcement: { targetType: string; targetIds: string[] }) =>
+    clubWide ||
+    (announcement.targetType === AnnouncementTargetTypes.teams &&
+      canPublishAnnouncementToTeams(caps.access, announcement.targetIds));
 
   async function handleCreate(values: {
     message: string;
@@ -171,8 +167,8 @@ export function AnnouncementsPageClient() {
     setCreateBusy(true);
     setCreateError(null);
     try {
-      const allClub = caps.isAdmin ? values.allClub : false;
-      const guests = caps.isCoach
+      const allClub = clubWide ? values.allClub : false;
+      const guests = teamOnly
         ? values.guests.filter(
             (guest) =>
               guest.kind === "team" && coachedTeamIds.has(guest.id),
@@ -303,7 +299,7 @@ export function AnnouncementsPageClient() {
                 Terminées ({finished.length})
               </button>
             </div>
-            {caps.canManageAnnouncements ? (
+            {caps.canPublishAnnouncements ? (
               <button
                 type="button"
                 className={styles.createButton}
@@ -371,7 +367,7 @@ export function AnnouncementsPageClient() {
                       ) : null}
                     </div>
                     <p className={styles.message}>{announcement.message}</p>
-                    {tab === "active" && caps.canManageAnnouncements ? (
+                    {tab === "active" && canManageRow(announcement) ? (
                       <div className={styles.actions}>
                         <button
                           type="button"
@@ -403,13 +399,13 @@ export function AnnouncementsPageClient() {
         </>
       ) : null}
 
-      {createOpen && data && caps.canManageAnnouncements ? (
+      {createOpen && data && caps.canPublishAnnouncements ? (
         <CreateAnnouncementDialog
           teams={createTeams}
           categories={createCategories}
-          people={caps.isAdmin ? data.people : []}
-          allowAllClub={caps.isAdmin}
-          allowedKinds={caps.isCoach ? ["team"] : undefined}
+          people={clubWide ? data.people : []}
+          allowAllClub={clubWide}
+          allowedKinds={teamOnly ? ["team"] : undefined}
           busy={createBusy}
           error={createError}
           onClose={() => {

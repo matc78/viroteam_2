@@ -1079,7 +1079,7 @@ function FeeTrackingRowItem({
         <td>
           <span className={styles.rowName}>
             {row.displayName}
-            <RoleBadge role={row.role} size="sm" iconOnly />
+            <RoleBadge role={row.badge} size="sm" iconOnly />
             {isSelf ? <YouChip /> : null}
           </span>
           {row.sportCategories.length > 0 ? (

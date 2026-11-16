@@ -71,14 +71,12 @@ type ClubSlice = {
   childMemberIds: string[];
 };
 
-/** True si le profil a une membership bureau sur ce club. */
+/** True si le profil a une fiche membre dans ce club (`memberClubIds`). */
 function hasBureauMembership(
   profile: ViroUserProfile,
   clubId: string,
 ): boolean {
-  return profile.clubMemberships.some(
-    (membership) => membership.clubId === clubId,
-  );
+  return profile.memberClubIds.includes(clubId);
 }
 
 /**
@@ -262,10 +260,7 @@ export async function loadPersonalPlanningAcrossClubs(params: {
   range: { start: Date; end: Date };
 }): Promise<PersonalPlanningData> {
   const clubById = new Map(params.clubs.map((club) => [club.id, club]));
-  const clubIds = new Set<string>();
-  for (const membership of params.profile.clubMemberships) {
-    if (membership.clubId) clubIds.add(membership.clubId);
-  }
+  const clubIds = new Set<string>(params.profile.memberClubIds);
   for (const link of activeParentLinks(params.profile)) {
     clubIds.add(link.clubId);
   }
@@ -369,10 +364,7 @@ export function shouldShowPersonalPlanningTile(
   profile: ViroUserProfile | null,
 ): boolean {
   if (!profile) return false;
-  const membershipClubIds = new Set<string>();
-  for (const membership of profile.clubMemberships) {
-    if (membership.clubId) membershipClubIds.add(membership.clubId);
-  }
+  const membershipClubIds = new Set<string>(profile.memberClubIds);
   const children = activeParentLinks(profile);
   const clubIds = new Set(membershipClubIds);
   for (const link of children) {

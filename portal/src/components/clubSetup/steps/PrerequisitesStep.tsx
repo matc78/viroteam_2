@@ -5,7 +5,7 @@ const ITEMS = [
   { icon: "📍", title: "Ville et lieu de pratique", subtitle: "Stade, salle, gymnase…" },
   { icon: "🖼", title: "Logo (optionnel)", subtitle: "Ajoutable ou modifiable plus tard" },
   { icon: "📅", title: "Vos priorités", subtitle: "Planning, cotisations, annonces…" },
-  { icon: "🛡", title: "Rôle administrateur", subtitle: "Invitez vos membres par code" },
+  { icon: "🛡", title: "Droit Administrateur", subtitle: "Invitez vos membres par code" },
 ] as const;
 
 /** Étape 0 — ce qu’il faut savoir avant de créer un club. */

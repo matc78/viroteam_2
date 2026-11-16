@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { joinCopy } from "@/lib/copy/joinCopy";
 import type { TeamOption } from "@/lib/firebase/eventService";
-import { MemberRoles } from "@/lib/firebase/constants";
+
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import type { TeamRosterRole } from "@/lib/firebase/teamService";
 import {
@@ -323,7 +323,7 @@ export function TeamCard({
               disabled={busy}
               aria-label="Ajouter un coach"
               title="Ajouter un coach"
-              onClick={() => onAddMember(MemberRoles.coach)}
+              onClick={() => onAddMember("coach")}
             >
               +
             </button>
@@ -354,7 +354,7 @@ export function TeamCard({
                       disabled={busy}
                       aria-label={`Retirer ${person.displayName}`}
                       title="Retirer"
-                      onClick={() => onRemoveMember(person, MemberRoles.coach)}
+                      onClick={() => onRemoveMember(person, "coach")}
                     >
                       ×
                     </button>
@@ -378,7 +378,7 @@ export function TeamCard({
                   disabled={busy}
                   aria-label="Ajouter un joueur"
                   title="Ajouter un joueur"
-                  onClick={() => onAddMember(MemberRoles.player)}
+                  onClick={() => onAddMember("player")}
                 >
                   +
                 </button>
@@ -413,7 +413,7 @@ export function TeamCard({
                           aria-label={`Retirer ${person.displayName}`}
                           title="Retirer"
                           onClick={() =>
-                            onRemoveMember(person, MemberRoles.player)
+                            onRemoveMember(person, "player")
                           }
                         >
                           ×

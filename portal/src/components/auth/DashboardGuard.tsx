@@ -30,7 +30,7 @@ function MessagesFamilyRedirect() {
 }
 
 /**
- * Protège les routes dashboard : login + rôle bureau (admin, coach ou joueur).
+ * Protège les routes dashboard : login + fiche membre dans au moins un club.
  * Parent seul → landing famille ; sans accès → /access-denied (session conservée).
  */
 export function DashboardGuard({ children }: DashboardGuardProps) {
@@ -52,7 +52,7 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
       return;
     }
 
-    // Parent sans rôle bureau : hors bureau (FamilyGuard gère /family).
+    // Parent sans fiche membre : hors bureau (FamilyGuard gère /family).
     // Deep link messagerie : laisser MessagesFamilyRedirect mapper vers /family/messages.
     if (isParent) {
       if (isBureauMessagesPath(pathname)) {
@@ -64,7 +64,7 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
 
     if (denyingRef.current === pathname) return;
     denyingRef.current = pathname;
-    router.replace("/access-denied?reason=role");
+    router.replace("/access-denied?reason=no-access");
   }, [
     status,
     isBureauUser,

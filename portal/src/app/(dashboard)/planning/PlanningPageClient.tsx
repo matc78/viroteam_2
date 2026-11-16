@@ -1,5 +1,11 @@
 "use client";
 
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
+import {
+  canEditMemberRsvp,
+  canManageEvent,
+  canManageEventAudience,
+} from "@/lib/auth/permissions";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -18,7 +24,6 @@ import {
   type PlanningSidebarFilters,
 } from "@/components/dashboard/PlanningSidebar";
 import {
-  bureauCapabilities,
   coachedTeamsForViewer,
   teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
@@ -56,12 +61,11 @@ import styles from "./page.module.css";
 
 /** Contenu page planning branché sur Firestore. */
 function PlanningPageContent() {
-  const { activeClub, activeClubRole, user } = useAuth();
-  const caps = useMemo(
-    () =>
-      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
-    [activeClubRole, activeClub?.coachPermissions],
-  );
+  const { activeClub, user } = useAuth();
+  const caps = useBureauCapabilities();
+  // Planning de tout le club (droit `manageEvents`) ; sinon coach de ses
+  // équipes selon les réglages coach du club.
+  const plansWholeClub = caps.canManageEvents;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -144,56 +148,35 @@ function PlanningPageContent() {
   const scopedTeams = useMemo(() => {
     if (!data) return [];
     return teamsVisibleToViewer({
-      role: activeClubRole,
+      caps,
       uid: user?.uid ?? null,
       teams: data.teams,
     });
-  }, [data, activeClubRole, user?.uid]);
+  }, [data, caps, user?.uid]);
 
-  /** Équipes où le viewer peut créer (coach = entraînées, admin = toutes). */
+  /**
+   * Équipes où le viewer peut créer : toutes avec le droit planning, sinon
+   * ses équipes si le club autorise ses coachs à créer.
+   */
   const creatableTeams = useMemo(() => {
     if (!data) return [];
-    if (caps.isAdmin) return data.teams;
-    if (caps.isCoach) {
-      return coachedTeamsForViewer({
-        role: activeClubRole,
-        uid: user?.uid ?? null,
-        teams: data.teams,
-      });
+    if (plansWholeClub) return data.teams;
+    if (caps.canCreateEvent) {
+      return coachedTeamsForViewer({ access: caps.access, teams: data.teams });
     }
     return [];
-  }, [
-    data,
-    caps.isAdmin,
-    caps.isCoach,
-    activeClubRole,
-    user?.uid,
-  ]);
+  }, [data, plansWholeClub, caps.canCreateEvent, caps.access]);
 
-  const creatableTeamIdSet = useMemo(
-    () => new Set(creatableTeams.map((team) => team.id)),
-    [creatableTeams],
-  );
-
-  /** Admin, ou coach d'une des équipes de l'événement ; événement à venir. */
+  /** Droit planning, ou coach de toutes les équipes de l'événement ; à venir. */
   function canManageConvocationsOf(event: ClubEventView): boolean {
     if (!activeClub || !canManageEventConvocations(event)) return false;
-    if (caps.isAdmin) return true;
-    return (
-      caps.isCoach &&
-      event.teamIds.some((teamId) => creatableTeamIdSet.has(teamId))
-    );
+    return canManageEventAudience(caps.access, event);
   }
 
-  /** Admin, ou coach d'une équipe de l'événement (ou événement sans équipe). */
+  /** Droit planning, ou coach autorisé de toutes les équipes de l'événement. */
   function canEditEvent(event: ClubEventView): boolean {
     if (!activeClub) return false;
-    if (caps.isAdmin) return true;
-    return (
-      caps.isCoach &&
-      (event.teamIds.length === 0 ||
-        event.teamIds.some((teamId) => creatableTeamIdSet.has(teamId)))
-    );
+    return canManageEvent(caps.access, event);
   }
 
   const scopedTeamIdSet = useMemo(
@@ -233,7 +216,7 @@ function PlanningPageContent() {
 
   useEffect(() => {
     if (!activeClub || filtersClubId !== activeClub.id || !data) return;
-    if (caps.isAdmin) {
+    if (plansWholeClub) {
       const next = resolveAdminPlanningFilters(filters, {
         teamIds: new Set(data.teams.map((team) => team.id)),
         coachIds: new Set(data.coaches.map((coach) => coach.id)),
@@ -267,7 +250,7 @@ function PlanningPageContent() {
     data,
     filters,
     filtersClubId,
-    caps.isAdmin,
+    plansWholeClub,
     scopedTeamIdSet,
   ]);
 
@@ -278,7 +261,7 @@ function PlanningPageContent() {
 
   const visibleEvents = useMemo(() => {
     if (!data) return [];
-    if (caps.isAdmin) return data.events;
+    if (plansWholeClub) return data.events;
     return data.events.filter((event) =>
       eventVisibleToPlayer({
         event,
@@ -286,17 +269,17 @@ function PlanningPageContent() {
         memberId: viewerMemberId,
       }),
     );
-  }, [data, caps.isAdmin, scopedTeamIdSet, viewerMemberId]);
+  }, [data, plansWholeClub, scopedTeamIdSet, viewerMemberId]);
 
   const eventBlocks = useMemo(() => {
     if (!data || !roleScopeReady) return [];
     return expandEventsToLabelBlocks(
       visibleEvents,
       scopedTeams,
-      caps.isAdmin ? data.coaches : [],
+      plansWholeClub ? data.coaches : [],
       filters,
     );
-  }, [data, filters, visibleEvents, scopedTeams, caps.isAdmin, roleScopeReady]);
+  }, [data, filters, visibleEvents, scopedTeams, plansWholeClub, roleScopeReady]);
 
   const guestDirectory = useMemo(() => {
     if (!data) return {};
@@ -367,7 +350,7 @@ function PlanningPageContent() {
           clearPlanningDeepLinkParams();
           return;
         }
-        if (!caps.isAdmin) {
+        if (!plansWholeClub) {
           const allowed = eventVisibleToPlayer({
             event: matchedEvent,
             viewerTeamIds: scopedTeamIdSet,
@@ -421,13 +404,13 @@ function PlanningPageContent() {
     visibleEvents,
     scopedTeamIdSet,
     scopedTeams,
-    caps.isAdmin,
+    plansWholeClub,
     viewerMemberId,
   ]);
 
   const createEventPeople = useMemo(() => {
     if (!data) return [];
-    if (caps.isCoach) {
+    if (!plansWholeClub) {
       const people = [...data.players, ...data.coaches].filter((person) =>
         creatableTeams.some(
           (team) =>
@@ -440,7 +423,7 @@ function PlanningPageContent() {
     return [...data.players, ...data.coaches, ...data.admins].sort((a, b) =>
       a.name.localeCompare(b.name, "fr"),
     );
-  }, [data, caps.isCoach, creatableTeams]);
+  }, [data, plansWholeClub, creatableTeams]);
 
   function openCreateForDay(day: Date) {
     if (!caps.canCreateEvent) return;
@@ -477,9 +460,9 @@ function PlanningPageContent() {
             cursor={cursor}
             selectedDay={cursor}
             teams={scopedTeams}
-            coaches={caps.isAdmin ? data.coaches : []}
+            coaches={plansWholeClub ? data.coaches : []}
             categories={
-              caps.isAdmin
+              plansWholeClub
                 ? data.categories
                 : Array.from(
                     new Set(
@@ -491,7 +474,7 @@ function PlanningPageContent() {
             }
             filters={filters}
             onFiltersChange={(next) => {
-              if (caps.isAdmin) {
+              if (plansWholeClub) {
                 setFilters(next);
                 return;
               }
@@ -509,7 +492,7 @@ function PlanningPageContent() {
             }}
             onCreateClick={() => openCreateForDay(cursor)}
             canCreate={caps.canCreateEvent}
-            teamsOnlyFilters={caps.isPlayer}
+            teamsOnlyFilters={!caps.isStaff}
             onRefresh={handleRefresh}
             refreshing={refreshing}
             hasNewData={hasNewEvents}
@@ -557,9 +540,10 @@ function PlanningPageContent() {
           linkedMemberId={linkedMemberId}
           onRsvpUpdated={handleRefresh}
           canSendPush={Boolean(
-            activeClub && (caps.isAdmin || caps.isCoach),
+            activeClub &&
+              canManageEventAudience(caps.access, selectedEvent),
           )}
-          canEditMemberRsvp={caps.canEditMemberRsvp}
+          canEditMemberRsvp={canEditMemberRsvp(caps.access, selectedEvent)}
           onManageConvocations={
             canManageConvocationsOf(selectedEvent)
               ? () => setConvocationsEvent(selectedEvent)
@@ -607,7 +591,7 @@ function PlanningPageContent() {
           creatorId={user.uid}
           teams={creatableTeams}
           categories={
-            caps.isAdmin
+            plansWholeClub
               ? (data?.categories ?? [])
               : Array.from(
                   new Set(

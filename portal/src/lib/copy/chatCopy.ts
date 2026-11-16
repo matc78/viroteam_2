@@ -254,10 +254,11 @@ export const chatCopy = {
   roleCountAdmins: (count: number) => plural(count, "admin"),
   roleCountCoaches: (count: number) => plural(count, "coach"),
   roleCountPlayers: (count: number) => plural(count, "joueur"),
+  roleCountMembers: (count: number) => plural(count, "membre"),
   roleCountParents: (count: number) => plural(count, "parent"),
 
   // --- Canaux en lecture seule ---
-  readonlyAdminsOnly: "Seuls les admins peuvent écrire ici.",
+  readonlyAdminsOnly: "Seuls les responsables de la messagerie peuvent écrire ici.",
   readonlyCoachesAndAdmins:
-    "Seuls les coachs et les admins peuvent écrire ici.",
+    "Seuls les coachs et les responsables de la messagerie peuvent écrire ici.",
 } as const;

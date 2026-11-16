@@ -4,7 +4,7 @@ import {
   eventVisibleToPlayer,
   isExcludedFromEvent,
   rosterTeamsForViewer,
-  viewerTeamIdsForRole,
+  viewerTeamIds,
 } from "./viewerTeamScope";
 
 describe("visibilité d’un événement pour un joueur retiré des convoqués", () => {
@@ -66,19 +66,19 @@ describe("équipes du viewer", () => {
       "t2",
     ]);
     expect(
-      viewerTeamIdsForRole({ role: "coach", teams, memberId: "uid-a" }),
+      viewerTeamIds({ seesWholeClub: false, teams, memberId: "uid-a" }),
     ).toEqual(["t1", "t2"]);
   });
 
-  it("joueur : seulement les équipes où il joue", () => {
+  it("joueur : seulement les équipes de ses rosters", () => {
     expect(
-      viewerTeamIdsForRole({ role: "player", teams, memberId: "uid-a" }),
-    ).toEqual(["t2"]);
+      viewerTeamIds({ seesWholeClub: false, teams, memberId: "uid-b" }),
+    ).toEqual(["t3"]);
   });
 
-  it("admin : toutes les équipes", () => {
+  it("droit de gestion : toutes les équipes", () => {
     expect(
-      viewerTeamIdsForRole({ role: "admin", teams, memberId: null }),
+      viewerTeamIds({ seesWholeClub: true, teams, memberId: null }),
     ).toEqual(["t1", "t2", "t3"]);
   });
 });

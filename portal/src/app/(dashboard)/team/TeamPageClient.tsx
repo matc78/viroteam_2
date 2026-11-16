@@ -1,5 +1,6 @@
 "use client";
 
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
 import { useMemo } from "react";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -17,21 +18,21 @@ import {
   useIsPortalRouteActive,
 } from "@/lib/dashboard/useClubRealtimeReload";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { MemberRoles } from "@/lib/firebase/constants";
 import { loadMembersPageData } from "@/lib/members/membersView";
 
 async function noopAsync(): Promise<void> {}
 
 /** Page Équipe joueur : roster en lecture seule des équipes du viewer. */
 export function TeamPageClient() {
-  const { activeClub, activeClubRole, user } = useAuth();
+  const { activeClub, user } = useAuth();
+  const caps = useBureauCapabilities();
   const teamActive = useIsPortalRouteActive(["/team"]);
 
   const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub,
     (club) =>
-      loadMembersPageData(club, { role: activeClubRole, rosterOnly: true }),
-    [activeClubRole],
+      loadMembersPageData(club, { rosterOnly: true }),
+    [],
     "/team",
   );
   useClubRealtimeReload({
@@ -44,27 +45,27 @@ export function TeamPageClient() {
   const scopedTeams = useMemo(() => {
     if (!data) return [];
     return teamsVisibleToViewer({
-      role: activeClubRole,
+      caps,
       uid: user?.uid ?? null,
       teams: data.teams,
     });
-  }, [data, activeClubRole, user?.uid]);
+  }, [data, caps, user?.uid]);
 
   const scopedMembers = useMemo(() => {
     if (!data) return [];
     return membersVisibleToViewer({
-      role: activeClubRole,
+      caps,
       uid: user?.uid ?? null,
       teams: data.teams,
       members: data.members,
     });
-  }, [data, activeClubRole, user?.uid]);
+  }, [data, caps, user?.uid]);
 
   if (loading && !data) {
     return <DashboardSkeleton variant="members" />;
   }
 
-  const isPlayerView = activeClubRole === MemberRoles.player;
+  const isPlayerView = !caps.isStaff;
   const introLead = isPlayerView
     ? `Coéquipiers et encadrement — ${activeClub?.name ?? "votre club"}.`
     : `Composition des équipes — ${activeClub?.name ?? "votre club"}.`;

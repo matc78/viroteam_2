@@ -4,12 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useChat } from "@/lib/chat/ChatProvider";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { createCoachDm } from "@/lib/firebase/chatService";
-import { MemberRoles } from "@/lib/firebase/constants";
 import { loadTeamsForClub } from "@/lib/firebase/eventService";
-import {
-  listClubMembers,
-  memberRoleLabel,
-} from "@/lib/firebase/memberService";
+import { listClubMembers } from "@/lib/firebase/memberService";
+import { primaryBadge, type MemberBadge } from "@/lib/auth/permissions";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import { rosterContains } from "@/lib/teams/viewerTeamScope";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./ComposeConversationDialog.module.css";
@@ -18,7 +16,7 @@ import { chatCopy } from "@/lib/copy/chatCopy";
 type TargetOption = {
   uid: string;
   label: string;
-  role: string;
+  badge: MemberBadge;
 };
 
 /**
@@ -62,14 +60,12 @@ export function ComposeConversationDialog() {
         ]);
         if (cancelled) return;
 
-        const club = [...bureauClubs, ...familyClubs].find(
-          (item) => item.id === clubId,
-        );
-        // Une seule clé membre : rosters et `adminIds` portent l’id de fiche,
-        // égal à l’uid du compte (participant du chat) quand la fiche est liée.
-        const adminIds = new Set<string>(club?.adminIds ?? []);
+        // Une seule clé membre : les rosters portent l’id de fiche, égal à
+        // l’uid du compte (participant du chat) quand la fiche est liée.
+        // Admins : badge dérivé des fiches liées (jamais d’uid sans fiche).
+        const adminIds = new Set<string>();
         for (const member of members) {
-          if (member.accountUid && member.role === MemberRoles.admin) {
+          if (member.accountUid && primaryBadge(member) === "admin") {
             adminIds.add(member.accountUid);
           }
         }
@@ -96,12 +92,8 @@ export function ComposeConversationDialog() {
         const options: TargetOption[] = [];
         const seen = new Set<string>();
         for (const member of members) {
-          if (
-            member.role !== MemberRoles.admin &&
-            member.role !== MemberRoles.coach
-          ) {
-            continue;
-          }
+          const badge = primaryBadge(member);
+          if (badge !== "admin" && badge !== "coach") continue;
           const accountUid = member.accountUid?.trim();
           if (
             !accountUid ||
@@ -114,17 +106,8 @@ export function ComposeConversationDialog() {
           seen.add(accountUid);
           options.push({
             uid: accountUid,
-            label: member.displayName.trim() || accountUid,
-            role: member.role,
-          });
-        }
-        for (const adminUid of adminIds) {
-          if (adminUid === user.uid || seen.has(adminUid)) continue;
-          seen.add(adminUid);
-          options.push({
-            uid: adminUid,
-            label: adminUid,
-            role: MemberRoles.admin,
+            label: member.displayName.trim() || badgeLabel(badge),
+            badge,
           });
         }
 
@@ -238,7 +221,7 @@ export function ComposeConversationDialog() {
                 <span>
                   <strong>{target.label}</strong>
                   <span className={styles.role}>
-                    {memberRoleLabel(target.role)}
+                    {badgeLabel(target.badge)}
                   </span>
                 </span>
               </label>

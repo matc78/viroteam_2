@@ -1,5 +1,5 @@
 import type { ChatConversation } from "@/lib/firebase/chatTypes";
-import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
+import { toDisplayBadge } from "@/lib/auth/permissions";
 
 /** Infos expéditeur pour la preview inbox. */
 export type ChatPreviewSender = {
@@ -12,16 +12,13 @@ export function previewSenderKey(clubId: string, uid: string): string {
   return `${clubId}:${uid}`;
 }
 
-/** Normalise un rôle pour la couleur de flèche preview. */
+/** Normalise un badge pour la couleur de flèche preview (inconnu → membre). */
 export function previewSenderRoleTone(role: string | null | undefined): string {
-  if (role === MemberRoles.admin) return MemberRoles.admin;
-  if (role === MemberRoles.coach) return MemberRoles.coach;
-  if (role === PortalUiRoles.parent) return PortalUiRoles.parent;
-  return MemberRoles.player;
+  return toDisplayBadge(role);
 }
 
 /**
- * Résout prénom + rôle pour la preview d’une conversation
+ * Résout prénom + badge pour la preview d’une conversation
  * (champs persistés, sinon annuaire membres).
  */
 export function resolveConversationPreviewSender(

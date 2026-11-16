@@ -34,6 +34,11 @@
     color-mix(in srgb, var(--color-role-player) 40%, transparent);
 }
 
+/* Membre (ni admin ni équipe) : aplat gris, sans dégradé ni halo. */
+.badge[data-tone="member"] {
+  background: var(--color-gray-500);
+}
+
 .badge[data-tone="parent"] {
   background: linear-gradient(
     135deg,

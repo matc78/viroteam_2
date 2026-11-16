@@ -11,7 +11,7 @@ import {
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { createCategoryChannel } from "@/lib/firebase/chatService";
-import { MemberRoles } from "@/lib/firebase/constants";
+import { can } from "@/lib/auth/permissions";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import {
   loadTeamsForClub,
@@ -44,17 +44,20 @@ function clubBrandStyle(club: ClubRecord): CSSProperties {
  */
 export function CreateCategoryChannelDialog() {
   const { user, bureauClubs } = useAuth();
-  const { closeCategoryChannel, openThread, roleForClub } = useChat();
+  const { closeCategoryChannel, openThread, accessForClub } = useChat();
 
-  const adminClubs = useMemo(
+  const chatManagedClubs = useMemo(
     () =>
       bureauClubs.filter(
-        (club) => roleForClub(club.id) === MemberRoles.admin,
+        (club) => {
+          const access = accessForClub(club.id);
+          return access !== null && can(access, "manageChat");
+        },
       ),
-    [bureauClubs, roleForClub],
+    [bureauClubs, accessForClub],
   );
 
-  const [clubId, setClubId] = useState(adminClubs[0]?.id ?? "");
+  const [clubId, setClubId] = useState(chatManagedClubs[0]?.id ?? "");
   const [scope, setScope] = useState<ChannelAudienceScope>(EMPTY_SCOPE);
   const [title, setTitle] = useState("");
   const [teams, setTeams] = useState<TeamOption[]>([]);
@@ -63,8 +66,8 @@ export function CreateCategoryChannelDialog() {
   const [error, setError] = useState<string | null>(null);
 
   const selectedClub = useMemo(
-    () => adminClubs.find((club) => club.id === clubId) ?? adminClubs[0],
-    [adminClubs, clubId],
+    () => chatManagedClubs.find((club) => club.id === clubId) ?? chatManagedClubs[0],
+    [chatManagedClubs, clubId],
   );
 
   const categories = useMemo(
@@ -79,8 +82,8 @@ export function CreateCategoryChannelDialog() {
   );
 
   useEffect(() => {
-    if (!clubId && adminClubs[0]) setClubId(adminClubs[0].id);
-  }, [adminClubs, clubId]);
+    if (!clubId && chatManagedClubs[0]) setClubId(chatManagedClubs[0].id);
+  }, [chatManagedClubs, clubId]);
 
   useEffect(() => {
     if (!clubId) return;
@@ -159,7 +162,7 @@ export function CreateCategoryChannelDialog() {
 
   const dialogRef = useDialogA11y({ onClose: closeCategoryChannel });
 
-  if (adminClubs.length === 0) return null;
+  if (chatManagedClubs.length === 0) return null;
 
   return (
     <div
@@ -191,7 +194,7 @@ export function CreateCategoryChannelDialog() {
         </div>
 
         <div className={styles.field}>
-          {adminClubs.length === 1 && selectedClub ? (
+          {chatManagedClubs.length === 1 && selectedClub ? (
             <div className={styles.singleClubWrap}>
               <span
                 className={styles.singleClub}
@@ -206,7 +209,7 @@ export function CreateCategoryChannelDialog() {
               role="radiogroup"
               aria-label={chatCopy.clubLabel}
             >
-              {adminClubs.map((club) => {
+              {chatManagedClubs.map((club) => {
                 const selected = club.id === clubId;
                 return (
                   <button

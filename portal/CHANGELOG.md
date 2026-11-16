@@ -9,18 +9,39 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Modifié
+
+- Droits : section **capacités d’équipe** (lecture seule) distincte des **droits club** (raccourcis Responsable… + détail) ; résumé « Entraîneur · N droits club »
+- Éditeur de droits : « Voir les cotisations » coché et grisé avec « Gérer les cotisations » ; message clair si le serveur refuse de retirer le dernier administrateur ; textes au tutoiement
+- Affichage aligné sur les droits : Stripe Connect réservé à l’administrateur ; licence selon le droit Membres ou la capacité coach ; actions groupées de cotisation pour le Responsable cotisations ; import CSV avec les droits Membres et Équipes (avertissement si une ligne `admin` est importée par un non-admin)
+- Accueil composé depuis les capacités (vue club si l’on voit tout le club ou les cotisations, sinon ses équipes entraînées, sinon vue joueur) ; blocs cotisations et journal selon `viewFees` / `viewActivity` — un Responsable membres sans équipe a l’accueil club
+- Badges : « Coach » devient « Entraîneur » ; libellés centralisés (`src/lib/copy/badgeCopy.ts`) ; badge Parent dans le sélecteur de club (et l’en-tête) pour un membre sans droit admin ni équipe qui a un enfant lié ; pas de badge « Membre » fugace pendant le chargement de la fiche ; avatar gris pour le badge Membre
+- Messagerie : le choix des destinataires n’affiche plus d’identifiant brut (admins lus depuis les fiches liées)
+- Vocabulaire : en-têtes et filtre « Badge » (plus « Rôle ») ; `access-denied?reason=no-access` ; descriptions des réglages coach alignées sur l’app
+
 ### Sécurité
 
+- Planning : un coach ne modifie, n’annule ni ne notifie un événement que s’il entraîne toutes ses équipes, jamais « tout le club »
+- Garde-fous renforcés : toute comparaison `x.role ===` (hors place en effectif / colonne d’import), `adminIds.includes(`, `Fields.role`, lecture brute `.permissions.includes(` ; écriture d’un miroir `memberId` sur une fiche
+
+- Droits purs (à déployer dans la fenêtre de bascule 2.4.0, après la migration `migrate_roles_to_permissions`) : la session lit `members/{uid}.permissions` du club ; toutes les capacités du bureau (navigation, pages, actions) passent par `useBureauCapabilities()` — plus de rôle club comparé ; clubs du compte lus dans `users.memberClubIds`. Garde-fou `lib/auth/permissionUsage.test.ts`
 - Dépendances : Next.js 15.5.29, `@sentry/nextjs` 10.78 (tunnel `/monitoring`), remplacement de `xlsx` par `exceljs` pour l’import / modèle membres, overrides npm pour les transitives critiques/hautes (`@grpc/grpc-js`, `postcss`, `glob`, `uuid`, `tinypool`) — `npm audit --omit=dev` à 0
 
 ### Ajouté
 
+- Membres : section « Droits » dans la fiche (bascule Administrateur, fonctions prédéfinies, droits à la carte ; Administrateur réservé et protégé) ; badges Admin / Entraîneur / Joueur dérivés, et badge gris « Membre » pour une fiche sans droit admin ni équipe (table Membres avec filtre, fiche, chat, sélecteur de club)
+- Planning : dans les réponses d’un événement, badge « Coach » pour les coachs des équipes convoquées ; sur un événement « Tout le club » ou sans équipe, badge « Admin » pour les administrateurs
+- Création de club via la callable `createClub`
+- Paramètres club (admin) : capacité coach « Publier des annonces pour ses équipes » ; le réglage « Voir les cotisations » devient un droit individuel
 - Planning : un admin (ou coach avec le droit `canEditMemberRsvp`) peut modifier le RSVP des convoqués depuis le détail d’événement
 - Paramètres club : toggle « Modifier les réponses RSVP » pour les coachs (off par défaut)
 - Messagerie (masquée), sondages : un vote enregistre aussi son heure (`pollVoteTimes.{uid}`, horodatage serveur, `edited` si changement), comme l’app — pas encore affichée dans le panneau des votes du portail
 
 ### Modifié
 
+- Invitations : l’aperçu n’affiche plus de « rôle proposé »
+- Import CSV : `admin` donne le droit Administrateur ; `coach` rend coach de l’équipe de la ligne, sans droit particulier
+- Technique : l’appartenance aux équipes (`members.teamIds`) n’est plus écrite par le portail, seulement par le serveur ; une fiche pré-créée ne porte plus `memberId` ; l’index des clubs passe à `users.memberClubIds`
 - Équipes : la puce de ta fiche (ou de l’enfant sélectionné dans l’espace famille) est épinglée en tête du roster et en gras ; le dialog d’ajout à une équipe n’affiche plus le rôle club, seulement l’e-mail
 - Membres : bouton « Importer CSV » masqué sur téléphone (≤ 767 px)
 - Membres : lecture / écriture Excel via `exceljs` (lazy-load) à la place de SheetJS `xlsx@0.18.5`

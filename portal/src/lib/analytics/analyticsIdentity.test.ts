@@ -3,7 +3,6 @@ import type { ClubRecord } from "@/lib/firebase/clubService";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/firebase/notificationPreferences";
 import type { ViroUserProfile } from "@/lib/firebase/types";
 import {
-  ANALYTICS_NO_ROLE,
   analyticsClubProperties,
   analyticsPersonProperties,
 } from "./analyticsIdentity";
@@ -17,7 +16,7 @@ function makeProfile(overrides: Partial<ViroUserProfile> = {}): ViroUserProfile 
     lastName: "Martin",
     displayName: "Alex Martin",
     avatarUrl: null,
-    clubMemberships: [],
+    memberClubIds: [],
     parentLinks: [],
     parentClubIds: [],
     parentTeamIds: [],
@@ -32,26 +31,22 @@ function makeProfile(overrides: Partial<ViroUserProfile> = {}): ViroUserProfile 
 }
 
 describe("analyticsPersonProperties", () => {
-  it("retient le rôle le plus élevé et compte les clubs distincts", () => {
+  it("compte les clubs distincts (membre ou parent)", () => {
     const properties = analyticsPersonProperties(
       makeProfile({
-        clubMemberships: [
-          { clubId: "c1", role: "player" },
-          { clubId: "c2", role: "admin" },
-          { clubId: "c3", role: "coach" },
-        ],
+        memberClubIds: ["c1", "c2", "c3"],
         parentClubIds: ["c1", "c4"],
         parentLinks: [{ clubId: "c4", memberId: "m1", relation: "parent", status: "active" }],
       }),
     );
 
-    expect(properties).toEqual({ max_role: "admin", is_parent: true, club_count: 4 });
+    expect(properties).toEqual({ is_parent: true, club_count: 4 });
   });
 
-  it("parent seul : aucun rôle club", () => {
+  it("compte sans club ni lien parent", () => {
     const properties = analyticsPersonProperties(makeProfile());
 
-    expect(properties).toEqual({ max_role: ANALYTICS_NO_ROLE, is_parent: false, club_count: 0 });
+    expect(properties).toEqual({ is_parent: false, club_count: 0 });
   });
 
   it("n’expose aucune donnée personnelle", () => {

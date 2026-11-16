@@ -18,7 +18,8 @@ import {
 } from "@/lib/clubSetup/clubBrandColors";
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
+import { MemberFeeStatuses } from "@/lib/firebase/constants";
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
 import {
   loadCoachHomeDashboard,
   loadHomeDashboard,
@@ -73,13 +74,15 @@ function formatAnnouncementWhen(date: Date | null): string {
 }
 
 /** Home admin (KPIs + charts cotisations). */
-function AdminHomeView({
+function ClubHomeView({
   clubId,
   data,
   refreshing,
   error,
   reload,
   showHelloAsso,
+  showFees,
+  showActivity,
 }: {
   clubId: string;
   data: HomeDashboardData | null;
@@ -87,6 +90,10 @@ function AdminHomeView({
   error: string | null;
   reload: () => void;
   showHelloAsso: boolean;
+  /** Droit `viewFees` : graphiques cotisations. */
+  showFees: boolean;
+  /** Droit `viewActivity` : aperçu du journal. */
+  showActivity: boolean;
 }) {
   const showPersonalRsvp =
     Boolean(data?.hasCoachedTeams) ||
@@ -150,7 +157,7 @@ function AdminHomeView({
                   onRsvpUpdated={reload}
                 />
               ) : null}
-              <RecentActivityPreview clubId={clubId} />
+              {showActivity ? <RecentActivityPreview clubId={clubId} /> : null}
             </section>
 
             {showPersonalRsvp &&
@@ -183,13 +190,15 @@ function AdminHomeView({
               <AttentionList items={data.attentionItems} />
             </section>
 
-            <section className={styles.chartsGrid} aria-label="Cotisations">
-              <FeeStatusChart segments={data.feeStatus} />
-              <CollectionsChart
-                months={data.collections}
-                showHelloAsso={showHelloAsso}
-              />
-            </section>
+            {showFees ? (
+              <section className={styles.chartsGrid} aria-label="Cotisations">
+                <FeeStatusChart segments={data.feeStatus} />
+                <CollectionsChart
+                  months={data.collections}
+                  showHelloAsso={showHelloAsso}
+                />
+              </section>
+            ) : null}
           </div>
 
           <aside
@@ -247,12 +256,15 @@ function CoachHomeView({
   refreshing,
   error,
   reload,
+  showActivity,
 }: {
   clubId: string;
   data: CoachHomeDashboardData | null;
   refreshing: boolean;
   error: string | null;
   reload: () => void;
+  /** Droit `viewActivity` : aperçu du journal. */
+  showActivity: boolean;
 }) {
   return (
     <div className={refreshing ? transitionStyles.refreshing : undefined}>
@@ -369,7 +381,7 @@ function CoachHomeView({
               linkedMemberId={data.linkedMemberId}
               onRsvpUpdated={reload}
             />
-            <RecentActivityPreview clubId={clubId} />
+            {showActivity ? <RecentActivityPreview clubId={clubId} /> : null}
           </section>
 
           {data.hasPlayerTeams || data.playerUpcomingEvents.length > 0 ? (
@@ -630,58 +642,67 @@ function PlayerHomeView({
   );
 }
 
-/** Contenu home dashboard branché sur Firestore, adapté au rôle club. */
+/**
+ * Accueil composé depuis les capacités : vue club si le compte voit tout le
+ * club (droit membres, équipes, planning) ou les cotisations ; sinon vue de
+ * ses équipes s’il en entraîne ; sinon vue joueur. Les blocs cotisations et
+ * journal suivent `viewFees` / `viewActivity`.
+ */
 export function HomePageClient() {
-  const { activeClub, activeClubRole, profile, user } = useAuth();
+  const { activeClub, profile, user } = useAuth();
+  const caps = useBureauCapabilities();
   const displayName = profile?.displayName || "Membre";
-  const role = activeClubRole ?? MemberRoles.admin;
+  const showClubHome = caps.seesWholeClub || caps.canViewFees;
+  const showTeamsHome = !showClubHome && caps.isTeamCoach;
+  const showPlayerHome = !showClubHome && !showTeamsHome;
   const homeActive = useIsPortalRouteActive(["/home"]);
 
-  const adminResource = useAsyncClubResource(
-    role === MemberRoles.admin ? activeClub : null,
+  const clubResource = useAsyncClubResource(
+    showClubHome ? activeClub : null,
     (club) =>
       loadHomeDashboard({
         club,
         adminDisplayName: displayName,
         uid: user?.uid,
+        includeFees: caps.canViewFees,
       }),
-    [displayName, role, user?.uid],
+    [displayName, showClubHome, caps.canViewFees, user?.uid],
   );
 
   const coachResource = useAsyncClubResource(
-    role === MemberRoles.coach && user ? activeClub : null,
+    showTeamsHome && user ? activeClub : null,
     (club) =>
       loadCoachHomeDashboard({
         club,
         displayName,
         uid: user!.uid,
       }),
-    [displayName, role, user?.uid],
+    [displayName, showTeamsHome, user?.uid],
   );
 
   const playerResource = useAsyncClubResource(
-    role === MemberRoles.player && user ? activeClub : null,
+    showPlayerHome && user ? activeClub : null,
     (club) =>
       loadPlayerHomeDashboard({
         club,
         displayName,
         uid: user!.uid,
       }),
-    [displayName, role, user?.uid],
+    [displayName, showPlayerHome, user?.uid],
   );
 
   useClubRealtimeReload({
     clubId: activeClub?.id,
     collections: ClubListenSets.homeAdmin,
     listenActiveMemberFees: true,
-    onReload: adminResource.reload,
-    enabled: homeActive && role === MemberRoles.admin,
+    onReload: clubResource.reload,
+    enabled: homeActive && showClubHome,
   });
   useClubRealtimeReload({
     clubId: activeClub?.id,
     collections: ClubListenSets.homeCoach,
     onReload: coachResource.reload,
-    enabled: homeActive && role === MemberRoles.coach,
+    enabled: homeActive && showTeamsHome,
   });
   useClubRealtimeReload({
     clubId: activeClub?.id,
@@ -691,14 +712,14 @@ export function HomePageClient() {
       ? [playerResource.data.linkedMemberId]
       : [],
     onReload: playerResource.reload,
-    enabled: homeActive && role === MemberRoles.player,
+    enabled: homeActive && showPlayerHome,
   });
 
   const active = useMemo(() => {
-    if (role === MemberRoles.coach) return coachResource;
-    if (role === MemberRoles.player) return playerResource;
-    return adminResource;
-  }, [role, adminResource, coachResource, playerResource]);
+    if (showTeamsHome) return coachResource;
+    if (showPlayerHome) return playerResource;
+    return clubResource;
+  }, [showTeamsHome, showPlayerHome, clubResource, coachResource, playerResource]);
 
   useReportPageReady(isClubResourceReady(activeClub, active), "/home");
 
@@ -706,7 +727,7 @@ export function HomePageClient() {
     return <DashboardSkeleton variant="home" />;
   }
 
-  if (role === MemberRoles.coach) {
+  if (showTeamsHome) {
     return (
       <CoachHomeView
         clubId={activeClub?.id ?? ""}
@@ -714,11 +735,12 @@ export function HomePageClient() {
         refreshing={coachResource.refreshing}
         error={coachResource.error}
         reload={coachResource.reload}
+        showActivity={caps.canViewActivity}
       />
     );
   }
 
-  if (role === MemberRoles.player) {
+  if (showPlayerHome) {
     return (
       <PlayerHomeView
         clubId={activeClub?.id ?? ""}
@@ -732,13 +754,15 @@ export function HomePageClient() {
   }
 
   return (
-    <AdminHomeView
+    <ClubHomeView
       clubId={activeClub?.id ?? ""}
-      data={adminResource.data}
-      refreshing={adminResource.refreshing}
-      error={adminResource.error}
-      reload={adminResource.reload}
+      data={clubResource.data}
+      refreshing={clubResource.refreshing}
+      error={clubResource.error}
+      reload={clubResource.reload}
       showHelloAsso={activeClub?.onlinePaymentEnabled === true}
+      showFees={caps.canViewFees}
+      showActivity={caps.canViewActivity}
     />
   );
 }

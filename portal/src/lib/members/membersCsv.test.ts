@@ -59,7 +59,6 @@ describe("buildMembersImportPlan — e-mail optionnel", () => {
         memberId: "uid-alice",
         firstName: "Alice",
         lastName: "Dupont",
-        role: "player",
         accountUid: "uid-alice",
       },
     ]);
@@ -68,35 +67,23 @@ describe("buildMembersImportPlan — e-mail optionnel", () => {
   });
 });
 
-describe("buildMembersImportPlan — dernier administrateur", () => {
-  const alice = {
-    memberId: "uid-alice",
-    firstName: "Alice",
-    lastName: "Dupont",
-    role: "admin",
-    accountUid: "uid-alice",
-  };
 
-  function planWithAdmins(lines: string[], adminIds: string[]) {
-    return buildMembersImportPlan({
-      content: [HEADER, ...lines].join("\n"),
+describe("buildMembersImportPlan — droits", () => {
+  it("ne bloque jamais sur le rôle d’une fiche existante (droits conservés)", () => {
+    const result = buildMembersImportPlan({
+      content: [HEADER, "Alice,Dupont,player,,,,"].join("\n"),
       sport: "football",
-      existingMembers: [alice],
+      existingMembers: [
+        {
+          memberId: "uid-alice",
+          firstName: "Alice",
+          lastName: "Dupont",
+          accountUid: "uid-alice",
+        },
+      ],
       existingTeams: [],
-      adminIds,
     });
-  }
-
-  it("bloque la rétrogradation du seul admin (adminIds = id de fiche)", () => {
-    const result = planWithAdmins(["Alice,Dupont,player,,,,"], ["uid-alice"]);
-    expect(result.blockingErrors[0]).toContain("dernier administrateur");
-  });
-
-  it("autorise la rétrogradation s’il reste un autre admin", () => {
-    const result = planWithAdmins(
-      ["Alice,Dupont,player,,,,"],
-      ["uid-alice", "uid-bob"],
-    );
     expect(result.blockingErrors).toEqual([]);
+    expect(result.memberActions[0]?.action).toBe("update");
   });
 });

@@ -42,8 +42,8 @@ export function MessagesPageClient({
     retryInbox,
     openCompose,
     openCategoryChannel,
-    isAdminSomewhere,
-    roleForClub,
+    canManageChatSomewhere,
+    badgeForClub,
     setDockOpen,
     dmPeerNameByKey,
     isMobileLayout,
@@ -118,7 +118,7 @@ export function MessagesPageClient({
         lead={chatCopy.pageLead}
       >
         <div className={styles.headerActions}>
-          {isAdminSomewhere ? (
+          {canManageChatSomewhere ? (
             <button
               type="button"
               className={styles.categoryBtn}
@@ -171,7 +171,7 @@ export function MessagesPageClient({
                     chatState={chatStates[id]}
                     clubName={clubNameById[conversation.clubId]}
                     clubColor={clubColorById[conversation.clubId]}
-                    clubRole={roleForClub(conversation.clubId)}
+                    clubBadge={badgeForClub(conversation.clubId)}
                     previewSenderByKey={previewSenderByKey}
                     peerDisplayName={dmPeerNameByKey[id]}
                     selected={selected}
@@ -191,7 +191,7 @@ export function MessagesPageClient({
               clubId={selectedClubId}
               conversationId={selectedConversationId}
               isActive={isPanelActive}
-              clubRole={roleForClub(selectedClubId)}
+              clubBadge={badgeForClub(selectedClubId)}
               chatState={stateId ? chatStates[stateId] : undefined}
               clubName={clubNameById[selectedClubId]}
               clubColor={clubColorById[selectedClubId]}

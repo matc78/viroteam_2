@@ -4,7 +4,6 @@ import {
   GuardianStatuses,
   InvitationStatus,
   InvitationTypes,
-  MemberRoles,
 } from "@/lib/firebase/constants";
 import { getAppFirestore } from "@/lib/firebase/app";
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
@@ -12,6 +11,7 @@ import { toDate } from "@/lib/firebase/types";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import { inviteJoinUrl, listClubMembers } from "@/lib/firebase/memberService";
 import { joinCopy } from "@/lib/copy/joinCopy";
+import { hasStaffBadge } from "@/lib/auth/permissions";
 import { site } from "@/lib/site";
 import { appStoreLink, playStoreLink } from "@/lib/storeLinks";
 
@@ -411,7 +411,6 @@ export function membersWithoutParent(
     }
   }
   return members.filter(
-    (member) =>
-      !occupied.has(member.memberId) && member.role === MemberRoles.player,
+    (member) => !occupied.has(member.memberId) && !hasStaffBadge(member),
   );
 }

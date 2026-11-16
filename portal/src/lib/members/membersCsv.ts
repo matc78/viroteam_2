@@ -1,6 +1,5 @@
 import type { MemberRow } from "./membersView";
 import { validateEmail } from "@/lib/auth/validateEmail";
-import { MemberRoles } from "@/lib/firebase/constants";
 import {
   firstNameError,
   formatFirstName,
@@ -11,11 +10,13 @@ import {
 } from "@/lib/format/personDataFormat";
 import { teamCategoriesForSport } from "@/lib/teams/teamCategories";
 
-/** Rôles acceptés à l’import CSV. */
-export type ImportClubRole =
-  | typeof MemberRoles.player
-  | typeof MemberRoles.coach
-  | typeof MemberRoles.admin;
+/**
+ * Colonne `role` de l’import : `admin` → droit Administrateur (fiches créées
+ * seulement : une fiche existante garde ses droits) ; `coach` → coach de
+ * l’équipe de la ligne, sans droit ; `player` (ou vide, `member`) → joueur de
+ * l’équipe de la ligne, ou simple membre sans équipe.
+ */
+export type ImportClubRole = "admin" | "coach" | "player";
 
 /** Ligne d’import CSV normalisée. */
 export type MemberImportRow = {
@@ -196,30 +197,31 @@ function normalizeCompareKey(raw: string): string {
 function normalizeImportRole(raw: string): ImportClubRole | null {
   const value = raw.trim().toLowerCase();
   if (
-    value === MemberRoles.player ||
+    value === "player" ||
     value === "joueur" ||
     value === "j" ||
+    value === "member" ||
+    value === "membre" ||
     value === ""
   ) {
-    return MemberRoles.player;
+    return "player";
   }
   if (
-    value === MemberRoles.coach ||
     value === "coach" ||
     value === "entraîneur" ||
     value === "entraineur" ||
     value === "c"
   ) {
-    return MemberRoles.coach;
+    return "coach";
   }
   if (
-    value === MemberRoles.admin ||
+    value === "admin" ||
     value === "administrateur" ||
     value === "administratrice" ||
     value === "bureau" ||
     value === "a"
   ) {
-    return MemberRoles.admin;
+    return "admin";
   }
   return null;
 }
@@ -260,7 +262,7 @@ export function exportMembersToCsv(rows: MemberRow[]): string {
       [
         row.firstName,
         row.lastName,
-        row.role,
+        row.badge,
         row.email ?? "",
         row.license,
         row.teamLabels.join(" | "),
@@ -296,8 +298,6 @@ type ExistingMemberRef = {
   memberId: string;
   firstName: string;
   lastName: string;
-  /** Rôle actuel dans le club (pour valider le dernier admin). */
-  role?: string;
   /** UID compte lié (= memberId), si présent. */
   accountUid?: string | null;
 };
@@ -309,61 +309,6 @@ type ExistingTeamRef = {
 };
 
 /**
- * Vérifie qu’aucune ligne du plan ne retirerait le dernier administrateur du club.
- * Parcourt tout le fichier et signale toutes les lignes concernées d’un coup.
- */
-function blockingErrorsForLastAdmin(params: {
-  memberActions: MembersImportMemberAction[];
-  existingMembers: ExistingMemberRef[];
-  adminIds: string[];
-}): string[] {
-  const existingById = new Map(
-    params.existingMembers.map((member) => [member.memberId, member]),
-  );
-  const nextAdminIds = new Set(
-    params.adminIds.map((id) => id.trim()).filter(Boolean),
-  );
-
-  // Fallback : si adminIds est vide, s’appuyer sur les rôles membres.
-  if (nextAdminIds.size === 0) {
-    for (const member of params.existingMembers) {
-      if (member.role !== MemberRoles.admin) continue;
-      nextAdminIds.add(member.memberId);
-    }
-  }
-
-  const demotionLineNumbers: number[] = [];
-
-  for (const action of params.memberActions) {
-    if (!action.existingMemberId || action.action !== "update") continue;
-    const existing = existingById.get(action.existingMemberId);
-    if (!existing) continue;
-
-    const wasAdmin = existing.role === MemberRoles.admin;
-    const willBeAdmin = action.role === MemberRoles.admin;
-    // `adminIds` porte l’id de fiche (= uid du compte quand elle est liée).
-    if (wasAdmin && !willBeAdmin) {
-      demotionLineNumbers.push(action.lineNumber);
-      nextAdminIds.delete(existing.memberId);
-      continue;
-    }
-
-    if (!wasAdmin && willBeAdmin && existing.accountUid) {
-      nextAdminIds.add(existing.memberId);
-    }
-  }
-
-  if (demotionLineNumbers.length === 0 || nextAdminIds.size > 0) {
-    return [];
-  }
-
-  return demotionLineNumbers.map(
-    (lineNumber) =>
-      `Ligne ${lineNumber} : Impossible de retirer le dernier administrateur. Corrigez le fichier puis réessayez.`,
-  );
-}
-
-/**
  * Construit le plan d’import : validation stricte, équipes, créations / mises à jour.
  * Aucune écriture Firestore — à exécuter seulement si `blockingErrors` est vide.
  */
@@ -372,8 +317,6 @@ export function buildMembersImportPlan(params: {
   sport: string;
   existingMembers: ExistingMemberRef[];
   existingTeams: ExistingTeamRef[];
-  /** Ids de fiche admin du club (`club.adminIds`, garde-fou dernier admin). */
-  adminIds?: string[];
 }): MembersImportPlan {
   const allowedCategories = teamCategoriesForSport(params.sport);
   const emptyStats = {
@@ -504,7 +447,7 @@ export function buildMembersImportPlan(params: {
       error = `E-mail invalide (« ${email} »). Utilisez le format prenom.nom@exemple.fr, puis réessayez.`;
     } else if (!error && !role) {
       error = `Rôle invalide (« ${roleRaw || "vide"} »). Utilisez player, coach ou admin (ou joueur, entraîneur, administrateur). Corrigez le fichier puis réessayez.`;
-    } else if (!error && role === MemberRoles.admin && teamNameRaw) {
+    } else if (!error && role === "admin" && teamNameRaw) {
       teamIgnoredForAdmin = true;
       teamName = "";
       category = "";
@@ -573,7 +516,7 @@ export function buildMembersImportPlan(params: {
       lineNumber,
       firstName,
       lastName,
-      role: role ?? MemberRoles.player,
+      role: role ?? "player",
       email,
       license,
       teamName,
@@ -604,15 +547,7 @@ export function buildMembersImportPlan(params: {
       teamIgnoredForAdmin: row.teamIgnoredForAdmin,
     }));
 
-  const lastAdminErrors = blockingErrorsForLastAdmin({
-    memberActions: provisionalMemberActions,
-    existingMembers: params.existingMembers,
-    adminIds: params.adminIds ?? [],
-  });
-
-  const allBlockingErrors = [
-    ...new Set([...uniqueLineBlocking, ...lastAdminErrors]),
-  ].sort((left, right) => {
+  const allBlockingErrors = [...new Set(uniqueLineBlocking)].sort((left, right) => {
     const lineLeft = Number(left.match(/Ligne (\d+)/)?.[1] ?? Number.MAX_SAFE_INTEGER);
     const lineRight = Number(
       right.match(/Ligne (\d+)/)?.[1] ?? Number.MAX_SAFE_INTEGER,
@@ -635,7 +570,7 @@ export function buildMembersImportPlan(params: {
 
   const teamActionsByName = new Map<string, MembersImportTeamAction>();
   for (const row of rows) {
-    if (!row.teamName || row.role === MemberRoles.admin) continue;
+    if (!row.teamName || row.role === "admin") continue;
     const key = normalizeCompareKey(row.teamName);
     if (teamActionsByName.has(key)) continue;
     const existing = teamsByName.get(key) ?? null;
@@ -676,7 +611,7 @@ export function buildMembersImportPlan(params: {
       createTeams: teamsToCreate.length,
       updateTeams: teamsToUpdate.length,
       admins: memberActions.filter(
-        (action) => action.role === MemberRoles.admin,
+        (action) => action.role === "admin",
       ).length,
       withTeam: memberActions.filter((action) => Boolean(action.teamName)).length,
       withoutEmail: memberActions.filter((action) => !action.email.trim()).length,

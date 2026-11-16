@@ -39,7 +39,7 @@ export function FamilyGuard({ children }: FamilyGuardProps) {
 
     if (denyingRef.current === pathname) return;
     denyingRef.current = pathname;
-    router.replace("/access-denied?reason=role");
+    router.replace("/access-denied?reason=no-access");
   }, [
     status,
     isParent,

@@ -1,0 +1,105 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: var(--radius-sm);
+}
+
+.group[data-tone="danger"] {
+  border-color: color-mix(in srgb, var(--color-error, #b91c1c) 30%, white);
+  background: color-mix(in srgb, var(--color-error, #b91c1c) 6%, white);
+}
+
+.group[data-tone="shortcuts"] {
+  border-color: var(--tone-orange-border);
+  background: var(--tone-orange-surface);
+}
+
+.group[data-tone="shortcuts"] .legend {
+  color: var(--tone-orange-text);
+}
+
+.group[data-tone="detail"] {
+  border-color: var(--tone-blue-border);
+  background: var(--tone-blue-surface);
+}
+
+.group[data-tone="detail"] .legend {
+  color: var(--tone-blue-text);
+}
+
+.group:disabled {
+  opacity: 0.6;
+}
+
+.legend {
+  padding: 0 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.teamsLine {
+  margin: 0.15rem 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.clubLevelTitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tone-blue-text);
+}
+
+.option input:focus-visible {
+  outline: 2px solid var(--tone-blue);
+  outline-offset: 2px;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-height: 44px;
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+
+.option input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.optionLabel {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.optionHint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}

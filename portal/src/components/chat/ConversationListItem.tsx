@@ -28,9 +28,9 @@ type ConversationListItemProps = {
   chatState?: ChatUserState;
   clubName?: string;
   clubColor?: string | null;
-  /** Rôle de l’utilisateur dans le club de cette discussion. */
-  clubRole?: string | null;
-  /** Annuaire fallback `clubId:uid` → prénom + rôle. */
+  /** Badge de l’utilisateur dans le club de cette discussion. */
+  clubBadge?: string | null;
+  /** Annuaire fallback `clubId:uid` → prénom + badge. */
   previewSenderByKey?: Record<string, ChatPreviewSender>;
   /** Nom du pair résolu pour un DM (évite d’afficher son propre nom). */
   peerDisplayName?: string | null;
@@ -64,7 +64,7 @@ export function ConversationListItem({
   chatState,
   clubName,
   clubColor,
-  clubRole,
+  clubBadge,
   previewSenderByKey,
   peerDisplayName,
   selected = false,
@@ -153,8 +153,8 @@ export function ConversationListItem({
               className={styles.clubBadge}
             />
           ) : null}
-          {clubRole ? (
-            <RoleBadge role={clubRole} size="sm" iconOnly />
+          {clubBadge ? (
+            <RoleBadge role={clubBadge} size="sm" iconOnly />
           ) : null}
           {muted ? (
             <span className={styles.muteMark} aria-label={chatCopy.mutedNotifications}>

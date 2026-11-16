@@ -19,12 +19,13 @@ describe("previewSenderRoleTone", () => {
     expect(previewSenderRoleTone("parent")).toBe("parent");
   });
 
-  it("tout le reste retombe sur player", () => {
+  it("joueur reste joueur, tout le reste retombe sur membre", () => {
     expect(previewSenderRoleTone("player")).toBe("player");
-    expect(previewSenderRoleTone("inconnu")).toBe("player");
-    expect(previewSenderRoleTone("")).toBe("player");
-    expect(previewSenderRoleTone(null)).toBe("player");
-    expect(previewSenderRoleTone(undefined)).toBe("player");
+    expect(previewSenderRoleTone("member")).toBe("member");
+    expect(previewSenderRoleTone("inconnu")).toBe("member");
+    expect(previewSenderRoleTone("")).toBe("member");
+    expect(previewSenderRoleTone(null)).toBe("member");
+    expect(previewSenderRoleTone(undefined)).toBe("member");
   });
 });
 
@@ -42,12 +43,12 @@ describe("resolveConversationPreviewSender", () => {
     ).toEqual({ firstName: "Léa", role: "coach" });
   });
 
-  it("prénom persisté sans rôle → player", () => {
+  it("prénom persisté sans rôle → member", () => {
     expect(
       resolveConversationPreviewSender(
         makeConversation({ lastSenderFirstName: "Sam", lastSenderRole: null }),
       ),
-    ).toEqual({ firstName: "Sam", role: "player" });
+    ).toEqual({ firstName: "Sam", role: "member" });
   });
 
   it("sinon lit l’annuaire `clubId:uid`", () => {

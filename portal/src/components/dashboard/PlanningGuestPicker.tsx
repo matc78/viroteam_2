@@ -20,6 +20,7 @@ import {
 } from "@/lib/planning/resolveGuestAudience";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { useDismissOnOutsidePointer } from "@/lib/planning/useDismissOnOutsidePointer";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import styles from "./PlanningGuestPicker.module.css";
 
 export type { PlanningGuestKind, PlanningGuestSelection };
@@ -41,13 +42,6 @@ type PlanningGuestPickerProps = {
   disabled?: boolean;
   placeholder?: string;
   onChange: (value: PlanningGuestSelection[]) => void;
-};
-
-const ROLE_LABELS: Record<PlanningPersonOption["role"], string> = {
-  player: "Joueur",
-  coach: "Coach",
-  admin: "Admin",
-  other: "Membre",
 };
 
 function selectionKey(item: PlanningGuestSelection): string {
@@ -128,7 +122,7 @@ export function PlanningGuestPicker({
     }
 
     for (const person of people) {
-      const meta = ROLE_LABELS[person.role];
+      const meta = badgeLabel(person.badge);
       items.push({
         kind: "person",
         id: person.id,

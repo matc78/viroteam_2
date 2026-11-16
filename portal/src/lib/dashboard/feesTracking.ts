@@ -19,6 +19,7 @@ import {
   type MemberFeeRecord,
 } from "@/lib/firebase/feeService";
 import { listClubMembers } from "@/lib/firebase/memberService";
+import { primaryBadge, type MemberBadge } from "@/lib/auth/permissions";
 import {
   feeStatusLabel,
   resolveMemberTeams,
@@ -27,8 +28,8 @@ import {
 /** Ligne suivi cotisation (une action claire par membre). */
 export type FeeTrackingRow = {
   memberId: string;
-  /** Rôle club (admin / coach / player). */
-  role: string;
+  /** Badge principal du membre (admin > coach > joueur > membre). */
+  badge: MemberBadge;
   displayName: string;
   firstName: string;
   lastName: string;
@@ -149,7 +150,7 @@ export async function loadFeesTrackingData(
 
     return {
       memberId: member.memberId,
-      role: member.role,
+      badge: primaryBadge(member),
       // Nom courant de la fiche (synchronisé serveur) avant la copie figée de la cotisation.
       displayName: member.displayName || fee?.memberDisplayName || "",
       firstName: member.firstName,

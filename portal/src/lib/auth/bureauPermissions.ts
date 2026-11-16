@@ -1,131 +1,112 @@
-import {
-  AnnouncementTargetTypes,
-  MemberRoles,
-} from "@/lib/firebase/constants";
+import { AnnouncementTargetTypes } from "@/lib/firebase/constants";
 import type { TeamOption } from "@/lib/firebase/eventService";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import {
-  DEFAULT_COACH_PERMISSIONS,
-  type CoachPermissions,
-} from "@/lib/auth/coachPermissions";
+  can,
+  canAddMembers,
+  canCreateEvents,
+  canPublishAnnouncements,
+  type ClubAccess,
+} from "@/lib/auth/permissions";
 import {
   coachRosterIdsForPlayerTeams,
-  rosterContains,
   rosterTeamsForViewer,
-  teamsCoachedByViewer,
-  viewerTeamIdsForRole,
+  teamsPlayedByViewer,
 } from "@/lib/teams/viewerTeamScope";
 
-/** Contexte de permissions Bureau pour le club actif. */
-export type BureauPermissionContext = {
-  role: string | null;
-  uid: string | null;
-};
+export {
+  canAddPlayerToTeam,
+  canShareTeamInvite,
+} from "@/lib/auth/permissions";
 
-/** Capacités UI / actions dérivées du rôle club (+ flags coach). */
+/**
+ * Capacités du Bureau pour le club actif, dérivées des droits du compte
+ * (\`ClubAccess\`). Seul endroit qui traduit les droits en navigation et en
+ * actions de page ; les règles Firestore et les callables restent la vraie
+ * barrière.
+ */
 export type BureauCapabilities = {
-  role: string | null;
-  isAdmin: boolean;
-  isCoach: boolean;
-  isPlayer: boolean;
-  canAccessFeesAdmin: boolean;
-  canAccessFeesSelf: boolean;
-  /** Coach avec canViewFees : suivi cotisations en lecture. */
-  canAccessFeesCoachRead: boolean;
-  canAccessAnnouncementsPage: boolean;
-  canCreateEvent: boolean;
+  /** Droits effectifs bruts (helpers par équipe : \`@/lib/auth/permissions\`). */
+  access: ClubAccess;
+  /** Droit Administrateur (attribuer des droits, réglages coach, Stripe). */
+  isClubAdmin: boolean;
+  /** Coach d’au moins une équipe. */
+  isTeamCoach: boolean;
+  /** Encadrement : au moins un droit, ou coach d’équipe. */
+  isStaff: boolean;
+  /** Voit toutes les équipes et tous les membres du club. */
+  seesWholeClub: boolean;
+  canViewFees: boolean;
+  canManageFees: boolean;
+  /** Peut publier une annonce (club, ou ses équipes si coach). */
+  canPublishAnnouncements: boolean;
+  /** Annonces de tout le club (toutes cibles, toutes annonces). */
   canManageAnnouncements: boolean;
+  /** Peut créer un événement (club, ou ses équipes si coach). */
+  canCreateEvent: boolean;
+  /** Planning de tout le club. */
+  canManageEvents: boolean;
   canAddMember: boolean;
-  canEditRole: boolean;
-  canRemoveMember: boolean;
-  canManageParents: boolean;
-  canImportMembers: boolean;
-  /** Admin, ou coach avec `canEditMemberRsvp`. */
-  canEditMemberRsvp: boolean;
-  canCreateTeam: boolean;
-  canManageTeamRoster: boolean;
-  canSeeAllContacts: boolean;
-  canAccessEquipment: boolean;
-  canAccessSettings: boolean;
+  /** Fiches, contacts, parents, retrait, import, invitations groupées. */
+  canManageMembers: boolean;
+  /** Attribuer des droits (droit Administrateur). */
+  canEditRights: boolean;
+  canManageTeams: boolean;
+  canManageEquipment: boolean;
+  canViewActivity: boolean;
+  canManageClubSettings: boolean;
   navHrefs: readonly string[];
 };
 
-const NAV_ADMIN = [
+/** Routes accessibles à tout membre, hors navigation principale. */
+const ALWAYS_ALLOWED_ROUTES = [
   "/home",
-  "/members",
-  "/planning",
-  "/fees",
-  "/announcements",
-  "/equipment",
-  "/settings",
-] as const;
-
-const NAV_COACH_BASE = [
-  "/home",
-  "/members",
-  "/planning",
-  "/announcements",
-] as const;
-
-const NAV_PLAYER = ["/home", "/team", "/planning"] as const;
-
-/** Routes accessibles hors nav principale (deep links joueur). */
-const PLAYER_DEEP_LINK_ROUTES = [
-  "/fees",
-  "/settings",
   "/my-planning",
   "/messages",
+  "/fees",
+  "/settings",
 ] as const;
 
-/** Construit les capacités Bureau selon le rôle + droits coach du club. */
-export function bureauCapabilities(
-  role: string | null,
-  coachPermissions: CoachPermissions = DEFAULT_COACH_PERMISSIONS,
-): BureauCapabilities {
-  const isAdmin = role === MemberRoles.admin;
-  const isCoach = role === MemberRoles.coach;
-  const isPlayer = role === MemberRoles.player;
-  const coach = coachPermissions;
+/** Construit les capacités Bureau à partir des droits du compte. */
+export function bureauCapabilities(access: ClubAccess): BureauCapabilities {
+  const canManageMembers = can(access, "manageMembers");
+  const canManageTeams = can(access, "manageTeams");
+  const canManageEvents = can(access, "manageEvents");
+  const canViewFees = can(access, "viewFees");
+  const canViewActivity = can(access, "viewActivity");
+  const canManageEquipment = can(access, "manageEquipment");
+  const canPublish = canPublishAnnouncements(access);
 
-  const canCreateEvent = isAdmin || (isCoach && coach.canCreateEvents);
-  const canAddMember = isAdmin || (isCoach && coach.canInvitePlayers);
-  const canManageTeamRoster =
-    isAdmin || (isCoach && coach.canManageTeamRoster);
-  const canEditMemberRsvp =
-    isAdmin || (isCoach && coach.canEditMemberRsvp);
-  const canAccessFeesCoachRead = isCoach && coach.canViewFees;
-
-  let navHrefs: readonly string[] = NAV_ADMIN;
-  if (isCoach) {
-    // /fees : suivi club si canViewFees, sinon cotisation perso (coach aussi joueur).
-    navHrefs = [...NAV_COACH_BASE, "/fees", "/settings"];
-  } else if (isPlayer) {
-    navHrefs = [...NAV_PLAYER];
-  }
+  const navHrefs = [
+    "/home",
+    ...(access.isStaff ? ["/members"] : ["/team"]),
+    "/planning",
+    "/fees",
+    ...(canPublish ? ["/announcements"] : []),
+    ...(canManageEquipment ? ["/equipment"] : []),
+    ...(canViewActivity ? ["/activity"] : []),
+    "/settings",
+  ];
 
   return {
-    role,
-    isAdmin,
-    isCoach,
-    isPlayer,
-    canAccessFeesAdmin: isAdmin,
-    canAccessFeesSelf: isPlayer || isAdmin || isCoach,
-    canAccessFeesCoachRead,
-    canAccessAnnouncementsPage: isAdmin || isCoach,
-    canCreateEvent,
-    canManageAnnouncements: isAdmin || isCoach,
-    canAddMember,
-    canEditRole: isAdmin,
-    canRemoveMember: isAdmin,
-    canManageParents: isAdmin,
-    canImportMembers: isAdmin,
-    canEditMemberRsvp,
-    canCreateTeam: isAdmin,
-    canManageTeamRoster,
-    canSeeAllContacts: isAdmin,
-    canAccessEquipment: isAdmin,
-    /** Page paramètres : compte pour tous ; section club réservée admin. */
-    canAccessSettings: true,
+    access,
+    isClubAdmin: access.isAdmin,
+    isTeamCoach: access.isTeamCoach,
+    isStaff: access.isStaff,
+    seesWholeClub: canManageMembers || canManageTeams || canManageEvents,
+    canViewFees,
+    canManageFees: can(access, "manageFees"),
+    canPublishAnnouncements: canPublish,
+    canManageAnnouncements: can(access, "manageAnnouncements"),
+    canCreateEvent: canCreateEvents(access),
+    canManageEvents,
+    canAddMember: canAddMembers(access),
+    canManageMembers,
+    canEditRights: access.isAdmin,
+    canManageTeams,
+    canManageEquipment,
+    canViewActivity,
+    canManageClubSettings: can(access, "manageClubSettings"),
     navHrefs,
   };
 }
@@ -135,123 +116,69 @@ export function bureauCapabilities(
  * `members/{uid}` (une seule clé membre). Sans fiche, l’uid ne matche rien.
  */
 
-/** True si le viewer peut ajouter un joueur à cette équipe. */
-export function canAddPlayerToTeam(params: {
-  role: string | null;
-  uid: string | null;
-  team: TeamOption;
-  coachPermissions?: CoachPermissions;
-}): boolean {
-  if (params.role === MemberRoles.admin) return true;
-  if (params.role !== MemberRoles.coach) return false;
-  const permissions = params.coachPermissions ?? DEFAULT_COACH_PERMISSIONS;
-  if (!permissions.canManageTeamRoster) return false;
-  return rosterContains(params.team.coachIds, params.uid);
-}
-
-/** True si le viewer peut partager le code d’équipe multi-usage. */
-export function canShareTeamInvite(params: {
-  role: string | null;
-  uid: string | null;
-  team: TeamOption;
-  coachPermissions?: CoachPermissions;
-}): boolean {
-  if (params.role === MemberRoles.admin) return true;
-  if (params.role !== MemberRoles.coach) return false;
-  const permissions = params.coachPermissions ?? DEFAULT_COACH_PERMISSIONS;
-  if (!permissions.canInvitePlayers) return false;
-  return rosterContains(params.team.coachIds, params.uid);
-}
-
-/** True si le viewer peut retirer un joueur de l’équipe. */
-export function canRemovePlayerFromTeam(role: string | null): boolean {
-  return role === MemberRoles.admin;
-}
-
-/** True si le viewer peut ajouter / retirer un coach sur l’équipe. */
-export function canManageTeamCoaches(role: string | null): boolean {
-  return role === MemberRoles.admin;
-}
-
 /**
- * Autorise l’affichage email / téléphone d’un membre.
- * Admin : tout. Joueur : uniquement ses coachs d’équipe. Coach : jamais (hors soi).
+ * Autorise l’affichage e-mail / téléphone d’un membre : droit membres, sa
+ * propre fiche, ou les coachs des équipes où le viewer joue.
  */
 export function canSeeMemberContact(params: {
-  role: string | null;
+  caps: BureauCapabilities;
   viewerUid: string | null;
   target: Pick<ClubMemberRecord, "memberId">;
   teams: TeamOption[];
 }): boolean {
-  if (params.role === MemberRoles.admin) return true;
+  if (params.caps.canManageMembers) return true;
   if (params.viewerUid && params.target.memberId === params.viewerUid) {
     return true;
   }
-
-  if (params.role !== MemberRoles.player) return false;
-
   const playerTeamIds = new Set(
-    viewerTeamIdsForRole({
-      role: MemberRoles.player,
-      teams: params.teams,
-      memberId: params.viewerUid,
-    }),
+    teamsPlayedByViewer(params.teams, params.viewerUid).map((team) => team.id),
   );
   return coachRosterIdsForPlayerTeams(params.teams, playerTeamIds).has(
     params.target.memberId,
   );
 }
 
-/** Équipes entraînées par le viewer (rôle coach). */
+/**
+ * Équipes entraînées par le compte, d'après sa fiche (`access.coachTeamIds`,
+ * dérivé serveur) : sert d'autorisation, jamais recalculé depuis les rosters.
+ */
 export function coachedTeamsForViewer(params: {
-  role: string | null;
-  uid: string | null;
+  access: ClubAccess;
   teams: TeamOption[];
 }): TeamOption[] {
-  if (params.role === MemberRoles.admin) return params.teams;
-  if (params.role !== MemberRoles.coach) return [];
-  return teamsCoachedByViewer(params.teams, params.uid);
+  return params.teams.filter((team) =>
+    params.access.coachTeamIds.includes(team.id),
+  );
 }
 
 /**
- * Équipes visibles pour le viewer (admin = toutes ;
- * sinon roster coach ∪ joueur pour couvrir le double rôle).
+ * Équipes visibles pour le viewer : tout le club avec un droit de gestion
+ * des membres, équipes ou planning ; sinon ses rosters (coach ∪ joueur).
  */
 export function teamsVisibleToViewer(params: {
-  role: string | null;
+  caps: BureauCapabilities;
   uid: string | null;
   teams: TeamOption[];
 }): TeamOption[] {
-  if (params.role === MemberRoles.admin) return params.teams;
-  if (
-    params.role === MemberRoles.coach ||
-    params.role === MemberRoles.player
-  ) {
-    return rosterTeamsForViewer(params.teams, params.uid);
-  }
-  return [];
+  if (params.caps.seesWholeClub) return params.teams;
+  return rosterTeamsForViewer(params.teams, params.uid);
 }
 
 /**
- * Membres visibles pour le viewer : admin = tous ;
- * coach/joueur = membres des équipes dans le scope (+ soi-même).
+ * Membres visibles pour le viewer : tout le club (voir
+ * [teamsVisibleToViewer]) ; sinon les membres de ses équipes (+ soi-même).
  */
 export function membersVisibleToViewer<T extends { memberId: string }>(params: {
-  role: string | null;
+  caps: BureauCapabilities;
   uid: string | null;
   teams: TeamOption[];
   members: T[];
 }): T[] {
-  if (params.role === MemberRoles.admin) return params.members;
+  if (params.caps.seesWholeClub) return params.members;
 
-  const scopedTeams = teamsVisibleToViewer({
-    role: params.role,
-    uid: params.uid,
-    teams: params.teams,
-  });
   const visibleIds = new Set<string>();
   if (params.uid) visibleIds.add(params.uid);
-  for (const team of scopedTeams) {
+  for (const team of teamsVisibleToViewer(params)) {
     for (const id of team.playerIds) {
       if (id) visibleIds.add(id);
     }
@@ -263,39 +190,16 @@ export function membersVisibleToViewer<T extends { memberId: string }>(params: {
   return params.members.filter((member) => visibleIds.has(member.memberId));
 }
 
-/** Libellé court du rôle pour le chip header. */
-export function bureauRoleChipLabel(role: string | null): string {
-  if (role === MemberRoles.admin) return "Admin";
-  if (role === MemberRoles.coach) return "Coach";
-  if (role === MemberRoles.player) return "Joueur";
-  return "Membre";
-}
-
-/** True si la route bureau est autorisée pour ce rôle. */
+/** True si la route bureau est autorisée par les droits du compte. */
 export function isBureauRouteAllowed(
   pathname: string,
   caps: BureauCapabilities,
 ): boolean {
-  if (pathname === "/home" || pathname.startsWith("/home/")) return true;
-  if (pathname === "/my-planning" || pathname.startsWith("/my-planning/")) {
-    return true;
-  }
-  if (pathname === "/messages" || pathname.startsWith("/messages/")) {
-    return true;
-  }
-  // Journal d’activité : admin + coach (CTA home, hors nav strip).
-  if (pathname === "/activity" || pathname.startsWith("/activity/")) {
-    return caps.isAdmin || caps.isCoach;
-  }
-  if (caps.isPlayer) {
-    for (const href of PLAYER_DEEP_LINK_ROUTES) {
-      if (pathname === href || pathname.startsWith(`${href}/`)) return true;
-    }
-  }
-  for (const href of caps.navHrefs) {
-    if (pathname === href || pathname.startsWith(`${href}/`)) return true;
-  }
-  return false;
+  const matches = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
+  return (
+    ALWAYS_ALLOWED_ROUTES.some(matches) || caps.navHrefs.some(matches)
+  );
 }
 
 /** Onglets principaux espace famille (hors deep links). */

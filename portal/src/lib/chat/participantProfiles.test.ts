@@ -25,7 +25,7 @@ describe("parseParticipantProfiles", () => {
         lastName: "",
         displayName: "",
         avatarUrl: null,
-        role: "player",
+        role: "member",
       },
     });
   });

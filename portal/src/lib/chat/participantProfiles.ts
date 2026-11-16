@@ -1,5 +1,5 @@
 import type { ConversationParticipant } from "@/lib/chat/conversationParticipants";
-import { MemberRoles } from "@/lib/firebase/constants";
+
 import type { ChatParticipantProfile } from "@/lib/firebase/chatTypes";
 
 function text(raw: unknown): string {
@@ -20,7 +20,7 @@ export function parseParticipantProfiles(
       lastName: text(map.lastName),
       displayName: text(map.displayName),
       avatarUrl: text(map.avatarUrl) || null,
-      role: text(map.role) || MemberRoles.player,
+      role: text(map.role) || "member",
     };
   }
   return out;

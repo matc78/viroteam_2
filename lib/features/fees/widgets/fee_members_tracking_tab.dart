@@ -66,6 +66,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     required this.onOpenBulk,
     this.accentColor,
     this.onOpenConfig,
+    this.readOnly = false,
   });
 
   final String clubId;
@@ -80,6 +81,10 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   final VoidCallback onOpenBulk;
   final Color? accentColor;
   final VoidCallback? onOpenConfig;
+
+  /// Lecture seule (droit `viewFees` sans `manageFees`) : ni sélection, ni
+  /// actions sur une cotisation, ni ajout des membres en attente.
+  final bool readOnly;
 
   List<MemberFee> _applySearchAndTier(List<MemberFee> fees) {
     return fees.where((f) {
@@ -176,10 +181,12 @@ class FeeMembersTrackingTab extends ConsumerWidget {
           ViroSnackBar.show(context, AppCopy.fees.fieldUpToDateHint);
         }
       },
-      onLongPress: () {
-        if (!selectionMode) onToggleSelection();
-        onSelect(fee.memberId, true);
-      },
+      onLongPress: readOnly
+          ? null
+          : () {
+              if (!selectionMode) onToggleSelection();
+              onSelect(fee.memberId, true);
+            },
       onMenu: actionable
           ? () => _showFieldActions(context, ref, fee, season)
           : null,
@@ -537,11 +544,12 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                               ),
                             ),
                           ),
-                          IconButton(
-                            icon: ViroIcon(ViroIcons.selectAll),
-                            tooltip: AppCopy.fees.multiSelectTooltip,
-                            onPressed: onToggleSelection,
-                          ),
+                          if (!readOnly)
+                            IconButton(
+                              icon: ViroIcon(ViroIcons.selectAll),
+                              tooltip: AppCopy.fees.multiSelectTooltip,
+                              onPressed: onToggleSelection,
+                            ),
                           IconButton(
                             icon: ViroIcon(ViroIcons.copy),
                             tooltip: AppCopy.fees.exportCsvTooltip,
@@ -569,7 +577,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             onChanged: onTierFilterChanged,
                           ),
                         ),
-                      if (pendingCount > 0)
+                      if (pendingCount > 0 && !readOnly)
                         Padding(
                           padding: const EdgeInsets.only(top: ViroSpacing.sm),
                           child: OutlinedButton(
@@ -619,7 +627,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                                     ref,
                                     fee,
                                     season,
-                                    actionable: _needsFieldActions(fee, season),
+                                    actionable: !readOnly && _needsFieldActions(fee, season),
                                   ),
                               ],
                               if (lists.upToDate.isNotEmpty) ...[

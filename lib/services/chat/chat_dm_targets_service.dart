@@ -1,11 +1,10 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:viro_team_v2/config/project_config.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
+import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
@@ -35,7 +34,7 @@ final class ChatDmTarget {
   /// Nom affiché (nom complet ou libellé « sans nom »).
   final String label;
 
-  /// Rôle club de la fiche (`admin`, `coach`…).
+  /// Identifiant de badge de la fiche ([ChatBadgeIds]).
   final String role;
 
   /// Fiche membre source (avatar, initiales).
@@ -60,11 +59,6 @@ class ChatDmTargetsService {
   final MemberService _memberService;
   final TeamService _teamService;
   final FirebaseFirestore _db;
-
-  CollectionReference<Map<String, dynamic>> _members(String clubId) => _db
-      .collection(ProjectConfig.clubsCollection)
-      .doc(clubId)
-      .collection(ProjectConfig.membersSubcollection);
 
   /// Équipes du caller : équipes des enfants pour un parent seul
   /// ([guardianChildTeamIds]), sinon équipes de [uid] (= id de sa fiche).
@@ -148,19 +142,19 @@ class ChatDmTargetsService {
         ids.map((id) => id.trim()).where((id) => id.isNotEmpty).toSet();
     if (wanted.isEmpty) return const [];
 
-    final docs = await _readDocs(
-      _members(clubId),
+    final docs = await _readMemberDocs(
+      clubId,
       wanted,
       canList: canListMembers,
     );
     return docs.values.map(ClubMember.fromFirestore).toList();
   }
 
-  /// Lit les documents [ids] de [collection] (existants seulement), indexés
+  /// Lit les fiches [ids] du club [clubId] (existantes seulement), indexées
   /// par id : `whereIn` groupé si [canList], sinon `get` parallèles. Repli sur
   /// les `get` si une requête groupée est refusée.
-  Future<Map<String, DocumentSnapshot<Map<String, dynamic>>>> _readDocs(
-    CollectionReference<Map<String, dynamic>> collection,
+  Future<Map<String, DocumentSnapshot<Map<String, dynamic>>>> _readMemberDocs(
+    String clubId,
     Set<String> ids, {
     required bool canList,
   }) async {
@@ -170,7 +164,7 @@ class ChatDmTargetsService {
         final chunks = chunkIds(ids, _kWhereInChunkSize);
         final snaps = await Future.wait(
           chunks.map(
-            (chunk) => collection
+            (chunk) => clubMembersCollection(_db, clubId)
                 .where(FieldPath.documentId, whereIn: chunk)
                 .get()
                 .timeout(kChatDmTargetsFetchTimeout),
@@ -188,8 +182,7 @@ class ChatDmTargetsService {
     final results = await Future.wait(
       ids.map((id) async {
         try {
-          final snap = await collection
-              .doc(id)
+          final snap = await clubMemberRef(_db, clubId, id)
               .get()
               .timeout(kChatDmTargetsFetchTimeout);
           return snap.exists ? snap : null;
@@ -214,7 +207,7 @@ List<List<String>> chunkIds(Iterable<String> ids, int size) {
 }
 
 /// Ids roster à contacter, dans l'ordre : [clubAdminIds], coaches de
-/// [callerTeams], puis fiches `admin` de [members].
+/// [callerTeams], puis fiches portant le droit Administrateur dans [members].
 Set<String> collectChatDmRosterIds({
   required List<String> clubAdminIds,
   required List<ClubTeam> callerTeams,
@@ -225,7 +218,7 @@ Set<String> collectChatDmRosterIds({
     rosterIds.addAll(team.coachIds.where((id) => id.trim().isNotEmpty));
   }
   for (final member in members) {
-    if (member.role == MemberRoles.admin) rosterIds.add(member.memberId);
+    if (member.isAdmin) rosterIds.add(member.memberId);
   }
   return rosterIds;
 }
@@ -259,7 +252,7 @@ List<ChatDmTarget> buildChatDmTargets({
       ChatDmTarget(
         uid: accountUid,
         label: fullName.isNotEmpty ? fullName : AppCopy.members.unnamed,
-        role: member.role,
+        role: member.chatBadgeId,
         member: member,
       ),
     );

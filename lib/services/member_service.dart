@@ -9,11 +9,13 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/services/club_activity_service.dart';
 import 'package:viro_team_v2/services/member/member_account_operations.dart';
 import 'package:viro_team_v2/services/member/member_invitation_operations.dart';
+import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 class AddMemberResult {
   const AddMemberResult({
@@ -122,11 +124,6 @@ class MemberService {
     return normalizeEmail(rawEmail!);
   }
 
-  CollectionReference<Map<String, dynamic>> _members(String clubId) => _db
-      .collection(ProjectConfig.clubsCollection)
-      .doc(clubId)
-      .collection(ProjectConfig.membersSubcollection);
-
   CollectionReference<Map<String, dynamic>> _invitations(String clubId) => _db
       .collection(ProjectConfig.clubsCollection)
       .doc(clubId)
@@ -140,7 +137,8 @@ class MemberService {
     String clubId, {
     bool enrichPendingInvites = false,
   }) {
-    return _members(clubId).snapshots().asyncMap((snap) async {
+    final members = clubMembersCollection(_db, clubId);
+    return members.snapshots().asyncMap((snap) async {
       final baseMembers = snap.docs.map(ClubMember.fromFirestore).toList();
       final membersByAccountUid = await _loadMembersByAccountUid(baseMembers);
       final pendingInvitationsById = enrichPendingInvites
@@ -158,14 +156,16 @@ class MemberService {
           )
           .toList();
       members.sort((a, b) {
-        final roleCmp = MemberRoleHierarchy.level(b.role)
-            .compareTo(MemberRoleHierarchy.level(a.role));
-        if (roleCmp != 0) return roleCmp;
+        final badgeCmp = _badgeRank(a).compareTo(_badgeRank(b));
+        if (badgeCmp != 0) return badgeCmp;
         return _sortKeyFirstName(a).compareTo(_sortKeyFirstName(b));
       });
       return members;
     });
   }
+
+  /// Rang de tri : admin, entraîneur, joueur, puis membre.
+  static int _badgeRank(ClubMember member) => member.primaryBadge.index;
 
   static String _sortKeyFirstName(ClubMember member) {
     final first = member.firstName?.trim();
@@ -294,7 +294,9 @@ class MemberService {
     }
   }
 
-  /// Crée une fiche membre pré-remplie et son invitation `pending`.
+  /// Crée une fiche membre pré-remplie (sans droit) et son invitation
+  /// `pending`. Les droits s'attribuent ensuite par un admin
+  /// ([updateMemberPermissions]) ; la place dans une équipe, via l'équipe.
   ///
   /// [email] est obligatoire : l'invitation ne pourra être acceptée que par
   /// ce compte. Il est normalisé (trim + minuscules) et écrit sur
@@ -305,7 +307,6 @@ class MemberService {
     required String clubId,
     required String firstName,
     required String lastName,
-    required String role,
     required String sentByUid,
     required Club club,
     required String email,
@@ -313,12 +314,9 @@ class MemberService {
   }) async {
     final trimmedFirst = formatFirstName(firstName);
     final trimmedLast = formatLastName(lastName);
-    if (role != MemberRoles.player && role != MemberRoles.coach) {
-      throw ArgumentError('Seuls joueur et coach peuvent être ajoutés ici.');
-    }
     final normalizedEmail = requireNormalizedEmail(email);
 
-    final memberRef = _members(clubId).doc();
+    final memberRef = clubMembersCollection(_db, clubId).doc();
     final inviteRef = _invitations(clubId).doc();
     final clubRef = _db.collection(ProjectConfig.clubsCollection).doc(clubId);
     final code = generateInviteCode();
@@ -335,18 +333,12 @@ class MemberService {
           (clubSnap.data()?[FirestoreFields.memberCount] as num?)?.toInt() ?? 0;
 
       tx.set(memberRef, {
-        FirestoreFields.memberId: memberRef.id,
-        FirestoreFields.role: role,
         FirestoreFields.status: 'active',
         FirestoreFields.firstName: trimmedFirst,
         FirestoreFields.lastName: trimmedLast,
-        FirestoreFields.teamIds: <String>[],
         FirestoreFields.snapshot: snapshot,
         FirestoreFields.activeInvitationId: inviteRef.id,
-        if (role == MemberRoles.player)
-          FirestoreFields.playerInfo: {FirestoreFields.license: ''},
-        if (role == MemberRoles.coach)
-          FirestoreFields.coachInfo: {'headCoach': false},
+        FirestoreFields.playerInfo: {FirestoreFields.license: ''},
         FirestoreFields.joinedAt: FieldValue.serverTimestamp(),
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       });
@@ -354,7 +346,6 @@ class MemberService {
       tx.set(inviteRef, {
         FirestoreFields.code: code,
         FirestoreFields.type: InvitationTypes.member,
-        FirestoreFields.role: role,
         FirestoreFields.status: InvitationStatus.pending,
         FirestoreFields.email: normalizedEmail,
         FirestoreFields.memberId: memberRef.id,
@@ -387,7 +378,6 @@ class MemberService {
 
     final member = ClubMember(
       memberId: memberRef.id,
-      role: role,
       status: 'active',
       firstName: trimmedFirst,
       lastName: trimmedLast,
@@ -403,7 +393,6 @@ class MemberService {
       id: inviteRef.id,
       clubId: clubId,
       code: code,
-      role: role,
       status: InvitationStatus.pending,
       memberId: memberRef.id,
       email: normalizedEmail,
@@ -437,21 +426,21 @@ class MemberService {
     email: email,
   );
 
-  /// Change le rôle d'un membre via la callable `setMemberRole`
-  /// (vérifications admin, dernier admin, `club.adminIds` et
-  /// `users/{uid}.clubMemberships` gérés côté serveur).
-  Future<void> updateMemberRole({
+  /// Remplace les droits d'un membre via la callable `setMemberPermissions`
+  /// (droit Administrateur exigé, garde « dernier admin » et index
+  /// `club.adminIds` gérés côté serveur). Retourne la liste normalisée.
+  Future<Set<ClubPermission>> updateMemberPermissions({
     required String clubId,
     required String memberId,
-    required String newRole,
-  }) => _accountOperations.updateMemberRole(
+    required Set<ClubPermission> permissions,
+  }) => _accountOperations.updateMemberPermissions(
     clubId: clubId,
     memberId: memberId,
-    newRole: newRole,
+    permissions: permissions,
   );
 
   /// Retire un membre du club via la callable `removeMember`
-  /// (fiche, équipes, invitation et `clubMemberships` nettoyés côté
+  /// (fiche, équipes, invitation et `memberClubIds` nettoyés côté
   /// serveur).
   Future<void> removeMember({
     required String clubId,
@@ -464,7 +453,7 @@ class MemberService {
   /// Parents liés aux fiches du club via `members/{memberId}/guardians`
   /// et invitations `type: guardian` pending. Une entrée = un parent (uid/email).
   Future<List<ClubParentEntry>> fetchClubParents(String clubId) async {
-    final membersSnap = await _members(clubId).get();
+    final membersSnap = await clubMembersCollection(_db, clubId).get();
     final membersById = <String, ClubMember>{
       for (final memberDoc in membersSnap.docs)
         memberDoc.id: ClubMember.fromFirestore(memberDoc),

@@ -7,6 +7,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/chat/chat_thread_open_seed.dart';
 import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_sender_meta_provider.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_helpers.dart';
 import 'package:viro_team_v2/features/chat/widgets/chat_thread/chat_thread_member_maps.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
@@ -17,6 +18,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 
 /// Identifie un fil : club + conversation.
 typedef ChatThreadKey = ({String clubId, String conversationId});
@@ -271,9 +273,9 @@ class ChatThreadController extends Notifier<ChatThreadState> {
   /// Retourne `false` en cas d’échec : le message passe alors en « échec ».
   Future<bool> deliver(ChatMessage pending) async {
     if (_uid == null) return true;
-    final meta = _senderMeta();
     _setPendingStatus(pending.id, ChatMessageLocalStatus.sending);
     try {
+      final meta = await ref.read(chatSenderMetaProvider(key.clubId).future);
       await _chat.sendPendingMessage(
         pending,
         senderFirstName: meta.firstName,
@@ -322,19 +324,6 @@ class ChatThreadController extends Notifier<ChatThreadState> {
               : message,
       ],
     );
-  }
-
-  ({String firstName, String senderRole}) _senderMeta() {
-    final user = ref.read(viroUserProvider).value;
-    final clubs = ref.read(userClubsProvider).value ?? const [];
-    final membership = clubs
-        .where((entry) => entry.club.id == key.clubId)
-        .map((entry) => entry.membership)
-        .firstOrNull;
-    final firstName = (user?.firstName.trim().isNotEmpty == true)
-        ? user!.firstName.trim()
-        : (user?.displayName.trim().split(RegExp(r'\s+')).firstOrNull ?? '');
-    return (firstName: firstName, senderRole: membership?.role ?? 'parent');
   }
 
   /// Vote pour [optionId] ; `false` si l’écriture a échoué.
@@ -593,12 +582,7 @@ final chatThreadChromeProvider = Provider.autoDispose
   );
   final seed = chromeKey.seed;
   final uid = ref.watch(authStateProvider).value?.uid;
-  final clubs = ref.watch(userClubsProvider).value ?? const [];
-  final role = clubs
-      .where((entry) => entry.club.id == key.clubId)
-      .map((entry) => entry.membership)
-      .firstOrNull
-      ?.role;
+  final access = ref.watch(clubAccessProvider(key.clubId));
   final states = ref.watch(chatStatesProvider).value ?? const {};
   final userState = states[ChatUserState.docId(key.clubId, key.conversationId)];
   final members = ref.watch(chatThreadMembersProvider(key));
@@ -639,7 +623,7 @@ final chatThreadChromeProvider = Provider.autoDispose
   } else {
     avatarUrl = peer.avatarUrl;
   }
-  final canWrite = chatThreadCanWrite(conversation, uid, role);
+  final canWrite = chatThreadCanWrite(conversation, uid, access);
   final lookup = chatThreadMemberLookupMaps(members: members, viewerUid: uid);
   return ChatThreadChrome(
     nameByUid: lookup.nameByUid,
@@ -653,7 +637,7 @@ final chatThreadChromeProvider = Provider.autoDispose
     // Seed de l’inbox, sinon couleur de marque du club (ouverture par notif).
     clubColor: seed?.clubColor ??
         clubAccentColor(
-          brandColorHex: clubs
+          brandColorHex: (ref.watch(userClubsProvider).value ?? const [])
               .where((entry) => entry.club.id == key.clubId)
               .firstOrNull
               ?.club

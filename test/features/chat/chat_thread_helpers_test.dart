@@ -10,6 +10,8 @@ import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/models/club_access.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 ChatConversation _conversationWith(String writePolicy) => ChatConversation(
       id: 'conv',
@@ -83,26 +85,43 @@ void main() {
 
   group('chatThreadCanWrite', () {
     final channel = _conversationWith(ChatWritePolicies.coachesAndAdmins);
+    const teamCoach = ClubAccess(
+      permissions: {},
+      coachTeamIds: ['t1'],
+      teamIds: ['t1'],
+    );
+    const chatManager = ClubAccess(
+      permissions: {ClubPermission.manageChat},
+      coachTeamIds: [],
+      teamIds: [],
+    );
+    const admin = ClubAccess(
+      permissions: {ClubPermission.admin},
+      coachTeamIds: [],
+      teamIds: [],
+    );
 
-    test('un coach écrit dans un canal coaches_and_admins', () {
-      expect(chatThreadCanWrite(channel, 'coach', MemberRoles.coach), isTrue);
+    test('un coach d’équipe écrit dans un canal coaches_and_admins', () {
+      expect(chatThreadCanWrite(channel, 'coach', teamCoach), isTrue);
+      expect(chatThreadCanWrite(channel, 'coach', chatManager), isTrue);
     });
 
-    test('un joueur ne peut pas y écrire', () {
-      expect(chatThreadCanWrite(channel, 'player', MemberRoles.player), isFalse);
+    test('un membre sans droit ni équipe entraînée ne peut pas y écrire', () {
+      expect(chatThreadCanWrite(channel, 'player', ClubAccess.none), isFalse);
     });
 
-    test('seul un admin écrit dans un canal admins_only', () {
+    test('canal admins_only : droit messagerie (ou admin) seulement', () {
       final adminsOnly = _conversationWith(ChatWritePolicies.adminsOnly);
-      expect(chatThreadCanWrite(adminsOnly, 'coach', MemberRoles.admin), isTrue);
-      expect(chatThreadCanWrite(adminsOnly, 'coach', MemberRoles.coach), isFalse);
+      expect(chatThreadCanWrite(adminsOnly, 'coach', admin), isTrue);
+      expect(chatThreadCanWrite(adminsOnly, 'coach', chatManager), isTrue);
+      expect(chatThreadCanWrite(adminsOnly, 'coach', teamCoach), isFalse);
     });
 
     test('un non-participant ou un anonyme ne peut pas écrire', () {
       final open = _conversationWith(ChatWritePolicies.open);
-      expect(chatThreadCanWrite(open, 'stranger', MemberRoles.admin), isFalse);
-      expect(chatThreadCanWrite(open, null, MemberRoles.admin), isFalse);
-      expect(chatThreadCanWrite(null, 'coach', MemberRoles.admin), isFalse);
+      expect(chatThreadCanWrite(open, 'stranger', admin), isFalse);
+      expect(chatThreadCanWrite(open, null, admin), isFalse);
+      expect(chatThreadCanWrite(null, 'coach', admin), isFalse);
     });
   });
 
@@ -426,7 +445,7 @@ void main() {
   group('chatThreadDmPeer', () {
     const peerMember = ClubMember(
       memberId: 'm-peer',
-      role: MemberRoles.coach,
+      coachTeamIds: ['t1'],
       status: 'active',
       accountUid: 'peer',
       displayName: 'Sam Martin',

@@ -98,8 +98,9 @@ class ChatThreadMessageTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final query = searchQuery.toLowerCase();
     final borderColor = chatBubbleBorderForRole(
-      chatThreadSenderRoleFor(message.senderUid, members),
-    );
+          chatThreadSenderRoleFor(message.senderUid, members),
+        ) ??
+        clubColor;
     final showDaySeparator =
         previousCreatedAt == null ||
         !chatThreadSameCalendarDay(previousCreatedAt!, message.createdAt);

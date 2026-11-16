@@ -1,7 +1,9 @@
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
+import 'package:viro_team_v2/models/club_access.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
+import 'package:viro_team_v2/features/announcements/announcement_target_types.dart';
 
 /// Catégories dérivées des équipes du membre dans le club.
 Set<String> memberCategoriesFromTeams({
@@ -92,8 +94,15 @@ abstract final class AnnouncementFilter {
     ).where((a) => !dismissedIds.contains(a.id)).toList();
   }
 
-  static bool isStaffRole(String? role) {
-    if (role == null) return false;
-    return role == MemberRoles.admin || role == MemberRoles.coach;
-  }
+  /// Voit toutes les annonces du club (y compris clôturées) : droit
+  /// `manageAnnouncements`.
+  static bool seesAllAnnouncements(ClubAccess access) =>
+      access.can(ClubPermission.manageAnnouncements);
+
+  /// Peut modifier / clôturer / supprimer [announcement] : droit annonces,
+  /// ou coach autorisé dont l'annonce ne cible que ses équipes.
+  static bool canManage(ClubAccess access, ClubAnnouncement announcement) =>
+      access.can(ClubPermission.manageAnnouncements) ||
+      (announcement.targetType == AnnouncementTargetTypes.equipes &&
+          access.canPublishAnnouncementToTeams(announcement.targetIds));
 }

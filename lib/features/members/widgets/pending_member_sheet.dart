@@ -23,6 +23,8 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Ouvre la fiche d’un membre pas encore inscrit (édition + invitation).
 Future<void> showPendingMemberSheet(
@@ -77,10 +79,10 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
   bool _loadingGuardian = false;
   String? _error;
 
-  bool get _isAdmin {
-    final viewer = ref.read(clubMemberProvider(widget.club.id)).value;
-    return viewer?.role == MemberRoles.admin;
-  }
+  /// Liens parents : droit de gestion des membres.
+  bool get _canManageParents => ref
+      .read(clubAccessProvider(widget.club.id))
+      .can(ClubPermission.manageMembers);
 
   @override
   void initState() {
@@ -127,7 +129,6 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
       id: _member.activeInvitationId ?? '',
       clubId: widget.club.id,
       code: _member.pendingInviteCode ?? '',
-      role: _member.role,
       status: InvitationStatus.pending,
       memberId: _member.memberId,
       expiresAt: _member.pendingInviteExpiresAt,
@@ -178,23 +179,11 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
         _firstNameController.text = formattedFirst;
         _lastNameController.text = formattedLast;
         _emailController.text = normalizedEmail;
-        _currentMember = ClubMember(
-          memberId: _member.memberId,
-          role: _member.role,
-          status: _member.status,
-          accountUid: _member.accountUid,
+        _currentMember = _member.copyWith(
           firstName: formattedFirst,
           lastName: formattedLast,
           displayName: '$formattedFirst $formattedLast',
-          avatarUrl: _member.avatarUrl,
           email: normalizedEmail,
-          teamIds: _member.teamIds,
-          joinedAt: _member.joinedAt,
-          activeInvitationId: _member.activeInvitationId,
-          pendingInviteCode: _member.pendingInviteCode,
-          pendingInviteExpiresAt: _member.pendingInviteExpiresAt,
-          hasLinkedAccount: _member.hasLinkedAccount,
-          dismissedAnnouncementIds: _member.dismissedAnnouncementIds,
         );
         _busy = false;
       });
@@ -262,7 +251,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
   }
 
   Future<void> _loadGuardian() async {
-    if (!_isAdmin || widget.member.role != MemberRoles.player) return;
+    if (!_canManageParents) return;
 
     setState(() => _loadingGuardian = true);
     try {
@@ -375,7 +364,7 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
               ),
               onChanged: (_) => setState(() {}),
             ),
-            if (_isAdmin && widget.member.role == MemberRoles.player) ...[
+            if (_canManageParents) ...[
               const SizedBox(height: ViroSpacing.lg),
               Text(
                 AppCopy.members.labelParent,

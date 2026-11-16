@@ -16,7 +16,7 @@ class MemberFeeListTile extends StatelessWidget {
     required this.selected,
     required this.selectionMode,
     required this.onTap,
-    required this.onLongPress,
+    this.onLongPress,
     this.onMenu,
     this.showMenu = true,
   });
@@ -26,7 +26,8 @@ class MemberFeeListTile extends StatelessWidget {
   final bool selected;
   final bool selectionMode;
   final VoidCallback onTap;
-  final VoidCallback onLongPress;
+  /// Appui long (sélection multiple) ; `null` en lecture seule.
+  final VoidCallback? onLongPress;
   final VoidCallback? onMenu;
   final bool showMenu;
 

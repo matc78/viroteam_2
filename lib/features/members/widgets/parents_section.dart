@@ -232,7 +232,8 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
         .where(
           (m) =>
               !occupied.contains(m.memberId) &&
-              m.role == MemberRoles.player,
+              // Joueurs : hors encadrement (ni admin ni coach d'équipe).
+              !m.hasStaffBadge,
         )
         .toList();
     if (candidates.isEmpty) {

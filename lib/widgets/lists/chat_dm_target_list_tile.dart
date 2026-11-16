@@ -55,7 +55,7 @@ class ChatDmTargetListTile extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: ViroRoleBadge(
-              role: viroRoleFromMemberRole(role),
+              role: viroRoleFromChatSenderRole(role) ?? ViroRole.member,
               compact: true,
             ),
           ),

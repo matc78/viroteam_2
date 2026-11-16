@@ -99,11 +99,8 @@ class PollVoterListTile extends StatelessWidget {
               ],
             ),
           ),
-          if (member != null)
-            ViroRoleBadge(
-              role: viroRoleFromMemberRole(member!.role),
-              compact: true,
-            ),
+          if (member != null && viroRoleForMember(member!) != null)
+            ViroRoleBadge(role: viroRoleForMember(member!)!, compact: true),
         ],
       ),
     );

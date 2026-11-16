@@ -5,17 +5,15 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
-import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
-import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/widgets/manage_teams_body.dart';
 import 'package:viro_team_v2/features/teams/widgets/my_teams_body.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Hub unique Équipes : Mes équipes + Gestion (coach+).
 class TeamsHubScreen extends ConsumerStatefulWidget {
@@ -70,23 +68,16 @@ class _TeamsHubScreenState extends ConsumerState<TeamsHubScreen> {
   @override
   Widget build(BuildContext context) {
     final clubAsync = ref.watch(clubProvider(widget.clubId));
-    final memberAsync = ref.watch(clubMemberProvider(widget.clubId));
-    final authUid = ref.watch(authStateProvider).value?.uid;
     final memberAccent = ref.watch(clubMemberAccentProvider(widget.clubId));
     final managementAccent =
         ref.watch(clubManagementAccentProvider(widget.clubId));
 
-    final role = memberAsync.value?.role ?? MemberRoles.player;
-    final canManage = MemberRoleHierarchy.isCoachOrAbove(role);
+    final access = ref.watch(clubAccessProvider(widget.clubId));
+    // Onglet « Gérer » : coach d'équipe ou droit équipes.
+    final canManage =
+        access.isTeamCoach || access.can(ClubPermission.manageTeams);
     final effectiveTab =
         canManage ? _tab : TeamsHubTab.mine;
-
-    final permissions = TeamManagePermissions(
-      viewerRole: role,
-      currentUid: authUid,
-      coachPermissions:
-          clubAsync.value?.coachPermissions ?? CoachPermissions.defaults,
-    );
 
     final accent =
         effectiveTab == TeamsHubTab.manage ? managementAccent : memberAccent;
@@ -100,7 +91,7 @@ class _TeamsHubScreenState extends ConsumerState<TeamsHubScreen> {
           title: Text(AppCopy.teams.hubTitle),
         ),
         floatingActionButton: effectiveTab == TeamsHubTab.manage &&
-                permissions.canCreateTeam()
+                access.can(ClubPermission.manageTeams)
             ? clubAsync.maybeWhen(
                 data: (club) {
                   if (club == null) return null;

@@ -430,10 +430,6 @@ class ChatService {
   Future<void> ensureClubChatSynced({required String clubId}) =>
       _conversations.ensureClubChatSynced(clubId: clubId);
 
-  /// Backfill de tous les clubs où l’utilisateur est admin.
-  Future<({int clubsSynced, int teamsSynced})> backfillMyAdminClubChats() =>
-      _conversations.backfillMyAdminClubChats();
-
   /// Ensure puis retrouve une conv système (pour clubs pré-chat).
   Future<String?> ensureAndFindConversationId({
     required String clubId,

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
@@ -15,7 +14,6 @@ import 'package:viro_team_v2/services/invitation_service.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/widgets/common/email_verification_dialog.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
-import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 
 class InvitationPreviewScreen extends ConsumerStatefulWidget {
@@ -31,28 +29,12 @@ class _InvitationPreviewScreenState
   bool _loading = false;
   String? _error;
 
-  String _roleLabel(String role) => switch (role) {
-        MemberRoles.coach => AppCopy.common.roleCoach,
-        MemberRoles.player => AppCopy.common.rolePlayer,
-        _ => role,
-      };
-
-  ViroRole _badge(String role) => switch (role) {
-        MemberRoles.coach => ViroRole.coach,
-        _ => ViroRole.player,
-      };
-
   /// Ouvre le club déjà rejoint (pending invite + membership locale).
   void _openClub() {
     final pending = ref.read(pendingInvitationProvider);
     final clubId = pending.club?.id;
     if (clubId == null) return;
-    final membership =
-        ref.read(viroUserProvider).value?.membershipInClub(clubId);
-    ref.read(sessionProvider.notifier).setActiveClub(
-          clubId,
-          role: membership?.role,
-        );
+    ref.read(sessionProvider.notifier).setActiveClub(clubId);
     ref.read(pendingInvitationProvider.notifier).clear();
     context.go(AppRoutes.home);
   }
@@ -82,12 +64,7 @@ class _InvitationPreviewScreenState
               invitation: invitation,
               user: user,
             );
-        ref.read(sessionProvider.notifier).setActiveClub(
-              pending.club!.id,
-              role: invitation.isTeamInvite
-                  ? MemberRoles.player
-                  : invitation.role,
-            );
+        ref.read(sessionProvider.notifier).setActiveClub(pending.club!.id);
       }
       ref.invalidate(userClubsProvider);
       ref.invalidate(userClubsWithEventsProvider);
@@ -241,27 +218,12 @@ class _InvitationPreviewScreenState
                     style: theme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),
-                ] else ...[
-                  Center(child: ViroRoleBadge(role: _badge(invite.role))),
-                  const SizedBox(height: ViroSpacing.sm),
+                ] else if (invite.emailHint?.trim().isNotEmpty ?? false) ...[
                   Text(
-                    AppCopy.join.proposedRole(_roleLabel(invite.role)),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: ViroSpacing.sm),
-                  Text(
-                    AppCopy.join.memberAlsoPlayerAccess,
+                    AppCopy.join.reservedForAccount(invite.emailHint!.trim()),
                     style: theme.bodySmall,
                     textAlign: TextAlign.center,
                   ),
-                  if (invite.emailHint?.trim().isNotEmpty ?? false) ...[
-                    const SizedBox(height: ViroSpacing.sm),
-                    Text(
-                      AppCopy.join.reservedForAccount(invite.emailHint!.trim()),
-                      style: theme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
                 ],
               ],
               if (_error != null) ...[

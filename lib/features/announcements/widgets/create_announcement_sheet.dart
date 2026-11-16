@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/announcements/announcement_target_types.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
@@ -17,6 +16,8 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Ouvre la sheet de création d'annonce du club [clubId].
 ///
@@ -133,13 +134,15 @@ class _CreateAnnouncementSheetState
     super.dispose();
   }
 
-  List<String> get _targetOptions {
-    final member = ref.read(clubMemberProvider(widget.clubId)).value;
-    final isAdmin = member?.role == MemberRoles.admin;
-    return isAdmin
-        ? AnnouncementTargetTypes.adminOptions
-        : AnnouncementTargetTypes.coachOptions;
-  }
+  /// Droit annonces : toutes les cibles. Coach d'équipe : ses équipes.
+  /// Lecture seule : `build` s'abonne aux droits via `ref.watch`.
+  bool get _canTargetClub => ref
+      .read(clubAccessProvider(widget.clubId))
+      .can(ClubPermission.manageAnnouncements);
+
+  List<String> get _targetOptions => _canTargetClub
+      ? AnnouncementTargetTypes.adminOptions
+      : AnnouncementTargetTypes.coachOptions;
 
   Future<void> _pickEndsAt() async {
     final pickedDate = await showDatePicker(
@@ -221,6 +224,7 @@ class _CreateAnnouncementSheetState
 
   @override
   Widget build(BuildContext context) {
+    final access = ref.watch(clubAccessProvider(widget.clubId));
     final theme = Theme.of(context).textTheme;
     final clubAsync = ref.watch(clubProvider(widget.clubId));
     final teamsAsync = ref.watch(clubTeamsProvider(widget.clubId));
@@ -290,7 +294,12 @@ class _CreateAnnouncementSheetState
                 data: (club) => _TargetPicker(
                   club: club,
                   targetType: targetType,
-                  teams: teamsAsync.value ?? [],
+                  teams: _canTargetClub
+                      ? teamsAsync.value ?? []
+                      : [
+                          for (final team in teamsAsync.value ?? <ClubTeam>[])
+                            if (access.coachesTeam(team.id)) team,
+                        ],
                   selectedIds: _selectedIds,
                   onToggle: (id, selected) => setState(() {
                     if (selected) {
@@ -330,9 +339,7 @@ class _CreateAnnouncementSheetState
     if (_targetType != null && options.contains(_targetType)) {
       return _targetType!;
     }
-    final member = ref.read(clubMemberProvider(widget.clubId)).value;
-    final isAdmin = member?.role == MemberRoles.admin;
-    final initial = isAdmin
+    final initial = _canTargetClub
         ? AnnouncementTargetTypes.tousLesMembres
         : AnnouncementTargetTypes.equipes;
     return options.contains(initial) ? initial : options.first;

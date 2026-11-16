@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
-import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/notification_preferences.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
@@ -48,7 +47,7 @@ class UserService {
       displayName: displayName.isNotEmpty ? displayName : user.displayName.trim(),
       phone: user.phone,
       avatarUrl: user.avatarUrl,
-      clubMemberships: user.clubMemberships,
+      memberClubIds: user.memberClubIds,
       parentLinks: user.parentLinks,
       parentClubIds: user.parentClubIds,
       profileCompleted: user.profileCompleted,
@@ -168,45 +167,6 @@ class UserService {
       },
       SetOptions(merge: true),
     );
-  }
-
-  Future<void> addClubMembership({
-    required String uid,
-    required String clubId,
-    required String role,
-    bool profileCompleted = true,
-  }) async {
-    final ref = _userRef(uid);
-    await _db.runTransaction((tx) async {
-      final snap = await tx.get(ref);
-      final data = snap.data() ?? {};
-      final existing = (data[FirestoreFields.clubMemberships] as List<dynamic>?)
-              ?.whereType<Map<String, dynamic>>()
-              .toList() ??
-          [];
-
-      final alreadyMember = existing.any(
-        (m) => m[FirestoreFields.clubId] == clubId,
-      );
-      if (!alreadyMember) {
-        existing.add(
-          ClubMembershipSummary(clubId: clubId, role: role).toMap(),
-        );
-      }
-
-      tx.set(
-        ref,
-        {
-          FirestoreFields.clubMemberships: existing,
-          FirestoreFields.flags: {
-            FirestoreFields.profileCompleted: profileCompleted,
-            FirestoreFields.disabled: false,
-          },
-          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-    });
   }
 
   /// Formate un prénom ; vide si entrée vide ; rejette les caractères interdits.

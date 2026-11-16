@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/chat/open_chat_thread.dart';
@@ -25,6 +24,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/conversation_list_tile.dart';
+import 'package:viro_team_v2/features/clubs/providers/club_session_badge_provider.dart';
 
 /// Hauteur du fondu bas (contenu qui disparaît doucement).
 const double _kBottomFadeHeight = 56;
@@ -86,20 +86,14 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     final states = ref.watch(chatStatesProvider).value ?? const {};
     final clubs = ref.watch(userClubsProvider).value ?? const [];
     final clubById = {for (final e in clubs) e.club.id: e.club};
-    final clubRoleById = <String, ViroRole>{};
-    for (final entry in clubs) {
-      final role = viroRoleForClubSession(
-        memberRole: entry.membership?.role,
-        hasFamilyLinks: entry.hasFamilyLinks,
-      );
-      if (role != null) clubRoleById[entry.club.id] = role;
-    }
+    final clubRoleById = <String, ViroRole>{
+      for (final entry in clubs)
+        entry.club.id: ?ref.watch(clubSessionBadgeProvider(entry.club.id)),
+    };
     final previewSenders =
         ref.watch(chatPreviewSendersProvider).value ?? const {};
     final dmPeers = ref.watch(chatDmPeersProvider).value ?? const {};
-    final isAdminSomewhere = clubs.any(
-      (e) => e.membership?.role == MemberRoles.admin,
-    );
+    final canManageChatSomewhere = ref.watch(manageChatClubsProvider).isNotEmpty;
 
     return ViroScaffold(
       fallbackRoute: AppRoutes.home,
@@ -107,7 +101,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
         fallbackRoute: AppRoutes.home,
         title: Text(AppCopy.chat.conversationsTitle),
         actions: [
-          if (isAdminSomewhere)
+          if (canManageChatSomewhere)
             Padding(
               padding: const EdgeInsets.only(right: ViroSpacing.sm),
               child: Center(
@@ -329,11 +323,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final clubs = ref.read(userClubsProvider).value ?? const [];
-    final adminClubs = clubs
-        .where((e) => e.membership?.role == MemberRoles.admin)
-        .map((e) => e.club)
-        .toList();
+    final adminClubs = ref.read(manageChatClubsProvider);
     if (adminClubs.isEmpty) return;
     final result = await CreateChannelDialog.show(
       context,

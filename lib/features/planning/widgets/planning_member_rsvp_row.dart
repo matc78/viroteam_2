@@ -24,7 +24,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
     this.lastUpdatedAt,
     this.seenAt,
     this.seenEyeDelay = Duration.zero,
-    this.isTeamCoach = false,
+    this.badge,
     this.onRsvpSelected,
     this.onProfileTap,
   });
@@ -49,8 +49,9 @@ class PlanningMemberRsvpRow extends StatelessWidget {
   /// Attente avant l'ouverture animée de l'œil (cascade dans la liste).
   final Duration seenEyeDelay;
 
-  /// `true` si le membre est sur le roster coach d'une équipe de l'événement.
-  final bool isTeamCoach;
+  /// Badge de rôle sous le nom (`planningRsvpRowBadge`) : Entraîneur d'une
+  /// équipe de l'événement, Admin sur un événement spécial, sinon `null`.
+  final ViroRole? badge;
 
   /// Si non null, le badge RSVP ouvre un menu pour changer la réponse (staff).
   final ValueChanged<RsvpStatus>? onRsvpSelected;
@@ -107,13 +108,13 @@ class PlanningMemberRsvpRow extends StatelessWidget {
     final theme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
     final answeredAtLocal = lastUpdatedAt?.toLocal();
-    final badge = PlanningRsvpStatusBadge(status: status);
+    final rsvpBadge = PlanningRsvpStatusBadge(status: status);
     final trailing = onRsvpSelected == null
-        ? badge
+        ? rsvpBadge
         : ViroPressable(
             label: AppCopy.planning.editMemberRsvpTooltip,
             onTap: () => _pickStaffRsvp(context),
-            child: badge,
+            child: rsvpBadge,
           );
 
     final memberName = member.fullName.isNotEmpty
@@ -145,18 +146,15 @@ class PlanningMemberRsvpRow extends StatelessWidget {
                     color: palette.brandText,
                   ),
                 ),
-                if (isTeamCoach || !member.hasLinkedAccount) ...[
+                if (badge != null || !member.hasLinkedAccount) ...[
                   const SizedBox(height: 2),
                   Wrap(
                     spacing: ViroSpacing.xs,
                     runSpacing: 2,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      if (isTeamCoach)
-                        const ViroRoleBadge(
-                          role: ViroRole.coach,
-                          compact: true,
-                        ),
+                      if (badge != null)
+                        ViroRoleBadge(role: badge!, compact: true),
                       if (!member.hasLinkedAccount)
                         Text(
                           AppCopy.planning.notRegisteredYet,

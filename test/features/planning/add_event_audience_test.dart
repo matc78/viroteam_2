@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_form_controller.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_helpers.dart';
@@ -12,7 +11,6 @@ import 'package:viro_team_v2/models/club_team.dart';
 ClubMember _member(String memberId, {String? accountUid}) => ClubMember(
   memberId: memberId,
   accountUid: accountUid,
-  role: MemberRoles.player,
   status: 'active',
 );
 
@@ -122,14 +120,12 @@ void main() {
       final members = [
         const ClubMember(
           memberId: 'mem-z',
-          role: MemberRoles.player,
           status: 'active',
           firstName: 'Zoé',
         ),
         const ClubMember(
           memberId: 'uid-a',
           accountUid: 'uid-a',
-          role: MemberRoles.player,
           status: 'active',
           firstName: 'Adam',
         ),

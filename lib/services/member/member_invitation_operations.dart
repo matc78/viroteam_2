@@ -5,6 +5,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_invitation.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
 
@@ -19,11 +20,6 @@ class MemberInvitationOperations {
 
   final FirebaseFirestore _db;
   final String Function(String? rawEmail) _normalizeEmail;
-
-  CollectionReference<Map<String, dynamic>> _members(String clubId) => _db
-      .collection(ProjectConfig.clubsCollection)
-      .doc(clubId)
-      .collection(ProjectConfig.membersSubcollection);
 
   CollectionReference<Map<String, dynamic>> _invitations(String clubId) => _db
       .collection(ProjectConfig.clubsCollection)
@@ -45,7 +41,7 @@ class MemberInvitationOperations {
     final trimmedLast = formatLastName(lastName);
     final normalizedEmail = _normalizeEmail(email);
 
-    final memberRef = _members(clubId).doc(memberId);
+    final memberRef = clubMemberRef(_db, clubId, memberId);
 
     await _db.runTransaction((tx) async {
       final memberSnap = await tx.get(memberRef);
@@ -106,7 +102,7 @@ class MemberInvitationOperations {
     required String email,
   }) async {
     final normalizedEmail = _normalizeEmail(email);
-    final memberRef = _members(clubId).doc(member.memberId);
+    final memberRef = clubMemberRef(_db, clubId, member.memberId);
     final newInviteRef = _invitations(clubId).doc();
     final code = generateInviteCode();
     final expiresAt = DateTime.now().add(const Duration(days: 7));
@@ -159,7 +155,6 @@ class MemberInvitationOperations {
         }
       }
 
-      final role = data[FirestoreFields.role] as String? ?? MemberRoles.player;
       final firstName =
           (data[FirestoreFields.firstName] as String?)?.trim() ??
           member.firstName?.trim() ??
@@ -172,7 +167,6 @@ class MemberInvitationOperations {
       tx.set(newInviteRef, {
         FirestoreFields.code: code,
         FirestoreFields.type: InvitationTypes.member,
-        FirestoreFields.role: role,
         FirestoreFields.status: InvitationStatus.pending,
         FirestoreFields.email: normalizedEmail,
         FirestoreFields.memberId: member.memberId,

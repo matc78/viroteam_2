@@ -5,9 +5,7 @@ import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provide
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
-import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
@@ -70,8 +68,6 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
         !hasAvatar && club.logoUrl != null && club.logoUrl!.isNotEmpty;
 
     final membersAsync = ref.watch(clubMembersProvider(team.clubId));
-    final viewerMember = ref.watch(clubMemberProvider(team.clubId)).value;
-    final viewerRole = viewerMember?.role ?? MemberRoles.player;
     final sessionMemberId =
         ref.watch(rosterSessionMemberIdProvider(team.clubId));
     final membersByUid = membersAsync.value != null
@@ -160,7 +156,6 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                 title: AppCopy.teams.staffCoachesSection,
                 uids: team.coachIds,
                 membersByUid: membersByUid,
-                viewerRole: viewerRole,
                 sessionMemberId: sessionMemberId,
                 displayRole: ViroRole.coach,
               ),
@@ -169,7 +164,6 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                 title: AppCopy.teams.teammatesSection,
                 uids: team.playerIds,
                 membersByUid: membersByUid,
-                viewerRole: viewerRole,
                 sessionMemberId: sessionMemberId,
                 displayRole: ViroRole.player,
               ),
@@ -195,7 +189,6 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                     (p) => MemberListTile(
                       member: pendingAsClubMember(p),
                       club: club,
-                      viewerRole: viewerRole,
                       accentColor: widget.accent,
                       showClubAdminActions: false,
                       displayRole: ViroRole.player,
@@ -215,7 +208,6 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
     required String title,
     required List<String> uids,
     required Map<String, ClubMember> membersByUid,
-    required String viewerRole,
     required String? sessionMemberId,
     required ViroRole displayRole,
   }) {
@@ -236,7 +228,6 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
         return MemberListTile(
           member: member,
           club: widget.club,
-          viewerRole: viewerRole,
           accentColor: widget.accent,
           showClubAdminActions: false,
           displayRole: displayRole,
@@ -247,7 +238,6 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                     ref: ref,
                     club: widget.club,
                     member: member,
-                    viewerRole: viewerRole,
                     accentColor: widget.accent,
                   )
               : null,

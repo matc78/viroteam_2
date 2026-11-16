@@ -130,10 +130,7 @@ bool applyDeepLinkClubSession({
   if (!userCanOpenClub(user, clubId)) return false;
   final current = ref.read(sessionProvider).activeClubId;
   if (current != clubId) {
-    ref.read(sessionProvider.notifier).setActiveClub(
-          clubId,
-          role: user.membershipInClub(clubId)?.role,
-        );
+    ref.read(sessionProvider.notifier).setActiveClub(clubId);
   }
   return true;
 }

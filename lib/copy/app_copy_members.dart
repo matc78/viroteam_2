@@ -79,7 +79,6 @@ final class AppCopyMembers {
   String get searchParentHint => 'Chercher un parent…';
   String get filterPending => 'En attente';
   String get filterConnected => 'Connectés';
-  String get coachLabel => 'Coach';
   String get removeFromTeam => 'Retirer de l\'équipe';
   String get noActionForSelection =>
       'Aucune action dispo pour cette sélection.';
@@ -89,13 +88,7 @@ final class AppCopyMembers {
   String get memberNotFound => 'Membre introuvable.';
   String get memberAlreadyLinked => 'Ce membre a déjà un compte lié.';
 
-  String get roleChangeImpossible => 'Changement de rôle impossible.';
-  String get cannotChangeOwnRole =>
-      'Tu ne peux pas modifier ton propre rôle — un autre admin doit le faire.';
-  String get roleUpdated => 'Rôle mis à jour — c’est bon.';
   String get memberRemoved => 'Membre retiré du club';
-  String get changeRole => 'Changer le rôle';
-  String roleOf(String name) => 'Rôle de $name';
 
   String get messageCopied => 'Message copié — prêt à coller.';
   String get inviteMessageCopied => 'Message d’invitation copié';
@@ -132,7 +125,6 @@ final class AppCopyMembers {
   String get labelFee => 'Cotisation';
   String get labelLicense => 'Licence';
   String get labelParent => 'Parent';
-  String get labelRole => 'Rôle';
   String get parentInvited => 'Parent invité';
   String get inviteExpiredLower => 'invitation expirée';
   String get pendingLower => 'en attente';
@@ -215,7 +207,7 @@ final class AppCopyMembers {
     return 'Aucun joueur ajouté.';
   }
 
-  String get teamRoleCoach => 'coach';
+  String get teamRoleCoach => 'entraîneur';
   String get teamRolePlayer => 'joueur';
 
   String inviteSendSummary({

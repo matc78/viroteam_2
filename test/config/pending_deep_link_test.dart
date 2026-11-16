@@ -3,12 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
-import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/parent_link.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 
 ViroUser _user({
-  List<ClubMembershipSummary> memberships = const [],
+  List<String> memberships = const [],
   List<ParentLink> parentLinks = const [],
 }) {
   return ViroUser(
@@ -18,7 +17,7 @@ ViroUser _user({
     firstName: 'Tristan',
     lastName: 'Heraud',
     displayName: 'Tristan Heraud',
-    clubMemberships: memberships,
+    memberClubIds: memberships,
     parentLinks: parentLinks,
   );
 }
@@ -77,7 +76,7 @@ void main() {
     test('membre du club', () {
       final user = _user(
         memberships: const [
-          ClubMembershipSummary(clubId: 'c1', role: MemberRoles.player),
+          'c1',
         ],
       );
       expect(userCanOpenClub(user, 'c1'), isTrue);
@@ -159,7 +158,7 @@ void main() {
   group('pendingDeepLinkTarget', () {
     final member = _user(
       memberships: const [
-        ClubMembershipSummary(clubId: 'c1', role: MemberRoles.player),
+        'c1',
       ],
     );
 

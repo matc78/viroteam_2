@@ -1,76 +1,47 @@
 import 'package:viro_team_v2/copy/app_copy.dart';
-import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
-/// Libellé FR d’un flag coach (aligné portail).
+/// Libellé FR d’une capacité coach (aligné portail).
 class CoachPermissionLabel {
   const CoachPermissionLabel({
+    required this.flag,
     required this.label,
     required this.description,
-    required this.apply,
   });
 
+  final CoachFlag flag;
   final String label;
   final String description;
-  final CoachPermissions Function(CoachPermissions current, bool enabled) apply;
 }
 
-/// Liste des droits coach éditables (ordre portail).
+/// Capacités coach éditables (ordre du catalogue, aligné portail).
 final coachPermissionLabels = <CoachPermissionLabel>[
-  CoachPermissionLabel(
-    label: AppCopy.club.permCreateEventsLabel,
-    description: AppCopy.club.permCreateEventsDesc,
-    apply: _applyCanCreateEvents,
-  ),
-  CoachPermissionLabel(
-    label: AppCopy.club.permManageRosterLabel,
-    description: AppCopy.club.permManageRosterDesc,
-    apply: _applyCanManageTeamRoster,
-  ),
-  CoachPermissionLabel(
-    label: AppCopy.club.permInvitePlayersLabel,
-    description: AppCopy.club.permInvitePlayersDesc,
-    apply: _applyCanInvitePlayers,
-  ),
-  CoachPermissionLabel(
-    label: AppCopy.club.permTakeAttendanceLabel,
-    description: AppCopy.club.permTakeAttendanceDesc,
-    apply: _applyCanTakeAttendance,
-  ),
-  CoachPermissionLabel(
-    label: AppCopy.club.permViewFeesLabel,
-    description: AppCopy.club.permViewFeesDesc,
-    apply: _applyCanViewFees,
-  ),
-  CoachPermissionLabel(
-    label: AppCopy.club.permEditLicensesLabel,
-    description: AppCopy.club.permEditLicensesDesc,
-    apply: _applyCanEditMemberLicenses,
-  ),
-  CoachPermissionLabel(
-    label: AppCopy.club.permEditMemberRsvpLabel,
-    description: AppCopy.club.permEditMemberRsvpDesc,
-    apply: _applyCanEditMemberRsvp,
-  ),
+  for (final flag in CoachFlag.values)
+    CoachPermissionLabel(
+      flag: flag,
+      label: _label(flag),
+      description: _description(flag),
+    ),
 ];
 
-CoachPermissions _applyCanCreateEvents(CoachPermissions current, bool v) =>
-    current.copyWith(canCreateEvents: v);
+String _label(CoachFlag flag) => switch (flag) {
+      CoachFlag.canCreateEvents => AppCopy.club.permCreateEventsLabel,
+      CoachFlag.canManageTeamRoster => AppCopy.club.permManageRosterLabel,
+      CoachFlag.canInvitePlayers => AppCopy.club.permInvitePlayersLabel,
+      CoachFlag.canTakeAttendance => AppCopy.club.permTakeAttendanceLabel,
+      CoachFlag.canPublishTeamAnnouncements =>
+        AppCopy.club.permPublishTeamAnnouncementsLabel,
+      CoachFlag.canEditMemberLicenses => AppCopy.club.permEditLicensesLabel,
+      CoachFlag.canEditMemberRsvp => AppCopy.club.permEditMemberRsvpLabel,
+    };
 
-CoachPermissions _applyCanManageTeamRoster(CoachPermissions current, bool v) =>
-    current.copyWith(canManageTeamRoster: v);
-
-CoachPermissions _applyCanInvitePlayers(CoachPermissions current, bool v) =>
-    current.copyWith(canInvitePlayers: v);
-
-CoachPermissions _applyCanTakeAttendance(CoachPermissions current, bool v) =>
-    current.copyWith(canTakeAttendance: v);
-
-CoachPermissions _applyCanViewFees(CoachPermissions current, bool v) =>
-    current.copyWith(canViewFees: v);
-
-CoachPermissions _applyCanEditMemberLicenses(
-        CoachPermissions current, bool v) =>
-    current.copyWith(canEditMemberLicenses: v);
-
-CoachPermissions _applyCanEditMemberRsvp(CoachPermissions current, bool v) =>
-    current.copyWith(canEditMemberRsvp: v);
+String _description(CoachFlag flag) => switch (flag) {
+      CoachFlag.canCreateEvents => AppCopy.club.permCreateEventsDesc,
+      CoachFlag.canManageTeamRoster => AppCopy.club.permManageRosterDesc,
+      CoachFlag.canInvitePlayers => AppCopy.club.permInvitePlayersDesc,
+      CoachFlag.canTakeAttendance => AppCopy.club.permTakeAttendanceDesc,
+      CoachFlag.canPublishTeamAnnouncements =>
+        AppCopy.club.permPublishTeamAnnouncementsDesc,
+      CoachFlag.canEditMemberLicenses => AppCopy.club.permEditLicensesDesc,
+      CoachFlag.canEditMemberRsvp => AppCopy.club.permEditMemberRsvpDesc,
+    };

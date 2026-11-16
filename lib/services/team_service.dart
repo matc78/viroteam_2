@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
-import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
@@ -238,7 +237,7 @@ class TeamService {
     required String teamId,
     required String uid,
   }) async {
-    await _syncRosterAndMemberTeamIds(
+    await _syncRoster(
       clubId: clubId,
       teamId: teamId,
       rosterUid: uid,
@@ -258,7 +257,7 @@ class TeamService {
     required String teamId,
     required String uid,
   }) async {
-    await _syncRosterAndMemberTeamIds(
+    await _syncRoster(
       clubId: clubId,
       teamId: teamId,
       rosterUid: uid,
@@ -275,9 +274,9 @@ class TeamService {
 
   /// Ajout en masse de joueurs au roster, par lots atomiques (`WriteBatch`).
   ///
-  /// Fiches liées → `playerIds` + `members.teamIds` ; fiches sans compte →
-  /// `pendingPlayerIds`. Un lot passe entièrement ou pas du tout : le
-  /// compteur [BulkTeamAddResult.added] ne compte que les lots validés,
+  /// Fiches liées → `playerIds` (`members.teamIds` suit par trigger) ; fiches
+  /// sans compte → `pendingPlayerIds`. Un lot passe entièrement ou pas du
+  /// tout : le compteur [BulkTeamAddResult.added] ne compte que les lots validés,
   /// [BulkTeamAddResult.failed] ceux qui ont échoué. Les convocations aux
   /// événements à venir sont synchronisées ensuite, en best-effort.
   Future<BulkTeamAddResult> addPlayersToTeam({
@@ -326,12 +325,6 @@ class TeamService {
           ),
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       });
-      for (final member in linked) {
-        batch.update(_members(clubId).doc(member.memberId), {
-          FirestoreFields.teamIds: FieldValue.arrayUnion([team.id]),
-          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-        });
-      }
 
       try {
         await batch.commit();
@@ -381,7 +374,7 @@ class TeamService {
     required String teamId,
     required String uid,
   }) async {
-    await _syncRosterAndMemberTeamIds(
+    await _syncRoster(
       clubId: clubId,
       teamId: teamId,
       rosterUid: uid,
@@ -408,7 +401,7 @@ class TeamService {
     required String teamId,
     required String uid,
   }) async {
-    await _syncRosterAndMemberTeamIds(
+    await _syncRoster(
       clubId: clubId,
       teamId: teamId,
       rosterUid: uid,
@@ -465,20 +458,15 @@ class TeamService {
         .toList();
   }
 
-  CollectionReference<Map<String, dynamic>> _members(String clubId) => _db
-      .collection(ProjectConfig.clubsCollection)
-      .doc(clubId)
-      .collection(ProjectConfig.membersSubcollection);
-
-  /// Met à jour roster équipe + `members.teamIds` dans une transaction.
-  Future<void> _syncRosterAndMemberTeamIds({
+  /// Met à jour le roster de l'équipe ([rosterField]) dans une transaction.
+  /// `members.teamIds` / `coachTeamIds` sont dérivés côté serveur (trigger).
+  Future<void> _syncRoster({
     required String clubId,
     required String teamId,
     required String rosterUid,
     required String rosterField,
     required bool add,
   }) async {
-    final memberRef = clubMemberRef(_db, clubId, rosterUid);
     final teamRef = _teams(clubId).doc(teamId);
 
     await _db.runTransaction((tx) async {
@@ -487,16 +475,11 @@ class TeamService {
         throw StateError('Équipe introuvable.');
       }
 
-      final teamData = teamSnap.data() ?? {};
-      final memberSnap = await tx.get(memberRef);
-      final memberData = memberSnap.exists ? memberSnap.data() : null;
-
-      List<String> readIds(String field) =>
-          ((teamData[field] as List<dynamic>?)?.whereType<String>() ??
+      final currentIds =
+          ((teamSnap.data()?[rosterField] as List<dynamic>?)
+                      ?.whereType<String>() ??
                   const <String>[])
               .toList();
-
-      final currentIds = readIds(rosterField);
       late final List<String> nextIds;
       if (add) {
         nextIds = currentIds.contains(rosterUid)
@@ -508,39 +491,6 @@ class TeamService {
 
       tx.update(teamRef, {
         rosterField: nextIds,
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      });
-
-      if (memberData == null) return;
-
-      final playerIds = rosterField == FirestoreFields.playerIds
-          ? nextIds
-          : readIds(FirestoreFields.playerIds);
-      final coachIds = rosterField == FirestoreFields.coachIds
-          ? nextIds
-          : readIds(FirestoreFields.coachIds);
-      final stillOnTeam =
-          playerIds.contains(rosterUid) || coachIds.contains(rosterUid);
-
-      final currentTeamIds =
-          ((memberData[FirestoreFields.teamIds] as List<dynamic>?)
-                      ?.whereType<String>() ??
-                  const <String>[])
-              .toList();
-
-      if (add) {
-        if (currentTeamIds.contains(teamId)) return;
-        tx.update(memberRef, {
-          FirestoreFields.teamIds: [...currentTeamIds, teamId],
-          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-        });
-        return;
-      }
-
-      if (stillOnTeam || !currentTeamIds.contains(teamId)) return;
-      tx.update(memberRef, {
-        FirestoreFields.teamIds:
-            currentTeamIds.where((id) => id != teamId).toList(),
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       });
     });

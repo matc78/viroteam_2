@@ -2,13 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
-import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
-import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/widgets/create_team_dialog.dart';
 import 'package:viro_team_v2/features/teams/widgets/manage_team_card.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -16,6 +12,8 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Ouvre le dialog de création d’équipe et persiste en Firestore.
 Future<void> createClubTeam({
@@ -58,16 +56,8 @@ class ManageTeamsBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
     final clubAsync = ref.watch(clubProvider(clubId));
-    final memberAsync = ref.watch(clubMemberProvider(clubId));
-    final authUid = ref.watch(authStateProvider).value?.uid;
-
-    final viewerRole = memberAsync.value?.role ?? MemberRoles.player;
-    final permissions = TeamManagePermissions(
-      viewerRole: viewerRole,
-      currentUid: authUid,
-      coachPermissions:
-          clubAsync.value?.coachPermissions ?? CoachPermissions.defaults,
-    );
+    final canCreateTeam =
+        ref.watch(clubAccessProvider(clubId)).can(ClubPermission.manageTeams);
 
     return clubAsync.when(
       loading: () => const Center(child: ViroLogoLoader()),
@@ -105,14 +95,14 @@ class ManageTeamsBody extends ConsumerWidget {
                             minHeight: MediaQuery.sizeOf(context).height * 0.4,
                           ),
                           child: ViroEmptyState(
-                            message: permissions.canCreateTeam()
+                            message: canCreateTeam
                                 ? AppCopy.teams.emptyClub
                                 : AppCopy.teams.emptyClubReadOnly,
                             icon: ViroIcons.groups,
-                            actionLabel: permissions.canCreateTeam()
+                            actionLabel: canCreateTeam
                                 ? AppCopy.teams.createTeamFab
                                 : null,
-                            onAction: permissions.canCreateTeam()
+                            onAction: canCreateTeam
                                 ? () => createClubTeam(
                                       context: context,
                                       ref: ref,
@@ -138,8 +128,6 @@ class ManageTeamsBody extends ConsumerWidget {
                           team: teams[index],
                           club: club,
                           accent: accent,
-                          permissions: permissions,
-                          viewerRole: viewerRole,
                         );
                       },
                     ),

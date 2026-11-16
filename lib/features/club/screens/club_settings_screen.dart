@@ -6,7 +6,6 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permission_labels.dart';
@@ -22,6 +21,7 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 
 /// Paramètres club admin : fin de saison et droits coachs (aligné portail `/settings`).
 class ClubSettingsScreen extends ConsumerStatefulWidget {
@@ -42,14 +42,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
 
   bool _coachDirty(CoachPermissions current) {
     final draft = _permissionsDraft;
-    if (draft == null) return false;
-    return draft.canCreateEvents != current.canCreateEvents ||
-        draft.canManageTeamRoster != current.canManageTeamRoster ||
-        draft.canInvitePlayers != current.canInvitePlayers ||
-        draft.canTakeAttendance != current.canTakeAttendance ||
-        draft.canViewFees != current.canViewFees ||
-        draft.canEditMemberLicenses != current.canEditMemberLicenses ||
-        draft.canEditMemberRsvp != current.canEditMemberRsvp;
+    return draft != null && draft != current;
   }
 
   bool _seasonDirty(DateTime? configured) {
@@ -166,30 +159,23 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
     }
   }
 
-  bool _permissionValue(CoachPermissions permissions, int index) {
-    return switch (index) {
-      0 => permissions.canCreateEvents,
-      1 => permissions.canManageTeamRoster,
-      2 => permissions.canInvitePlayers,
-      3 => permissions.canTakeAttendance,
-      4 => permissions.canViewFees,
-      5 => permissions.canEditMemberLicenses,
-      6 => permissions.canEditMemberRsvp,
-      _ => false,
-    };
-  }
+  bool _permissionValue(CoachPermissions permissions, int index) =>
+      permissions.allows(coachPermissionLabels[index].flag);
 
   void _togglePermission(int index, bool enabled) {
     final current = _permissionsDraft ?? CoachPermissions.defaults;
     setState(() {
-      _permissionsDraft = coachPermissionLabels[index].apply(current, enabled);
+      _permissionsDraft =
+          current.withFlag(coachPermissionLabels[index].flag, enabled);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
-    final member = ref.watch(clubMemberProvider(clubId)).value;
+    // Réglages coach : droit Administrateur seul (le reste de la page :
+    // `manageClubSettings`, vérifié par la garde du routeur).
+    final canEditCoachRights = ref.watch(clubAccessProvider(clubId)).isAdmin;
     final clubAsync = ref.watch(clubProvider(clubId));
     final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
     final managementAccent = ref.watch(clubManagementAccentProvider(clubId));
@@ -197,22 +183,6 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
     final readableManagementAccent = palette.readableAccent(managementAccent);
 
     final clubRoute = AppRoutes.clubDetailPath(clubId);
-
-    if (member != null && member.role != MemberRoles.admin) {
-      return ViroScaffold(
-        fallbackRoute: clubRoute,
-        appBar: ViroAppBar(
-          fallbackRoute: clubRoute,
-          title: Text(AppCopy.club.settingsTitle),
-        ),
-        body: ViroEmptyState(
-          icon: ViroIcons.block,
-          message: AppCopy.club.settingsAdminOnly,
-          actionLabel: AppCopy.club.backToClub,
-          onAction: () => context.go(clubRoute),
-        ),
-      );
-    }
 
     final club = clubAsync.value;
     final hasChanges = club != null && _hasChanges(club);
@@ -397,7 +367,7 @@ class _ClubSettingsScreenState extends ConsumerState<ClubSettingsScreen> {
                           ),
                           value: _permissionValue(permissions, index),
                           activeThumbColor: managementAccent,
-                          onChanged: _saving
+                          onChanged: _saving || !canEditCoachRights
                               ? null
                               : (enabled) => _togglePermission(index, enabled),
                         ),

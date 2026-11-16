@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:viro_team_v2/features/announcements/announcement_target_types.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
-import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/parent_link.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/services/announcement_service.dart';
@@ -17,7 +16,7 @@ void main() {
     );
 
     ViroUser user({
-      List<ClubMembershipSummary> memberships = const [],
+      List<String> memberships = const [],
       List<ParentLink> links = const [],
     }) =>
         ViroUser(
@@ -27,7 +26,7 @@ void main() {
           firstName: 'Paul',
           lastName: 'Parent',
           displayName: 'Paul Parent',
-          clubMemberships: memberships,
+          memberClubIds: memberships,
           parentLinks: links,
         );
 
@@ -37,7 +36,7 @@ void main() {
 
     test('false : licencié du club (même avec un enfant)', () {
       final licensed = user(
-        memberships: const [ClubMembershipSummary(clubId: 'club1', role: 'player')],
+        memberships: const ['club1'],
         links: [activeLink],
       );
       expect(licensed.isGuardianOnlyInClub('club1'), isFalse);

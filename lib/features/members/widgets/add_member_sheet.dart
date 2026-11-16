@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_email_button.dart';
@@ -23,7 +21,9 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
-/// Ouvre la feuille d’ajout membre (joueur / coach) avec écran succès.
+/// Ouvre la feuille d’ajout d’un membre (fiche pré-inscrite + invitation)
+/// avec écran succès. Les droits et le rôle d’entraîneur se règlent ensuite
+/// (fiche membre, équipe).
 Future<void> showAddMemberSheet(
   BuildContext context, {
   required Club club,
@@ -57,7 +57,6 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
-  String _role = MemberRoles.player;
   bool _busy = false;
   String? _error;
   AddMemberResult? _created;
@@ -106,7 +105,6 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
                 clubId: widget.club.id,
                 firstName: _firstNameController.text.trim(),
                 lastName: _lastNameController.text.trim(),
-                role: _role,
                 sentByUid: auth.uid,
                 club: widget.club,
                 email: normalizeEmail(_emailController.text),
@@ -224,66 +222,6 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
             errorText: _emailFieldError,
           ),
           onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: ViroSpacing.md),
-        Row(
-          children: [
-            Expanded(
-              child: ChoiceChip(
-                label: Text(AppCopy.common.rolePlayer),
-                selected: _role == MemberRoles.player,
-                onSelected: _busy
-                    ? null
-                    : (selected) {
-                        if (selected) {
-                          setState(() => _role = MemberRoles.player);
-                        }
-                      },
-                showCheckmark: false,
-                selectedColor: ViroColors.playerBadgeStart,
-                backgroundColor: palette.surfaceSubtle,
-                side: BorderSide(
-                  color: _role == MemberRoles.player
-                      ? ViroColors.playerBadgeStart
-                      : palette.border,
-                ),
-                labelStyle: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: _role == MemberRoles.player
-                      ? ViroColors.white
-                      : ViroColors.playerBadgeEnd,
-                ),
-              ),
-            ),
-            const SizedBox(width: ViroSpacing.sm),
-            Expanded(
-              child: ChoiceChip(
-                label: Text(AppCopy.common.roleCoachShort),
-                selected: _role == MemberRoles.coach,
-                onSelected: _busy
-                    ? null
-                    : (selected) {
-                        if (selected) {
-                          setState(() => _role = MemberRoles.coach);
-                        }
-                      },
-                showCheckmark: false,
-                selectedColor: ViroColors.coachBadgeStart,
-                backgroundColor: palette.surfaceSubtle,
-                side: BorderSide(
-                  color: _role == MemberRoles.coach
-                      ? ViroColors.coachBadgeStart
-                      : palette.border,
-                ),
-                labelStyle: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: _role == MemberRoles.coach
-                      ? ViroColors.white
-                      : ViroColors.coachBadgeEnd,
-                ),
-              ),
-            ),
-          ],
         ),
         if (_error != null) ...[
           const SizedBox(height: ViroSpacing.md),

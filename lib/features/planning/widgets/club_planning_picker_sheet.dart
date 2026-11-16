@@ -6,6 +6,8 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/widgets/lists/club_list_tile.dart';
+import 'package:viro_team_v2/features/clubs/providers/club_session_badge_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Feuille « Quel club ? » : choisit le club dont ouvrir le planning complet
 /// (état vide du planning membre quand on a plusieurs clubs).
@@ -47,15 +49,19 @@ Future<void> showClubPlanningPickerSheet(
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: clubs.length,
-                itemBuilder: (_, index) => ClubListTile(
-                  club: clubs[index].club,
-                  membership: clubs[index].membership,
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    context.push(
-                      AppRoutes.clubPlanningPath(clubs[index].club.id),
-                    );
-                  },
+                itemBuilder: (_, index) => Consumer(
+                  builder: (_, ref, _) => ClubListTile(
+                    club: clubs[index].club,
+                    role: ref.watch(
+                      clubSessionBadgeProvider(clubs[index].club.id),
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push(
+                        AppRoutes.clubPlanningPath(clubs[index].club.id),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

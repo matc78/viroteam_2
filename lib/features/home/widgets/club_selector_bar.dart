@@ -17,6 +17,7 @@ import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/features/clubs/providers/club_session_badge_provider.dart';
 
 /// Sélecteur de clubs flottant en bas (logos + ajout + chat) sur un fond
 /// flouté qui détache les boutons du contenu.
@@ -67,10 +68,7 @@ class ClubSelectorBar extends ConsumerWidget {
       return _ClubBarItem(
         label: _shortName(club.name),
         club: club,
-        role: viroRoleForClubSession(
-          memberRole: entry.membership?.role,
-          hasFamilyLinks: entry.hasFamilyLinks,
-        ),
+        role: ref.watch(clubSessionBadgeProvider(club.id)),
         accentColor: clubAccentColor(
           brandColorHex: club.brandColorHex,
           clubId: club.id,

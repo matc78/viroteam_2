@@ -4,7 +4,6 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
@@ -154,9 +153,8 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                 final coaches = members
                     .where(
                       (m) =>
+                          // Coach = relation d'équipe : tout membre actif.
                           m.isActive &&
-                          (m.role == MemberRoles.coach ||
-                              m.role == MemberRoles.admin) &&
                           m.memberId.isNotEmpty &&
                           !widget.team.isOnCoachRoster(m) &&
                           _matchesSearch(m),
@@ -184,14 +182,10 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                       .where(_matchesSearch)
                       .toList();
                   final players = eligible
-                      .where((m) => m.role == MemberRoles.player)
+                      .where((m) => !m.hasStaffBadge)
                       .toList();
                   final staffAsPlayers = eligible
-                      .where(
-                        (m) =>
-                            m.role == MemberRoles.coach ||
-                            m.role == MemberRoles.admin,
-                      )
+                      .where((m) => m.hasStaffBadge)
                       .toList();
                   final pendingAvailable = pending
                       .where(
@@ -357,10 +351,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
   bool _canAddAsPlayer(ClubMember m) =>
       m.isActive &&
       m.memberId.isNotEmpty &&
-      !widget.team.isOnPlayerRoster(m) &&
-      (m.role == MemberRoles.player ||
-          m.role == MemberRoles.coach ||
-          m.role == MemberRoles.admin);
+      !widget.team.isOnPlayerRoster(m);
 
   static bool _isPendingAvailableToAdd({
     required PendingTeamMember pending,

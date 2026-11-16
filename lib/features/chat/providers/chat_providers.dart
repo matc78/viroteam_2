@@ -79,7 +79,7 @@ final chatPreviewSendersProvider =
           if (firstName.isEmpty) continue;
           out['$clubId|$accountUid'] = (
             firstName: firstName,
-            role: member.role,
+            role: member.chatBadgeId,
           );
         }
       } catch (_) {

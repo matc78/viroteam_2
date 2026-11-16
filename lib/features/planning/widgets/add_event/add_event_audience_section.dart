@@ -19,6 +19,7 @@ class AddEventAudienceSection extends StatelessWidget {
     required this.enabled,
     required this.onWholeClubChanged,
     required this.onTeamToggled,
+    this.allowWholeClub = true,
   });
 
   final bool wholeClub;
@@ -28,6 +29,10 @@ class AddEventAudienceSection extends StatelessWidget {
   final bool enabled;
   final ValueChanged<bool> onWholeClubChanged;
   final ValueChanged<String> onTeamToggled;
+
+  /// `false` sans le droit planning : un coach ne convoque que ses équipes
+  /// (choix « tout le club » masqué).
+  final bool allowWholeClub;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +47,7 @@ class AddEventAudienceSection extends StatelessWidget {
           AppCopy.planning.fieldAudience,
           accentColor: accentColor,
         ),
+        if (allowWholeClub)
         SegmentedButton<bool>(
           showSelectedIcon: false,
           segments: [

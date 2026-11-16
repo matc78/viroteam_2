@@ -6,7 +6,6 @@ class ClubInvitation {
     required this.id,
     required this.clubId,
     required this.code,
-    required this.role,
     required this.status,
     this.type = InvitationTypes.member,
     this.memberId,
@@ -30,7 +29,6 @@ class ClubInvitation {
   final String id;
   final String clubId;
   final String code;
-  final String role;
   final String status;
   final String type;
   final String? memberId;
@@ -95,7 +93,6 @@ class ClubInvitation {
       id: id,
       clubId: clubId,
       code: code,
-      role: role,
       status: status,
       type: type ?? this.type,
       memberId: memberId ?? this.memberId,
@@ -157,7 +154,6 @@ class ClubInvitation {
       id: lookup['invitationId'] as String? ?? '',
       clubId: lookup[FirestoreFields.clubId] as String? ?? '',
       code: lookup[FirestoreFields.code] as String? ?? '',
-      role: lookup[FirestoreFields.role] as String? ?? MemberRoles.player,
       status:
           lookup[FirestoreFields.status] as String? ?? InvitationStatus.pending,
       type: lookup[FirestoreFields.type] as String? ?? InvitationTypes.member,
@@ -184,7 +180,6 @@ class ClubInvitation {
       id: id,
       clubId: clubId,
       code: data[FirestoreFields.code] as String? ?? '',
-      role: data[FirestoreFields.role] as String? ?? MemberRoles.player,
       status:
           data[FirestoreFields.status] as String? ?? InvitationStatus.pending,
       type: data[FirestoreFields.type] as String? ?? InvitationTypes.member,

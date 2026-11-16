@@ -8,6 +8,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/services/analytics_consent_service.dart';
 import 'package:viro_team_v2/services/analytics_identity.dart';
+import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 
 /// Aligne l'identité PostHog sur la session : identifie l'utilisateur (uid
 /// Firebase) et son club actif quand le consentement est donné, oublie tout à
@@ -60,10 +61,17 @@ final analyticsIdentitySyncProvider = Provider<void>((ref) {
     }
 
     final session = ref.read(sessionProvider);
-    final activeRole = analyticsActiveRole(session.activeRole);
-    if (activeRole != sentActiveRole) {
-      sentActiveRole = activeRole;
-      unawaited(analytics.register(analyticsActiveRoleKey, activeRole));
+    final activeClubId = session.activeClubId;
+    final activeMember = activeClubId == null || activeClubId.isEmpty
+        ? null
+        : ref.read(clubMemberProvider(activeClubId)).value;
+    final activeBadge = analyticsActiveRole(
+      hasMemberDoc: activeMember != null,
+      badge: activeMember?.primaryBadge,
+    );
+    if (activeBadge != sentActiveRole) {
+      sentActiveRole = activeBadge;
+      unawaited(analytics.register(analyticsActiveRoleKey, activeBadge));
     }
 
     final clubId = session.activeClubId;

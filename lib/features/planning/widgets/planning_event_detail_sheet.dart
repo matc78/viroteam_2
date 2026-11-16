@@ -10,6 +10,8 @@ import 'package:viro_team_v2/features/club/providers/club_audience_providers.dar
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
+import 'package:viro_team_v2/features/planning/utils/planning_rsvp_badge.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_member_rsvp_row.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -18,7 +20,6 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
@@ -33,6 +34,8 @@ import 'package:viro_team_v2/features/planning/widgets/planning_convocation_shee
 import 'package:viro_team_v2/features/planning/widgets/planning_edit_event_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_roll_call_sheet.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_access.dart';
 
 enum _CancelScope { single, series }
 
@@ -44,7 +47,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     required this.scrollController,
     this.teamLabel,
     this.excludeCoachUids = const {},
-    this.canManageEvents = true,
     required this.onCanceled,
     this.onRsvpUpdated,
   });
@@ -54,7 +56,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
   final ScrollController scrollController;
   final String? teamLabel;
   final Set<String> excludeCoachUids;
-  final bool canManageEvents;
   final VoidCallback onCanceled;
 
   /// Notifie l'écran parent après un RSVP (invalidation des listes).
@@ -66,7 +67,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     required ClubEvent event,
     String? teamLabel,
     Set<String> excludeCoachUids = const {},
-    bool canManageEvents = true,
     required VoidCallback onCanceled,
     VoidCallback? onRsvpUpdated,
   }) {
@@ -96,7 +96,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
                 scrollController: scrollController,
                 teamLabel: teamLabel,
                 excludeCoachUids: excludeCoachUids,
-                canManageEvents: canManageEvents,
                 onCanceled: onCanceled,
                 onRsvpUpdated: onRsvpUpdated,
               ),
@@ -144,28 +143,29 @@ class _PlanningEventDetailSheetState
     return !eventDay.isAfter(today);
   }
 
-  bool get _canTakeAttendance {
-    final club = ref.watch(clubProvider(widget.clubId)).value;
-    final member = ref.watch(clubMemberProvider(widget.clubId)).value;
-    if (club == null || member == null) return false;
-    final perms = club.coachPermissions;
-    return perms.allowsTakeAttendance(
-      isAdmin: member.role == MemberRoles.admin,
-      isCoach: member.role == MemberRoles.coach,
-    );
-  }
+  /// Droits du compte connecté (fiche + réglages coach du club).
+  ClubAccess get _access => ref.watch(clubAccessProvider(widget.clubId));
 
-  /// Admin (ou coach avec `canEditMemberRsvp`) : éditer le RSVP d’un convoqué.
-  bool get _canEditMemberRsvp {
-    if (_event.canceled) return false;
-    final club = ref.watch(clubProvider(widget.clubId)).value;
-    final member = ref.watch(clubMemberProvider(widget.clubId)).value;
-    if (club == null || member == null) return false;
-    return club.coachPermissions.allowsEditMemberRsvp(
-      isAdmin: member.role == MemberRoles.admin,
-      isCoach: member.role == MemberRoles.coach,
-    );
-  }
+  /// Modifier / annuler l'événement : droit planning, ou coach de **toutes**
+  /// ses équipes avec le réglage `canCreateEvents` (jamais « tout le club »).
+  bool get _canManageEvent =>
+      _access.canManageEvent(_event.teamIds, allTeams: _event.allTeams);
+
+  /// Convocations et notification : droit planning ou coach de toutes les
+  /// équipes de l'événement.
+  bool get _canManageAudience => _access.canManageEventAudience(
+    _event.teamIds,
+    allTeams: _event.allTeams,
+  );
+
+  bool get _canTakeAttendance =>
+      _access.canTakeAttendance(_event.teamIds, allTeams: _event.allTeams);
+
+  /// Droit planning (ou coach d'une équipe avec `canEditMemberRsvp`) :
+  /// éditer le RSVP d’un convoqué.
+  bool get _canEditMemberRsvp =>
+      !_event.canceled &&
+      _access.canEditMemberRsvp(_event.teamIds, allTeams: _event.allTeams);
 
   /// Met à jour le RSVP d’un convoqué via callable staff.
   Future<void> _setMemberRsvp({
@@ -216,7 +216,7 @@ class _PlanningEventDetailSheetState
 
   /// Coach : événement d'équipe(s) à venir, convocations modifiables.
   bool get _canManageConvocations {
-    if (!widget.canManageEvents || _event.canceled) return false;
+    if (!_canManageAudience || _event.canceled) return false;
     if (_event.teamIds.isEmpty || _event.allTeams) return false;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -240,7 +240,7 @@ class _PlanningEventDetailSheetState
   }
 
   /// Coach / admin : infos d'un événement non annulé modifiables.
-  bool get _canEditEvent => widget.canManageEvents && !_event.canceled;
+  bool get _canEditEvent => _canManageEvent && !_event.canceled;
 
   Future<void> _openEditEvent() async {
     final saved = await PlanningEditEventSheet.show(
@@ -321,7 +321,7 @@ class _PlanningEventDetailSheetState
 
   /// Coachs en tête, puis joueurs ; dans chaque groupe : présent → en attente →
   /// absent, puis alphabétique.
-  List<({String id, ClubMember member, bool isCoach})> _sortedEntries(
+  List<({String id, ClubMember member, ViroRole? badge})> _sortedEntries(
     Map<String, ClubMember> byId,
     List<ClubTeam> eventTeams,
   ) {
@@ -332,8 +332,8 @@ class _PlanningEventDetailSheetState
         };
 
     int compareEntries(
-      ({String id, ClubMember member, bool isCoach}) left,
-      ({String id, ClubMember member, bool isCoach}) right,
+      ({String id, ClubMember member, ViroRole? badge}) left,
+      ({String id, ClubMember member, ViroRole? badge}) right,
     ) {
       final statusOrder = order(_event.rsvpStatusForUser(left.id))
           .compareTo(order(_event.rsvpStatusForUser(right.id)));
@@ -344,22 +344,38 @@ class _PlanningEventDetailSheetState
     }
 
     final seenIds = <String>{};
-    final coachEntries = <({String id, ClubMember member, bool isCoach})>[];
+    final coachEntries = <({String id, ClubMember member, ViroRole? badge})>[];
 
     for (final team in eventTeams) {
       for (final coachId in team.coachIds) {
         final member = byId[coachId];
         if (member == null || !seenIds.add(coachId)) continue;
-        coachEntries.add((id: coachId, member: member, isCoach: true));
+        coachEntries.add((
+          id: coachId,
+          member: member,
+          badge: planningRsvpRowBadge(
+            event: _event,
+            member: member,
+            coachesEventTeam: true,
+          ),
+        ));
       }
     }
     coachEntries.sort(compareEntries);
 
-    final playerEntries = <({String id, ClubMember member, bool isCoach})>[];
+    final playerEntries = <({String id, ClubMember member, ViroRole? badge})>[];
     for (final id in _event.playerMemberIds(widget.excludeCoachUids)) {
       final member = byId[id];
       if (member == null || !seenIds.add(id)) continue;
-      playerEntries.add((id: id, member: member, isCoach: false));
+      playerEntries.add((
+        id: id,
+        member: member,
+        badge: planningRsvpRowBadge(
+          event: _event,
+          member: member,
+          coachesEventTeam: false,
+        ),
+      ));
     }
     playerEntries.sort(compareEntries);
 
@@ -412,12 +428,9 @@ class _PlanningEventDetailSheetState
   /// Lignes de réponse ; les yeux « vu » s'ouvrent en cascade dans l'ordre
   /// de la liste (rang compté parmi les seules lignes « vu »).
   List<Widget> _memberRows(
-    List<({String id, ClubMember member, bool isCoach})> entries,
+    List<({String id, ClubMember member, ViroRole? badge})> entries,
   ) {
     final club = ref.watch(clubProvider(widget.clubId)).value;
-    final viewerRole =
-        ref.watch(clubMemberProvider(widget.clubId)).value?.role ??
-            MemberRoles.player;
     final accent = ref.watch(clubMemberAccentProvider(widget.clubId));
     var seenRank = 0;
     final rows = <Widget>[];
@@ -442,7 +455,7 @@ class _PlanningEventDetailSheetState
               ? ViroMotion.seenEyeStartDelay +
                   ViroMotion.seenEyeStagger * seenRank++
               : Duration.zero,
-          isTeamCoach: entry.isCoach,
+          badge: entry.badge,
           onRsvpSelected: _canEditMemberRsvp
               ? (next) => _setMemberRsvp(
                     audienceId: entry.id,
@@ -455,7 +468,6 @@ class _PlanningEventDetailSheetState
                     ref: ref,
                     club: club,
                     member: member,
-                    viewerRole: viewerRole,
                     accentColor: accent,
                   )
               : null,
@@ -741,7 +753,7 @@ class _PlanningEventDetailSheetState
                     ),
                   ],
                 ),
-              if (widget.canManageEvents) ...[
+              if (_canManageAudience) ...[
                 const SizedBox(height: ViroSpacing.sm),
                 FilledButton.icon(
                   onPressed: _sendingPush ? null : _sendEventPush,
@@ -823,7 +835,7 @@ class _PlanningEventDetailSheetState
               ],
               const SizedBox(height: ViroSpacing.md),
               _buildMembersList(theme),
-              if (widget.canManageEvents) ...[
+              if (_canManageEvent) ...[
                 const SizedBox(height: ViroSpacing.md),
                 FilledButton(
                   onPressed: _cancelEvent,

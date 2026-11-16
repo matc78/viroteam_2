@@ -7,18 +7,18 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
-import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/config/navigation_fallback.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
+import 'package:viro_team_v2/features/members/utils/member_team_labels.dart';
 import 'package:viro_team_v2/features/members/utils/parent_status_for_member.dart';
 import 'package:viro_team_v2/features/members/utils/member_invite_feedback.dart';
 import 'package:viro_team_v2/features/members/widgets/add_member_sheet.dart';
-import 'package:viro_team_v2/features/members/widgets/change_role_sheet.dart';
+import 'package:viro_team_v2/features/members/widgets/member_permissions_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_bulk_action_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_invite_progress_overlay.dart';
@@ -28,7 +28,6 @@ import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/pending_member_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/parents_section.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
@@ -42,6 +41,9 @@ import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_access.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 class ClubMembersScreen extends ConsumerStatefulWidget {
   const ClubMembersScreen({super.key, required this.clubId});
@@ -55,7 +57,8 @@ class ClubMembersScreen extends ConsumerStatefulWidget {
 class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   final _searchController = TextEditingController();
   String _search = '';
-  String? _roleFilter;
+  /// Filtre par badge (`null` : tous).
+  MemberBadge? _badgeFilter;
 
   MembersScreenSection _section = MembersScreenSection.roster;
   bool _selectionMode = false;
@@ -105,39 +108,32 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
     });
   }
 
-  bool get _canAdd {
-    final member = ref.read(clubMemberProvider(widget.clubId)).value;
-    if (member == null) return false;
-    final club = ref.read(clubForMembersProvider(widget.clubId)).value;
-    return (club?.coachPermissions ?? CoachPermissions.defaults)
-        .allowsInvitePlayers(
-      isAdmin: member.role == MemberRoles.admin,
-      isCoach: member.role == MemberRoles.coach,
-    );
-  }
+  /// Droits du compte connecté (fiche + réglages coach du club). Lecture
+  /// seule : `build` s'y abonne via `ref.watch`.
+  ClubAccess get _access => ref.read(clubAccessProvider(widget.clubId));
 
-  bool get _isAdmin {
-    final member = ref.read(clubMemberProvider(widget.clubId)).value;
-    return member?.role == MemberRoles.admin;
-  }
+  /// Ajouter / inviter : droit membres, ou coach autorisé à inviter.
+  bool get _canAdd => _access.canAddMembers;
 
-  /// Admin ou coach autorisé à gérer le roster d’équipe.
-  bool get _canManageRoster {
-    final member = ref.read(clubMemberProvider(widget.clubId)).value;
-    if (member == null) return false;
-    final club = ref.read(clubForMembersProvider(widget.clubId)).value;
-    return (club?.coachPermissions ?? CoachPermissions.defaults)
-        .allowsManageTeamRoster(
-      isAdmin: member.role == MemberRoles.admin,
-      isCoach: member.role == MemberRoles.coach,
-    );
-  }
+  /// Gestion des membres : contacts, parents, retrait, invitations groupées.
+  bool get _canManageMembers => _access.can(ClubPermission.manageMembers);
+
+  /// Ajout à une équipe : droit équipes, ou coach autorisé (ses équipes).
+  bool get _canManageRoster =>
+      _access.can(ClubPermission.manageTeams) ||
+      _access.coachCan(CoachFlag.canManageTeamRoster);
 
   /// Sélection multiple : invitations et/ou ajout à une équipe.
-  bool get _canSelectMembers => _isAdmin || _canAdd || _canManageRoster;
+  bool get _canSelectMembers =>
+      _canManageMembers || _canAdd || _canManageRoster;
 
-  /// Bouton « Inviter les non inscrits » (tous) réservé aux admins.
-  bool get _canInviteAll => _isAdmin;
+  /// Bouton « Inviter les non inscrits » (tous) : droit membres.
+  bool get _canInviteAll => _canManageMembers;
+
+  /// Retirer [member] : droit membres ; un admin ne se retire que par un
+  /// admin (garde « dernier admin » côté serveur).
+  bool _canRemove(ClubMember member) =>
+      _canManageMembers && (!member.isAdmin || _access.isAdmin);
 
   /// Membres non inscrits avec e-mail (éligibles à l’envoi d’invitation).
   List<ClubMember> _eligibleInviteMembers(List<ClubMember> members) {
@@ -168,13 +164,14 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
 
   List<ClubMember> _filterMembers(List<ClubMember> members) {
     return members.where((m) {
-      if (_roleFilter != null && m.role != _roleFilter) return false;
+      final filter = _badgeFilter;
+      if (filter != null && !m.badges.contains(filter)) return false;
       if (_search.isEmpty) return true;
       return m.fullName.toLowerCase().contains(_search.toLowerCase());
     }).toList();
   }
 
-  Widget _roleFilterChip({
+  Widget _badgeFilterChip({
     required String label,
     required bool selected,
     required ValueChanged<bool> onSelected,
@@ -254,32 +251,40 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
     }
   }
 
-  Future<void> _changeRole(ClubMember member) async {
+  Future<void> _editRights(ClubMember member) async {
     if (member.memberId == ref.read(authStateProvider).value?.uid) {
-      ViroSnackBar.show(context, AppCopy.members.cannotChangeOwnRole);
+      ViroSnackBar.show(context, AppCopy.permissions.cannotChangeOwnRights);
       return;
     }
 
     final accent = ref.read(clubMemberAccentProvider(widget.clubId));
-    final newRole = await showChangeRoleSheet(
+    final club = ref.read(clubProvider(widget.clubId)).value;
+    final teams = ref.read(clubTeamsProvider(widget.clubId)).value ?? [];
+    final next = await showMemberPermissionsSheet(
       context,
       member: member,
       accentColor: accent,
+      coachPermissions:
+          club?.coachPermissions ?? CoachPermissions.defaults,
+      coachedTeamNames: resolveCoachedTeamNames(member, teams),
     );
-    if (newRole == null || newRole == member.role) return;
+    if (next == null) return;
 
     try {
-      await ref.read(memberServiceProvider).updateMemberRole(
+      await ref.read(memberServiceProvider).updateMemberPermissions(
             clubId: widget.clubId,
             memberId: member.memberId,
-            newRole: newRole,
+            permissions: next,
           );
-      if (mounted) ViroSnackBar.show(context, AppCopy.members.roleUpdated);
+      if (mounted) ViroSnackBar.show(context, AppCopy.permissions.rightsUpdated);
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(
         context,
-        callableErrorMessage(error, fallback: AppCopy.members.roleChangeImpossible),
+        callableErrorMessage(
+          error,
+          fallback: AppCopy.permissions.rightsUpdateFailed,
+        ),
       );
     }
   }
@@ -370,17 +375,13 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
 
     final auth = ref.read(authStateProvider).value;
     final club = ref.read(clubForMembersProvider(widget.clubId)).value;
-    final viewer = ref.read(clubMemberProvider(widget.clubId)).value;
-    if (auth == null || club == null || viewer == null) return;
+    if (auth == null || club == null) return;
 
+    final access = _access;
     final teams = ref.read(clubTeamsProvider(widget.clubId)).value ?? [];
-    final teamPermissions = TeamManagePermissions(
-      viewerRole: viewer.role,
-      currentUid: auth.uid,
-      coachPermissions: club.coachPermissions,
-    );
-    final addableTeams =
-        teams.where(teamPermissions.canAddPlayer).toList(growable: false);
+    final addableTeams = teams
+        .where((team) => access.canAddPlayerToTeam(team.id))
+        .toList(growable: false);
 
     final acted = await showMemberBulkActionSheet(
       context,
@@ -561,6 +562,9 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   @override
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
+    // Abonnement aux droits : les getters `_can*` (lus aussi dans les
+    // callbacks) se recalculent à chaque changement.
+    ref.watch(clubAccessProvider(clubId));
     final membersAsync = ref.watch(clubMembersWithInvitesProvider(clubId));
     final clubAsync = ref.watch(clubForMembersProvider(clubId));
     // Précharge les équipes pour l’action « Ajouter à une équipe ».
@@ -637,13 +641,12 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                       ),
                     ),
                     data: (members) {
-                      final viewerRole =
-                          ref.watch(clubMemberProvider(clubId)).value?.role ??
-                              MemberRoles.player;
+                      // Abonnement : les getters de droits lisent ce provider.
+                      final access = ref.watch(clubAccessProvider(clubId));
                       final filtered = _filterMembers(members);
                       final eligibleInviteCount =
                           _eligibleInviteMembers(members).length;
-                      final parentStatusByMemberId = _isAdmin
+                      final parentStatusByMemberId = _canManageMembers
                           ? ref.watch(clubParentsProvider(clubId)).maybeWhen(
                                 data: buildParentStatusByMemberId,
                                 orElse: () =>
@@ -658,14 +661,14 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                             ref.refresh(
                                 clubMembersWithInvitesProvider(clubId).future),
                             ref.refresh(clubMemberProvider(clubId).future),
-                            if (_isAdmin)
+                            if (_canManageMembers)
                               ref.refresh(clubParentsProvider(clubId).future),
                           ]);
                         },
                         child: CustomScrollView(
                           physics: ViroRefreshIndicator.scrollPhysics,
                           slivers: [
-                            if (_isAdmin)
+                            if (_canManageMembers)
                               SliverToBoxAdapter(
                                 child: MembersSectionHeader(
                                   section: _section,
@@ -676,7 +679,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                 ),
                               ),
                             if (_section == MembersScreenSection.parents &&
-                                _isAdmin)
+                                _canManageMembers)
                               SliverToBoxAdapter(
                                 child: ParentsSection(
                                   clubId: clubId,
@@ -713,44 +716,44 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                   ),
                                   child: Row(
                                     children: [
-                                      _roleFilterChip(
+                                      _badgeFilterChip(
                                         label: AppCopy.common.filterAll,
-                                        selected: _roleFilter == null,
+                                        selected: _badgeFilter == null,
                                         accentColor: accent,
                                         onSelected: (_) =>
-                                            setState(() => _roleFilter = null),
+                                            setState(() => _badgeFilter = null),
                                       ),
                                       const SizedBox(width: ViroSpacing.xs),
-                                      _roleFilterChip(
+                                      _badgeFilterChip(
                                         label: AppCopy.members.filterPlayers,
                                         selected:
-                                            _roleFilter == MemberRoles.player,
+                                            _badgeFilter == MemberBadge.player,
                                         accentColor: accent,
                                         onSelected: (_) => setState(
                                           () =>
-                                              _roleFilter = MemberRoles.player,
+                                              _badgeFilter = MemberBadge.player,
                                         ),
                                       ),
                                       const SizedBox(width: ViroSpacing.xs),
-                                      _roleFilterChip(
+                                      _badgeFilterChip(
                                         label: AppCopy.members.tabCoaches,
                                         selected:
-                                            _roleFilter == MemberRoles.coach,
+                                            _badgeFilter == MemberBadge.coach,
                                         accentColor: accent,
                                         onSelected: (_) => setState(
-                                          () => _roleFilter = MemberRoles.coach,
+                                          () => _badgeFilter = MemberBadge.coach,
                                         ),
                                       ),
-                                      if (_isAdmin) ...[
+                                      if (_canManageMembers) ...[
                                         const SizedBox(width: ViroSpacing.xs),
-                                        _roleFilterChip(
+                                        _badgeFilterChip(
                                           label: AppCopy.members.filterAdmins,
                                           selected:
-                                              _roleFilter == MemberRoles.admin,
+                                              _badgeFilter == MemberBadge.admin,
                                           accentColor: accent,
                                           onSelected: (_) => setState(
                                             () =>
-                                                _roleFilter = MemberRoles.admin,
+                                                _badgeFilter = MemberBadge.admin,
                                           ),
                                         ),
                                       ],
@@ -801,7 +804,7 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                 SliverFillRemaining(
                                   hasScrollBody: false,
                                   child: _search.isNotEmpty ||
-                                          _roleFilter != null
+                                          _badgeFilter != null
                                       ? ViroEmptyState(
                                           message: AppCopy.members.emptySearch,
                                           icon: ViroIcons.search,
@@ -832,7 +835,6 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                         return MemberListTile(
                                           member: member,
                                           club: club,
-                                          viewerRole: viewerRole,
                                           accentColor: accent,
                                           selectionMode: _selectionMode,
                                           selected: isSelected,
@@ -849,7 +851,6 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                                         ref: ref,
                                                         club: club,
                                                         member: member,
-                                                        viewerRole: viewerRole,
                                                         accentColor: accent,
                                                       )
                                                   : _canAdd
@@ -861,27 +862,28 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                                             canEdit: _canAdd,
                                                           )
                                                       : null,
-                                          onChangeRole: _isAdmin
-                                              ? () => _changeRole(member)
+                                          onEditRights: access.isAdmin &&
+                                                  member.memberId !=
+                                                      ref
+                                                          .read(authStateProvider)
+                                                          .value
+                                                          ?.uid
+                                              ? () => _editRights(member)
                                               : null,
-                                          onInviteParent: _isAdmin &&
-                                                  member.role ==
-                                                      MemberRoles.player
+                                          onInviteParent: _canManageMembers
                                               ? () => showInviteParentSheet(
                                                     context,
                                                     club: club,
                                                     member: member,
                                                   )
                                               : null,
-                                          onRemove: _isAdmin
+                                          onRemove: _canRemove(member)
                                               ? () => _removeMember(member)
                                               : null,
                                           onSendEmailInvite: _canAdd
                                               ? () => _emailInvite(member)
                                               : null,
-                                          parentLinkStatus: _isAdmin &&
-                                                  member.role ==
-                                                      MemberRoles.player
+                                          parentLinkStatus: _canManageMembers
                                               ? parentStatusByMemberId[
                                                       member.memberId] ??
                                                   ParentLinkStatus.none

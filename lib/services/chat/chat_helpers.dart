@@ -21,7 +21,7 @@ List<ClubMember> chatMembersWithProfiles({
         ClubMember(
           memberId: entry.key,
           accountUid: entry.key,
-          role: entry.value.role,
+          profileBadgeId: entry.value.role,
           status: 'active',
           firstName: trimToNull(entry.value.firstName),
           lastName: trimToNull(entry.value.lastName),

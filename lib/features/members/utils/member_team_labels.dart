@@ -2,6 +2,21 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 
+/// Noms des équipes que [member] entraîne (`coachTeamIds`), triés.
+List<String> resolveCoachedTeamNames(
+  ClubMember member,
+  List<ClubTeam> teams,
+) {
+  final names = [
+    for (final team in teams)
+      if (member.coachTeamIds.contains(team.id)) team.name,
+  ];
+  names.sort(
+    (left, right) => left.toLowerCase().compareTo(right.toLowerCase()),
+  );
+  return names;
+}
+
 /// Libellés équipes avec rôle roster (ex. « M18 filles (joueur) »).
 List<String> resolveMemberTeamLabels(
   ClubMember member,

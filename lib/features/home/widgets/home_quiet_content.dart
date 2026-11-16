@@ -12,6 +12,7 @@ import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/features/clubs/providers/club_session_badge_provider.dart';
 
 /// Contenu affiché sur la home membre quand aucun événement n'est planifié.
 class HomeQuietContent extends StatelessWidget {
@@ -152,7 +153,6 @@ class _ClubShortcutTile extends ConsumerWidget {
     final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final club = entry.club;
-    final membership = entry.membership;
     final accent = clubAccentColor(
       brandColorHex: club.brandColorHex,
       clubId: club.id,
@@ -163,10 +163,7 @@ class _ClubShortcutTile extends ConsumerWidget {
       club.sport,
       if (location != null && location.isNotEmpty) location,
     ].join(' • ');
-    final sessionRole = viroRoleForClubSession(
-      memberRole: membership?.role,
-      hasFamilyLinks: entry.hasFamilyLinks,
-    );
+    final sessionRole = ref.watch(clubSessionBadgeProvider(club.id));
 
     return ViroCard(
       accentColor: accent,

@@ -13,7 +13,6 @@ import 'package:viro_team_v2/services/fee_service.dart';
 import 'package:viro_team_v2/services/guardian_service.dart';
 import 'package:viro_team_v2/services/haptics_preference_service.dart';
 import 'package:viro_team_v2/services/invitation_service.dart';
-import 'package:viro_team_v2/services/join_request_service.dart';
 import 'package:viro_team_v2/services/member_invite_service.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
@@ -90,10 +89,6 @@ final eventServiceProvider = Provider<EventService>((ref) => EventService());
 
 final invitationServiceProvider = Provider<InvitationService>(
   (ref) => InvitationService(),
-);
-
-final joinRequestServiceProvider = Provider<JoinRequestService>(
-  (ref) => JoinRequestService(),
 );
 
 final retourUserServiceProvider = Provider<RetourUserService>(

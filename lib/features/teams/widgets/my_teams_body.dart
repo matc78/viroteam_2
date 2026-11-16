@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
-import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/widgets/manage_teams_body.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_expansion_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Liste « Mes équipes » (roster lecture) — corps du hub Équipes.
 class MyTeamsBody extends ConsumerWidget {
@@ -24,9 +23,8 @@ class MyTeamsBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final clubAsync = ref.watch(clubProvider(clubId));
     final teamsAsync = ref.watch(myTeamsProvider(clubId));
-    final viewerRole =
-        ref.watch(clubMemberProvider(clubId)).value?.role ?? MemberRoles.player;
-    final authUid = ref.watch(authStateProvider).value?.uid;
+    final canCreateTeam =
+        ref.watch(clubAccessProvider(clubId)).can(ClubPermission.manageTeams);
 
     return clubAsync.when(
       loading: () => const Center(child: ViroLogoLoader()),
@@ -39,11 +37,6 @@ class MyTeamsBody extends ConsumerWidget {
         }
 
         final accent = ref.watch(clubMemberAccentProvider(clubId));
-        final canCreateTeam = TeamManagePermissions(
-          viewerRole: viewerRole,
-          currentUid: authUid,
-          coachPermissions: club.coachPermissions,
-        ).canCreateTeam();
 
         return teamsAsync.when(
           loading: () => const Center(child: ViroLogoLoader()),

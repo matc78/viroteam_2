@@ -263,7 +263,6 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     try {
       await ref.read(clubServiceProvider).createClubFromDraft(
             founderUid: user.uid,
-            founder: user,
             draft: draft,
           );
       ref.read(clubSetupAnalyticsProvider).trackCompleted(

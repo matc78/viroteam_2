@@ -169,7 +169,6 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
   void _showEventDetail({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) {
     PlanningEventDetailSheet.show(
       context: context,
@@ -177,7 +176,6 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
       excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
-      canManageEvents: canManageEvents,
       onCanceled: () {},
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );

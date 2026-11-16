@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
@@ -9,14 +9,15 @@ import 'package:viro_team_v2/services/chat/chat_dm_targets_service.dart';
 ClubMember _member(
   String memberId, {
   bool linked = true,
-  String role = MemberRoles.coach,
+  bool admin = false,
   String? firstName,
   String? lastName,
 }) =>
     ClubMember(
       memberId: memberId,
       accountUid: linked ? memberId : null,
-      role: role,
+      permissions: admin ? const {ClubPermission.admin} : const {},
+      coachTeamIds: admin ? const [] : const ['t1'],
       status: 'active',
       firstName: firstName,
       lastName: lastName,
@@ -36,9 +37,9 @@ void main() {
           _team('t2', const ['coachB']),
         ],
         members: [
-          _member('adminAuth', role: MemberRoles.admin),
-          _member('m-admin2', linked: false, role: MemberRoles.admin),
-          _member('p', role: MemberRoles.player),
+          _member('adminAuth', admin: true),
+          _member('m-admin2', linked: false, admin: true),
+          const ClubMember(memberId: 'p', accountUid: 'p', status: 'active'),
         ],
       );
 
@@ -74,7 +75,7 @@ void main() {
   group('buildChatDmTargets', () {
     test('une cible par compte, hors caller et fiches sans compte, triée', () {
       final zoe = _member('zoe', firstName: 'zoé');
-      final alex = _member('alex', firstName: 'Alex', role: MemberRoles.admin);
+      final alex = _member('alex', firstName: 'Alex', admin: true);
       final me = _member('me', firstName: 'Moi');
       final noAccount = _member('m-ghost', linked: false, firstName: 'Ghost');
       final memberByKey = indexChatDmMembers([zoe, alex, me, noAccount]);
@@ -88,7 +89,7 @@ void main() {
 
       expect(targets.map((t) => t.uid).toList(), ['alex', 'zoe']);
       expect(targets.first.label, 'Alex');
-      expect(targets.first.role, MemberRoles.admin);
+      expect(targets.first.role, 'admin');
       expect(targets.first.member, same(alex));
     });
 

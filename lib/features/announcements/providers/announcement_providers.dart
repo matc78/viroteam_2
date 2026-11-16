@@ -11,6 +11,8 @@ import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
 import 'package:viro_team_v2/utils/stream_switch_map.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_access.dart';
 
 /// Annonce active sur la home avec contexte club.
 class HomeAnnouncementItem {
@@ -75,7 +77,9 @@ AsyncValue<List<ClubAnnouncement>> _filterClubAnnouncements(
       final teams = teamsAsync.value ?? [];
       final staff = target?.isChild == true
           ? false
-          : AnnouncementFilter.isStaffRole(member?.role);
+          : AnnouncementFilter.seesAllAnnouncements(
+              ref.watch(clubAccessProvider(clubId)),
+            );
       final visible = AnnouncementFilter.forMemberAudience(
         announcements: announcements,
         member: member,
@@ -180,7 +184,9 @@ final homeActiveAnnouncementsProvider =
             .switchMap((member) {
               final dismissed =
                   member?.dismissedAnnouncementIds.toSet() ?? <String>{};
-              final staff = AnnouncementFilter.isStaffRole(member?.role);
+              final staff = AnnouncementFilter.seesAllAnnouncements(
+                ClubAccess.of(member: member, club: club),
+              );
               final teams = teamsByClub[club.id]?.values.toList() ?? [];
 
               return announcementService

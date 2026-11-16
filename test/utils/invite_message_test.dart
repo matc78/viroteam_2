@@ -26,7 +26,6 @@ void main() {
         id: 'inv1',
         clubId: 'club1',
         code: 'ABC123',
-        role: MemberRoles.player,
         status: InvitationStatus.pending,
       );
 

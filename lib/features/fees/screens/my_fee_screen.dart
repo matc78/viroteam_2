@@ -36,6 +36,8 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 class MyFeeScreen extends ConsumerStatefulWidget {
   const MyFeeScreen({super.key, required this.clubId});
@@ -77,9 +79,9 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
     final feeAsync = ref.watch(
       myFeeProvider((clubId: widget.clubId, memberId: audienceId)),
     );
-    final isAdmin = ref.watch(clubMemberProvider(widget.clubId)).value?.role ==
-        MemberRoles.admin;
-    final openAdminFees = isAdmin
+    final access = ref.watch(clubAccessProvider(widget.clubId));
+    final canManageFees = access.can(ClubPermission.manageFees);
+    final openAdminFees = access.can(ClubPermission.viewFees)
         ? () => context.push(AppRoutes.clubFeesPath(widget.clubId))
         : null;
 
@@ -119,11 +121,11 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
                     height: 280,
                     child: ViroEmptyState(
                       icon: ViroIcons.payments,
-                      message: isAdmin
+                      message: canManageFees
                           ? AppCopy.fees.noActiveSeasonPlayerAdmin
                           : AppCopy.fees.noActiveSeasonPlayer,
                       actionLabel:
-                          isAdmin ? AppCopy.fees.configureSeason : null,
+                          canManageFees ? AppCopy.fees.configureSeason : null,
                       onAction: openAdminFees,
                     ),
                   ),
@@ -147,13 +149,13 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
                     height: 280,
                     child: ViroEmptyState(
                       icon: ViroIcons.payments,
-                      message: isAdmin
+                      message: canManageFees
                           ? AppCopy.fees.myFeeNotConfiguredAdmin
                           : selected?.isChild == true
                               ? AppCopy.fees
                                   .childFeeNotConfigured(selected!.label)
                               : AppCopy.fees.myFeeNotConfigured,
-                      actionLabel: isAdmin ? AppCopy.fees.manageFees : null,
+                      actionLabel: canManageFees ? AppCopy.fees.manageFees : null,
                       onAction: openAdminFees,
                     ),
                   ),

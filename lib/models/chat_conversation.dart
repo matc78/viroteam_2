@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Ton d’avatar icône (liste / AppBar / infos) — aligné sur le type.
 ///
@@ -29,7 +30,8 @@ class ChatParticipantProfile {
   final String displayName;
   final String? avatarUrl;
 
-  /// `player` | `coach` | `admin` | `parent`.
+  /// Identifiant de badge ([ChatBadgeIds]) : `admin` | `coach` | `player`
+  /// | `member` | `parent`.
   final String role;
 
   /// Parse une entrée de `participantProfiles` (valeurs non-string ignorées).
@@ -46,7 +48,7 @@ class ChatParticipantProfile {
       displayName: text(FirestoreFields.displayName),
       avatarUrl: avatar.isEmpty ? null : avatar,
       role: text(FirestoreFields.role).isEmpty
-          ? MemberRoles.player
+          ? ChatBadgeIds.member
           : text(FirestoreFields.role),
     );
   }

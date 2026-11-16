@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/club_appearance_preview.dart';
 import 'package:viro_team_v2/features/club/widgets/club_brand_color_picker.dart';
@@ -59,16 +58,6 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
     final clubAsync = ref.watch(clubProvider(clubId));
-    final member = ref.watch(clubMemberProvider(clubId)).value;
-
-    if (member != null && member.role != MemberRoles.admin) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.pop();
-      });
-      return const ViroScaffold(
-        body: Center(child: ViroLogoLoader()),
-      );
-    }
 
     final club = clubAsync.value;
     final rawStoredHex =

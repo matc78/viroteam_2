@@ -56,7 +56,6 @@ class MemberPlanningScreen extends ConsumerWidget {
     required WidgetRef ref,
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) {
     PlanningEventDetailSheet.show(
       context: context,
@@ -64,7 +63,6 @@ class MemberPlanningScreen extends ConsumerWidget {
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
       excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
-      canManageEvents: canManageEvents,
       onCanceled: () {},
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
@@ -189,14 +187,12 @@ class MemberPlanningScreen extends ConsumerWidget {
                       onShowDetail: ({
                         required event,
                         required teams,
-                        required canManageEvents,
                       }) =>
                           _showEventDetail(
                         context: context,
                         ref: ref,
                         event: event,
                         teams: teams,
-                        canManageEvents: canManageEvents,
                       ),
                       onSetRsvp: (event, status) =>
                           _setRsvp(ref, context, event, status),

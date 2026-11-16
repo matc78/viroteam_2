@@ -3,7 +3,6 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_event.dart';
-import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/parent_link.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 
@@ -11,16 +10,15 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 class UserClubEntry {
   const UserClubEntry({
     required this.club,
-    this.membership,
+    this.isLicensed = false,
     this.parentLinks = const [],
   });
 
   final Club club;
-  final ClubMembershipSummary? membership;
-  final List<ParentLink> parentLinks;
 
-  /// Fiche membre (joueur / coach / admin) dans ce club.
-  bool get isLicensed => membership != null;
+  /// Fiche membre dans ce club (`users.memberClubIds`).
+  final bool isLicensed;
+  final List<ParentLink> parentLinks;
 
   /// Au moins un enfant suivi dans ce club.
   bool get hasFamilyLinks => parentLinks.isNotEmpty;
@@ -29,17 +27,17 @@ class UserClubEntry {
 class UserClubWithEvent {
   const UserClubWithEvent({
     required this.club,
-    this.membership,
+    this.isLicensed = false,
     this.parentLinks = const [],
     this.highlightEvent,
   });
 
   final Club club;
-  final ClubMembershipSummary? membership;
+
+  /// Fiche membre dans ce club (`users.memberClubIds`).
+  final bool isLicensed;
   final List<ParentLink> parentLinks;
   final ClubEvent? highlightEvent;
-
-  bool get isLicensed => membership != null;
 }
 
 final userClubsProvider = FutureProvider<List<UserClubEntry>>((ref) async {
@@ -48,9 +46,7 @@ final userClubsProvider = FutureProvider<List<UserClubEntry>>((ref) async {
   if (auth == null || user == null || !user.hasClubs) return [];
 
   final clubs = await ref.read(clubServiceProvider).getClubsForUser(user);
-  final membershipById = {
-    for (final membership in user.clubMemberships) membership.clubId: membership,
-  };
+  final memberClubIds = user.memberClubIds.toSet();
   final linksByClub = <String, List<ParentLink>>{};
   for (final link in user.activeParentLinks) {
     linksByClub.putIfAbsent(link.clubId, () => []).add(link);
@@ -60,7 +56,7 @@ final userClubsProvider = FutureProvider<List<UserClubEntry>>((ref) async {
       .map(
         (club) => UserClubEntry(
           club: club,
-          membership: membershipById[club.id],
+          isLicensed: memberClubIds.contains(club.id),
           parentLinks: linksByClub[club.id] ?? const [],
         ),
       )
@@ -93,7 +89,7 @@ final userClubsWithEventsProvider =
       }
       return UserClubWithEvent(
         club: entry.club,
-        membership: entry.membership,
+        isLicensed: entry.isLicensed,
         parentLinks: entry.parentLinks,
         highlightEvent: event,
       );

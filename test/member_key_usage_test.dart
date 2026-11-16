@@ -18,7 +18,11 @@ void main() {
     'repli accountUid ?? … (clé unique = id de la fiche)':
         RegExp(r'accountUid\s*\?\?'),
   };
-  final memberDocAccess = RegExp(r'membersSubcollection\)\s*\.doc\(');
+  // Toute la collection `members` (doc, liste, requête) passe par
+  // `clubMembersCollection` / `clubMemberRef`.
+  final memberDocAccess = RegExp(
+    r'\.collection\(\s*ProjectConfig\.membersSubcollection\s*\)',
+  );
 
   test('aucun résolveur uid ↔ memberId dans lib/', () {
     final directory = Directory('lib');
@@ -33,7 +37,10 @@ void main() {
         if (pattern.hasMatch(content)) offending.add('$path ($reason)');
       });
       if (path != memberRefHelper && memberDocAccess.hasMatch(content)) {
-        offending.add('$path (utiliser clubMemberRef de $memberRefHelper)');
+        offending.add(
+          '$path (utiliser clubMemberRef / clubMembersCollection de '
+          '$memberRefHelper)',
+        );
       }
     }
 

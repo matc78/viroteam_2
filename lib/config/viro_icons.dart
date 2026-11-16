@@ -78,6 +78,7 @@ abstract final class ViroIcons {
   static IconData get selectAll => PhosphorIconsRegular.selectionAll;
   static IconData get note => PhosphorIconsRegular.notePencil;
   static IconData get block => PhosphorIconsRegular.prohibit;
+  static IconData get lock => PhosphorIconsRegular.lock;
   static IconData get personOutline => PhosphorIconsRegular.user;
   static IconData get groups => PhosphorIconsRegular.usersThree;
   static IconData get key => PhosphorIconsRegular.key;
@@ -109,6 +110,7 @@ abstract final class ViroIcons {
   static IconData get roleCoach => PhosphorIconsFill.megaphoneSimple;
   static IconData get roleParent => PhosphorIconsFill.usersThree;
   static IconData get roleAdmin => PhosphorIconsFill.shieldCheck;
+  static IconData get roleMember => PhosphorIconsFill.user;
 
   /// Catalogue pour l'écran design system (groupé).
   static List<ViroIconCatalogGroup> get catalog => [
@@ -181,6 +183,7 @@ abstract final class ViroIcons {
             ('addToList', addToList),
             ('leaveGroup', leaveGroup),
             ('block', block),
+            ('lock', lock),
           ],
         ),
         ViroIconCatalogGroup(
@@ -208,6 +211,7 @@ abstract final class ViroIcons {
             ('roleCoach', roleCoach),
             ('roleParent', roleParent),
             ('roleAdmin', roleAdmin),
+            ('roleMember', roleMember),
           ],
         ),
       ];

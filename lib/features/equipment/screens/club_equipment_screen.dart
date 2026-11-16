@@ -192,20 +192,10 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
   @override
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
-    final member = ref.watch(clubMemberProvider(clubId)).value;
     final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
     final managementAccent = ref.watch(clubManagementAccentProvider(clubId));
     final itemsAsync = ref.watch(clubEquipmentProvider(clubId));
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
-
-    if (member != null && member.role != MemberRoles.admin) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.pop();
-      });
-      return const ViroScaffold(
-        body: Center(child: ViroLogoLoader()),
-      );
-    }
 
     final teamNames = {
       for (final team in teamsAsync.value ?? []) team.id: team.name,

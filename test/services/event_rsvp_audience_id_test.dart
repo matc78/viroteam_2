@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -11,7 +10,6 @@ void main() {
     const linkedMember = ClubMember(
       memberId: authUid,
       accountUid: authUid,
-      role: MemberRoles.player,
       status: 'active',
     );
 

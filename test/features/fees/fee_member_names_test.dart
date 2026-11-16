@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_member_names.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -17,14 +16,12 @@ void main() {
     const renamed = ClubMember(
       memberId: 'uid-a',
       accountUid: 'uid-a',
-      role: MemberRoles.player,
       status: 'active',
       firstName: 'Léa',
       lastName: 'Martin',
     );
     const unnamed = ClubMember(
       memberId: 'm-b',
-      role: MemberRoles.player,
       status: 'active',
     );
 

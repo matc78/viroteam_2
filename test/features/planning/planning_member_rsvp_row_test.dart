@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:viro_team_v2/config/viro_theme.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_member_rsvp_row.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/common/seen_eye.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
 const _member = ClubMember(
   memberId: 'm1',
-  role: MemberRoles.player,
   status: 'active',
   firstName: 'Léa',
   lastName: 'Martin',
@@ -23,6 +22,7 @@ Future<void> _pumpRow(
   required RsvpStatus status,
   DateTime? lastUpdatedAt,
   DateTime? seenAt,
+  ViroRole? badge,
 }) =>
     tester.pumpWidget(
       MaterialApp(
@@ -33,6 +33,7 @@ Future<void> _pumpRow(
             status: status,
             lastUpdatedAt: lastUpdatedAt,
             seenAt: seenAt,
+            badge: badge,
           ),
         ),
       ),
@@ -85,5 +86,19 @@ void main() {
       find.bySemanticsLabel(AppCopy.planning.rsvpAnsweredAt('12/10 à 13h45')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('affiche le badge de rôle fourni, aucun par défaut',
+      (tester) async {
+    await _pumpRow(tester, status: RsvpStatus.yes, lastUpdatedAt: when);
+    expect(find.byType(ViroRoleBadge), findsNothing);
+
+    await _pumpRow(
+      tester,
+      status: RsvpStatus.yes,
+      lastUpdatedAt: when,
+      badge: ViroRole.admin,
+    );
+    expect(find.text(AppCopy.common.roleAdmin), findsOneWidget);
   });
 }

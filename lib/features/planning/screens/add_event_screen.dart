@@ -5,7 +5,6 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
@@ -31,6 +30,8 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Écran de création d’événement (composition + wiring Riverpod).
 class AddEventScreen extends ConsumerStatefulWidget {
@@ -199,23 +200,11 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Accès (droit planning ou coach autorisé) vérifié par la garde du
+    // routeur. Sans le droit planning : seulement ses équipes.
     final member = ref.watch(clubMemberProvider(widget.clubId)).value;
-    if (member != null &&
-        !MemberRoleHierarchy.isCoachOrAbove(member.role)) {
-      return ViroScaffold(
-        fallbackRoute: _fallbackRoute,
-        appBar: ViroAppBar(
-          fallbackRoute: _fallbackRoute,
-          title: Text(AppCopy.planning.newEventTitle),
-        ),
-        body: ViroEmptyState(
-          icon: ViroIcons.block,
-          message: AppCopy.planning.reservedToCoachesAdmins,
-          actionLabel: AppCopy.common.back,
-          onAction: _leave,
-        ),
-      );
-    }
+    final access = ref.watch(clubAccessProvider(widget.clubId));
+    final canPlanClub = access.can(ClubPermission.manageEvents);
 
     final teamsAsync = ref.watch(clubTeamsProvider(widget.clubId));
     final clubAsync = ref.watch(clubProvider(widget.clubId));
@@ -251,7 +240,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
               onRetry: () => ref.invalidate(clubTeamsProvider(widget.clubId)),
             ),
             data: (teams) => _buildForm(
-              teams: teams,
+              teams: canPlanClub
+                  ? teams
+                  : [
+                      for (final team in teams)
+                        if (access.coachesTeam(team.id)) team,
+                    ],
+              allowWholeClub: canPlanClub,
               club: clubAsync.value,
               member: member,
               accent: accent,
@@ -265,6 +260,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
 
   Widget _buildForm({
     required List<ClubTeam> teams,
+    required bool allowWholeClub,
     required Club? club,
     required ClubMember? member,
     required Color accent,
@@ -274,6 +270,12 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || _form.locationDefaultsApplied) return;
         _form.applyLocationDefaults(club);
+      });
+    }
+
+    if (!allowWholeClub && _form.audienceWholeClub) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _form.setAudienceWholeClub(false);
       });
     }
 
@@ -359,6 +361,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 enabled: enabled,
                 onWholeClubChanged: _form.setAudienceWholeClub,
                 onTeamToggled: _form.toggleAudienceTeam,
+                allowWholeClub: allowWholeClub,
               ),
             AddEventLocationSection(
               isMatch: _form.isMatch,

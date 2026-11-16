@@ -9,9 +9,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club_setup/models/club_setup_draft.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/models/club.dart';
-import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
-import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
@@ -42,10 +40,18 @@ class ClubService {
     return Club.fromFirestore(doc);
   }
 
+  /// Flux du document club `clubs/{clubId}` (`null` s'il n'existe pas) :
+  /// réglages coach, marque, compteurs à jour sans rechargement manuel.
+  Stream<Club?> watchClub(String clubId) {
+    return _clubs.doc(clubId).snapshots().map(
+          (doc) => doc.exists ? Club.fromFirestore(doc) : null,
+        );
+  }
+
   /// Clubs où l’utilisateur est membre **ou** parent actif.
   Future<List<Club>> getClubsForUser(ViroUser user) async {
     final ids = <String>{
-      ...user.clubMemberships.map((membership) => membership.clubId),
+      ...user.memberClubIds,
       ...user.activeParentLinks.map((link) => link.clubId),
     }.where((id) => id.isNotEmpty).toList();
     return getClubsByIds(ids);
@@ -64,100 +70,45 @@ class ClubService {
     return results;
   }
 
+  /// Crée le club via la callable `createClub` : le fondateur y reçoit le
+  /// droit Administrateur (les droits ne s'écrivent que côté serveur).
+  /// Logo et objectifs suivent, sans bloquer la création.
   Future<String> createClubFromDraft({
     required String founderUid,
-    required ViroUser founder,
     required ClubSetupDraft draft,
   }) async {
-    final clubRef = _clubs.doc();
-    final memberRef = clubMemberRef(_db, clubRef.id, founderUid);
-    final userRef =
-        _db.collection(ProjectConfig.usersCollection).doc(founderUid);
-
-    final displayName = founder.displayName.isNotEmpty
-        ? founder.displayName
-        : '${founder.firstName} ${founder.lastName}'.trim();
-
-    await _db.runTransaction((tx) async {
-      // Firestore : toutes les lectures avant les écritures.
-      final userSnap = await tx.get(userRef);
-      final data = userSnap.data() ?? {};
-      final memberships =
-          (data[FirestoreFields.clubMemberships] as List<dynamic>?)
-                  ?.whereType<Map<String, dynamic>>()
-                  .toList() ??
-              [];
-      memberships.add(
-        ClubMembershipSummary(
-          clubId: clubRef.id,
-          role: MemberRoles.admin,
-        ).toMap(),
-      );
-
-      tx.set(clubRef, {
-        FirestoreFields.name: draft.name.trim(),
-        FirestoreFields.sport: draft.sport,
-        FirestoreFields.city: formatCity(draft.city, required: true),
-        FirestoreFields.postalCode: formatPostalCode(draft.postalCode),
-        FirestoreFields.address: formatAddressLine(draft.address),
-        if (draft.description.trim().isNotEmpty)
-          FirestoreFields.description: draft.description.trim(),
-        FirestoreFields.brandColorHex: draft.brandColorHex,
-        FirestoreFields.practiceLocations:
-            draft.practiceLocations.map((location) {
-          final cityValue = location.city;
-          final addressValue = location.address;
-          return PracticeLocation(
-            name: location.name,
-            city: cityValue == null || cityValue.trim().isEmpty
-                ? null
-                : formatCity(cityValue),
-            address: addressValue == null || addressValue.trim().isEmpty
-                ? null
-                : formatAddressLine(addressValue),
-            category: location.category,
-            categoryCustom: location.categoryCustom,
-          ).toFirestoreMap();
-        }).toList(),
-        FirestoreFields.adminIds: [founderUid],
-        FirestoreFields.memberCount: 1,
-        FirestoreFields.seasonEndDate:
-            Timestamp.fromDate(defaultSeasonEndDate()),
-        FirestoreFields.createdAt: FieldValue.serverTimestamp(),
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      });
-
-      tx.set(memberRef, {
-        FirestoreFields.memberId: founderUid,
-        FirestoreFields.accountUid: founderUid,
-        FirestoreFields.firstName: founder.firstName,
-        FirestoreFields.lastName: founder.lastName,
-        FirestoreFields.role: MemberRoles.admin,
-        FirestoreFields.status: 'active',
-        FirestoreFields.teamIds: <String>[],
-        FirestoreFields.snapshot: {
-          FirestoreFields.displayName: displayName,
-          FirestoreFields.email: founder.email,
-          if (founder.avatarUrl != null)
-            FirestoreFields.avatarUrl: founder.avatarUrl,
-        },
-        FirestoreFields.joinedAt: FieldValue.serverTimestamp(),
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      });
-
-      tx.set(
-        userRef,
-        {
-          FirestoreFields.clubMemberships: memberships,
-          FirestoreFields.flags: {
-            FirestoreFields.profileCompleted: true,
-            FirestoreFields.disabled: false,
-          },
-          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+    final callable = _functions.httpsCallable(cloudCallableName('createClub'));
+    final result = await callable.call(<String, dynamic>{
+      FirestoreFields.name: draft.name.trim(),
+      FirestoreFields.sport: draft.sport,
+      FirestoreFields.city: formatCity(draft.city, required: true),
+      FirestoreFields.postalCode: formatPostalCode(draft.postalCode),
+      FirestoreFields.address: formatAddressLine(draft.address),
+      FirestoreFields.description: draft.description.trim(),
+      FirestoreFields.brandColorHex: draft.brandColorHex,
+      FirestoreFields.practiceLocations: draft.practiceLocations.map((location) {
+        final cityValue = location.city;
+        final addressValue = location.address;
+        return PracticeLocation(
+          name: location.name,
+          city: cityValue == null || cityValue.trim().isEmpty
+              ? null
+              : formatCity(cityValue),
+          address: addressValue == null || addressValue.trim().isEmpty
+              ? null
+              : formatAddressLine(addressValue),
+          category: location.category,
+          categoryCustom: location.categoryCustom,
+        ).toFirestoreMap();
+      }).toList(),
+      'seasonEndDateMs': defaultSeasonEndDate().millisecondsSinceEpoch,
     });
+    final data = result.data;
+    final clubId = data is Map ? data[FirestoreFields.clubId] : null;
+    if (clubId is! String || clubId.isEmpty) {
+      throw StateError('Réponse createClub invalide');
+    }
+    final clubRef = _clubs.doc(clubId);
 
     if (draft.logoBytes != null) {
       try {

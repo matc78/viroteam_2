@@ -7,17 +7,26 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_message.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
+import 'package:viro_team_v2/models/club_access.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
-/// Indique si [uid] peut écrire dans [conv] selon [writePolicy] et [role].
-bool chatThreadCanWrite(ChatConversation? conv, String? uid, String? role) {
+/// Indique si [uid] peut écrire dans [conv] selon sa politique d'écriture
+/// et les droits [access] du compte dans le club (mêmes conditions que les
+/// règles Firestore) : `admins_only` → droit `manageChat` ;
+/// `coaches_and_admins` → `manageChat` ou coach d'équipe.
+bool chatThreadCanWrite(
+  ChatConversation? conv,
+  String? uid,
+  ClubAccess access,
+) {
   if (conv == null || uid == null) return false;
   if (!conv.participantUids.contains(uid)) return false;
   switch (conv.writePolicy) {
     case ChatWritePolicies.adminsOnly:
-      return role == MemberRoles.admin;
+      return access.can(ClubPermission.manageChat);
     case ChatWritePolicies.coachesAndAdmins:
-      return role == MemberRoles.admin || role == MemberRoles.coach;
+      return access.canWriteStaffChannels;
     default:
       return true;
   }
@@ -92,10 +101,10 @@ String chatThreadReactorNameFor(String uid, List<ClubMember> members) {
 /// Rôle club (ou parent) de l’expéditeur pour la bordure de bulle.
 String chatThreadSenderRoleFor(String senderUid, List<ClubMember> members) {
   for (final member in members) {
-    if (member.accountUid == senderUid) return member.role;
+    if (member.accountUid == senderUid) return member.chatBadgeId;
   }
   // Participant sans fiche membre = parent (lien guardian).
-  return 'parent';
+  return ChatBadgeIds.parent;
 }
 
 /// True si [a] et [b] tombent le même jour calendaire local.

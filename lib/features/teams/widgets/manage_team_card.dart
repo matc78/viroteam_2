@@ -10,7 +10,6 @@ import 'package:viro_team_v2/features/club/providers/club_audience_providers.dar
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/teams/widgets/add_team_member_sheet.dart';
 import 'package:viro_team_v2/features/teams/widgets/confirm_remove_from_team_dialog.dart';
@@ -24,6 +23,8 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 class ManageTeamCard extends ConsumerStatefulWidget {
   const ManageTeamCard({
@@ -31,15 +32,11 @@ class ManageTeamCard extends ConsumerStatefulWidget {
     required this.team,
     required this.club,
     required this.accent,
-    required this.permissions,
-    required this.viewerRole,
   });
 
   final ClubTeam team;
   final Club club;
   final Color accent;
-  final TeamManagePermissions permissions;
-  final String viewerRole;
 
   @override
   ConsumerState<ManageTeamCard> createState() => _ManageTeamCardState();
@@ -97,7 +94,6 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
           ref: ref,
           club: widget.club,
           member: member,
-          viewerRole: widget.viewerRole,
           accentColor: widget.accent,
         );
   }
@@ -106,13 +102,16 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
     final team = widget.team;
-    final perms = widget.permissions;
-    final canAddPlayer = perms.canAddPlayer(team);
-    final canAddCoach = perms.canAddCoach(team);
-    final canRemovePlayer = perms.canRemovePlayer(team);
-    final canRemoveCoach = perms.canRemoveCoach(team);
-    final canRemovePending = perms.canRemovePendingPlayer(team);
-    final canShareTeamInvite = perms.canShareTeamInvite(team);
+    // Droit équipes : tout l'effectif ; coach de l'équipe : ajout de joueurs
+    // et code d'invitation selon les réglages coach du club.
+    final access = ref.watch(clubAccessProvider(team.clubId));
+    final canManageTeams = access.can(ClubPermission.manageTeams);
+    final canAddPlayer = access.canAddPlayerToTeam(team.id);
+    final canAddCoach = canManageTeams;
+    final canRemovePlayer = canManageTeams;
+    final canRemoveCoach = canManageTeams;
+    final canRemovePending = canManageTeams;
+    final canShareTeamInvite = access.canShareTeamInvite(team.id);
 
     final membersAsync = ref.watch(clubMembersProvider(team.clubId));
     final membersByUid = membersAsync.value != null
@@ -234,7 +233,6 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                       return MemberListTile(
                         member: member,
                         club: widget.club,
-                        viewerRole: widget.viewerRole,
                         accentColor: widget.accent,
                         showClubAdminActions: false,
                         displayRole: ViroRole.coach,
@@ -260,7 +258,6 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                       return MemberListTile(
                         member: member,
                         club: widget.club,
-                        viewerRole: widget.viewerRole,
                         accentColor: widget.accent,
                         showClubAdminActions: false,
                         displayRole: ViroRole.player,
@@ -293,7 +290,6 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                           (p) => MemberListTile(
                             member: pendingAsClubMember(p),
                             club: widget.club,
-                            viewerRole: widget.viewerRole,
                             accentColor: widget.accent,
                             showClubAdminActions: false,
                             displayRole: ViroRole.player,

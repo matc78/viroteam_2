@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/models/club.dart';
-import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
 import 'package:viro_team_v2/utils/sport_emoji.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
@@ -13,19 +12,17 @@ class ClubListTile extends StatelessWidget {
   const ClubListTile({
     super.key,
     required this.club,
-    this.membership,
+    this.role,
     required this.onTap,
     this.accentColor,
   });
 
   final Club club;
-  final ClubMembershipSummary? membership;
+  /// Badge du compte dans ce club (`null` : aucun badge).
+  final ViroRole? role;
   final VoidCallback onTap;
   final Color? accentColor;
 
-  ViroRole? get _badgeRole => membership == null
-      ? null
-      : viroRoleFromMemberRole(membership!.role);
 
   @override
   Widget build(BuildContext context) {
@@ -77,8 +74,8 @@ class ClubListTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (_badgeRole != null)
-              ViroRoleBadge(role: _badgeRole!, compact: true),
+            if (role != null)
+              ViroRoleBadge(role: role!, compact: true),
           ],
         ),
       ),

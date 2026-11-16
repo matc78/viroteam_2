@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/services/chat/chat_helpers.dart';
@@ -7,7 +7,7 @@ import 'package:viro_team_v2/services/chat/chat_helpers.dart';
 void main() {
   group('chatMembersWithProfiles', () {
     const coachProfile = ChatParticipantProfile(
-      role: MemberRoles.coach,
+      role: 'coach',
       firstName: 'Léa',
       lastName: 'Martin',
       displayName: 'Léa Martin',
@@ -22,7 +22,7 @@ void main() {
       expect(members, hasLength(1));
       final coach = members.single;
       expect(coach.accountUid, 'coach-uid');
-      expect(coach.role, MemberRoles.coach);
+      expect(coach.chatBadgeId, 'coach');
       expect(coach.fullName, 'Léa Martin');
       expect(coach.avatarUrl, 'https://example.com/lea.jpg');
     });
@@ -31,7 +31,7 @@ void main() {
       const member = ClubMember(
         memberId: 'm1',
         accountUid: 'coach-uid',
-        role: MemberRoles.admin,
+        permissions: {ClubPermission.admin},
         status: 'active',
         firstName: 'Léa',
       );

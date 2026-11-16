@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
@@ -13,6 +12,8 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/stream_switch_map.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 
 class ClubEventsState {
   const ClubEventsState({
@@ -26,8 +27,10 @@ class ClubEventsState {
   static const empty = ClubEventsState(pending: [], upcoming: []);
 }
 
-final clubProvider = FutureProvider.family<Club?, String>((ref, clubId) {
-  return ref.read(clubServiceProvider).getClub(clubId);
+/// Document club en temps réel (réglages coach compris : une modification de
+/// `coachPermissions` se reflète aussitôt dans [clubAccessProvider]).
+final clubProvider = StreamProvider.family<Club?, String>((ref, clubId) {
+  return ref.read(clubServiceProvider).watchClub(clubId);
 });
 
 /// Couleurs de marque résolues (uni ou bicolore).
@@ -133,9 +136,9 @@ final clubPitchAttendanceRateProvider =
   final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return null;
   if (ref.watch(isGuardianOnlyInClubProvider(clubId))) return null;
-  final member = ref.watch(clubMemberProvider(clubId)).value;
-  if (member == null ||
-      !MemberRoleHierarchy.isCoachOrAbove(member.role)) {
+  // Encadrement uniquement (coach d'équipe ou droit planning).
+  final access = ref.watch(clubAccessProvider(clubId));
+  if (!access.isTeamCoach && !access.can(ClubPermission.manageEvents)) {
     return null;
   }
   return ref.read(eventServiceProvider).computePitchAttendanceRate(

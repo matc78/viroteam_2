@@ -9,12 +9,10 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
-import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -45,6 +43,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 
 class ClubPlanningScreen extends ConsumerStatefulWidget {
   const ClubPlanningScreen({
@@ -277,7 +276,6 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       teamLabel: PlanningEventDisplay.teamLabel(event, teamsById),
       excludeCoachUids:
           PlanningEventDisplay.coachUidsToExclude(event, teamsById),
-      canManageEvents: canManage,
       onCanceled: () {},
       onRsvpUpdated: () => _invalidateEvents(canManage: canManage),
     );
@@ -322,12 +320,10 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     final club = ref.watch(clubProvider(clubId)).value;
     final target = ref.watch(selectedClubAudienceProvider(clubId));
     final isChildView = target?.isChild == true;
-    final canManage = !isChildView &&
-        member != null &&
-        (club?.coachPermissions ?? CoachPermissions.defaults).allowsCreateEvents(
-          isAdmin: member.role == MemberRoles.admin,
-          isCoach: member.role == MemberRoles.coach,
-        );
+    // Vue gestion (tous les événements + création) : droit planning, ou
+    // coach d'équipe avec le réglage `canCreateEvents`.
+    final canManage =
+        !isChildView && ref.watch(clubAccessProvider(clubId)).canCreateEvents;
     final canBrowsePeriods = canManage ||
         member != null ||
         ref.watch(isGuardianOnlyInClubProvider(clubId));

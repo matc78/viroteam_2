@@ -12,7 +12,9 @@ abstract final class FirestoreFields {
   static const String phone = 'phone';
   static const String avatarUrl = 'avatarUrl';
   static const String fcmToken = 'fcmToken';
-  static const String clubMemberships = 'clubMemberships';
+  /// `users/{uid}.memberClubIds` : clubs où le compte a une fiche (seul index
+  /// des clubs, écrit par les Functions).
+  static const String memberClubIds = 'memberClubIds';
   static const String notificationPreferences = 'notificationPreferences';
   static const String flags = 'flags';
   static const String profileCompleted = 'profileCompleted';
@@ -40,6 +42,10 @@ abstract final class FirestoreFields {
   // Legacy : [childUid] utilisé par fetchClubParents — ce n'est PAS
   // l'identité du lien (utiliser memberId + clubId).
   static const String childUid = 'childUid';
+
+  /// `guardians/{uid}.permissions` (map canView / canRsvp / canPay) et
+  /// `members/{id}.permissions` (liste des droits club, seule autorité,
+  /// écrite par les Functions).
   static const String permissions = 'permissions';
   static const String revokedAt = 'revokedAt';
   static const String relation = 'relation';
@@ -51,9 +57,16 @@ abstract final class FirestoreFields {
   // members/{memberId}/guardians/{parentUid} — source de vérité du lien
   static const String parentUid = 'parentUid';
 
-  // clubMemberships item / invitations
+  // invitations, liens parent, réponses de callables
   static const String clubId = 'clubId';
+
+  /// Badge d'un profil de conversation (`participantProfiles`), jamais un
+  /// droit : les droits vivent dans [permissions].
   static const String role = 'role';
+
+  /// `members/{id}.coachTeamIds` : équipes entraînées (dérivé de
+  /// `teams.coachIds` par les Functions).
+  static const String coachTeamIds = 'coachTeamIds';
 
   // clubs/{clubId}
   static const String name = 'name';
@@ -76,18 +89,20 @@ abstract final class FirestoreFields {
   /// Dernier envoi groupé « inviter tous les non inscrits » (cooldown 1 h).
   static const String lastBulkMemberInviteAt = 'lastBulkMemberInviteAt';
 
-  // join_requests, retour_user
+  // retour_user
   static const String userId = 'userId';
 
-  // members/{memberId}
+  /// Référence à une fiche (invitations, guardians, `parentLinks`,
+  /// callables) — jamais écrit sur la fiche elle-même (son id fait foi).
   static const String memberId = 'memberId';
+
+  // members/{memberId}
   static const String accountUid = 'accountUid';
   static const String status = 'status';
   static const String teamIds = 'teamIds';
   static const String snapshot = 'snapshot';
   static const String joinedAt = 'joinedAt';
   static const String playerInfo = 'playerInfo';
-  static const String coachInfo = 'coachInfo';
   static const String license = 'license';
   static const String activeInvitationId = 'activeInvitationId';
 
@@ -168,15 +183,9 @@ abstract final class FirestoreFields {
   static const String equipmentConditionUse = 'use';
   static const String equipmentConditionHs = 'hs';
 
-  // clubs/{clubId}.coachPermissions — flags UI coach (édition portail)
+  // clubs/{clubId}.coachPermissions — capacités des coachs d'équipe ; les
+  // clés de la map sont les `CoachFlag.id` (models/club_permission.dart).
   static const String coachPermissions = 'coachPermissions';
-  static const String canCreateEvents = 'canCreateEvents';
-  static const String canManageTeamRoster = 'canManageTeamRoster';
-  static const String canInvitePlayers = 'canInvitePlayers';
-  static const String canTakeAttendance = 'canTakeAttendance';
-  static const String canViewFees = 'canViewFees';
-  static const String canEditMemberLicenses = 'canEditMemberLicenses';
-  static const String canEditMemberRsvp = 'canEditMemberRsvp';
 
   // fee_seasons / member_fees
   static const String seasonLabel = 'seasonLabel';
@@ -230,10 +239,9 @@ abstract final class FirestoreFields {
   static const String id = 'id';
   static const String label = 'label';
 
-  // join_requests
+  // invitations (dénormalisé), messages
   static const String clubName = 'clubName';
   static const String clubSport = 'clubSport';
-  static const String roleRequested = 'roleRequested';
   static const String message = 'message';
 
   // clubs/{clubId}/conversations/{convId}
@@ -310,34 +318,6 @@ abstract final class ChatMessageTypes {
   static const String text = 'text';
   static const String image = 'image';
   static const String poll = 'poll';
-}
-
-/// Rôles membre d'un club — hiérarchie : admin ⊃ coach ⊃ player.
-///
-/// Parent n'est PAS un rôle ici : voir [FirestoreFields.parentLinks],
-/// [ProjectConfig.guardiansSubcollection] et [ProjectConfig.parentsSpecDoc].
-abstract final class MemberRoles {
-  static const String admin = 'admin';
-  static const String coach = 'coach';
-  static const String player = 'player';
-}
-
-/// Niveaux de rôle club — coach hérite de player, admin hérite de coach.
-abstract final class MemberRoleHierarchy {
-  static int level(String role) => switch (role) {
-        MemberRoles.admin => 3,
-        MemberRoles.coach => 2,
-        MemberRoles.player => 1,
-        _ => 0,
-      };
-
-  /// `true` si [role] a au moins les droits de [minimum] (ex. coach ≥ player).
-  static bool satisfies(String role, String minimum) =>
-      level(role) >= level(minimum);
-
-  static bool isCoachOrAbove(String role) => satisfies(role, MemberRoles.coach);
-
-  static bool isAdmin(String role) => role == MemberRoles.admin;
 }
 
 /// Statuts invitation.
@@ -432,13 +412,6 @@ abstract final class FeePaymentMethods {
   static String label(String key) => AppCopy.fees.paymentMethod(key);
 }
 
-/// Statuts demande d'adhésion.
-abstract final class JoinRequestStatus {
-  static const String pending = 'pending';
-  static const String accepted = 'accepted';
-  static const String refused = 'refused';
-}
-
 /// Objectifs d'usage club (assistant création).
 abstract final class ClubObjectives {
   static const String planning = 'planning';
@@ -489,7 +462,7 @@ abstract final class ClubObjectives {
         fees => 'Gestion des paiements et relances',
         equipment => 'Inventaire et prêts de matériel',
         communication => 'Infos club, rappels et actualités',
-        members => 'Fiches, rôles et invitations',
+        members => 'Fiches, droits et invitations',
         teams => 'U15, seniors, groupes d\'entraînement',
         documents => 'Statuts, assurances, autorisations',
         parents => 'Suivi des enfants, infos famille',

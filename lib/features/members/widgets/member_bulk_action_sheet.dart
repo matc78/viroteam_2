@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/utils/member_invite_feedback.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -34,9 +33,8 @@ Future<bool?> showMemberBulkActionSheet(
 }) {
   final eligibleInviteMembers =
       selectedMembers.where((member) => member.canReceiveInviteEmail).toList();
-  final playersToAdd = selectedMembers
-      .where((member) => member.role == MemberRoles.player)
-      .toList();
+  // Tout membre peut rejoindre l'effectif d'une équipe.
+  final playersToAdd = selectedMembers.toList();
 
   return showModalBottomSheet<bool>(
     context: context,

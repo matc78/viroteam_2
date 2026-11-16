@@ -10,13 +10,11 @@ import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_overview_providers.dart';
-import 'package:viro_team_v2/features/club/providers/role_requests_providers.dart';
 import 'package:viro_team_v2/features/club/services/club_analytics.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
@@ -57,6 +55,8 @@ import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Fiche club : aperçu vivant (en-tête, prochain événement, à faire,
 /// raccourcis informatifs, gestion) ou vue famille quand un enfant est
@@ -80,11 +80,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   }
 
   void _syncSession() {
-    final user = ref.read(viroUserProvider).value;
-    ref.read(sessionProvider.notifier).setActiveClub(
-          widget.clubId,
-          role: user?.membershipInClub(widget.clubId)?.role,
-        );
+    ref.read(sessionProvider.notifier).setActiveClub(widget.clubId);
   }
 
   /// Capture un CTA fiche club puis navigue vers [route].
@@ -92,10 +88,14 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     required String action,
     required String zone,
     required String route,
-    String? roleOverride,
+    String? badgeOverride,
   }) {
-    final role = roleOverride ??
-        analyticsActiveRole(ref.read(sessionProvider).activeRole);
+    final member = ref.read(clubMemberProvider(widget.clubId)).value;
+    final role = badgeOverride ??
+        analyticsActiveRole(
+          hasMemberDoc: member != null,
+          badge: member?.primaryBadge,
+        );
     ref.read(clubAnalyticsProvider).trackActionTapped(
           action: action,
           role: role,
@@ -138,7 +138,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   void _showEventDetail({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) {
     PlanningEventDetailSheet.show(
       context: context,
@@ -146,7 +145,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
       excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
-      canManageEvents: canManageEvents,
       onCanceled: () {},
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
@@ -310,29 +308,26 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     Color? accentSecondary,
   }) {
     final clubId = club.id;
-    final role = member?.role;
-    final isCoachOrAbove =
-        role != null && MemberRoleHierarchy.isCoachOrAbove(role);
-    final isAdmin = role == MemberRoles.admin;
+    final access = ref.watch(clubAccessProvider(clubId));
+    final isStaff = access.isStaff;
+    final isAdmin = access.isAdmin;
     final summary = ref.watch(clubShortcutsSummaryProvider(clubId));
     final attendanceRate = ref.watch(clubAttendanceRateProvider(clubId)).value;
     final pitchRate = ref.watch(clubPitchAttendanceRateProvider(clubId)).value;
     final hasActiveSeason =
         ref.watch(activeSeasonProvider(clubId)).value != null;
-    final pendingCount = isCoachOrAbove
+    final canOpenMembers = access.canOpenMembers;
+    final pendingCount = canOpenMembers
         ? ref.watch(pendingTeamMembersProvider(clubId)).value?.length ?? 0
         : 0;
     final latestAnnouncement = announcementsAsync.value?.firstOrNull;
-    final roleRequestCount = isAdmin
-        ? ref.watch(actionableRoleRequestsProvider(clubId)).value?.length ?? 0
-        : 0;
 
     final heroStats = [
       if (club.memberCount > 0)
         ClubHeroStat(
           icon: ViroIcons.groups,
           label: AppCopy.club.membersCount(club.memberCount),
-          onTap: isCoachOrAbove
+          onTap: canOpenMembers
               ? () => context.push(AppRoutes.clubMembersPath(clubId))
               : null,
         ),
@@ -360,9 +355,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           club: club,
           accent: memberAccent,
           accentSecondary: accentSecondary,
-          role: role,
+          role: member == null ? null : viroRoleForMember(member),
           stats: heroStats,
-          onEditAppearance: isAdmin
+          onEditAppearance: access.can(ClubPermission.manageClubSettings)
               ? () => context.push(AppRoutes.clubAppearancePath(clubId))
               : null,
         ),
@@ -372,7 +367,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         club: club,
         eventsAsync: eventsAsync,
         fee: summary.fee,
-        roleRequestCount: roleRequestCount,
         accent: memberAccent,
         accentSecondary: accentSecondary,
       ),
@@ -416,7 +410,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             ),
           ),
         ),
-        if (member.role == MemberRoles.player)
+        // « Mon parent » : fiches sans badge d'encadrement (ni Admin ni
+        // Entraîneur), quels que soient leurs droits à la carte.
+        if (!member.hasStaffBadge)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -429,16 +425,16 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               ),
             ),
           ),
-        if (isCoachOrAbove) ...[
+        if (isStaff) ...[
           SliverToBoxAdapter(
             child: _SectionTitle(
-              title: AppCopy.club.clubStaffSection(member.role),
+              title: AppCopy.club.clubStaffSection(isAdmin: isAdmin),
               accentColor: managementAccent,
             ),
           ),
           SliverToBoxAdapter(
             child: ClubManagementList(
-              role: member.role,
+              access: access,
               accentColor: managementAccent,
               memberCount: club.memberCount,
               pendingCount: pendingCount,
@@ -495,13 +491,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     required Club club,
     required AsyncValue<ClubEventsState> eventsAsync,
     required ClubFeeSummary? fee,
-    required int roleRequestCount,
     required Color accent,
     Color? accentSecondary,
   }) {
     final clubId = club.id;
     final feeDue = fee != null && fee.kind == ClubFeeSummaryKind.due;
-    final hasRoleRequests = roleRequestCount > 0;
 
     return eventsAsync.when(
       loading: () => [
@@ -567,32 +561,13 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                     ),
             ),
           ),
-          if (otherPending.isNotEmpty || feeDue || hasRoleRequests) ...[
+          if (otherPending.isNotEmpty || feeDue) ...[
             SliverToBoxAdapter(
               child: _SectionTitle(
                 title: AppCopy.club.todoSection,
                 accentColor: accent,
               ),
             ),
-            if (hasRoleRequests)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  ViroSpacing.screenHorizontal,
-                  0,
-                  ViroSpacing.screenHorizontal,
-                  ViroSpacing.md,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: _TodoLinkCard(
-                    icon: ViroIcons.users,
-                    title: AppCopy.club.roleRequestsTodo(roleRequestCount),
-                    subtitle: AppCopy.club.roleRequestsTodoHint,
-                    accent: accent,
-                    onTap: () =>
-                        context.push(AppRoutes.clubRoleRequestsPath(clubId)),
-                  ),
-                ),
-              ),
             if (feeDue)
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
@@ -767,19 +742,19 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 action: ClubAnalytics.actionPlanning,
                 zone: ClubAnalytics.zoneFamily,
                 route: AppRoutes.clubPlanningPath(clubId),
-                roleOverride: 'parent',
+                badgeOverride: 'parent',
               ),
               onFee: () => _trackClubActionAndPush(
                 action: ClubAnalytics.actionMyFee,
                 zone: ClubAnalytics.zoneFamily,
                 route: AppRoutes.clubMyFeePath(clubId),
-                roleOverride: 'parent',
+                badgeOverride: 'parent',
               ),
               onInfos: () => _trackClubActionAndPush(
                 action: ClubAnalytics.actionAnnouncements,
                 zone: ClubAnalytics.zoneFamily,
                 route: AppRoutes.clubAnnouncementsPath(clubId),
-                roleOverride: 'parent',
+                badgeOverride: 'parent',
               ),
             ),
             const SizedBox(height: ViroSpacing.xl),
@@ -1106,65 +1081,6 @@ class _FeeDueBanner extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Ligne « à regarder » discrète (ex. demandes de rôle) : une seule entrée
-/// résumée, jamais la liste complète, pour ne pas charger la fiche.
-class _TodoLinkCard extends StatelessWidget {
-  const _TodoLinkCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context).textTheme;
-    final palette = context.viroPalette;
-    final iconColor = palette.readableAccent(accent);
-
-    return ViroCard(
-      margin: EdgeInsets.zero,
-      onTap: onTap,
-      semanticLabel: title,
-      padding: const EdgeInsets.all(ViroSpacing.md),
-      child: Row(
-        children: [
-          ViroIcon(icon, color: iconColor, size: 22),
-          const SizedBox(width: ViroSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.titleSmall?.copyWith(
-                    color: palette.brandText,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: theme.bodySmall?.copyWith(
-                    color: palette.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ViroIcon(ViroIcons.chevronRight, color: palette.textMuted, size: 20),
-        ],
       ),
     );
   }

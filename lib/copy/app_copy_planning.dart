@@ -84,8 +84,6 @@ final class AppCopyPlanning {
       '$count $statusLabel';
 
   String get newEventTitle => 'Nouvel événement';
-  String get reservedToCoachesAdmins =>
-      'Réservé aux coachs et admins';
   /// Raison du bouton Créer désactivé : lieu du RDV manquant.
   String get meetingLocationRequired => 'Choisis le lieu du RDV';
   /// Confirmation de sortie du formulaire d'événement modifié.

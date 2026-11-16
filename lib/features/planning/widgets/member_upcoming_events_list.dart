@@ -4,9 +4,7 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
-import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/home/providers/event_seen_provider.dart';
 import 'package:viro_team_v2/features/home/widgets/event_planning_card.dart';
 import 'package:viro_team_v2/features/home/widgets/event_seen_visibility_tracker.dart';
@@ -74,7 +72,6 @@ class MemberUpcomingEventsList extends ConsumerWidget {
   final void Function({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) onShowDetail;
   final Future<void> Function(ClubEvent event, RsvpStatus status) onSetRsvp;
   final int? maxEvents;
@@ -161,7 +158,6 @@ class _MemberEventCard extends ConsumerWidget {
   final void Function({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) onShowDetail;
   final Future<void> Function(ClubEvent event, RsvpStatus status) onSetRsvp;
   final RsvpStatus? highlightStatus;
@@ -173,18 +169,14 @@ class _MemberEventCard extends ConsumerWidget {
     final teams = teamsByClub[event.clubId] ?? {};
     final counts =
         PlanningEventDisplay.rsvpCountsIncludingCoaches(event, teams);
-    final clubMember = ref.watch(clubMemberProvider(event.clubId)).value;
     final canRsvp =
         uid != null && PlanningEventDisplay.canRsvpOnEvent(event, uid, teams);
     final status =
         uid != null ? event.rsvpStatusForUser(uid) : RsvpStatus.none;
-    final canManageEvents = clubMember != null &&
-        MemberRoleHierarchy.isCoachOrAbove(clubMember.role);
 
     void openDetail() => onShowDetail(
           event: event,
           teams: teams,
-          canManageEvents: canManageEvents,
         );
 
     final card = EventPlanningCard(
@@ -265,7 +257,6 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
   final void Function({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) onShowDetail;
   final Future<void> Function(ClubEvent event, RsvpStatus status) onSetRsvp;
   final int? maxEvents;

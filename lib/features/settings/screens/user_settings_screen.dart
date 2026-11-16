@@ -21,6 +21,7 @@ import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/club_list_tile.dart';
 import 'package:viro_team_v2/widgets/lists/settings_list_tile.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/clubs/providers/club_session_badge_provider.dart';
 
 /// Hub paramètres utilisateur : profil, catégories (sous-pages), clubs,
 /// puis déconnexion discrète en bas.
@@ -191,7 +192,9 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                         for (final entry in clubs)
                           ClubListTile(
                             club: entry.club,
-                            membership: entry.membership,
+                            role: ref.watch(
+                              clubSessionBadgeProvider(entry.club.id),
+                            ),
                             onTap: () => context.push(
                               AppRoutes.clubDetailPath(entry.club.id),
                             ),

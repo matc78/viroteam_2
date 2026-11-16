@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -10,7 +9,6 @@ void main() {
 
   const childMember = ClubMember(
     memberId: childMemberId,
-    role: MemberRoles.player,
     status: 'active',
   );
 

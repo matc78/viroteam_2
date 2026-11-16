@@ -25,7 +25,7 @@ final memberEventsProvider = StreamProvider<MemberEventsState>((ref) {
     return Stream.value(MemberEventsState.empty);
   }
 
-  final clubIds = user.clubMemberships.map((m) => m.clubId).toList();
+  final clubIds = user.memberClubIds;
   final authUid = auth.uid;
   final eventService = ref.read(eventServiceProvider);
 

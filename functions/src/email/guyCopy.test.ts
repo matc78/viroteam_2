@@ -9,11 +9,38 @@ const APP_STORE =
 const PLAY_STORE =
   "https://play.google.com/store/apps/details?id=com.viroteam.viro_team";
 
-test("normalizeMemberInviteRole mappe coach/admin/player", () => {
+test("normalizeMemberInviteRole mappe coach/admin/player/member", () => {
   assert.equal(normalizeMemberInviteRole("coach"), "coach");
   assert.equal(normalizeMemberInviteRole("ADMIN"), "admin");
   assert.equal(normalizeMemberInviteRole("player"), "player");
-  assert.equal(normalizeMemberInviteRole("autre"), "player");
+  assert.equal(normalizeMemberInviteRole("member"), "member");
+  assert.equal(normalizeMemberInviteRole("autre"), "member");
+});
+
+test("memberInvite member : copy membre, pas joueur", () => {
+  const mail = buildGuyEmail({
+    kind: "memberInvite",
+    clubId: "club1",
+    clubName: "AS Volley",
+    role: "member",
+    firstName: "Léa",
+    code: "AB12CD",
+    joinUrl: "https://www.viroteam.com/join?code=AB12CD",
+  });
+  assert.match(mail.subject, /Bienvenue chez AS Volley/);
+  assert.ok(mail.tags.includes("member"));
+});
+
+test("inviteAcceptedMember member : libellé « membre »", () => {
+  const mail = buildGuyEmail({
+    kind: "inviteAcceptedMember",
+    clubId: "club1",
+    clubName: "AS Volley",
+    memberDisplayName: "Léa Martin",
+    role: "member",
+  });
+  assert.match(mail.textContent, /(membre)/);
+  assert.doesNotMatch(mail.textContent, /joueur/);
 });
 
 test("memberInvite player : sujet Guy + code + CTA stores + liens web", () => {

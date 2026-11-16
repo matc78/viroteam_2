@@ -21,7 +21,6 @@ type LookupInvitationPayload = {
   clubId: string;
   invitationId: string;
   code: string;
-  role: string;
   type: "member" | "guardian" | "team";
   status: "pending";
   firstName: string;
@@ -82,8 +81,9 @@ async function handleLookupInvitationByCode(
 
   const clubRef = db().collection("clubs").doc(clubId);
 
-  // Complément depuis la fiche membre pré-créée si l'invitation ne porte pas les noms.
-  if (memberId && (!firstName || !lastName)) {
+  // Fiche membre pré-créée : complète les noms (une invitation ne porte
+  // aucun droit ni rôle).
+  if (memberId) {
     const memberSnap = await clubRef.collection("members").doc(memberId).get();
     if (memberSnap.exists) {
       const member = memberSnap.data() ?? {};
@@ -146,7 +146,6 @@ async function handleLookupInvitationByCode(
       clubId,
       invitationId: inviteDoc.id,
       code: str(invite.code).toUpperCase() || code,
-      role: str(invite.role) || "player",
       type,
       status: INVITATION_STATUS_PENDING,
       firstName,

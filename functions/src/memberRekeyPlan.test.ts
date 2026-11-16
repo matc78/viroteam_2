@@ -136,10 +136,11 @@ test("rewriteParentLinks réécrit le lien du club et garde l'actif en cas de do
   );
 });
 
-test("mergeMemberDocs ne rétrograde jamais le rôle et réunit les équipes", () => {
+test("mergeMemberDocs réunit les droits et les équipes", () => {
   const merged = mergeMemberDocs(
     {
-      role: "admin",
+      permissions: ["viewActivity", "manageFees"],
+      coachTeamIds: ["t1"],
       teamIds: ["t1"],
       firstName: "Louka",
       playerInfo: { license: "123" },
@@ -147,7 +148,7 @@ test("mergeMemberDocs ne rétrograde jamais le rôle et réunit les équipes", (
       status: "pending",
     },
     {
-      role: "player",
+      permissions: ["manageTeams"],
       teamIds: ["t2"],
       firstName: "Louka-compte",
       playerInfo: {},
@@ -155,7 +156,13 @@ test("mergeMemberDocs ne rétrograde jamais le rôle et réunit les équipes", (
       status: "active",
     },
   );
-  assert.equal(merged.role, "admin");
+  assert.deepEqual(merged.permissions, [
+    "manageTeams",
+    "manageFees",
+    "viewFees",
+    "viewActivity",
+  ]);
+  assert.deepEqual(merged.coachTeamIds, ["t1"]);
   assert.deepEqual(merged.teamIds, ["t1", "t2"]);
   assert.equal(merged.firstName, "Louka-compte");
   assert.deepEqual(merged.playerInfo, { license: "123" });

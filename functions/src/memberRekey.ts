@@ -16,6 +16,8 @@ import {
   type Transaction,
 } from "firebase-admin/firestore";
 import { migrateTeamMemberIds } from "./eventAudienceMigrate";
+import { TEAM_ROSTER_FIELDS, accountUidOf, stringArray } from "./common";
+import { adminIdsUpdate } from "./permissionsCatalog";
 import {
   ANNOUNCEMENT_TARGET_PEOPLE,
   buildEventRekeyPatch,
@@ -87,19 +89,9 @@ export type RekeyReport = {
   references?: RekeyReferencesReport;
 };
 
-function stringList(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((id): id is string => typeof id === "string" && id.length > 0)
-    : [];
-}
-
-function linkedAccountUid(data: DocumentData | null | undefined): string {
-  return String(data?.accountUid ?? data?.userId ?? "").trim();
-}
-
 /** Ids précédents d'une fiche (`formerMemberIds`). */
 export function formerMemberIdsOf(data: DocumentData | undefined): string[] {
-  return stringList(data?.formerMemberIds);
+  return stringArray(data?.formerMemberIds);
 }
 
 /**
@@ -159,7 +151,7 @@ export function writeRekeyCore(
   }
   const sourceData = state.source.data()!;
   const targetData = state.target.exists ? state.target.data()! : null;
-  for (const linked of [linkedAccountUid(sourceData), linkedAccountUid(targetData)]) {
+  for (const linked of [accountUidOf(sourceData), accountUidOf(targetData)]) {
     if (linked && linked !== uid) {
       throw new MemberRekeyError(
         "account-conflict",
@@ -176,12 +168,16 @@ export function writeRekeyCore(
 
   const base = targetData ? mergeMemberDocs(sourceData, targetData) : { ...sourceData };
   delete base.activeInvitationId;
+  // Champs v1 : la clé est l'id du doc, le compte est `accountUid`, les
+  // droits sont `permissions` (plus de rôle ni de `coachInfo`).
+  delete base.memberId;
+  delete base.userId;
+  delete base.role;
+  delete base.coachInfo;
   tx.set(state.targetRef, {
     ...base,
     ...options.extraFields,
-    memberId: uid,
     accountUid: uid,
-    userId: uid,
     formerMemberIds: [...new Set([...formerMemberIdsOf(base), from])],
     rekeyPendingFrom: from,
     updatedAt: FieldValue.serverTimestamp(),
@@ -201,13 +197,19 @@ export function writeRekeyCore(
     if (nextLinks) tx.update(parent.ref, { parentLinks: nextLinks });
   }
 
-  // Une seule clé membre : l'ancien index compte → fiche disparaît.
-  tx.delete(state.clubRef.collection("member_accounts").doc(uid));
   tx.delete(state.sourceRef);
 
   const clubData = state.club.data() ?? {};
   const clubPatch: Record<string, unknown> = {};
-  const nextAdminIds = migrateTeamMemberIds(stringList(clubData.adminIds), from, uid);
+  // La fiche devient liée : elle entre dans l'index des admins si elle porte
+  // le droit Administrateur (une fiche non liée n'y figure jamais).
+  const nextAdminIds = adminIdsUpdate({
+    adminIds: stringArray(clubData.adminIds),
+    memberId: uid,
+    linked: true,
+    permissions: base.permissions,
+    formerMemberIds: [from],
+  });
   if (nextAdminIds) clubPatch.adminIds = nextAdminIds;
   if (targetData) {
     clubPatch.memberCount = Math.max(0, Number(clubData.memberCount ?? 0) - 1);
@@ -289,7 +291,7 @@ export async function rewriteMemberReferences(params: {
 
   const teams = clubRef.collection("teams");
   const teamSnaps = await Promise.all(
-    ["playerIds", "coachIds", "pendingPlayerIds"].map((field) =>
+    TEAM_ROSTER_FIELDS.map((field) =>
       teams.where(field, "array-contains", from).get(),
     ),
   );
@@ -336,7 +338,7 @@ export async function rewriteMemberReferences(params: {
     .get();
   for (const doc of announcements.docs) {
     if (doc.get("targetType") !== ANNOUNCEMENT_TARGET_PEOPLE) continue;
-    const next = migrateTeamMemberIds(stringList(doc.get("targetIds")), from, uid);
+    const next = migrateTeamMemberIds(stringArray(doc.get("targetIds")), from, uid);
     if (!next) continue;
     updates.push([doc.ref, { targetIds: next }]);
     report.announcements += 1;

@@ -12,12 +12,13 @@ function doc(id: string, data: Record<string, unknown>) {
 }
 
 describe("profileFromMember", () => {
-  it("reprend nom, rôle et avatar du snapshot", () => {
+  it("reprend nom, badge et avatar du snapshot", () => {
     assert.deepEqual(
       profileFromMember({
         firstName: " Léa ",
         lastName: "Martin",
-        role: "coach",
+        coachTeamIds: ["t1"],
+        teamIds: ["t1"],
         snapshot: { displayName: "Léa M.", avatarUrl: "https://a/b.jpg" },
       }),
       {
@@ -33,8 +34,16 @@ describe("profileFromMember", () => {
   it("sans snapshot ni avatar : nom composé, pas de clé avatarUrl", () => {
     const profile = profileFromMember({ firstName: "Paul", lastName: "Durand" });
     assert.equal(profile.displayName, "Paul Durand");
-    assert.equal(profile.role, "player");
+    assert.equal(profile.role, "member");
     assert.equal("avatarUrl" in profile, false);
+  });
+
+  it("badge principal : admin avant coach, joueur d'un effectif", () => {
+    assert.equal(
+      profileFromMember({ permissions: ["admin"], coachTeamIds: ["t1"] }).role,
+      "admin",
+    );
+    assert.equal(profileFromMember({ teamIds: ["t2"] }).role, "player");
   });
 });
 
@@ -52,8 +61,8 @@ describe("profileFromUser", () => {
 describe("memberDirectoryFromDocs", () => {
   it("indexe par uid Auth et ignore les fiches sans compte", () => {
     const directory = memberDirectoryFromDocs([
-      doc("u1", { accountUid: "u1", firstName: "A", role: "player" }),
-      doc("u2", { userId: "u2", firstName: "B", role: "coach" }),
+      doc("u1", { accountUid: "u1", firstName: "A", teamIds: ["t1"] }),
+      doc("u2", { accountUid: "u2", firstName: "B", coachTeamIds: ["t1"] }),
       doc("m3", { firstName: "C" }),
     ]);
     assert.deepEqual([...directory.keys()], ["u1", "u2"]);

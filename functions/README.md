@@ -24,21 +24,22 @@ Logique sensible hors client (HelloAsso, invitations). Spec paiement :
 | `helloAssoWebhook` / `helloAssoWebhookDev` | HTTP — crédite cotisation HelloAsso — dormant |
 | `lookupInvitationByCode` / `…Dev` | Callable **sans auth** — retrouve une invitation pending par code (e-mail masqué `emailHint`, jamais l’e-mail complet) |
 | `deleteMyAccount` / `deleteMyAccountDev` | Callable — anonymise les fiches du compte (cascade tolérante aux erreurs) puis supprime le compte Auth |
-| `setMemberRole` / `setMemberRoleDev` | Callable — admin du club change un rôle (garde « dernier admin », sync `adminIds` + `clubMemberships`) |
-| `removeMember` / `removeMemberDev` | Callable — admin du club retire un membre (garde « dernier admin », rosters, invitation → `revoked`, `member_accounts`) |
-| `onTeamWritten` / `onTeamWrittenDev` | Trigger Firestore `clubs/{clubId}/teams/{teamId}` — recalcule `users/{uid}.parentTeamIds` des parents des joueurs ajoutés/retirés + sync chats `team` / `parents` |
+| `setMemberPermissions` / `setMemberPermissionsDev` | Callable — droit `admin` : fixe les droits d’une fiche (catalogue `shared/permissions_catalog.json`, normalisation, pas d’auto-modification, garde « dernier admin », index `adminIds`) |
+| `createClub` / `createClubDev` | Callable — crée le club et la fiche du fondateur avec le droit `admin` |
+| `removeMember` / `removeMemberDev` | Callable — droit `manageMembers` (+ `admin` si la cible est admin) retire un membre (garde « dernier admin », rosters, invitation → `revoked`) |
+| `onTeamWritten` / `onTeamWrittenDev` | Trigger Firestore `clubs/{clubId}/teams/{teamId}` — recalcule `members.teamIds` et `members.coachTeamIds` (seul écrivain ; relit l'équipe courante, les déclenchements n'étant pas ordonnés ; réparation : phase additive de `tool/migrate_roles_to_permissions.mjs`) et `users/{uid}.parentTeamIds` des parents des joueurs ajoutés/retirés + sync chats `team` / `parents` |
 | `createCoachDm` / `…Dev` | Callable — crée une DM / groupe coaches (joueurs & parents → coaches/admins uniquement) |
-| `createCategoryChannel` / `…Dev` | Callable admin — canal catégorie (écriture admin par défaut) |
+| `createCategoryChannel` / `…Dev` | Callable droit `manageChat` — canal catégorie (écriture admin par défaut) |
 | `ensureClubChatSynced` / `…Dev` | Callable — backfill idempotent chats système d’un club (équipes déjà créées) |
 | `backfillMyAdminClubChats` / `…Dev` | Callable — backfill de tous les clubs où l’appelant est admin |
-| `onMemberWrittenForChat` / `…Dev` | Trigger membres — sync chats `staff` + `club` ; nom / photo / rôle → `participantProfiles` dans toutes ses conversations |
+| `onMemberWrittenForChat` / `…Dev` | Trigger membres — sync chats `staff` + `club` ; nom / photo / badge (droits, `coachTeamIds`) → `participantProfiles` dans toutes ses conversations |
 | `onUserWrittenForChat` / `…Dev` | Trigger `users/{uid}` — nom / photo d’un parent → `participantProfiles` dans les conversations de ses clubs |
 | `onClubWrittenForChat` / `…Dev` | Trigger club — resync si `adminIds` change |
 | `onChatMessageCreatedForPush` / `…Dev` | Trigger message — push 1 notif / message (mute + pref `chat`) |
 | `scheduleSeasonChatPurge` / `…Dev` | Cron 03:00 Europe/Paris — purge messages si `seasonEndDate` dans les 48 h (Storage conservé) |
 | `registerFcmToken` / `…Dev` | Callable — enregistre un token FCM (`users/{uid}/fcmTokens`) |
 | `unregisterFcmToken` / `…Dev` | Callable — supprime un token FCM |
-| `sendEventPush` / `…Dev` | Callable — notif manuelle event (coach/admin, 1/h) |
+| `sendEventPush` / `…Dev` | Callable — notif manuelle event (droit `manageEvents` ou coach d’une équipe de l’événement, 1/h) |
 | `onEventWrittenForPush` / `…Dev` | Trigger events — création (rappels immédiats), annulé / reporté / modifié |
 | `onAnnouncementCreatedForPush` / `…Dev` | Trigger annonces — push à la publication |
 | `scheduleEventReminders` / `…Dev` | Cron Lun–Ven 18:30 Europe/Paris — rappels J-7 / J-2 |
@@ -101,15 +102,15 @@ local) et redéployer.
   logge) tout `payment_intent.succeeded` dont la devise n'est pas `eur`. Helpers purs et
   testés dans `src/stripeCheckoutUtils.ts`. HelloAsso (dormant) n'a pas été touché.
 - **Chats système** : `onMemberWrittenForChat` ne relance `syncClubWideConversations`
-  que si `role` / `status` / `accountUid` / `userId` / `teamIds` changent
+  que si `status` / `accountUid` / `teamIds` / `permissions` / `coachTeamIds` changent
   (`memberChatFieldsChanged`), et `upsertSystemConversation` ne réécrit pas une
   conversation dont participants (triés), profils, titre, politique et cibles sont identiques.
   `participantProfiles` est remplacé en entier (`update`, pas `set` merge) pour qu’un
   participant retiré n’y laisse pas son profil ; un changement de nom / photo seul ne
   touche que `participantProfiles.<uid>` des conversations concernées.
 - **`createCategoryChannel`** : `writePolicy` ∈ {`open`, `admins_only`,
-  `coaches_and_admins`}, `title` ≤ 80, admin résolu via `assertClubAdmin` (adminIds,
-  index `member_accounts` ou fiche directe).
+  `coaches_and_admins`}, `title` ≤ 80, droit `manageChat` exigé ; l'appelant est
+  toujours ajouté aux participants (un titulaire de `manageChat` non admin voit son canal).
 - Les règles Firestore / Storage correspondantes (fiches lisibles par un parent, rename,
   création de message bornée, médias image dans le bucket du projet) sont commentées en
   tête de `firestore.rules` et de `storage.rules`. Les Storage rules ne peuvent pas lire

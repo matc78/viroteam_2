@@ -1,5 +1,5 @@
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { accountUidOf, requireString, requireUid, stringArray, uniq } from "../common";
+import { parseParentLinks, requireString, requireUid, stringArray, uniq } from "../common";
 import { db, defineDualCallable } from "../db";
 import { resolveAuthUids, upsertSystemConversation } from "./sync";
 
@@ -43,23 +43,9 @@ async function handleCreateCoachDm(request: CallableRequest): Promise<{
   const userData = userSnap.data() ?? {};
   const parentClubIds = stringArray(userData.parentClubIds);
   const parentTeamIds = new Set(stringArray(userData.parentTeamIds));
-  const parentLinksRaw = Array.isArray(userData.parentLinks)
-    ? (userData.parentLinks as unknown[])
-    : [];
-  const activeParentLinksInClub = parentLinksRaw
-    .filter((item): item is Record<string, unknown> =>
-      Boolean(item) && typeof item === "object")
-    .map((item) => ({
-      clubId: String(item.clubId ?? ""),
-      memberId: String(item.memberId ?? ""),
-      status: String(item.status ?? ""),
-    }))
-    .filter(
-      (link) =>
-        link.clubId === clubId &&
-        link.memberId.length > 0 &&
-        link.status === "active",
-    );
+  const activeParentLinksInClub = parseParentLinks(userData.parentLinks).filter(
+    (link) => link.clubId === clubId && link.status === "active",
+  );
   const isMember = directMember.exists;
   // parentClubIds peut être stale : les liens actifs font foi (comme l’app).
   const isParent =
@@ -108,17 +94,8 @@ async function handleCreateCoachDm(request: CallableRequest): Promise<{
     );
     for (const coachUid of coachUids) allowedCoachUids.add(coachUid);
   }
-  // `adminIds` = uids des admins ; filet : fiches `role == admin` liées
-  // (adminIds parfois incomplet).
+  // `adminIds` = index des comptes ayant le droit Administrateur.
   for (const adminUid of adminIds) allowedCoachUids.add(adminUid);
-  const adminMembersSnap = await clubRef
-    .collection("members")
-    .where("role", "==", "admin")
-    .get();
-  for (const adminDoc of adminMembersSnap.docs) {
-    const adminUid = accountUidOf(adminDoc.data());
-    if (adminUid) allowedCoachUids.add(adminUid);
-  }
 
   for (const target of targetUids) {
     if (!allowedCoachUids.has(target)) {

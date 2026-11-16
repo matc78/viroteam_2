@@ -8,7 +8,8 @@ import {
 
 describe("memberChatFieldsChanged", () => {
   const base = {
-    role: "player",
+    permissions: ["viewFees"],
+    coachTeamIds: [],
     status: "active",
     accountUid: "u1",
     teamIds: ["teamB", "teamA"],
@@ -34,8 +35,15 @@ describe("memberChatFieldsChanged", () => {
     );
   });
 
-  it("rôle, statut, compte ou équipes → resync", () => {
-    assert.equal(memberChatFieldsChanged(base, { ...base, role: "coach" }), true);
+  it("droits, équipes entraînées, statut, compte ou équipes → resync", () => {
+    assert.equal(
+      memberChatFieldsChanged(base, { ...base, permissions: ["admin"] }),
+      true,
+    );
+    assert.equal(
+      memberChatFieldsChanged(base, { ...base, coachTeamIds: ["teamA"] }),
+      true,
+    );
     assert.equal(memberChatFieldsChanged(base, { ...base, status: "archived" }), true);
     assert.equal(memberChatFieldsChanged(base, { ...base, accountUid: "u2" }), true);
     assert.equal(memberChatFieldsChanged(base, { ...base, teamIds: ["teamA"] }), true);

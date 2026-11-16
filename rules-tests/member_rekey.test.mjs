@@ -70,6 +70,7 @@ beforeEach(async () => {
       firstName: "Louka",
       lastName: "COCK",
       role: "player",
+      permissions: ["admin"],
       status: "active",
       teamIds: ["t1"],
       snapshot: { displayName: "Louka COCK", email: "louka@x.fr" },
@@ -77,8 +78,6 @@ beforeEach(async () => {
     [club.collection("members").doc("uid-b"), {
       memberId: "uid-b", accountUid: "uid-b", role: "player", status: "active",
     }],
-    // Ancien index compte → fiche (avant migration) : supprimé par le cœur.
-    [club.collection("member_accounts").doc(UID), { memberId: FROM }],
     [club.collection("members").doc(FROM).collection("guardians").doc(PARENT), {
       parentUid: PARENT, memberId: FROM, status: "active", relation: "parent",
       permissions: { canView: true, canRsvp: true, canPay: true },
@@ -132,7 +131,10 @@ test("re-keying : reprise après le cœur, toutes les références, idempotent",
   assert.deepEqual(moved.get("formerMemberIds"), [FROM]);
   assert.equal(moved.get("lastName"), "COCK");
   assert.equal((await clubDoc("members", FROM)).exists, false);
-  assert.equal((await clubDoc("member_accounts", UID)).exists, false);
+  // Champs v1 de la source abandonnés : la clé est l'id, le compte `accountUid`.
+  assert.equal(moved.get("accountUid"), UID);
+  assert.equal(moved.get("memberId"), undefined);
+  assert.equal(moved.get("userId"), undefined);
 
   const resumed = await rekeyMemberToAccount({ firestore, clubId: CLUB, fromMemberId: FROM, uid: UID });
   assert.equal(resumed.core, "already");
@@ -190,7 +192,6 @@ test("re-keying : reprise après le cœur, toutes les références, idempotent",
   });
   // L'ancien id ne survit que dans `formerMemberIds` (traçabilité).
   assert.deepEqual((await clubDoc("members", UID)).get("formerMemberIds"), [FROM]);
-  assert.equal((await clubDoc("member_accounts", UID)).exists, false);
 });
 
 test("re-keying : une fiche déjà à l'uid est signalée sans --merge-duplicates", async () => {
@@ -206,7 +207,8 @@ test("re-keying : une fiche déjà à l'uid est signalée sans --merge-duplicate
   });
   assert.equal(merged.core, "merged");
   const member = await clubDoc("members", UID);
-  assert.equal(member.get("role"), "coach");
+  // Champ v1 : le re-keying ne recopie plus `role`.
+  assert.equal(member.get("role"), undefined);
   assert.deepEqual(member.get("teamIds"), ["t1", "t2"]);
   assert.equal((await firestore.collection("clubs").doc(CLUB).get()).get("memberCount"), 1);
 });

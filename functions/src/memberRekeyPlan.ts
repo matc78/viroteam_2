@@ -13,18 +13,11 @@ import {
   legacyRsvpIsNewer,
   migrateTeamMemberIds,
 } from "./eventAudienceMigrate";
-
-/** Rangs des rôles club (héritage cumulatif player ⊂ coach ⊂ admin). */
-const ROLE_RANK: Record<string, number> = { player: 0, coach: 1, admin: 2 };
+import { stringArray } from "./common";
+import { normalizePermissions } from "./permissionsCatalog";
 
 /** Type d'annonce ciblant des personnes (`targetIds` = ids de fiche). */
 export const ANNOUNCEMENT_TARGET_PEOPLE = "Personnes";
-
-function stringList(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((id): id is string => typeof id === "string" && id.length > 0)
-    : [];
-}
 
 function objectMap(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -52,18 +45,18 @@ export function buildTeamRekeyPatch(
 ): Record<string, string[]> | null {
   if (!from || !to || from === to) return null;
   const patch: Record<string, string[]> = {};
-  let players = stringList(team.playerIds);
+  let players = stringArray(team.playerIds);
   const nextPlayers = migrateTeamMemberIds(players, from, to);
   if (nextPlayers) players = nextPlayers;
 
-  const pending = stringList(team.pendingPlayerIds);
+  const pending = stringArray(team.pendingPlayerIds);
   if (pending.includes(from)) {
     patch.pendingPlayerIds = pending.filter((id) => id !== from && id !== to);
     if (!players.includes(to)) players = [...players, to];
   }
   if (nextPlayers || patch.pendingPlayerIds) patch.playerIds = players;
 
-  const nextCoaches = migrateTeamMemberIds(stringList(team.coachIds), from, to);
+  const nextCoaches = migrateTeamMemberIds(stringArray(team.coachIds), from, to);
   if (nextCoaches) patch.coachIds = nextCoaches;
 
   return Object.keys(patch).length > 0 ? patch : null;
@@ -85,7 +78,7 @@ export function buildEventRekeyPatch(params: {
   const rsvpUpdatedAt = objectMap(event.rsvpUpdatedAt);
   const patch: Record<string, unknown> = {
     ...(buildEventAudienceMigrationPatch({
-      teamMemberIds: stringList(event.teamMemberIds),
+      teamMemberIds: stringArray(event.teamMemberIds),
       rsvp: objectMap(event.rsvp),
       rsvpUpdatedAt,
       seenAt: objectMap(event.seenAt),
@@ -97,7 +90,7 @@ export function buildEventRekeyPatch(params: {
   };
 
   const nextExcluded = migrateTeamMemberIds(
-    stringList(event.excludedMemberIds),
+    stringArray(event.excludedMemberIds),
     from,
     to,
   );
@@ -155,8 +148,8 @@ export function rewriteParentLinks(
 /**
  * Fusionne deux fiches d'une même personne (collision : la fiche pré-inscrite
  * [source] et une fiche déjà à l'uid [target]). Identité (nom, snapshot) de la
- * cible ; infos sportives de la source sauf si vides ; rôle le plus haut
- * (jamais de rétrogradation) ; équipes réunies ; date d'arrivée la plus ancienne.
+ * cible ; infos sportives de la source sauf si vides ; droits réunis (jamais
+ * de retrait) ; équipes réunies ; date d'arrivée la plus ancienne.
  */
 export function mergeMemberDocs(
   source: Record<string, unknown>,
@@ -164,22 +157,26 @@ export function mergeMemberDocs(
 ): Record<string, unknown> {
   const merged: Record<string, unknown> = { ...source, ...target };
 
-  for (const key of ["playerInfo", "coachInfo"]) {
+  for (const key of ["playerInfo"]) {
     const fromSource = objectMap(source[key]);
     if (fromSource && Object.keys(fromSource).length > 0) {
       merged[key] = fromSource;
     }
   }
 
-  const sourceRole = String(source.role ?? "player");
-  const targetRole = String(target.role ?? "player");
-  merged.role =
-    (ROLE_RANK[sourceRole] ?? 0) > (ROLE_RANK[targetRole] ?? 0)
-      ? sourceRole
-      : targetRole;
+  // Droits réunis : une fusion ne retire jamais un droit.
+  merged.permissions = normalizePermissions([
+    ...stringArray(source.permissions),
+    ...stringArray(target.permissions),
+  ]);
 
-  for (const key of ["teamIds", "dismissedAnnouncementIds", "formerMemberIds"]) {
-    const union = [...new Set([...stringList(source[key]), ...stringList(target[key])])];
+  for (const key of [
+    "teamIds",
+    "coachTeamIds",
+    "dismissedAnnouncementIds",
+    "formerMemberIds",
+  ]) {
+    const union = [...new Set([...stringArray(source[key]), ...stringArray(target[key])])];
     if (union.length > 0 || key in merged) merged[key] = union;
   }
 

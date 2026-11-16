@@ -1,6 +1,7 @@
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { requireString, requireUid, stringArray } from "../common";
 import { db, defineDualCallable } from "../db";
+import { loadClubAccess } from "../permissions";
 import { backfillConversationProfiles, syncAllConversationsForClub } from "./sync";
 
 /**
@@ -30,9 +31,8 @@ async function handleEnsureClubChatSynced(request: CallableRequest): Promise<{
   const parentClubIds = stringArray(userSnap.data()?.parentClubIds);
   const isMember = directMember.exists;
   const isParent = parentClubIds.includes(clubId);
-  const isAdmin = stringArray(clubSnap.data()?.adminIds).includes(uid);
 
-  if (!isMember && !isParent && !isAdmin) {
+  if (!isMember && !isParent) {
     throw new HttpsError("permission-denied", "Tu n’es pas dans ce club");
   }
 
@@ -40,9 +40,9 @@ async function handleEnsureClubChatSynced(request: CallableRequest): Promise<{
 }
 
 /**
- * Backfill de tous les clubs (ops après déploiement).
- * Réservé aux comptes présents dans `adminIds` d’au moins un club — traite
- * uniquement les clubs où l’appelant est admin. Recalcule aussi
+ * Backfill des clubs de l’appelant (ops après déploiement) : parmi ses clubs
+ * (`users.memberClubIds`), seuls ceux où il a le droit Administrateur sont
+ * traités (`adminIds` n’est qu’un index d’audience). Recalcule aussi
  * `participantProfiles` des DM et canaux existants.
  */
 async function handleBackfillMyAdminClubChats(
@@ -51,26 +51,22 @@ async function handleBackfillMyAdminClubChats(
   const uid = requireUid(request);
   const firestore = db();
 
-  const clubsSnap = await firestore
-    .collection("clubs")
-    .where("adminIds", "array-contains", uid)
-    .get();
+  const userSnap = await firestore.collection("users").doc(uid).get();
+  const clubIds = stringArray(userSnap.data()?.memberClubIds);
 
+  let clubsSynced = 0;
   let teamsSynced = 0;
   let profilesUpdated = 0;
-  for (const clubDoc of clubsSnap.docs) {
-    const result = await syncAllConversationsForClub({
-      firestore,
-      clubId: clubDoc.id,
-    });
+  for (const clubId of clubIds) {
+    const access = await loadClubAccess(clubId, uid).catch(() => null);
+    if (!access?.isAdmin) continue;
+    const result = await syncAllConversationsForClub({ firestore, clubId });
+    clubsSynced += 1;
     teamsSynced += result.teamsSynced;
-    profilesUpdated += await backfillConversationProfiles({
-      firestore,
-      clubId: clubDoc.id,
-    });
+    profilesUpdated += await backfillConversationProfiles({ firestore, clubId });
   }
 
-  return { clubsSynced: clubsSnap.size, teamsSynced, profilesUpdated };
+  return { clubsSynced, teamsSynced, profilesUpdated };
 }
 
 export const { prod: ensureClubChatSynced, dev: ensureClubChatSyncedDev } =

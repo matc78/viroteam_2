@@ -1,43 +1,48 @@
 import { HttpsError } from "firebase-functions/v2/https";
-import { uniq } from "./common";
+import { requireString } from "./common";
+import {
+  normalizePermissions,
+  unknownPermissions,
+  type ClubPermission,
+} from "./permissionsCatalog";
 
 /**
- * Fonctions pures de `setMemberRole` / `removeMember` (testables sans
- * Firestore).
+ * Fonctions pures de `setMemberPermissions` / `removeMember` (testables
+ * sans Firestore).
  */
 
-export const ROLE_ADMIN = "admin";
-export const ROLE_COACH = "coach";
-export const ROLE_PLAYER = "player";
-export const MEMBER_ROLES = [ROLE_PLAYER, ROLE_COACH, ROLE_ADMIN] as const;
-export type MemberRole = (typeof MEMBER_ROLES)[number];
-
+/** Identifiant requis `payload[name]` (chaîne non vide). */
 function requireId(payload: Record<string, unknown>, name: string): string {
-  const value = payload[name];
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new HttpsError("invalid-argument", `${name} requis`);
-  }
-  return value.trim();
+  return requireString(payload[name], name);
 }
 
-/** Valide `{ clubId, memberId, role }`. */
-export function parseSetMemberRoleArgs(data: unknown): {
+/**
+ * Valide `{ clubId, memberId, permissions }`. `permissions` doit être une
+ * liste d'identifiants du catalogue ; elle est renvoyée normalisée.
+ */
+export function parseSetMemberPermissionsArgs(data: unknown): {
   clubId: string;
   memberId: string;
-  role: MemberRole;
+  permissions: ClubPermission[];
 } {
   const payload = (data ?? {}) as Record<string, unknown>;
   const clubId = requireId(payload, "clubId");
   const memberId = requireId(payload, "memberId");
-  const rawRole = typeof payload.role === "string" ? payload.role.trim() : "";
-  const role = MEMBER_ROLES.find((candidate) => candidate === rawRole);
-  if (!role) {
+  if (!Array.isArray(payload.permissions)) {
+    throw new HttpsError("invalid-argument", "permissions doit être une liste");
+  }
+  const unknown = unknownPermissions(payload.permissions);
+  if (unknown.length > 0) {
     throw new HttpsError(
       "invalid-argument",
-      "role doit être player, coach ou admin",
+      `Droits inconnus : ${unknown.join(", ")}`,
     );
   }
-  return { clubId, memberId, role };
+  return {
+    clubId,
+    memberId,
+    permissions: normalizePermissions(payload.permissions),
+  };
 }
 
 /** Valide `{ clubId, memberId }`. */
@@ -54,129 +59,9 @@ export function parseRemoveMemberArgs(data: unknown): {
 
 export { accountUidOf } from "./common";
 
-/**
- * Identités admin restantes si `targetMemberId` perd son rôle admin (ou est
- * retiré).
- *
- * Une identité admin = un id de `club.adminIds` OU une fiche `role == admin`.
- * Une seule clé membre : l'id d'une fiche liée est l'uid de son compte, donc
- * identité = id de fiche. Vide ⇒ la cible est le dernier admin.
- */
-export function remainingAdminIdentities(params: {
-  adminIds: string[];
-  adminMemberIds: string[];
-  targetMemberId: string;
-}): string[] {
-  const identities = [...params.adminIds, ...params.adminMemberIds].filter(
-    (id) => id.length > 0 && id !== params.targetMemberId,
-  );
-  return uniq(identities);
-}
-
-/** Vrai si retirer/rétrograder `targetMemberId` laisserait le club sans admin. */
-export function isLastAdmin(params: {
-  adminIds: string[];
-  adminMemberIds: string[];
-  targetMemberId: string;
-}): boolean {
-  return remainingAdminIdentities(params).length === 0;
-}
-
-/**
- * Nouveau `club.adminIds` après changement de rôle : ajoute `accountUid`
- * si le membre devient admin, le retire s'il cesse de l'être.
- * Sans `accountUid` (fiche non liée), la liste est inchangée.
- */
-export function nextAdminIds(params: {
-  adminIds: string[];
-  accountUid: string | null;
-  oldRole: string;
-  newRole: MemberRole;
-}): string[] {
-  const { adminIds, accountUid, oldRole, newRole } = params;
-  if (!accountUid) return uniq(adminIds);
-  if (newRole === ROLE_ADMIN) {
-    return uniq([...adminIds, accountUid]);
-  }
-  if (oldRole === ROLE_ADMIN) {
-    return uniq(adminIds.filter((id) => id !== accountUid));
-  }
-  return uniq(adminIds);
-}
-
-/** `club.adminIds` sans le membre retiré (id de fiche = uid si liée). */
-export function adminIdsWithout(adminIds: string[], memberId: string): string[] {
-  return uniq(adminIds.filter((id) => id !== memberId));
-}
-
-type Membership = Record<string, unknown>;
-
-function parseMemberships(raw: unknown): Membership[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter(
-      (item): item is Membership => Boolean(item) && typeof item === "object",
-    )
-    .map((item) => ({ ...item }));
-}
-
-/**
- * `users/{uid}.clubMemberships` avec le rôle mis à jour pour `clubId`
- * (entrée ajoutée si absente, autres champs de l'entrée conservés).
- */
-export function withMembershipRole(
-  raw: unknown,
-  clubId: string,
-  role: MemberRole,
-): Membership[] {
-  const memberships = parseMemberships(raw);
-  let found = false;
-  const next = memberships.map((item) => {
-    if (String(item.clubId ?? "") !== clubId) return item;
-    found = true;
-    return { ...item, role };
-  });
-  if (!found) next.push({ clubId, role });
-  return next;
-}
-
-/** `users/{uid}.clubMemberships` sans l'entrée de `clubId`. */
-export function withoutMembership(raw: unknown, clubId: string): Membership[] {
-  return parseMemberships(raw).filter(
-    (item) => String(item.clubId ?? "") !== clubId,
-  );
-}
-
 /** Décrémente un compteur sans passer sous zéro. */
 export function decrementCount(raw: unknown): number {
   const current = Number(raw ?? 0);
   if (!Number.isFinite(current) || current <= 0) return 0;
   return current - 1;
-}
-
-/** Rôles qu'un membre peut demander (jamais admin). */
-export const REQUESTABLE_ROLES = [ROLE_PLAYER, ROLE_COACH] as const;
-export type JoinRequestDecision = "accept" | "refuse";
-
-/** Valide `{ requestId, decision }` pour `resolveJoinRequest`. */
-export function parseResolveJoinRequestArgs(data: unknown): {
-  requestId: string;
-  decision: JoinRequestDecision;
-} {
-  const payload = (data ?? {}) as Record<string, unknown>;
-  const requestId = requireId(payload, "requestId");
-  const decision = payload.decision;
-  if (decision !== "accept" && decision !== "refuse") {
-    throw new HttpsError(
-      "invalid-argument",
-      "decision doit être accept ou refuse",
-    );
-  }
-  return { requestId, decision };
-}
-
-/** Rôle demandé s'il est autorisé (player / coach), sinon `null`. */
-export function requestableRole(raw: unknown): MemberRole | null {
-  const value = typeof raw === "string" ? raw.trim() : "";
-  return REQUESTABLE_ROLES.find((role) => role === value) ?? null;
 }

@@ -53,13 +53,13 @@ export {
 export { deleteMyAccount, deleteMyAccountDev } from "./deleteAccount";
 
 export {
-  setMemberRole,
-  setMemberRoleDev,
+  setMemberPermissions,
+  setMemberPermissionsDev,
   removeMember,
   removeMemberDev,
-  resolveJoinRequest,
-  resolveJoinRequestDev,
 } from "./memberAdmin";
+
+export { createClub, createClubDev } from "./createClub";
 
 export { uploadClubLogo, uploadClubLogoDev } from "./uploadClubLogo";
 
@@ -71,11 +71,6 @@ export {
   onUserCreatedForAnalytics,
   onUserCreatedForAnalyticsDev,
 } from "./analyticsTriggers";
-
-export {
-  onUserWrittenSyncClubIds,
-  onUserWrittenSyncClubIdsDev,
-} from "./userClubIds";
 
 export {
   onUserWrittenSyncMemberProfile,

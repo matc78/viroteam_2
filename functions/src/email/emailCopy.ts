@@ -35,6 +35,7 @@ export const emailCopyCommon = {
   rolePlayer: "joueur",
   roleCoach: "coach",
   roleAdmin: "admin",
+  roleMember: "membre",
 } as const;
 
 type ClubLead = {
@@ -47,7 +48,7 @@ type ClubLead = {
 
 /** Invitation membre — variantes par rôle. */
 export const emailCopyMemberInvite: Record<
-  "player" | "coach" | "admin",
+  "player" | "coach" | "admin" | "member",
   ClubLead
 > = {
   player: {
@@ -74,6 +75,15 @@ export const emailCopyMemberInvite: Record<
       `On te passe les clés. Avec ça tu gères ${clubName} sur ViroTeam.`,
     leadAroundClub: {
       before: "On te passe les clés. Avec ça tu gères ",
+      after: " sur ViroTeam.",
+    },
+  },
+  member: {
+    subject: (clubName) => `Bienvenue chez ${clubName} — Guy`,
+    lead: (clubName) =>
+      `Bienvenue au club. Voilà ton code pour rejoindre ${clubName} sur ViroTeam.`,
+    leadAroundClub: {
+      before: "Bienvenue au club. Voilà ton code pour rejoindre ",
       after: " sur ViroTeam.",
     },
   },

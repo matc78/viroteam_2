@@ -8,6 +8,7 @@
  * Helpers purs (aucune dépendance à firebase-admin) pour `node --test`.
  */
 import { accountUidOf } from "../common";
+import { primaryBadge } from "../permissionsCatalog";
 
 /** Profil affichable d’un participant (clé = uid Auth). */
 export type ChatParticipantProfile = {
@@ -15,7 +16,10 @@ export type ChatParticipantProfile = {
   lastName: string;
   displayName: string;
   avatarUrl?: string;
-  /** `player` | `coach` | `admin` | `parent` (participant sans fiche membre). */
+  /**
+   * Badge principal : `admin` | `coach` | `player`, `member` (fiche sans
+   * badge) ou `parent` (participant sans fiche membre).
+   */
   role: string;
 };
 
@@ -39,7 +43,7 @@ function withAvatar(
 }
 
 /**
- * Uid Auth d’une fiche membre (`accountUid`, sinon `userId`), ou `null` si
+ * Uid Auth d’une fiche membre (`accountUid`), ou `null` si
  * non liée. Une seule clé membre : quand il existe, il égale l’id de la fiche.
  */
 export function memberAuthUid(data: Record<string, unknown>): string | null {
@@ -59,7 +63,7 @@ export function profileFromMember(
   const displayName =
     text(snapshot.displayName) || `${firstName} ${lastName}`.trim();
   return withAvatar(
-    { firstName, lastName, displayName, role: text(data.role) || "player" },
+    { firstName, lastName, displayName, role: primaryBadge(data) },
     text(snapshot.avatarUrl),
   );
 }

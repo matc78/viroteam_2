@@ -4,7 +4,7 @@ import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { userProfileFieldsChanged } from "./chat/memberChatDiff";
 import { db, runWithDatabase, type FirestoreDatabaseId } from "./db";
 import { memberProfileSyncPatch } from "./memberProfileSyncUtils";
-import { declaredClubIds } from "./userClubIdsUtils";
+import { stringArray } from "./common";
 
 const REGION = "europe-west1";
 
@@ -44,7 +44,7 @@ function defineMemberProfileSyncTrigger(databaseId: FirestoreDatabaseId) {
         const after = event.data?.after?.data();
         if (!after || !userProfileFieldsChanged(before, after)) return;
         const uid = event.params.uid;
-        for (const clubId of declaredClubIds(after.clubMemberships)) {
+        for (const clubId of stringArray(after.memberClubIds)) {
           try {
             const member = await accountMemberSnap(clubId, uid);
             if (!member) continue;

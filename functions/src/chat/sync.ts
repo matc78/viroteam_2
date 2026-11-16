@@ -3,6 +3,7 @@ import * as crypto from "crypto";
 import type { DocumentData, Firestore } from "firebase-admin/firestore";
 import { accountUidOf, stringArray, uniq } from "../common";
 import { activeGuardianUids } from "../parentTeams";
+import { isStaffMember } from "../permissionsCatalog";
 import {
   memberDirectoryFromDocs,
   participantProfilesEqual,
@@ -355,7 +356,7 @@ async function clearSystemConversationParticipants(
 }
 
 /**
- * Sync `staff` (coachs + admins) et `club` (tous les licenciés, écriture admin).
+ * Sync `staff` (admins, coachs d'équipe, membres ayant au moins un droit) et `club` (tous les licenciés, écriture admin).
  */
 export async function syncClubWideConversations(params: {
   firestore: Firestore;
@@ -382,10 +383,7 @@ export async function syncClubWideConversations(params: {
     const uid = accountUidOf(data);
     if (!uid) continue;
     licensedUids.push(uid);
-    const role = String(data.role ?? "");
-    if (role === "admin" || role === "coach") {
-      staffUids.push(uid);
-    }
+    if (isStaffMember(data)) staffUids.push(uid);
   }
 
   await upsertSystemConversation({
@@ -504,20 +502,9 @@ export async function resolveScopedChannelParticipants(params: {
     coachIds.push(...stringArray(data.coachIds));
   }
 
-  // `adminIds` = uids des admins ; filet : fiches `role == admin` liées
-  // (adminIds parfois incomplet).
-  const adminUids = [...adminIds];
-  const adminMembersSnap = await clubRef
-    .collection("members")
-    .where("role", "==", "admin")
-    .get();
-  for (const adminDoc of adminMembersSnap.docs) {
-    const adminUid = accountUidOf(adminDoc.data());
-    if (adminUid) adminUids.push(adminUid);
-  }
-
+  // `adminIds` = index des comptes ayant le droit Administrateur.
   const coachUids = await resolveAuthUids(firestore, clubId, coachIds);
-  const participantUids = [...adminUids, ...coachUids];
+  const participantUids = [...adminIds, ...coachUids];
 
   if (scopeType === "parents") {
     for (const memberId of uniq(playerIds)) {
@@ -561,28 +548,5 @@ export async function createScopedChannelConversation(params: {
     categoryKey,
     participantUids: params.participantUids,
     writePolicy: params.writePolicy ?? WRITE_ADMINS,
-  });
-}
-
-/**
- * @deprecated Préférer [createScopedChannelConversation].
- * Crée un canal catégorie (admins only write) et retourne son id.
- */
-export async function createCategoryConversation(params: {
-  firestore: Firestore;
-  clubId: string;
-  categoryKey: string;
-  title: string;
-  participantUids: string[];
-  writePolicy?: string;
-}): Promise<string> {
-  return createScopedChannelConversation({
-    firestore: params.firestore,
-    clubId: params.clubId,
-    scopeType: "categories",
-    scopeIds: [params.categoryKey],
-    title: params.title,
-    participantUids: params.participantUids,
-    writePolicy: params.writePolicy,
   });
 }

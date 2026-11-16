@@ -26,10 +26,15 @@ const RULES: Rule[] = [
     pattern: /collection\(\s*["']members["']\s*\)\s*\.doc\(\s*\)/g,
   },
   {
-    // Seul le re-keying supprime encore `member_accounts/{uid}` (restes).
-    label: "index member_accounts (supprimé) hors memberRekey.ts",
+    label: "index member_accounts (supprimé)",
     pattern: /member_accounts/g,
-    allowedFiles: ["memberRekey.ts"],
+  },
+  {
+    // `accountUid` est le seul lien fiche → compte ; `userId` (v1) n'est lu
+    // que par la migration et effacé au re-keying.
+    label: "champ v1 userId (remplacé par accountUid)",
+    pattern: /userId/g,
+    allowedFiles: ["permissionsMigration.ts", "memberRekey.ts"],
   },
   {
     label: "repli accountUid ?? memberId (deux clés pour une personne)",

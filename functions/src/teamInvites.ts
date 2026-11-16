@@ -1,7 +1,11 @@
 import * as admin from "firebase-admin";
-import type { DocumentData } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { accountUidOf, stringArray } from "./common";
+import {
+  accountUidOf,
+  requireUid,
+  resolvedDisplayName,
+  stringArray,
+} from "./common";
 import { buildJoinUrl } from "./email";
 import {
   ServerAnalyticsEvents,
@@ -9,7 +13,8 @@ import {
   clubMemberCount,
 } from "./analytics";
 import { db, defineDualCallable } from "./db";
-import { assertClubAdmin } from "./guardians";
+import { assertPermissionOrTeamCoach } from "./permissions";
+import { adminIdsUpdate, type ClubAccess } from "./permissionsCatalog";
 import {
   MemberRekeyError,
   readRekeyCore,
@@ -32,16 +37,6 @@ import {
   teamInviteAcceptable,
 } from "./teamInviteUtils";
 
-const ROLE_PLAYER = "player";
-const ROLE_COACH = "coach";
-const ROLE_ADMIN = "admin";
-
-type TeamInviteCaller = {
-  club: DocumentData;
-  uid: string;
-  isAdmin: boolean;
-};
-
 function generateInviteCode(length = 6): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
@@ -51,101 +46,23 @@ function generateInviteCode(length = 6): string {
   return code;
 }
 
-function requireUid(request: { auth?: { uid: string } }): string {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Connexion requise");
-  }
-  return request.auth.uid;
-}
-
-function resolvedDisplayName(
-  userData: Record<string, unknown>,
-  authEmail: string | undefined,
-): string {
-  const fromProfile = String(userData.displayName ?? "").trim();
-  if (fromProfile.length > 0) return fromProfile;
-  const first = String(userData.firstName ?? "").trim();
-  const last = String(userData.lastName ?? "").trim();
-  const combined = `${first} ${last}`.trim();
-  if (combined.length > 0) return combined;
-  return authEmail?.trim() ?? "";
-}
-
 /**
- * Admin club, ou coach club avec `coachPermissions.canInvitePlayers`.
- * La contrainte « coach de l’équipe » est vérifiée via [assertCallerCoachesTeam].
+ * Droit `manageMembers`, ou coach de l'équipe quand le club active
+ * `coachPermissions.canInvitePlayers`.
  */
-async function resolveTeamInviteCaller(
+function assertCanManageTeamInvite(
   clubId: string,
   uid: string,
-): Promise<TeamInviteCaller> {
-  try {
-    const club = await assertClubAdmin(clubId, uid);
-    return { club, uid, isAdmin: true };
-  } catch (error) {
-    if (!(error instanceof HttpsError) || error.code !== "permission-denied") {
-      throw error;
-    }
-  }
-
-  const clubRef = db().collection("clubs").doc(clubId);
-  const clubSnap = await clubRef.get();
-  if (!clubSnap.exists) {
-    throw new HttpsError("not-found", "Club introuvable");
-  }
-  const club = clubSnap.data()!;
-
-  // Une seule clé membre : la fiche de l'appelant est members/{uid}.
-  const memberSnap = await clubRef.collection("members").doc(uid).get();
-  if (!memberSnap.exists) {
-    throw new HttpsError(
-      "permission-denied",
-      "Réservé aux coaches ou admins du club",
-    );
-  }
-  const role = String(memberSnap.data()?.role ?? "");
-  if (role !== ROLE_COACH && role !== ROLE_ADMIN) {
-    throw new HttpsError(
-      "permission-denied",
-      "Réservé aux coaches ou admins du club",
-    );
-  }
-
-  const rawPerms =
-    club.coachPermissions && typeof club.coachPermissions === "object"
-      ? (club.coachPermissions as Record<string, unknown>)
-      : {};
-  const canInvite =
-    rawPerms.canInvitePlayers === undefined
-      ? true
-      : Boolean(rawPerms.canInvitePlayers);
-  if (role === ROLE_COACH && !canInvite) {
-    throw new HttpsError(
-      "permission-denied",
-      "Tu n’as pas le droit d’inviter des joueurs",
-    );
-  }
-
-  return {
-    club,
+  teamId: string,
+): Promise<ClubAccess> {
+  return assertPermissionOrTeamCoach({
+    clubId,
     uid,
-    isAdmin: role === ROLE_ADMIN,
-  };
-}
-
-/** Exige admin club ou présence du caller dans `team.coachIds`. */
-function assertCallerCoachesTeam(
-  caller: TeamInviteCaller,
-  teamData: DocumentData | undefined,
-): void {
-  if (caller.isAdmin) return;
-  const coachIds = stringArray(teamData?.coachIds);
-  if (!coachIds.includes(caller.uid)) {
-    throw new HttpsError(
-      "permission-denied",
-      "Réservé aux coaches de cette équipe",
-    );
-  }
+    permission: "manageMembers",
+    teamIds: [teamId],
+    coachFlag: "canInvitePlayers",
+    message: "Réservé aux coaches de cette équipe autorisés à inviter",
+  });
 }
 
 type TeamInviteResponse = {
@@ -194,7 +111,7 @@ async function handleCreateOrRefreshTeamInvite(
 ): Promise<TeamInviteResponse> {
   const callerUid = requireUid(request);
   const { clubId, teamId, forceRefresh } = parseTeamInviteArgs(request.data);
-  const caller = await resolveTeamInviteCaller(clubId, callerUid);
+  const access = await assertCanManageTeamInvite(clubId, callerUid, teamId);
 
   const clubRef = db().collection("clubs").doc(clubId);
   const teamRef = clubRef.collection("teams").doc(teamId);
@@ -202,10 +119,9 @@ async function handleCreateOrRefreshTeamInvite(
   if (!teamSnap.exists) {
     throw new HttpsError("not-found", "Équipe introuvable");
   }
-  assertCallerCoachesTeam(caller, teamSnap.data());
   const teamName = String(teamSnap.data()?.name ?? "").trim() || "Équipe";
-  const clubName = String(caller.club.name ?? "").trim();
-  const clubSport = String(caller.club.sport ?? "").trim();
+  const clubName = String(access.club.name ?? "").trim();
+  const clubSport = String(access.club.sport ?? "").trim();
 
   const invitesRef = clubRef.collection("invitations");
   const existingSnap = await invitesRef
@@ -260,13 +176,12 @@ async function handleCreateOrRefreshTeamInvite(
     type: INVITATION_TYPE_TEAM,
     teamId,
     teamName,
-    role: ROLE_PLAYER,
     status: INVITATION_STATUS_PENDING,
     maxUses: TEAM_INVITE_MAX_USES,
     useCount: 0,
     clubName,
     clubSport,
-    sentBy: caller.uid,
+    sentBy: callerUid,
     sentAt: admin.firestore.FieldValue.serverTimestamp(),
     expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -298,8 +213,6 @@ async function handleRevokeTeamInvite(
 ): Promise<{ ok: true }> {
   const callerUid = requireUid(request);
   const { clubId, invitationId } = parseTeamInviteIdArgs(request.data);
-  const caller = await resolveTeamInviteCaller(clubId, callerUid);
-
   const clubRef = db().collection("clubs").doc(clubId);
   const inviteRef = clubRef.collection("invitations").doc(invitationId);
   const snap = await inviteRef.get();
@@ -317,11 +230,7 @@ async function handleRevokeTeamInvite(
   if (!teamId) {
     throw new HttpsError("failed-precondition", "Équipe manquante sur l’invitation");
   }
-  const teamSnap = await clubRef.collection("teams").doc(teamId).get();
-  if (!teamSnap.exists) {
-    throw new HttpsError("not-found", "Équipe introuvable");
-  }
-  assertCallerCoachesTeam(caller, teamSnap.data());
+  await assertCanManageTeamInvite(clubId, callerUid, teamId);
 
   await inviteRef.update({
     status: INVITATION_STATUS_EXPIRED,
@@ -514,20 +423,34 @@ async function handleAcceptTeamInvitation(
         throw error;
       }
     } else if (currentData) {
+      // Fiche déjà à l'uid : on la lie au compte (seul lien : `accountUid`)
+      // et elle entre dans l'index des admins si elle porte ce droit.
       tx.update(memberRef, {
+        accountUid: uid,
         ...(alreadyInTeam
           ? {}
           : { teamIds: admin.firestore.FieldValue.arrayUnion(teamId) }),
         ...profilePatch,
       });
+      const nextAdminIds = adminIdsUpdate({
+        adminIds: stringArray(clubTx.data()?.adminIds),
+        memberId: uid,
+        linked: true,
+        permissions: currentData.permissions,
+      });
+      if (nextAdminIds) {
+        tx.update(clubRef, {
+          adminIds: nextAdminIds,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
     } else {
       tx.set(memberRef, {
-        memberId: uid,
         accountUid: uid,
-        userId: uid,
         firstName,
         lastName,
-        role: ROLE_PLAYER,
+        permissions: [],
+        coachTeamIds: [],
         status: "active",
         teamIds: [teamId],
         snapshot: {
@@ -562,19 +485,12 @@ async function handleAcceptTeamInvitation(
     }
 
     if (!wasMember) {
-      const memberships = Array.isArray(userData.clubMemberships)
-        ? (userData.clubMemberships as unknown[]).filter(
-            (item): item is Record<string, unknown> =>
-              Boolean(item) && typeof item === "object",
-          )
-        : [];
-      const already = memberships.some((m) => String(m.clubId ?? "") === clubId);
-      if (!already) {
-        memberships.push({ clubId, role: ROLE_PLAYER });
+      // `memberClubIds` : seul index des clubs du compte.
+      if (!stringArray(userData.memberClubIds).includes(clubId)) {
         tx.set(
           userRef,
           {
-            clubMemberships: memberships,
+            memberClubIds: admin.firestore.FieldValue.arrayUnion(clubId),
             flags: {
               profileCompleted: true,
               disabled: false,

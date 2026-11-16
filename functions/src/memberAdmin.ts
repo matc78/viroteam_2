@@ -1,242 +1,109 @@
 import * as admin from "firebase-admin";
-import type {
-  DocumentReference,
-  Query,
-  Transaction,
-} from "firebase-admin/firestore";
+import type { DocumentReference, Query } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable } from "./db";
-import { requireUid, stringArray, uniq } from "./common";
-import { assertClubAdmin } from "./guardians";
 import {
-  adminIdsWithout,
+  TEAM_ROSTER_FIELDS,
+  parseParentLinks,
+  requireUid,
+  stringArray,
+  uniq,
+} from "./common";
+import {
   decrementCount,
   accountUidOf,
-  isLastAdmin,
-  nextAdminIds,
   parseRemoveMemberArgs,
-  parseResolveJoinRequestArgs,
-  parseSetMemberRoleArgs,
-  requestableRole,
-  ROLE_ADMIN,
-  ROLE_PLAYER,
-  withMembershipRole,
-  withoutMembership,
-  type MemberRole,
+  parseSetMemberPermissionsArgs,
 } from "./memberAdminUtils";
+import {
+  assertPermission,
+  loadClubAccess,
+  permissionDenied,
+  writeMemberPermissions,
+} from "./permissions";
+import {
+  adminIdsUpdate,
+  grantsAdmin,
+  isLastAdmin,
+  PERMISSION_ADMIN,
+} from "./permissionsCatalog";
 import { recomputeParentTeamIdsSafe } from "./parentTeams";
 import { ClubActivityTypes, logClubActivity } from "./clubActivity";
 
-export {
-  isLastAdmin,
-  nextAdminIds,
-  parseRemoveMemberArgs,
-  parseSetMemberRoleArgs,
-} from "./memberAdminUtils";
-
 const INVITATION_STATUS_PENDING = "pending";
 const INVITATION_STATUS_REVOKED = "revoked";
-const JOIN_REQUEST_STATUS_PENDING = "pending";
-const JOIN_REQUEST_STATUS_ACCEPTED = "accepted";
-const JOIN_REQUEST_STATUS_REFUSED = "refused";
-const TEAM_ROSTER_FIELDS = ["playerIds", "coachIds", "pendingPlayerIds"] as const;
 
 function serverTimestamp() {
   return admin.firestore.FieldValue.serverTimestamp();
 }
 
-/** Ids des fiches `role == admin` du club (lues dans la transaction). */
-async function loadAdminMemberIds(
-  tx: Transaction,
-  clubId: string,
-): Promise<string[]> {
-  const snap = await tx.get(
-    db()
-      .collection("clubs")
-      .doc(clubId)
-      .collection("members")
-      .where("role", "==", ROLE_ADMIN) as Query,
-  );
-  return snap.docs.map((doc) => doc.id);
-}
+const LAST_ADMIN_MESSAGE = "Impossible de retirer le dernier administrateur";
+/** `details.reason` de l'erreur « dernier admin » (lue par l'app et le portail). */
+const LAST_ADMIN_REASON = "last-admin";
 
 /**
- * Lit (dans [tx]) tout ce qu'il faut pour passer `memberId` à `newRole`,
- * applique la garde « dernier admin » (et refuse l'auto-modification si
- * `callerUid` est fourni), puis renvoie les écritures à jouer.
- * Séparer lectures et écritures permet de combiner ce changement avec
- * d'autres écritures dans la même transaction (Firestore : lectures d'abord).
+ * Remplace les droits d'un membre. Appelant : droit Administrateur.
+ * Les modèles (admin / coach / joueur) et les fonctions sont des raccourcis
+ * côté client : la callable ne reçoit que la liste de droits voulue.
+ * Gardes : pas d'auto-modification ; « dernier admin ».
+ * Effets : `members/{memberId}.permissions` et l'index `club.adminIds`.
+ * Fonctionne sur une fiche non liée (les droits suivent le re-keying).
+ * Prod → v2-prod ; `setMemberPermissionsDev` → v2-dev.
  */
-async function prepareRoleChange(
-  tx: Transaction,
-  clubId: string,
-  memberId: string,
-  newRole: MemberRole,
-  callerUid?: string,
-): Promise<() => void> {
+async function handleSetMemberPermissions(
+  request: CallableRequest,
+): Promise<{ ok: true; permissions: string[] }> {
+  const callerUid = requireUid(request);
+  const { clubId, memberId, permissions } = parseSetMemberPermissionsArgs(
+    request.data,
+  );
+  await assertPermission(clubId, callerUid, PERMISSION_ADMIN);
+
+  // Une seule clé membre : la fiche de l'appelant est members/{callerUid}.
+  if (memberId === callerUid) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Tu ne peux pas modifier tes propres droits — un autre admin doit le faire.",
+    );
+  }
+
   const clubRef = db().collection("clubs").doc(clubId);
   const memberRef = clubRef.collection("members").doc(memberId);
 
-  const [memberSnap, clubSnap, adminMemberIds] = await Promise.all([
-    tx.get(memberRef),
-    tx.get(clubRef),
-    loadAdminMemberIds(tx, clubId),
-  ]);
-  if (!memberSnap.exists) {
-    throw new HttpsError("not-found", "Membre introuvable");
-  }
-  if (!clubSnap.exists) {
-    throw new HttpsError("not-found", "Club introuvable");
-  }
-
-  const member = memberSnap.data()!;
-  const oldRole = String(member.role ?? ROLE_PLAYER);
-  const accountUid = accountUidOf(member);
-  const adminIds = stringArray(clubSnap.data()?.adminIds);
-
-  // Une seule clé membre : la fiche de l'appelant est members/{callerUid}.
-  if (callerUid && memberId === callerUid) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Tu ne peux pas modifier ton propre rôle — un autre admin doit le faire.",
-    );
-  }
-
-  if (
-    oldRole === ROLE_ADMIN &&
-    newRole !== ROLE_ADMIN &&
-    isLastAdmin({ adminIds, adminMemberIds, targetMemberId: memberId })
-  ) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Impossible de retirer le dernier administrateur",
-    );
-  }
-
-  const userRef = accountUid ? db().collection("users").doc(accountUid) : null;
-  const userSnap = userRef ? await tx.get(userRef) : null;
-
-  return () => {
-    if (oldRole !== newRole) {
-      tx.update(memberRef, { role: newRole, updatedAt: serverTimestamp() });
+  const stored = await db().runTransaction(async (tx) => {
+    const [memberSnap, clubSnap] = await Promise.all([
+      tx.get(memberRef),
+      tx.get(clubRef),
+    ]);
+    if (!memberSnap.exists) {
+      throw new HttpsError("not-found", "Membre introuvable");
     }
+    if (!clubSnap.exists) {
+      throw new HttpsError("not-found", "Club introuvable");
+    }
+    const member = memberSnap.data()!;
+    const club = clubSnap.data()!;
 
-    const updatedAdminIds = nextAdminIds({ adminIds, accountUid, oldRole, newRole });
     if (
-      updatedAdminIds.length !== adminIds.length ||
-      updatedAdminIds.some((id, index) => id !== adminIds[index])
+      grantsAdmin(member.permissions) &&
+      !grantsAdmin(permissions) &&
+      isLastAdmin({ adminIds: stringArray(club.adminIds), memberId })
     ) {
-      tx.update(clubRef, { adminIds: updatedAdminIds, updatedAt: serverTimestamp() });
-    }
-
-    if (userRef && userSnap?.exists) {
-      tx.update(userRef, {
-        clubMemberships: withMembershipRole(
-          userSnap.data()?.clubMemberships,
-          clubId,
-          newRole,
-        ),
-        updatedAt: serverTimestamp(),
+      throw new HttpsError("failed-precondition", LAST_ADMIN_MESSAGE, {
+        reason: LAST_ADMIN_REASON,
       });
     }
-  };
-}
 
-/**
- * Change le rôle d'un membre. Appelant admin du club.
- * Gardes : pas d’auto-modification de rôle ; « dernier admin ».
- * Effets : `members/{memberId}.role`, `club.adminIds`, `users/{accountUid}.clubMemberships[].role`.
- * Prod → v2-prod ; `setMemberRoleDev` → v2-dev.
- */
-async function handleSetMemberRole(
-  request: CallableRequest,
-): Promise<{ ok: true }> {
-  const callerUid = requireUid(request);
-  const { clubId, memberId, role: newRole } = parseSetMemberRoleArgs(request.data);
-  await assertClubAdmin(clubId, callerUid);
-
-  await db().runTransaction(async (tx) => {
-    const commit = await prepareRoleChange(
-      tx,
-      clubId,
-      memberId,
-      newRole,
-      callerUid,
-    );
-    commit();
-  });
-
-  return { ok: true };
-}
-
-/**
- * Accepte ou refuse une demande de rôle (`join_requests/{requestId}`).
- * Appelant admin du club de la demande. Accepter applique le rôle demandé
- * (player / coach) à la fiche du demandeur, dans la même transaction que le
- * passage de la demande à `accepted` ; refuser la passe à `refused`.
- * Refusé si la demande n'est plus en attente ou si le demandeur n'est pas
- * (encore) membre du club.
- * Prod → v2-prod ; `resolveJoinRequestDev` → v2-dev.
- */
-async function handleResolveJoinRequest(
-  request: CallableRequest,
-): Promise<{ ok: true }> {
-  const callerUid = requireUid(request);
-  const { requestId, decision } = parseResolveJoinRequestArgs(request.data);
-  const requestRef = db().collection("join_requests").doc(requestId);
-
-  const requestSnap = await requestRef.get();
-  if (!requestSnap.exists) {
-    throw new HttpsError("not-found", "Demande introuvable");
-  }
-  const clubId = String(requestSnap.data()?.clubId ?? "").trim();
-  if (!clubId) {
-    throw new HttpsError("failed-precondition", "Demande sans club");
-  }
-  await assertClubAdmin(clubId, callerUid);
-
-  await db().runTransaction(async (tx) => {
-    const snap = await tx.get(requestRef);
-    const data = snap.data() ?? {};
-    if (String(data.status ?? "") !== JOIN_REQUEST_STATUS_PENDING) {
-      throw new HttpsError("failed-precondition", "Demande déjà traitée");
-    }
-
-    let commitRole: (() => void) | null = null;
-    if (decision === "accept") {
-      const role = requestableRole(data.roleRequested);
-      if (!role) {
-        throw new HttpsError("failed-precondition", "Rôle demandé invalide");
-      }
-      const requesterUid = String(data.userId ?? "").trim();
-      // Une seule clé membre : la fiche du demandeur est members/{uid}.
-      const memberSnap = requesterUid
-        ? await tx.get(
-          db().collection("clubs").doc(clubId).collection("members").doc(requesterUid),
-        )
-        : null;
-      if (!memberSnap?.exists) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Cette personne n'a pas encore rejoint le club.",
-        );
-      }
-      commitRole = await prepareRoleChange(tx, clubId, requesterUid, role);
-    }
-
-    commitRole?.();
-    tx.update(requestRef, {
-      status:
-        decision === "accept"
-          ? JOIN_REQUEST_STATUS_ACCEPTED
-          : JOIN_REQUEST_STATUS_REFUSED,
-      resolvedBy: callerUid,
-      resolvedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    return writeMemberPermissions(tx, {
+      clubRef,
+      club,
+      memberRef,
+      member,
+      permissions,
     });
   });
 
-  return { ok: true };
+  return { ok: true, permissions: stored };
 }
 
 /**
@@ -257,25 +124,13 @@ async function detachGuardiansOfMember(
         await db().runTransaction(async (tx) => {
           const userSnap = await tx.get(userRef);
           if (!userSnap.exists) return;
-          const links = (Array.isArray(userSnap.data()?.parentLinks)
-            ? (userSnap.data()!.parentLinks as unknown[])
-            : []
-          ).filter(
-            (item): item is Record<string, unknown> =>
-              Boolean(item) && typeof item === "object",
-          );
-          const nextLinks = links.filter(
-            (link) =>
-              !(
-                String(link.clubId ?? "") === clubId &&
-                String(link.memberId ?? "") === memberId
-              ),
+          const nextLinks = parseParentLinks(userSnap.data()?.parentLinks).filter(
+            (link) => !(link.clubId === clubId && link.memberId === memberId),
           );
           const parentClubIds = uniq(
             nextLinks
-              .filter((link) => String(link.status ?? "") === "active")
-              .map((link) => String(link.clubId ?? ""))
-              .filter((id) => id.length > 0),
+              .filter((link) => link.status === "active")
+              .map((link) => link.clubId),
           );
           tx.update(userRef, {
             parentLinks: nextLinks,
@@ -300,10 +155,11 @@ async function detachGuardiansOfMember(
 }
 
 /**
- * Retire un membre du club. Appelant admin du club. Garde « dernier admin ».
+ * Retire un membre du club. Appelant : droit `manageMembers` (droit
+ * Administrateur si la cible est admin). Garde « dernier admin ».
  * Effets : suppression `members/{memberId}`,
  * `club.adminIds`/`memberCount`, rosters `teams`, invitation pending → revoked,
- * `users/{accountUid}.clubMemberships` sans le club, guardians détachés.
+ * `users/{accountUid}.memberClubIds` sans le club, guardians détachés.
  * Prod → v2-prod ; `removeMemberDev` → v2-dev.
  */
 async function handleRemoveMember(
@@ -311,7 +167,8 @@ async function handleRemoveMember(
 ): Promise<{ ok: true }> {
   const callerUid = requireUid(request);
   const { clubId, memberId } = parseRemoveMemberArgs(request.data);
-  await assertClubAdmin(clubId, callerUid);
+  const access = await loadClubAccess(clubId, callerUid);
+  if (!access.can("manageMembers")) throw permissionDenied();
 
   const clubRef = db().collection("clubs").doc(clubId);
   const memberRef = clubRef.collection("members").doc(memberId);
@@ -327,10 +184,9 @@ async function handleRemoveMember(
 
   await db().runTransaction(async (tx) => {
     // --- Lectures (toutes avant la première écriture) ---
-    const [memberSnap, clubSnap, adminMemberIds] = await Promise.all([
+    const [memberSnap, clubSnap] = await Promise.all([
       tx.get(memberRef),
       tx.get(clubRef),
-      loadAdminMemberIds(tx, clubId),
     ]);
     if (!memberSnap.exists) {
       // Idempotent : déjà retiré.
@@ -341,9 +197,12 @@ async function handleRemoveMember(
     }
 
     const member = memberSnap.data()!;
-    const role = String(member.role ?? ROLE_PLAYER);
+    const targetIsAdmin = grantsAdmin(member.permissions);
     const accountUid = accountUidOf(member);
     const adminIds = stringArray(clubSnap.data()?.adminIds);
+    if (targetIsAdmin && !access.isAdmin) {
+      throw permissionDenied("Seul un admin peut retirer un admin");
+    }
     const firstName = String(member.firstName ?? "").trim();
     const lastName = String(member.lastName ?? "").trim();
     const snapshot =
@@ -356,14 +215,10 @@ async function handleRemoveMember(
       memberId;
     didRemove = true;
 
-    if (
-      role === ROLE_ADMIN &&
-      isLastAdmin({ adminIds, adminMemberIds, targetMemberId: memberId })
-    ) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Impossible de retirer le dernier administrateur",
-      );
+    if (targetIsAdmin && isLastAdmin({ adminIds, memberId })) {
+      throw new HttpsError("failed-precondition", LAST_ADMIN_MESSAGE, {
+        reason: LAST_ADMIN_REASON,
+      });
     }
 
     const rosterSnaps = await Promise.all(
@@ -394,10 +249,13 @@ async function handleRemoveMember(
       memberCount: decrementCount(clubSnap.data()?.memberCount),
       updatedAt: serverTimestamp(),
     };
-    const remainingAdminIds = adminIdsWithout(adminIds, memberId);
-    if (remainingAdminIds.length !== adminIds.length) {
-      clubPatch.adminIds = remainingAdminIds;
-    }
+    const nextAdminIds = adminIdsUpdate({
+      adminIds,
+      memberId,
+      linked: false,
+      permissions: [],
+    });
+    if (nextAdminIds) clubPatch.adminIds = nextAdminIds;
     tx.update(clubRef, clubPatch);
 
     // Rosters : un patch fusionné par équipe, tous champs concernés.
@@ -438,7 +296,7 @@ async function handleRemoveMember(
 
     if (userRef && userSnap?.exists) {
       tx.update(userRef, {
-        clubMemberships: withoutMembership(userSnap.data()?.clubMemberships, clubId),
+        memberClubIds: admin.firestore.FieldValue.arrayRemove(clubId),
         updatedAt: serverTimestamp(),
       });
     }
@@ -464,16 +322,12 @@ async function handleRemoveMember(
 }
 
 export const {
-  prod: setMemberRole,
-  dev: setMemberRoleDev,
-} = defineDualCallable(handleSetMemberRole);
+  prod: setMemberPermissions,
+  dev: setMemberPermissionsDev,
+} = defineDualCallable(handleSetMemberPermissions);
 
 export const {
   prod: removeMember,
   dev: removeMemberDev,
 } = defineDualCallable(handleRemoveMember);
 
-export const {
-  prod: resolveJoinRequest,
-  dev: resolveJoinRequestDev,
-} = defineDualCallable(handleResolveJoinRequest);

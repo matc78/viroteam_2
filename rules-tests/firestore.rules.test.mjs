@@ -2,8 +2,9 @@
 // Lancer : `cd rules-tests && npm test` (firebase-tools + Java requis).
 //
 // Chaque test rejoue une faille corrigée dans le lot 1 sécurité (2 sept. 2026),
-// le lot 2 chat / parents (28 sept. 2026), ou un parcours nominal qui doit
-// continuer à fonctionner.
+// le lot 2 chat / parents (28 sept. 2026), la refonte « droits purs »
+// (nov. 2026 : `members/{uid}.permissions` + relation coach `coachTeamIds`),
+// ou un parcours nominal qui doit continuer à fonctionner.
 
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
@@ -43,6 +44,8 @@ const STRANGER = { uid: "stranger1", email: "stranger@else.fr" };
 const INVITEE = { uid: "invitee1", email: "invitee@club.fr" };
 /** Joueur d'une autre équipe (teamB) : invisible pour le parent de teamA. */
 const OTHER_PLAYER = { uid: "player2", email: "player2@club.fr" };
+/** Responsable cotisations : droits `manageFees` + `viewFees`, ni coach ni admin. */
+const TREASURER = { uid: "treasurer1", email: "tresor@club.fr" };
 
 /** Conversations chat (créées par les Cloud Functions en réel). */
 const CONV_TEAM = "convTeam"; // équipe A, open : admin + coach + joueur
@@ -101,23 +104,30 @@ beforeEach(async () => {
       memberCount: 1,
     });
     await setDoc(doc(db, `clubs/${CLUB}/members/${ADMIN.uid}`), {
-      memberId: ADMIN.uid,
       accountUid: ADMIN.uid,
-      role: "admin",
+      permissions: ["admin"],
+      coachTeamIds: [],
       status: "active",
       teamIds: [],
     });
     await setDoc(doc(db, `clubs/${CLUB}/members/${COACH.uid}`), {
-      memberId: COACH.uid,
       accountUid: COACH.uid,
-      role: "coach",
+      permissions: ["viewActivity"],
+      coachTeamIds: ["teamA"],
       status: "active",
       teamIds: ["teamA"],
     });
+    await setDoc(doc(db, `clubs/${CLUB}/members/${TREASURER.uid}`), {
+      accountUid: TREASURER.uid,
+      permissions: ["manageFees", "viewFees"],
+      coachTeamIds: [],
+      status: "active",
+      teamIds: [],
+    });
     await setDoc(doc(db, `clubs/${CLUB}/members/${PLAYER.uid}`), {
-      memberId: PLAYER.uid,
       accountUid: PLAYER.uid,
-      role: "player",
+      permissions: [],
+      coachTeamIds: [],
       status: "active",
       teamIds: ["teamA"],
       firstName: "Paul",
@@ -126,8 +136,8 @@ beforeEach(async () => {
     });
     // Fiche pré-créée (enfant sans compte) + invitation en attente.
     await setDoc(doc(db, `clubs/${CLUB}/members/precreated1`), {
-      memberId: "precreated1",
-      role: "player",
+      permissions: [],
+      coachTeamIds: [],
       status: "active",
       teamIds: ["teamA"],
       firstName: "Inès",
@@ -138,17 +148,9 @@ beforeEach(async () => {
     await setDoc(doc(db, `clubs/${CLUB}/invitations/inv1`), {
       code: "ABC123",
       status: "pending",
-      role: "player",
       type: "member",
       memberId: "precreated1",
       email: INVITEE.email,
-    });
-    await setDoc(doc(db, `clubs/${CLUB}/invitations/invAdmin`), {
-      code: "ADM999",
-      status: "pending",
-      role: "admin",
-      type: "member",
-      email: "futur.admin@club.fr",
     });
     // Parent actif du joueur, index côté user.
     await setDoc(doc(db, `clubs/${CLUB}/members/${PLAYER.uid}/guardians/${PARENT.uid}`), {
@@ -161,16 +163,16 @@ beforeEach(async () => {
       parentLinks: [{ clubId: CLUB, memberId: PLAYER.uid, status: "active" }],
     });
     await setDoc(doc(db, `clubs/${CLUB}/members/${OTHER_PLAYER.uid}`), {
-      memberId: OTHER_PLAYER.uid,
       accountUid: OTHER_PLAYER.uid,
-      role: "player",
+      permissions: [],
+      coachTeamIds: [],
       status: "active",
       teamIds: ["teamB"],
       firstName: "Léa",
       lastName: "Autre",
     });
     // `memberClubIds` : maintenu par la Function `onUserWrittenSyncClubIds`.
-    for (const u of [ADMIN, COACH, PLAYER, OTHER_PLAYER]) {
+    for (const u of [ADMIN, COACH, PLAYER, OTHER_PLAYER, TREASURER]) {
       await setDoc(doc(db, `users/${u.uid}`), {
         email: u.email,
         emailNorm: u.email,
@@ -184,6 +186,7 @@ beforeEach(async () => {
     await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_TEAM}`), {
       type: "team",
       systemKey: "team:teamA",
+      teamId: "teamA",
       title: "Équipe A",
       participantUids: [ADMIN.uid, COACH.uid, PLAYER.uid],
       writePolicy: "open",
@@ -251,7 +254,7 @@ test("un compte connecté ne peut pas créer sa fiche admin dans un club existan
     setDoc(doc(as(STRANGER), `clubs/${CLUB}/members/${STRANGER.uid}`), {
       memberId: STRANGER.uid,
       accountUid: STRANGER.uid,
-      role: "admin",
+      permissions: ["admin"],
       status: "active",
     }),
   );
@@ -261,33 +264,12 @@ test("un compte connecté ne peut pas créer sa fiche joueur dans un club où il
   await assertFails(
     setDoc(doc(as(STRANGER), `clubs/${CLUB}/members/${STRANGER.uid}`), {
       memberId: STRANGER.uid,
-      role: "player",
       status: "active",
     }),
   );
 });
 
-test("le fondateur crée son club puis sa fiche admin (parcours club-setup)", async () => {
-  const db = as(STRANGER);
-  await assertSucceeds(
-    setDoc(doc(db, "clubs/newClub"), {
-      name: "Nouveau",
-      sport: "Judo",
-      adminIds: [STRANGER.uid],
-      memberCount: 1,
-    }),
-  );
-  await assertSucceeds(
-    setDoc(doc(db, `clubs/newClub/members/${STRANGER.uid}`), {
-      memberId: STRANGER.uid,
-      accountUid: STRANGER.uid,
-      role: "admin",
-      status: "active",
-    }),
-  );
-});
-
-test("le fondateur crée club + fiche admin dans le même batch (transaction app)", async () => {
+test("le fondateur ne crée plus son club côté client (callable createClub)", async () => {
   const db = as(STRANGER);
   const batch = writeBatch(db);
   batch.set(doc(db, "clubs/newClubBatch"), {
@@ -299,46 +281,25 @@ test("le fondateur crée club + fiche admin dans le même batch (transaction app
   batch.set(doc(db, `clubs/newClubBatch/members/${STRANGER.uid}`), {
     memberId: STRANGER.uid,
     accountUid: STRANGER.uid,
-    role: "admin",
-    status: "active",
-  });
-  await assertSucceeds(batch.commit());
-});
-
-test("un batch club+fiche joueur (pas admin) est refusé même si adminIds", async () => {
-  const db = as(STRANGER);
-  const batch = writeBatch(db);
-  batch.set(doc(db, "clubs/newClubBatchPlayer"), {
-    name: "Piège rôle",
-    sport: "Judo",
-    adminIds: [STRANGER.uid],
-    memberCount: 1,
-  });
-  batch.set(doc(db, `clubs/newClubBatchPlayer/members/${STRANGER.uid}`), {
-    memberId: STRANGER.uid,
-    accountUid: STRANGER.uid,
-    role: "player",
+    permissions: ["admin"],
     status: "active",
   });
   await assertFails(batch.commit());
 });
 
-test("créer un club en se mettant admin avec d'autres uids est refusé", async () => {
+// ————————————————————————————————————————————————————————————————
+// Faille 2 : un membre écrit son propre rôle (aujourd'hui : ses droits)
+// ————————————————————————————————————————————————————————————————
+
+test("un joueur ne peut pas se donner le droit admin", async () => {
   await assertFails(
-    setDoc(doc(as(STRANGER), "clubs/newClub2"), {
-      name: "Piège",
-      adminIds: [STRANGER.uid, "victime"],
-    }),
+    updateDoc(doc(as(PLAYER), `clubs/${CLUB}/members/${PLAYER.uid}`), { permissions: ["admin"] }),
   );
-});
-
-// ————————————————————————————————————————————————————————————————
-// Faille 2 : un membre écrit son propre rôle
-// ————————————————————————————————————————————————————————————————
-
-test("un joueur ne peut pas se donner le rôle admin", async () => {
   await assertFails(
     updateDoc(doc(as(PLAYER), `clubs/${CLUB}/members/${PLAYER.uid}`), { role: "admin" }),
+  );
+  await assertFails(
+    updateDoc(doc(as(PLAYER), `clubs/${CLUB}/members/${PLAYER.uid}`), { coachTeamIds: ["teamA"] }),
   );
 });
 
@@ -361,28 +322,10 @@ test("un joueur met à jour son profil affiché", async () => {
   );
 });
 
-test("un coach affecte un joueur à une équipe mais ne change pas son rôle", async () => {
-  await assertSucceeds(
-    updateDoc(doc(as(COACH), `clubs/${CLUB}/members/${PLAYER.uid}`), { teamIds: ["teamA", "teamB"] }),
-  );
-  await assertFails(
-    updateDoc(doc(as(COACH), `clubs/${CLUB}/members/${PLAYER.uid}`), { role: "coach" }),
-  );
-});
-
 test("un membre ne peut pas s'approprier une fiche pré-créée (accountUid)", async () => {
   await assertFails(
     updateDoc(doc(as(STRANGER), `clubs/${CLUB}/members/precreated1`), {
       accountUid: STRANGER.uid,
-      userId: STRANGER.uid,
-    }),
-  );
-});
-
-test("le client ne peut pas écrire member_accounts (ancien index compte → fiche)", async () => {
-  await assertFails(
-    setDoc(doc(as(INVITEE), `clubs/${CLUB}/member_accounts/${INVITEE.uid}`), {
-      memberId: "precreated1",
     }),
   );
 });
@@ -490,8 +433,8 @@ test("un coach invite un joueur avec e-mail", async () => {
     setDoc(doc(as(COACH), `clubs/${CLUB}/invitations/new1`), {
       code: "NEW111",
       status: "pending",
-      role: "player",
       type: "member",
+      memberId: "precreated1",
       email: "nouveau@club.fr",
     }),
   );
@@ -502,31 +445,32 @@ test("une invitation sans e-mail est refusée", async () => {
     setDoc(doc(as(ADMIN), `clubs/${CLUB}/invitations/new2`), {
       code: "NEW222",
       status: "pending",
-      role: "player",
       type: "member",
     }),
   );
 });
 
-test("un coach ne peut pas inviter un admin, un admin oui", async () => {
-  await assertFails(
-    setDoc(doc(as(COACH), `clubs/${CLUB}/invitations/new3`), {
-      code: "NEW333",
-      status: "pending",
-      role: "admin",
-      type: "member",
-      email: "boss@club.fr",
-    }),
-  );
-  await assertSucceeds(
-    setDoc(doc(as(ADMIN), `clubs/${CLUB}/invitations/new4`), {
-      code: "NEW444",
-      status: "pending",
-      role: "admin",
-      type: "member",
-      email: "boss@club.fr",
-    }),
-  );
+test("une invitation ne porte ni rôle ni droit, même créée par un admin", async () => {
+  for (const actor of [COACH, ADMIN]) {
+    await assertFails(
+      setDoc(doc(as(actor), `clubs/${CLUB}/invitations/new3-${actor.uid}`), {
+        code: "NEW333",
+        status: "pending",
+        role: "admin",
+        type: "member",
+        email: "boss@club.fr",
+      }),
+    );
+    await assertFails(
+      setDoc(doc(as(actor), `clubs/${CLUB}/invitations/new4-${actor.uid}`), {
+        code: "NEW444",
+        status: "pending",
+        permissions: ["admin"],
+        type: "member",
+        email: "boss@club.fr",
+      }),
+    );
+  }
 });
 
 test("les invitations parent (guardian) ne se créent pas côté client", async () => {
@@ -534,7 +478,6 @@ test("les invitations parent (guardian) ne se créent pas côté client", async 
     setDoc(doc(as(ADMIN), `clubs/${CLUB}/invitations/new5`), {
       code: "GRD555",
       status: "pending",
-      role: "player",
       type: "guardian",
       email: "papa@club.fr",
     }),
@@ -546,14 +489,11 @@ test("les invitations parent (guardian) ne se créent pas côté client", async 
 // ————————————————————————————————————————————————————————————————
 
 /** Fiche pré-créée telle qu'écrite par l'app et le portail. */
-function preCreatedMember(memberId, role, extra = {}) {
+function preCreatedMember(extra = {}) {
   return {
-    memberId,
-    role,
     status: "active",
     firstName: "Nina",
     lastName: "Nouvelle",
-    teamIds: [],
     snapshot: { displayName: "Nina Nouvelle", email: "nina@club.fr" },
     activeInvitationId: "invNina",
     joinedAt: serverTimestamp(),
@@ -562,85 +502,68 @@ function preCreatedMember(memberId, role, extra = {}) {
   };
 }
 
-test("un coach pré-crée une fiche joueur ou coach", async () => {
+test("un coach pré-crée une fiche sans droit", async () => {
   await assertSucceeds(
-    setDoc(doc(as(COACH), `clubs/${CLUB}/members/pre2`), preCreatedMember("pre2", "player")),
-  );
-  await assertSucceeds(
-    setDoc(doc(as(COACH), `clubs/${CLUB}/members/pre3`), preCreatedMember("pre3", "coach")),
+    setDoc(doc(as(COACH), `clubs/${CLUB}/members/pre2`), preCreatedMember()),
   );
 });
 
-test("un coach ne crée pas de fiche admin, un admin oui", async () => {
-  await assertFails(
-    setDoc(doc(as(COACH), `clubs/${CLUB}/members/pre4`), preCreatedMember("pre4", "admin")),
-  );
-  await assertSucceeds(
-    setDoc(doc(as(ADMIN), `clubs/${CLUB}/members/pre5`), preCreatedMember("pre5", "admin")),
-  );
+test("une fiche pré-créée ne porte ni droit, ni relation coach, ni rôle, même par un admin", async () => {
+  for (const actor of [COACH, ADMIN]) {
+    for (const extra of [
+      { permissions: ["admin"] },
+      { permissions: [] },
+      { coachTeamIds: ["teamA"] },
+      { role: "admin" },
+    ]) {
+      const id = `pre-${actor.uid}-${Object.keys(extra)[0]}`;
+      await assertFails(
+        setDoc(doc(as(actor), `clubs/${CLUB}/members/${id}`), preCreatedMember(extra)),
+      );
+    }
+  }
 });
 
 test("un coach ne rend pas admin un compte tiers via members/{uid}", async () => {
   await assertFails(
     setDoc(
       doc(as(COACH), `clubs/${CLUB}/members/${STRANGER.uid}`),
-      preCreatedMember(STRANGER.uid, "admin"),
+      preCreatedMember({ permissions: ["admin"] }),
     ),
   );
-  // Le compte tiers ne gagne aucun droit admin sur le club.
+  // Le compte tiers ne gagne aucun droit sur le club.
   await assertFails(
     updateDoc(doc(as(STRANGER), `clubs/${CLUB}`), { name: "Pris" }),
   );
 });
 
-test("une fiche pré-créée ne porte ni compte lié ni memberId divergent", async () => {
-  await assertFails(
-    setDoc(
-      doc(as(ADMIN), `clubs/${CLUB}/members/pre6`),
-      preCreatedMember("pre6", "player", { accountUid: STRANGER.uid }),
-    ),
-  );
-  await assertFails(
-    setDoc(
-      doc(as(ADMIN), `clubs/${CLUB}/members/pre7`),
-      preCreatedMember("pre7", "player", { userId: STRANGER.uid }),
-    ),
-  );
-  await assertFails(
-    setDoc(doc(as(ADMIN), `clubs/${CLUB}/members/pre8`), preCreatedMember("autre", "player")),
-  );
-  await assertFails(
-    setDoc(doc(as(ADMIN), `clubs/${CLUB}/members/pre9`), preCreatedMember("pre9", "")),
-  );
-});
-
-test("le rôle d'une invitation est figé, même pour un admin", async () => {
-  await assertFails(
-    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/inv1`), { role: "admin" }),
-  );
-  await assertFails(
-    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/invitations/inv1`), { role: "admin" }),
-  );
-});
-
-test("un coach ne détourne pas une invitation admin, un admin la corrige", async () => {
-  await assertFails(
-    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/invAdmin`), {
-      email: COACH.email,
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertFails(
-    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/invAdmin`), {
-      expiresAt: Timestamp.fromDate(new Date(Date.now() + 7 * 86400000)),
-    }),
-  );
+test("une fiche pré-créée ne porte ni compte lié, ni équipes, ni champ v1", async () => {
+  for (const extra of [
+    { accountUid: STRANGER.uid },
+    { userId: STRANGER.uid },
+    { memberId: "pre6" },
+    { teamIds: [] },
+    { teamIds: ["teamA"] },
+  ]) {
+    await assertFails(
+      setDoc(doc(as(ADMIN), `clubs/${CLUB}/members/pre6`), preCreatedMember(extra)),
+    );
+  }
+  // Sans ces champs : l'ajout de membre passe (bug bloquant de la refonte).
   await assertSucceeds(
-    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/invitations/invAdmin`), {
-      email: "vrai.admin@club.fr",
-      updatedAt: serverTimestamp(),
-    }),
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/members/pre6`), preCreatedMember()),
   );
+});
+
+test("une invitation ne reçoit ni rôle ni droit, même d'un admin", async () => {
+  for (const actor of [COACH, ADMIN]) {
+    await assertFails(
+      updateDoc(doc(as(actor), `clubs/${CLUB}/invitations/inv1`), { role: "admin" }),
+    );
+    await assertFails(
+      updateDoc(doc(as(actor), `clubs/${CLUB}/invitations/inv1`), { permissions: ["admin"] }),
+    );
+  }
 });
 
 test("un coach corrige l'e-mail, prolonge ou expire une invitation joueur", async () => {
@@ -664,7 +587,6 @@ test("les invitations parent ne se modifient pas côté client", async () => {
     await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/invitations/invGuardian`), {
       code: "GRD777",
       status: "pending",
-      role: "player",
       type: "guardian",
       memberId: PLAYER.uid,
       email: "maman@club.fr",
@@ -906,11 +828,10 @@ test("fiche re-clée sur l'uid : RSVP sous sa seule clé, plus sous l'ancien mem
     });
     // Une seule clé membre : la fiche liée vit à members/{uid}.
     await setDoc(doc(db, `clubs/${CLUB}/members/${linkedUid}`), {
-      memberId: linkedUid,
       accountUid: linkedUid,
-      userId: linkedUid,
       formerMemberIds: [formerMemberId],
-      role: "player",
+      permissions: [],
+      coachTeamIds: [],
       status: "active",
       teamIds: ["teamA"],
     });
@@ -1003,15 +924,14 @@ test("un parent ne lit pas la fiche d'un joueur d'une autre équipe", async () =
   await assertFails(getDocs(collection(as(PARENT), `clubs/${CLUB}/members`)));
 });
 
-test("member_accounts supprimé : get (doc absent) toléré pour les anciennes apps, jamais list", async () => {
-  // Les apps ≤ 2.2.15 lisent member_accounts/{uid} puis se replient sur l'uid :
-  // la lecture d'un doc absent doit répondre « inexistant », pas lever.
-  const asParent = await getDoc(doc(as(PARENT), `clubs/${CLUB}/member_accounts/${COACH.uid}`));
-  assert.equal(asParent.exists(), false);
-  await assertSucceeds(getDoc(doc(as(PLAYER), `clubs/${CLUB}/member_accounts/${PLAYER.uid}`)));
-  await assertFails(getDoc(doc(as(STRANGER), `clubs/${CLUB}/member_accounts/${PLAYER.uid}`)));
-  await assertFails(getDocs(collection(as(PARENT), `clubs/${CLUB}/member_accounts`)));
-  await assertFails(getDocs(collection(as(PLAYER), `clubs/${CLUB}/member_accounts`)));
+test("member_accounts supprimé : ni lecture ni écriture", async () => {
+  await assertFails(getDoc(doc(as(PLAYER), `clubs/${CLUB}/member_accounts/${PLAYER.uid}`)));
+  await assertFails(getDocs(collection(as(ADMIN), `clubs/${CLUB}/member_accounts`)));
+  await assertFails(
+    setDoc(doc(as(INVITEE), `clubs/${CLUB}/member_accounts/${INVITEE.uid}`), {
+      memberId: "precreated1",
+    }),
+  );
 });
 
 // ————————————————————————————————————————————————————————————————
@@ -1088,6 +1008,15 @@ test("le preview inbox n'accepte qu'un rôle connu et un prénom court", async (
       lastSenderUid: PLAYER.uid,
       lastSenderFirstName: "Paul",
       lastSenderRole: "player",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  // Membre sans badge (ni admin, ni coach, ni joueur d'une équipe).
+  await assertSucceeds(
+    updateDoc(ref, {
+      lastMessageAt: serverTimestamp(),
+      lastSenderUid: PLAYER.uid,
+      lastSenderRole: "member",
       updatedAt: serverTimestamp(),
     }),
   );
@@ -1466,8 +1395,8 @@ async function setCoachPermissions(permissions) {
 const PLAYER_INVITE = {
   code: "NEW777",
   status: "pending",
-  role: "player",
   type: "member",
+  memberId: "precreated1",
   email: "recrue@club.fr",
 };
 
@@ -1476,8 +1405,6 @@ test("un coach sans le droit d'inviter ne crée ni invitation ni fiche", async (
   await assertFails(setDoc(doc(as(COACH), `clubs/${CLUB}/invitations/new7`), PLAYER_INVITE));
   await assertFails(
     setDoc(doc(as(COACH), `clubs/${CLUB}/members/pre10`), {
-      memberId: "pre10",
-      role: "player",
       status: "active",
     }),
   );
@@ -1516,8 +1443,11 @@ test("un coach gère le roster de son équipe seulement, selon son droit", async
     updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamB`), { playerIds: [OTHER_PLAYER.uid] }),
   );
   await setCoachPermissions({ canManageTeamRoster: false });
+  // Ajout réel (une écriture identique à l'état courant serait un no-op).
   await assertFails(
-    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), { playerIds: [PLAYER.uid] }),
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), {
+      playerIds: [PLAYER.uid, OTHER_PLAYER.uid, "recrue"],
+    }),
   );
   await assertSucceeds(
     updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), { messagingLink: "https://chat.example" }),
@@ -1525,22 +1455,11 @@ test("un coach gère le roster de son équipe seulement, selon son droit", async
 });
 
 // ————————————————————————————————————————————————————————————————
-// Demandes de rôle (join_requests) : traitées par la callable resolveJoinRequest
+// Demandes de rôle (join_requests) : flux supprimé, refus par défaut
 // ————————————————————————————————————————————————————————————————
 
-async function seedJoinRequest() {
-  await env.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), "join_requests/req1"), {
-      userId: PLAYER.uid,
-      clubId: CLUB,
-      roleRequested: "coach",
-      status: "pending",
-    });
-  });
-}
-
-test("un membre crée sa demande de rôle, l'admin du club la liste", async () => {
-  await assertSucceeds(
+test("join_requests n'existe plus : ni création ni lecture", async () => {
+  await assertFails(
     setDoc(doc(as(PLAYER), "join_requests/req2"), {
       userId: PLAYER.uid,
       clubId: CLUB,
@@ -1548,25 +1467,499 @@ test("un membre crée sa demande de rôle, l'admin du club la liste", async () =
       status: "pending",
     }),
   );
-  const q = query(
-    collection(as(ADMIN), "join_requests"),
-    where("clubId", "==", CLUB),
-    where("status", "==", "pending"),
-  );
-  await assertSucceeds(getDocs(q));
-});
-
-test("un coach ne liste pas les demandes de rôle du club", async () => {
-  const q = query(
-    collection(as(COACH), "join_requests"),
-    where("clubId", "==", CLUB),
-  );
-  await assertFails(getDocs(q));
-});
-
-test("même l'admin ne valide pas une demande en direct (callable resolveJoinRequest)", async () => {
-  await seedJoinRequest();
   await assertFails(
-    updateDoc(doc(as(ADMIN), "join_requests/req1"), { status: "accepted" }),
+    getDocs(query(collection(as(ADMIN), "join_requests"), where("clubId", "==", CLUB))),
   );
+});
+
+// ————————————————————————————————————————————————————————————————
+// Droits purs (nov. 2026) : droits et relation coach écrits par le serveur
+// ————————————————————————————————————————————————————————————————
+
+test("aucun client n'écrit des droits ni la relation coach, même un admin", async () => {
+  for (const actor of [ADMIN, PLAYER]) {
+    await assertFails(
+      updateDoc(doc(as(actor), `clubs/${CLUB}/members/${PLAYER.uid}`), {
+        permissions: ["admin"],
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(as(actor), `clubs/${CLUB}/members/${PLAYER.uid}`), {
+        coachTeamIds: ["teamB"],
+      }),
+    );
+  }
+  // Équipes de la fiche : maintenues par le trigger d'équipe, jamais par un
+  // client (ni admin, ni coach de l'équipe).
+  for (const actor of [ADMIN, COACH]) {
+    await assertFails(
+      updateDoc(doc(as(actor), `clubs/${CLUB}/members/${PLAYER.uid}`), {
+        teamIds: ["teamA", "teamB"],
+      }),
+    );
+  }
+  // L'ancien champ `role` ne s'écrit plus non plus.
+  await assertFails(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/members/${PLAYER.uid}`), { role: "admin" }),
+  );
+});
+
+test("un responsable membres édite une fiche, pas ses droits", async () => {
+  await assertSucceeds(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/members/${PLAYER.uid}`), {
+      firstName: "Paulo",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(as(TREASURER), `clubs/${CLUB}/members/${PLAYER.uid}`), {
+      firstName: "Pirate",
+    }),
+  );
+});
+
+test("clubMemberships n'est plus modifiable par son titulaire", async () => {
+  await assertFails(
+    updateDoc(doc(as(PLAYER), `users/${PLAYER.uid}`), {
+      clubMemberships: [{ clubId: OTHER_CLUB }],
+    }),
+  );
+  await assertFails(
+    setDoc(doc(as({ uid: "nouveau2", email: "n2@x.fr" }), "users/nouveau2"), {
+      email: "n2@x.fr",
+      clubMemberships: [{ clubId: CLUB }],
+    }),
+  );
+  await assertSucceeds(
+    setDoc(doc(as({ uid: "nouveau3", email: "n3@x.fr" }), "users/nouveau3"), {
+      email: "n3@x.fr",
+      clubMemberships: [],
+    }),
+  );
+});
+
+test("l'index adminIds ne donne aucun droit", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), `clubs/${CLUB}`), {
+      adminIds: [ADMIN.uid, PLAYER.uid],
+    });
+  });
+  await assertFails(updateDoc(doc(as(PLAYER), `clubs/${CLUB}`), { name: "Pris" }));
+  await assertFails(
+    setDoc(doc(as(PLAYER), `clubs/${CLUB}/equipment/e1`), { name: "Ballons" }),
+  );
+});
+
+test("seul un admin règle les capacités des coachs", async () => {
+  await assertFails(
+    updateDoc(doc(as(TREASURER), `clubs/${CLUB}`), {
+      coachPermissions: { canCreateEvents: false },
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}`), {
+      coachPermissions: { canCreateEvents: false },
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("le responsable cotisations lit et écrit les cotisations, rien d'autre", async () => {
+  await seedMemberFee();
+  await assertSucceeds(offlineCreditBatch(TREASURER));
+  await assertSucceeds(
+    getDocs(collection(as(TREASURER), `clubs/${CLUB}/fee_seasons/s1/member_fees`)),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(TREASURER), `clubs/${CLUB}`), { onlinePaymentEnabled: true }),
+  );
+  await assertFails(updateDoc(doc(as(TREASURER), `clubs/${CLUB}`), { name: "Trésor" }));
+  await assertFails(
+    setDoc(doc(as(TREASURER), `clubs/${CLUB}/events/evT`), { title: "x", teamIds: ["teamA"] }),
+  );
+  await assertFails(
+    setDoc(doc(as(TREASURER), `clubs/${CLUB}/announcements/annT`), {
+      targetType: "Tous les membres",
+      targetIds: [],
+    }),
+  );
+});
+
+test("un coach ne lit pas les cotisations du club sans le droit de les voir", async () => {
+  await seedMemberFee();
+  await assertFails(
+    getDocs(collection(as(COACH), `clubs/${CLUB}/fee_seasons/s1/member_fees`)),
+  );
+  // Chacun lit sa propre cotisation.
+  await assertSucceeds(getDoc(doc(as(PLAYER), FEE_PATH)));
+});
+
+// ——— Coach d'équipe : capacités limitées à ses équipes ———
+
+test("un coach crée un événement pour ses équipes seulement, jamais pour tout le club", async () => {
+  await assertSucceeds(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/events/evC1`), { title: "A", teamIds: ["teamA"] }),
+  );
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/events/evC2`), { title: "B", teamIds: ["teamB"] }),
+  );
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/events/evC3`), {
+      title: "Club",
+      teamIds: ["teamA"],
+      allTeams: true,
+    }),
+  );
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/events/evC4`), { title: "Sans équipe", teamIds: [] }),
+  );
+  // Droit planning (admin) : toutes les équipes.
+  await assertSucceeds(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/events/evC5`), { title: "B", teamIds: ["teamB"] }),
+  );
+});
+
+test("couper canCreateEvents bloque la création et l'édition du coach", async () => {
+  await setCoachPermissions({ canCreateEvents: false });
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/events/evC6`), { title: "A", teamIds: ["teamA"] }),
+  );
+  await assertFails(updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), { canceled: true }));
+});
+
+test("un coach modifie ou annule un événement de son équipe, pas d'une autre", async () => {
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), { title: "Entraînement modifié" }),
+  );
+  await assertSucceeds(updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), { canceled: true }));
+  await assertFails(updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evB`), { canceled: true }));
+  // Il ne déplace pas son événement vers une équipe qu'il n'entraîne pas.
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), { teamIds: ["teamB"] }),
+  );
+  // Suppression : droit planning seulement.
+  await assertFails(deleteDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`)));
+  await assertSucceeds(deleteDoc(doc(as(ADMIN), `clubs/${CLUB}/events/evB`)));
+});
+
+test("l'appel suit canTakeAttendance sur les équipes du coach", async () => {
+  const attendance = {
+    [`attendance.${PLAYER.uid}`]: { status: "present", markedBy: COACH.uid },
+  };
+  await assertSucceeds(updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), attendance));
+  await assertFails(updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evB`), attendance));
+  await setCoachPermissions({ canTakeAttendance: false });
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), {
+      [`attendance.${PLAYER.uid}`]: { status: "absent", markedBy: COACH.uid },
+    }),
+  );
+});
+
+test("synchro d'audience : retirer une réponse oui, en réécrire une non", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await updateDoc(doc(ctx.firestore(), `clubs/${CLUB}/events/evA`), {
+      teamMemberIds: [PLAYER.uid, COACH.uid],
+      rsvp: { [PLAYER.uid]: "yes" },
+    });
+  });
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), {
+      teamMemberIds: [COACH.uid],
+      [`rsvp.${PLAYER.uid}`]: deleteField(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), {
+      teamMemberIds: [COACH.uid, PLAYER.uid],
+      [`rsvp.${PLAYER.uid}`]: "no",
+    }),
+  );
+});
+
+test("un coach publie une annonce pour ses équipes, pas pour le club", async () => {
+  await assertSucceeds(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/announcements/annC1`), {
+      message: "Match samedi",
+      targetType: "Équipes",
+      targetIds: ["teamA"],
+    }),
+  );
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/announcements/annC2`), {
+      message: "À tous",
+      targetType: "Tous les membres",
+      targetIds: [],
+    }),
+  );
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/announcements/annC3`), {
+      message: "Autre équipe",
+      targetType: "Équipes",
+      targetIds: ["teamA", "teamB"],
+    }),
+  );
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/announcements/annC4`), {
+      message: "Catégorie",
+      targetType: "Catégories",
+      targetIds: ["U13"],
+    }),
+  );
+  // Il gère l'annonce de son équipe, pas celle du club.
+  await assertSucceeds(deleteDoc(doc(as(COACH), `clubs/${CLUB}/announcements/annA`)));
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/announcements/annAll`), { message: "x" }),
+  );
+  // Droit annonces (admin) : tout le club.
+  await assertSucceeds(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/announcements/annC5`), {
+      message: "À tous",
+      targetType: "Tous les membres",
+      targetIds: [],
+    }),
+  );
+});
+
+test("couper canPublishTeamAnnouncements bloque les annonces du coach", async () => {
+  await setCoachPermissions({ canPublishTeamAnnouncements: false });
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/announcements/annC6`), {
+      message: "Match",
+      targetType: "Équipes",
+      targetIds: ["teamA"],
+    }),
+  );
+});
+
+test("licence : coach autorisé, sur un membre de ses équipes seulement", async () => {
+  const license = { playerInfo: { license: "LIC123" }, updatedAt: serverTimestamp() };
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/members/${PLAYER.uid}`), license),
+  );
+  await setCoachPermissions({ canEditMemberLicenses: true });
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/members/${PLAYER.uid}`), license),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/members/${OTHER_PLAYER.uid}`), license),
+  );
+});
+
+test("canal coaches_and_admins : coach d'équipe ou droit messagerie", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/conversations/convStaff`), {
+      type: "staff",
+      title: "Staff",
+      participantUids: [ADMIN.uid, COACH.uid, PLAYER.uid, TREASURER.uid],
+      writePolicy: "coaches_and_admins",
+    });
+  });
+  const send = (user) =>
+    setDoc(doc(as(user), `clubs/${CLUB}/conversations/convStaff/messages/m-${user.uid}`), {
+      ...textMessage(user),
+    });
+  await assertSucceeds(send(COACH));
+  await assertSucceeds(send(ADMIN));
+  await assertFails(send(PLAYER));
+  await assertFails(send(TREASURER));
+});
+
+// ————————————————————————————————————————————————————————————————
+// Audit droits purs (nov. 2026) : portée coach
+// ————————————————————————————————————————————————————————————————
+
+test("les défauts coach des règles suivent le catalogue partagé", () => {
+  const catalog = JSON.parse(
+    readFileSync(new URL("../shared/permissions_catalog.json", import.meta.url), "utf8"),
+  );
+  const rules = readFileSync(new URL("../firestore.rules", import.meta.url), "utf8");
+  const calls = [...rules.matchAll(/coach(?:Can|Flag)\(clubId, '(\w+)', (true|false)\)/g)];
+  assert.ok(calls.length > 0);
+  for (const [, flag, value] of calls) {
+    assert.ok(flag in catalog.coachFlags, `capacité inconnue : ${flag}`);
+    assert.equal(value === "true", catalog.coachFlags[flag], `défaut de ${flag}`);
+  }
+  for (const [, permission] of rules.matchAll(/can\(clubId, '(\w+)'\)/g)) {
+    assert.ok(catalog.permissions.includes(permission), `droit inconnu : ${permission}`);
+  }
+});
+
+test("un coach ne modifie ni n'annule un événement « tout le club »", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/events/evAll`), {
+      title: "AG du club",
+      teamIds: ["teamA", "teamB"],
+      allTeams: true,
+    });
+  });
+  const ref = (user) => doc(as(user), `clubs/${CLUB}/events/evAll`);
+  await assertFails(updateDoc(ref(COACH), { title: "Piraté" }));
+  await assertFails(updateDoc(ref(COACH), { canceled: true }));
+  await assertFails(
+    updateDoc(ref(COACH), {
+      [`attendance.${PLAYER.uid}`]: { status: "present", markedBy: COACH.uid },
+    }),
+  );
+  await assertSucceeds(updateDoc(ref(ADMIN), { title: "AG 2026" }));
+});
+
+test("un coach ne modifie un événement multi-équipes que s'il les entraîne toutes", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/events/evAB`), {
+      title: "Tournoi A + B",
+      teamIds: ["teamA", "teamB"],
+    });
+  });
+  const ref = doc(as(COACH), `clubs/${CLUB}/events/evAB`);
+  await assertFails(updateDoc(ref, { title: "Piraté" }));
+  // L'appel reste ouvert au coach d'une des équipes (pour ses joueurs).
+  await assertSucceeds(
+    updateDoc(ref, { [`attendance.${PLAYER.uid}`]: { status: "present", markedBy: COACH.uid } }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), { title: "Entraînement A bis" }),
+  );
+});
+
+test("un coach ne crée pas de fiche à l'id d'un compte existant", async () => {
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/members/${STRANGER.uid}`), preCreatedMember()),
+  );
+});
+
+test("un coach ne gère que les invitations des fiches de ses équipes ou non rattachées", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, `clubs/${CLUB}/members/precreatedB`), {
+      permissions: [],
+      coachTeamIds: [],
+      status: "active",
+      teamIds: ["teamB"],
+      firstName: "Bob",
+      activeInvitationId: "invB",
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/invitations/invB`), {
+      code: "BBB222",
+      status: "pending",
+      type: "member",
+      memberId: "precreatedB",
+      email: "bob@club.fr",
+    });
+  });
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/invB`), { status: "expired" }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/members/precreatedB`), { firstName: "Robert" }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/invitations/invB`), { status: "expired" }),
+  );
+  // Ajout de membre : fiche + invitation dans la même transaction.
+  const db = as(COACH);
+  const batch = writeBatch(db);
+  batch.set(doc(db, `clubs/${CLUB}/members/preNew`), preCreatedMember());
+  batch.set(doc(db, `clubs/${CLUB}/invitations/invNew`), {
+    code: "NEW333",
+    status: "pending",
+    type: "member",
+    memberId: "preNew",
+    email: "new@club.fr",
+  });
+  await assertSucceeds(batch.commit());
+  // Fiche pré-inscrite avec droits, sans équipe : un coach ne détourne pas
+  // son invitation (il récupérerait ses droits en l'acceptant).
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const adminDb = ctx.firestore();
+    await setDoc(doc(adminDb, `clubs/${CLUB}/members/preBoss`), {
+      permissions: ["admin"],
+      coachTeamIds: [],
+      status: "active",
+      teamIds: [],
+      activeInvitationId: "invBoss",
+    });
+    await setDoc(doc(adminDb, `clubs/${CLUB}/invitations/invBoss`), {
+      code: "BOSS55",
+      status: "pending",
+      type: "member",
+      memberId: "preBoss",
+      email: "boss@club.fr",
+    });
+  });
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/invitations/invBoss`), { email: COACH.email }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/members/preBoss`), {
+      snapshot: { email: COACH.email },
+    }),
+  );
+  // Une invitation coach vise toujours une fiche.
+  await assertFails(
+    setDoc(doc(as(COACH), `clubs/${CLUB}/invitations/invOrphan`), {
+      code: "ORP444",
+      status: "pending",
+      type: "member",
+      email: "orphan@club.fr",
+    }),
+  );
+});
+
+test("les champs de re-clé et d'anonymisation sont réservés aux Cloud Functions", async () => {
+  for (const extra of [
+    { formerMemberIds: ["x"] },
+    { rekeyPendingFrom: "x" },
+    { anonymizedAt: serverTimestamp() },
+  ]) {
+    await assertFails(
+      updateDoc(doc(as(ADMIN), `clubs/${CLUB}/members/${PLAYER.uid}`), extra),
+    );
+  }
+});
+
+test("le droit cotisations implique la lecture des cotisations", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/members/feesOnly1`), {
+      accountUid: "feesOnly1",
+      permissions: ["manageFees"],
+      coachTeamIds: [],
+      teamIds: [],
+      status: "active",
+    });
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/fee_seasons/s1/member_fees/${PLAYER.uid}`), {
+      amountPaidCents: 0,
+    });
+  });
+  const feesOnly = { uid: "feesOnly1", email: "fees@club.fr" };
+  await assertSucceeds(
+    getDoc(doc(as(feesOnly), `clubs/${CLUB}/fee_seasons/s1/member_fees/${PLAYER.uid}`)),
+  );
+});
+
+test("un coach modère les conversations de ses équipes seulement", async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_CLUB}/messages/mClub`), {
+      type: "text",
+      text: "Info",
+      senderUid: ADMIN.uid,
+      createdAt: Timestamp.now(),
+      reactions: {},
+    });
+    await setDoc(doc(db, `clubs/${CLUB}/conversations/${CONV_TEAM}/messages/mTeam`), {
+      type: "text",
+      text: "Salut",
+      senderUid: PLAYER.uid,
+      createdAt: Timestamp.now(),
+      reactions: {},
+    });
+  });
+  const remove = (conv, msg) =>
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/conversations/${conv}/messages/${msg}`), {
+      deletedAt: serverTimestamp(),
+      deletedByUid: COACH.uid,
+    });
+  await assertFails(remove(CONV_CLUB, "mClub"));
+  await assertSucceeds(remove(CONV_TEAM, "mTeam"));
 });

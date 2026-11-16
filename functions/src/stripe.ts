@@ -8,7 +8,9 @@ import { defineSecret } from "firebase-functions/params";
 import type { Response } from "express";
 import type Stripe from "stripe";
 import { db, defineDualCallable, defineDualRequest, isProdDatabase } from "./db";
-import { assertCanActForMember, assertClubAdmin } from "./guardians";
+import { assertCanActForMember } from "./guardians";
+import { assertPermission } from "./permissions";
+import { PERMISSION_ADMIN } from "./permissionsCatalog";
 import {
   aidLabel,
   creditMemberFeeFromCardPayment,
@@ -273,7 +275,7 @@ export const {
     const returnUrl = requireString(request.data?.returnUrl, "returnUrl");
     const refreshUrl = requireString(request.data?.refreshUrl, "refreshUrl");
 
-    const club = await assertClubAdmin(clubId, uid);
+    const { club } = await assertPermission(clubId, uid, PERMISSION_ADMIN);
     const stripe = stripeClient();
     const clubRef = db().collection("clubs").doc(clubId);
 
@@ -346,7 +348,7 @@ export const {
   async (request: CallableRequest) => {
     const uid = requireUid(request);
     const clubId = requireString(request.data?.clubId, "clubId");
-    const club = await assertClubAdmin(clubId, uid);
+    const { club } = await assertPermission(clubId, uid, PERMISSION_ADMIN);
     const accountId = String(club.stripeConnectedAccountId ?? "").trim();
 
     if (!accountId) {

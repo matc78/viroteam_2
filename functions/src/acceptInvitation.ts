@@ -1,5 +1,10 @@
 import * as admin from "firebase-admin";
-import { requireVerifiedEmail } from "./common";
+import {
+  normalizeEmail,
+  requireVerifiedEmail,
+  resolvedDisplayName,
+  stringArray,
+} from "./common";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
 import {
@@ -22,38 +27,18 @@ import {
   clubMemberCount,
 } from "./analytics";
 import { db, defineDualCallable } from "./db";
+import { mergeMemberDocs } from "./memberRekeyPlan";
+import {
+  adminIdsUpdate,
+  primaryBadge,
+} from "./permissionsCatalog";
 
 export { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
-export {
-  migrateTeamMemberIds,
-  planRsvpMigration,
-  buildEventAudienceMigrationPatch,
-} from "./eventAudienceMigrate";
 
 const INVITATION_TYPE_GUARDIAN = "guardian";
 const INVITATION_TYPE_TEAM = "team";
 const INVITATION_STATUS_PENDING = "pending";
 const INVITATION_STATUS_ACCEPTED = "accepted";
-const ROLE_ADMIN = "admin";
-const ROLE_PLAYER = "player";
-const ROLE_COACH = "coach";
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-function resolvedDisplayName(
-  userData: Record<string, unknown> | undefined,
-  authEmail: string | undefined,
-): string {
-  const fromProfile = String(userData?.displayName ?? "").trim();
-  if (fromProfile.length > 0) return fromProfile;
-  const first = String(userData?.firstName ?? "").trim();
-  const last = String(userData?.lastName ?? "").trim();
-  const combined = `${first} ${last}`.trim();
-  if (combined.length > 0) return combined;
-  return authEmail?.trim() ?? "";
-}
 
 function memberProfilePatch(params: {
   firstName: string;
@@ -97,7 +82,9 @@ async function deleteOrphanPendingMembers(params: {
 }
 
 /**
- * Accepte une invitation membre (transaction Admin SDK).
+ * Accepte une invitation membre (transaction Admin SDK). Une invitation ne
+ * porte aucun droit : ils vivent sur la fiche pré-créée et suivent le
+ * re-keying ; une fiche créée ici n'en a aucun.
  * Refuse type guardian — utiliser linkGuardian.
  */
 async function handleAcceptInvitation(
@@ -198,7 +185,13 @@ async function handleAcceptInvitation(
     const rekeyState = rekeyFrom
       ? await readRekeyCore(tx, { firestore: db(), clubId, fromMemberId: rekeyFrom, uid })
       : null;
-    const role = String(invite.role ?? ROLE_PLAYER);
+    // Fiche telle qu'elle sera une fois liée (badge de l'e-mail de retour).
+    const linkedMember = rekeyState?.source.exists
+      ? rekeyState.target.exists
+        ? mergeMemberDocs(rekeyState.source.data()!, rekeyState.target.data()!)
+        : rekeyState.source.data()!
+      : (memberSnap.data() ?? {});
+    const role = primaryBadge(linkedMember);
 
     if (rekeyState) {
       try {
@@ -219,12 +212,11 @@ async function handleAcceptInvitation(
       }
     } else if (!memberSnap.exists) {
       tx.set(memberRef, {
-        memberId: uid,
         accountUid: uid,
-        userId: uid,
         firstName,
         lastName,
-        role,
+        permissions: [],
+        coachTeamIds: [],
         status: "active",
         teamIds: [],
         snapshot: {
@@ -232,8 +224,7 @@ async function handleAcceptInvitation(
           email,
           ...(avatarUrl ? { avatarUrl } : {}),
         },
-        ...(role === ROLE_PLAYER ? { playerInfo: { license: "" } } : {}),
-        ...(role === ROLE_COACH ? { coachInfo: { headCoach: false } } : {}),
+        playerInfo: { license: "" },
         joinedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -246,7 +237,6 @@ async function handleAcceptInvitation(
     } else {
       tx.update(memberRef, {
         accountUid: uid,
-        userId: uid,
         ...profilePatch,
         ...(linkedMemberId
           ? { activeInvitationId: admin.firestore.FieldValue.delete() }
@@ -254,34 +244,29 @@ async function handleAcceptInvitation(
       });
     }
 
-    if (role === ROLE_ADMIN && clubSnap.exists) {
-      const adminIds = Array.isArray(clubSnap.data()?.adminIds)
-        ? (clubSnap.data()!.adminIds as unknown[]).filter(
-            (id): id is string => typeof id === "string",
-          )
-        : [];
-      if (!adminIds.includes(uid)) {
-        // arrayUnion : s'applique après le remplacement d'id du re-keying.
+    // Fiche déjà à l'uid, liée ici : elle entre dans l'index des admins si
+    // elle porte le droit Administrateur (le re-keying gère son propre cas).
+    if (!rekeyState && memberSnap.exists && clubSnap.exists) {
+      const nextAdminIds = adminIdsUpdate({
+        adminIds: stringArray(clubSnap.data()?.adminIds),
+        memberId: uid,
+        linked: true,
+        permissions: memberSnap.data()?.permissions,
+      });
+      if (nextAdminIds) {
         tx.update(clubRef, {
-          adminIds: admin.firestore.FieldValue.arrayUnion(uid),
+          adminIds: nextAdminIds,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
     }
 
-    const memberships = Array.isArray(userData.clubMemberships)
-      ? (userData.clubMemberships as unknown[]).filter(
-          (item): item is Record<string, unknown> =>
-            Boolean(item) && typeof item === "object",
-        )
-      : [];
-    const already = memberships.some((m) => String(m.clubId ?? "") === clubId);
-    if (!already) {
-      memberships.push({ clubId, role });
+    // `memberClubIds` : seul index des clubs du compte (écrit ici seulement).
+    if (!stringArray(userData.memberClubIds).includes(clubId)) {
       tx.set(
         userRef,
         {
-          clubMemberships: memberships,
+          memberClubIds: admin.firestore.FieldValue.arrayUnion(clubId),
           flags: {
             profileCompleted: true,
             disabled: false,

@@ -8,7 +8,7 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { defineBoolean } from "firebase-functions/params";
 import { requireString, requireUid, stringArray, uniq } from "../common";
 import { db, defineDualCallable, runWithDatabase, type FirestoreDatabaseId } from "../db";
-import { assertClubAdmin } from "../guardians";
+import { assertPermission } from "../permissions";
 import { buildPushData, sendPushToUids } from "../notifications/send";
 import {
   CHANNEL_WRITE_POLICIES,
@@ -398,7 +398,7 @@ function parseChannelScope(data: Record<string, unknown> | undefined): {
   return { scopeType: "categories", scopeIds: [categoryKey] };
 }
 
-/** Callable admin : crée un canal ciblé (lecture seule par défaut). */
+/** Callable (droit `manageChat`) : crée un canal ciblé (lecture seule par défaut). */
 async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
   conversationId: string;
 }> {
@@ -423,23 +423,25 @@ async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
     throw new HttpsError("invalid-argument", "writePolicy inconnue");
   }
 
-  // Admin via `adminIds` ou fiche `members/{uid}` de rôle admin
-  // (même résolution que les autres callables admin).
-  await assertClubAdmin(clubId, uid);
+  await assertPermission(clubId, uid, "manageChat");
   const firestore = db();
 
-  const participantUids = await resolveScopedChannelParticipants({
+  const scopedUids = await resolveScopedChannelParticipants({
     firestore,
     clubId,
     scopeType,
     scopeIds,
   });
-  if (participantUids.length === 0) {
+  if (scopedUids.length === 0) {
     throw new HttpsError(
       "failed-precondition",
       "Aucun participant pour cette cible",
     );
   }
+  // L'appelant (droit `manageChat`, pas forcément admin) voit son canal.
+  const participantUids = scopedUids.includes(uid)
+    ? scopedUids
+    : [...scopedUids, uid];
 
   const conversationId = await createScopedChannelConversation({
     firestore,

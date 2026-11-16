@@ -2,11 +2,12 @@
 /**
  * Purge one-shot des comptes Firebase Auth orphelins / bot-like.
  *
- * Critères (tous doivent être vrais pour être candidat) :
- * - provider Google (google.com)
- * - e-mail type prenom.nom.chiffres@gmail.com OU lastSignIn ≈ created (session unique)
- * - aucune fiche « réelle » sur les bases Firestore ciblées :
- *   pas de users/{uid}, ou fiche sans clubMemberships ni parentLinks
+ * Candidat si aucune fiche Firestore « réelle » ET l’un des profils suivants :
+ * - Google + e-mail bot (prenom.nom.chiffres@gmail.com) OU session unique
+ * - e-mail viro*@gmail.com (virotest, virofounder…)
+ * - e-mail QA jetable : test… / tester… / founder… (tout domaine)
+ *
+ * Une fiche est « réelle » si users/{uid} a memberClubIds ou parentLinks.
  *
  * Usage :
  *   node tool/cleanup_orphan_auth_users.mjs
@@ -37,6 +38,21 @@ const root = path.join(__dirname, "..");
  */
 const BOT_GMAIL_PATTERN =
   /^[a-z0-9]+(?:\.[a-z0-9]+)?\.\d{4,6}@gmail\.com$/i;
+
+/**
+ * Comptes spam / test Email-Password du type :
+ * - virotest2026@gmail.com / virofounder99@gmail.com
+ */
+const VIRO_GMAIL_PATTERN = /^viro[a-z0-9._+-]*@gmail\.com$/i;
+
+/**
+ * Comptes QA / fondateur jetables (garde-fou Firestore pour les vrais) :
+ * - test1@gmail.com / test-portail@ / test-prod2@viroteam.com
+ * - tester123456@gmail.com
+ * - founder-test@viroteam.com / founder.test@example.com
+ */
+const QA_DISPOSABLE_EMAIL_PATTERN =
+  /^(?:test(?:er)?|founder)[a-z0-9._+-]*@/i;
 
 /** Écart max (ms) créé ≈ dernière connexion pour « jamais réutilisé ». */
 const SINGLE_SESSION_MAX_MS = 5 * 60 * 1000;
@@ -172,6 +188,38 @@ function isBotLikeEmail(email) {
   return BOT_GMAIL_PATTERN.test(email.trim());
 }
 
+/**
+ * E-mails clairement jetables (spam viro* ou QA test/founder).
+ * Retourne le tag de raison, ou null.
+ */
+function disposableEmailReason(email) {
+  if (!email) return null;
+  const normalized = email.trim();
+  if (VIRO_GMAIL_PATTERN.test(normalized)) return "email-viro";
+  if (QA_DISPOSABLE_EMAIL_PATTERN.test(normalized)) return "email-qa";
+  return null;
+}
+
+/**
+ * Indique si le compte Auth correspond à un profil bot-like éligible.
+ * Retourne les raisons (tags) ou null si non candidat.
+ */
+function botLikeReasons(userRecord, email) {
+  const disposableReason = disposableEmailReason(email);
+  if (disposableReason) {
+    return [disposableReason];
+  }
+
+  if (!hasGoogleProvider(userRecord)) {
+    return null;
+  }
+
+  const reasons = [];
+  if (isBotLikeEmail(email)) reasons.push("email-bot");
+  if (isSingleSessionUser(userRecord)) reasons.push("session-unique");
+  return reasons.length > 0 ? reasons : null;
+}
+
 function isSingleSessionUser(userRecord) {
   const created = userRecord.metadata?.creationTime
     ? Date.parse(userRecord.metadata.creationTime)
@@ -191,8 +239,8 @@ function hasGoogleProvider(userRecord) {
 
 function profileLooksReal(data) {
   if (!data) return false;
-  const memberships = data.clubMemberships;
-  if (Array.isArray(memberships) && memberships.length > 0) return true;
+  const memberClubIds = data.memberClubIds;
+  if (Array.isArray(memberClubIds) && memberClubIds.length > 0) return true;
   const parentLinks = data.parentLinks;
   if (Array.isArray(parentLinks) && parentLinks.length > 0) return true;
   return false;
@@ -261,14 +309,8 @@ async function main() {
       }
     }
 
-    if (!hasGoogleProvider(user)) {
-      skippedNotBotLike += 1;
-      continue;
-    }
-
-    const botEmail = isBotLikeEmail(email);
-    const singleSession = isSingleSessionUser(user);
-    if (!botEmail && !singleSession) {
+    const reasons = botLikeReasons(user, email);
+    if (!reasons) {
       skippedNotBotLike += 1;
       continue;
     }
@@ -291,6 +333,9 @@ async function main() {
 
     if (isReal) {
       skippedReal += 1;
+      console.log(
+        `⚠ conservé (fiche réelle) ${email || "(sans e-mail)"} uid=${user.uid} [${profileHits.join(", ")}]`,
+      );
       continue;
     }
 
@@ -299,10 +344,7 @@ async function main() {
       email: email || "(sans e-mail)",
       created: user.metadata?.creationTime ?? "?",
       lastSignIn: user.metadata?.lastSignInTime ?? "?",
-      reasons: [
-        botEmail ? "email-bot" : null,
-        singleSession ? "session-unique" : null,
-      ].filter(Boolean),
+      reasons,
       profiles: profileHits.join(", "),
     });
   }

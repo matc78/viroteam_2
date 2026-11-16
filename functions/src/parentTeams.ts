@@ -137,21 +137,34 @@ export async function activeGuardianUids(
 }
 
 /**
- * Maintient `members.teamIds` depuis les rosters (l'équipe fait foi) pour
- * les fiches dont la présence a changé. Ids de roster = ids de fiche (une
- * seule clé membre). Remplace les réparations côté client
- * (`reconcileMemberTeamIds` portail, `reconcileStaleRosterIds` app).
+ * Maintient `members.teamIds` (équipes de la fiche, joueur ou coach) et
+ * `members.coachTeamIds` (équipes entraînées) depuis les rosters — l'équipe
+ * fait foi — pour les fiches dont la présence a changé. Ids de roster = ids
+ * de fiche (une seule clé membre). `coachTeamIds` est la relation « coach
+ * d'équipe » lue par les règles Firestore et `permissions.ts`.
+ *
+ * Relit l'équipe courante plutôt que le `after` de l'événement : les
+ * déclenchements ne sont pas ordonnés, un événement ancien traité en retard
+ * ne doit pas écraser l'état réel.
  */
 async function syncMemberTeamIds(params: {
   firestore: Firestore;
   clubId: string;
   teamId: string;
   changedRosterIds: string[];
-  remainingRosterIds: string[];
 }): Promise<void> {
   const { firestore, clubId, teamId, changedRosterIds } = params;
-  const remaining = new Set(params.remainingRosterIds);
-  const membersCol = firestore.collection("clubs").doc(clubId).collection("members");
+  if (changedRosterIds.length === 0) return;
+  const clubRef = firestore.collection("clubs").doc(clubId);
+  const teamSnap = await clubRef.collection("teams").doc(teamId).get();
+  const team = teamSnap.exists ? teamSnap.data() : undefined;
+  const remainingCoaches = new Set(coachIdsOf(team));
+  const remaining = new Set([...playerIdsOf(team), ...remainingCoaches]);
+  const membersCol = clubRef.collection("members");
+  const membership = (present: boolean) =>
+    present
+      ? admin.firestore.FieldValue.arrayUnion(teamId)
+      : admin.firestore.FieldValue.arrayRemove(teamId);
 
   for (const memberId of changedRosterIds) {
     try {
@@ -159,15 +172,18 @@ async function syncMemberTeamIds(params: {
       const memberSnap = await memberRef.get();
       if (!memberSnap.exists) continue;
       const member = memberSnap.data()!;
+      const patch: Record<string, unknown> = {};
       const onTeam = remaining.has(memberId);
-      if (onTeam === stringArray(member.teamIds).includes(teamId)) continue;
-      await memberRef.update({
-        teamIds: onTeam
-          ? admin.firestore.FieldValue.arrayUnion(teamId)
-          : admin.firestore.FieldValue.arrayRemove(teamId),
-      });
+      if (onTeam !== stringArray(member.teamIds).includes(teamId)) {
+        patch.teamIds = membership(onTeam);
+      }
+      const coachesTeam = remainingCoaches.has(memberId);
+      if (coachesTeam !== stringArray(member.coachTeamIds).includes(teamId)) {
+        patch.coachTeamIds = membership(coachesTeam);
+      }
+      if (Object.keys(patch).length > 0) await memberRef.update(patch);
     } catch (error) {
-      console.error("onTeamWritten: synchro members.teamIds échouée", {
+      console.error("onTeamWritten: synchro équipes de la fiche échouée", {
         clubId,
         teamId,
         memberId,
@@ -183,7 +199,8 @@ type TeamWrittenEvent = FirestoreEvent<
 >;
 
 /**
- * Sur chaque écriture d'équipe : synchronise `members.teamIds` et les
+ * Sur chaque écriture d'équipe : synchronise `members.teamIds`,
+ * `members.coachTeamIds` et les
  * convocations des events à venir (joueurs **et** coachs), puis recalcule
  * `parentTeamIds` des guardians pour les changements de `playerIds` uniquement.
  */
@@ -197,8 +214,7 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
   const teamId = event.params.teamId;
   const firestore = db();
 
-  const remainingRosterIds = uniq([...playerIdsOf(after), ...coachIdsOf(after)]);
-  const remaining = new Set(remainingRosterIds);
+  const remaining = new Set([...playerIdsOf(after), ...coachIdsOf(after)]);
   const audienceAdded = uniq([...playerDiff.added, ...coachDiff.added]);
   const audienceRemovedRaw = uniq([
     ...playerDiff.removed,
@@ -212,7 +228,6 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
     clubId,
     teamId,
     changedRosterIds: uniq([...audienceAdded, ...audienceRemovedRaw]),
-    remainingRosterIds,
   });
 
   if (audienceAdded.length > 0 || audienceRemoved.length > 0) {

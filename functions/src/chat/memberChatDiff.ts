@@ -2,7 +2,7 @@ import { stringArray } from "../common";
 
 /**
  * Champs d'une fiche membre qui influencent les chats système (`staff`,
- * `club`) : rôle, statut, compte lié, équipes. Tout autre changement
+ * `club`) : droits, équipes entraînées, statut, compte lié, équipes. Tout autre changement
  * (profil, snapshot, RSVP…) ne doit pas relancer `syncClubWideConversations`
  * — c'était un resync complet du club à chaque écriture de fiche.
  */
@@ -12,13 +12,16 @@ export function memberChatFieldsChanged(
 ): boolean {
   // Création ou suppression : toujours resync.
   if (!before || !after) return true;
-  const scalar = ["role", "status", "accountUid", "userId"] as const;
+  const scalar = ["status", "accountUid"] as const;
   for (const key of scalar) {
     if (String(before[key] ?? "") !== String(after[key] ?? "")) return true;
   }
-  const beforeTeams = stringArray(before.teamIds).slice().sort().join(",");
-  const afterTeams = stringArray(after.teamIds).slice().sort().join(",");
-  return beforeTeams !== afterTeams;
+  const lists = ["teamIds", "permissions", "coachTeamIds"] as const;
+  return lists.some(
+    (key) =>
+      stringArray(before[key]).slice().sort().join(",") !==
+      stringArray(after[key]).slice().sort().join(","),
+  );
 }
 
 function snapshotField(data: Record<string, unknown>, key: string): string {

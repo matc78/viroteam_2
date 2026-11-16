@@ -4,6 +4,7 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { captureConvocationSent } from "../analytics";
 import { db, defineDualCallable, isProdDatabase } from "../db";
 import { requireString, requireUid, stringArray } from "../common";
+import { loadClubAccess, permissionDenied } from "../permissions";
 import { ClubDirectory, resolveEventAudience } from "./audience";
 import {
   eventManualPushCopy,
@@ -18,7 +19,8 @@ import { canSendManualPush } from "./prefs";
 import { MANUAL_PUSH_COOLDOWN_MS } from "./types";
 
 /**
- * Envoi manuel d'une notif event (coach d'une équipe concernée ou admin).
+ * Envoi manuel d'une notif event (droit `manageEvents`, ou coach d'une
+ * équipe concernée).
  * Rate-limit 1/heure en prod uniquement (`v2-dev` libre pour le debug).
  */
 export const {
@@ -45,11 +47,7 @@ export const {
     throw new HttpsError("failed-precondition", "Événement annulé");
   }
 
-  await assertEventCoachOrAdmin({
-    clubId,
-    uid,
-    teamIds: stringArray(preEvent.teamIds),
-  });
+  await assertCanManageEvent({ clubId, uid, event: preEvent });
 
   const event = await firestore.runTransaction(async (tx) => {
     const eventSnap = await tx.get(eventRef);
@@ -130,57 +128,22 @@ export const {
 });
 
 /**
- * Admin du club, ou coach d'une des équipes de l'événement ([teamIds]) :
- * sinon `permission-denied`.
+ * Droit `manageEvents`, ou coach de toutes les équipes de l'événement (jamais
+ * d'un événement « tout le club ») : sinon `permission-denied`.
  */
-export async function assertEventCoachOrAdmin(params: {
+export async function assertCanManageEvent(params: {
   clubId: string;
   uid: string;
-  teamIds: string[];
+  event: Record<string, unknown>;
 }): Promise<void> {
-  const firestore = db();
-  const clubSnap = await firestore.collection("clubs").doc(params.clubId).get();
-  if (!clubSnap.exists) {
-    throw new HttpsError("not-found", "Club introuvable");
+  const access = await loadClubAccess(params.clubId, params.uid);
+  if (access.can("manageEvents")) return;
+  const coachAllowed =
+    params.event.allTeams !== true &&
+    access.coachesAllTeams(stringArray(params.event.teamIds));
+  if (!coachAllowed) {
+    throw permissionDenied("Réservé aux coachs de l’événement ou aux responsables du planning");
   }
-  const club = clubSnap.data()!;
-  const adminIds = Array.isArray(club.adminIds)
-    ? club.adminIds.map(String)
-    : [];
-  if (adminIds.includes(params.uid)) return;
-
-  // Une seule clé membre : la fiche de l'appelant est members/{uid}.
-  const memberSnap = await firestore
-    .collection("clubs")
-    .doc(params.clubId)
-    .collection("members")
-    .doc(params.uid)
-    .get();
-  if (memberSnap.exists && memberSnap.data()?.role === "admin") return;
-
-  if (params.teamIds.length === 0) {
-    throw new HttpsError(
-      "permission-denied",
-      "Réservé aux coaches de l’événement ou aux admins",
-    );
-  }
-
-  for (const teamId of params.teamIds) {
-    const teamSnap = await firestore
-      .collection("clubs")
-      .doc(params.clubId)
-      .collection("teams")
-      .doc(teamId)
-      .get();
-    if (!teamSnap.exists) continue;
-    const coachIds = stringArray(teamSnap.data()?.coachIds);
-    if (coachIds.includes(params.uid)) return;
-  }
-
-  throw new HttpsError(
-    "permission-denied",
-    "Réservé aux coaches de l’événement ou aux admins",
-  );
 }
 
 /**

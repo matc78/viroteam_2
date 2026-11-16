@@ -1,4 +1,5 @@
 import { HttpsError } from "firebase-functions/v2/https";
+import { normalizeEmail } from "./common";
 
 /** Plafond d’usages d’un code d’équipe multi-usage. */
 export const TEAM_INVITE_MAX_USES = 30;
@@ -31,10 +32,7 @@ export function personNameKey(firstName: unknown, lastName: unknown): string {
   return `${first}|${last}`;
 }
 
-export function normalizeEmail(value: unknown): string {
-  if (typeof value !== "string") return "";
-  return value.trim().toLowerCase();
-}
+export { normalizeEmail };
 
 /** Membre candidat au claim silencieux (fiche non liée). */
 export type ClaimableMember = {

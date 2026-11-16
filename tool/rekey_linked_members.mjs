@@ -309,8 +309,7 @@ async function runDatabase({ getFirestore, app, rekey, plan, databaseId, options
     }
 
     if (options.apply) {
-      // Après les re-keyings (le cœur supprime déjà member_accounts/{uid}) :
-      // les restes (index des fiches déjà à l'uid, orphelins) disparaissent.
+      // Après les re-keyings : l'ancien index disparaît en entier.
       const deleted = await deleteAccountIndexes(firestore, club.ref);
       if (deleted > 0) console.log(`  🗑️ member_accounts : ${deleted} doc(s) supprimé(s)`);
       totals.accountIndexesDeleted += deleted;

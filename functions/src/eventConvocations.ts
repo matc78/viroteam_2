@@ -3,7 +3,7 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable } from "./db";
 import { requireString, requireUid, stringArray, uniq } from "./common";
 import { planConvocationChange } from "./eventConvocationsUtils";
-import { assertEventCoachOrAdmin } from "./notifications/sendEventPush";
+import { assertCanManageEvent } from "./notifications/sendEventPush";
 
 /** Garde-fou : un roster d'équipe reste bien en dessous. */
 const MAX_IDS_PER_CALL = 200;
@@ -51,11 +51,7 @@ export const {
     throw new HttpsError("failed-precondition", "Événement annulé");
   }
 
-  await assertEventCoachOrAdmin({
-    clubId,
-    uid,
-    teamIds: stringArray(event.teamIds),
-  });
+  await assertCanManageEvent({ clubId, uid, event });
 
   const targets = [eventSnap];
   const seriesId = String(event.seriesId ?? "").trim();

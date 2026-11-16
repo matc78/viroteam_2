@@ -1,5 +1,5 @@
-/** Rôles couverts par les mails d’invitation membre. */
-export type MemberInviteRole = "player" | "coach" | "admin";
+/** Badges couverts par les mails d’invitation membre (`member` : ni admin ni équipe). */
+export type MemberInviteRole = "player" | "coach" | "admin" | "member";
 
 /** Contenu prêt pour Brevo. */
 export type BuiltEmail = {

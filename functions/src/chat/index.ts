@@ -25,10 +25,3 @@ export {
   createCategoryChannelDev,
 } from "./triggers";
 
-export {
-  syncTeamConversations,
-  syncClubWideConversations,
-  syncAllConversationsForClub,
-} from "./sync";
-
-export { isYouthTeamCategory } from "./youthCategory";

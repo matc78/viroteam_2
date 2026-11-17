@@ -33,6 +33,12 @@ npm run build | npm test
 npm test
 ```
 
+JDK 21 (Temurin) installé sur le poste de dev mais **pas par défaut** (le `java` du PATH est un JDK 17). Pour `rules-tests`, le pointer dans la session PowerShell avant `npm test` :
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot"; $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+```
+
 Pas de pièges connus à contourner : si quelque chose exige un contournement ou se comporte de façon surprenante, c'est un défaut à signaler (ou corriger), pas une particularité à documenter.
 
 `test/sources_encoding_test.dart` échoue si un fichier `lib/**/*.dart` contient `U+FFFD` : attention à l'encodage UTF-8 lors des éditions de texte FR (notamment via PowerShell).

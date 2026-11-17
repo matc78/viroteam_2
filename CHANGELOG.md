@@ -52,6 +52,15 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Règles : le droit « Gérer les cotisations » implique la lecture des cotisations même sur une fiche non normalisée
 - Re-keying d’une fiche : les champs v1 `role` / `coachInfo` ne sont plus recopiés
 - Functions : index `adminIds` calculé en un seul endroit, helpers dédoublonnés, code mort retiré
+- Invitations (app) : un lien `/join?code=` ouvert app fermée n’est plus perdu pendant le chargement ; un invité qui relance l’app avant d’accepter n’est plus bloqué dans la création de club (intention d’inscription mémorisée) ; un compte qui a déjà des clubs retrouve l’invitation en attente après connexion
+- RSVP (app) : depuis l’accueil ou le planning perso, la feuille d’un événement répond pour toi, plus pour l’enfant sélectionné ; une push RSVP pour un enfant ouvre bien sa vue ; répondre pour un enfant ne masque plus l’événement dans ta vue « Moi »
+- Déconnexion (app) : le token de notifications est toujours désinscrit, et le club actif comme la sélection Moi / enfant repartent à zéro (plus de rattachement analytics au club du compte précédent)
+- Navigation (app) : plus d’erreur au retour sur un écran ouvert par redirection ou lien (connexion, inscription, réglages du club…) ; plus de repli bref sur la fiche du parent pendant le chargement des cibles
+- Paiements : un paiement CB arrivé après la liaison du compte de l’enfant est crédité sur la bonne fiche (via `formerMemberIds`), sinon remboursé ; l’excédent d’un paiement partiellement crédité est remboursé ; un seul PaymentIntent par cotisation à la fois
+- Liaison d’une fiche : en cas d’échec de la réécriture des références (rosters, événements, cotisations), relances puis reprise automatique planifiée (`scheduleMemberRekeyResume`) au lieu d’un joueur fantôme ; mises à jour par transaction document par document
+- Suppression de compte : une relance ne décrémente plus deux fois le nombre de membres du club
+- Codes d’invitation tirés avec un générateur cryptographique et vérifiés uniques ; plafond des invitations parent respecté même en appels simultanés
+- HelloAsso (code dormant) : un paiement en plusieurs fois ne crédite plus le total dès la 1ʳᵉ échéance ; montant du checkout borné au reste dû
 
 ### Sécurité
 
@@ -59,6 +68,12 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Coachs : plus de modification, d’annulation ni de notification d’un événement « tout le club » ou d’un événement multi-équipes dont ils n’entraînent pas toutes les équipes
 - Coachs : invitations et fiches pré-inscrites limitées à leurs équipes et aux fiches sans droit (un coach ne peut plus détourner l’invitation d’un futur admin) ; modération limitée aux conversations de leurs équipes
 - Règles : champs de re-clé / anonymisation réservés aux Functions ; une fiche pré-créée ne prend plus l’id d’un compte existant
+- Code d’équipe : il ne permet plus de récupérer la fiche d’un autre membre (et ses droits). Seules les fiches de l’équipe, sans droit ni relation coach, sont liables, et uniquement par e-mail vérifié (plus de rapprochement par prénom + nom)
+- Invitations : seul un admin peut inviter (ou rediriger l’invitation d’)une fiche pré-inscrite qui porte des droits ou une relation coach ; un coach ne peut plus détourner la fiche d’un coach d’une autre équipe ; `code` au format attendu et `expiresAt` obligatoire et borné
+- Événements multi-équipes : un coach d’une partie des équipes ne peut plus vider l’audience ni effacer les réponses des joueurs des autres équipes ; `setEventRsvp` vérifie que la fiche visée est convoquée et, pour un coach, dans ses équipes, et refuse un événement annulé
+- RSVP direct limité aux événements où l’on est convoqué, valeurs `yes` / `maybe` / `no` / `none` seulement
+- Messagerie : un message supprimé est purgé côté serveur (texte, image et miniature dans Storage, citations) par le trigger `onChatMessageUpdatedPurgeDeleted` ; aperçu de conversation et badge de l’expéditeur non falsifiables ; une citation doit pointer vers le vrai auteur
+- Règles : `memberCount` seulement +1 côté client, saisons de cotisation non supprimables côté client, verrou de checkout réservé aux Functions ; avatars SVG refusés dans Storage
 
 ## [2.3.0] - 2026-11-06
 

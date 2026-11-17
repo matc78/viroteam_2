@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
-import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/calendar/services/calendar_sync_service.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
@@ -63,11 +62,9 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
     return ClubAccentTheme(
       accentColor: accent,
       child: ViroScaffold(
+        fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
         appBar: ViroAppBar(
-          leading: IconButton(
-            icon: ViroIcon(ViroIcons.chevronLeft),
-            onPressed: () => context.pop(),
-          ),
+          fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
           title: Text(AppCopy.calendar.screenTitle),
         ),
         body: ViroRefreshIndicator(
@@ -97,7 +94,7 @@ class _CalendarSyncScreenState extends ConsumerState<CalendarSyncScreen> {
               const SizedBox(height: ViroSpacing.sm),
               eventsAsync.when(
                 loading: () => const Center(child: ViroLogoLoader()),
-                error: (_, __) => const ViroErrorState(),
+                error: (_, _) => const ViroErrorState(),
                 data: (state) {
                   final events = <ClubEvent>[
                     ...state.pending,

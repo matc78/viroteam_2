@@ -107,7 +107,29 @@ class PendingDeepLinkNotifier extends Notifier<PendingDeepLink?> {
     state = null;
     return link;
   }
+
+  /// Renvoie et efface la destination en attente si c’est un lien
+  /// d’invitation (`/join?code=`), `null` sinon (destination conservée).
+  ///
+  /// Un lien d’invitation s’ouvre dès la sortie de `/loading`, quel que soit
+  /// l’état du compte (déconnecté, sans fiche, sans club, avec clubs).
+  PendingDeepLink? consumeJoin() {
+    final link = state;
+    if (link == null || !isJoinRoute(link.route)) return null;
+    state = null;
+    return link;
+  }
 }
+
+/// `true` si [route] (avec ou sans query) est l’écran de saisie de code
+/// `/join`.
+bool isJoinRoute(String route) => Uri.parse(route).path == AppRoutes.join;
+
+/// `true` si [path] appartient au parcours d’invitation (`/join`,
+/// `/join/preview`) : le routeur ne doit jamais en détourner l’utilisateur
+/// vers la création de club.
+bool isInvitationPath(String path) =>
+    path == AppRoutes.join || path == AppRoutes.joinPreview;
 
 final pendingDeepLinkProvider =
     NotifierProvider<PendingDeepLinkNotifier, PendingDeepLink?>(
@@ -169,10 +191,33 @@ String pendingDeepLinkTarget(PendingDeepLink? link, ViroUser user) {
   return link.route;
 }
 
+/// Club à activer (puis enfant à sélectionner) pour la destination en
+/// attente [link], `null` s’il n’y en a pas ou si [user] n’y a pas accès.
+///
+/// Vaut aussi quand la destination est `/home` (push RSVP : la home encadre
+/// les événements de l’enfant visé) : la sélection de l’enfant ne doit pas
+/// dépendre de la route.
+String? pendingDeepLinkClubToApply(PendingDeepLink? link, ViroUser user) {
+  final clubId = link?.clubId;
+  if (clubId == null || !userCanOpenClub(user, clubId)) return null;
+  return clubId;
+}
+
+/// `true` tant que le routeur est sur `/loading` (session en cours de
+/// résolution, ou aucune route encore construite au démarrage à froid).
+bool routerIsResolvingSession(GoRouter router) {
+  final configuration = router.routerDelegate.currentConfiguration;
+  if (configuration.isEmpty) return true;
+  return configuration.uri.path == AppRoutes.loading;
+}
+
 /// Ouvre un deep link (lien universel ou tap push) selon l’état de session.
 ///
 /// - Profil chargé : session club (si accès) puis navigation immédiate.
-/// - Lien `join` : route publique, navigation immédiate (session ou pas).
+/// - Lien `join` : navigation immédiate si la session est connue ; pendant
+///   le chargement (app à froid), mise en attente — le routeur renverrait
+///   sinon sur `/loading` et le code serait perdu — puis ouverture dès la
+///   sortie de `/loading`, quel que soit l’état du compte.
 /// - Sinon (app à froid, session en cours de résolution, déconnecté) : mise
 ///   en attente, le routeur y va dès que la session est prête.
 void handleDeepLinkUri({
@@ -196,7 +241,13 @@ void handleDeepLinkUri({
   final clubId = deepLinkClubId(uri);
   final memberId = deepLinkMemberId(uri);
 
-  if (route.startsWith(AppRoutes.join)) {
+  if (isJoinRoute(route)) {
+    if (routerIsResolvingSession(router)) {
+      ref
+          .read(pendingDeepLinkProvider.notifier)
+          .set(PendingDeepLink(route: route));
+      return;
+    }
     router.go(route);
     return;
   }

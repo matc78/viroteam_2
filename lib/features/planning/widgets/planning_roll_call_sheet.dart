@@ -129,7 +129,7 @@ class _PlanningRollCallSheetState extends ConsumerState<PlanningRollCallSheet> {
 
     return membersAsync.when(
       loading: () => const Center(child: ViroLogoLoader()),
-      error: (_, __) => const ViroErrorState(),
+      error: (_, _) => const ViroErrorState(),
       data: (members) {
         final byId = indexClubMembersById(members);
         final playerIds = dedupedPlayerMemberIds(

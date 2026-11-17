@@ -49,6 +49,7 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     this.teamLabel,
     this.excludeCoachUids = const {},
     required this.onCanceled,
+    required this.rsvpAudience,
     this.onRsvpUpdated,
   });
 
@@ -62,6 +63,13 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
   /// Notifie l'écran parent après un RSVP (invalidation des listes).
   final VoidCallback? onRsvpUpdated;
 
+  /// Pour qui la feuille répond, fixé par l'appelant selon la liste d'où
+  /// vient l'événement : [RsvpAudience.self] depuis l'accueil / le planning
+  /// perso (événements de l'uid connecté), [RsvpAudience.selectedAudience]
+  /// depuis le planning du club (cible Moi | enfant sélectionnée).
+  final RsvpAudience rsvpAudience;
+
+  /// Ouvre la feuille de détail de [event] ; [rsvpAudience] : voir le champ.
   static Future<void> show({
     required BuildContext context,
     required String clubId,
@@ -69,6 +77,7 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     String? teamLabel,
     Set<String> excludeCoachUids = const {},
     required VoidCallback onCanceled,
+    required RsvpAudience rsvpAudience,
     VoidCallback? onRsvpUpdated,
   }) {
     return showModalBottomSheet<void>(
@@ -98,6 +107,7 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
                 teamLabel: teamLabel,
                 excludeCoachUids: excludeCoachUids,
                 onCanceled: onCanceled,
+                rsvpAudience: rsvpAudience,
                 onRsvpUpdated: onRsvpUpdated,
               ),
             ),
@@ -261,10 +271,26 @@ class _PlanningEventDetailSheetState
     widget.onRsvpUpdated?.call();
   }
 
-  /// Met à jour le RSVP de la cible sélectionnée (soi ou enfant), puis
+  /// Cible RSVP de la feuille selon [PlanningEventDetailSheet.rsvpAudience],
+  /// suivie dans `build()` (`null` tant qu'elle n'est pas connue).
+  RsvpTarget? _watchRsvpTarget() => switch (widget.rsvpAudience) {
+        RsvpAudience.self => ref.watch(selfRsvpTargetProvider(widget.clubId)),
+        RsvpAudience.selectedAudience =>
+          ref.watch(rsvpTargetProvider(widget.clubId)).asData?.value,
+      };
+
+  /// Cible RSVP de la feuille, lue au moment d'écrire la réponse.
+  Future<RsvpTarget?> _readRsvpTarget() async =>
+      switch (widget.rsvpAudience) {
+        RsvpAudience.self => ref.read(selfRsvpTargetProvider(widget.clubId)),
+        RsvpAudience.selectedAudience =>
+          await ref.read(rsvpTargetProvider(widget.clubId).future),
+      };
+
+  /// Met à jour le RSVP de la cible de la feuille (soi ou enfant), puis
   /// rafraîchit le détail.
   Future<void> _setRsvp(RsvpStatus status) async {
-    final rsvpTarget = await ref.read(rsvpTargetProvider(widget.clubId).future);
+    final rsvpTarget = await _readRsvpTarget();
     if (rsvpTarget == null) return;
 
     final eventService = ref.read(eventServiceProvider);
@@ -394,9 +420,9 @@ class _PlanningEventDetailSheetState
     return membersAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(ViroSpacing.xl),
-        child: const Center(child: ViroLogoLoader()),
+        child: Center(child: ViroLogoLoader()),
       ),
-      error: (_, __) => const ViroErrorState(),
+      error: (_, _) => const ViroErrorState(),
       data: (members) {
         final entries =
             _sortedEntries(indexClubMembersById(members), eventTeams);
@@ -591,8 +617,7 @@ class _PlanningEventDetailSheetState
     };
     final counts =
         PlanningEventDisplay.rsvpCountsIncludingCoaches(event, teamsById);
-    final rsvpTarget =
-        ref.watch(rsvpTargetProvider(widget.clubId)).asData?.value;
+    final rsvpTarget = _watchRsvpTarget();
     final canRsvp = !event.canceled &&
         rsvpTarget != null &&
         PlanningEventDisplay.canRsvpOnEvent(

@@ -42,7 +42,7 @@ class FeePaymentHistoryList extends ConsumerWidget {
     return eventsAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.symmetric(vertical: ViroSpacing.md),
-        child: const Center(child: ViroLogoLoader()),
+        child: Center(child: ViroLogoLoader()),
       ),
       error: (_, _) => ViroErrorState(
         message: AppCopy.fees.paymentHistoryLoadError,

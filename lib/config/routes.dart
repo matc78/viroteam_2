@@ -70,6 +70,7 @@ import 'package:viro_team_v2/providers/session_provider.dart';
 
 import 'package:viro_team_v2/screens/dev/design_system_preview_screen.dart';
 import 'package:viro_team_v2/models/club_permission.dart';
+import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/widgets/common/club_access_guard.dart';
 
 
@@ -238,6 +239,41 @@ abstract final class AppRoutes {
 
 }
 
+/// `true` si le routeur doit envoyer [user] sur la création de club : pas de
+/// club, profil non finalisé, intention « fondateur », et pas de parcours
+/// d’invitation en cours ([inInvitationFlow] : écran `/join*` ou invitation
+/// en attente). Un invité n’est ainsi jamais bloqué dans `/club-setup`.
+bool needsClubSetupRedirect({
+  required ViroUser user,
+  required SignUpIntent intent,
+  required bool inInvitationFlow,
+}) {
+  if (inInvitationFlow) return false;
+  return !user.hasClubs &&
+      !user.profileCompleted &&
+      intent == SignUpIntent.founder;
+}
+
+/// Location `signup?complete=1` pour confirmer prénom / nom : intention
+/// « rejoindre » si [intent] l’est ou si un parcours d’invitation est en
+/// cours ([inInvitationFlow]), en conservant le [code] d’invitation saisi.
+String completeNamesLocation({
+  required SignUpIntent intent,
+  required bool inInvitationFlow,
+  String? code,
+}) {
+  final isJoin = inInvitationFlow || intent == SignUpIntent.join;
+  final trimmedCode = code?.trim();
+  return Uri(
+    path: AppRoutes.signup,
+    queryParameters: {
+      'complete': '1',
+      'intent': isJoin ? 'join' : 'founder',
+      if (trimmedCode != null && trimmedCode.isNotEmpty) 'code': trimmedCode,
+    },
+  ).toString();
+}
+
 /// Extra go_router : messagerie ouverte après swipe interactif home.
 ///
 /// La révélation est déjà terminée → transition push à durée zéro.
@@ -369,6 +405,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       }
 
+      // Lien d’invitation reçu pendant le chargement (app à froid) : on
+      // l’ouvre dès que la session est connue, quel que soit l’état du
+      // compte. Les règles ci-dessous laissent passer `/join`.
+      if (path == AppRoutes.loading) {
+        final joinLink =
+            ref.read(pendingDeepLinkProvider.notifier).consumeJoin();
+        if (joinLink != null) return joinLink.route;
+      }
+
 
 
       if (!isAuth) {
@@ -449,24 +494,29 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           !user.profileCompleted &&
           nameIncomplete;
 
+      // Parcours d’invitation en cours (écran `/join*` ou invitation en
+      // attente) : jamais détourné vers la création de club.
+      final inInvitationFlow = isInvitationPath(path) || pending.hasInvitation;
+
       if (needsNameConfirmation) {
         final completingProfile = path == AppRoutes.signup &&
             state.uri.queryParameters['complete'] == '1';
         if (!completingProfile) {
-          final intentParam =
-              ref.read(signUpIntentProvider) == SignUpIntent.join
-                  ? 'join'
-                  : 'founder';
-          return '${AppRoutes.signup}?complete=1&intent=$intentParam';
+          return completeNamesLocation(
+            intent: ref.read(signUpIntentProvider),
+            inInvitationFlow: inInvitationFlow,
+            code: path == AppRoutes.join
+                ? state.uri.queryParameters['code']
+                : null,
+          );
         }
-      } else {
-        final needsClubSetup = !user.hasClubs &&
-            !user.profileCompleted &&
-            ref.read(signUpIntentProvider) == SignUpIntent.founder;
-
-        if (needsClubSetup && !inSetup) {
-          return AppRoutes.clubSetup;
-        }
+      } else if (!inSetup &&
+          needsClubSetupRedirect(
+            user: user,
+            intent: ref.read(signUpIntentProvider),
+            inInvitationFlow: inInvitationFlow,
+          )) {
+        return AppRoutes.clubSetup;
       }
 
 
@@ -479,14 +529,30 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           path == AppRoutes.loading) {
 
+        // Noms à confirmer : rester sur signup?complete=1.
+        if (path == AppRoutes.signup &&
+            state.uri.queryParameters['complete'] == '1' &&
+            needsNameConfirmation) {
+          return null;
+        }
+
+        // Invitation en attente (ex. « utiliser un autre compte » puis
+        // connexion) : prioritaire pour tous les comptes, avec ou sans club.
+        if (pending.hasInvitation) {
+
+          return AppRoutes.joinPreview;
+
+        }
+
         if (user.hasClubs) {
           // Push / lien reçu avant que la session soit prête : on y va
           // directement au lieu de l’accueil.
           final pendingLink =
               ref.read(pendingDeepLinkProvider.notifier).consume();
           final target = pendingDeepLinkTarget(pendingLink, user);
-          final linkClubId = pendingLink?.clubId;
-          if (target != AppRoutes.home && linkClubId != null) {
+          // Club + enfant du lien, y compris vers `/home` (push RSVP).
+          final linkClubId = pendingDeepLinkClubToApply(pendingLink, user);
+          if (linkClubId != null) {
             // Pas de mutation de provider pendant la résolution de route.
             Future.microtask(() {
               if (ref.read(sessionProvider).activeClubId != linkClubId) {
@@ -503,19 +569,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             });
           }
           return target;
-
-        }
-
-        // Noms à confirmer : rester sur signup?complete=1.
-        if (path == AppRoutes.signup &&
-            state.uri.queryParameters['complete'] == '1' &&
-            needsNameConfirmation) {
-          return null;
-        }
-
-        if (pending.hasInvitation) {
-
-          return AppRoutes.joinPreview;
 
         }
 

@@ -275,7 +275,7 @@ Future<void> showConversationInfoSheet({
                           horizontal: ViroSpacing.screenHorizontal,
                         ),
                         itemCount: media.imageUrls.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (_, _) =>
                             const SizedBox(width: ViroSpacing.sm),
                         itemBuilder: (_, index) => ChatMediaListTile(
                           imageUrl: media.imageUrls[index],

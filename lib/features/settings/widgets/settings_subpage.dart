@@ -43,7 +43,7 @@ class SettingsSubpage extends ConsumerWidget {
   Widget _userBody(BuildContext context, WidgetRef ref) {
     return ref.watch(viroUserProvider).when(
           loading: () => const Center(child: ViroLogoLoader()),
-          error: (_, __) => ViroErrorState(
+          error: (_, _) => ViroErrorState(
             message: AppCopy.settings.loadProfileError,
             onRetry: () => ref.invalidate(viroUserProvider),
           ),

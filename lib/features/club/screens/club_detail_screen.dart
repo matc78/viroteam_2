@@ -71,7 +71,15 @@ class ClubDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
-  final _hiddenPendingIds = <String>{};
+  /// Convocations masquées en optimiste après un RSVP, par
+  /// [_hiddenPendingKey] (fiche ciblée + événement) : répondre pour un enfant
+  /// ne masque pas l'événement dans la vue « Moi », et inversement.
+  final _hiddenPendingKeys = <String>{};
+
+  /// Clé de [_hiddenPendingKeys] pour la fiche [memberId] et l'événement
+  /// [eventId].
+  static String _hiddenPendingKey(String memberId, String eventId) =>
+      '$memberId/$eventId';
 
   @override
   void initState() {
@@ -111,13 +119,16 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final target = ref.read(selectedClubAudienceProvider(widget.clubId));
     final eventService = ref.read(eventServiceProvider);
     final viaCallable = target?.isChild == true;
+    // Pas de repli pendant le chargement de la cible : l'écran attend
+    // (clubAudienceResolvingProvider). Sans cible, c'est sa propre fiche.
+    final audienceId = target?.memberId ?? authUid;
+    final hiddenKey = _hiddenPendingKey(audienceId, event.id);
 
     // Optimistic : l'événement quitte « à répondre » tout de suite, et y
     // revient si l'écriture échoue.
-    setState(() => _hiddenPendingIds.add(event.id));
+    setState(() => _hiddenPendingKeys.add(hiddenKey));
 
     try {
-      final audienceId = target?.memberId ?? authUid;
       await eventService.updateRsvp(
         clubId: event.clubId,
         eventId: event.id,
@@ -127,7 +138,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       );
     } catch (_) {
       if (mounted) {
-        setState(() => _hiddenPendingIds.remove(event.id));
+        setState(() => _hiddenPendingKeys.remove(hiddenKey));
         ViroHaptics.error();
         ViroSnackBar.show(context, AppCopy.club.rsvpFailed);
       }
@@ -146,6 +157,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
       excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
       onCanceled: () {},
+      // Vue « Moi » de la fiche club (la vue enfant n'ouvre pas la feuille) :
+      // même cible que la liste, le compte connecté.
+      rsvpAudience: RsvpAudience.self,
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
   }
@@ -205,6 +219,10 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final clubAsync = ref.watch(clubProvider(clubId));
     final memberAsync = ref.watch(clubMemberProvider(clubId));
     final selected = ref.watch(selectedClubAudienceProvider(clubId));
+    // Cible Moi | enfant pas encore connue : on attend plutôt que d'afficher
+    // (et de faire répondre) la vue du compte connecté.
+    final audienceResolving =
+        ref.watch(clubAudienceResolvingProvider(clubId));
     final isChildView = selected?.isChild == true;
     final familyChildAsync = isChildView
         ? ref.watch(clubAudienceMemberProvider(clubId))
@@ -231,12 +249,15 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       ),
       body: clubAsync.when(
         loading: () => const Center(child: ViroLogoLoader()),
-        error: (_, __) => ViroErrorState(
+        error: (_, _) => ViroErrorState(
           onRetry: () => ref.invalidate(clubProvider(clubId)),
         ),
         data: (club) {
           if (club == null) {
             return Center(child: Text(AppCopy.common.clubNotFound));
+          }
+          if (audienceResolving) {
+            return const Center(child: ViroLogoLoader());
           }
 
           final brandColors = resolveClubBrandColors(
@@ -506,7 +527,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           ),
         ),
       ],
-      error: (_, __) => [
+      error: (_, _) => [
         SliverToBoxAdapter(
           child: ViroErrorState(
             onRetry: () => ref.invalidate(memberEventsProvider),
@@ -515,8 +536,15 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       ],
       data: (state) {
         final next = state.upcoming.where((e) => !e.canceled).firstOrNull;
+        // Vue « Moi » : convocations de sa propre fiche (members/{uid}).
+        final selfMemberId = ref.watch(authStateProvider).value?.uid ?? '';
         final otherPending = state.pending
-            .where((e) => e.id != next?.id && !_hiddenPendingIds.contains(e.id))
+            .where(
+              (e) =>
+                  e.id != next?.id &&
+                  !_hiddenPendingKeys
+                      .contains(_hiddenPendingKey(selfMemberId, e.id)),
+            )
             .toList();
         final teamsByClub = ref.watch(homeClubTeamsProvider).value ??
             const <String, Map<String, ClubTeam>>{};
@@ -637,7 +665,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             ),
           ),
         ],
-        error: (_, __) => [
+        error: (_, _) => [
           const SliverToBoxAdapter(child: ViroErrorState()),
         ],
         data: (state) {
@@ -689,7 +717,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       ),
       ...feeAsync.when(
         loading: () => const <Widget>[],
-        error: (_, __) => const <Widget>[],
+        error: (_, _) => const <Widget>[],
         data: (data) {
           final season = data.season;
           final fee = data.fee;
@@ -771,7 +799,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   }) {
     return announcementsAsync.when(
       loading: () => const [],
-      error: (_, __) => const [],
+      error: (_, _) => const [],
       data: (items) {
         if (items.isEmpty) return const [];
         final previews = items.take(3).toList();

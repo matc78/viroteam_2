@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -204,11 +204,9 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
     return ClubAccentTheme(
       accentColor: memberAccent,
       child: ViroScaffold(
+        fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
         appBar: ViroAppBar(
-          leading: IconButton(
-            icon: ViroIcon(ViroIcons.chevronLeft),
-            onPressed: () => context.pop(),
-          ),
+          fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
           title: Text(AppCopy.equipment.screenTitle),
         ),
         floatingActionButton: _busy

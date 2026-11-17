@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 
 /// Session club : club actif.
 ///
@@ -16,8 +17,13 @@ class SessionState {
 }
 
 class SessionNotifier extends Notifier<SessionState> {
+  /// Session vide, recréée à chaque changement de compte (déconnexion,
+  /// autre uid) : le compte suivant n'hérite jamais du club du précédent.
   @override
-  SessionState build() => const SessionState();
+  SessionState build() {
+    ref.watch(authUidProvider);
+    return const SessionState();
+  }
 
   /// Active un club.
   void setActiveClub(String clubId) {

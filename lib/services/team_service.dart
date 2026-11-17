@@ -4,7 +4,6 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/models/club_activity_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
-import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/services/club_activity_service.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/utils/firestore_instance.dart';
@@ -126,38 +125,6 @@ class TeamService {
           (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
         );
     });
-  }
-
-  Future<Map<String, TeamMemberProfile>> fetchMemberProfiles(
-    List<String> uids,
-  ) async {
-    if (uids.isEmpty) return {};
-
-    final unique = uids.toSet().toList();
-    final result = <String, TeamMemberProfile>{};
-
-    for (var i = 0; i < unique.length; i += 30) {
-      final chunk = unique.skip(i).take(30).toList();
-      final snap = await _db
-          .collection(ProjectConfig.usersCollection)
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get();
-
-      for (final doc in snap.docs) {
-        final user = ViroUser.fromFirestore(doc);
-        result[user.uid] = TeamMemberProfile(
-          uid: user.uid,
-          displayName: user.displayName.isNotEmpty
-              ? user.displayName
-              : '${user.firstName} ${user.lastName}'.trim(),
-          firstName: user.firstName,
-          lastName: user.lastName,
-          avatarUrl: user.avatarUrl,
-        );
-      }
-    }
-
-    return result;
   }
 
   Stream<List<PendingTeamMember>> watchPendingMembers(String clubId) {

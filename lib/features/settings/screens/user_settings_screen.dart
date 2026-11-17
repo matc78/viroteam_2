@@ -176,7 +176,7 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
                 clubsAsync.when(
                   loading: () => const Padding(
                     padding: EdgeInsets.all(ViroSpacing.md),
-                    child: const Center(child: ViroLogoLoader()),
+                    child: Center(child: ViroLogoLoader()),
                   ),
                   error: (error, _) => ViroEmptyState(
                     message: AppCopy.settings.loadClubsError,

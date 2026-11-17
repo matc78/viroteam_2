@@ -175,7 +175,7 @@ class _InviteTeamSheetState extends ConsumerState<InviteTeamSheet> {
           if (_loading)
             const Padding(
               padding: EdgeInsets.all(ViroSpacing.xl),
-              child: const Center(child: ViroLogoLoader()),
+              child: Center(child: ViroLogoLoader()),
             )
           else if (_error != null)
             Text(

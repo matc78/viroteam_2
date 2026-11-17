@@ -44,9 +44,7 @@ class _SignOutButtonState extends ConsumerState<SignOutButton> {
 
     setState(() => _signingOut = true);
     try {
-      await ref
-          .read(pushNotificationServiceProvider)
-          .unregisterCurrentToken();
+      // Désinscription FCM incluse (AuthService.signOut).
       await ref.read(authServiceProvider).signOut();
       if (mounted) context.go(AppRoutes.entry);
     } catch (_) {

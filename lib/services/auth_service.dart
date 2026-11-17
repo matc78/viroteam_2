@@ -25,13 +25,19 @@ class AuthService {
     FirebaseAuth? auth,
     GoogleSignIn? googleSignIn,
     AppleSignInHelper? appleSignIn,
+    Future<void> Function()? beforeSignOut,
   })  : _auth = auth ?? FirebaseAuth.instance,
         _googleSignIn = googleSignIn ?? GoogleSignIn(),
-        _appleSignIn = appleSignIn ?? const AppleSignInHelper();
+        _appleSignIn = appleSignIn ?? const AppleSignInHelper(),
+        _beforeSignOut = beforeSignOut;
 
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
   final AppleSignInHelper _appleSignIn;
+
+  /// Nettoyage à faire tant que la session est encore ouverte (désinscription
+  /// du token FCM, qui passe par une callable authentifiée).
+  final Future<void> Function()? _beforeSignOut;
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
 
@@ -143,7 +149,18 @@ class AuthService {
     return _auth.sendPasswordResetEmail(email: email.trim());
   }
 
+  /// Déconnecte le compte (Firebase + Google). Point unique de déconnexion :
+  /// exécute d'abord `beforeSignOut` (désinscription FCM), dont un échec ne
+  /// bloque jamais la déconnexion.
   Future<void> signOut() async {
+    final beforeSignOut = _beforeSignOut;
+    if (beforeSignOut != null) {
+      try {
+        await beforeSignOut();
+      } catch (_) {
+        // Best-effort : le token orphelin sera purgé côté serveur.
+      }
+    }
     await Future.wait([
       _auth.signOut(),
       _googleSignIn.signOut(),

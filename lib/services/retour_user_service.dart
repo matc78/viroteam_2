@@ -29,8 +29,8 @@ class RetourUserService {
       FirestoreFields.userId: userId,
       FirestoreFields.clubId: clubId,
       'type': typeClubSetupObjectives,
-      if (clubName != null) FirestoreFields.clubName: clubName,
-      if (clubSport != null) FirestoreFields.clubSport: clubSport,
+      FirestoreFields.clubName: ?clubName,
+      FirestoreFields.clubSport: ?clubSport,
       FirestoreFields.objectives: objectiveKeys.toList(),
       FirestoreFields.objectivesLabels: labels,
       if (memberCountRange != null && memberCountRange.isNotEmpty)

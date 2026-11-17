@@ -111,8 +111,13 @@ final clubFamilyTargetsProvider =
 });
 
 class ClubAudienceSelectionNotifier extends Notifier<Map<String, String>> {
+  /// Sélection vide, recréée à chaque changement de compte : les enfants
+  /// choisis par le compte précédent ne survivent pas à la déconnexion.
   @override
-  Map<String, String> build() => {};
+  Map<String, String> build() {
+    ref.watch(authUidProvider);
+    return {};
+  }
 
   /// Enregistre la fiche cible (Moi ou enfant) pour [clubId].
   void select({required String clubId, required String memberId}) {
@@ -141,6 +146,26 @@ final selectedClubAudienceProvider =
     return targets.firstWhere((target) => target.isSelf);
   }
   return targets.first;
+});
+
+/// `true` tant que la cible (Moi | enfant) du club n'est pas encore connue.
+///
+/// Les écrans ciblés (fiche club, cotisation) attendent plutôt que de
+/// retomber sur le compte connecté : un parent verrait sinon sa propre vue
+/// (et répondrait pour lui) avant que l'enfant sélectionné n'apparaisse.
+/// Une erreur de chargement n'est pas une attente infinie : `false`.
+final clubAudienceResolvingProvider =
+    Provider.family<bool, String>((ref, clubId) {
+  final targetsAsync = ref.watch(clubFamilyTargetsProvider(clubId));
+  if (targetsAsync.hasError) return false;
+  // Une cible déjà connue (même pendant un rechargement) suffit.
+  if ((targetsAsync.value ?? const []).isNotEmpty) return false;
+  if (targetsAsync.isLoading) return true;
+  // Licencié dont la fiche charge encore : la liste vide est provisoire.
+  final user = ref.watch(viroUserProvider).value;
+  if (user == null || !user.isLicensedInClub(clubId)) return false;
+  final selfMemberAsync = ref.watch(clubMemberProvider(clubId));
+  return !selfMemberAsync.hasValue && !selfMemberAsync.hasError;
 });
 
 /// Fiche à mettre en avant (épinglée, en gras) dans les effectifs d'équipe :
@@ -192,25 +217,45 @@ RsvpTarget? childRsvpTarget({
   );
 }
 
+/// Pour qui une vue répond aux convocations : le compte connecté (accueil,
+/// planning perso : leurs événements sont ceux de l'uid connecté) ou la
+/// cible Moi | enfant sélectionnée dans le club (planning du club).
+enum RsvpAudience { self, selectedAudience }
+
+/// Cible RSVP « soi » dans [clubId] : sa fiche `members/{uid}`, écriture
+/// directe. `null` si déconnecté.
+final selfRsvpTargetProvider =
+    Provider.family<RsvpTarget?, String>((ref, clubId) {
+  final authUid = ref.watch(authStateProvider).value?.uid;
+  if (authUid == null) return null;
+  return (
+    memberId: authUid,
+    member: ref.watch(clubMemberProvider(clubId)).value,
+    viaCallable: false,
+  );
+});
+
 /// Cible RSVP du club : enfant sélectionné ou compte connecté.
+///
+/// Attend que les cibles Moi | enfant soient connues : pendant leur
+/// chargement, retomber sur le compte connecté ferait répondre le parent
+/// pour lui-même alors qu'un enfant est sélectionné.
 final rsvpTargetProvider =
     FutureProvider.family<RsvpTarget?, String>((ref, clubId) async {
   final authUid = ref.watch(authStateProvider).value?.uid;
   if (authUid == null) return null;
 
+  // Dépendances lues avant toute attente : un changement relance le calcul.
   final selected = ref.watch(selectedClubAudienceProvider(clubId));
+  final selfTarget = ref.watch(selfRsvpTargetProvider(clubId));
+  final targetsReady = ref.watch(clubFamilyTargetsProvider(clubId).future);
   if (selected != null && selected.isChild) {
     final childMember =
         await ref.watch(clubAudienceMemberProvider(clubId).future);
     return childRsvpTarget(selected: selected, childMember: childMember);
   }
-
-  final selfMember = ref.watch(clubMemberProvider(clubId)).value;
-  return (
-    memberId: authUid,
-    member: selfMember,
-    viaCallable: false,
-  );
+  await targetsReady;
+  return selfTarget;
 });
 
 /// Fiche membre de la cible (enfant ou soi).

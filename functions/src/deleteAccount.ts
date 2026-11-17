@@ -76,16 +76,35 @@ async function anonymizeMember(memberDoc: QueryDocumentSnapshot): Promise<void> 
   });
 }
 
-/** Retire l'uid des admins du club et décrémente `memberCount` (min 0). */
-async function detachFromClub(clubRef: DocumentReference, uid: string): Promise<void> {
+/** Marqueur posé sur la fiche quand `memberCount` a déjà été décrémenté. */
+const CLUB_DETACHED_AT_FIELD = "clubDetachedAt";
+
+/**
+ * Retire l'uid des admins du club et décrémente `memberCount` (min 0).
+ * Idempotent : le décrément et le marqueur `clubDetachedAt` de la fiche sont
+ * écrits dans la même transaction, une relance (étape suivante en échec) ne
+ * décrémente donc pas deux fois.
+ */
+async function detachFromClub(
+  clubRef: DocumentReference,
+  memberRef: DocumentReference,
+  uid: string,
+): Promise<void> {
   await db().runTransaction(async (tx) => {
-    const clubSnap = await tx.get(clubRef);
+    const [clubSnap, memberSnap] = await Promise.all([
+      tx.get(clubRef),
+      tx.get(memberRef),
+    ]);
     if (!clubSnap.exists) return;
     const club = clubSnap.data() ?? {};
+    const alreadyCounted = memberSnap.get(CLUB_DETACHED_AT_FIELD) != null;
     const patch: Record<string, unknown> = {
-      memberCount: decrementCount(club.memberCount),
+      ...(alreadyCounted ? {} : { memberCount: decrementCount(club.memberCount) }),
       updatedAt: serverTimestamp(),
     };
+    if (memberSnap.exists && !alreadyCounted) {
+      tx.update(memberRef, { [CLUB_DETACHED_AT_FIELD]: serverTimestamp() });
+    }
     const nextAdminIds = adminIdsUpdate({
       adminIds: stringArray(club.adminIds),
       memberId: uid,
@@ -197,7 +216,7 @@ async function anonymizeMemberships(
 
     const failuresBefore = failures.length;
     try {
-      await detachFromClub(clubRef, uid);
+      await detachFromClub(clubRef, memberDoc.ref, uid);
     } catch (error) {
       logStep(failures, "mise à jour club (adminIds/memberCount)", { ...context, error });
     }

@@ -34,7 +34,7 @@ export function personNameKey(firstName: unknown, lastName: unknown): string {
 
 export { normalizeEmail };
 
-/** Membre candidat au claim silencieux (fiche non liée). */
+/** Membre candidat au claim silencieux (fiche de l’équipe ciblée). */
 export type ClaimableMember = {
   memberId: string;
   accountUid: string | null;
@@ -42,6 +42,12 @@ export type ClaimableMember = {
   lastName: string;
   email: string;
   teamIds: string[];
+  /** Droits club de la fiche (`permissions`) : non vide ⇒ jamais réclamable. */
+  permissions: string[];
+  /** Équipes coachées (`coachTeamIds`) : non vide ⇒ jamais réclamable. */
+  coachTeamIds: string[];
+  /** Fiche anonymisée / archivée / supprimée ⇒ jamais réclamable. */
+  retired: boolean;
 };
 
 /**
@@ -60,32 +66,81 @@ export function memberEmailFromData(data: Record<string, unknown>): string {
 }
 
 /**
- * Choisit la fiche à claimer : e-mail exact prioritaire, sinon prénom+nom unique.
- * Retourne `null` si aucun match sûr (pas de match, ou homonymes).
+ * True si la fiche est anonymisée, archivée ou supprimée (suppression de
+ * compte, retrait du club) : elle ne doit jamais être réclamée.
+ */
+export function memberIsRetired(data: Record<string, unknown>): boolean {
+  return (
+    data.anonymizedAt != null ||
+    data.deletedAt != null ||
+    data.deleted === true ||
+    data.status === "archived" ||
+    data.status === "deleted"
+  );
+}
+
+function nonEmptyStrings(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
+}
+
+/**
+ * Construit le candidat au claim depuis une fiche `members/{memberId}`.
+ * [accountUid] est passé déjà résolu (`accountUidOf`).
+ */
+export function claimableMemberFromData(
+  memberId: string,
+  data: Record<string, unknown>,
+  accountUid: string | null,
+): ClaimableMember {
+  return {
+    memberId,
+    accountUid,
+    firstName: String(data.firstName ?? "").trim(),
+    lastName: String(data.lastName ?? "").trim(),
+    email: memberEmailFromData(data),
+    teamIds: nonEmptyStrings(data.teamIds),
+    permissions: nonEmptyStrings(data.permissions),
+    coachTeamIds: nonEmptyStrings(data.coachTeamIds),
+    retired: memberIsRetired(data),
+  };
+}
+
+/**
+ * Choisit la fiche pré-inscrite à réclamer lors de l’acceptation d’un code
+ * d’équipe. Revue sécurité (17 nov. 2026) : un code d’équipe circule
+ * largement, le claim est donc restreint au strict nécessaire :
+ * - seulement les fiches de l’équipe ciblée ([teamMemberIds]) ;
+ * - jamais une fiche liée, portant des droits club ou des équipes coachées
+ *   (sinon héritage de droits), ni une fiche anonymisée / archivée ;
+ * - uniquement par e-mail exact **vérifié** (`email_verified`), et unique.
+ * Le prénom + nom (écrits librement par le client dans `users/{uid}`) ne
+ * suffisent plus : sans e-mail vérifié correspondant, aucun claim (une fiche
+ * neuve est créée ; un admin fusionne si besoin).
+ * Retourne `null` si aucun match sûr.
  */
 export function resolveClaimMemberId(params: {
   members: ClaimableMember[];
+  teamMemberIds: readonly string[];
   authEmail: string;
-  firstName: string;
-  lastName: string;
+  emailVerified: boolean;
 }): string | null {
+  if (!params.emailVerified) return null;
   const email = normalizeEmail(params.authEmail);
-  const nameKey = personNameKey(params.firstName, params.lastName);
+  if (!email) return null;
+  const onTeam = new Set(params.teamMemberIds);
 
-  const unclaimed = params.members.filter((member) => !member.accountUid);
-
-  if (email) {
-    const byEmail = unclaimed.filter((member) => member.email === email);
-    if (byEmail.length === 1) return byEmail[0]!.memberId;
-    if (byEmail.length > 1) return null;
-  }
-
-  if (!nameKey) return null;
-  const byName = unclaimed.filter(
-    (member) => personNameKey(member.firstName, member.lastName) === nameKey,
+  const byEmail = params.members.filter(
+    (member) =>
+      onTeam.has(member.memberId) &&
+      !member.accountUid &&
+      member.permissions.length === 0 &&
+      member.coachTeamIds.length === 0 &&
+      !member.retired &&
+      member.email === email,
   );
-  if (byName.length === 1) return byName[0]!.memberId;
-  return null;
+  return byEmail.length === 1 ? byEmail[0]!.memberId : null;
 }
 
 /** Parse `{ clubId, teamId, forceRefresh? }` pour create/refresh. */

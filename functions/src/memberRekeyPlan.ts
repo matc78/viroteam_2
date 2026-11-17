@@ -231,3 +231,34 @@ export function feeMoveDecision(source: FeeState, target: FeeState): FeeMoveDeci
   if (feeIsEmpty(target)) return "drop-empty-target-then-move";
   return "conflict";
 }
+
+/** Échecs après lesquels la reprise automatique abandonne (un humain reprend). */
+export const REKEY_RESUME_MAX_FAILURES = 10;
+
+/** Délai minimal depuis la dernière écriture de la fiche avant une reprise. */
+export const REKEY_RESUME_MIN_AGE_MS = 10 * 60 * 1000;
+
+/**
+ * Faut-il reprendre la réécriture des références d'une fiche re-clée
+ * (`rekeyPendingFrom` encore posé) ? Non si : rien en attente, conflit de
+ * cotisation (un admin tranche), trop d'échecs, ou fiche écrite il y a moins
+ * de [REKEY_RESUME_MIN_AGE_MS] (la réécriture inline est peut-être en cours).
+ */
+export function shouldResumeRekey(params: {
+  memberId: string;
+  pendingFrom: unknown;
+  failureCount: unknown;
+  feeConflictSeasonIds: unknown;
+  lastWriteMs: number | null;
+  nowMs: number;
+}): boolean {
+  const from = typeof params.pendingFrom === "string" ? params.pendingFrom.trim() : "";
+  if (!from || from === params.memberId) return false;
+  if (stringArray(params.feeConflictSeasonIds).length > 0) return false;
+  const failures = Number(params.failureCount ?? 0);
+  if (Number.isFinite(failures) && failures >= REKEY_RESUME_MAX_FAILURES) return false;
+  if (params.lastWriteMs != null && params.nowMs - params.lastWriteMs < REKEY_RESUME_MIN_AGE_MS) {
+    return false;
+  }
+  return true;
+}

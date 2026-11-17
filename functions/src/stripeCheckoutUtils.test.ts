@@ -2,11 +2,27 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   boundedNetCents,
+  excessRefundGrossCents,
   mergeFeeAids,
   normalizeAidInputs,
   remainingDueCents,
   splitCardCredit,
 } from "./stripeCheckoutUtils";
+
+describe("excessRefundGrossCents", () => {
+  it("proratise l’excédent net au brut, borné au brut", () => {
+    assert.equal(
+      excessRefundGrossCents({ excessNetCents: 5000, netCents: 10000, grossCents: 10300 }),
+      5150,
+    );
+    assert.equal(
+      excessRefundGrossCents({ excessNetCents: 10000, netCents: 10000, grossCents: 10300 }),
+      10300,
+    );
+    assert.equal(excessRefundGrossCents({ excessNetCents: 0, netCents: 1, grossCents: 1 }), 0);
+    assert.equal(excessRefundGrossCents({ excessNetCents: 10, netCents: 0, grossCents: 1 }), 0);
+  });
+});
 
 describe("remainingDueCents", () => {
   it("palier − payé − aides validées, jamais négatif", () => {

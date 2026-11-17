@@ -147,3 +147,22 @@ export const CANCELABLE_PAYMENT_INTENT_STATUSES = new Set([
   "requires_action",
   "requires_capture",
 ]);
+
+/**
+ * Montant brut (débité au payeur) à rembourser pour un excédent net
+ * [excessNetCents] : au prorata brut / net du PaymentIntent, pour que le
+ * club ne rende que l'excédent et le payeur récupère les frais associés.
+ * Borné à [grossCents] ; 0 si les entrées sont invalides.
+ */
+export function excessRefundGrossCents(params: {
+  excessNetCents: number;
+  netCents: number;
+  grossCents: number;
+}): number {
+  const excess = Math.max(0, Math.round(Number(params.excessNetCents) || 0));
+  const net = Math.max(0, Math.round(Number(params.netCents) || 0));
+  const gross = Math.max(0, Math.round(Number(params.grossCents) || 0));
+  if (excess <= 0 || net <= 0 || gross <= 0) return 0;
+  if (excess >= net) return gross;
+  return Math.min(gross, Math.round((excess * gross) / net));
+}

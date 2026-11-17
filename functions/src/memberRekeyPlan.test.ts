@@ -7,7 +7,30 @@ import {
   feeMoveDecision,
   mergeMemberDocs,
   rewriteParentLinks,
+  REKEY_RESUME_MAX_FAILURES,
+  shouldResumeRekey,
 } from "./memberRekeyPlan";
+
+test("shouldResumeRekey : hors conflit, échecs répétés et écriture récente", () => {
+  const nowMs = 100 * 60 * 1000;
+  const base = {
+    memberId: "uid1",
+    pendingFrom: "old1",
+    failureCount: 0,
+    feeConflictSeasonIds: [],
+    lastWriteMs: 0,
+    nowMs,
+  };
+  assert.equal(shouldResumeRekey(base), true);
+  assert.equal(shouldResumeRekey({ ...base, pendingFrom: "" }), false);
+  assert.equal(shouldResumeRekey({ ...base, pendingFrom: "uid1" }), false);
+  assert.equal(shouldResumeRekey({ ...base, feeConflictSeasonIds: ["s1"] }), false);
+  assert.equal(
+    shouldResumeRekey({ ...base, failureCount: REKEY_RESUME_MAX_FAILURES }),
+    false,
+  );
+  assert.equal(shouldResumeRekey({ ...base, lastWriteMs: nowMs - 60_000 }), false);
+});
 
 /** Timestamp Firestore minimal (seul `toMillis` est lu). */
 const at = (millis: number) => ({ toMillis: () => millis });

@@ -5,10 +5,17 @@ import { defineSecret, defineString } from "firebase-functions/params";
 import { db, defineDualCallable, defineDualRequest } from "./db";
 import { assertCanActForMember } from "./guardians";
 import {
+  FeeNotFoundError,
   aidLabel,
   creditMemberFeeFromCardPayment,
   generateAndStoreReceipt,
 } from "./feePayments";
+import { helloAssoCreditsFromWebhook } from "./helloAssoWebhookUtils";
+import {
+  boundedNetCents,
+  normalizeAidInputs,
+  remainingDueCents,
+} from "./stripeCheckoutUtils";
 
 export {
   inviteGuardian,
@@ -51,6 +58,11 @@ export {
 } from "./teamInvites";
 
 export { deleteMyAccount, deleteMyAccountDev } from "./deleteAccount";
+
+export {
+  scheduleMemberRekeyResume,
+  scheduleMemberRekeyResumeDev,
+} from "./memberRekeyResume";
 
 export {
   setMemberPermissions,
@@ -99,6 +111,8 @@ export {
   onClubWrittenForChatDev,
   onChatMessageCreatedForPush,
   onChatMessageCreatedForPushDev,
+  onChatMessageUpdatedPurgeDeleted,
+  onChatMessageUpdatedPurgeDeletedDev,
   scheduleSeasonChatPurge,
   scheduleSeasonChatPurgeDev,
 } from "./chat";
@@ -248,20 +262,43 @@ export const {
       .collection("payment_sessions")
       .doc();
 
-    const now = admin.firestore.Timestamp.now();
-    const aidDocs = aids
-      .filter((a) => a.amountCents > 0)
-      .map((a, index) => ({
-        id: `${sessionRef.id}_${index}`,
-        type: a.type || "other",
-        label: a.label || aidLabel(a.type || "other"),
-        amountCents: Math.round(a.amountCents),
-        status: "pending_proof",
-        promoCode: a.promoCode ?? null,
-        createdAt: now,
-      }));
+    // Reste dû recalculé côté serveur (comme le checkout Stripe) : le montant
+    // client n'est qu'un paiement partiel borné, les aides aussi.
+    const fee = feeSnap.data()!;
+    const seasonSnap = await db()
+      .collection("clubs")
+      .doc(clubId)
+      .collection("fee_seasons")
+      .doc(seasonId)
+      .get();
+    const tiers =
+      (seasonSnap.data()?.tiers as { tierId?: unknown; amountCents?: unknown }[] | undefined) ?? [];
+    const tier = tiers.find((t) => String(t.tierId ?? "") === String(fee.tierId ?? ""));
+    const remainingCents = remainingDueCents({
+      tierAmountCents: Number(tier?.amountCents ?? 0),
+      feeStatus: typeof fee.status === "string" ? fee.status : undefined,
+      amountPaidCents: fee.amountPaidCents,
+      aids: fee.aids,
+    });
 
-    const cardAmount = Math.round(amountCents);
+    const now = admin.firestore.Timestamp.now();
+    const aidDocs = normalizeAidInputs(aids, remainingCents).map((a, index) => ({
+      id: `${sessionRef.id}_${index}`,
+      type: a.type,
+      label: a.label ?? aidLabel(a.type),
+      amountCents: a.amountCents,
+      status: "pending_proof",
+      promoCode: a.promoCode,
+      createdAt: now,
+    }));
+
+    const cardAmount = boundedNetCents(amountCents, remainingCents);
+    if (cardAmount <= 0 && aidDocs.length === 0) {
+      throw new HttpsError(
+        "failed-precondition",
+        remainingCents <= 0 ? "Cotisation déjà réglée" : "Montant invalide",
+      );
+    }
     if (cardAmount <= 0) {
       // Aides seules : on enregistre les justificatifs sans checkout CB.
       const existingAids =
@@ -444,72 +481,86 @@ export const {
         return;
       }
 
-      const paymentState = String(
-        data.state ?? data.paymentState ?? "",
-      ).toLowerCase();
-      // HelloAsso : Authorized / AuthorizedWaitingBankValidation / etc.
-      const isAuthorized =
-        !paymentState ||
-        paymentState.includes("authoriz") ||
-        eventType === "Order";
-
-      if (!isAuthorized) {
-        res.json({ ok: true, ignoredState: paymentState });
+      // Seuls les paiements explicitement autorisés, au montant numérique,
+      // sont crédités, chacun sous son id (jamais le total d'une commande
+      // en 3 fois, jamais un `state` vide) : voir helloAssoWebhookUtils.ts.
+      const credits = helloAssoCreditsFromWebhook(eventType, data);
+      if (credits.length === 0) {
+        res.json({ ok: true, ignored: "no authorized payment" });
         return;
       }
-
-      const amount =
-        Number(data.amount ?? data.cashOutAmount ?? data.totalAmount ?? 0) ||
-        0;
-      const externalPaymentId = String(
-        data.id ?? data.paymentId ?? data.orderId ?? "",
-      );
       const orderObj = data.order as Record<string, unknown> | undefined;
       const externalOrderId = String(
-        orderObj?.id ?? data.orderId ?? data.id ?? "",
-      );
+        orderObj?.id ?? (eventType === "Order" ? data.id : "") ?? "",
+      ).trim();
 
-      // Sans identifiant externe, aucune idempotence possible : on refuse le crédit.
-      if (!externalPaymentId.trim()) {
-        res.status(400).json({ error: "externalPaymentId missing" });
-        return;
-      }
-
-      const feeRef = db()
-        .collection("clubs")
-        .doc(clubId)
-        .collection("fee_seasons")
-        .doc(seasonId)
-        .collection("member_fees")
-        .doc(memberId);
-
-      const { creditedCents } = await creditMemberFeeFromCardPayment({
-        clubId,
-        seasonId,
-        memberId,
-        sessionId,
-        amountCents: amount,
-        externalPaymentId,
-        externalOrderId: externalOrderId || undefined,
-        provider: "helloasso",
-      });
-
-      // Reçu PDF (best-effort, hors transaction).
-      if (creditedCents > 0) {
+      for (const credit of credits) {
+        let result: Awaited<ReturnType<typeof creditMemberFeeFromCardPayment>>;
         try {
-          const receiptUrl = await generateAndStoreReceipt({
+          result = await creditMemberFeeFromCardPayment({
             clubId,
             seasonId,
             memberId,
-            amountCents: creditedCents > 0 ? creditedCents : amount,
-            externalPaymentId,
-            providerLabel: "encaissement confirmé (HelloAsso)",
+            sessionId,
+            amountCents: credit.amountCents,
+            externalPaymentId: credit.externalPaymentId,
+            externalOrderId: externalOrderId || undefined,
+            provider: "helloasso",
           });
-          if (receiptUrl) {
-            await feeRef.set({ receiptUrl }, { merge: true });
+        } catch (error) {
+          if (!(error instanceof FeeNotFoundError)) throw error;
+          // Pas de remboursement automatique HelloAsso : trace exploitable
+          // (un 500 serait rejoué indéfiniment sans issue).
+          console.error("helloAssoWebhook: cotisation introuvable", {
+            clubId,
+            seasonId,
+            memberId,
+            externalPaymentId: credit.externalPaymentId,
+          });
+          await db()
+            .collection("_system")
+            .doc("helloasso_orphan_payments")
+            .collection("items")
+            .doc(credit.externalPaymentId)
+            .set(
+              {
+                clubId,
+                seasonId,
+                memberId,
+                sessionId: sessionId || null,
+                amountCents: credit.amountCents,
+                status: "refund_manual",
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              { merge: true },
+            );
+          continue;
+        }
+
+        // Reçu PDF (best-effort, hors transaction).
+        if (result.creditedCents > 0) {
+          try {
+            const receiptUrl = await generateAndStoreReceipt({
+              clubId,
+              seasonId,
+              memberId: result.memberId,
+              amountCents: result.creditedCents,
+              externalPaymentId: credit.externalPaymentId,
+              providerLabel: "encaissement confirmé (HelloAsso)",
+            });
+            if (receiptUrl) {
+              await db()
+                .collection("clubs")
+                .doc(clubId)
+                .collection("fee_seasons")
+                .doc(seasonId)
+                .collection("member_fees")
+                .doc(result.memberId)
+                .set({ receiptUrl }, { merge: true });
+            }
+          } catch (e) {
+            console.error("receipt generation failed", e);
           }
-        } catch (e) {
-          console.error("receipt generation failed", e);
         }
       }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
@@ -144,12 +145,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final isBusy = _loading || _googleLoading || _appleLoading;
     final errorMessage = _error;
 
+    // Atteint par redirection (`/login` → profil à compléter, invitation) :
+    // la pile peut être vide, retour vers Bienvenue.
     return ViroScaffold(
+      fallbackRoute: AppRoutes.entry,
       appBar: ViroAppBar(
-        leading: IconButton(
-          icon: ViroIcon(ViroIcons.chevronLeft),
-          onPressed: () => context.pop(),
-        ),
+        fallbackRoute: AppRoutes.entry,
         title: Text(AppCopy.auth.loginTitle),
       ),
       body: SafeArea(

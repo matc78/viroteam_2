@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -23,11 +23,9 @@ class ClubActivityScreen extends ConsumerWidget {
     final accent = ref.watch(clubManagementAccentProvider(clubId));
 
     return ViroScaffold(
+      fallbackRoute: AppRoutes.clubDetailPath(clubId),
       appBar: ViroAppBar(
-        leading: IconButton(
-          icon: ViroIcon(ViroIcons.chevronLeft),
-          onPressed: () => context.pop(),
-        ),
+        fallbackRoute: AppRoutes.clubDetailPath(clubId),
         title: Text(AppCopy.activity.screenTitle),
       ),
       body: eventsAsync.when(

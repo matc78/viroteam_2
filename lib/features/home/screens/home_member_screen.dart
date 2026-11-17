@@ -23,6 +23,7 @@ import 'package:viro_team_v2/features/home/widgets/rsvp_highlight_scroll_hints.d
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/features/announcements/widgets/home_announcement_banner.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_reminder_banner.dart';
@@ -177,6 +178,8 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
       excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
       onCanceled: () {},
+      // Accueil : événements de l'uid connecté, on répond pour soi.
+      rsvpAudience: RsvpAudience.self,
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
   }

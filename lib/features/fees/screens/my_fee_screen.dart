@@ -53,8 +53,13 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedClubAudienceProvider(widget.clubId));
     // Fiche ciblée : enfant sélectionné, sinon sa propre fiche members/{uid}.
-    final audienceId =
-        selected?.memberId ?? ref.watch(authStateProvider).value?.uid;
+    // Tant que la cible charge, pas de repli sur le compte connecté (un
+    // parent verrait sa cotisation avant celle de l'enfant) : on attend.
+    final audienceResolving =
+        ref.watch(clubAudienceResolvingProvider(widget.clubId));
+    final audienceId = audienceResolving
+        ? null
+        : selected?.memberId ?? ref.watch(authStateProvider).value?.uid;
 
     final title = selected?.isChild == true
         ? AppCopy.fees.childFeeTitle(selected!.label)

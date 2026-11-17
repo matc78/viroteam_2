@@ -13,6 +13,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/analytics_consent_service.dart';
 import 'package:viro_team_v2/services/analytics_service.dart';
 import 'package:viro_team_v2/services/haptics_preference_service.dart';
+import 'package:viro_team_v2/services/sign_up_intent_preference_service.dart';
 import 'package:viro_team_v2/services/theme_preference_service.dart';
 import 'package:viro_team_v2/utils/viro_debug_log.dart';
 
@@ -62,6 +63,9 @@ Future<void> main() async {
       overrides: [
         themePreferenceServiceProvider.overrideWithValue(
           ThemePreferenceService(preferences: preferences),
+        ),
+        signUpIntentPreferenceServiceProvider.overrideWithValue(
+          SignUpIntentPreferenceService(preferences: preferences),
         ),
         hapticsPreferenceServiceProvider.overrideWithValue(
           HapticsPreferenceService(preferences: preferences),

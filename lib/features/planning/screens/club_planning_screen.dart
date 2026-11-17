@@ -277,6 +277,8 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       excludeCoachUids:
           PlanningEventDisplay.coachUidsToExclude(event, teamsById),
       onCanceled: () {},
+      // Planning du club : cible Moi | enfant sélectionnée (comme _setRsvp).
+      rsvpAudience: RsvpAudience.selectedAudience,
       onRsvpUpdated: () => _invalidateEvents(canManage: canManage),
     );
   }

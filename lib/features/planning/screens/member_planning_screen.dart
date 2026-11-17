@@ -12,6 +12,7 @@ import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart
 import 'package:viro_team_v2/features/planning/widgets/club_planning_picker_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -64,6 +65,8 @@ class MemberPlanningScreen extends ConsumerWidget {
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
       excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
       onCanceled: () {},
+      // Planning perso : événements de l'uid connecté, on répond pour soi.
+      rsvpAudience: RsvpAudience.self,
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
   }

@@ -375,7 +375,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
     return parentsAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(ViroSpacing.xl),
-        child: const Center(child: ViroLogoLoader()),
+        child: Center(child: ViroLogoLoader()),
       ),
       error: (error, stackTrace) => ViroErrorState(
         message: AppCopy.members.loadParentsError,

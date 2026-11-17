@@ -63,7 +63,7 @@ Map<String, dynamic> buildReplyFields({
   return <String, dynamic>{
     FirestoreFields.replyToMessageId: replyId,
     FirestoreFields.replyToText: truncateChatText(replyPreview, maxLength: 140),
-    if (replySender != null) FirestoreFields.replyToSenderUid: replySender,
+    FirestoreFields.replyToSenderUid: ?replySender,
   };
 }
 

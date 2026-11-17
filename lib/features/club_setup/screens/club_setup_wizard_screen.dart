@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/config/navigation_fallback.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
@@ -192,7 +193,8 @@ class _ClubSetupWizardScreenState extends ConsumerState<ClubSetupWizardScreen>
     _dismissKeyboard();
     if (_step == ClubSetupSteps.prerequisites) {
       ref.read(clubSetupProvider.notifier).persistImmediately();
-      context.pop();
+      // Atteint par redirection : la pile peut être vide.
+      popOrGo(context, AppRoutes.entry);
       return;
     }
     final previousStep = _step - 1;

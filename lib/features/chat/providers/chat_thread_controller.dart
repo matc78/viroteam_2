@@ -305,7 +305,7 @@ class ChatThreadController extends Notifier<ChatThreadState> {
       uploadProgress: {
         for (final entry in current.entries)
           if (entry.key != messageId) entry.key: entry.value,
-        if (progress != null) messageId: progress,
+        messageId: ?progress,
       },
     );
   }

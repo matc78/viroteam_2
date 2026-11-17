@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
-import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -390,13 +389,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       if (isJoin) _applyInvitationPrefill(next);
     });
 
+    // Atteint par redirection (`signup?complete=1`) : la pile peut être vide,
+    // retour vers Bienvenue.
     return ViroScaffold(
+      fallbackRoute: AppRoutes.entry,
       appBar: ViroAppBar(
-        leading: IconButton(
-          tooltip: AppCopy.common.back,
-          icon: ViroIcon(ViroIcons.chevronLeft),
-          onPressed: () => context.pop(),
-        ),
+        fallbackRoute: AppRoutes.entry,
         title: Text(
           isSocialCompleteProfile
               ? AppCopy.auth.confirmSocialProfileTitle

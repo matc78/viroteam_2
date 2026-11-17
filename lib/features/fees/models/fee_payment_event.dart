@@ -185,7 +185,7 @@ Map<String, dynamic> feePaymentEventPayload({
     if (aidId != null && aidId.isNotEmpty) FirestoreFields.aidId: aidId,
     if (aidLabel != null && aidLabel.isNotEmpty)
       FirestoreFields.aidLabel: aidLabel,
-    if (aidAmountCents != null) FirestoreFields.aidAmountCents: aidAmountCents,
+    FirestoreFields.aidAmountCents: ?aidAmountCents,
     if (note case final n? when n.trim().isNotEmpty)
       FirestoreFields.note: n.trim(),
   };

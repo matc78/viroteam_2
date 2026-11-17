@@ -1,11 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/config/navigation_fallback.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
-import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/widgets/club_appearance_preview.dart';
@@ -72,16 +72,14 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
     return ClubAccentTheme(
       accentColor: previewAccent,
       child: ViroScaffold(
+      fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
       appBar: ViroAppBar(
-        leading: IconButton(
-          icon: ViroIcon(ViroIcons.chevronLeft),
-          onPressed: () => context.pop(),
-        ),
+        fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
         title: Text(AppCopy.club.appearanceTitle),
       ),
       body: clubAsync.when(
         loading: () => const Center(child: ViroLogoLoader()),
-        error: (_, __) => const ViroErrorState(),
+        error: (_, _) => const ViroErrorState(),
         data: (club) {
           if (club == null) {
             return Center(child: Text(AppCopy.common.clubNotFound));
@@ -308,7 +306,7 @@ class _ClubAppearanceScreenState extends ConsumerState<ClubAppearanceScreen> {
           message: AppCopy.club.appearanceSaved,
           success: true,
         );
-        context.pop();
+        popOrGo(context, AppRoutes.clubDetailPath(widget.clubId));
       }
     } catch (_) {
       if (mounted) {

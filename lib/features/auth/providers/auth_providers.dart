@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/sign_up_intent_preference_service.dart';
 
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(authServiceProvider).authStateChanges();
@@ -46,13 +49,40 @@ final viroUserFutureProvider = FutureProvider<ViroUser?>((ref) async {
   return ref.watch(userServiceProvider).getUser(auth.uid);
 });
 
+/// Uid du compte connecté (`null` si déconnecté ou en chargement).
+///
+/// Clé des états de session à remettre à zéro au changement de compte
+/// (club actif, cible Moi | enfant) : les notifiers concernés le `watch`.
+final authUidProvider = Provider<String?>(
+  (ref) => ref.watch(authStateProvider.select((auth) => auth.value?.uid)),
+);
+
 enum SignUpIntent { founder, join }
 
+/// Intention d'inscription (créer un club ou rejoindre), persistée sur
+/// l'appareil : un invité qui relance l'app avant d'avoir rejoint son club
+/// ne doit pas être renvoyé sur la création de club.
 class SignUpIntentNotifier extends Notifier<SignUpIntent> {
   @override
-  SignUpIntent build() => SignUpIntent.founder;
+  SignUpIntent build() {
+    final stored = ref.read(signUpIntentPreferenceServiceProvider).readSync();
+    return stored == SignUpIntentPreferenceService.joinValue
+        ? SignUpIntent.join
+        : SignUpIntent.founder;
+  }
 
-  void setIntent(SignUpIntent intent) => state = intent;
+  /// Applique [intent] immédiatement puis l'enregistre sur l'appareil.
+  void setIntent(SignUpIntent intent) {
+    if (state == intent) return;
+    state = intent;
+    unawaited(
+      ref.read(signUpIntentPreferenceServiceProvider).write(
+            intent == SignUpIntent.join
+                ? SignUpIntentPreferenceService.joinValue
+                : SignUpIntentPreferenceService.founderValue,
+          ),
+    );
+  }
 }
 
 final signUpIntentProvider =

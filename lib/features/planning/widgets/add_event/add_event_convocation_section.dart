@@ -59,7 +59,7 @@ class AddEventConvocationSection extends StatelessWidget {
         if (entries == null)
           const Padding(
             padding: EdgeInsets.all(ViroSpacing.md),
-            child: const Center(child: ViroLogoLoader()),
+            child: Center(child: ViroLogoLoader()),
           )
         else if (entries.isEmpty)
           Text(AppCopy.planning.teamNoPlayers, style: hintStyle)

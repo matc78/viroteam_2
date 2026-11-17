@@ -186,7 +186,7 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
               if (_busy)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: ViroSpacing.lg),
-                  child: const Center(child: ViroLogoLoader()),
+                  child: Center(child: ViroLogoLoader()),
                 )
               else if (_pickingTeam)
                 ..._buildTeamPicker(context)

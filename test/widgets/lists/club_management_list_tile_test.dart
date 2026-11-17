@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_theme.dart';
 import 'package:viro_team_v2/widgets/lists/club_management_list_tile.dart';
 

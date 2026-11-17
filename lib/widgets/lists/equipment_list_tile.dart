@@ -34,7 +34,7 @@ class EquipmentListTile extends StatelessWidget {
       '×${item.quantity}',
       equipmentConditionLabel(item.condition),
       if (item.location.isNotEmpty) item.location,
-      if (teamLabel != null) teamLabel!,
+      ?teamLabel,
     ];
 
     return Padding(

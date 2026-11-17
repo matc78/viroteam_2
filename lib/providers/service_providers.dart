@@ -23,6 +23,7 @@ import 'package:viro_team_v2/services/notification_permission_service.dart';
 import 'package:viro_team_v2/services/notification_soft_ask_service.dart';
 import 'package:viro_team_v2/services/push_notification_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
+import 'package:viro_team_v2/services/sign_up_intent_preference_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
 import 'package:viro_team_v2/services/theme_preference_service.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
@@ -51,7 +52,14 @@ final clubAnalyticsProvider = Provider<ClubAnalytics>(
   (ref) => ClubAnalytics(analytics: ref.watch(analyticsServiceProvider)),
 );
 
-final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+/// Service d'authentification. Toute déconnexion désinscrit d'abord le token
+/// FCM de l'appareil (sinon le compte suivant recevrait les push du précédent).
+final authServiceProvider = Provider<AuthService>(
+  (ref) => AuthService(
+    beforeSignOut: () =>
+        ref.read(pushNotificationServiceProvider).unregisterCurrentToken(),
+  ),
+);
 
 final accountServiceProvider =
     Provider<AccountService>((ref) => AccountService());
@@ -149,6 +157,13 @@ final portalBannerPrefsServiceProvider = Provider<PortalBannerPrefsService>(
 /// la première frame).
 final themePreferenceServiceProvider = Provider<ThemePreferenceService>(
   (ref) => ThemePreferenceService(),
+);
+
+/// Surchargé dans `main` avec des préférences préchargées (intention
+/// d'inscription connue dès la première redirection du routeur).
+final signUpIntentPreferenceServiceProvider =
+    Provider<SignUpIntentPreferenceService>(
+  (ref) => SignUpIntentPreferenceService(),
 );
 
 /// Surchargé dans `main` avec des préférences préchargées (réglage

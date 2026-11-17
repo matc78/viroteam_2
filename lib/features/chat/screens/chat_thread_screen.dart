@@ -164,7 +164,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     for (var attempt = 0; attempt < 40; attempt++) {
       if (!mounted || !_scrollController.hasClients) return;
       final targetContext = _messageAnchorKeys[messageId]?.currentContext;
-      if (targetContext != null) {
+      if (targetContext != null && targetContext.mounted) {
         await Scrollable.ensureVisible(
           targetContext,
           duration: ViroMotion.fast,

@@ -54,8 +54,9 @@ enum ClubPermission {
         ...permission.implied,
       },
     };
-    if (granted.contains(ClubPermission.admin))
+    if (granted.contains(ClubPermission.admin)) {
       return const [ClubPermission.admin];
+    }
     return [
       for (final permission in values)
         if (granted.contains(permission)) permission,

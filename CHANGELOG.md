@@ -8,6 +8,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-17
+
 ### Ajouté
 
 - Droits des membres (« droits purs », mise à jour obligatoire 2.4.0) : un admin confie des droits précis sans faire de quelqu’un un coach ou un admin — fonctions prédéfinies (Responsable cotisations, annonces, membres, sportif, matériel) et réglage droit par droit dans la nouvelle feuille « Droits » d’une fiche, avec une bascule Administrateur (plus de modèles Entraîneur / Joueur : être coach ou joueur, c’est figurer dans une équipe). Droit Administrateur protégé (seul à attribuer des droits, toujours au moins un par club). Spec [`docs/specs/viroteam_v2_permissions_spec.md`](docs/specs/viroteam_v2_permissions_spec.md)

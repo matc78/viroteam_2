@@ -1,0 +1,5 @@
+- Admins : confie des droits précis (cotisations, annonces, membres…) sans faire de quelqu'un un admin
+- Tes 14 prochains jours s'affichent direct sur l'accueil
+- Coches rondes, petites vibrations (réglables dans Apparence) et nouveau chargement aux couleurs de ViroTeam
+- Notifs plus vestiaire, et les events concernés ressortent mieux sur l'accueil
+- Liens d'invitation et réponses pour un enfant plus fiables

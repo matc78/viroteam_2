@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:viro_team_v2/models/club.dart';
-import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/parent_link.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/services/analytics_identity.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 ViroUser _user({
-  List<ClubMembershipSummary> clubMemberships = const [],
+  List<String> memberClubIds = const [],
   List<ParentLink> parentLinks = const [],
   List<String> parentClubIds = const [],
 }) {
@@ -18,7 +18,7 @@ ViroUser _user({
     lastName: 'Martin',
     displayName: 'Alex Martin',
     phone: '0600000000',
-    clubMemberships: clubMemberships,
+    memberClubIds: memberClubIds,
     parentLinks: parentLinks,
     parentClubIds: parentClubIds,
   );
@@ -29,10 +29,10 @@ void main() {
     test('retient le rôle le plus élevé et compte les clubs distincts', () {
       final properties = analyticsPersonProperties(
         _user(
-          clubMemberships: const [
-            ClubMembershipSummary(clubId: 'c1', role: 'player'),
-            ClubMembershipSummary(clubId: 'c2', role: 'admin'),
-            ClubMembershipSummary(clubId: 'c3', role: 'coach'),
+          memberClubIds: const [
+            'c1',
+            'c2',
+            'c3',
           ],
           parentLinks: const [
             ParentLink(
@@ -47,15 +47,13 @@ void main() {
       );
 
       expect(properties, {
-        'max_role': 'admin',
         'is_parent': true,
         'club_count': 4,
       });
     });
 
-    test('compte sans fiche membre : aucun rôle', () {
+    test('compte sans club ni lien parent', () {
       expect(analyticsPersonProperties(_user()), {
-        'max_role': analyticsNoRole,
         'is_parent': false,
         'club_count': 0,
       });
@@ -77,6 +75,18 @@ void main() {
       'name': 'US Viro',
       'sport': 'volley',
       'member_count': 42,
+    });
+  });
+
+  group('analyticsActiveRole', () {
+    test('badge de la fiche du club actif, member sans badge, none sans fiche', () {
+      expect(
+        analyticsActiveRole(hasMemberDoc: true, badge: MemberBadge.coach),
+        'coach',
+      );
+      expect(analyticsActiveRole(hasMemberDoc: true), 'member');
+      expect(analyticsActiveRole(hasMemberDoc: false), analyticsNoRole);
+      expect(analyticsActiveRoleKey, 'active_role');
     });
   });
 }

@@ -7,7 +7,6 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
@@ -18,6 +17,7 @@ import 'package:viro_team_v2/services/auth_exceptions.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 
 /// Indique si [input] correspond au mot de confirmation (casse et espaces
 /// ignorés).
@@ -95,10 +95,10 @@ class _DeleteAccountFormState extends ConsumerState<DeleteAccountForm> {
         AccountService.userHasPasswordProvider(firebaseUser);
     final reauthWithApple =
         firebaseUser != null && AccountService.reauthUsesApple(firebaseUser);
-    final isClubAdmin = ref.watch(userClubsProvider).value?.any(
-              (entry) => entry.membership?.role == MemberRoles.admin,
-            ) ??
-        false;
+    // Admin d'au moins un club : avertissement « nomme un autre admin ».
+    final isClubAdmin = (ref.watch(userClubsProvider).value ?? const [])
+        .where((entry) => entry.isLicensed)
+        .any((entry) => ref.watch(clubAccessProvider(entry.club.id)).isAdmin);
 
     final confirmed = isDeleteConfirmationTyped(_confirmController.text);
     final canSubmit = !_deleting &&

@@ -58,6 +58,10 @@ export function parseNotificationPreferences(
     if (key === "coachSummaryTiming") continue;
     if (typeof map[key] === "boolean") parsed[key] = map[key];
   }
+  // Compat legacy Functions : si `rsvp` est absent, hériter de `events`.
+  if (typeof map.rsvp !== "boolean") {
+    parsed.rsvp = parsed.events;
+  }
   const timing = COACH_SUMMARY_TIMINGS.find(
     (value) => value === map.coachSummaryTiming,
   );

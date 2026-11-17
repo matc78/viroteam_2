@@ -9,6 +9,7 @@ import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart'
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/club_activity_list_tile.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Journal des dernières actions du club (coach / admin).
 class ClubActivityScreen extends ConsumerWidget {
@@ -30,7 +31,7 @@ class ClubActivityScreen extends ConsumerWidget {
         title: Text(AppCopy.activity.screenTitle),
       ),
       body: eventsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: ViroLogoLoader()),
         error: (_, _) => ViroErrorState(
           message: AppCopy.activity.loadError,
         ),

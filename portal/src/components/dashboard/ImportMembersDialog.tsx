@@ -2,8 +2,7 @@
 
 import { ChangeEvent, useMemo, useState } from "react";
 import type { TeamOption } from "@/lib/firebase/eventService";
-import { MemberRoles } from "@/lib/firebase/constants";
-import { memberRoleLabel } from "@/lib/firebase/memberService";
+import type { ImportClubRole } from "@/lib/members/membersCsv";
 import {
   buildMembersImportPlan,
   downloadTextFile,
@@ -28,6 +27,13 @@ const PREVIEW_TEAM_LIMIT = 2;
 const PREVIEW_MEMBER_LIMIT = 4;
 
 /** Libellé FR singulier/pluriel selon le compteur (0 et 1 → singulier). */
+/** Libellé UI de la colonne `role` : droit Admin, ou place en équipe. */
+function importRoleLabel(role: ImportClubRole): string {
+  if (role === "admin") return "Admin (droit)";
+  if (role === "coach") return "Entraîneur";
+  return "Joueur";
+}
+
 function pluralLabel(count: number, singular: string, plural: string): string {
   return count > 1 ? plural : singular;
 }
@@ -39,11 +45,8 @@ type ImportMembersDialogProps = {
     memberId: string;
     firstName: string;
     lastName: string;
-    role?: string;
     accountUid?: string | null;
   }>;
-  /** UIDs admin du club (validation dernier administrateur). */
-  adminIds?: string[];
   teams: TeamOption[];
   busy: boolean;
   error: string | null;
@@ -129,7 +132,7 @@ function ImportPlanPreview({
                   {action.firstName} {action.lastName}
                 </span>
                 <span className={styles.previewCardMeta}>
-                  {memberRoleLabel(action.role)}
+                  {importRoleLabel(action.role)}
                   {action.teamIgnoredForAdmin
                     ? " · hors équipe"
                     : action.teamName
@@ -278,7 +281,6 @@ function ImportReportStats({ report }: { report: MemberImportReport }) {
 export function ImportMembersDialog({
   sport,
   existingMembers,
-  adminIds = [],
   teams,
   busy,
   error,
@@ -301,10 +303,9 @@ export function ImportMembersDialog({
             sport,
             existingMembers,
             existingTeams: teams,
-            adminIds,
           })
         : null,
-    [rawCsv, sport, existingMembers, teams, adminIds],
+    [rawCsv, sport, existingMembers, teams],
   );
 
   const hasBlockingErrors = Boolean(plan && plan.blockingErrors.length > 0);
@@ -528,7 +529,8 @@ export function ImportMembersDialog({
                     <code className={styles.code}>player</code>,{" "}
                     <code className={styles.code}>coach</code> ou{" "}
                     <code className={styles.code}>admin</code> (alias FR :
-                    joueur, entraîneur, administrateur).
+                    joueur, entraîneur, administrateur). <strong>coach</strong>{" "}
+                    : coach de l’équipe de la ligne, sans droit particulier.
                   </li>
                   <li>
                     <strong>team</strong> vide → membre hors équipe. Si rempli,{" "}
@@ -544,12 +546,16 @@ export function ImportMembersDialog({
                   </li>
                   <li>
                     Membre déjà présent <strong>dans le club</strong> (même
-                    prénom + nom) : le fichier met à jour rôle, e-mail (si pas
-                    encore inscrit), licence et équipe.
+                    prénom + nom) : le fichier met à jour e-mail (si pas
+                    encore inscrit), licence et équipe. Ses droits ne changent
+                    pas : la colonne <strong>role</strong> n’attribue le droit
+                    Administrateur qu’aux nouvelles fiches.
                   </li>
                   <li>
-                    <strong>admin</strong> : créé comme administrateur
-                    uniquement. Même avec une colonne team, il n’est pas
+                    <strong>admin</strong> : reçoit le droit Administrateur
+                    (nouveaux membres uniquement, et seulement si vous êtes
+                    vous-même administrateur ; sinon la fiche est créée sans
+                    droit et le rapport vous le signale). Même avec une colonne team, il n’est pas
                     rattaché automatiquement — ajoutez-le ensuite manuellement
                     dans Équipes si besoin.
                   </li>
@@ -851,7 +857,7 @@ export function ImportMembersDialog({
                             <tr>
                               <th>Ligne</th>
                               <th>Nom</th>
-                              <th>Rôle</th>
+                              <th>Droits / équipe</th>
                               <th>Équipe</th>
                               <th>Catégorie</th>
                               <th>Action</th>
@@ -869,7 +875,7 @@ export function ImportMembersDialog({
                                   <td>
                                     {action.firstName} {action.lastName}
                                   </td>
-                                  <td>{memberRoleLabel(action.role)}</td>
+                                  <td>{importRoleLabel(action.role)}</td>
                                   <td>
                                     {action.teamIgnoredForAdmin
                                       ? "— (admin, manuel)"
@@ -880,7 +886,7 @@ export function ImportMembersDialog({
                                     {action.action === "create"
                                       ? "Créer"
                                       : "Mettre à jour"}
-                                    {action.role === MemberRoles.admin &&
+                                    {action.role === "admin" &&
                                     action.email
                                       ? " · invitation"
                                       : ""}

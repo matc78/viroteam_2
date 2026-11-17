@@ -14,33 +14,31 @@ import transitionStyles from "@/components/dashboard/DashboardPageTransition.mod
 import homeStyles from "@/components/home/home.module.css";
 
 /**
- * Accueil coach : réponses de ses équipes en premier, chiffres de la semaine,
- * ses équipes et l’activité récente en colonne.
+ * Accueil des équipes entraînées (coach sans droit de vue club) : réponses
+ * de ses équipes en premier, chiffres de la semaine, ses équipes et, avec le
+ * droit `viewActivity`, l’activité récente en colonne.
  */
 export function CoachHomeView({
   clubId,
-  viewerUid,
   data,
   refreshing,
   error,
   reload,
+  showActivity,
 }: {
   clubId: string;
-  viewerUid: string | null;
   data: CoachHomeDashboardData | null;
   refreshing: boolean;
   error: string | null;
   reload: () => void;
+  /** Droit `viewActivity` : aperçu du journal. */
+  showActivity: boolean;
 }) {
-  const rsvpAudienceIds = [data?.linkedMemberId, viewerUid].filter(
-    (id): id is string => Boolean(id),
-  );
   const personalRsvp =
     data?.linkedMemberId != null
       ? {
           clubId,
           memberId: data.linkedMemberId,
-          audienceIds: rsvpAudienceIds,
           onUpdated: reload,
         }
       : null;
@@ -158,7 +156,7 @@ export function CoachHomeView({
                   </ListRows>
                 )}
               </Card>
-              <RecentActivityPreview clubId={clubId} />
+              {showActivity ? <RecentActivityPreview clubId={clubId} /> : null}
             </div>
           </div>
         </>

@@ -14,6 +14,7 @@ import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Ouvre la feuille de partage du code d’équipe multi-usage.
 Future<void> showInviteTeamSheet(
@@ -174,7 +175,7 @@ class _InviteTeamSheetState extends ConsumerState<InviteTeamSheet> {
           if (_loading)
             const Padding(
               padding: EdgeInsets.all(ViroSpacing.xl),
-              child: Center(child: CircularProgressIndicator()),
+              child: const Center(child: ViroLogoLoader()),
             )
           else if (_error != null)
             Text(

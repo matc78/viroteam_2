@@ -41,13 +41,13 @@ function countPendingAnswers(
   rsvp: EventListRsvpTarget | null,
 ): number {
   if (!rsvp) return 0;
-  const ids = [rsvp.memberId, ...(rsvp.audienceIds ?? [])];
+  const memberId = rsvp.memberId;
   return events.filter((event) => {
     const invited =
       event.teamMemberIds.length === 0 ||
-      event.teamMemberIds.some((id) => ids.includes(id));
+      event.teamMemberIds.includes(memberId);
     if (!invited) return false;
-    return !ids.some((id) => Boolean(event.rsvpByMemberId[id]));
+    return !event.rsvpByMemberId[memberId];
   }).length;
 }
 

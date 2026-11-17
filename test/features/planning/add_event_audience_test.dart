@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_form_controller.dart';
 import 'package:viro_team_v2/features/planning/utils/add_event_helpers.dart';
@@ -12,7 +11,6 @@ import 'package:viro_team_v2/models/club_team.dart';
 ClubMember _member(String memberId, {String? accountUid}) => ClubMember(
   memberId: memberId,
   accountUid: accountUid,
-  role: MemberRoles.player,
   status: 'active',
 );
 
@@ -22,17 +20,26 @@ ClubTeam _team(String id, List<String> playerIds) =>
 void main() {
   group('addEventAudienceForTeams', () {
     final members = [
-      _member('mem-a', accountUid: 'uid-a'),
+      _member('uid-a', accountUid: 'uid-a'),
       _member('mem-b'),
       _member('mem-sans-equipe'),
     ];
     final teams = [
-      _team('u13', ['uid-a']),
+      ClubTeam(
+        id: 'u13',
+        clubId: 'c1',
+        name: 'u13',
+        playerIds: const ['uid-a'],
+        coachIds: const ['coach-1'],
+      ),
       _team('u15', ['mem-b']),
     ];
 
-    test('équipes choisies : seulement leurs convoqués', () {
-      expect(addEventAudienceForTeams([teams.first], members), ['mem-a']);
+    test('équipes choisies : joueurs et coachs de ces équipes', () {
+      expect(
+        addEventAudienceForTeams([teams.first], members),
+        ['uid-a', 'coach-1'],
+      );
     });
 
     test('tout le club : aussi les membres sans équipe, sans doublon', () {
@@ -41,8 +48,11 @@ void main() {
         members,
         wholeClub: true,
       );
-      expect(audience.toSet(), {'mem-a', 'mem-b', 'mem-sans-equipe'});
-      expect(audience.length, 3);
+      expect(
+        audience.toSet(),
+        {'uid-a', 'coach-1', 'mem-b', 'mem-sans-equipe'},
+      );
+      expect(audience.length, 4);
     });
   });
 
@@ -106,34 +116,33 @@ void main() {
   });
 
   group('teamPlayerEntries', () {
-    test('joueurs dédupliqués (memberId + uid) et triés par nom', () {
+    test('joueurs connus, dédupliqués et triés par nom', () {
       final members = [
         const ClubMember(
           memberId: 'mem-z',
-          role: MemberRoles.player,
           status: 'active',
           firstName: 'Zoé',
         ),
         const ClubMember(
-          memberId: 'mem-a',
+          memberId: 'uid-a',
           accountUid: 'uid-a',
-          role: MemberRoles.player,
           status: 'active',
           firstName: 'Adam',
         ),
       ];
       final entries = teamPlayerEntries(
         [
-          _team('u13', ['mem-z', 'uid-a', 'mem-a', 'inconnu']),
+          _team('u13', ['mem-z', 'uid-a', 'inconnu']),
+          _team('u15', ['uid-a']),
         ],
-        indexClubMembersByUid(members),
+        indexClubMembersById(members),
       );
-      expect(entries.map((e) => e.id), ['mem-a', 'mem-z']);
+      expect(entries.map((e) => e.id), ['uid-a', 'mem-z']);
     });
   });
 
   group('ClubEvent.isExcludedFor', () {
-    test('vrai si une des clés du joueur est retirée', () {
+    test('vrai si l’id de la fiche du joueur est retiré', () {
       final event = ClubEvent(
         id: 'e1',
         clubId: 'c1',
@@ -142,8 +151,8 @@ void main() {
         date: DateTime(2026, 10, 25),
         excludedMemberIds: const ['mem-a'],
       );
-      expect(event.isExcludedFor({'uid-a', 'mem-a'}), isTrue);
-      expect(event.isExcludedFor({'mem-b'}), isFalse);
+      expect(event.isExcludedFor('mem-a'), isTrue);
+      expect(event.isExcludedFor('mem-b'), isFalse);
     });
   });
 }

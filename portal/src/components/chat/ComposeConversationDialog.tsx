@@ -4,20 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useChat } from "@/lib/chat/ChatProvider";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { createCoachDm } from "@/lib/firebase/chatService";
-import { MemberRoles } from "@/lib/firebase/constants";
 import { loadTeamsForClub } from "@/lib/firebase/eventService";
-import {
-  listClubMembers,
-  memberRoleLabel,
-} from "@/lib/firebase/memberService";
-import { rosterContains, viewerMatchIds } from "@/lib/teams/viewerTeamScope";
+import { listClubMembers } from "@/lib/firebase/memberService";
+import { primaryBadge, type MemberBadge } from "@/lib/auth/permissions";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
+import { rosterContains } from "@/lib/teams/viewerTeamScope";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./ComposeConversationDialog.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type TargetOption = {
   uid: string;
   label: string;
-  role: string;
+  badge: MemberBadge;
 };
 
 /**
@@ -61,45 +60,31 @@ export function ComposeConversationDialog() {
         ]);
         if (cancelled) return;
 
-        const club = [...bureauClubs, ...familyClubs].find(
-          (item) => item.id === clubId,
-        );
-        const adminIds = new Set<string>(club?.adminIds ?? []);
-        const rosterToAccountUid = new Map<string, string>();
-
+        // Une seule clé membre : les rosters portent l’id de fiche, égal à
+        // l’uid du compte (participant du chat) quand la fiche est liée.
+        // Admins : badge dérivé des fiches liées (jamais d’uid sans fiche).
+        const adminIds = new Set<string>();
         for (const member of members) {
-          const accountUid = member.accountUid?.trim();
-          if (!accountUid) continue;
-          rosterToAccountUid.set(member.memberId, accountUid);
-          rosterToAccountUid.set(accountUid, accountUid);
-          if (member.role === MemberRoles.admin) adminIds.add(accountUid);
+          if (member.accountUid && primaryBadge(member) === "admin") {
+            adminIds.add(member.accountUid);
+          }
         }
 
-        const myMember = members.find(
-          (member) => member.accountUid === user.uid,
-        );
-        const myMatchIds = viewerMatchIds({
-          uid: user.uid,
-          memberId: myMember?.memberId,
-          accountUid: myMember?.accountUid,
-        });
         // Parents : équipes des enfants via parentTeamIds
         const parentTeamIds = new Set(
           (profile?.parentTeamIds ?? []).filter(Boolean),
         );
         const myTeams = teams.filter(
           (team) =>
-            rosterContains(team.playerIds, myMatchIds) ||
-            rosterContains(team.coachIds, myMatchIds) ||
+            rosterContains(team.playerIds, user.uid) ||
+            rosterContains(team.coachIds, user.uid) ||
             parentTeamIds.has(team.id),
         );
 
         const allowedUids = new Set<string>(adminIds);
         for (const team of myTeams) {
-          for (const coachRosterId of team.coachIds) {
-            const accountUid = rosterToAccountUid.get(coachRosterId);
-            if (accountUid) allowedUids.add(accountUid);
-            else if (coachRosterId) allowedUids.add(coachRosterId);
+          for (const coachId of team.coachIds) {
+            if (coachId) allowedUids.add(coachId);
           }
         }
         allowedUids.delete(user.uid);
@@ -107,12 +92,8 @@ export function ComposeConversationDialog() {
         const options: TargetOption[] = [];
         const seen = new Set<string>();
         for (const member of members) {
-          if (
-            member.role !== MemberRoles.admin &&
-            member.role !== MemberRoles.coach
-          ) {
-            continue;
-          }
+          const badge = primaryBadge(member);
+          if (badge !== "admin" && badge !== "coach") continue;
           const accountUid = member.accountUid?.trim();
           if (
             !accountUid ||
@@ -125,23 +106,14 @@ export function ComposeConversationDialog() {
           seen.add(accountUid);
           options.push({
             uid: accountUid,
-            label: member.displayName.trim() || accountUid,
-            role: member.role,
-          });
-        }
-        for (const adminUid of adminIds) {
-          if (adminUid === user.uid || seen.has(adminUid)) continue;
-          seen.add(adminUid);
-          options.push({
-            uid: adminUid,
-            label: adminUid,
-            role: MemberRoles.admin,
+            label: member.displayName.trim() || badgeLabel(badge),
+            badge,
           });
         }
 
         setTargets(options);
       } catch {
-        if (!cancelled) setError("Impossible de charger les contacts.");
+        if (!cancelled) setError(chatCopy.targetsLoadFailed);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -174,7 +146,7 @@ export function ComposeConversationDialog() {
       openThread({ clubId, conversationId });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Impossible de démarrer la discussion.",
+        err instanceof Error ? err.message : chatCopy.startChatFailed,
       );
     } finally {
       setBusy(false);
@@ -194,18 +166,16 @@ export function ComposeConversationDialog() {
       <div className={styles.panel}>
         <header className={styles.header}>
           <div>
-            <p className={styles.eyebrow}>Messagerie</p>
+            <p className={styles.eyebrow}>{chatCopy.chatEntry}</p>
             <h3 id="compose-conversation-title" className={styles.title}>
-              Nouvelle discussion
+              {chatCopy.newConversation}
             </h3>
-            <p className={styles.hint}>
-              Tu peux écrire à tes coaches ou à un admin du club.
-            </p>
+            <p className={styles.hint}>{chatCopy.newConversationHint}</p>
           </div>
           <button
             type="button"
             className={styles.close}
-            aria-label="Fermer"
+            aria-label={chatCopy.close}
             onClick={closeCompose}
           >
             ×
@@ -213,7 +183,7 @@ export function ComposeConversationDialog() {
         </header>
 
         <label className={styles.label}>
-          Club
+          {chatCopy.clubLabel}
           <select
             className={styles.select}
             value={clubId}
@@ -227,12 +197,19 @@ export function ComposeConversationDialog() {
           </select>
         </label>
 
-        <p className={styles.sectionTitle}>Choisir qui contacter</p>
-        <div className={styles.list}>
+        <p id="compose-targets-title" className={styles.sectionTitle}>
+          {chatCopy.pickTargets}
+        </p>
+        <div
+          className={styles.list}
+          role="group"
+          aria-labelledby="compose-targets-title"
+          aria-busy={loading || undefined}
+        >
           {loading ? (
-            <p className={styles.empty}>Chargement…</p>
+            <p className={styles.empty}>{chatCopy.loading}</p>
           ) : targets.length === 0 ? (
-            <p className={styles.empty}>Aucun coach ou admin disponible.</p>
+            <p className={styles.empty}>{chatCopy.noTargets}</p>
           ) : (
             targets.map((target) => (
               <label key={target.uid} className={styles.row}>
@@ -244,7 +221,7 @@ export function ComposeConversationDialog() {
                 <span>
                   <strong>{target.label}</strong>
                   <span className={styles.role}>
-                    {memberRoleLabel(target.role)}
+                    {badgeLabel(target.badge)}
                   </span>
                 </span>
               </label>
@@ -252,7 +229,11 @@ export function ComposeConversationDialog() {
           )}
         </div>
 
-        {error ? <p className={styles.error}>{error}</p> : null}
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <div className={styles.footer}>
           <button
@@ -260,7 +241,7 @@ export function ComposeConversationDialog() {
             className={styles.secondary}
             onClick={closeCompose}
           >
-            Annuler
+            {chatCopy.cancel}
           </button>
           <button
             type="button"
@@ -268,7 +249,7 @@ export function ComposeConversationDialog() {
             disabled={busy || selected.size === 0}
             onClick={() => void handleStart()}
           >
-            {busy ? "Ouverture…" : "Démarrer"}
+            {busy ? chatCopy.startingChat : chatCopy.startChat}
           </button>
         </div>
       </div>

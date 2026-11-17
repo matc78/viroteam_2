@@ -11,10 +11,9 @@ void main() {
       final service = ThemePreferenceService(preferences: preferences);
 
       expect(service.readSync(), ThemeMode.system);
-      expect(await service.read(), ThemeMode.system);
     });
 
-    test('write puis read restituent le mode choisi', () async {
+    test('write puis readSync restituent le mode choisi', () async {
       SharedPreferences.setMockInitialValues({});
       final preferences = await SharedPreferences.getInstance();
       final service = ThemePreferenceService(preferences: preferences);
@@ -23,7 +22,7 @@ void main() {
 
       expect(service.readSync(), ThemeMode.dark);
       expect(
-        await ThemePreferenceService(preferences: preferences).read(),
+        ThemePreferenceService(preferences: preferences).readSync(),
         ThemeMode.dark,
       );
     });

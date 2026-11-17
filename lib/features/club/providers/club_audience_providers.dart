@@ -143,6 +143,22 @@ final selectedClubAudienceProvider =
   return targets.first;
 });
 
+/// Fiche à mettre en avant (épinglée, en gras) dans les effectifs d'équipe :
+/// l'enfant si un enfant est sélectionné, sinon sa propre fiche.
+///
+/// Pendant le chargement des cibles, s'appuie sur la sélection déjà connue
+/// (synchrone) pour ne pas afficher sa fiche puis basculer sur l'enfant.
+final rosterSessionMemberIdProvider =
+    Provider.family<String?, String>((ref, clubId) {
+  final selfMemberId = ref.watch(clubMemberProvider(clubId)).value?.memberId;
+  final targetsAsync = ref.watch(clubFamilyTargetsProvider(clubId));
+  if (!targetsAsync.hasValue) {
+    return ref.watch(clubAudienceSelectionProvider)[clubId] ?? selfMemberId;
+  }
+  return ref.watch(selectedClubAudienceProvider(clubId))?.memberId ??
+      selfMemberId;
+});
+
 /// `true` si le segment Moi | enfant (ou puces multi-enfants) doit s’afficher.
 bool shouldShowAudienceSwitcher(List<FamilyAudienceTarget> targets) {
   final hasSelf = targets.any((target) => target.isSelf);
@@ -154,12 +170,11 @@ bool shouldShowAudienceSwitcher(List<FamilyAudienceTarget> targets) {
 
 /// Cible d'un RSVP dans un club.
 ///
-/// [subjectId] : clé passée aux helpers RSVP de `ClubEvent` (`authUid` pour
-/// soi, `memberId` de l'enfant sinon) ; [audienceId] : clé écrite dans `rsvp` ;
-/// [viaCallable] : écriture via `setEventRsvp` (parent pour un enfant).
+/// [memberId] : id de la fiche ciblée (`authUid` pour soi, `memberId` de
+/// l'enfant sinon), clé lue et écrite dans `rsvp` ; [viaCallable] : écriture
+/// via `setEventRsvp` (parent pour un enfant).
 typedef RsvpTarget = ({
-  String subjectId,
-  String audienceId,
+  String memberId,
   ClubMember? member,
   bool viaCallable,
 });
@@ -171,8 +186,7 @@ RsvpTarget? childRsvpTarget({
 }) {
   if (selected == null || !selected.isChild) return null;
   return (
-    subjectId: selected.memberId,
-    audienceId: selected.memberId,
+    memberId: selected.memberId,
     member: childMember,
     viaCallable: true,
   );
@@ -192,13 +206,8 @@ final rsvpTargetProvider =
   }
 
   final selfMember = ref.watch(clubMemberProvider(clubId)).value;
-  final audienceId = await ref.read(eventServiceProvider).resolveAudienceId(
-        clubId: clubId,
-        authUid: authUid,
-      );
   return (
-    subjectId: authUid,
-    audienceId: audienceId,
+    memberId: authUid,
     member: selfMember,
     viaCallable: false,
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
 import { useMemo, useState } from "react";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -8,7 +9,6 @@ import {
   type EquipmentFormValues,
 } from "@/components/dashboard/EquipmentFormDialog";
 import { useToast } from "@/components/ToastProvider";
-import { bureauCapabilities } from "@/lib/auth/bureauPermissions";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import {
   ClubListenSets,
@@ -57,14 +57,10 @@ async function loadEquipmentPageData(
   return { items, teams };
 }
 
-/** Contenu page Équipements (admin). */
+/** Contenu page Équipements (droit `manageEquipment`). */
 export function EquipmentPageClient() {
-  const { activeClub, activeClubRole, user } = useAuth();
-  const caps = useMemo(
-    () =>
-      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
-    [activeClubRole, activeClub?.coachPermissions],
-  );
+  const { activeClub, user } = useAuth();
+  const caps = useBureauCapabilities();
   const { showToast } = useToast();
   const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub,
@@ -128,13 +124,13 @@ export function EquipmentPageClient() {
     });
   }, [data?.items, filters]);
 
-  if (!caps.isAdmin) {
+  if (!caps.canManageEquipment) {
     return (
       <div className={transitionStyles.page}>
         <DashboardPageIntro
           eyebrow="Inventaire"
           heading="Équipements"
-          lead="Réservé aux administrateurs du club."
+          lead="Réservé aux membres qui gèrent le matériel du club."
         />
       </div>
     );

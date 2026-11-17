@@ -10,7 +10,7 @@ import {
 import { InviteTeamDialog } from "@/components/dashboard/InviteTeamDialog";
 import { TeamCard } from "@/components/dashboard/TeamCard";
 import type { TeamOption } from "@/lib/firebase/eventService";
-import { MemberRoles } from "@/lib/firebase/constants";
+
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import {
   groupTeamsByCategory,
@@ -30,6 +30,8 @@ type TeamsPanelProps = {
   busy: boolean;
   error: string | null;
   highlightedTeamId?: string | null;
+  /** Id de fiche du viewer (Moi / enfant) pour pin + gras sur les puces. */
+  viewerMemberId?: string | null;
   canCreateTeam?: boolean;
   canEditTeam?: boolean;
   canDeleteTeam?: boolean;
@@ -59,7 +61,6 @@ type TeamsPanelProps = {
   onRemoveMember: (params: {
     teamId: string;
     memberId: string;
-    accountUid: string | null;
     role: TeamRosterRole;
   }) => Promise<void>;
 };
@@ -74,6 +75,7 @@ export function TeamsPanel({
   busy,
   error,
   highlightedTeamId = null,
+  viewerMemberId = null,
   canCreateTeam = true,
   canEditTeam = true,
   canDeleteTeam = true,
@@ -114,14 +116,10 @@ export function TeamsPanel({
     ];
   }, [teams]);
 
-  const membersByRosterId = useMemo(() => {
-    const byId = new Map<string, ClubMemberRecord>();
-    for (const member of members) {
-      byId.set(member.memberId, member);
-      if (member.accountUid) byId.set(member.accountUid, member);
-    }
-    return byId;
-  }, [members]);
+  const membersById = useMemo(
+    () => new Map(members.map((member) => [member.memberId, member])),
+    [members],
+  );
 
   const filteredTeams = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -141,12 +139,12 @@ export function TeamsPanel({
       ) {
         return true;
       }
-      return [...team.playerIds, ...team.coachIds].some((rosterId) => {
-        const member = membersByRosterId.get(rosterId);
+      return [...team.playerIds, ...team.coachIds].some((memberId) => {
+        const member = membersById.get(memberId);
         return member?.displayName.toLowerCase().includes(needle) ?? false;
       });
     });
-  }, [teams, search, categoryFilter, membersByRosterId]);
+  }, [teams, search, categoryFilter, membersById]);
 
   const grouped = useMemo(
     () => groupTeamsByCategory(filteredTeams),
@@ -159,7 +157,7 @@ export function TeamsPanel({
     role: TeamRosterRole,
   ): Set<string> {
     return new Set(
-      role === MemberRoles.coach ? team.coachIds : team.playerIds,
+      role === "coach" ? team.coachIds : team.playerIds,
     );
   }
 
@@ -250,6 +248,7 @@ export function TeamsPanel({
                     busy={busy}
                     searchQuery={search}
                     highlighted={highlightedTeamId === team.id}
+                    viewerMemberId={viewerMemberId}
                     canEdit={canEditTeam}
                     canDelete={canDeleteTeam}
                     canAddCoach={canManageCoaches}
@@ -293,7 +292,6 @@ export function TeamsPanel({
                       void onRemoveMember({
                         teamId: team.id,
                         memberId: person.memberId,
-                        accountUid: person.accountUid,
                         role,
                       });
                     }}

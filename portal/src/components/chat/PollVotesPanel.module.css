@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 0.35rem;
   padding: 1.35rem 1.25rem 1.1rem;
-  background: #fff;
+  background: var(--color-surface-card);
   border-bottom: 1px solid var(--color-gray-100);
 }
 
@@ -56,12 +56,12 @@
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--color-primary-600);
-  background: color-mix(in srgb, var(--color-primary-500) 14%, white);
+  background: color-mix(in srgb, var(--color-primary-500) 14%, var(--color-surface-card));
 }
 
 .emptyOption {
-  margin: 0;
+  composes: emptyText from "./chatShared.module.css";
   padding: 0.35rem 1.15rem 0.85rem;
   font-size: 0.85rem;
-  color: var(--color-gray-500);
 }
+

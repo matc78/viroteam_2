@@ -6,6 +6,7 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_theme.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/features/settings/providers/haptics_enabled_provider.dart';
 import 'package:viro_team_v2/features/settings/providers/theme_mode_provider.dart';
 import 'package:viro_team_v2/providers/analytics_identity_provider.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -41,6 +42,9 @@ class _ViroAppState extends ConsumerState<ViroApp> {
     final router = ref.watch(goRouterProvider);
     final feeDeadlineUrgent = ref.watch(feeDeadlineUrgentBackgroundProvider);
     final themeMode = ref.watch(themeModeProvider);
+    // Initialise ViroHaptics.enabled avec le réglage enregistré et garde le
+    // provider vivant, sans reconstruire l'app quand le réglage change.
+    ref.listen(hapticsEnabledProvider, (_, _) {});
     ref.watch(analyticsIdentitySyncProvider);
 
     ref.listen(authStateProvider, (previous, next) {

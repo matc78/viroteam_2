@@ -14,7 +14,7 @@ import { GuardianStatuses } from "@/lib/firebase/constants";
 import {
   childNames,
 } from "@/lib/firebase/guardianService";
-import { getLinkedMemberId } from "@/lib/firebase/memberService";
+import { getOwnMemberId } from "@/lib/firebase/memberRefs";
 
 const TARGET_STORAGE_PREFIX = "viro.familyTarget.";
 
@@ -82,14 +82,12 @@ export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
         (link) =>
           link.clubId === clubId && link.status === GuardianStatuses.active,
       );
-      const isLicensed = profile.clubMemberships.some(
-        (membership) => membership.clubId === clubId,
-      );
+      const isLicensed = profile.memberClubIds.includes(clubId);
 
       // « Moi » et chaque enfant en parallèle (une lecture par fiche).
       const [selfId, children] = await Promise.all([
         isLicensed
-          ? getLinkedMemberId(clubId, uid).catch(() => null)
+          ? getOwnMemberId(clubId, uid).catch(() => null)
           : Promise.resolve(null),
         Promise.all(
           childLinks.map(async (link) => ({

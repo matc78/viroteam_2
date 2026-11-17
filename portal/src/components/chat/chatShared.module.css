@@ -1,0 +1,155 @@
+/*
+ * Briques CSS communes de la messagerie, composées par les modules chat
+ * (`composes: x from "./chatShared.module.css"`).
+ *
+ * Règle : une classe locale qui compose une brique n'y redéfinit aucune
+ * propriété déjà posée ici (l'ordre entre fichiers composés n'est pas garanti).
+ */
+
+/* Bouton icône rond transparent (en-têtes du fil et du dock). Taille locale. */
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-primary-600);
+  cursor: pointer;
+}
+
+.iconBtn:hover {
+  background: var(--color-gray-100);
+}
+
+/* Bandeau de recherche d'inbox. Padding local. */
+.searchRow {
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+/* Champ de recherche d'inbox (page Messages, dock). */
+.search {
+  width: 100%;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 999px;
+  background: var(--color-gray-50);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+/* Texte d'état vide / chargement. Taille et padding locaux. */
+.emptyText {
+  margin: 0;
+  color: var(--color-gray-500);
+}
+
+/* Message d'erreur sous un formulaire (dialogs, sondage). */
+.formError {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--chat-error-text);
+}
+
+/* Favori (étoile) à côté d'un titre de discussion. */
+.favMark {
+  display: inline-flex;
+  color: var(--color-sport-orange);
+}
+
+/* Pastille club (nom du club). Fond et texte locaux. */
+.clubLabel {
+  display: inline-block;
+  margin: 0;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: 8.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Pastille club aux couleurs du club (`ClubBadge`, variables posées en inline). */
+.clubBadge {
+  composes: clubLabel;
+  flex-shrink: 1;
+  min-width: 0;
+  background: var(--club-brand, var(--color-primary-500));
+  color: var(--club-brand-text, var(--color-white));
+}
+
+/* Bouton d'action rectangulaire (pied de dialog, en-tête de page). Couleurs locales ou `actionBtnPrimary`. */
+.actionBtn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.actionBtnPrimary {
+  composes: actionBtn;
+  background: var(--color-primary-500);
+  color: var(--color-white);
+}
+
+/* Dialog modal centré : voile, carte, en-tête, sous-titre, bouton fermer. */
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: color-mix(in srgb, var(--color-primary-900) 28%, transparent);
+}
+
+/* Largeur, hauteur max et débordement locaux. */
+.dialogPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-radius: 0.85rem;
+  background: var(--color-surface-card);
+  box-shadow:
+    0 12px 28px color-mix(in srgb, var(--color-primary-900) 14%, transparent),
+    0 28px 64px color-mix(in srgb, var(--color-primary-900) 16%, transparent);
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+/* Marge locale. */
+.dialogTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--color-primary-900);
+}
+
+.dialogHint {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-gray-500);
+}
+
+/* Taille de glyphe et couleur locales. */
+.dialogClose {
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-gray-100);
+  cursor: pointer;
+}

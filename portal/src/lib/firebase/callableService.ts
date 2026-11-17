@@ -68,26 +68,46 @@ async function callFunction<TReq, TRes>(
   }
 }
 
-/** Rôle club accepté par `setMemberRole`. */
-export type CallableMemberRole = "player" | "coach" | "admin";
-
 /**
- * Change le rôle d’un membre (admin du club uniquement).
- * Le serveur synchronise `club.adminIds` et `users/{uid}.clubMemberships`
- * et refuse de rétrograder le dernier admin.
+ * Remplace les droits d’un membre (droit Administrateur du club exigé).
+ * Le serveur valide et normalise la liste, garde le dernier admin et met à
+ * jour l’index `club.adminIds`. Retourne les droits enregistrés.
  */
-export async function setMemberRole(params: {
+export async function setMemberPermissions(params: {
   clubId: string;
   memberId: string;
-  role: CallableMemberRole;
-}): Promise<{ ok: boolean }> {
-  return callFunction("setMemberRole", params);
+  permissions: string[];
+}): Promise<{ ok: boolean; permissions: string[] }> {
+  return callFunction("setMemberPermissions", params);
+}
+
+/** Brouillon de club envoyé à `createClub` (validé côté serveur). */
+export type CreateClubPayload = {
+  name: string;
+  sport: string;
+  city: string;
+  postalCode: string;
+  address: string;
+  description: string;
+  brandColorHex: string;
+  practiceLocations: Record<string, string>[];
+  seasonEndDateMs: number;
+};
+
+/**
+ * Crée un club ; le fondateur y reçoit le droit Administrateur (les droits
+ * ne s’écrivent que côté serveur).
+ */
+export async function createClub(
+  params: CreateClubPayload,
+): Promise<{ ok: boolean; clubId: string }> {
+  return callFunction("createClub", params);
 }
 
 /**
  * Retire un membre du club (admin du club uniquement).
- * Le serveur nettoie `member_accounts`, `adminIds`, `memberCount`, les équipes,
- * l’invitation pending et `users/{uid}.clubMemberships`.
+ * Le serveur nettoie `adminIds`, `memberCount`, les équipes,
+ * l’invitation pending et `users/{uid}.memberClubIds`.
  */
 export async function removeMember(params: {
   clubId: string;
@@ -101,7 +121,6 @@ export type LookupInvitationPayload = {
   clubId: string;
   invitationId: string;
   code: string;
-  role: string;
   type: "member" | "guardian" | "team";
   status: "pending";
   firstName: string;
@@ -450,12 +469,4 @@ export async function ensureClubChatSynced(params: {
   clubId: string;
 }): Promise<{ teamsSynced: number }> {
   return callFunction("ensureClubChatSynced", params);
-}
-
-/** Backfill de tous les clubs où l’appelant est admin. */
-export async function backfillMyAdminClubChats(): Promise<{
-  clubsSynced: number;
-  teamsSynced: number;
-}> {
-  return callFunction("backfillMyAdminClubChats", {});
 }

@@ -35,6 +35,9 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 class MyFeeScreen extends ConsumerStatefulWidget {
   const MyFeeScreen({super.key, required this.clubId});
@@ -46,39 +49,12 @@ class MyFeeScreen extends ConsumerStatefulWidget {
 }
 
 class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
-  String? _audienceId;
-
-  @override
-  void initState() {
-    super.initState();
-    _resolveAudience();
-  }
-
-  Future<void> _resolveAudience() async {
-    final clubId = widget.clubId;
-    final target = ref.read(selectedClubAudienceProvider(clubId));
-    if (target != null) {
-      if (mounted) setState(() => _audienceId = target.memberId);
-      return;
-    }
-    final authUid = ref.read(authStateProvider).value?.uid;
-    if (authUid == null) return;
-    final id = await ref.read(eventServiceProvider).resolveAudienceId(
-          clubId: clubId,
-          authUid: authUid,
-        );
-    if (mounted) setState(() => _audienceId = id);
-  }
-
   @override
   Widget build(BuildContext context) {
     final selected = ref.watch(selectedClubAudienceProvider(widget.clubId));
-    final selectedId = selected?.memberId;
-    if (selectedId != null && selectedId != _audienceId) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _audienceId = selectedId);
-      });
-    }
+    // Fiche ciblée : enfant sélectionné, sinon sa propre fiche members/{uid}.
+    final audienceId =
+        selected?.memberId ?? ref.watch(authStateProvider).value?.uid;
 
     final title = selected?.isChild == true
         ? AppCopy.fees.childFeeTitle(selected!.label)
@@ -86,7 +62,6 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
 
     final memberAccent = ref.watch(clubMemberAccentProvider(widget.clubId));
 
-    final audienceId = _audienceId;
     if (audienceId == null) {
       return ClubAccentTheme(
         accentColor: memberAccent,
@@ -96,7 +71,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
           fallbackRoute: AppRoutes.clubDetailPath(widget.clubId),
           title: Text(title),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: ViroLogoLoader()),
         ),
       );
     }
@@ -104,9 +79,9 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
     final feeAsync = ref.watch(
       myFeeProvider((clubId: widget.clubId, memberId: audienceId)),
     );
-    final isAdmin = ref.watch(clubMemberProvider(widget.clubId)).value?.role ==
-        MemberRoles.admin;
-    final openAdminFees = isAdmin
+    final access = ref.watch(clubAccessProvider(widget.clubId));
+    final canManageFees = access.can(ClubPermission.manageFees);
+    final openAdminFees = access.can(ClubPermission.viewFees)
         ? () => context.push(AppRoutes.clubFeesPath(widget.clubId))
         : null;
 
@@ -123,7 +98,7 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
           ClubAudienceSwitcher(clubId: widget.clubId),
           Expanded(
             child: feeAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: ViroLogoLoader()),
         error: (error, stackTrace) => ViroErrorState(
           message: AppCopy.fees.loadFeeError,
           onRetry: () => ref.invalidate(
@@ -146,11 +121,11 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
                     height: 280,
                     child: ViroEmptyState(
                       icon: ViroIcons.payments,
-                      message: isAdmin
+                      message: canManageFees
                           ? AppCopy.fees.noActiveSeasonPlayerAdmin
                           : AppCopy.fees.noActiveSeasonPlayer,
                       actionLabel:
-                          isAdmin ? AppCopy.fees.configureSeason : null,
+                          canManageFees ? AppCopy.fees.configureSeason : null,
                       onAction: openAdminFees,
                     ),
                   ),
@@ -174,13 +149,13 @@ class _MyFeeScreenState extends ConsumerState<MyFeeScreen> {
                     height: 280,
                     child: ViroEmptyState(
                       icon: ViroIcons.payments,
-                      message: isAdmin
+                      message: canManageFees
                           ? AppCopy.fees.myFeeNotConfiguredAdmin
                           : selected?.isChild == true
                               ? AppCopy.fees
                                   .childFeeNotConfigured(selected!.label)
                               : AppCopy.fees.myFeeNotConfigured,
-                      actionLabel: isAdmin ? AppCopy.fees.manageFees : null,
+                      actionLabel: canManageFees ? AppCopy.fees.manageFees : null,
                       onAction: openAdminFees,
                     ),
                   ),

@@ -62,11 +62,13 @@ clubs/{clubId}/members/{memberId}          ← fiche licencié (enfant)
 | `invitedBy` | string | uid admin |
 | `createdAt` / `revokedAt` | timestamp | |
 
+Homonymie assumée : `guardians/{parentUid}.permissions` (capacités du parent sur la fiche de l'enfant) n'a rien à voir avec `members/{id}.permissions` (droits club, voir `viroteam_v2_permissions_spec.md`) ; le champ n'est pas renommé pour éviter une migration de données.
+
 Clé document = `parentUid` : un 2ᵉ adulte = un 2ᵉ doc. Interdit de lier `parentUid` à **sa propre** fiche (`memberId` dont `accountUid == parentUid`).
 
 ### 3.2 `users/{uid}.parentLinks[]`
 
-Même rôle que `clubMemberships` : au login, le portail / l’app lit **ce** document pour savoir quels clubs famille ouvrir, sans collection group.
+Même rôle que `memberClubIds` : au login, le portail / l’app lit **ce** document pour savoir quels clubs famille ouvrir, sans collection group.
 
 Forme cible : `{ clubId, memberId, relation, status }`.  
 Le champ legacy `childUid` (scan actuel `fetchClubParents`) n’est **pas** l’identité du lien ; à remplacer à l’implémentation.
@@ -146,7 +148,7 @@ RSVP, checkout HelloAsso, lecture planning : toujours un `memberId` **explicite*
 
 Garde d’accès après login :
 
-1. `clubMemberships` avec `role == admin` → espace **bureau** (inchangé).
+1. `memberClubIds` non vide → espace **bureau** ; actions selon les droits de la fiche.
 2. `parentLinks` actifs → espace **famille** (accueil, planning, cotisation payeur, RSVP).
 3. Les deux sur le même club → sélecteur d’espace, navs non mélangées.
 4. Joueur / coach sans enfant et sans admin → pas le bureau (message + lien app, comme aujourd’hui).
@@ -179,7 +181,7 @@ Sous-onglet **Parents** dans Membres (bureau) : liste filtrable des invitations 
 
 ## 9. Anti-patterns
 
-- `members/{id}.role = 'parent'` ou entrée `clubMemberships` parent
+- `members/{id}.role = 'parent'` ou entrée « parent » dans un index de clubs
 - `members/{id}.parentUid` scalaire (bloque le 2ᵉ adulte)
 - Lier sur l’Auth uid de l’enfant (mineur sans compte)
 - Login / mot de passe partagé « compte de l’enfant »

@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { NavLoadBar } from "@/components/common/NavLoadBar";
 import { Icon } from "@/components/ui/icons";
-import { bureauRoleChipLabel } from "@/lib/auth/bureauPermissions";
+import type { DisplayBadge } from "@/lib/auth/permissions";
 import {
   readableTextOnBrand,
   splitBrandColorHex,
 } from "@/lib/clubSetup/clubBrandColors";
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
-import { MemberRoles, PortalUiRoles } from "@/lib/firebase/constants";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import type { ClubMembershipTile, PortalSpace } from "@/lib/firebase/types";
 import { sportEmoji } from "@/lib/sports/sportEmoji";
 import styles from "./ClubSwitcher.module.css";
@@ -30,27 +30,24 @@ type ClubSwitcherProps = {
   collapsed?: boolean;
 };
 
-/** Libellé du rôle sous le nom du club. */
-function roleLabel(club: ClubMembershipTile): string {
-  if (club.space === "family" || club.role === PortalUiRoles.parent) {
-    return "Parent";
-  }
-  return bureauRoleChipLabel(club.role);
+/**
+ * Badge affiché sous le nom du club (dérivé des droits et des équipes de la
+ * fiche, jamais d'un rôle) ; `null` tant que les droits chargent.
+ */
+function clubBadge(club: ClubMembershipTile): DisplayBadge | null {
+  if (club.space === "family") return "parent";
+  return club.badge;
 }
 
-/** Clé de couleur du rôle (tokens `--color-role-*`), `member` par défaut. */
-function roleTone(club: ClubMembershipTile): string {
-  if (club.space === "family" || club.role === PortalUiRoles.parent) {
-    return "parent";
-  }
-  if (
-    club.role === MemberRoles.admin ||
-    club.role === MemberRoles.coach ||
-    club.role === MemberRoles.player
-  ) {
-    return club.role;
-  }
-  return "member";
+/** Libellé du badge sous le nom du club (vide pendant le chargement). */
+function roleLabel(club: ClubMembershipTile): string {
+  const badge = clubBadge(club);
+  return badge ? badgeLabel(badge) : "";
+}
+
+/** Clé de couleur du badge (tokens `--color-role-*`), `member` par défaut. */
+function roleTone(club: ClubMembershipTile): DisplayBadge {
+  return clubBadge(club) ?? "member";
 }
 
 /** Pastille logo / emoji sport du club, teintée à sa couleur de marque. */

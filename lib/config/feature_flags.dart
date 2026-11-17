@@ -2,10 +2,6 @@ import 'package:flutter/foundation.dart';
 
 /// Feature flags simples (debug / release).
 abstract final class FeatureFlags {
-  /// Messagerie in-app — alignée portail `CHAT_MESSAGING_LIVE`.
-  /// Off en release tant que la feature n’est pas sur le store (CHANGELOG Unreleased).
-  static bool get chatMessagingLive => kDebugMode;
-
   /// Paiement in-app (callable + PaymentSheet / webhook).
   /// Désactiver si les secrets Functions ne sont pas déployés.
   static const bool inAppPayments = true;
@@ -16,4 +12,11 @@ abstract final class FeatureFlags {
 
   /// Flip à `true` pour activer Stripe aussi en release (après clés live).
   static const bool _stripePaymentsLiveRelease = true;
+
+  /// Pointage des présences (appel coach) : bouton « Faire l'appel » du
+  /// détail d'un événement et capacité coach « Prendre les présences ».
+  /// Masqué tant que la fonctionnalité n'est pas mise en avant ; le code et
+  /// les données (`attendance`, `coachPermissions.canTakeAttendance`)
+  /// restent en place.
+  static const bool attendanceTracking = false;
 }

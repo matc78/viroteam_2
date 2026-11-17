@@ -1,27 +1,35 @@
-import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 
-/// Valeur de `max_role` pour un compte sans fiche membre (parent seul).
+/// Valeur de `active_role` sans fiche membre dans le club actif (parent
+/// seul, ou aucun club actif).
 const String analyticsNoRole = 'none';
 
+/// Clé super-propriété PostHog du rôle du club actif (app uniquement).
+const String analyticsActiveRoleKey = 'active_role';
+
+/// Valeur de `active_role` : badge principal de la fiche dans le club actif
+/// ([ChatBadgeIds] : `admin` | `coach` | `player` | `member`), sinon
+/// [analyticsNoRole] sans fiche ([hasMemberDoc] faux).
+String analyticsActiveRole({
+  required bool hasMemberDoc,
+  MemberBadge? badge,
+}) =>
+    hasMemberDoc
+        ? ChatBadgeIds.of(badge ?? MemberBadge.member)
+        : analyticsNoRole;
+
 /// Propriétés « personne » PostHog tirées de [user], sans PII (ni nom, ni
-/// e-mail, ni téléphone) : rôle club le plus élevé, parent ou non, nombre
-/// de clubs (membre ou parent).
+/// e-mail, ni téléphone) : parent ou non, nombre de clubs (membre ou
+/// parent). Les droits vivent sur chaque fiche club : le badge du club actif
+/// part dans la super-propriété `active_role`.
 Map<String, Object> analyticsPersonProperties(ViroUser user) {
-  var maxRole = analyticsNoRole;
-  for (final membership in user.clubMemberships) {
-    if (MemberRoleHierarchy.level(membership.role) >
-        MemberRoleHierarchy.level(maxRole)) {
-      maxRole = membership.role;
-    }
-  }
   final clubIds = {
-    for (final membership in user.clubMemberships) membership.clubId,
+    ...user.memberClubIds,
     ...user.parentClubIds,
   };
   return {
-    'max_role': maxRole,
     'is_parent': user.parentLinks.isNotEmpty,
     'club_count': clubIds.length,
   };

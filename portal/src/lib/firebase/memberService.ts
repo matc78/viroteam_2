@@ -1,4 +1,12 @@
 import {
+  MEMBER_BADGES,
+  normalizePermissions,
+  parsePermissions,
+  primaryBadge,
+  type ClubPermission,
+  type MemberBadgeSource,
+} from "@/lib/auth/permissions";
+import {
   collection,
   doc,
   getDoc,
@@ -13,7 +21,7 @@ import {
   type DocumentReference,
 } from "firebase/firestore";
 import { getAppFirestore } from "./app";
-import { dedupeInFlight } from "./dedupeInFlight";
+import { linkedAccountUid } from "./memberRefs";
 import { validateEmail } from "@/lib/auth/validateEmail";
 import {
   formatFirstName,
@@ -23,9 +31,11 @@ import {
 import { joinCopy } from "@/lib/copy/joinCopy";
 import { site, webJoinRedirectPath } from "@/lib/site";
 import { appStoreLink, playStoreLink } from "@/lib/storeLinks";
+import { permissionsCopy } from "@/lib/copy/permissionsCopy";
 import {
+  CallableError,
   removeMember as removeMemberCallable,
-  setMemberRole as setMemberRoleCallable,
+  setMemberPermissions as setMemberPermissionsCallable,
 } from "./callableService";
 import type { ClubRecord } from "./clubService";
 import {
@@ -33,24 +43,21 @@ import {
   Fields,
   InvitationStatus,
   InvitationTypes,
-  MemberRoles,
-  PortalUiRoles,
 } from "./constants";
-import { addMemberToTeam } from "./teamService";
 import { toDate } from "./types";
 import {
   appendClubActivityToTransaction,
   ClubActivityTypes,
 } from "./activityService";
 
-/** Rôle club (aligné MemberRoles Flutter). */
-export type ClubMemberRole =
-  (typeof MemberRoles)[keyof typeof MemberRoles];
 
-/** Membre club enrichi pour le portail. */
+/** Membre club enrichi pour le portail (badges : `derivedBadges`). */
 export type ClubMemberRecord = {
   memberId: string;
-  role: ClubMemberRole;
+  /** Droits club de la fiche (seule autorité, écrits par les Functions). */
+  permissions: ClubPermission[];
+  /** Équipes entraînées (`coachTeamIds`, dérivé de `teams.coachIds`). */
+  coachTeamIds: string[];
   status: string;
   firstName: string;
   lastName: string;
@@ -72,7 +79,6 @@ export type ClubInvitationRecord = {
   id: string;
   clubId: string;
   code: string;
-  role: string;
   status: string;
   memberId: string;
   sentBy: string;
@@ -94,21 +100,9 @@ const INVITE_CODE_LENGTH = 6;
 const INVITE_TTL_DAYS = 7;
 const MEMBERS_LIST_LIMIT = 500;
 
-/** Niveau hiérarchique rôle (admin > coach > player). */
-export function memberRoleLevel(role: string): number {
-  if (role === MemberRoles.admin) return 3;
-  if (role === MemberRoles.coach) return 2;
-  if (role === MemberRoles.player) return 1;
-  return 0;
-}
-
-/** Libellé FR d’un rôle membre. */
-export function memberRoleLabel(role: string): string {
-  if (role === MemberRoles.admin) return "Admin";
-  if (role === MemberRoles.coach) return "Coach";
-  if (role === MemberRoles.player) return "Joueur";
-  if (role === PortalUiRoles.parent) return "Parent";
-  return role;
+/** Rang de tri par badge principal : admin, coach, joueur, puis membre. */
+export function memberBadgeRank(member: MemberBadgeSource): number {
+  return MEMBER_BADGES.indexOf(primaryBadge(member));
 }
 
 /** True si le membre a un code d’invitation encore valide (pending + non expiré). */
@@ -199,17 +193,6 @@ function clubRef(clubId: string): DocumentReference {
   return doc(getAppFirestore(), Collections.clubs, clubId);
 }
 
-function normalizeRole(raw: string): ClubMemberRole {
-  if (
-    raw === MemberRoles.admin ||
-    raw === MemberRoles.coach ||
-    raw === MemberRoles.player
-  ) {
-    return raw;
-  }
-  return MemberRoles.player;
-}
-
 function sortKeyFirstName(member: ClubMemberRecord): string {
   const first = member.firstName.trim();
   if (first) return first.toLowerCase();
@@ -245,19 +228,15 @@ export function parseClubMember(
     [firstName, lastName].filter(Boolean).join(" ") ||
     String(data[Fields.displayName] ?? "").trim();
 
-  const legacyUserId = String(data[Fields.userId] ?? "").trim();
-  const accountUidRaw = String(data[Fields.accountUid] ?? "").trim();
-  const accountUid =
-    accountUidRaw || (legacyUserId ? legacyUserId : null);
-
   return {
-    memberId: String(data[Fields.memberId] ?? id),
-    role: normalizeRole(String(data[Fields.role] ?? MemberRoles.player)),
+    memberId: id,
+    permissions: parsePermissions(data[Fields.permissions]),
+    coachTeamIds: parseTeamIds(data[Fields.coachTeamIds]),
     status: String(data[Fields.status] ?? "active"),
     firstName,
     lastName,
     displayName: displayName || "Membre",
-    accountUid,
+    accountUid: linkedAccountUid(data),
     email:
       typeof snapshot[Fields.email] === "string"
         ? String(snapshot[Fields.email]).trim() || null
@@ -290,31 +269,24 @@ export async function getClubMember(
 }
 
 /**
- * Charge des fiches membres à partir d’IDs roster (`memberId` ou `accountUid`).
+ * Charge des fiches membres par id (= uid quand la fiche est liée).
  * Un getDoc par id — adapté aux parents (pas de `list` sur `members`).
  * Les docs absents / refusés sont ignorés.
  */
-export async function loadMembersByRosterIds(
+export async function loadMembersByIds(
   clubId: string,
-  rosterIds: string[],
+  memberIds: string[],
 ): Promise<ClubMemberRecord[]> {
-  const uniqueIds = [...new Set(rosterIds.map(String).filter(Boolean))];
+  const uniqueIds = [...new Set(memberIds.map(String).filter(Boolean))];
   if (uniqueIds.length === 0) return [];
 
   const byMemberId = new Map<string, ClubMemberRecord>();
 
   await Promise.all(
-    uniqueIds.map(async (rosterId) => {
+    uniqueIds.map(async (memberId) => {
       try {
-        let member = await getClubMember(clubId, rosterId);
-        if (!member) {
-          const linkedMemberId = await getLinkedMemberId(clubId, rosterId);
-          if (linkedMemberId && linkedMemberId !== rosterId) {
-            member = await getClubMember(clubId, linkedMemberId);
-          }
-        }
-        if (!member) return;
-        byMemberId.set(member.memberId, member);
+        const member = await getClubMember(clubId, memberId);
+        if (member) byMemberId.set(member.memberId, member);
       } catch {
         // Doc non lisible pour ce compte : on ignore.
       }
@@ -322,60 +294,10 @@ export async function loadMembersByRosterIds(
   );
 
   return [...byMemberId.values()].sort((a, b) => {
-    const roleCmp = memberRoleLevel(b.role) - memberRoleLevel(a.role);
-    if (roleCmp !== 0) return roleCmp;
+    const badgeCmp = memberBadgeRank(a) - memberBadgeRank(b);
+    if (badgeCmp !== 0) return badgeCmp;
     return sortKeyFirstName(a).localeCompare(sortKeyFirstName(b), "fr");
   });
-}
-
-/** Liens compte → fiche déjà résolus (un lien établi ne change pas en session). */
-const linkedMemberIdCache = new Map<string, string>();
-
-/** Vide le cache des liens compte → fiche (déconnexion / changement de compte). */
-export function clearLinkedMemberIdCache(): void {
-  linkedMemberIdCache.clear();
-}
-
-/**
- * Résout la fiche licencié liée au compte Auth (Moi).
- * Appelé par la plupart des pages : résultat non nul mis en cache pour la
- * session, appels concurrents mutualisés. Un « pas de fiche » est relu à
- * chaque fois (le lien peut apparaître après une invitation acceptée).
- */
-export async function getLinkedMemberId(
-  clubId: string,
-  accountUid: string,
-): Promise<string | null> {
-  const key = `${clubId}:${accountUid}`;
-  const cached = linkedMemberIdCache.get(key);
-  if (cached) return cached;
-  const linked = await dedupeInFlight(`linkedMember:${key}`, () =>
-    queryLinkedMemberId(clubId, accountUid),
-  );
-  if (linked) linkedMemberIdCache.set(key, linked);
-  return linked;
-}
-
-async function queryLinkedMemberId(
-  clubId: string,
-  accountUid: string,
-): Promise<string | null> {
-  const indexSnap = await getDoc(
-    doc(
-      getAppFirestore(),
-      Collections.clubs,
-      clubId,
-      Collections.memberAccounts,
-      accountUid,
-    ),
-  );
-  if (indexSnap.exists()) {
-    const linked = String(indexSnap.data()?.[Fields.memberId] ?? "").trim();
-    if (linked) return linked;
-  }
-  const selfSnap = await getDoc(doc(membersCol(clubId), accountUid));
-  if (selfSnap.exists()) return accountUid;
-  return null;
 }
 
 /** Complète nom / avatar / e-mail depuis `users/{uid}` (repli si snapshot incomplet). */
@@ -478,7 +400,7 @@ async function enrichMembers(
 
 /**
  * Liste les membres du club (enrichis invitation + compte lié).
- * Tri : rôle desc puis prénom A→Z.
+ * Tri : badge principal (Admin > Entraîneur > Joueur > Membre) puis prénom A→Z.
  */
 export async function listClubMembers(
   clubId: string,
@@ -492,8 +414,8 @@ export async function listClubMembers(
   );
 
   members.sort((a, b) => {
-    const roleCmp = memberRoleLevel(b.role) - memberRoleLevel(a.role);
-    if (roleCmp !== 0) return roleCmp;
+    const badgeCmp = memberBadgeRank(a) - memberBadgeRank(b);
+    if (badgeCmp !== 0) return badgeCmp;
     return sortKeyFirstName(a).localeCompare(sortKeyFirstName(b), "fr");
   });
 
@@ -502,7 +424,7 @@ export async function listClubMembers(
 
 /**
  * Ajoute un membre pré-créé + invitation pending (miroir Flutter).
- * Rôles autorisés : joueur, coach ou admin (import CSV / ajout bureau).
+ * Fiche sans droit ni équipe : droits et équipes se posent ensuite (Functions).
  * L’e-mail est obligatoire : il est normalisé (trim + lowercase) et écrit sur
  * `invitations/{id}.email` ET `members.snapshot.email`.
  */
@@ -510,10 +432,6 @@ export async function addMemberWithInvitation(params: {
   clubId: string;
   firstName: string;
   lastName: string;
-  role:
-    | typeof MemberRoles.player
-    | typeof MemberRoles.coach
-    | typeof MemberRoles.admin;
   sentByUid: string;
   club: Pick<ClubRecord, "name" | "sport">;
   /** E-mail de l’invité (obligatoire, seul ce compte pourra accepter). */
@@ -524,13 +442,6 @@ export async function addMemberWithInvitation(params: {
   const trimmedFirst = formatFirstName(params.firstName);
   const trimmedLast = formatLastName(params.lastName);
   const trimmedEmail = normalizeRequiredInviteEmail(params.email);
-  if (
-    params.role !== MemberRoles.player &&
-    params.role !== MemberRoles.coach &&
-    params.role !== MemberRoles.admin
-  ) {
-    throw new Error("Rôle invalide : utilisez joueur, coach ou admin.");
-  }
 
   const db = getAppFirestore();
   const memberRef = doc(membersCol(params.clubId));
@@ -552,31 +463,21 @@ export async function addMemberWithInvitation(params: {
     };
 
     const memberPayload: Record<string, unknown> = {
-      [Fields.memberId]: memberRef.id,
-      [Fields.role]: params.role,
       [Fields.status]: "active",
+      [Fields.playerInfo]: { [Fields.license]: "" },
       [Fields.firstName]: trimmedFirst,
       [Fields.lastName]: trimmedLast,
-      [Fields.teamIds]: [],
       [Fields.snapshot]: snapshot,
       [Fields.activeInvitationId]: inviteRef.id,
       [Fields.joinedAt]: serverTimestamp(),
       [Fields.updatedAt]: serverTimestamp(),
     };
 
-    if (params.role === MemberRoles.player) {
-      memberPayload[Fields.playerInfo] = { [Fields.license]: "" };
-    }
-    if (params.role === MemberRoles.coach) {
-      memberPayload[Fields.coachInfo] = { [Fields.headCoach]: false };
-    }
-
     tx.set(memberRef, memberPayload);
 
     tx.set(inviteRef, {
       [Fields.code]: code,
       [Fields.type]: InvitationTypes.member,
-      [Fields.role]: params.role,
       [Fields.status]: InvitationStatus.pending,
       [Fields.email]: trimmedEmail,
       [Fields.memberId]: memberRef.id,
@@ -607,7 +508,8 @@ export async function addMemberWithInvitation(params: {
 
   const member: ClubMemberRecord = {
     memberId: memberRef.id,
-    role: params.role,
+    permissions: [],
+    coachTeamIds: [],
     status: "active",
     firstName: trimmedFirst,
     lastName: trimmedLast,
@@ -628,7 +530,6 @@ export async function addMemberWithInvitation(params: {
     id: inviteRef.id,
     clubId: params.clubId,
     code,
-    role: params.role,
     status: InvitationStatus.pending,
     memberId: memberRef.id,
     sentBy: params.sentByUid,
@@ -650,10 +551,6 @@ export async function addMemberWithoutInvitation(params: {
   clubId: string;
   firstName: string;
   lastName: string;
-  role:
-    | typeof MemberRoles.player
-    | typeof MemberRoles.coach
-    | typeof MemberRoles.admin;
   sentByUid: string;
   /** E-mail à conserver sans créer d’invitation (normalisé si fourni). */
   email?: string;
@@ -665,13 +562,6 @@ export async function addMemberWithoutInvitation(params: {
   const trimmedEmail = params.email?.trim()
     ? normalizeRequiredInviteEmail(params.email)
     : null;
-  if (
-    params.role !== MemberRoles.player &&
-    params.role !== MemberRoles.coach &&
-    params.role !== MemberRoles.admin
-  ) {
-    throw new Error("Rôle invalide : utilisez joueur, coach ou admin.");
-  }
 
   const db = getAppFirestore();
   const memberRef = doc(membersCol(params.clubId));
@@ -691,23 +581,14 @@ export async function addMemberWithoutInvitation(params: {
     }
 
     const memberPayload: Record<string, unknown> = {
-      [Fields.memberId]: memberRef.id,
-      [Fields.role]: params.role,
       [Fields.status]: "active",
+      [Fields.playerInfo]: { [Fields.license]: "" },
       [Fields.firstName]: trimmedFirst,
       [Fields.lastName]: trimmedLast,
-      [Fields.teamIds]: [],
       [Fields.snapshot]: snapshot,
       [Fields.joinedAt]: serverTimestamp(),
       [Fields.updatedAt]: serverTimestamp(),
     };
-
-    if (params.role === MemberRoles.player) {
-      memberPayload[Fields.playerInfo] = { [Fields.license]: "" };
-    }
-    if (params.role === MemberRoles.coach) {
-      memberPayload[Fields.coachInfo] = { [Fields.headCoach]: false };
-    }
 
     tx.set(memberRef, memberPayload);
 
@@ -729,7 +610,8 @@ export async function addMemberWithoutInvitation(params: {
 
   return {
     memberId: memberRef.id,
-    role: params.role,
+    permissions: [],
+    coachTeamIds: [],
     status: "active",
     firstName: trimmedFirst,
     lastName: trimmedLast,
@@ -768,10 +650,7 @@ export async function extendMemberInvitation(params: {
     }
 
     const memberData = memberSnap.data() as Record<string, unknown>;
-    const accountUid = String(
-      memberData[Fields.accountUid] ?? memberData[Fields.userId] ?? "",
-    ).trim();
-    if (accountUid) {
+    if (linkedAccountUid(memberData)) {
       throw new Error("Ce membre a déjà un compte lié.");
     }
 
@@ -836,14 +715,10 @@ export async function regenerateMemberInvitation(params: {
     }
 
     const memberData = memberSnap.data() as Record<string, unknown>;
-    const accountUid = String(
-      memberData[Fields.accountUid] ?? memberData[Fields.userId] ?? "",
-    ).trim();
-    if (accountUid) {
+    if (linkedAccountUid(memberData)) {
       throw new Error("Ce membre a déjà un compte lié.");
     }
 
-    const role = normalizeRole(String(memberData[Fields.role] ?? MemberRoles.player));
     const firstName = String(memberData[Fields.firstName] ?? "").trim();
     const lastName = String(memberData[Fields.lastName] ?? "").trim();
     const snapshot =
@@ -887,7 +762,6 @@ export async function regenerateMemberInvitation(params: {
     tx.set(newInviteRef, {
       [Fields.code]: code,
       [Fields.type]: InvitationTypes.member,
-      [Fields.role]: role,
       [Fields.status]: InvitationStatus.pending,
       [Fields.email]: snapshotEmail,
       [Fields.memberId]: memberId,
@@ -910,32 +784,42 @@ export async function regenerateMemberInvitation(params: {
 }
 
 /**
- * Change le rôle d’un membre via la callable `setMemberRole`.
- * Le serveur garde le dernier admin et synchronise `club.adminIds` et
- * `users/{uid}.clubMemberships` (écritures interdites côté client).
+ * Remplace les droits d’un membre via la callable `setMemberPermissions`
+ * (droit Administrateur exigé, garde « dernier admin » et index
+ * `club.adminIds` côté serveur). Retourne la liste normalisée.
  */
-export async function updateMemberRole(params: {
+export async function updateMemberPermissions(params: {
   clubId: string;
   memberId: string;
-  newRole: ClubMemberRole;
-}): Promise<void> {
-  const { clubId, memberId, newRole } = params;
-  if (
-    newRole !== MemberRoles.admin &&
-    newRole !== MemberRoles.coach &&
-    newRole !== MemberRoles.player
-  ) {
-    throw new Error("Rôle invalide.");
+  permissions: readonly ClubPermission[];
+}): Promise<ClubPermission[]> {
+  try {
+    const result = await setMemberPermissionsCallable({
+      clubId: params.clubId,
+      memberId: params.memberId,
+      permissions: normalizePermissions(params.permissions),
+    });
+    return parsePermissions(result.permissions);
+  } catch (error) {
+    if (isLastAdminError(error)) throw new Error(permissionsCopy.lastAdmin);
+    throw error;
   }
+}
 
-  await setMemberRoleCallable({ clubId, memberId, role: newRole });
+/**
+ * Vrai si la callable a refusé de retirer le dernier administrateur
+ * (`failed-precondition` de `functions/src/memberAdmin.ts`, `details.reason`
+ * `last-admin`).
+ */
+export function isLastAdminError(error: unknown): boolean {
+  return error instanceof CallableError && error.reason === "last-admin";
 }
 
 /**
  * Retire un membre du club via la callable `removeMember`.
- * Le serveur refuse de retirer le dernier admin, supprime la fiche et l’index
- * `member_accounts`, décrémente `memberCount`, retire des équipes, révoque
- * l’invitation pending et nettoie `users/{uid}.clubMemberships`.
+ * Le serveur refuse de retirer le dernier admin, supprime la fiche,
+ * décrémente `memberCount`, retire des équipes, révoque
+ * l’invitation pending et nettoie `users/{uid}.memberClubIds`.
  */
 export async function removeMember(params: {
   clubId: string;
@@ -993,9 +877,7 @@ export async function updatePendingMemberNames(params: {
       throw new Error("Membre introuvable.");
     }
     const data = memberSnap.data() as Record<string, unknown>;
-    const accountUid = String(data[Fields.accountUid] ?? "").trim();
-    const legacyUserId = String(data[Fields.userId] ?? "").trim();
-    if (accountUid || legacyUserId) {
+    if (linkedAccountUid(data)) {
       throw new Error(
         "Impossible de modifier l’identité d’un membre déjà inscrit.",
       );
@@ -1062,9 +944,7 @@ export async function updatePendingMemberProfile(params: {
       throw new Error("Membre introuvable.");
     }
     const data = memberSnap.data() as Record<string, unknown>;
-    const accountUid = String(data[Fields.accountUid] ?? "").trim();
-    const legacyUserId = String(data[Fields.userId] ?? "").trim();
-    if (accountUid || legacyUserId) {
+    if (linkedAccountUid(data)) {
       throw new Error(
         "Impossible de modifier l’identité d’un membre déjà inscrit.",
       );
@@ -1107,15 +987,3 @@ export async function updatePendingMemberProfile(params: {
   });
 }
 
-/**
- * Rattache un membre à une équipe existante (playerIds ou coachIds).
- * Met aussi à jour `members.teamIds` pour cohérence d’affichage.
- */
-export async function assignMemberToTeam(params: {
-  clubId: string;
-  memberId: string;
-  teamId: string;
-  role: typeof MemberRoles.player | typeof MemberRoles.coach;
-}): Promise<void> {
-  await addMemberToTeam(params);
-}

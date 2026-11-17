@@ -6,23 +6,23 @@ import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_overview_providers.dart';
-import 'package:viro_team_v2/features/club/providers/role_requests_providers.dart';
+import 'package:viro_team_v2/features/club/services/club_analytics.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
 import 'package:viro_team_v2/features/club/widgets/club_context_avatar.dart';
 import 'package:viro_team_v2/features/club/widgets/club_hero_header.dart';
 import 'package:viro_team_v2/features/club/widgets/club_management_list.dart';
 import 'package:viro_team_v2/features/club/widgets/club_shortcuts_grid.dart';
+import 'package:viro_team_v2/services/analytics_identity.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/members/widgets/my_parent_section.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
@@ -35,7 +35,6 @@ import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart
 import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_announcement.dart';
 import 'package:viro_team_v2/models/club_event.dart';
@@ -55,6 +54,9 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Fiche club : aperçu vivant (en-tête, prochain événement, à faire,
 /// raccourcis informatifs, gestion) ou vue famille quand un enfant est
@@ -78,11 +80,28 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   }
 
   void _syncSession() {
-    final user = ref.read(viroUserProvider).value;
-    ref.read(sessionProvider.notifier).setActiveClub(
-          widget.clubId,
-          role: user?.membershipInClub(widget.clubId)?.role,
+    ref.read(sessionProvider.notifier).setActiveClub(widget.clubId);
+  }
+
+  /// Capture un CTA fiche club puis navigue vers [route].
+  void _trackClubActionAndPush({
+    required String action,
+    required String zone,
+    required String route,
+    String? badgeOverride,
+  }) {
+    final member = ref.read(clubMemberProvider(widget.clubId)).value;
+    final role = badgeOverride ??
+        analyticsActiveRole(
+          hasMemberDoc: member != null,
+          badge: member?.primaryBadge,
         );
+    ref.read(clubAnalyticsProvider).trackActionTapped(
+          action: action,
+          role: role,
+          zone: zone,
+        );
+    context.push(route);
   }
 
   Future<void> _setRsvp(ClubEvent event, RsvpStatus status) async {
@@ -94,15 +113,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final viaCallable = target?.isChild == true;
 
     // Optimistic : l'événement quitte « à répondre » tout de suite, et y
-    // revient si la résolution d'audience ou l'écriture échoue.
+    // revient si l'écriture échoue.
     setState(() => _hiddenPendingIds.add(event.id));
 
     try {
-      final audienceId = target?.memberId ??
-          await eventService.resolveAudienceId(
-            clubId: event.clubId,
-            authUid: authUid,
-          );
+      final audienceId = target?.memberId ?? authUid;
       await eventService.updateRsvp(
         clubId: event.clubId,
         eventId: event.id,
@@ -113,6 +128,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _hiddenPendingIds.remove(event.id));
+        ViroHaptics.error();
         ViroSnackBar.show(context, AppCopy.club.rsvpFailed);
       }
     }
@@ -122,20 +138,13 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
   void _showEventDetail({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) {
-    final members = ref.read(clubMembersProvider(event.clubId)).value;
     PlanningEventDetailSheet.show(
       context: context,
       clubId: event.clubId,
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
-      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(
-        event,
-        teams,
-        membersByUid: members != null ? indexClubMembersByUid(members) : null,
-      ),
-      canManageEvents: canManageEvents,
+      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
       onCanceled: () {},
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
@@ -221,7 +230,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         onTitleTap: () => context.go(AppRoutes.home),
       ),
       body: clubAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: ViroLogoLoader()),
         error: (_, __) => ViroErrorState(
           onRetry: () => ref.invalidate(clubProvider(clubId)),
         ),
@@ -299,29 +308,26 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     Color? accentSecondary,
   }) {
     final clubId = club.id;
-    final role = member?.role;
-    final isCoachOrAbove =
-        role != null && MemberRoleHierarchy.isCoachOrAbove(role);
-    final isAdmin = role == MemberRoles.admin;
+    final access = ref.watch(clubAccessProvider(clubId));
+    final isStaff = access.isStaff;
+    final isAdmin = access.isAdmin;
     final summary = ref.watch(clubShortcutsSummaryProvider(clubId));
     final attendanceRate = ref.watch(clubAttendanceRateProvider(clubId)).value;
     final pitchRate = ref.watch(clubPitchAttendanceRateProvider(clubId)).value;
     final hasActiveSeason =
         ref.watch(activeSeasonProvider(clubId)).value != null;
-    final pendingCount = isCoachOrAbove
+    final canOpenMembers = access.canOpenMembers;
+    final pendingCount = canOpenMembers
         ? ref.watch(pendingTeamMembersProvider(clubId)).value?.length ?? 0
         : 0;
     final latestAnnouncement = announcementsAsync.value?.firstOrNull;
-    final roleRequestCount = isAdmin
-        ? ref.watch(actionableRoleRequestsProvider(clubId)).value?.length ?? 0
-        : 0;
 
     final heroStats = [
       if (club.memberCount > 0)
         ClubHeroStat(
           icon: ViroIcons.groups,
           label: AppCopy.club.membersCount(club.memberCount),
-          onTap: isCoachOrAbove
+          onTap: canOpenMembers
               ? () => context.push(AppRoutes.clubMembersPath(clubId))
               : null,
         ),
@@ -349,9 +355,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
           club: club,
           accent: memberAccent,
           accentSecondary: accentSecondary,
-          role: role,
+          role: member == null ? null : viroRoleForMember(member),
           stats: heroStats,
-          onEditAppearance: isAdmin
+          onEditAppearance: access.can(ClubPermission.manageClubSettings)
               ? () => context.push(AppRoutes.clubAppearancePath(clubId))
               : null,
         ),
@@ -361,7 +367,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         club: club,
         eventsAsync: eventsAsync,
         fee: summary.fee,
-        roleRequestCount: roleRequestCount,
         accent: memberAccent,
         accentSecondary: accentSecondary,
       ),
@@ -380,18 +385,34 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               latestAnnouncementTitle: latestAnnouncement == null
                   ? null
                   : _announcementHeadline(latestAnnouncement),
-              onPlanning: () =>
-                  context.push(AppRoutes.clubPlanningPath(clubId)),
-              onTeams: () => context.push(AppRoutes.clubMyTeamsPath(clubId)),
-              onAnnouncements: () =>
-                  context.push(AppRoutes.clubAnnouncementsPath(clubId)),
+              onPlanning: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionPlanning,
+                zone: ClubAnalytics.zoneShortcut,
+                route: AppRoutes.clubPlanningPath(clubId),
+              ),
+              onTeams: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionTeams,
+                zone: ClubAnalytics.zoneShortcut,
+                route: AppRoutes.clubMyTeamsPath(clubId),
+              ),
+              onAnnouncements: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionAnnouncements,
+                zone: ClubAnalytics.zoneShortcut,
+                route: AppRoutes.clubAnnouncementsPath(clubId),
+              ),
               onMyFee: hasActiveSeason
-                  ? () => context.push(AppRoutes.clubMyFeePath(clubId))
+                  ? () => _trackClubActionAndPush(
+                        action: ClubAnalytics.actionMyFee,
+                        zone: ClubAnalytics.zoneShortcut,
+                        route: AppRoutes.clubMyFeePath(clubId),
+                      )
                   : null,
             ),
           ),
         ),
-        if (member.role == MemberRoles.player)
+        // « Mon parent » : fiches sans badge d'encadrement (ni Admin ni
+        // Entraîneur), quels que soient leurs droits à la carte.
+        if (!member.hasStaffBadge)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -404,31 +425,54 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               ),
             ),
           ),
-        if (isCoachOrAbove) ...[
+        if (isStaff) ...[
           SliverToBoxAdapter(
             child: _SectionTitle(
-              title: AppCopy.club.clubStaffSection(member.role),
+              title: AppCopy.club.clubStaffSection(isAdmin: isAdmin),
               accentColor: managementAccent,
             ),
           ),
           SliverToBoxAdapter(
             child: ClubManagementList(
-              role: member.role,
+              access: access,
               accentColor: managementAccent,
               memberCount: club.memberCount,
               pendingCount: pendingCount,
-              onMembers: () => context.push(AppRoutes.clubMembersPath(clubId)),
-              onActivity: () =>
-                  context.push(AppRoutes.clubActivityPath(clubId)),
-              onFees: () => context.push(AppRoutes.clubFeesPath(clubId)),
-              onAppearance: () =>
-                  context.push(AppRoutes.clubAppearancePath(clubId)),
-              onLocations: () =>
-                  context.push(AppRoutes.clubLocationsPath(clubId)),
-              onEquipment: () =>
-                  context.push(AppRoutes.clubEquipmentPath(clubId)),
-              onSettings: () =>
-                  context.push(AppRoutes.clubSettingsPath(clubId)),
+              onMembers: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionMembers,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubMembersPath(clubId),
+              ),
+              onActivity: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionActivity,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubActivityPath(clubId),
+              ),
+              onFees: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionFees,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubFeesPath(clubId),
+              ),
+              onAppearance: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionAppearance,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubAppearancePath(clubId),
+              ),
+              onLocations: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionLocations,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubLocationsPath(clubId),
+              ),
+              onEquipment: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionEquipment,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubEquipmentPath(clubId),
+              ),
+              onSettings: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionSettings,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubSettingsPath(clubId),
+              ),
             ),
           ),
         ],
@@ -447,13 +491,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     required Club club,
     required AsyncValue<ClubEventsState> eventsAsync,
     required ClubFeeSummary? fee,
-    required int roleRequestCount,
     required Color accent,
     Color? accentSecondary,
   }) {
     final clubId = club.id;
     final feeDue = fee != null && fee.kind == ClubFeeSummaryKind.due;
-    final hasRoleRequests = roleRequestCount > 0;
 
     return eventsAsync.when(
       loading: () => [
@@ -519,32 +561,13 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                     ),
             ),
           ),
-          if (otherPending.isNotEmpty || feeDue || hasRoleRequests) ...[
+          if (otherPending.isNotEmpty || feeDue) ...[
             SliverToBoxAdapter(
               child: _SectionTitle(
                 title: AppCopy.club.todoSection,
                 accentColor: accent,
               ),
             ),
-            if (hasRoleRequests)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  ViroSpacing.screenHorizontal,
-                  0,
-                  ViroSpacing.screenHorizontal,
-                  ViroSpacing.md,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: _TodoLinkCard(
-                    icon: ViroIcons.users,
-                    title: AppCopy.club.roleRequestsTodo(roleRequestCount),
-                    subtitle: AppCopy.club.roleRequestsTodoHint,
-                    accent: accent,
-                    onTap: () =>
-                        context.push(AppRoutes.clubRoleRequestsPath(clubId)),
-                  ),
-                ),
-              ),
             if (feeDue)
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
@@ -715,12 +738,23 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             ),
             FamilyQuickActionsGrid(
               accentColor: memberAccent,
-              onPlanning: () => context.push(
-                AppRoutes.clubPlanningPath(clubId),
+              onPlanning: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionPlanning,
+                zone: ClubAnalytics.zoneFamily,
+                route: AppRoutes.clubPlanningPath(clubId),
+                badgeOverride: 'parent',
               ),
-              onFee: () => context.push(AppRoutes.clubMyFeePath(clubId)),
-              onInfos: () => context.push(
-                AppRoutes.clubAnnouncementsPath(clubId),
+              onFee: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionMyFee,
+                zone: ClubAnalytics.zoneFamily,
+                route: AppRoutes.clubMyFeePath(clubId),
+                badgeOverride: 'parent',
+              ),
+              onInfos: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionAnnouncements,
+                zone: ClubAnalytics.zoneFamily,
+                route: AppRoutes.clubAnnouncementsPath(clubId),
+                badgeOverride: 'parent',
               ),
             ),
             const SizedBox(height: ViroSpacing.xl),
@@ -1047,65 +1081,6 @@ class _FeeDueBanner extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Ligne « à regarder » discrète (ex. demandes de rôle) : une seule entrée
-/// résumée, jamais la liste complète, pour ne pas charger la fiche.
-class _TodoLinkCard extends StatelessWidget {
-  const _TodoLinkCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context).textTheme;
-    final palette = context.viroPalette;
-    final iconColor = palette.readableAccent(accent);
-
-    return ViroCard(
-      margin: EdgeInsets.zero,
-      onTap: onTap,
-      semanticLabel: title,
-      padding: const EdgeInsets.all(ViroSpacing.md),
-      child: Row(
-        children: [
-          ViroIcon(icon, color: iconColor, size: 22),
-          const SizedBox(width: ViroSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.titleSmall?.copyWith(
-                    color: palette.brandText,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: theme.bodySmall?.copyWith(
-                    color: palette.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ViroIcon(ViroIcons.chevronRight, color: palette.textMuted, size: 20),
-        ],
       ),
     );
   }

@@ -1,9 +1,9 @@
 import { ANNOUNCEMENT_BODY_MAX_CHARS } from "./types";
 
 /**
- * Copy des push : tutoiement. Titre court (≈ 26 car. visibles sur écran
- * verrouillé iOS) = action / type / quand. Corps = équipe, lieu, décompte,
- * puis action attendue. Pas d'humour sur la cotisation ni les annulations.
+ * Copy des push : tutoiement, voix vestiaire pour les joueurs (titres en
+ * rotation), plus sobre pour le staff, neutre sur cotisation / annulation /
+ * annonces. Parents : titres adoucis, sans insultes.
  */
 
 /** Longueur cible d'un titre push (écran verrouillé iOS, police système). */
@@ -21,6 +21,9 @@ export function truncatePushBody(
 
 export type PushCopy = { title: string; body: string };
 
+/** Tirage ∈ [0, 1) injectable pour les tests. */
+export type CopyRandom = () => number;
+
 /**
  * Contexte d'une push d'événement. Les heures sont déjà au format FR
  * (« 18h00 ») ; [dayLabel] au format « jeu. 23/10 ».
@@ -37,8 +40,28 @@ export type EventPushContext = {
   childFirstName?: string;
 };
 
+/** Options de tirage (tests). */
+export type CopyPickOptions = {
+  random?: CopyRandom;
+};
+
 /** Statut RSVP de la personne visée (soi ou l'enfant). */
 export type RsvpStatus = "yes" | "maybe" | "no" | "none";
+
+/** Tirage uniforme dans [items] ; [random] injectable (∈ [0, 1)). */
+export function pickRandom<T>(
+  items: readonly T[],
+  random: CopyRandom = Math.random,
+): T {
+  if (items.length === 0) {
+    throw new Error("pickRandom: liste vide");
+  }
+  const index = Math.min(
+    items.length - 1,
+    Math.max(0, Math.floor(random() * items.length)),
+  );
+  return items[index]!;
+}
 
 /** Libellé FR d’un statut RSVP Firestore. */
 export function rsvpStatusLabel(status: string): string {
@@ -139,6 +162,10 @@ function joinParts(parts: Array<string | undefined>): string {
   return parts.map((part) => part?.trim() ?? "").filter(Boolean).join(" · ");
 }
 
+function rng(options?: CopyPickOptions): CopyRandom {
+  return options?.random ?? Math.random;
+}
+
 /** « Entraînement jeu. 23/10 ». */
 function typeDay(ctx: EventPushContext): string {
   return `${eventTypePushLabel(ctx.type)} ${ctx.dayLabel}`;
@@ -198,52 +225,217 @@ function comingQuestion(ctx: EventPushContext): string {
   return child ? `${child} vient ?` : "Tu viens ?";
 }
 
+// ---------------------------------------------------------------------------
+// Pools de titres (joueurs). Parents : variantes soft à part.
+// ---------------------------------------------------------------------------
+
+/** Relance manuelle — joueurs (none / maybe). */
+export const MANUAL_PLAYER_TITLES = [
+  "Réponds Batard !!",
+  "Bismillah les ténèbres ?",
+  "Abuse frérot, réponds !",
+  "T ki pour me faire attendre ?",
+  "Tu viens ou tu fuis ?",
+  "Wesh t’es AFK ?",
+  "Réponds, tête de neuille",
+  "Silence = 30 burpees !",
+  "Pas de rép ? 10 tours",
+  "Hésite surtout pas",
+] as const;
+
+/** Relance manuelle — parents (sans insultes). */
+export function manualParentTitles(childFirstName: string): string[] {
+  const child = childFirstName.trim() || "ton enfant";
+  return [
+    `Réponds pour ${child}`,
+    `${child} · toujours rien ?`,
+    `Dispo de ${child} ?`,
+    `Hésite pas pour ${child}`,
+  ];
+}
+
+/** Nouvelle convocation — titres joueurs (hors match-only). */
+export const CREATED_PLAYER_TITLES = [
+  "Titulaire ?",
+  "Tu kiffes le banc ou pas ?",
+  "SIUUU, t’es convoqué",
+  "Convoqué : Aura +1000",
+  "T’es pas content ? convoqué",
+] as const;
+
+/** Titre réservé aux matchs dans la pool « nouvelle convocation ». */
+export const CREATED_MATCH_ONLY_TITLE = "Ce soir c’est match !" as const;
+
+/** Rappel J-7 sans réponse : titre + fin de corps. */
+export const J7_NONE_VARIANTS: ReadonlyArray<{
+  title?: string;
+  titleMode?: "typeDay";
+  ending: string;
+}> = [
+  {
+    titleMode: "typeDay",
+    ending: "Tu viens ? Le coach s’organise.",
+  },
+  {
+    title: "Dans 7 jours",
+    ending: "Un oui ou un non, ça change tout.",
+  },
+  {
+    title: "J-7, réfléchis-y !",
+    ending: "Marque ta dispo.",
+  },
+  {
+    title: "Organise toi !",
+    ending: "Réponds quand t’as 2 sec.",
+  },
+];
+
+/** Questions J-7 « peut-être ». */
+export const J7_MAYBE_ASKS = [
+  "Encore en peut-être ?",
+  "Tu confirmes ?",
+  "On sort du flou ?",
+] as const;
+
+/** Titres J-2 sans réponse. */
+export const J2_NONE_TITLES = [
+  "Hésite pas frérot",
+  "Fais un choix poulet",
+  "Chaud ? pas chaud ?",
+  "Le coach check",
+  "Fais pas ton dark sasuke",
+] as const;
+
+/** Corps ancre J-2. */
+export const J2_NONE_BODY_ACTION = "Hésite pas à répondre.";
+
+/** Questions J-2 « peut-être ». */
+export const J2_MAYBE_ASKS = [
+  "Encore en peut-être — tu confirmes ?",
+  "On fige ta place ?",
+  "Oui ou non, on sort du flou.",
+] as const;
+
+/** Marqueur : titre structurel « Aujourd’hui/Demain · {type} ». */
+const DAY_TITLE_STRUCTURAL = "__structural__";
+
+/** Titres jour J (aujourd’hui), sans réponse. */
+export const DAY_TODAY_NONE_TITLES = [
+  DAY_TITLE_STRUCTURAL,
+  "C’est aujourd’hui",
+  "Fais pas le ministre !",
+  "Gros tu forces là",
+] as const;
+
+/** Titres jour J (demain), sans réponse. */
+export const DAY_TOMORROW_NONE_TITLES = [
+  DAY_TITLE_STRUCTURAL,
+  "C’est demain",
+  "Fais pas le ministre !",
+  "Gros tu forces là",
+] as const;
+
+/** Action jour J si pas de réponse. */
+export const DAY_NONE_ACTION = "Hésite surtout pas à faire un choix.";
+
+/** Marqueur : titre bilan = type + jour. */
+const COACH_TITLE_TYPE_DAY = "__typeDay__";
+
+/** Titres bilan coach. */
+export const COACH_SUMMARY_TITLES = [
+  COACH_TITLE_TYPE_DAY,
+  "Point réponses",
+  "Effectif",
+  "Y’a du monde ?",
+] as const;
+
+/** Corps digest coéquipiers multi. */
+export const TEAMMATE_DIGEST_BODIES = [
+  "Jette un œil",
+  "Check le planning",
+] as const;
+
+/** Fin de récap hebdo sans réponse manquante. */
+export const WEEKLY_OK_ENDINGS = [
+  "Tout est répondu, bonne semaine !",
+  "Planning clean, go.",
+] as const;
+
 /** Rappel J-7 (events importants), pour ceux qui n'ont pas répondu. */
-export function eventReminderJ7Copy(ctx: EventPushContext): PushCopy {
+export function eventReminderJ7Copy(
+  ctx: EventPushContext,
+  options?: CopyPickOptions,
+): PushCopy {
+  const child = ctx.childFirstName?.trim();
   const context = joinParts([eventSubject(ctx), ctx.location]);
   const where = context ? ` · ${context}` : "";
+  const variant = pickRandom(J7_NONE_VARIANTS, rng(options));
+  const title = child
+    ? eventHeadline(ctx)
+    : variant.titleMode === "typeDay"
+      ? typeDay(ctx)
+      : variant.title!;
+  const ask = child ? comingQuestion(ctx) : variant.ending;
   return {
-    title: eventHeadline(ctx),
-    body: `Dans une semaine${where}. ${comingQuestion(ctx)} Réponds pour que le coach s’organise.`,
+    title,
+    body: `Dans une semaine${where}. ${ask}`,
   };
 }
 
 /** Rappel J-7 pour un « peut-être » encore en suspens. */
-export function eventReminderJ7MaybeCopy(ctx: EventPushContext): PushCopy {
+export function eventReminderJ7MaybeCopy(
+  ctx: EventPushContext,
+  options?: CopyPickOptions,
+): PushCopy {
   const context = joinParts([eventSubject(ctx), ctx.location]);
   const where = context ? ` · ${context}` : "";
   const child = ctx.childFirstName?.trim();
   const ask = child
     ? `${child} est encore en peut-être. Tu confirmes ?`
-    : "Tu es encore en peut-être. Tu confirmes ?";
+    : pickRandom(J7_MAYBE_ASKS, rng(options));
   return {
-    title: eventHeadline(ctx),
+    title: child ? eventHeadline(ctx) : pickRandom(
+      ["Encore en peut-être ?", "Tu confirmes ?", "On sort du flou ?", typeDay(ctx)],
+      rng(options),
+    ),
     body: `Dans une semaine${where}. ${ask}`,
   };
 }
 
 /** Rappel J-2, pour ceux qui n'ont pas répondu. */
-export function eventReminderJ2Copy(ctx: EventPushContext): PushCopy {
+export function eventReminderJ2Copy(
+  ctx: EventPushContext,
+  options?: CopyPickOptions,
+): PushCopy {
   const child = ctx.childFirstName?.trim();
   const context = eventContextLine(ctx);
   const action = child
-    ? `Toujours pas de réponse pour ${child}. Un tap suffit.`
-    : "Toujours pas de réponse : tu viens ? Un tap suffit.";
+    ? `Toujours pas de réponse pour ${child}. Hésite pas à répondre.`
+    : J2_NONE_BODY_ACTION;
+  const title = child
+    ? eventHeadline(ctx)
+    : pickRandom(J2_NONE_TITLES, rng(options));
   return {
-    title: eventHeadline(ctx),
+    title,
     body: context ? `${context}. ${action}` : action,
   };
 }
 
 /** Rappel J-2 pour un « peut-être » encore en suspens. */
-export function eventReminderJ2MaybeCopy(ctx: EventPushContext): PushCopy {
+export function eventReminderJ2MaybeCopy(
+  ctx: EventPushContext,
+  options?: CopyPickOptions,
+): PushCopy {
   const child = ctx.childFirstName?.trim();
   const context = eventContextLine(ctx);
   const action = child
     ? `${child} est encore en peut-être — tu confirmes ?`
-    : "Tu es encore en peut-être — tu confirmes ?";
+    : pickRandom(J2_MAYBE_ASKS, rng(options));
   return {
-    title: eventHeadline(ctx),
+    title: child ? eventHeadline(ctx) : pickRandom(
+      ["Encore en peut-être ?", "On fige ta place ?", "On sort du flou"],
+      rng(options),
+    ),
     body: context ? `${context}. ${action}` : action,
   };
 }
@@ -254,10 +446,13 @@ export function eventReminderJ2MaybeCopy(ctx: EventPushContext): PushCopy {
  */
 export function eventCoachSummaryCopy(
   ctx: EventPushContext & { tally: RsvpTally; when: "j2" | "eve" },
+  options?: CopyPickOptions,
 ): PushCopy {
   const lead = ctx.when === "j2" ? "Dans 2 jours" : "Demain";
+  const picked = pickRandom(COACH_SUMMARY_TITLES, rng(options));
+  const title = picked === COACH_TITLE_TYPE_DAY ? typeDay(ctx) : picked;
   return {
-    title: fitPushTitle(typeDay(ctx)),
+    title,
     body: truncatePushBody(
       joinParts([lead, ctx.startTime, formatRsvpTally(ctx.tally)]),
     ),
@@ -275,35 +470,50 @@ export function eventDayOfReminderCopy(
     rsvp: RsvpStatus;
     tally?: RsvpTally;
   },
+  options?: CopyPickOptions,
 ): PushCopy {
   const child = ctx.childFirstName?.trim();
   const whenLabel = ctx.when === "today" ? "Aujourd’hui" : "Demain";
   const typeLabel = eventTypePushLabel(ctx.type);
-  // Heure dans le corps : « Demain · Entraînement 18h00 » dépasse ~26 car.
-  const title = child
+  const structuralTitle = child
     ? fitPushTitle(
         joinParts([whenLabel, child, typeLabel]),
         `${child} · ${typeLabel}`,
       )
     : fitPushTitle(`${whenLabel} · ${typeLabel}`, typeLabel);
+
   const details = joinParts([
     eventSubject(ctx),
     ctx.startTime,
     ctx.meetingTime ? `RDV ${ctx.meetingTime}` : undefined,
     ctx.location,
   ]);
+
   if (ctx.tally) {
     return {
-      title,
+      title: structuralTitle,
       body: truncatePushBody(joinParts([formatRsvpTally(ctx.tally), details])),
     };
   }
-  const action =
-    ctx.rsvp === "none"
-      ? child
-        ? `Pense à répondre pour ${child}.`
-        : "Pense à répondre."
-      : "";
+
+  let title = structuralTitle;
+  let action = "";
+  if (ctx.rsvp === "none") {
+    if (child) {
+      action = `Hésite surtout pas à faire un choix pour ${child}.`;
+    } else {
+      const pool =
+        ctx.when === "today" ? DAY_TODAY_NONE_TITLES : DAY_TOMORROW_NONE_TITLES;
+      const picked = pickRandom(pool, rng(options));
+      title = picked === DAY_TITLE_STRUCTURAL ? structuralTitle : picked;
+      action =
+        picked === "Fais pas le ministre !"
+          ? ctx.when === "today"
+            ? `Allez, un choix pour ${eventTypeWithArticle(ctx.type)} d’aujourd’hui.`
+            : `Allez, un choix pour ${eventTypeWithArticle(ctx.type)} de demain.`
+          : DAY_NONE_ACTION;
+    }
+  }
   const body = [details, action].filter(Boolean).join(". ");
   return {
     title,
@@ -312,21 +522,38 @@ export function eventDayOfReminderCopy(
 }
 
 /** Nouvelle convocation (event créé à 7 jours ou moins). */
-export function eventCreatedCopy(ctx: EventPushContext): PushCopy {
+export function eventCreatedCopy(
+  ctx: EventPushContext,
+  options?: CopyPickOptions,
+): PushCopy {
   const child = ctx.childFirstName?.trim();
-  const title = child
-    ? fitPushTitle(`Convocation · ${child}`, "Nouvelle convocation")
-    : "Nouvelle convocation";
   const details = joinParts([
     typeDay(ctx),
     eventSubject(ctx),
     ctx.startTime,
     ctx.location,
   ]);
-  return {
-    title,
-    body: details ? `${details}. ${comingQuestion(ctx)}` : comingQuestion(ctx),
-  };
+  const bodyBase = details
+    ? `${details}. ${comingQuestion(ctx)}`
+    : comingQuestion(ctx);
+
+  if (child) {
+    return {
+      title: fitPushTitle(`Convocation · ${child}`, "Nouvelle convocation"),
+      body: bodyBase,
+    };
+  }
+
+  const titles: string[] = [...CREATED_PLAYER_TITLES];
+  if (normalizeEventType(ctx.type) === "match") {
+    titles.push(CREATED_MATCH_ONLY_TITLE);
+  }
+  const title = pickRandom(titles, rng(options));
+  const body =
+    title === CREATED_MATCH_ONLY_TITLE
+      ? `${bodyBase} Confirme vite.`
+      : bodyBase;
+  return { title, body };
 }
 
 /** Push annulation. */
@@ -344,19 +571,64 @@ export function eventCanceledCopy(ctx: EventPushContext): PushCopy {
   };
 }
 
-/** Push report : [ctx] porte déjà la nouvelle date / heure. */
-export function eventPostponedCopy(ctx: EventPushContext): PushCopy {
+/**
+ * Diff de planning pour la push « report » : date et / ou heure, avec les
+ * anciennes valeurs déjà formatées (jour « jeu. 23/10 », heure « 18h00 »).
+ */
+export type EventPostponedDiff = {
+  dateChanged: boolean;
+  timeChanged: boolean;
+  previousDayLabel?: string;
+  previousStartTime?: string;
+};
+
+/** « jeu. 23/10 » ou « jeu. 23/10 à 18h00 ». */
+function dayTimeLabel(dayLabel: string, startTime?: string): string {
+  return startTime ? `${dayLabel} à ${startTime}` : dayLabel;
+}
+
+/**
+ * Phrase du report selon ce qui a bougé :
+ * - heure seule → « jeu. 23/10 — passe à 19h00 (au lieu de 18h00). »
+ * - date (± heure) → « Reporté au lun. 27/10 à 18h00 (au lieu de …). »
+ */
+function postponedMovedSentence(
+  ctx: EventPushContext & EventPostponedDiff,
+): string {
+  const next = dayTimeLabel(ctx.dayLabel, ctx.startTime);
+  if (ctx.dateChanged) {
+    const previous = ctx.previousDayLabel
+      ? dayTimeLabel(
+          ctx.previousDayLabel,
+          ctx.timeChanged ? ctx.previousStartTime : undefined,
+        )
+      : undefined;
+    const instead = previous ? ` (au lieu de ${previous})` : "";
+    return `Reporté au ${next}${instead}.`;
+  }
+  if (ctx.startTime && ctx.previousStartTime) {
+    return `${ctx.dayLabel} — passe à ${ctx.startTime} (au lieu de ${ctx.previousStartTime}).`;
+  }
+  if (ctx.startTime) {
+    return `${ctx.dayLabel} — passe à ${ctx.startTime}.`;
+  }
+  return `Maintenant ${next}.`;
+}
+
+/** Push report : [ctx] porte la nouvelle date / heure + le diff before→after. */
+export function eventPostponedCopy(
+  ctx: EventPushContext & EventPostponedDiff,
+): PushCopy {
   const child = ctx.childFirstName?.trim();
   const typeLabel = eventTypePushLabel(ctx.type);
-  const time = ctx.startTime ? ` à ${ctx.startTime}` : "";
   const subject = eventSubject(ctx);
-  const moved = `Maintenant ${ctx.dayLabel}${time}.`;
+  const moved = postponedMovedSentence(ctx);
   const check = child ? `Vérifie la dispo de ${child}.` : "Vérifie ta dispo.";
   return {
     title: child
       ? fitPushTitle(`${child} · Report`, `Report · ${typeLabel}`)
       : fitPushTitle(`Report · ${typeLabel}`),
-    body: `${subject ? `${subject} — ` : ""}${moved} ${check}`,
+    body: `${subject ? `${subject} · ` : ""}${moved} ${check}`,
   };
 }
 
@@ -409,18 +681,47 @@ export function eventModifiedCopy(
   };
 }
 
-/** Push manuelle coach / admin. */
+/**
+ * Push manuelle coach → joueurs none / maybe.
+ * Corps : « Signé coach {prénom} · {type} {date} ».
+ */
 export function eventManualPushCopy(
-  ctx: EventPushContext & { rsvp: RsvpStatus },
+  ctx: EventPushContext & {
+    rsvp: RsvpStatus;
+    coachFirstName?: string;
+  },
+  options?: CopyPickOptions,
 ): PushCopy {
-  const details = joinParts([
-    typeDayTime(ctx),
-    eventSubject(ctx),
-    ctx.location,
-  ]);
+  const child = ctx.childFirstName?.trim();
+  const coach = String(ctx.coachFirstName ?? "").trim();
+  const signed = coach
+    ? `Signé coach ${coach} · ${typeDay(ctx)}`
+    : `Signé coach · ${typeDay(ctx)}`;
+  const extras = joinParts([eventSubject(ctx), ctx.startTime, ctx.location]);
+  const body = extras ? `${signed} · ${extras}` : signed;
+
+  if (child) {
+    return {
+      title: pickRandom(manualParentTitles(child), rng(options)),
+      body,
+    };
+  }
   return {
-    title: "Rappel du coach",
-    body: ctx.rsvp === "none" ? `${details} — ${comingQuestion(ctx).toLowerCase()}` : details,
+    title: pickRandom(MANUAL_PLAYER_TITLES, rng(options)),
+    body,
+  };
+}
+
+/**
+ * Confirmation d’envoi au coach / admin qui a tapé le bouton (pas une
+ * relance joueur).
+ */
+export function eventManualPushSentCopy(ctx: EventPushContext): PushCopy {
+  return {
+    title: "Notif envoyée",
+    body: truncatePushBody(
+      joinParts([typeDayTime(ctx), eventSubject(ctx), ctx.location]),
+    ),
   };
 }
 
@@ -455,6 +756,8 @@ export function formatMemberShortName(params: {
 export type RsvpDigestEntry = {
   memberName: string;
   status: string;
+  /** Statut avant le changement ; utile pour signaler un retournement. */
+  previousStatus?: string;
 };
 
 /** Décompte des réponses d'un event (convoqués). */
@@ -466,6 +769,32 @@ export function formatRsvpTally(tally: RsvpTally): string {
   if (tally.maybe > 0) parts.push(`${tally.maybe} peut-être`);
   if (tally.none > 0) parts.push(`${tally.none} sans réponse`);
   return parts.join(", ");
+}
+
+/** True si le joueur était présent et bascule en absent / peut-être. */
+export function isRsvpPresenceFlip(previousStatus: string | undefined, status: string): boolean {
+  return (
+    normalizeRsvpStatus(previousStatus) === "yes" &&
+    (normalizeRsvpStatus(status) === "no" ||
+      normalizeRsvpStatus(status) === "maybe")
+  );
+}
+
+/**
+ * True si passage vers une présence (oui) depuis un statut connu non-oui.
+ * Sans [previousStatus], on reste sur la phrase simple « X vient ».
+ */
+export function isRsvpJoin(
+  previousStatus: string | undefined,
+  status: string,
+): boolean {
+  if (previousStatus == null || String(previousStatus).trim() === "") {
+    return false;
+  }
+  return (
+    normalizeRsvpStatus(status) === "yes" &&
+    normalizeRsvpStatus(previousStatus) !== "yes"
+  );
 }
 
 /** « Marie D. vient », « Paul G. ne vient pas »… */
@@ -482,29 +811,153 @@ function rsvpSentence(name: string, status: string): string {
   }
 }
 
+/** Variantes titre RSVP staff (une réponse). */
+function rsvpStaffTitle(
+  name: string,
+  status: string,
+  previousStatus: string | undefined,
+  random: CopyRandom,
+): string {
+  const normalized = normalizeRsvpStatus(status);
+  if (isRsvpPresenceFlip(previousStatus, status)) {
+    return pickRandom(
+      [`${name} a basculé`, `${name} se désiste`, rsvpSentence(name, status)],
+      random,
+    );
+  }
+  if (isRsvpJoin(previousStatus, status)) {
+    return pickRandom(
+      [`${name} s’ajoute`, rsvpSentence(name, status)],
+      random,
+    );
+  }
+  if (
+    previousStatus != null &&
+    String(previousStatus).trim() !== "" &&
+    normalized === "no" &&
+    normalizeRsvpStatus(previousStatus) !== "no"
+  ) {
+    return pickRandom(
+      [`${name} se désiste`, rsvpSentence(name, status)],
+      random,
+    );
+  }
+  return rsvpSentence(name, status);
+}
+
+/** Corps court pour un retournement de présence (oui → non / peut-être). */
+function rsvpPresenceFlipBody(status: string): string {
+  return normalizeRsvpStatus(status) === "maybe"
+    ? "Passe en peut-être"
+    : "Ne vient plus";
+}
+
 /**
  * Push après stabilisation d’un ou plusieurs RSVP (digest anti-spam), pour le
  * staff et les joueurs qui suivent leurs coéquipiers. Le décompte aide le
  * coach à savoir s'il a assez de monde.
  */
-export function eventRsvpChangedCopy(params: {
-  responses: RsvpDigestEntry[];
-  ctx: EventPushContext;
-  tally: RsvpTally;
-}): PushCopy {
+export function eventRsvpChangedCopy(
+  params: {
+    responses: RsvpDigestEntry[];
+    ctx: EventPushContext;
+    tally: RsvpTally;
+  },
+  options?: CopyPickOptions,
+): PushCopy {
   const responses = params.responses.length > 0
     ? params.responses
     : [{ memberName: "Un membre", status: "none" }];
   const typeLabel = eventTypePushLabel(params.ctx.type);
+  const single = responses.length === 1 ? responses[0]! : null;
+  const name = single?.memberName.trim() || "Un membre";
+  const flipped =
+    single != null &&
+    isRsvpPresenceFlip(single.previousStatus, single.status);
+
   const lead =
-    responses.length === 1
-      ? rsvpSentence(responses[0]!.memberName.trim() || "Un membre", responses[0]!.status)
+    single != null
+      ? rsvpStaffTitle(name, single.status, single.previousStatus, rng(options))
       : `${responses.length} nouvelles réponses`;
+
+  const body = flipped
+    ? truncatePushBody(
+        joinParts([
+          `Présence : ${rsvpPresenceFlipBody(single!.status).toLowerCase()}`,
+          typeDay(params.ctx),
+          eventSubject(params.ctx),
+        ]),
+      )
+    : truncatePushBody(
+        joinParts([
+          typeDay(params.ctx),
+          eventSubject(params.ctx),
+          formatRsvpTally(params.tally),
+        ]),
+      );
+
   return {
     title: fitPushTitle(lead, `Réponse · ${typeLabel}`),
-    body: truncatePushBody(
-      joinParts([typeDay(params.ctx), eventSubject(params.ctx), formatRsvpTally(params.tally)]),
+    body,
+  };
+}
+
+/** Entrée d’un digest multi-événements pour les coéquipiers opt-in. */
+export type TeammateRsvpDigestItem = {
+  responderMemberId: string;
+  responderName: string;
+  eventId: string;
+  status: string;
+  previousStatus?: string;
+};
+
+/**
+ * Copy du digest coéquipiers multi-événements : une réponse = détail event ;
+ * plusieurs = message court « vérifie dans l’app ».
+ */
+export function teammateRsvpDigestCopy(
+  params: {
+    items: TeammateRsvpDigestItem[];
+    /** Copy détaillée quand il n’y a qu’une seule réponse (event connu). */
+    singleEventCopy?: PushCopy;
+  },
+  options?: CopyPickOptions,
+): PushCopy {
+  const items = params.items;
+  if (items.length <= 1) {
+    return (
+      params.singleEventCopy ?? {
+        title: fitPushTitle("Nouvelle réponse", "Réponse"),
+        body: pickRandom(TEAMMATE_DIGEST_BODIES, rng(options)),
+      }
+    );
+  }
+
+  const responderIds = new Set(items.map((item) => item.responderMemberId));
+  const eventIds = new Set(items.map((item) => item.eventId));
+  const eventCount = eventIds.size;
+  const glance = pickRandom(TEAMMATE_DIGEST_BODIES, rng(options));
+
+  if (responderIds.size === 1) {
+    const name = items[0]!.responderName.trim() || "Un membre";
+    const lead =
+      eventCount <= 1 ? `${name} a répondu` : `${name} · ${eventCount} réponses`;
+    const body =
+      eventCount <= 1
+        ? glance
+        : `${name} a répondu à ${eventCount} convocations. ${glance}`;
+    return {
+      title: fitPushTitle(lead, "Réponses coéquipiers"),
+      body: truncatePushBody(body),
+    };
+  }
+
+  return {
+    title: fitPushTitle(
+      `${items.length} réponses coéquipiers`,
+      "Réponses coéquipiers",
     ),
+    body: glance,
   };
 }
 
@@ -535,7 +988,10 @@ export type WeeklyDigestItem = {
  * Récap du dimanche soir : ce qui attend la personne la semaine suivante et
  * les réponses manquantes. `null` si rien au programme (pas d'envoi).
  */
-export function weeklyDigestCopy(items: WeeklyDigestItem[]): PushCopy | null {
+export function weeklyDigestCopy(
+  items: WeeklyDigestItem[],
+  options?: CopyPickOptions,
+): PushCopy | null {
   if (items.length === 0) return null;
   const counts = new Map<string, number>();
   for (const item of items) {
@@ -554,8 +1010,8 @@ export function weeklyDigestCopy(items: WeeklyDigestItem[]): PushCopy | null {
   const pendingCount = items.filter((item) => item.awaitingResponse).length;
   const pendingLine =
     pendingCount === 0
-      ? "Tout est répondu, bonne semaine !"
-      : `${pendingCount} réponse${pendingCount > 1 ? "s" : ""} attendue${pendingCount > 1 ? "s" : ""} (${pendingDays.join(", ")}). Jette un œil au planning.`;
+      ? pickRandom(WEEKLY_OK_ENDINGS, rng(options))
+      : `${pendingCount} réponse${pendingCount > 1 ? "s" : ""} attendue${pendingCount > 1 ? "s" : ""} (${pendingDays.join(", ")}). Hésite pas à checker.`;
   return {
     title: "Ta semaine",
     body: truncatePushBody(`${summary}. ${pendingLine}`),

@@ -7,7 +7,6 @@ import { AccountSettingsSection } from "@/components/settings/AccountSettingsSec
 import { MyClubsSection } from "@/components/settings/MyClubsSection";
 import { NotificationPreferencesSection } from "@/components/settings/NotificationPreferencesSection";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { MemberRoles } from "@/lib/firebase/constants";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import shared from "@/components/settings/settingsShared.module.css";
 
@@ -16,17 +15,13 @@ import shared from "@/components/settings/settingsShared.module.css";
  * compte, notifications, puis la liste des clubs ; sortie en bas de page.
  */
 export function AccountPageContent({ eyebrow }: { eyebrow: string }) {
-  const { profile } = useAuth();
+  const { accessByClub } = useAuth();
 
-  // Bilan des réponses : utile seulement aux coachs / admins d’au moins un club.
+  // Bilan des réponses : utile seulement à l’encadrement (un droit, ou coach
+  // d’une équipe) d’au moins un club.
   const isStaffSomewhere = useMemo(
-    () =>
-      (profile?.clubMemberships ?? []).some(
-        (membership) =>
-          membership.role === MemberRoles.admin ||
-          membership.role === MemberRoles.coach,
-      ),
-    [profile?.clubMemberships],
+    () => Object.values(accessByClub).some((access) => access.isStaff),
+    [accessByClub],
   );
 
   return (

@@ -9,9 +9,8 @@ import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/config/router_refresh.dart';
 import 'package:viro_team_v2/config/startup_session_gate.dart';
 
-import 'package:viro_team_v2/config/feature_flags.dart';
-
 import 'package:viro_team_v2/features/app_update/providers/app_update_providers.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 
 import 'package:viro_team_v2/features/app_update/screens/app_update_required_screen.dart';
 
@@ -32,7 +31,6 @@ import 'package:viro_team_v2/features/club/providers/club_audience_providers.dar
 import 'package:viro_team_v2/features/club/screens/club_appearance_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_activity_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_locations_screen.dart';
-import 'package:viro_team_v2/features/club/screens/club_role_requests_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_settings_screen.dart';
 import 'package:viro_team_v2/features/equipment/screens/club_equipment_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_detail_screen.dart';
@@ -61,8 +59,6 @@ import 'package:viro_team_v2/features/join/screens/invitation_preview_screen.dar
 
 import 'package:viro_team_v2/features/join/screens/join_code_screen.dart';
 
-import 'package:viro_team_v2/features/join/screens/request_role_screen.dart';
-
 import 'package:viro_team_v2/features/settings/screens/account_settings_screen.dart';
 import 'package:viro_team_v2/features/settings/screens/appearance_settings_screen.dart';
 import 'package:viro_team_v2/features/settings/screens/delete_account_screen.dart';
@@ -73,6 +69,8 @@ import 'package:viro_team_v2/features/settings/screens/user_settings_screen.dart
 import 'package:viro_team_v2/providers/session_provider.dart';
 
 import 'package:viro_team_v2/screens/dev/design_system_preview_screen.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
+import 'package:viro_team_v2/widgets/common/club_access_guard.dart';
 
 
 
@@ -94,8 +92,6 @@ abstract final class AppRoutes {
   static const join = '/join';
 
   static const joinPreview = '/join/preview';
-
-  static const joinRequestRole = '/join/request-role';
 
   static const clubSetup = '/club-setup';
 
@@ -148,8 +144,6 @@ abstract final class AppRoutes {
   static const clubActivity = '/club/:clubId/activity';
 
   static const clubSettings = '/club/:clubId/settings';
-
-  static const clubRoleRequests = '/club/:clubId/role-requests';
 
   static const clubLocations = '/club/:clubId/locations';
 
@@ -217,10 +211,6 @@ abstract final class AppRoutes {
   static String clubActivityPath(String clubId) => '/club/$clubId/activity';
 
   static String clubSettingsPath(String clubId) => '/club/$clubId/settings';
-
-  static String clubRoleRequestsPath(String clubId) =>
-
-      '/club/$clubId/role-requests';
 
   static String clubLocationsPath(String clubId) => '/club/$clubId/locations';
 
@@ -395,11 +385,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
         }
 
-        if (!isPublic &&
-
-            path != AppRoutes.joinPreview &&
-
-            path != AppRoutes.joinRequestRole) {
+        if (!isPublic && path != AppRoutes.joinPreview) {
 
           return AppRoutes.entry;
 
@@ -416,7 +402,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           AppRoutes.entry,
           AppRoutes.join,
           AppRoutes.joinPreview,
-          AppRoutes.joinRequestRole,
           AppRoutes.signup,
         };
 
@@ -505,10 +490,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             // Pas de mutation de provider pendant la résolution de route.
             Future.microtask(() {
               if (ref.read(sessionProvider).activeClubId != linkClubId) {
-                ref.read(sessionProvider.notifier).setActiveClub(
-                      linkClubId,
-                      role: user.membershipInClub(linkClubId)?.role,
-                    );
+                ref.read(sessionProvider.notifier).setActiveClub(linkClubId);
               }
               selectDeepLinkChild(
                 select: (clubId, memberId) => ref
@@ -627,14 +609,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       GoRoute(
 
-        path: AppRoutes.joinRequestRole,
-
-        builder: (context, state) => const RequestRoleScreen(),
-
-      ),
-
-      GoRoute(
-
         path: AppRoutes.clubSetup,
 
         builder: (context, state) => const ClubSetupWizardScreen(),
@@ -652,7 +626,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.conversations,
         redirect: (context, state) =>
-            FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
+            ref.read(chatMessagingLiveProvider) ? null : AppRoutes.home,
         pageBuilder: (context, state) {
           if (state.extra is ConversationsSwipeCommit) {
             return ViroSlidePage<void>(
@@ -675,7 +649,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.conversation,
         redirect: (context, state) =>
-            FeatureFlags.chatMessagingLive ? null : AppRoutes.home,
+            ref.read(chatMessagingLiveProvider) ? null : AppRoutes.home,
         pageBuilder: (context, state) {
           final clubId = state.pathParameters['clubId']!;
           final conversationId = state.pathParameters['conversationId']!;
@@ -788,7 +762,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           final clubId = state.pathParameters['clubId']!;
 
-          return ClubMembersScreen(clubId: clubId);
+          return ClubAccessGuard(
+            clubId: clubId,
+            allow: (access) => access.canOpenMembers,
+            child: ClubMembersScreen(clubId: clubId),
+          );
 
         },
 
@@ -847,12 +825,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           }
 
-          return AddEventScreen(
-
+          return ClubAccessGuard(
             clubId: clubId,
-
-            initialDate: initialDate,
-
+            allow: (access) => access.canCreateEvents,
+            child: AddEventScreen(clubId: clubId, initialDate: initialDate),
           );
 
         },
@@ -933,7 +909,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           final clubId = state.pathParameters['clubId']!;
 
-          return AdminFeesScreen(clubId: clubId);
+          return ClubAccessGuard(
+            clubId: clubId,
+            allow: (access) => access.can(ClubPermission.viewFees),
+            deniedRedirect: AppRoutes.clubMyFeePath(clubId),
+            child: AdminFeesScreen(clubId: clubId),
+          );
 
         },
 
@@ -964,7 +945,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           final clubId = state.pathParameters['clubId']!;
 
-          return ClubAppearanceScreen(clubId: clubId);
+          return ClubAccessGuard(
+            clubId: clubId,
+            allow: (access) => access.can(ClubPermission.manageClubSettings),
+            child: ClubAppearanceScreen(clubId: clubId),
+          );
 
         },
 
@@ -978,7 +963,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           final clubId = state.pathParameters['clubId']!;
 
-          return ClubEquipmentScreen(clubId: clubId);
+          return ClubAccessGuard(
+            clubId: clubId,
+            allow: (access) => access.can(ClubPermission.manageEquipment),
+            child: ClubEquipmentScreen(clubId: clubId),
+          );
 
         },
 
@@ -992,7 +981,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           final clubId = state.pathParameters['clubId']!;
 
-          return ClubActivityScreen(clubId: clubId);
+          return ClubAccessGuard(
+            clubId: clubId,
+            allow: (access) => access.can(ClubPermission.viewActivity),
+            child: ClubActivityScreen(clubId: clubId),
+          );
 
         },
 
@@ -1006,21 +999,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           final clubId = state.pathParameters['clubId']!;
 
-          return ClubSettingsScreen(clubId: clubId);
-
-        },
-
-      ),
-
-      GoRoute(
-
-        path: AppRoutes.clubRoleRequests,
-
-        builder: (_, state) {
-
-          final clubId = state.pathParameters['clubId']!;
-
-          return ClubRoleRequestsScreen(clubId: clubId);
+          return ClubAccessGuard(
+            clubId: clubId,
+            allow: (access) => access.can(ClubPermission.manageClubSettings),
+            child: ClubSettingsScreen(clubId: clubId),
+          );
 
         },
 
@@ -1034,7 +1017,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
           final clubId = state.pathParameters['clubId']!;
 
-          return ClubLocationsScreen(clubId: clubId);
+          return ClubAccessGuard(
+            clubId: clubId,
+            allow: (access) => access.can(ClubPermission.manageClubSettings),
+            child: ClubLocationsScreen(clubId: clubId),
+          );
 
         },
 

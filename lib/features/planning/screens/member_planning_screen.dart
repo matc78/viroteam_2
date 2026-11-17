@@ -8,12 +8,10 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/planning/widgets/club_planning_picker_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/utils/club_color.dart';
@@ -58,23 +56,13 @@ class MemberPlanningScreen extends ConsumerWidget {
     required WidgetRef ref,
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) {
     PlanningEventDetailSheet.show(
       context: context,
       clubId: event.clubId,
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
-      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(
-        event,
-        teams,
-        membersByUid: ref.read(clubMembersProvider(event.clubId)).value != null
-            ? indexClubMembersByUid(
-                ref.read(clubMembersProvider(event.clubId)).value!,
-              )
-            : null,
-      ),
-      canManageEvents: canManageEvents,
+      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
       onCanceled: () {},
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
@@ -199,14 +187,12 @@ class MemberPlanningScreen extends ConsumerWidget {
                       onShowDetail: ({
                         required event,
                         required teams,
-                        required canManageEvents,
                       }) =>
                           _showEventDetail(
                         context: context,
                         ref: ref,
                         event: event,
                         teams: teams,
-                        canManageEvents: canManageEvents,
                       ),
                       onSetRsvp: (event, status) =>
                           _setRsvp(ref, context, event, status),

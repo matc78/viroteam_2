@@ -8,14 +8,17 @@ import { DashboardModulePanels } from "@/components/dashboard/DashboardModulePan
 import { PortalShell, type PortalNavItem } from "@/components/shell/PortalShell";
 import {
   bureauCapabilities,
-  bureauRoleChipLabel,
   isBureauRouteAllowed,
 } from "@/lib/auth/bureauPermissions";
+import { NO_CLUB_ACCESS } from "@/lib/auth/permissions";
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
+import { isBureauMessagesPath } from "@/lib/chat/isMessagesPath";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import { usePlayerFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
+  accountClubBadge,
   buildClubMembershipTiles,
-  membershipRoleForClub,
   type PortalSpace,
 } from "@/lib/firebase/types";
 
@@ -43,12 +46,14 @@ function isPathUnder(pathname: string, href: string): boolean {
 
 /** Pages hors club actif : pas de nav modules ni de club sélectionné. */
 function isCrossClubPath(pathname: string): boolean {
-  return ["/my-planning", "/messages", "/account"].some((href) =>
-    isPathUnder(pathname, href),
+  return (
+    isPathUnder(pathname, "/my-planning") ||
+    isPathUnder(pathname, "/account") ||
+    isBureauMessagesPath(pathname)
   );
 }
 
-/** Coquille espace club : sidebar bureau + modules. */
+/** Coquille espace club : sidebar bureau + modules, filtrés par les droits. */
 export function DashboardShell() {
   const pathname = usePathname();
   const router = useRouter();
@@ -57,31 +62,38 @@ export function DashboardShell() {
     activeSpace,
     bureauClubs,
     familyClubs,
-    activeClubRole,
-    profile,
+    accessByClub,
+    activeClubAccessLoading,
     selectClubContext,
   } = useAuth();
+  const caps = useBureauCapabilities();
   const { beginPageLoad } = usePageLoad();
   const feeDeadlineUrgent = usePlayerFeeDeadlineUrgency();
 
-  const clubsWithRoles = useMemo(
-    () => buildClubMembershipTiles(bureauClubs, familyClubs, profile),
-    [bureauClubs, familyClubs, profile],
+  const clubsWithBadges = useMemo(
+    () => buildClubMembershipTiles(bureauClubs, familyClubs, accessByClub),
+    [bureauClubs, familyClubs, accessByClub],
   );
 
-  const caps = useMemo(
-    () => bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
-    [activeClubRole, activeClub?.coachPermissions],
-  );
+  // Badge principal du compte dans le club actif ; aucun tant que la fiche
+  // charge (évite le flash « Membre »).
+  const activeBadge =
+    activeClubAccessLoading || !activeClub
+      ? null
+      : accountClubBadge(
+          caps.access,
+          familyClubs.some((club) => club.id === activeClub.id),
+        );
+
   const visibleNavItems = useMemo(() => {
     const allowed = new Set(caps.navHrefs);
     return NAV_ITEMS.filter((item) => allowed.has(item.href)).map((item) =>
-      // Joueur : une seule cotisation, la sienne.
-      item.href === "/fees" && caps.isPlayer
+      // Sans droit de lecture des cotisations : une seule cotisation, la sienne.
+      item.href === "/fees" && !caps.canViewFees
         ? { ...item, label: "Ma cotisation" }
         : item,
     );
-  }, [caps.navHrefs, caps.isPlayer]);
+  }, [caps.navHrefs, caps.canViewFees]);
 
   function handleClubChange(clubId: string, space: PortalSpace) {
     if (space !== activeSpace) {
@@ -92,9 +104,7 @@ export function DashboardShell() {
       return;
     }
 
-    const club = bureauClubs.find((item) => item.id === clubId);
-    const nextRole = membershipRoleForClub(profile, clubId);
-    const nextCaps = bureauCapabilities(nextRole, club?.coachPermissions);
+    const nextCaps = bureauCapabilities(accessByClub[clubId] ?? NO_CLUB_ACCESS);
     const stayOnPage =
       !isCrossClubPath(pathname) && isBureauRouteAllowed(pathname, nextCaps);
     const target = stayOnPage ? pathname : "/home";
@@ -108,7 +118,7 @@ export function DashboardShell() {
   const fillViewport =
     isPathUnder(pathname, "/planning") ||
     isPathUnder(pathname, "/my-planning") ||
-    isPathUnder(pathname, "/messages");
+    isBureauMessagesPath(pathname);
 
   return (
     <PortalShell
@@ -123,11 +133,11 @@ export function DashboardShell() {
       feeDeadlineUrgent={feeDeadlineUrgent}
       fillViewport={fillViewport}
       wide={WIDE_PATH_PREFIXES.some((prefix) => isPathUnder(pathname, prefix))}
-      clubs={clubsWithRoles}
+      clubs={clubsWithBadges}
       activeClubId={activeClub?.id ?? null}
       activeSpace={activeSpace}
       onClubChange={handleClubChange}
-      accountSubtitle={bureauRoleChipLabel(activeClubRole)}
+      accountSubtitle={activeBadge ? badgeLabel(activeBadge) : ""}
       routeGuard={<BureauRouteGuard />}
     >
       <DashboardModulePanels />

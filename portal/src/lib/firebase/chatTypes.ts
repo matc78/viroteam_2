@@ -1,3 +1,4 @@
+import { chatCopy } from "@/lib/copy/chatCopy";
 import {
   ChatConversationTypes,
   ChatMessageTypes,
@@ -8,6 +9,19 @@ import {
 export type ChatPollOption = {
   id: string;
   text: string;
+};
+
+/**
+ * Profil d’un participant dénormalisé sur la conversation (écrit par les Functions).
+ * Seule source de noms / avatars / rôles pour un parent (pas de `list` members).
+ */
+export type ChatParticipantProfile = {
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  avatarUrl: string | null;
+  /** `player` | `coach` | `admin` | `parent`. */
+  role: string;
 };
 
 /** Conversation club (`clubs/{clubId}/conversations/{convId}`). */
@@ -23,6 +37,8 @@ export type ChatConversation = {
   teamId: string | null;
   categoryKey: string | null;
   participantUids: string[];
+  /** Profils par uid (vide tant que la sync serveur n’est pas passée). */
+  participantProfiles: Record<string, ChatParticipantProfile>;
   writePolicy: string;
   lastMessageAt: Date | null;
   lastMessagePreview: string;
@@ -98,6 +114,22 @@ export function isChannelConversation(
     conversation.writePolicy === ChatWritePolicies.adminsOnly ||
     conversation.writePolicy === ChatWritePolicies.coachesAndAdmins
   );
+}
+
+/**
+ * Bandeau « qui peut écrire » d’un canal, ou `null` (conversation ouverte ou pas encore chargée).
+ */
+export function readonlyHintFor(
+  conversation: ChatConversation | null,
+): string | null {
+  switch (conversation?.writePolicy) {
+    case ChatWritePolicies.adminsOnly:
+      return chatCopy.readonlyAdminsOnly;
+    case ChatWritePolicies.coachesAndAdmins:
+      return chatCopy.readonlyCoachesAndAdmins;
+    default:
+      return null;
+  }
 }
 
 /** Groupe multi-users non-canal : les participants peuvent changer l’avatar. */

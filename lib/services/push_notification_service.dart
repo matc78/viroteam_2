@@ -5,8 +5,10 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:viro_team_v2/services/analytics_service.dart';
 import 'package:viro_team_v2/services/foreground_push_policy.dart';
 import 'package:viro_team_v2/services/local_notification_service.dart';
+import 'package:viro_team_v2/services/notification_analytics.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 
 /// Initialise FCM, enregistre le token, affiche les push au premier plan et
@@ -18,12 +20,17 @@ class PushNotificationService {
   PushNotificationService({
     FirebaseFunctions? functions,
     LocalNotificationService? localNotifications,
+    AnalyticsService? analytics,
   }) : _functions =
            functions ?? FirebaseFunctions.instanceFor(region: 'europe-west1'),
-       _localNotifications = localNotifications ?? LocalNotificationService();
+       _localNotifications = localNotifications ?? LocalNotificationService(),
+       _notificationAnalytics = NotificationAnalytics(
+         analytics: analytics ?? AnalyticsService(),
+       );
 
   final FirebaseFunctions _functions;
   final LocalNotificationService _localNotifications;
+  final NotificationAnalytics _notificationAnalytics;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   void Function(Uri uri)? _onDeepLink;
@@ -175,6 +182,7 @@ class PushNotificationService {
         preferenceKey: message.data['preferenceKey']?.toString(),
         tag: message.data['tag']?.toString(),
         deepLink: message.data['deepLink']?.toString(),
+        notificationType: message.data['type']?.toString(),
       );
     } catch (error, stack) {
       _recordSoftFcmFailure(
@@ -232,14 +240,28 @@ class PushNotificationService {
     );
   }
 
-  /// Tap sur une notif FCM : délègue au gestionnaire de deep link (session
-  /// club + différé à froid inclus).
+  /// Tap sur une notif FCM : analytics puis deep link (session club + différé
+  /// à froid inclus).
   void _handleMessageNavigation(RemoteMessage message) {
-    _handleDeepLinkString(message.data['deepLink']?.toString());
+    _notificationAnalytics.trackOpened(
+      notificationType: message.data['type']?.toString(),
+      preferenceKey: message.data['preferenceKey']?.toString(),
+    );
+    _navigateDeepLink(message.data['deepLink']?.toString());
   }
 
-  /// Tap sur une notif (FCM ou locale) portant un deep link.
-  void _handleDeepLinkString(String? deepLink) {
+  /// Tap sur une notif locale : payload JSON enrichi ou deep link brut.
+  void _handleDeepLinkString(String? payload) {
+    final decoded = decodeLocalNotificationPayload(payload);
+    _notificationAnalytics.trackOpened(
+      notificationType: decoded.notificationType,
+      preferenceKey: decoded.preferenceKey,
+    );
+    _navigateDeepLink(decoded.deepLink);
+  }
+
+  /// Route vers [deepLink] si l'URI est valide.
+  void _navigateDeepLink(String? deepLink) {
     if (deepLink == null || deepLink.isEmpty) return;
     final uri = Uri.tryParse(deepLink);
     if (uri == null) return;

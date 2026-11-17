@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_manage_permissions.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/teams/widgets/add_team_member_sheet.dart';
 import 'package:viro_team_v2/features/teams/widgets/confirm_remove_from_team_dialog.dart';
@@ -20,7 +21,10 @@ import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 class ManageTeamCard extends ConsumerStatefulWidget {
   const ManageTeamCard({
@@ -28,15 +32,11 @@ class ManageTeamCard extends ConsumerStatefulWidget {
     required this.team,
     required this.club,
     required this.accent,
-    required this.permissions,
-    required this.viewerRole,
   });
 
   final ClubTeam team;
   final Club club;
   final Color accent;
-  final TeamManagePermissions permissions;
-  final String viewerRole;
 
   @override
   ConsumerState<ManageTeamCard> createState() => _ManageTeamCardState();
@@ -86,22 +86,47 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     }
   }
 
+  /// Ouvre la fiche membre si le compte est lié ; sinon `null` (pas de tap).
+  VoidCallback? _memberProfileTap(ClubMember member) {
+    if (!member.hasLinkedAccount) return null;
+    return () => showMemberDetailSheet(
+          context,
+          ref: ref,
+          club: widget.club,
+          member: member,
+          accentColor: widget.accent,
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
     final team = widget.team;
-    final perms = widget.permissions;
-    final canAddPlayer = perms.canAddPlayer(team);
-    final canAddCoach = perms.canAddCoach(team);
-    final canRemovePlayer = perms.canRemovePlayer(team);
-    final canRemoveCoach = perms.canRemoveCoach(team);
-    final canRemovePending = perms.canRemovePendingPlayer(team);
-    final canShareTeamInvite = perms.canShareTeamInvite(team);
+    // Droit équipes : tout l'effectif ; coach de l'équipe : ajout de joueurs
+    // et code d'invitation selon les réglages coach du club.
+    final access = ref.watch(clubAccessProvider(team.clubId));
+    final canManageTeams = access.can(ClubPermission.manageTeams);
+    final canAddPlayer = access.canAddPlayerToTeam(team.id);
+    final canAddCoach = canManageTeams;
+    final canRemovePlayer = canManageTeams;
+    final canRemoveCoach = canManageTeams;
+    final canRemovePending = canManageTeams;
+    final canShareTeamInvite = access.canShareTeamInvite(team.id);
 
     final membersAsync = ref.watch(clubMembersProvider(team.clubId));
     final membersByUid = membersAsync.value != null
-        ? indexClubMembersByUid(membersAsync.value!)
+        ? indexClubMembersById(membersAsync.value!)
         : <String, ClubMember>{};
+    final sessionMemberId =
+        ref.watch(rosterSessionMemberIdProvider(team.clubId));
+    final orderedCoachIds = pinSessionMemberIdFirst(
+      team.coachIds,
+      sessionMemberId: sessionMemberId,
+    );
+    final orderedPlayerIds = pinSessionMemberIdFirst(
+      team.playerIds,
+      sessionMemberId: sessionMemberId,
+    );
 
     return ViroCard(
       accentColor: widget.accent,
@@ -172,8 +197,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     ),
                   )
                 else ...[
-                  // Messagerie cachée en release tant que la feature n’est pas live.
-                  if (FeatureFlags.chatMessagingLive)
+                  if (ref.watch(chatMessagingLiveProvider))
                     TeamMessagingLinksSection(
                       team: team,
                       accent: widget.accent,
@@ -203,15 +227,17 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     onAdd: canAddCoach
                         ? () => _openAddSheet(TeamRosterSlot.coach)
                         : null,
-                    children: team.coachIds.map((uid) {
-                      final member = clubMemberForTeamUid(membersByUid, uid);
+                    children: orderedCoachIds.map((uid) {
+                      final member = membersByUid[uid];
                       if (member == null) return const SizedBox.shrink();
                       return MemberListTile(
                         member: member,
                         club: widget.club,
-                        viewerRole: widget.viewerRole,
                         accentColor: widget.accent,
                         showClubAdminActions: false,
+                        displayRole: ViroRole.coach,
+                        isSessionMember: member.memberId == sessionMemberId,
+                        onTap: _memberProfileTap(member),
                         onRemove: canRemoveCoach
                             ? () => _removeCoach(uid, member)
                             : null,
@@ -226,15 +252,17 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     onAdd: canAddPlayer
                         ? () => _openAddSheet(TeamRosterSlot.player)
                         : null,
-                    children: team.playerIds.map((uid) {
-                      final member = clubMemberForTeamUid(membersByUid, uid);
+                    children: orderedPlayerIds.map((uid) {
+                      final member = membersByUid[uid];
                       if (member == null) return const SizedBox.shrink();
                       return MemberListTile(
                         member: member,
                         club: widget.club,
-                        viewerRole: widget.viewerRole,
                         accentColor: widget.accent,
                         showClubAdminActions: false,
+                        displayRole: ViroRole.player,
+                        isSessionMember: member.memberId == sessionMemberId,
+                        onTap: _memberProfileTap(member),
                         onRemove: canRemovePlayer
                             ? () => _removePlayer(uid, member)
                             : null,
@@ -262,9 +290,9 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                           (p) => MemberListTile(
                             member: pendingAsClubMember(p),
                             club: widget.club,
-                            viewerRole: widget.viewerRole,
                             accentColor: widget.accent,
                             showClubAdminActions: false,
+                            displayRole: ViroRole.player,
                             onRemove: canRemovePending
                                 ? () => _removePending(p)
                                 : null,

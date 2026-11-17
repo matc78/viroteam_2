@@ -148,22 +148,6 @@ class ChatConversationOperations {
     await callable.call(<String, dynamic>{'clubId': clubId});
   }
 
-  /// Backfill de tous les clubs où l’utilisateur est admin.
-  Future<({int clubsSynced, int teamsSynced})>
-      backfillMyAdminClubChats() async {
-    final callable =
-        _functions.httpsCallable(cloudCallableName('backfillMyAdminClubChats'));
-    final result = await callable.call(<String, dynamic>{});
-    final data = result.data;
-    if (data is Map) {
-      return (
-        clubsSynced: (data['clubsSynced'] as num?)?.toInt() ?? 0,
-        teamsSynced: (data['teamsSynced'] as num?)?.toInt() ?? 0,
-      );
-    }
-    return (clubsSynced: 0, teamsSynced: 0);
-  }
-
   /// Ensure puis retrouve une conv système (pour clubs pré-chat).
   Future<String?> ensureAndFindConversationId({
     required String clubId,

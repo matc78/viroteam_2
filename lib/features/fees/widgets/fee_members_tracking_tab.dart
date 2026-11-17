@@ -9,6 +9,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/fees/models/fee_season.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
+import 'package:viro_team_v2/features/fees/utils/fee_member_names.dart';
 import 'package:viro_team_v2/features/fees/utils/fee_format.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_mark_paid_dialogs.dart';
 import 'package:viro_team_v2/features/fees/widgets/fee_tracking_stats_card.dart';
@@ -24,6 +25,7 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/lists/member_fee_list_tile.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Membres du club sans fiche `member_fees` pour la saison en cours.
 int pendingFeeInitCount({
@@ -64,6 +66,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
     required this.onOpenBulk,
     this.accentColor,
     this.onOpenConfig,
+    this.readOnly = false,
   });
 
   final String clubId;
@@ -78,6 +81,10 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   final VoidCallback onOpenBulk;
   final Color? accentColor;
   final VoidCallback? onOpenConfig;
+
+  /// Lecture seule (droit `viewFees` sans `manageFees`) : ni sélection, ni
+  /// actions sur une cotisation, ni ajout des membres en attente.
+  final bool readOnly;
 
   List<MemberFee> _applySearchAndTier(List<MemberFee> fees) {
     return fees.where((f) {
@@ -174,10 +181,12 @@ class FeeMembersTrackingTab extends ConsumerWidget {
           ViroSnackBar.show(context, AppCopy.fees.fieldUpToDateHint);
         }
       },
-      onLongPress: () {
-        if (!selectionMode) onToggleSelection();
-        onSelect(fee.memberId, true);
-      },
+      onLongPress: readOnly
+          ? null
+          : () {
+              if (!selectionMode) onToggleSelection();
+              onSelect(fee.memberId, true);
+            },
       onMenu: actionable
           ? () => _showFieldActions(context, ref, fee, season)
           : null,
@@ -252,7 +261,10 @@ class FeeMembersTrackingTab extends ConsumerWidget {
   Future<void> _exportCsv(BuildContext context, WidgetRef ref) async {
     final season = ref.read(activeSeasonProvider(clubId)).value;
     if (season == null) return;
-    final fees = ref.read(allMemberFeesProvider(clubId)).value ?? [];
+    final fees = withCurrentMemberNames(
+      ref.read(allMemberFeesProvider(clubId)).value ?? [],
+      ref.read(clubMembersProvider(clubId)).value ?? [],
+    );
     try {
       final csv = await ref.read(feeServiceProvider).exportCsv(
             clubId: clubId,
@@ -473,7 +485,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
             .toList();
 
     return seasonAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: ViroLogoLoader()),
       error: (error, stackTrace) => ViroErrorState(
         onRetry: () => ref.invalidate(activeSeasonProvider(clubId)),
       ),
@@ -489,11 +501,12 @@ class FeeMembersTrackingTab extends ConsumerWidget {
         }
 
         return feesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => ViroErrorState(
             onRetry: () => ref.invalidate(allMemberFeesProvider(clubId)),
           ),
-          data: (allFees) {
+          data: (storedFees) {
+            final allFees = withCurrentMemberNames(storedFees, members);
             final lists = _splitFees(allFees, season);
             final existingIds = allFees.map((f) => f.memberId).toSet();
             final pendingCount = pendingFeeInitCount(
@@ -531,11 +544,12 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                               ),
                             ),
                           ),
-                          IconButton(
-                            icon: ViroIcon(ViroIcons.selectAll),
-                            tooltip: AppCopy.fees.multiSelectTooltip,
-                            onPressed: onToggleSelection,
-                          ),
+                          if (!readOnly)
+                            IconButton(
+                              icon: ViroIcon(ViroIcons.selectAll),
+                              tooltip: AppCopy.fees.multiSelectTooltip,
+                              onPressed: onToggleSelection,
+                            ),
                           IconButton(
                             icon: ViroIcon(ViroIcons.copy),
                             tooltip: AppCopy.fees.exportCsvTooltip,
@@ -563,7 +577,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                             onChanged: onTierFilterChanged,
                           ),
                         ),
-                      if (pendingCount > 0)
+                      if (pendingCount > 0 && !readOnly)
                         Padding(
                           padding: const EdgeInsets.only(top: ViroSpacing.sm),
                           child: OutlinedButton(
@@ -613,7 +627,7 @@ class FeeMembersTrackingTab extends ConsumerWidget {
                                     ref,
                                     fee,
                                     season,
-                                    actionable: _needsFieldActions(fee, season),
+                                    actionable: !readOnly && _needsFieldActions(fee, season),
                                   ),
                               ],
                               if (lists.upToDate.isNotEmpty) ...[

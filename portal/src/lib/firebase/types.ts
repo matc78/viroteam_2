@@ -4,19 +4,16 @@ import {
   Fields,
   GuardianRelations,
   GuardianStatuses,
-  MemberRoles,
-  PortalUiRoles,
 } from "./constants";
+import {
+  primaryBadge,
+  type ClubAccess,
+  type DisplayBadge,
+} from "@/lib/auth/permissions";
 import {
   parseNotificationPreferences,
   type NotificationPreferences,
 } from "./notificationPreferences";
-
-/** Résumé d’adhésion club sur users/{uid}.clubMemberships. */
-export type ClubMembership = {
-  clubId: string;
-  role: string;
-};
 
 /** Lien parent → fiche enfant (index session, pas un rôle club). */
 export type ParentLink = {
@@ -35,7 +32,12 @@ export type ViroUserProfile = {
   lastName: string;
   displayName: string;
   avatarUrl: string | null;
-  clubMemberships: ClubMembership[];
+  /**
+   * Index `users/{uid}.memberClubIds` : clubs où le compte a une fiche.
+   * Aucun droit n’y figure (ils vivent sur `members/{uid}.permissions`) ;
+   * écrit par les Cloud Functions uniquement.
+   */
+  memberClubIds: string[];
   parentLinks: ParentLink[];
   parentClubIds: string[];
   /** Équipes des enfants (index maintenu serveur). */
@@ -43,6 +45,8 @@ export type ViroUserProfile = {
   notificationPreferences: NotificationPreferences;
   profileCompleted: boolean;
   disabled: boolean;
+  /** Accès anticipé messagerie (`flags.chatMessaging`), posé en console. */
+  chatMessaging: boolean;
   termsAcceptedAt: Date | null;
   termsVersion: string | null;
 };
@@ -67,9 +71,8 @@ export function parseUserProfile(
   const flags = (data?.[Fields.flags] as Record<string, unknown> | undefined) ?? {};
   const legal =
     (data?.[Fields.legal] as Record<string, unknown> | undefined) ?? {};
-  const rawMemberships =
-    (data?.[Fields.clubMemberships] as Array<Record<string, unknown>> | undefined) ??
-    [];
+  const rawMemberClubIds =
+    (data?.[Fields.memberClubIds] as unknown[] | undefined) ?? [];
   const rawParentLinks =
     (data?.[Fields.parentLinks] as Array<Record<string, unknown>> | undefined) ??
     [];
@@ -90,12 +93,11 @@ export function parseUserProfile(
       typeof rawAvatar === "string" && rawAvatar.trim()
         ? rawAvatar.trim()
         : null,
-    clubMemberships: rawMemberships
-      .map((item) => ({
-        clubId: String(item[Fields.clubId] ?? ""),
-        role: String(item[Fields.role] ?? ""),
-      }))
-      .filter((membership) => membership.clubId.length > 0),
+    memberClubIds: [
+      ...new Set(
+        rawMemberClubIds.map((item) => String(item ?? "").trim()).filter(Boolean),
+      ),
+    ],
     parentLinks: rawParentLinks
       .map(parseParentLink)
       .filter((link): link is ParentLink => link !== null),
@@ -110,6 +112,7 @@ export function parseUserProfile(
     ),
     profileCompleted: Boolean(flags[Fields.profileCompleted]),
     disabled: Boolean(flags[Fields.disabled]),
+    chatMessaging: flags[Fields.chatMessaging] === true,
     termsAcceptedAt:
       termsAcceptedRaw instanceof Timestamp
         ? termsAcceptedRaw.toDate()
@@ -121,49 +124,10 @@ export function parseUserProfile(
   };
 }
 
-/** Rôles avec accès à l’espace Bureau du portail. */
-const BUREAU_ROLES = new Set<string>([
-  MemberRoles.admin,
-  MemberRoles.coach,
-  MemberRoles.player,
-]);
-
-/** Clubs où l’utilisateur est admin. */
-export function adminClubIds(profile: ViroUserProfile | null): string[] {
-  if (!profile) return [];
-  return profile.clubMemberships
-    .filter((membership) => membership.role === MemberRoles.admin)
-    .map((membership) => membership.clubId);
-}
-
-/** Clubs où l’utilisateur a un rôle bureau (admin, coach ou joueur). */
+/** Clubs où le compte a une fiche membre (accès à l’espace Bureau). */
 export function bureauClubIds(profile: ViroUserProfile | null): string[] {
   if (!profile) return [];
-  const ids = new Set<string>();
-  for (const membership of profile.clubMemberships) {
-    if (BUREAU_ROLES.has(membership.role) && membership.clubId) {
-      ids.add(membership.clubId);
-    }
-  }
-  return [...ids];
-}
-
-/**
- * Rôle club pour un club donné.
- * En cas de multi-adhésions, privilégie admin > coach > player.
- */
-export function membershipRoleForClub(
-  profile: ViroUserProfile | null,
-  clubId: string | null | undefined,
-): string | null {
-  if (!profile || !clubId) return null;
-  const roles = profile.clubMemberships
-    .filter((membership) => membership.clubId === clubId)
-    .map((membership) => membership.role);
-  if (roles.includes(MemberRoles.admin)) return MemberRoles.admin;
-  if (roles.includes(MemberRoles.coach)) return MemberRoles.coach;
-  if (roles.includes(MemberRoles.player)) return MemberRoles.player;
-  return roles[0] ?? null;
+  return [...profile.memberClubIds];
 }
 
 /** Liens parent actifs (espace famille). */
@@ -180,54 +144,58 @@ export function familyClubIds(profile: ViroUserProfile | null): string[] {
   return [...ids];
 }
 
-/** Club enrichi du rôle membership sur ce club. */
-export type ClubWithRole = ClubRecord & { role: string | null };
+/**
+ * Club enrichi du badge du compte (`admin` | `coach` | `player` |
+ * `member` | `parent`), ou `null` (droits pas encore chargés).
+ */
+export type ClubWithBadge = ClubRecord & { badge: DisplayBadge | null };
+
+/**
+ * Badge du compte dans un club : badge principal de sa fiche ; `parent` si
+ * la fiche n'a ni droit admin ni équipe (`member`) mais un lien parent actif,
+ * ou s'il n'a pas de fiche. `null` : droits pas encore chargés.
+ */
+export function accountClubBadge(
+  access: ClubAccess | undefined,
+  isParentInClub: boolean,
+): DisplayBadge | null {
+  if (!access) return isParentInClub ? "parent" : null;
+  const badge = primaryBadge(access);
+  if (badge === "member" && isParentInClub) return "parent";
+  return badge;
+}
 
 /** Espace portail (bureau vs famille / parent). */
 export type PortalSpace = "bureau" | "family";
 
-/** @deprecated Alias — préférer `PortalSpace`. */
-export type ClubMembershipSpace = PortalSpace;
-
 /** Pastille sélecteur : un couple (club, espace) — Parent = lien parent, pas membership. */
-export type ClubMembershipTile = ClubWithRole & {
+export type ClubMembershipTile = ClubWithBadge & {
   space: PortalSpace;
 };
 
 /**
- * Associe à chaque club le rôle de l’utilisateur (admin / coach / player).
- * `roleForClub` permet de surcharger le libellé (ex. espace famille).
- */
-export function clubsWithRole(
-  clubs: ClubRecord[],
-  profile: ViroUserProfile | null,
-  roleForClub: (
-    userProfile: ViroUserProfile | null,
-    clubId: string,
-  ) => string | null = membershipRoleForClub,
-): ClubWithRole[] {
-  return clubs.map((club) => ({
-    ...club,
-    role: roleForClub(profile, club.id),
-  }));
-}
-
-/**
- * Pastilles unifiées : clubs bureau (rôle membership) puis clubs parent.
- * Un même club peut apparaître deux fois si double contexte.
+ * Pastilles unifiées : clubs bureau (badge de la fiche du club) puis clubs
+ * parent. Un même club peut apparaître deux fois si double contexte.
  */
 export function buildClubMembershipTiles(
   bureauClubs: ClubRecord[],
   familyClubs: ClubRecord[],
-  profile: ViroUserProfile | null,
+  accessByClub: Record<string, ClubAccess>,
 ): ClubMembershipTile[] {
-  const bureauTiles: ClubMembershipTile[] = clubsWithRole(
-    bureauClubs,
-    profile,
-  ).map((club) => ({ ...club, space: "bureau" }));
+  const familyClubIds = new Set(familyClubs.map((club) => club.id));
+  const bureauTiles: ClubMembershipTile[] = bureauClubs.map((club) => {
+    const access = accessByClub[club.id];
+    return {
+      ...club,
+      badge: access
+        ? accountClubBadge(access, familyClubIds.has(club.id))
+        : null,
+      space: "bureau",
+    };
+  });
   const familyTiles: ClubMembershipTile[] = familyClubs.map((club) => ({
     ...club,
-    role: PortalUiRoles.parent,
+    badge: "parent",
     space: "family",
   }));
   return [...bureauTiles, ...familyTiles];

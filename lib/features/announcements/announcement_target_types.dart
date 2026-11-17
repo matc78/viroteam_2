@@ -16,8 +16,6 @@ abstract final class AnnouncementTargetTypes {
     categories,
   ];
 
-  static const List<String> coachOptions = [
-    equipes,
-    categories,
-  ];
+  /// Coach d'équipe sans le droit annonces : ses équipes seulement.
+  static const List<String> coachOptions = [equipes];
 }

@@ -4,14 +4,19 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
+import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/member_guardian.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/utils/youth_team_category.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 /// Carte « Mon parent » pour le titulaire joueur de la fiche (compte lié).
+///
+/// Visible seulement si le joueur a au moins une équipe en catégorie
+/// moins de 15 ans ; masquée s’il n’a aucune équipe.
 class MyParentSection extends ConsumerWidget {
   const MyParentSection({
     super.key,
@@ -26,6 +31,13 @@ class MyParentSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final teamsAsync = ref.watch(myTeamsProvider(club.id));
+    final teams = teamsAsync.asData?.value;
+    if (teams == null) return const SizedBox.shrink();
+    if (!memberHasUnder15Team(teams: teams, sport: club.sport)) {
+      return const SizedBox.shrink();
+    }
+
     final palette = context.viroPalette;
     final guardianAsync = ref.watch(
       _myGuardianProvider((clubId: club.id, memberId: member.memberId)),

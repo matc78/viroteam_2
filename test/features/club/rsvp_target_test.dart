@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 
@@ -11,7 +9,6 @@ void main() {
 
   const childMember = ClubMember(
     memberId: childMemberId,
-    role: MemberRoles.player,
     status: 'active',
   );
 
@@ -45,8 +42,7 @@ void main() {
     test('enfant sélectionné : memberId enfant + callable', () {
       final target =
           childRsvpTarget(selected: childTarget, childMember: childMember)!;
-      expect(target.subjectId, childMemberId);
-      expect(target.audienceId, childMemberId);
+      expect(target.memberId, childMemberId);
       expect(target.member, childMember);
       expect(target.viaCallable, isTrue);
     });
@@ -65,11 +61,7 @@ void main() {
           childRsvpTarget(selected: childTarget, childMember: childMember)!;
 
       expect(
-        event.rsvpStatusForUser(
-          target.subjectId,
-          clubAudienceId: target.audienceId,
-          memberAudienceKeys: eventAudienceKeys(childMember),
-        ),
+        event.rsvpStatusForUser(target.memberId),
         RsvpStatus.yes,
       );
     });

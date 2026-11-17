@@ -84,14 +84,6 @@
       ]
     },
     {
-      "collectionGroup": "members",
-      "fieldPath": "userId",
-      "indexes": [
-        { "queryScope": "COLLECTION", "order": "ASCENDING" },
-        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "guardians",
       "fieldPath": "parentUid",
       "indexes": [
@@ -120,6 +112,15 @@
     {
       "collectionGroup": "events",
       "fieldPath": "modifiedNotifyDueAt",
+      "indexes": [
+        { "queryScope": "COLLECTION", "order": "ASCENDING" },
+        { "queryScope": "COLLECTION", "order": "DESCENDING" },
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rsvpTeammateDigests",
+      "fieldPath": "dueAt",
       "indexes": [
         { "queryScope": "COLLECTION", "order": "ASCENDING" },
         { "queryScope": "COLLECTION", "order": "DESCENDING" },

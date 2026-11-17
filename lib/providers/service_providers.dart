@@ -11,11 +11,12 @@ import 'package:viro_team_v2/services/equipment_service.dart';
 import 'package:viro_team_v2/services/event_service.dart';
 import 'package:viro_team_v2/services/fee_service.dart';
 import 'package:viro_team_v2/services/guardian_service.dart';
+import 'package:viro_team_v2/services/haptics_preference_service.dart';
 import 'package:viro_team_v2/services/invitation_service.dart';
-import 'package:viro_team_v2/services/join_request_service.dart';
 import 'package:viro_team_v2/services/member_invite_service.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 import 'package:viro_team_v2/services/portal_banner_prefs_service.dart';
+import 'package:viro_team_v2/features/club/services/club_analytics.dart';
 import 'package:viro_team_v2/features/fees/services/fee_payment_analytics.dart';
 import 'package:viro_team_v2/services/payment/payment_service.dart';
 import 'package:viro_team_v2/services/notification_permission_service.dart';
@@ -25,6 +26,7 @@ import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
 import 'package:viro_team_v2/services/theme_preference_service.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
+import 'package:viro_team_v2/services/chat/chat_dm_targets_service.dart';
 import 'package:viro_team_v2/services/chat_messages_local_cache.dart';
 import 'package:viro_team_v2/services/user_avatar_storage.dart';
 import 'package:viro_team_v2/services/conversation_avatar_storage.dart';
@@ -45,6 +47,10 @@ final feePaymentAnalyticsProvider = Provider<FeePaymentAnalytics>(
   (ref) => FeePaymentAnalytics(analytics: ref.watch(analyticsServiceProvider)),
 );
 
+final clubAnalyticsProvider = Provider<ClubAnalytics>(
+  (ref) => ClubAnalytics(analytics: ref.watch(analyticsServiceProvider)),
+);
+
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 final accountServiceProvider =
@@ -59,7 +65,9 @@ final conversationAvatarStorageProvider =
 final userServiceProvider = Provider<UserService>((ref) => UserService());
 
 final pushNotificationServiceProvider = Provider<PushNotificationService>(
-  (ref) => PushNotificationService(),
+  (ref) => PushNotificationService(
+    analytics: ref.watch(analyticsServiceProvider),
+  ),
 );
 
 final notificationPermissionServiceProvider =
@@ -83,10 +91,6 @@ final invitationServiceProvider = Provider<InvitationService>(
   (ref) => InvitationService(),
 );
 
-final joinRequestServiceProvider = Provider<JoinRequestService>(
-  (ref) => JoinRequestService(),
-);
-
 final retourUserServiceProvider = Provider<RetourUserService>(
   (ref) => RetourUserService(),
 );
@@ -104,6 +108,14 @@ final memberInviteServiceProvider = Provider<MemberInviteService>(
 final teamServiceProvider = Provider<TeamService>((ref) => TeamService());
 
 final chatServiceProvider = Provider<ChatService>((ref) => ChatService());
+
+/// Cibles DM coach / admin (sheet « nouvelle conversation »).
+final chatDmTargetsServiceProvider = Provider<ChatDmTargetsService>(
+  (ref) => ChatDmTargetsService(
+    memberService: ref.watch(memberServiceProvider),
+    teamService: ref.watch(teamServiceProvider),
+  ),
+);
 
 final chatMessagesLocalCacheProvider = Provider<ChatMessagesLocalCache>(
   (ref) => ChatMessagesLocalCache(),
@@ -137,4 +149,10 @@ final portalBannerPrefsServiceProvider = Provider<PortalBannerPrefsService>(
 /// la première frame).
 final themePreferenceServiceProvider = Provider<ThemePreferenceService>(
   (ref) => ThemePreferenceService(),
+);
+
+/// Surchargé dans `main` avec des préférences préchargées (réglage
+/// « Vibrations » connu dès la première frame).
+final hapticsPreferenceServiceProvider = Provider<HapticsPreferenceService>(
+  (ref) => HapticsPreferenceService(),
 );

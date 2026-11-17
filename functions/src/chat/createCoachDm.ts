@@ -1,7 +1,7 @@
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { requireString, requireUid, stringArray, uniq } from "../common";
+import { parseParentLinks, requireString, requireUid, stringArray, uniq } from "../common";
 import { db, defineDualCallable } from "../db";
-import { resolveAuthUid, resolveAuthUids, upsertSystemConversation } from "./sync";
+import { resolveAuthUids, upsertSystemConversation } from "./sync";
 
 /**
  * Crée (ou réutilise) une DM / coach_group entre l’appelant et des coaches/admins.
@@ -37,36 +37,16 @@ async function handleCreateCoachDm(request: CallableRequest): Promise<{
   }
   const adminIds = new Set(stringArray(clubSnap.data()?.adminIds));
 
-  // Comme ensureClubChatSynced : index member_accounts OU fiche members/{uid}.
-  const callerAccount = await clubRef.collection("member_accounts").doc(uid).get();
+  // Une seule clé membre : la fiche de l'appelant est members/{uid}.
   const directMember = await clubRef.collection("members").doc(uid).get();
-  const callerMemberId = callerAccount.exists
-    ? String(callerAccount.data()?.memberId ?? "").trim()
-    : directMember.exists
-      ? uid
-      : "";
   const userSnap = await firestore.collection("users").doc(uid).get();
   const userData = userSnap.data() ?? {};
   const parentClubIds = stringArray(userData.parentClubIds);
   const parentTeamIds = new Set(stringArray(userData.parentTeamIds));
-  const parentLinksRaw = Array.isArray(userData.parentLinks)
-    ? (userData.parentLinks as unknown[])
-    : [];
-  const activeParentLinksInClub = parentLinksRaw
-    .filter((item): item is Record<string, unknown> =>
-      Boolean(item) && typeof item === "object")
-    .map((item) => ({
-      clubId: String(item.clubId ?? ""),
-      memberId: String(item.memberId ?? ""),
-      status: String(item.status ?? ""),
-    }))
-    .filter(
-      (link) =>
-        link.clubId === clubId &&
-        link.memberId.length > 0 &&
-        link.status === "active",
-    );
-  const isMember = callerAccount.exists || directMember.exists;
+  const activeParentLinksInClub = parseParentLinks(userData.parentLinks).filter(
+    (link) => link.clubId === clubId && link.status === "active",
+  );
+  const isMember = directMember.exists;
   // parentClubIds peut être stale : les liens actifs font foi (comme l’app).
   const isParent =
     parentClubIds.includes(clubId) || activeParentLinksInClub.length > 0;
@@ -80,12 +60,7 @@ async function handleCreateCoachDm(request: CallableRequest): Promise<{
     const data = teamDoc.data();
     const players = stringArray(data.playerIds);
     const coaches = stringArray(data.coachIds);
-    const rosterHit =
-      Boolean(callerMemberId) &&
-      (players.includes(callerMemberId) ||
-        players.includes(uid) ||
-        coaches.includes(callerMemberId) ||
-        coaches.includes(uid));
+    const rosterHit = isMember && (players.includes(uid) || coaches.includes(uid));
     if (rosterHit || parentTeamIds.has(teamDoc.id)) {
       callerTeamIds.add(teamDoc.id);
     }
@@ -119,23 +94,8 @@ async function handleCreateCoachDm(request: CallableRequest): Promise<{
     );
     for (const coachUid of coachUids) allowedCoachUids.add(coachUid);
   }
-  // adminIds peut être memberId ou Auth uid — toujours résoudre.
-  for (const adminUid of await resolveAuthUids(
-    firestore,
-    clubId,
-    [...adminIds],
-  )) {
-    allowedCoachUids.add(adminUid);
-  }
-  // Filet : admins déclarés par rôle fiche (adminIds parfois incomplet).
-  const adminMembersSnap = await clubRef
-    .collection("members")
-    .where("role", "==", "admin")
-    .get();
-  for (const adminDoc of adminMembersSnap.docs) {
-    const adminUid = await resolveAuthUid(firestore, clubId, adminDoc.id);
-    if (adminUid) allowedCoachUids.add(adminUid);
-  }
+  // `adminIds` = index des comptes ayant le droit Administrateur.
+  for (const adminUid of adminIds) allowedCoachUids.add(adminUid);
 
   for (const target of targetUids) {
     if (!allowedCoachUids.has(target)) {

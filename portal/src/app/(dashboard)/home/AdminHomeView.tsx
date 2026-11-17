@@ -29,33 +29,35 @@ function kpiPresentation(kpi: HomeKpi): { href: string; tone: StatusTone } {
 }
 
 /**
- * Accueil admin : ce qui demande une action d’abord, puis les chiffres clés,
- * puis le programme (gauche) et le suivi club (droite).
+ * Accueil club (compte qui voit tout le club ou les cotisations) : ce qui
+ * demande une action d’abord, puis les chiffres clés, puis le programme
+ * (gauche) et le suivi club (droite). Blocs cotisations et journal selon
+ * les droits `viewFees` / `viewActivity`.
  */
 export function AdminHomeView({
   clubId,
-  viewerUid,
   data,
   refreshing,
   error,
   reload,
+  showFees,
+  showActivity,
 }: {
   clubId: string;
-  viewerUid: string | null;
   data: HomeDashboardData | null;
   refreshing: boolean;
   error: string | null;
   reload: () => void;
+  /** Droit `viewFees` : chiffres et graphique des cotisations. */
+  showFees: boolean;
+  /** Droit `viewActivity` : aperçu du journal. */
+  showActivity: boolean;
 }) {
-  const rsvpAudienceIds = [data?.linkedMemberId, viewerUid].filter(
-    (id): id is string => Boolean(id),
-  );
   const personalRsvp =
     data?.linkedMemberId != null
       ? {
           clubId,
           memberId: data.linkedMemberId,
-          audienceIds: rsvpAudienceIds,
           onUpdated: reload,
         }
       : null;
@@ -143,7 +145,9 @@ export function AdminHomeView({
             </div>
 
             <div className={homeStyles.column}>
-              <FeeStatusChart segments={data.feeStatus} viewAllHref="/fees" />
+              {showFees ? (
+                <FeeStatusChart segments={data.feeStatus} viewAllHref="/fees" />
+              ) : null}
               <AnnouncementsCard
                 items={data.announcements.map((item) => ({
                   id: item.id,
@@ -154,7 +158,7 @@ export function AdminHomeView({
                 }))}
                 viewAllHref="/announcements"
               />
-              <RecentActivityPreview clubId={clubId} />
+              {showActivity ? <RecentActivityPreview clubId={clubId} /> : null}
             </div>
           </div>
         </>

@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
+import { isBureauMessagesPath } from "@/lib/chat/isMessagesPath";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { defaultFamilyLandingPath } from "@/lib/firebase/personalPlanningService";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -20,7 +21,7 @@ function MessagesFamilyRedirect() {
   useEffect(() => {
     if (status !== "signedIn") return;
     if (isBureauUser || !isParent) return;
-    if (pathname !== "/messages" && !pathname.startsWith("/messages/")) return;
+    if (!isBureauMessagesPath(pathname)) return;
     const query = searchParams.toString();
     router.replace(query ? `/family/messages?${query}` : "/family/messages");
   }, [status, isBureauUser, isParent, pathname, searchParams, router]);
@@ -29,7 +30,7 @@ function MessagesFamilyRedirect() {
 }
 
 /**
- * Protège les routes dashboard : login + rôle bureau (admin, coach ou joueur).
+ * Protège les routes dashboard : login + fiche membre dans au moins un club.
  * Parent seul → landing famille ; sans accès → /access-denied (session conservée).
  */
 export function DashboardGuard({ children }: DashboardGuardProps) {
@@ -51,10 +52,10 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
       return;
     }
 
-    // Parent sans rôle bureau : hors bureau (FamilyGuard gère /family).
+    // Parent sans fiche membre : hors bureau (FamilyGuard gère /family).
     // Deep link messagerie : laisser MessagesFamilyRedirect mapper vers /family/messages.
     if (isParent) {
-      if (pathname === "/messages" || pathname.startsWith("/messages/")) {
+      if (isBureauMessagesPath(pathname)) {
         return;
       }
       router.replace(defaultFamilyLandingPath(profile));
@@ -63,7 +64,7 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
 
     if (denyingRef.current === pathname) return;
     denyingRef.current = pathname;
-    router.replace("/access-denied?reason=role");
+    router.replace("/access-denied?reason=no-access");
   }, [
     status,
     isBureauUser,
@@ -83,10 +84,7 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
   }
 
   if (!isBureauUser) {
-    if (
-      isParent &&
-      (pathname === "/messages" || pathname.startsWith("/messages/"))
-    ) {
+    if (isParent && isBureauMessagesPath(pathname)) {
       return (
         <Suspense fallback={<AuthLoadingState message="Redirection…" />}>
           <MessagesFamilyRedirect />

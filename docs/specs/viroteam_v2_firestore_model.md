@@ -7,10 +7,10 @@
 
 ## Philosophie générale
 
-- **Source de vérité du rôle club** : `clubs/{clubId}/members/{memberId}` — jamais `users/{uid}.clubMemberships` comme vérité (c’est un index).
+- **Source de vérité des droits club** : `clubs/{clubId}/members/{memberId}.permissions` (spec [`viroteam_v2_permissions_spec.md`](viroteam_v2_permissions_spec.md)) — jamais `users/{uid}.memberClubIds` (c’est un index).
 - **Parent** : relation `members/{memberId}/guardians/{parentUid}` + index `users.parentLinks` — jamais `role: parent`.
 - **Pas de duplication** : les listes `admins[]`, `coaches[]`, `members[]` dans le doc club sont supprimées
-- **Une page par club** : on charge `members/{uid}` une seule fois pour connaître le rôle, puis on affiche/masque les sections
+- **Une page par club** : on charge `members/{uid}` une seule fois pour connaître les droits, puis on affiche/masque les sections
 - **Streams temps réel** : utiliser les streams Firestore pour les scores, présences, et brackets de tournoi
 
 ---
@@ -33,10 +33,10 @@
 | `phone` | string | |
 | `avatarUrl` | string | URL Firebase Storage |
 | ~~`fcmToken`~~ | — | Remplacé par sous-collection `fcmTokens` (multi-appareils) |
-| `clubMemberships` | array | `[{ clubId, role }]` — clubs où l’utilisateur est **membre** (`player` \| `coach` \| `admin`) |
+| `memberClubIds` | array | Ids des clubs où le compte a une fiche `members/{uid}` — seul index des clubs, écrit par les Cloud Functions (arrivée, création de club, retrait) |
 | `parentLinks` | array | Index session parent : `[{ clubId, memberId, relation, status }]` — **pas** un rôle club. Source de vérité : `members/{memberId}/guardians/{parentUid}`. Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md). |
 | `notificationPreferences` | map | `{ events, weeklyDigest, announcements, fees, rsvp, rsvpTeammates, chat }` — booléens, défaut `true` sauf `rsvpTeammates` (`false`) ; `coachSummaryTiming` : `'j2' | 'eve' | 'day'` (moment du bilan des réponses pour les coachs, défaut `'eve'`) |
-| `flags` | map | `{ profileCompleted, disabled }` |
+| `flags` | map | `{ profileCompleted, disabled, chatMessaging? }` — `chatMessaging: true` = accès anticipé messagerie (console / Admin SDK uniquement ; pas d’auto-grant client) |
 | `legal` | map | `{ termsAcceptedAt, termsVersion }` — trace d’acceptation CGU / privacy à la création du compte (version ex. `"2026-09"`) ; immuable après create (rules) |
 | `createdAt` | timestamp | |
 | `updatedAt` | timestamp | |
@@ -56,10 +56,10 @@
 
 **⚠️ Champs supprimés (legacy) :**
 - `roles` (map legacy multi-rôles)
-- `profileSummaries` → remplacé par `clubMemberships`
+- `profileSummaries`, puis `clubMemberships` → remplacés par `memberClubIds`
 - `trainingStats` → calculé depuis `events.attendance`
 - `activeContext` → géré en mémoire côté app
-- `hasPendingRequest`, `lastClubRequested` → géré dans `join_requests`
+- `hasPendingRequest`, `lastClubRequested` → plus de demande d’adhésion (invitation uniquement)
 
 ---
 
@@ -93,15 +93,15 @@
 ---
 
 ### `clubs/{clubId}/members/{uid}`
-> **Source de vérité du rôle club** : `player` \| `coach` \| `admin` uniquement. Parent n’est **pas** un rôle ici.
+> **Source de vérité des droits club**. Une fiche liée à un compte vit à `members/{uid}` (une seule clé membre). Parent n’est **pas** un rôle ici. Les champs d’accès (`permissions`, `coachTeamIds`, `teamIds`, `accountUid`) sont écrits par les Cloud Functions seules.
 
 | Champ | Type | Description |
 |---|---|---|
-| `userId` | string | Référence à `users/{uid}` (legacy) |
-| `accountUid` | string? | Auth uid si le membre a un compte |
-| `role` | string | `'admin'` \| `'coach'` \| `'player'` |
+| `accountUid` | string? | Auth uid si la fiche est liée à un compte (égal à l’id du doc) — seul lien au compte |
+| `permissions` | array | Droits club (catalogue `shared/permissions_catalog.json`) |
+| `coachTeamIds` | array | Équipes entraînées, dérivées de `teams.coachIds` (trigger) |
 | `status` | string | `'active'` \| `'inactive'` |
-| `teamIds` | array | Équipes du membre dans ce club |
+| `teamIds` | array | Équipes de la fiche (joueur ou coach), dérivées des rosters (trigger) |
 | `snapshot` | map | `{ displayName, avatarUrl, email }` dénormalisé |
 | `joinedAt` | timestamp | |
 | `updatedAt` | timestamp | |
@@ -114,14 +114,7 @@ playerInfo: {
 }
 ```
 
-**Sous-objet conditionnel pour les coachs :**
-```
-coachInfo: {
-  headCoach: bool
-}
-```
-
-> Les admins n'ont pas de sous-objet — leur pouvoir vient uniquement du champ `role`.
+> Supprimés : `role`, `coachInfo`, `userId`, `memberId` (la clé est l’id du doc).
 
 ### `clubs/{clubId}/members/{memberId}/guardians/{parentUid}`
 
@@ -321,66 +314,13 @@ structure: {
 
 ---
 
-### `join_requests/{requestId}` (collection racine)
-> Demandes d'adhésion à un club.
-
-| Champ | Type | Description |
-|---|---|---|
-| `userId` | string | |
-| `clubId` | string | |
-| `clubName` | string | |
-| `clubSport` | string | |
-| `roleRequested` | string | `'player'` \| `'coach'` |
-| `firstName` | string | |
-| `lastName` | string | |
-| `phone` | string | |
-| `message` | string | |
-| `status` | string | `'pending'` \| `'accepted'` \| `'refused'` |
-| `createdAt` | timestamp | |
-| `updatedAt` | timestamp | |
-
----
-
-### `clubs/{clubId}/invitations/{inviteId}`
-> Codes d'invitation partageables (rejoindre un club en joueur ou coach).
-
-| Champ | Type | Description |
-|---|---|---|
-| `code` | string | Code partageable (ex. `ASMP1K2E`, uppercase) |
-| `role` | string | `'player'` \| `'coach'` — rôle accordé à l'acceptation |
-| `email` | string? | Si défini, seul cet email peut accepter |
-| `status` | string | `'pending'` \| `'accepted'` \| `'declined'` \| `'expired'` |
-| `sentBy` | string | UID admin/coach créateur |
-| `sentAt` | timestamp | |
-| `expiresAt` | timestamp | |
-| `acceptedAt` | timestamp? | |
-| `acceptedBy` | string? | UID ayant accepté |
-
-> Requête join : `collectionGroup('invitations').where('code', ==).where('status', == 'pending')` — index composite requis.
-
----
-
-### `clubs/{clubId}/invite_links/{token}`
-> Liens d'invitation (docId = token).
-
-| Champ | Type | Description |
-|---|---|---|
-| `token` | string | |
-| `pendingMemberId` | string | |
-| `email` | string | |
-| `firstName` | string | |
-| `lastName` | string | |
-| `teams` | array | `[{ teamId, teamName, category }]` |
-| `expiresAt` | timestamp | |
-| `usedAt` | timestamp? | |
-
----
-
 ## Collections supprimées (legacy)
 
 | Collection | Raison |
 |---|---|
-| `users.roles` (map) | Remplacé par `users.clubMemberships` |
+| `users.roles` (map), puis `users.clubMemberships` | Remplacés par `users.memberClubIds` |
+| `join_requests/{requestId}` | Demandes de rôle supprimées (droits attribués par un admin) |
+| `clubs/{clubId}/member_accounts` | Une seule clé membre (`members/{uid}`) |
 | `users.trainingStats` | Calculé depuis `events.attendance` |
 | `users.activeContext` | Géré en mémoire côté app |
 | `clubs.admins[]` / `coaches[]` / `members[]` | Tout dans `members/{uid}` |

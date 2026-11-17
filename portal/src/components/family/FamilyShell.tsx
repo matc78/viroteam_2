@@ -49,7 +49,7 @@ function FamilyShellChrome() {
     activeSpace,
     bureauClubs,
     familyClubs,
-    profile,
+    accessByClub,
     selectClubContext,
   } = useAuth();
   const { beginPageLoad } = usePageLoad();
@@ -59,8 +59,8 @@ function FamilyShellChrome() {
   );
 
   const clubsWithRoles = useMemo(
-    () => buildClubMembershipTiles(bureauClubs, familyClubs, profile),
-    [bureauClubs, familyClubs, profile],
+    () => buildClubMembershipTiles(bureauClubs, familyClubs, accessByClub),
+    [bureauClubs, familyClubs, accessByClub],
   );
 
   const childLabel =

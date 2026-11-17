@@ -39,6 +39,7 @@ Tout participant peut changer la photo (même règle que `titleOverride`). Canau
 | `titleOverride` | string? | Renommage user |
 | `avatarUrl` | string? | Photo du groupe (groupes ouverts uniquement) |
 | `participantUids` | string[] | Auth uids (rules + queries) |
+| `participantProfiles` | map | uid → `{firstName, lastName, displayName, avatarUrl?, role}` ; Functions uniquement (sync + `onMemberWrittenForChat` / `onUserWrittenForChat`). Fiche membre prioritaire, sinon `users/{uid}` avec `role: parent`. Seule source de noms pour un parent (pas de `list` members) |
 | `writePolicy` | string | `open` \| `admins_only` \| `coaches_and_admins` |
 | `lastMessageAt` | timestamp | |
 | `lastMessagePreview` | string | |
@@ -60,12 +61,13 @@ Tout participant peut changer la photo (même règle que `titleOverride`). Canau
 | `pollQuestion` | string? (type `poll`) |
 | `pollOptions` | `{id, text}[]` (2–12) |
 | `pollVotes` | map optionId → uid[] |
+| `pollVoteTimes` | map uid → `{at, edited}` (heure serveur du dernier vote ; `edited` = le membre avait déjà voté) |
 | `pollAllowMultiple` | bool (défaut false) |
 | `replyToMessageId` | string? | id message cité |
 | `replyToText` | string? | extrait snapshot |
 | `replyToSenderUid` | string? | auteur cité |
 
-Sondages : création uniquement si `participantUids.size > 2`. Vote = update `pollVotes` (transaction client).
+Sondages : création uniquement si `participantUids.size > 2`. Vote = update `pollVotes` + `pollVoteTimes.{uid}` (transaction client ; règles : seule son entrée, `at == request.time` ; un update sans `pollVoteTimes` reste accepté pour les anciens clients).
 
 ## chatState (par user)
 

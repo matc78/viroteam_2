@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/services/member/member_paths.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 import 'package:viro_team_v2/utils/person_data_format.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
-/// Operations compte / role / licence pour les membres.
+/// Opérations compte / droits / licence pour les membres.
 class MemberAccountOperations {
   /// Cree le module de mutations compte membre.
   MemberAccountOperations({
@@ -18,30 +19,27 @@ class MemberAccountOperations {
   final FirebaseFirestore _db;
   final FirebaseFunctions _functions;
 
-  CollectionReference<Map<String, dynamic>> _members(String clubId) => _db
-      .collection(ProjectConfig.clubsCollection)
-      .doc(clubId)
-      .collection(ProjectConfig.membersSubcollection);
-
-  /// Change le role d'un membre via la callable `setMemberRole`.
-  Future<void> updateMemberRole({
+  /// Remplace les droits d'un membre via la callable `setMemberPermissions`.
+  /// Retourne les droits normalisés renvoyés par le serveur.
+  Future<Set<ClubPermission>> updateMemberPermissions({
     required String clubId,
     required String memberId,
-    required String newRole,
+    required Set<ClubPermission> permissions,
   }) async {
-    if (!MemberRoleHierarchy.isAdmin(newRole) &&
-        newRole != MemberRoles.coach &&
-        newRole != MemberRoles.player) {
-      throw ArgumentError('Rôle invalide.');
-    }
-
     final callable =
-        _functions.httpsCallable(cloudCallableName('setMemberRole'));
-    await callable.call(<String, dynamic>{
+        _functions.httpsCallable(cloudCallableName('setMemberPermissions'));
+    final result = await callable.call(<String, dynamic>{
       FirestoreFields.clubId: clubId,
       FirestoreFields.memberId: memberId,
-      FirestoreFields.role: newRole,
+      FirestoreFields.permissions: [
+        for (final permission in ClubPermission.normalize(permissions))
+          permission.id,
+      ],
     });
+    final data = result.data;
+    return ClubPermission.parse(
+      data is Map ? data[FirestoreFields.permissions] : null,
+    );
   }
 
   /// Retire un membre du club via la callable `removeMember`.
@@ -61,7 +59,7 @@ class MemberAccountOperations {
     required String clubId,
     required String memberId,
   }) async {
-    final memberSnap = await _members(clubId).doc(memberId).get();
+    final memberSnap = await clubMemberRef(_db, clubId, memberId).get();
     if (!memberSnap.exists) return '';
     final data = memberSnap.data() ?? {};
     final playerInfo =
@@ -80,7 +78,7 @@ class MemberAccountOperations {
     required String rawLicense,
   }) async {
     final formattedLicense = formatLicense(rawLicense);
-    final memberRef = _members(clubId).doc(memberId);
+    final memberRef = clubMemberRef(_db, clubId, memberId);
     final memberSnap = await memberRef.get();
     if (!memberSnap.exists) {
       throw StateError(AppCopy.members.memberNotFound);

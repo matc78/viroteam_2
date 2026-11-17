@@ -8,15 +8,19 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { defineBoolean } from "firebase-functions/params";
 import { requireString, requireUid, stringArray, uniq } from "../common";
 import { db, defineDualCallable, runWithDatabase, type FirestoreDatabaseId } from "../db";
-import { assertClubAdmin } from "../guardians";
+import { assertPermission } from "../permissions";
 import { buildPushData, sendPushToUids } from "../notifications/send";
 import {
   CHANNEL_WRITE_POLICIES,
   CONVERSATION_TITLE_MAX,
   memberChatFieldsChanged,
+  memberProfileFieldsChanged,
+  userProfileFieldsChanged,
 } from "./memberChatDiff";
+import { memberAuthUid, profileFromMember, profileFromUser } from "./participantProfiles";
 import {
   createScopedChannelConversation,
+  refreshParticipantProfile,
   resolveScopedChannelParticipants,
   type ChannelAudienceScopeType,
   syncClubWideConversations,
@@ -25,14 +29,37 @@ import {
 const REGION = "europe-west1";
 
 /**
- * Messagerie cachée en prod tant que ce param est `false` (défaut) : aucun
- * push `chat_message` ne part. Param public dotenv (`functions/.env.<projet>`,
- * écrit par le workflow deploy-functions) — passer à `true` le jour où la
- * messagerie est ouverte aux clubs.
+ * Ouverture globale messagerie : si `true`, push chat à tous les destinataires
+ * éligibles. Si `false` (défaut prod), seuls les comptes avec
+ * `users/{uid}.flags.chatMessaging == true` reçoivent des push.
+ * Param public dotenv (`functions/.env.<projet>`, écrit par deploy-functions).
  */
 const chatMessagingLive = defineBoolean("CHAT_MESSAGING_LIVE", {
   default: false,
 });
+
+/**
+ * Filtre les uids qui ont l’accès anticipé messagerie
+ * (`flags.chatMessaging === true`). Lectures groupées via `getAll`.
+ */
+async function filterChatMessagingFlaggedUids(
+  firestore: FirebaseFirestore.Firestore,
+  uids: string[],
+): Promise<string[]> {
+  if (uids.length === 0) return [];
+  const snaps = await firestore.getAll(
+    ...uids.map((uid) => firestore.collection("users").doc(uid)),
+  );
+  const allowed: string[] = [];
+  for (const snap of snaps) {
+    if (!snap.exists) continue;
+    const flags = snap.data()?.flags as Record<string, unknown> | undefined;
+    if (flags?.chatMessaging === true) {
+      allowed.push(snap.id);
+    }
+  }
+  return allowed;
+}
 
 function defineMemberWrittenTrigger(databaseId: FirestoreDatabaseId) {
   return onDocumentWritten(
@@ -44,20 +71,81 @@ function defineMemberWrittenTrigger(databaseId: FirestoreDatabaseId) {
     async (event) =>
       runWithDatabase(databaseId, async () => {
         const clubId = event.params.clubId;
+        const before = event.data?.before?.data();
+        const after = event.data?.after?.data();
         // Resync uniquement si un champ qui compte pour les chats a changé
         // (même logique de diff que `onClubWrittenForChat` sur `adminIds`).
-        if (
-          !memberChatFieldsChanged(
-            event.data?.before?.data(),
-            event.data?.after?.data(),
-          )
-        ) {
-          return;
+        const chatFieldsChanged = memberChatFieldsChanged(before, after);
+        if (chatFieldsChanged) {
+          try {
+            await syncClubWideConversations({ firestore: db(), clubId });
+          } catch (error) {
+            console.error("syncClubWideConversations failed", { clubId, error });
+          }
         }
+        // Nom, photo ou rôle : profil à jour dans toutes ses conversations
+        // (équipes, DM, canaux), pas seulement `staff` / `club`.
+        const uid = after ? memberAuthUid(after) : null;
+        if (!after || !uid) return;
+        if (!chatFieldsChanged && !memberProfileFieldsChanged(before, after)) return;
         try {
-          await syncClubWideConversations({ firestore: db(), clubId });
+          await refreshParticipantProfile({
+            firestore: db(),
+            clubId,
+            uid,
+            profile: profileFromMember(after),
+          });
         } catch (error) {
-          console.error("syncClubWideConversations failed", { clubId, error });
+          console.error("refreshParticipantProfile (member) failed", {
+            clubId,
+            error,
+          });
+        }
+      }),
+  );
+}
+
+/**
+ * Profil `users/{uid}` modifié : met à jour le nom / la photo du parent dans
+ * les conversations de ses clubs (une fiche membre reste prioritaire).
+ */
+function defineUserWrittenForChatTrigger(databaseId: FirestoreDatabaseId) {
+  return onDocumentWritten(
+    {
+      document: "users/{uid}",
+      database: databaseId,
+      region: REGION,
+    },
+    async (event) =>
+      runWithDatabase(databaseId, async () => {
+        const before = event.data?.before?.data();
+        const after = event.data?.after?.data();
+        if (!after || !userProfileFieldsChanged(before, after)) return;
+        const uid = event.params.uid;
+        const linkClubIds = (Array.isArray(after.parentLinks) ? after.parentLinks : [])
+          .map((link: unknown) =>
+            link && typeof link === "object"
+              ? String((link as Record<string, unknown>).clubId ?? "")
+              : "",
+          )
+          .filter(Boolean);
+        const clubIds = uniq([...stringArray(after.parentClubIds), ...linkClubIds]);
+        const profile = profileFromUser(after);
+        for (const clubId of clubIds) {
+          try {
+            await refreshParticipantProfile({
+              firestore: db(),
+              clubId,
+              uid,
+              profile,
+              onlyRole: "parent",
+            });
+          } catch (error) {
+            console.error("refreshParticipantProfile (user) failed", {
+              clubId,
+              error,
+            });
+          }
         }
       }),
   );
@@ -201,13 +289,16 @@ function defineMessageCreatedTrigger(databaseId: FirestoreDatabaseId) {
             ? `${senderFirstName} : ${messageBody}`
             : messageBody;
 
-        // Garde : pas de push tant que la messagerie n'est pas ouverte
-        // (les compteurs non-lus ci-dessus restent maintenus).
-        if (!chatMessagingLive.value()) return;
+        // Compteurs non-lus déjà maintenus. Push : tous si ouvert globalement,
+        // sinon uniquement les comptes `flags.chatMessaging`.
+        const pushUids = chatMessagingLive.value()
+          ? unmuted
+          : await filterChatMessagingFlaggedUids(firestore, unmuted);
+        if (pushUids.length === 0) return;
 
         await sendPushToUids({
           firestore,
-          uids: unmuted,
+          uids: pushUids,
           payload: {
             title,
             body,
@@ -307,7 +398,7 @@ function parseChannelScope(data: Record<string, unknown> | undefined): {
   return { scopeType: "categories", scopeIds: [categoryKey] };
 }
 
-/** Callable admin : crée un canal ciblé (lecture seule par défaut). */
+/** Callable (droit `manageChat`) : crée un canal ciblé (lecture seule par défaut). */
 async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
   conversationId: string;
 }> {
@@ -332,23 +423,25 @@ async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
     throw new HttpsError("invalid-argument", "writePolicy inconnue");
   }
 
-  // Admin via `adminIds`, index `member_accounts` ou fiche directe à son uid
-  // (même résolution que les autres callables admin).
-  await assertClubAdmin(clubId, uid);
+  await assertPermission(clubId, uid, "manageChat");
   const firestore = db();
 
-  const participantUids = await resolveScopedChannelParticipants({
+  const scopedUids = await resolveScopedChannelParticipants({
     firestore,
     clubId,
     scopeType,
     scopeIds,
   });
-  if (participantUids.length === 0) {
+  if (scopedUids.length === 0) {
     throw new HttpsError(
       "failed-precondition",
       "Aucun participant pour cette cible",
     );
   }
+  // L'appelant (droit `manageChat`, pas forcément admin) voit son canal.
+  const participantUids = scopedUids.includes(uid)
+    ? scopedUids
+    : [...scopedUids, uid];
 
   const conversationId = await createScopedChannelConversation({
     firestore,
@@ -364,6 +457,8 @@ async function handleCreateCategoryChannel(request: CallableRequest): Promise<{
 
 export const onMemberWrittenForChat = defineMemberWrittenTrigger("v2-prod");
 export const onMemberWrittenForChatDev = defineMemberWrittenTrigger("v2-dev");
+export const onUserWrittenForChat = defineUserWrittenForChatTrigger("v2-prod");
+export const onUserWrittenForChatDev = defineUserWrittenForChatTrigger("v2-dev");
 export const onClubWrittenForChat = defineClubWrittenTrigger("v2-prod");
 export const onClubWrittenForChatDev = defineClubWrittenTrigger("v2-dev");
 export const onChatMessageCreatedForPush = defineMessageCreatedTrigger("v2-prod");

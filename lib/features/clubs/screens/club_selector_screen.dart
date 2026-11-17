@@ -5,7 +5,6 @@ import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/join/providers/pending_invitations_provider.dart';
@@ -27,6 +26,8 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 
 class ClubSelectorScreen extends ConsumerWidget {
   const ClubSelectorScreen({super.key});
@@ -41,13 +42,13 @@ class ClubSelectorScreen extends ConsumerWidget {
       appBar: ViroAppBar(title: Text(AppCopy.club.myClubsTitle)),
       body: SafeArea(
         child: clubsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (_, _) => ViroErrorState(
             onRetry: () => ref.invalidate(userClubsWithEventsProvider),
           ),
           data: (clubs) {
             return invitationsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: ViroLogoLoader()),
               error: (_, _) => ViroErrorState(
                 onRetry: () => ref.invalidate(pendingInvitationsProvider),
               ),
@@ -159,10 +160,9 @@ class _ClubSelectorBody extends ConsumerWidget {
                       entry: clubs[i],
                       onTap: () {
                         final club = clubs[i].club;
-                        final membership = clubs[i].membership;
                         ref
                             .read(sessionProvider.notifier)
-                            .setActiveClub(club.id, role: membership?.role);
+                            .setActiveClub(club.id);
                         context.push(AppRoutes.clubDetailPath(club.id));
                       },
                     ),
@@ -245,7 +245,14 @@ class _ClubCard extends ConsumerWidget {
     final theme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
     final club = entry.club;
-    final membership = entry.membership;
+    // Badges dérivés de la fiche du club (droits + équipes) ; Parent à la
+    // place d'un simple badge Membre quand le compte suit un enfant.
+    final roles = viroRolesForClubSelector(
+      memberBadges: entry.isLicensed
+          ? ref.watch(clubMemberProvider(club.id)).value?.badges
+          : null,
+      hasFamilyLinks: entry.parentLinks.isNotEmpty,
+    );
     final accentColor = clubAccentColor(
       brandColorHex: club.brandColorHex,
       clubId: club.id,
@@ -298,18 +305,14 @@ class _ClubCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: ViroSpacing.md),
-          if (membership != null) ...[
+          if (roles.isNotEmpty) ...[
             Wrap(
               spacing: ViroSpacing.sm,
               runSpacing: ViroSpacing.sm,
-              children: _roleBadgesFor(membership.role),
-            ),
-            const SizedBox(height: ViroSpacing.md),
-          ] else if (entry.parentLinks.isNotEmpty) ...[
-            const Wrap(
-              spacing: ViroSpacing.sm,
-              runSpacing: ViroSpacing.sm,
-              children: [ViroRoleBadge(role: ViroRole.parent, compact: true)],
+              children: [
+                for (final role in roles)
+                  ViroRoleBadge(role: role, compact: true),
+              ],
             ),
             const SizedBox(height: ViroSpacing.md),
           ] else
@@ -346,20 +349,6 @@ class _ClubCard extends ConsumerWidget {
     );
   }
 
-  List<Widget> _roleBadgesFor(String role) {
-    final badges = <Widget>[];
-    if (MemberRoleHierarchy.satisfies(role, MemberRoles.player)) {
-      badges.add(const ViroRoleBadge(role: ViroRole.player, compact: true));
-    }
-    if (MemberRoleHierarchy.satisfies(role, MemberRoles.coach) &&
-        role != MemberRoles.player) {
-      badges.add(const ViroRoleBadge(role: ViroRole.coach, compact: true));
-    }
-    if (role == MemberRoles.admin) {
-      badges.add(const ViroRoleBadge(role: ViroRole.admin, compact: true));
-    }
-    return badges;
-  }
 }
 
 class _InvitationCard extends ConsumerStatefulWidget {
@@ -374,13 +363,6 @@ class _InvitationCard extends ConsumerStatefulWidget {
 class _InvitationCardState extends ConsumerState<_InvitationCard> {
   bool _loading = false;
   String? _error;
-
-  String _roleLabel(String role) => switch (role) {
-    MemberRoles.coach => AppCopy.common.roleCoach,
-    MemberRoles.admin => AppCopy.common.roleAdmin,
-    MemberRoles.player => AppCopy.common.rolePlayer,
-    _ => role,
-  };
 
   Future<void> _accept() async {
     final user = ref.read(viroUserProvider).value;
@@ -410,10 +392,7 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
             .acceptInvitation(invitation: widget.invitation, user: user);
         ref
             .read(sessionProvider.notifier)
-            .setActiveClub(
-              widget.invitation.clubId,
-              role: widget.invitation.role,
-            );
+            .setActiveClub(widget.invitation.clubId);
       }
       ref.invalidate(pendingInvitationsProvider);
       ref.invalidate(userClubsProvider);
@@ -524,17 +503,18 @@ class _InvitationCardState extends ConsumerState<_InvitationCard> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    Text(
-                      invite.isGuardian
-                          ? (invite.firstName != null &&
-                                    invite.firstName!.trim().isNotEmpty
-                                ? AppCopy.club.followChildNamed(
-                                    invite.firstName!.trim(),
-                                  )
-                                : AppCopy.club.followChildGeneric)
-                          : AppCopy.club.roleColon(_roleLabel(invite.role)),
-                      style: theme.bodySmall?.copyWith(color: palette.accent),
-                    ),
+                    // Une invitation ne porte pas de droits : seule la
+                    // relation parent mérite une ligne.
+                    if (invite.isGuardian)
+                      Text(
+                        invite.firstName != null &&
+                                invite.firstName!.trim().isNotEmpty
+                            ? AppCopy.club.followChildNamed(
+                                invite.firstName!.trim(),
+                              )
+                            : AppCopy.club.followChildGeneric,
+                        style: theme.bodySmall?.copyWith(color: palette.accent),
+                      ),
                     if (invite.clubSport != null &&
                         invite.clubSport!.isNotEmpty)
                       Text(

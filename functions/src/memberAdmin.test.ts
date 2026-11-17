@@ -1,41 +1,63 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  adminIdsWithout,
   decrementCount,
-  isLastAdmin,
-  nextAdminIds,
   parseRemoveMemberArgs,
-  parseResolveJoinRequestArgs,
-  parseSetMemberRoleArgs,
-  remainingAdminIdentities,
-  requestableRole,
-  withMembershipRole,
-  withoutMembership,
+  parseSetMemberPermissionsArgs,
 } from "./memberAdminUtils";
+import {
+  adminIdsAfterPermissionsChange,
+  adminIdsUpdate,
+  buildClubAccess,
+  isLastAdmin,
+  isStaffMember,
+} from "./permissionsCatalog";
+import { parseCreateClubArgs } from "./createClubUtils";
 
 const isInvalidArgument = (error: unknown) =>
   error instanceof Error && (error as { code?: string }).code === "invalid-argument";
 
-test("parseSetMemberRoleArgs valide et trim", () => {
+test("parseSetMemberPermissionsArgs valide, trim et normalise", () => {
   assert.deepEqual(
-    parseSetMemberRoleArgs({ clubId: " c1 ", memberId: " m1 ", role: "coach" }),
-    { clubId: "c1", memberId: "m1", role: "coach" },
+    parseSetMemberPermissionsArgs({
+      clubId: " c1 ",
+      memberId: " m1 ",
+      permissions: ["viewActivity", "manageFees"],
+    }),
+    {
+      clubId: "c1",
+      memberId: "m1",
+      permissions: ["manageFees", "viewFees", "viewActivity"],
+    },
+  );
+  assert.deepEqual(
+    parseSetMemberPermissionsArgs({ clubId: "c1", memberId: "m1", permissions: [] }),
+    { clubId: "c1", memberId: "m1", permissions: [] },
   );
 });
 
-test("parseSetMemberRoleArgs refuse rôle inconnu ou champs manquants", () => {
-  assert.throws(() => parseSetMemberRoleArgs({}), isInvalidArgument);
+test("parseSetMemberPermissionsArgs refuse droit inconnu ou champs manquants", () => {
+  assert.throws(() => parseSetMemberPermissionsArgs({}), isInvalidArgument);
   assert.throws(
-    () => parseSetMemberRoleArgs({ clubId: "c1", memberId: "m1" }),
+    () => parseSetMemberPermissionsArgs({ clubId: "c1", memberId: "m1" }),
     isInvalidArgument,
   );
   assert.throws(
-    () => parseSetMemberRoleArgs({ clubId: "c1", memberId: "m1", role: "owner" }),
+    () =>
+      parseSetMemberPermissionsArgs({
+        clubId: "c1",
+        memberId: "m1",
+        permissions: ["owner"],
+      }),
     isInvalidArgument,
   );
   assert.throws(
-    () => parseSetMemberRoleArgs({ clubId: "c1", memberId: "m1", role: "ADMIN" }),
+    () =>
+      parseSetMemberPermissionsArgs({
+        clubId: "c1",
+        memberId: "m1",
+        permissions: "admin",
+      }),
     isInvalidArgument,
   );
 });
@@ -49,124 +71,138 @@ test("parseRemoveMemberArgs exige clubId et memberId", () => {
   assert.throws(() => parseRemoveMemberArgs(undefined), isInvalidArgument);
 });
 
-test("isLastAdmin : seul admin (adminIds + fiche) ⇒ true", () => {
-  assert.equal(
-    isLastAdmin({
-      adminIds: ["uid-a"],
-      adminMembers: [{ memberId: "m-a", accountUid: "uid-a" }],
-      target: { memberId: "m-a", accountUid: "uid-a" },
-    }),
-    true,
-  );
+test("isLastAdmin : seul compte de l'index ⇒ true", () => {
+  assert.equal(isLastAdmin({ adminIds: ["uid-a"], memberId: "uid-a" }), true);
+  assert.equal(isLastAdmin({ adminIds: [], memberId: "uid-a" }), true);
 });
 
-test("isLastAdmin : un autre uid dans adminIds ⇒ false", () => {
+test("isLastAdmin : un autre compte admin ⇒ false", () => {
   assert.equal(
-    isLastAdmin({
-      adminIds: ["uid-a", "uid-b"],
-      adminMembers: [{ memberId: "m-a", accountUid: "uid-a" }],
-      target: { memberId: "m-a", accountUid: "uid-a" },
-    }),
+    isLastAdmin({ adminIds: ["uid-a", "uid-b"], memberId: "uid-a" }),
     false,
   );
 });
 
-test("isLastAdmin : autre fiche admin non liée compte (memberId) ⇒ false", () => {
+test("adminIdsUpdate renvoie null si l'index ne change pas", () => {
+  const base = { memberId: "u2", linked: true };
   assert.equal(
-    isLastAdmin({
-      adminIds: ["uid-a"],
-      adminMembers: [
-        { memberId: "m-a", accountUid: "uid-a" },
-        { memberId: "m-b", accountUid: null },
-      ],
-      target: { memberId: "m-a", accountUid: "uid-a" },
-    }),
-    false,
-  );
-});
-
-test("isLastAdmin : fiche non liée, seule dans adminIds par memberId ⇒ true", () => {
-  assert.equal(
-    isLastAdmin({
-      adminIds: ["m-a"],
-      adminMembers: [{ memberId: "m-a", accountUid: null }],
-      target: { memberId: "m-a", accountUid: null },
-    }),
-    true,
-  );
-});
-
-test("remainingAdminIdentities dédoublonne et exclut la cible", () => {
-  assert.deepEqual(
-    remainingAdminIdentities({
-      adminIds: ["uid-a", "uid-b", "uid-b"],
-      adminMembers: [
-        { memberId: "m-a", accountUid: "uid-a" },
-        { memberId: "m-b", accountUid: "uid-b" },
-      ],
-      target: { memberId: "m-a", accountUid: "uid-a" },
-    }),
-    ["uid-b"],
-  );
-});
-
-test("nextAdminIds ajoute à la promotion, retire à la rétrogradation", () => {
-  assert.deepEqual(
-    nextAdminIds({ adminIds: ["u1"], accountUid: "u2", oldRole: "coach", newRole: "admin" }),
-    ["u1", "u2"],
-  );
-  assert.deepEqual(
-    nextAdminIds({ adminIds: ["u1", "u2"], accountUid: "u2", oldRole: "admin", newRole: "player" }),
-    ["u1"],
-  );
-  // Déjà présent : pas de doublon.
-  assert.deepEqual(
-    nextAdminIds({ adminIds: ["u1", "u2"], accountUid: "u2", oldRole: "admin", newRole: "admin" }),
-    ["u1", "u2"],
-  );
-  // Coach → player : inchangé.
-  assert.deepEqual(
-    nextAdminIds({ adminIds: ["u1"], accountUid: "u2", oldRole: "coach", newRole: "player" }),
-    ["u1"],
-  );
-  // Fiche non liée : inchangé.
-  assert.deepEqual(
-    nextAdminIds({ adminIds: ["u1"], accountUid: null, oldRole: "player", newRole: "admin" }),
-    ["u1"],
-  );
-});
-
-test("adminIdsWithout retire memberId et accountUid", () => {
-  assert.deepEqual(
-    adminIdsWithout(["u1", "m2", "u2", "u3"], { memberId: "m2", accountUid: "u2" }),
-    ["u1", "u3"],
-  );
-});
-
-test("withMembershipRole met à jour l'entrée du club sans perdre les autres champs", () => {
-  const raw = [
-    { clubId: "c1", role: "player", joinedAt: "x" },
-    { clubId: "c2", role: "coach" },
-    "corrompu",
+    adminIdsUpdate({ ...base, adminIds: ["u1", "u2"], permissions: ["admin"] }),
     null,
-  ];
-  assert.deepEqual(withMembershipRole(raw, "c1", "admin"), [
-    { clubId: "c1", role: "admin", joinedAt: "x" },
-    { clubId: "c2", role: "coach" },
-  ]);
-});
-
-test("withMembershipRole ajoute l'entrée si absente", () => {
-  assert.deepEqual(withMembershipRole(undefined, "c1", "coach"), [
-    { clubId: "c1", role: "coach" },
-  ]);
-});
-
-test("withoutMembership retire le club", () => {
-  assert.deepEqual(
-    withoutMembership([{ clubId: "c1", role: "admin" }, { clubId: "c2", role: "player" }], "c1"),
-    [{ clubId: "c2", role: "player" }],
   );
+  assert.deepEqual(
+    adminIdsUpdate({ ...base, adminIds: ["u1"], permissions: ["admin"] }),
+    ["u1", "u2"],
+  );
+  // Retrait (fiche supprimée ou compte supprimé).
+  assert.deepEqual(
+    adminIdsUpdate({ ...base, linked: false, adminIds: ["u1", "u2"], permissions: [] }),
+    ["u1"],
+  );
+  // Re-keying : l'ancien id quitte l'index, le nouveau y entre.
+  assert.deepEqual(
+    adminIdsUpdate({
+      ...base,
+      adminIds: ["u1", "old"],
+      permissions: ["admin"],
+      formerMemberIds: ["old"],
+    }),
+    ["u1", "u2"],
+  );
+});
+
+test("adminIdsAfterPermissionsChange suit le droit admin des fiches liées", () => {
+  assert.deepEqual(
+    adminIdsAfterPermissionsChange({
+      adminIds: ["u1"],
+      memberId: "u2",
+      linked: true,
+      permissions: ["admin"],
+    }),
+    ["u1", "u2"],
+  );
+  assert.deepEqual(
+    adminIdsAfterPermissionsChange({
+      adminIds: ["u1", "u2"],
+      memberId: "u2",
+      linked: true,
+      permissions: ["manageFees"],
+    }),
+    ["u1"],
+  );
+  assert.deepEqual(
+    adminIdsAfterPermissionsChange({
+      adminIds: ["u1", "u2"],
+      memberId: "u2",
+      linked: true,
+      permissions: ["admin"],
+    }),
+    ["u1", "u2"],
+  );
+});
+
+test("adminIdsAfterPermissionsChange : une fiche non liée n'entre pas dans l'index", () => {
+  assert.deepEqual(
+    adminIdsAfterPermissionsChange({
+      adminIds: ["u1"],
+      memberId: "mem-x",
+      linked: false,
+      permissions: ["admin"],
+    }),
+    ["u1"],
+  );
+});
+
+test("buildClubAccess : droits de la fiche, admin accorde tout", () => {
+  const admin = buildClubAccess({
+    clubId: "c1",
+    uid: "u1",
+    club: {},
+    member: { permissions: ["admin"] },
+  });
+  assert.equal(admin.isAdmin, true);
+  assert.equal(admin.can("manageFees"), true);
+
+  const treasurer = buildClubAccess({
+    clubId: "c1",
+    uid: "u2",
+    club: {},
+    member: { permissions: ["manageFees", "viewFees"] },
+  });
+  assert.equal(treasurer.isAdmin, false);
+  assert.equal(treasurer.can("viewFees"), true);
+  assert.equal(treasurer.can("manageMembers"), false);
+});
+
+test("buildClubAccess : sans fiche, aucun droit", () => {
+  const access = buildClubAccess({ clubId: "c1", uid: "u9", club: {}, member: null });
+  assert.equal(access.can("viewActivity"), false);
+  assert.equal(access.isTeamCoach, false);
+  assert.equal(access.coachCan("canCreateEvents"), false);
+});
+
+test("buildClubAccess : le coach d'équipe agit sur ses équipes selon les flags du club", () => {
+  const coach = buildClubAccess({
+    clubId: "c1",
+    uid: "u3",
+    club: { coachPermissions: { canCreateEvents: false, canEditMemberRsvp: true } },
+    member: { coachTeamIds: ["a", "b"] },
+  });
+  assert.equal(coach.coachesAnyTeam(["b", "z"]), true);
+  assert.equal(coach.coachesAnyTeam(["z"]), false);
+  assert.equal(coach.coachesAllTeams(["a", "b"]), true);
+  assert.equal(coach.coachesAllTeams(["a", "z"]), false);
+  assert.equal(coach.coachesAllTeams([]), false);
+  assert.equal(coach.coachCan("canCreateEvents"), false);
+  assert.equal(coach.coachCan("canEditMemberRsvp"), true);
+  assert.equal(coach.coachCan("canInvitePlayers"), true);
+  assert.equal(coach.can("manageEvents"), false);
+});
+
+test("isStaffMember : au moins un droit ou une équipe entraînée", () => {
+  assert.equal(isStaffMember({ permissions: ["viewFees"] }), true);
+  assert.equal(isStaffMember({ coachTeamIds: ["a"] }), true);
+  assert.equal(isStaffMember({ permissions: [], coachTeamIds: [] }), false);
+  assert.equal(isStaffMember({ permissions: ["inconnu"] }), false);
 });
 
 test("decrementCount ne descend pas sous zéro", () => {
@@ -176,25 +212,49 @@ test("decrementCount ne descend pas sous zéro", () => {
   assert.equal(decrementCount("abc"), 0);
 });
 
-test("parseResolveJoinRequestArgs valide la décision", () => {
+test("parseCreateClubArgs valide et nettoie le brouillon", () => {
   assert.deepEqual(
-    parseResolveJoinRequestArgs({ requestId: " r1 ", decision: "accept" }),
-    { requestId: "r1", decision: "accept" },
-  );
-  assert.deepEqual(
-    parseResolveJoinRequestArgs({ requestId: "r1", decision: "refuse" }),
-    { requestId: "r1", decision: "refuse" },
-  );
-  assert.throws(() => parseResolveJoinRequestArgs({}), isInvalidArgument);
-  assert.throws(
-    () => parseResolveJoinRequestArgs({ requestId: "r1", decision: "maybe" }),
-    isInvalidArgument,
+    parseCreateClubArgs({
+      name: " Volley Club ",
+      sport: "volley",
+      city: "Lyon",
+      brandColorHex: "#1E88E5",
+      practiceLocations: [{ name: " Gymnase ", city: "Lyon", category: "" }],
+      seasonEndDateMs: 1785000000000,
+    }),
+    {
+      name: "Volley Club",
+      sport: "volley",
+      city: "Lyon",
+      postalCode: "",
+      address: "",
+      description: "",
+      brandColorHex: "#1E88E5",
+      practiceLocations: [{ name: "Gymnase", city: "Lyon" }],
+      seasonEndDateMs: 1785000000000,
+    },
   );
 });
 
-test("requestableRole n'accepte que joueur ou coach", () => {
-  assert.equal(requestableRole("coach"), "coach");
-  assert.equal(requestableRole(" player "), "player");
-  assert.equal(requestableRole("admin"), null);
-  assert.equal(requestableRole(undefined), null);
+test("parseCreateClubArgs refuse un brouillon incomplet", () => {
+  const valid = {
+    name: "Club",
+    sport: "volley",
+    city: "Lyon",
+    brandColorHex: "#1E88E5",
+    seasonEndDateMs: 1785000000000,
+  };
+  assert.throws(() => parseCreateClubArgs({ ...valid, name: " " }), isInvalidArgument);
+  assert.throws(
+    () => parseCreateClubArgs({ ...valid, seasonEndDateMs: "demain" }),
+    isInvalidArgument,
+  );
+  assert.throws(
+    () => parseCreateClubArgs({ ...valid, practiceLocations: [{ city: "Lyon" }] }),
+    isInvalidArgument,
+  );
+  assert.throws(
+    () => parseCreateClubArgs({ ...valid, adminIds: ["x"], name: 3 }),
+    isInvalidArgument,
+  );
 });

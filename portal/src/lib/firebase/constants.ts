@@ -1,10 +1,10 @@
+
 /** Collections Firestore alignées sur ProjectConfig Flutter. */
 export const Collections = {
   users: "users",
   clubs: "clubs",
   retourUser: "retour_user",
   members: "members",
-  memberAccounts: "member_accounts",
   events: "events",
   feeSeasons: "fee_seasons",
   memberFees: "member_fees",
@@ -38,8 +38,13 @@ export const Fields = {
   canManageTeamRoster: "canManageTeamRoster",
   canInvitePlayers: "canInvitePlayers",
   canTakeAttendance: "canTakeAttendance",
-  canViewFees: "canViewFees",
-  clubMemberships: "clubMemberships",
+  canEditMemberLicenses: "canEditMemberLicenses",
+  canEditMemberRsvp: "canEditMemberRsvp",
+  canPublishTeamAnnouncements: "canPublishTeamAnnouncements",
+  /** `members/{id}.coachTeamIds` : équipes entraînées (Functions). */
+  coachTeamIds: "coachTeamIds",
+  /** `users/{uid}.memberClubIds` : clubs où le compte a une fiche (Functions). */
+  memberClubIds: "memberClubIds",
   parentLinks: "parentLinks",
   parentClubIds: "parentClubIds",
   parentTeamIds: "parentTeamIds",
@@ -56,13 +61,14 @@ export const Fields = {
   flags: "flags",
   profileCompleted: "profileCompleted",
   disabled: "disabled",
+  /** Accès anticipé messagerie (`users/{uid}.flags.chatMessaging`). */
+  chatMessaging: "chatMessaging",
   legal: "legal",
   termsAcceptedAt: "termsAcceptedAt",
   termsVersion: "termsVersion",
   createdAt: "createdAt",
   updatedAt: "updatedAt",
   clubId: "clubId",
-  role: "role",
   name: "name",
   adminIds: "adminIds",
   memberCount: "memberCount",
@@ -121,6 +127,7 @@ export const Fields = {
   startTime: "startTime",
   endTime: "endTime",
   meetingTime: "meetingTime",
+  meetingLocation: "meetingLocation",
   matchVenue: "matchVenue",
   teamIds: "teamIds",
   allTeams: "allTeams",
@@ -143,7 +150,7 @@ export const Fields = {
   canceled: "canceled",
   memberId: "memberId",
   accountUid: "accountUid",
-  /** Legacy fondateurs / membres inscrits avant accountUid. */
+  /** Uid de l’auteur d’un retour (`retour_user`) ; jamais sur une fiche membre. */
   userId: "userId",
   code: "code",
   /** Champ `status` dans `invitations` (pending, accepted, declined, expired). */
@@ -188,6 +195,8 @@ export const Fields = {
   systemKey: "systemKey",
   titleOverride: "titleOverride",
   participantUids: "participantUids",
+  /** Map uid → profil (nom, rôle, avatar), écrite par les Functions uniquement. */
+  participantProfiles: "participantProfiles",
   writePolicy: "writePolicy",
   lastMessageAt: "lastMessageAt",
   lastMessagePreview: "lastMessagePreview",
@@ -209,6 +218,8 @@ export const Fields = {
   pollQuestion: "pollQuestion",
   pollOptions: "pollOptions",
   pollVotes: "pollVotes",
+  /** `uid → {at, edited}` : heure du dernier vote de chaque membre. */
+  pollVoteTimes: "pollVoteTimes",
   pollAllowMultiple: "pollAllowMultiple",
   replyToMessageId: "replyToMessageId",
   replyToText: "replyToText",
@@ -253,21 +264,6 @@ export const EquipmentConditions = {
 
 export type EquipmentCondition =
   (typeof EquipmentConditions)[keyof typeof EquipmentConditions];
-
-/** Rôles membre club. */
-export const MemberRoles = {
-  admin: "admin",
-  coach: "coach",
-  player: "player",
-} as const;
-
-/**
- * Contexte UI portail hors membership (`parentLinks`).
- * Pas un rôle `members/{id}.role` — badge / tuile uniquement.
- */
-export const PortalUiRoles = {
-  parent: "parent",
-} as const;
 
 /** Statuts cotisation member_fees. */
 export const MemberFeeStatuses = {

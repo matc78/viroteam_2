@@ -10,10 +10,10 @@ abstract final class ProjectConfig {
 
   // —— Version app (doit matcher `pubspec.yaml` et les tags `v*` / `release-v*`) ——
   /// Nom marketing (ex. `2.2.12`). Vérifié en CI contre le tag de release.
-  static const String appVersionName = '2.2.12';
+  static const String appVersionName = '2.3.0';
 
   /// Build number local (`+N` du pubspec). La CI release peut le surcharger.
-  static const int appVersionCode = 18;
+  static const int appVersionCode = 21;
 
   // —— Firestore ——
   static const String firestoreDevDatabaseId = 'v2-dev';
@@ -100,10 +100,8 @@ abstract final class ProjectConfig {
   static const String usersCollection = 'users';
   static const String clubsCollection = 'clubs';
   static const String membersSubcollection = 'members';
-  static const String memberAccountsSubcollection = 'member_accounts';
   static const String guardiansSubcollection = 'guardians';
   static const String invitationsSubcollection = 'invitations';
-  static const String joinRequestsCollection = 'join_requests';
   static const String retourUserCollection = 'retour_user';
 
   /// Config globale app, lisible sans être connecté (écriture console only).
@@ -181,29 +179,32 @@ abstract final class ProjectConfig {
   /// Part minimale de la carte visible à l'écran pour compter la vue.
   static const double eventSeenVisibleFraction = 0.5;
 
-  // —— Rôles & permissions ——
+  // —— Droits & relations ——
   //
-  // Hiérarchie club (héritage cumulatif) :
-  //   Admin ⊃ Coach ⊃ Player
-  // Un coach EST un joueur avec plus de droits.
-  // Un admin EST un coach (donc aussi joueur) avec plus de droits.
+  // Droits purs : seule la liste `members/{uid}.permissions` fait foi
+  // (catalogue : `shared/permissions_catalog.json`, [ClubPermission]).
+  // Écrite par les Cloud Functions uniquement (`setMemberPermissions`).
+  // Le droit `admin` implique tous les autres et permet seul d'en attribuer ;
+  // le club garde toujours au moins un admin.
   //
-  // Parent ≠ rôle club. Relation adulte ↔ fiche joueur :
-  //   clubs/{clubId}/members/{memberId}/guardians/{parentUid}
-  //   users/{parentUid}.parentLinks[] : [{ clubId, memberId, relation, status }]
-  // Identité du lien : (parentUid, clubId, memberId) — pas l’Auth uid enfant.
+  // Des fonctions prédéfinies (Responsable cotisations…) regroupent des
+  // droits. Aucun rôle n'est stocké : les badges Admin / Entraîneur / Joueur /
+  // Membre se dérivent de la fiche ([MemberBadge]).
   //
-  // AVANT (faux) : roles: ['player', 'coach', 'admin', 'parent']
-  // APRÈS (bon)  : clubMemberships.role ∈ {player, coach, admin}
-  //                + guardians / parentLinks pour le lien parent ↔ enfant
+  // Index des clubs d'un compte : `users/{uid}.memberClubIds` (Functions).
   //
-  // Voir [parentsSpecDoc], [MemberRoles], [MemberRoleHierarchy],
-  // [FirestoreFields.parentLinks] et [guardiansSubcollection].
+  // Deux relations, qui ne sont pas des droits :
+  // - coach d'équipe : `teams.coachIds` (→ `members.coachTeamIds`), donne des
+  //   capacités sur ses équipes, réglées par `clubs.coachPermissions` ;
+  // - parent : `clubs/{clubId}/members/{memberId}/guardians/{parentUid}`
+  //   + `users/{parentUid}.parentLinks[]` (identité du lien : parentUid,
+  //   clubId, memberId).
+  //
+  // Point d'entrée unique côté app : [ClubAccess] / `clubAccessProvider`.
+  // Voir [parentsSpecDoc], [FirestoreFields.parentLinks] et
+  // [guardiansSubcollection].
 
-  /// Rôles possibles dans `clubMemberships` / `members/{uid}.role`.
-  static const List<String> clubMemberRoles = ['player', 'coach', 'admin'];
-
-  /// Champ utilisateur : index session parent → enfants (pas un rôle).
+  /// Champ utilisateur : index session parent → enfants (pas un droit).
   static const String parentLinksField = 'parentLinks';
 
   /// V1 : un seul guardian `active` ou `pending` par fiche enfant.
@@ -222,44 +223,4 @@ abstract final class ProjectConfig {
   static const String guardianStatusPending = 'pending';
   static const String guardianStatusActive = 'active';
   static const String guardianStatusRevoked = 'revoked';
-
-  /// Résumé hiérarchie — Admin hérite de tout ce que Coach peut faire, etc.
-  static const String roleInheritanceRule =
-      'Admin hérite de Coach ; Coach hérite de Player.';
-
-  // —— Player (base) ——
-  static const String permPlayerPlanning = 'Voir son planning, RSVP';
-  static const String permPlayerTeam = 'Voir son équipe';
-  static const String permPlayerInviteParent =
-      'Inviter un parent pour sa propre fiche (compte lié)';
-  static const String permPlayerRevokeParent =
-      'Révoquer le parent de sa propre fiche (compte lié)';
-
-  // —— Coach (= Player +) ——
-  static const String permCoachEvents = 'Créer événements, marquer présence';
-  static const String permCoachTeam = 'Gérer sa propre équipe';
-  static const String permCoachInvitePlayers =
-      'Inviter des joueurs pour ses équipes';
-
-  // —— Admin (= Coach +) ——
-  static const String permAdminAll = 'Peut tout faire dans le club';
-  static const String permAdminInvite =
-      'Inviter joueurs, entraîneurs, admins';
-  static const String permAdminInviteGuardian =
-      'Inviter un parent sur une fiche joueur (V1, plafond 1)';
-  static const String permAdminRevoke = 'Révoquer n\'importe qui';
-
-  // —— Parent (relation, pas rôle club) — V1 : canView + canRsvp + canPay ——
-  static const String permParentView =
-      'Voir le planning et les annonces de l\'enfant';
-  static const String permParentRsvp = 'RSVP pour l\'enfant';
-  static const String permParentPay = 'Payer la cotisation de l\'enfant';
-  static const String permParentCannot =
-      'Ne peut pas créer d\'événements ni gérer l\'équipe';
-  static const String permParentInvitedBy =
-      'Invité par un admin du club (V1)';
-  static const String permParentRevokedBy =
-      'Révocable par un admin (V1) ; plus tard aussi par l\'enfant lié';
-  static const String permParentAlsoMember =
-      'Peut aussi être joueur / coach / admin dans le même club (segment Moi | enfant)';
 }

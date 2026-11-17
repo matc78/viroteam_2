@@ -10,10 +10,130 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Droits des membres (« droits purs », mise à jour obligatoire 2.4.0) : un admin confie des droits précis sans faire de quelqu’un un coach ou un admin — fonctions prédéfinies (Responsable cotisations, annonces, membres, sportif, matériel) et réglage droit par droit dans la nouvelle feuille « Droits » d’une fiche, avec une bascule Administrateur (plus de modèles Entraîneur / Joueur : être coach ou joueur, c’est figurer dans une équipe). Droit Administrateur protégé (seul à attribuer des droits, toujours au moins un par club). Spec [`docs/specs/viroteam_v2_permissions_spec.md`](docs/specs/viroteam_v2_permissions_spec.md)
+- Coachs : nouvelle capacité « Publier des annonces pour ses équipes » dans les réglages coach du club
+- Functions : callables `setMemberPermissions` (remplace `setMemberRole`) et `createClub` (création de club côté serveur) ; script de migration `tool/migrate_roles_to_permissions.mjs` (dry-run par défaut, `--apply`, `--drop-legacy`)
+
+- Analytics : événements `notification_opened` (tap push par type) et `club_action_tapped` (CTA fiche club + rôle) ; super-propriété app `active_role` ; tableau de bord PostHog **Usage** (events, RSVP, taux proxy, notifs, vue club, top écrans)
+- Coûts : fiche [`docs/COUTS.md`](docs/COUTS.md) (inventaire Firebase/GCP, PostHog, Sentry, Brevo, GitHub, stores ; alertes vs saisie) + modèle mensuel [`docs/couts_mensuel.csv`](docs/couts_mensuel.csv)
+- Retour haptique (app) : petite vibration au RSVP, à l’envoi d’un message, au changement de sélecteur (Jour / Semaine / Mois, Moi / enfant, Membres / Parents, appel, thème, moment du bilan coach), au seuil du swipe vers la messagerie et du pull-to-refresh, à l’appui long (dont le menu d’un message), et sur les toasts succès / erreur (double impulsion si un RSVP échoue, y compris saisi par le staff). Réglage « Vibrations » dans Paramètres > Apparence (activé par défaut). Point d’entrée unique `ViroHaptics`
+
+### Modifié
+
+- Droits : feuille d’attribution séparée en **capacités d’équipe** (lecture seule : équipes entraînées + flags `coachPermissions` du club) et **droits club** (admin, raccourcis Responsable…, détail) ; résumé fiche « Entraîneur · N droits club »
+- Rôles → droits : `members.role` n’autorise plus rien (supprimé après la bascule) ; seule `members.permissions` fait foi, écrite par les Functions. Coach d’équipe = relation (`teams.coachIds` → `members.coachTeamIds`, trigger) avec les capacités `clubs.coachPermissions` sur ses seules équipes. Badges Admin / Entraîneur / Joueur dérivés, et **Membre** (gris) pour une fiche sans droit admin ni équipe ; Admin s’affiche sur la fiche, dans la vue Membres et dans les réponses d’un événement spécial (tout le club ou sans équipe), jamais dans la vue équipe ni dans les réponses d’un événement d’équipe. `adminIds` devient un simple index d’audience. Point d’entrée unique par couche (`ClubAccess`, `permissions.ts`, `useBureauCapabilities`, `can()` dans les règles) + garde-fous `permissionUsage`
+- **Changement de comportement** : un coach ne publie plus d’annonce pour tout le club ou une catégorie (droit Annonces), seulement pour ses équipes ; il ne voit plus les cotisations du club sans le droit « Voir les cotisations » (remplace le réglage coach `canViewFees`) ; un coach sans équipe ne crée plus d’événement
+- Analytics : super-propriété `active_role` = badge principal ; `max_role` retiré
+- Équipes : dans l’effectif, ta fiche (ou celle de l’enfant sélectionné via Moi / enfant) est épinglée en tête de sa section et son nom passe en gras ; le badge affiche le rôle dans l’équipe (Coach / Joueur) au lieu du rôle club
+- Modèle de données : une fiche ne porte plus `userId` ni `memberId` (`accountUid` seul lien au compte) ; ses équipes (`teamIds`) sont maintenues par le trigger d’équipe, plus par les clients ; `users.memberClubIds` devient le seul index des clubs d’un compte, écrit par les Functions (`clubMemberships` et le trigger `onUserWrittenSyncClubIds` retirés). Migration : `tool/migrate_roles_to_permissions.mjs` (recopie `accountUid`, `--drop-legacy` efface les anciens champs et `join_requests`)
+- Accueil : la barre clubs / + / messagerie remonte via `viewPadding` (barre 3 boutons Android) avec une petite marge seulement quand cet inset est présent — inchangé sans barre système
+- Sélection (app) : fini les cases à cocher carrées. Les listes à cocher (convocation d’un match, destinataires d’une conversation, sélection multiple des cotisations et des membres) passent à une coche ronde animée, la ligne choisie se teinte sans changer de hauteur et reprend sa forme au second tap. La feuille « Droits » d’une fiche passe en cartes avec des icônes dessinées pour ViroTeam, fonctions en grille de raccourcis. Toucher une capacité d’équipe (en admin) propose d’aller la régler dans les paramètres du club
+- Paramètres du club : cocher ou décocher une capacité coach ne ramène plus en haut de la page (`ViroScaffold` garde le même arbre avec ou sans `fallbackRoute`) ; fiche membre : plus de voile gris sous les lignes Licence, Parent et Gérer les droits
+- Pointage des présences masqué (flag `FeatureFlags.attendanceTracking`) : plus de bouton « Faire l’appel » ni de capacité coach « Prendre les présences » dans l’app, en attendant de retravailler la fonctionnalité ; données et code conservés
+- Loader : animation d’assemblage du logo ViroTeam (cycle ~1,4 s) à la place du spinner circulaire pour tous les chargements plein contenu
+- Notifications push : voix vestiaire pour les joueurs (titres en rotation — relance manuelle, convoc’, J-7 / J-2 / jour J), plus familier pour le staff (bilan, RSVP) ; parents adoucis ; cotisation / annonces / annulation inchangés. Relance manuelle réservée aux sans-réponse et « peut-être », signature « Signé coach {prénom} »
+- Accueil membre : tous les événements des 14 prochains jours s’affichent directement ; le bouton « Voir mes 14 prochains jours » (aperçu limité) est retiré
+- Notifications RSVP : liseré des events plus visible (trait plus épais, halo, clignotement plus contrasté) et voile coloré sur la tuile (vert / orange / rouge selon la réponse) ; petite flèche haut / bas pendant les 10 s si un event encadré est hors écran (tap pour y défiler) — pastille bleue / flèche blanche en clair, pastille claire / flèche bleue + halo en sombre
+- Vue club : l’encadré « Mon parent » ne s’affiche plus que pour les joueurs d’au moins une équipe en catégorie moins de 15 ans (U15 / M15 / -15 et équivalents par sport) ; masqué s’il n’y a aucune équipe
+- E-mails d’invitation : une fiche « Membre » (ni admin ni équipe) reçoit une invitation et une confirmation « membre », plus « joueur »
+- Droits, affichages : « Gérer les membres » et « Mon parent » suivent les bons droits ; un seul badge sur la fiche ; un droit inclus par un autre est coché et grisé ; réglages coach du club suivis en temps réel
+
+### Supprimé
+
+- Demandes de rôle : écran « Demander un rôle », liste des demandes côté admin, « Rôle proposé » sur l’aperçu d’invitation, callable `resolveJoinRequest` et collection `join_requests`
+
+### Corrigé
+
+- Ajout d’un membre refusé par les règles pendant la refonte des droits (la fiche pré-créée portait encore `memberId`)
+- Messagerie : un membre avec le droit « Messagerie » mais pas admin ne voyait pas le canal qu’il venait de créer
+- Coach d’équipe : `coachTeamIds` recalculé depuis l’équipe courante (des déclenchements traités dans le désordre pouvaient laisser une relation coach périmée)
+- Invitations : un coach autorisé peut de nouveau envoyer l’e-mail d’invitation d’un joueur de ses équipes (`sendMemberInvites` exigeait le droit Membres)
+- Arrivée par code d’équipe : une fiche déjà à l’uid du compte est bien liée (`accountUid`, index `adminIds`) — elle échappait sinon à l’anonymisation à la suppression du compte
+- Règles : le droit « Gérer les cotisations » implique la lecture des cotisations même sur une fiche non normalisée
+- Re-keying d’une fiche : les champs v1 `role` / `coachInfo` ne sont plus recopiés
+- Functions : index `adminIds` calculé en un seul endroit, helpers dédoublonnés, code mort retiré
+
+### Sécurité
+
+- Règles Firestore réécrites sur les droits : un admin ne peut plus écrire un rôle ou des droits en direct (callable seulement), `users.clubMemberships` / `memberClubIds` ne sont pas modifiables par leur titulaire, aucun client n’écrit `teamIds`, `coachTeamIds`, `accountUid` ni `permissions` d’une fiche (même à sa création), `member_accounts` et `join_requests` refusés, les cotisations ne sont plus lisibles par tout coach, les capacités coach (`canCreateEvents`, `canTakeAttendance`, annonces…) sont appliquées côté serveur et limitées aux équipes du coach, création de club uniquement via `createClub` ; scénarios rejoués dans `rules-tests/`
+- Coachs : plus de modification, d’annulation ni de notification d’un événement « tout le club » ou d’un événement multi-équipes dont ils n’entraînent pas toutes les équipes
+- Coachs : invitations et fiches pré-inscrites limitées à leurs équipes et aux fiches sans droit (un coach ne peut plus détourner l’invitation d’un futur admin) ; modération limitée aux conversations de leurs équipes
+- Règles : champs de re-clé / anonymisation réservés aux Functions ; une fiche pré-créée ne prend plus l’id d’un compte existant
+
+## [2.3.0] - 2026-11-06
+
+### Sécurité
+
+- Cloud Functions : `npm audit fix` (proxy-addr, busboy, body-parser, grpc, qs) + override `uuid` ≥ 11.1.1 — `npm audit` à 0 faille
+- Portail : bumps Next 15.5.29, Sentry 10.78, remplacement de `xlsx` (sans patch npm) par `exceljs`, overrides ciblés (`@grpc/grpc-js`, `postcss`, `glob`, `uuid`, `tinypool`) — graphe prod à 0 faille
+
+### Ajouté
+
+- Notifications RSVP : un tap ouvre la home et encadre d’un liseré clignotant les events concernés, couleur de la dernière réponse (vert présent, orange peut-être, rouge absent), pendant 10 s ou jusqu’au changement de page. Si aucun de ces events n’est sur la home (coach hors convocation, event au-delà de 14 jours), on retombe sur le planning comme avant. Cloud Functions : les liens planning des push RSVP (staff, parent, digest coéquipiers) portent `rsvpClubId` + `rsvpHighlights` ; les anciennes versions de l’app les ignorent
+- Messagerie (masquée), sondages : l’heure de chaque vote est enregistrée (`pollVoteTimes`, horodatage serveur, app + portail) et affichée dans le détail des votes (« Voté à 14:43 », « Modifié le 4/11 à 09:12 » si le membre a changé d’avis). Rules Firestore : un membre n’écrit que sa propre heure ; les anciens clients qui votent sans heure restent acceptés
+
+### Modifié
+
+- Messagerie (masquée), app : le détail d’un sondage s’ouvre en bottom sheet glissable au lieu d’une nouvelle page (route `/conversations/…/polls/…` retirée)
+- Messagerie (masquée), app : menu « + » plus lisible — voile flouté sur le fil, pastilles et libellés agrandis
+- Messagerie (masquée), app : nouvelles bulles — en clair, les miennes en bleu marque opaque (texte foncé) et celles des autres en blanc, sans contour ; en sombre, fond noir et texte blanc, contour couleur du club (blanc si elle est quasi noire) et, pour les miennes, contour néon de la couleur opposée au club (bleu néon si le club est noir / gris)
+- Home : fond flouté sous la barre du bas (clubs, ajout de club, messagerie) pour que les boutons restent lisibles au-dessus du contenu
+- Messagerie (masquée), app : look plus proche de WhatsApp / Snap — bouton d’envoi en pastille pleine bleue (adoucie tant que le champ est vide) calée en bas à droite du champ ; en-tête avec le nom du groupe en entier et le nombre de participants, tap sur l’en-tête pour ouvrir les infos (le bouton ⓘ part dans le menu) ; aperçu du dernier message sur deux lignes fixes, plus contrasté
+
+### Corrigé
+
+- Membres : une seule clé par personne — à la liaison d’un compte (invitation, code d’équipe), la fiche pré-inscrite passe sous `members/{uid}` avec toutes ses références (rosters, tous les events en écriture silencieuse, guardians et `parentLinks`, cotisations et paiements, annonces, invitations, `adminIds`). Un code d’équipe ne crée plus de fiche à id aléatoire. Migration de l’existant : `tool/rekey_linked_members.mjs` (dry-run par défaut ; complète aussi `accountUid` sur les fiches liées par le seul `userId` legacy et supprime l’index `member_accounts`)
+- Membres : nettoyage de la double clé — index `member_accounts` et résolveurs uid ↔ memberId supprimés dans l’app, le portail, les Cloud Functions et les rules (ma fiche = `members/{monUid}`, RSVP sous une seule clé) ; les push ne visent plus jamais un id de fiche non liée pris pour un uid (coachs et joueurs passent par `accountUid`) ; cotisations affichées au nom actuel du membre. Ordre de déploiement : migration des données, puis Functions / rules / portail, puis relance du script, puis app 2.3.0 forcée
+- Membres : changer son nom ou sa photo dans les paramètres met à jour sa fiche dans tous ses clubs, même pré-inscrite (trigger serveur `onUserWrittenSyncMemberProfile`, au lieu d’une écriture client qui ratait les fiches dont l’id n’était pas l’uid)
+- Membres : un admin ne peut plus modifier son propre rôle (app + callable) — seul un autre admin peut le faire descendre
+- Membres : un admin en attente (pas encore inscrit) peut à nouveau être supprimé depuis la liste / la fiche
+- Rules Firestore : un coach / admin ne peut plus patcher le `rsvp` d’un autre membre côté client ; l’édition staff passe uniquement par la callable
+- Messagerie (masquée), app : le clavier se ferme en glissant vers le bas ou en touchant le fil, même quand la conversation tient sur un écran (avant, il fallait quitter la page)
+
+## [2.2.14] - 2026-11-05
+
+### Ajouté
+
+- Notifications : digest multi-événements pour l’opt-in « Réponses des coéquipiers » (fenêtre 2 min) — une seule push du type « Marie a répondu à 3 convocations, vérifie dans l’app » au lieu d’une notif par event
+- Notifications : copy dédiée quand quelqu’un passe de présent à absent / peut-être (« Marie D. a changé » · « Présence : ne vient plus »)
+- Planning : un admin (ou un coach avec le nouveau droit `canEditMemberRsvp`, off par défaut) peut modifier le RSVP d’un joueur ou coach convoqué, via la callable `setEventRsvp` (app + portail)
+- Messagerie (masquée), accessibilité : sur une bulle, VoiceOver / TalkBack proposent « Répondre », « Réagir avec un cœur » et « Plus d’actions » (plus besoin du double-tap ou de l’appui long) ; emojis, réactions, avatar de l’en-tête et menu ⋮ annoncent un nom ; « + », emojis, « Réessayer » et réactions ont une zone de tap d’au moins 44. Parcours de recette avant ouverture : `docs/CHAT_SMOKE.md`
+- Messagerie (masquée) : chaque conversation porte les profils de ses participants (`participantProfiles` : nom, rôle, photo), écrits uniquement par les Functions à chaque sync et mis à jour quand un membre ou un parent change de nom ou de photo (`onMemberWrittenForChat`, nouveau trigger `onUserWrittenForChat`). Un parent voit enfin les noms, photos et rôles des expéditeurs dans le fil, et le portail n’a plus besoin de relire les membres un par un
+
+### Modifié
+
+- Portail Membres : l’import CSV / Excel est masqué sur viewport ≤ 767 px (peu pratique au téléphone) ; export et ajout unitaire inchangés
+- Prefs notifs : si `rsvp` est absent en base, l’app et le portail héritent de `events` (aligné Functions) — évite un écart UI / envoi pour les anciens profils
+- Messagerie : visible en debug ; en release / prod seulement si `users/{uid}.flags.chatMessaging == true` (console, pas d’auto-grant client). Portail : même règle via le profil (env local `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` inchangé). Push Functions : destinataires taggés tant que `CHAT_MESSAGING_LIVE=false`
+- Messagerie (masquée), fil : mes messages en bulles bleues, messages consécutifs d’une même personne regroupés (nom et avatar une seule fois), squelette au chargement et « Réessayer » en cas d’erreur, photos à leur ratio avec placeholder et progression pendant l’envoi, modification d’un message directement dans le champ (plus de boîte de dialogue), bouton d’envoi grisé tant que le champ est vide, recherche avec compteur (« 2 / 5 ») et navigation précédent / suivant
+- Messagerie (masquée), inbox et création : état « aucun résultat » distinct de l’inbox vide, placeholder de recherche fidèle à ce qu’elle filtre, fenêtres « nouvelle conversation » et « sondage » alignées sur les autres sheets ; les destinataires possibles sont chargés par `ChatDmTargetsService` avec des lectures groupées (plus de lecture par destinataire)
+- Messagerie (masquée) : tokens communs avec le portail (`ViroChat` ↔ `--chat-*`), un seul avatar de conversation (`ViroConversationAvatar`) pour l’inbox, l’en-tête du fil et la fiche, bulles de sondage alignées sur les messages (78 % de large, mêmes marges). « Vous » devient « Toi » et les états vides de l’inbox et du fil affichent une ligne d’aide
+- Messagerie (masquée), sans changement visuel : l’état du fil (historique, envois optimistes et relance, non-lus) passe dans un contrôleur Riverpod par conversation (`chatThreadControllerProvider`) et les trois chemins d’envoi (texte, photo, relance) dans `ChatService.sendPendingMessage`. Le détail des votes d’un sondage devient une route go_router (`/conversations/:clubId/:conversationId/polls/:messageId`) avec retour vers le fil. Nouvelles tuiles `ChatReactorListTile`, `ChatDmTargetListTile`, `ChatMediaListTile` et premiers tests du chat (helpers du fil, tri de l’inbox, extraction des médias, tuiles)
+
+### Corrigé
+
+- RSVP double clé (memberId + accountUid) : l’app affiche le vote le plus récent (`rsvpUpdatedAt`) au lieu de la première clé trouvée ; le trigger events réécrit sous l’accountUid tout vote posé sous le memberId par une ancienne app (≤ 2.2.13), sans push en double
+- Notifications : une écriture technique (script `tool/`, normalisation serveur) qui pose `silentWriteAt` ne déclenche plus aucune push ; `repair_event_rsvp_audience.mjs` le pose
+- Messagerie (masquée) : les pastilles de réaction sous une bulle ne réagissaient au tap que sur leurs quelques pixels du haut
+- Messagerie (masquée) : une conversation de l’inbox s’ouvre au tap n’importe où sur la tuile (les zones vides, à droite du titre par exemple, ne réagissaient pas — corrigé dans `ViroPressable`, donc pour toutes les tuiles qui l’utilisent)
+- Messagerie (masquée) : un message avec beaucoup de réactions différentes n’affiche plus qu’une rangée de 4 emojis (les plus utilisés) puis « +n », et cette rangée déborde vers le centre du fil au lieu de sortir de l’écran
+- Avatars à initiales (`MemberAvatar`) : fond opaque, le motif du fil de discussion ne transparaît plus
+- RSVP : les joueurs avec fiche pré-créée (invitation) pouvaient voir leur présence « coincée » — l’app écrivait sous `memberId` alors que les convocations / l’UI lisaient `accountUid`. Lecture, écriture, rules et création d’événement utilisent maintenant le même canon (`accountUid` si lié) ; un vote nettoie l’ancienne clé, et un script `tool/repair_event_rsvp_audience.mjs` répare les doubles clés déjà en base
+- Messagerie (masquée) : l’app n’empêche plus d’envoyer un message tant que le précédent n’est pas confirmé, les anciens messages ne disparaissent plus du haut du fil quand un nouveau arrive, et « Charger plus » ne s’affiche que s’il reste de l’historique
+- Messagerie (masquée) : les canaux réservés aux coachs et admins affichent le bon bandeau (« Seuls les coachs et les admins peuvent écrire ici. ») dans l’app et sur le portail
+- Tests des règles Firestore : `npm test` fonctionne aussi sous Windows (guillemets du script)
+- Release Android CI : épingle Temurin JDK 21 dans `release-android.yml` (le runner `ubuntu-latest` passait sur Java 25 et faisait échouer `assembleRelease` avec le seul message « 25.0.x »)
+
+## [2.2.13] - 2026-11-02
+
+### Ajouté
+
+- Planning : un coach / admin peut modifier un événement (détail > « Modifier l’événement ») : date, heures (début / fin, ou heure du match et de RDV), lieu, lieu de RDV, et titre pour une réunion ou un « autre ». Une seule occurrence est modifiée, même dans une série. Seuls les champs changés sont écrits : le trigger existant prévient les convoqués (« reporté » si la date ou l’heure de début bougent, sinon « modifié »). Avant, il fallait annuler puis recréer
 - Analytics : tableau de bord PostHog « Portail » (portail web seul) dans `tool/posthog_dashboards.mjs`, et option `--only=<nom>` pour ne créer qu'un tableau. Les événements serveur émis pendant une callable portent une propriété `client` (`portal` ou `app`), ce qui permet de savoir quelles invitations, arrivées et réponses viennent du portail
 
 ### Modifié
 
+- Push « report » d’événement : le corps dit si c’est l’heure (« passe à 16h00 au lieu de 14h30 ») ou la date (« reporté au … »), au lieu de « Maintenant … »
 - Notifications push : titres raccourcis (~26 car. visibles sur écran verrouillé iOS) — type / action en premier, équipe et détails dans le corps (RSVP, rappels, récap, annonces, cotisations)
 - Releases app : les notes de version (`distribution/release-notes/X.Y.Z.txt`, précédées de « Version X.Y.Z ») sont envoyées à chaque tag dans les « Nouveautés » Play (internal et brouillon production), dans la GitHub Release et dans « What to Test » TestFlight. Un tag `release-v*` prépare aussi la version App Store (Nouveautés, build attachée, sans envoi en review). Sans fichier de notes, la CI échoue.
 - GitHub Actions : toutes les actions des workflows tournent sur Node.js 24 (checkout v6, upload-artifact v6, download-artifact v7, setup-java v5, paths-filter v4, auth v3, action-gh-release v3), ce qui supprime les avertissements de dépréciation de Node.js 20

@@ -12,6 +12,15 @@ abstract final class ViroMotion {
   /// Mise en avant d’un élément ouvert par une notif : affichage puis fondu.
   static const Duration focusHighlightHold = Duration(milliseconds: 2400);
   static const Duration focusHighlightFade = Duration(milliseconds: 600);
+  /// Liseré clignotant des events de la home ouverts par une push RSVP :
+  /// durée totale, demi-période du clignotement, contraste min / max et
+  /// épaisseur du trait.
+  static const Duration rsvpHighlightDuration = Duration(seconds: 10);
+  static const Duration rsvpHighlightBlink = Duration(milliseconds: 520);
+  static const double rsvpHighlightBlinkMinOpacity = 0.28;
+  static const double rsvpHighlightBorderWidth = 3;
+  /// Teinte de fond de la tuile (vert / rouge / orange) au pic du clignotement.
+  static const double rsvpHighlightFillMaxOpacity = 0.28;
   /// Ouverture de l'œil « vu » (`SeenEye`), attente avant la première
   /// ouverture (sheet posé) et décalage entre deux lignes.
   static const Duration seenEyeOpen = Duration(milliseconds: 1400);

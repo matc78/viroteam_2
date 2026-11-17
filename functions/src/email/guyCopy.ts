@@ -12,13 +12,15 @@ import type {
 } from "./types";
 
 /**
- * Normalise un rôle membre pour les variantes de copy.
+ * Normalise un badge de fiche pour les variantes de copy ;
+ * inconnu → `member` (fiche sans droit admin ni équipe).
  */
 export function normalizeMemberInviteRole(raw: string): MemberInviteRole {
   const role = raw.trim().toLowerCase();
   if (role === "coach") return "coach";
   if (role === "admin") return "admin";
-  return "player";
+  if (role === "player") return "player";
+  return "member";
 }
 
 function greeting(firstName: string): { text: string; html: string } {
@@ -36,7 +38,8 @@ function greeting(firstName: string): { text: string; html: string } {
 function roleLabelFr(role: MemberInviteRole): string {
   if (role === "coach") return emailCopy.common.roleCoach;
   if (role === "admin") return emailCopy.common.roleAdmin;
-  return emailCopy.common.rolePlayer;
+  if (role === "player") return emailCopy.common.rolePlayer;
+  return emailCopy.common.roleMember;
 }
 
 /**

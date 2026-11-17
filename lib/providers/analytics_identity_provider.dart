@@ -8,6 +8,7 @@ import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/services/analytics_consent_service.dart';
 import 'package:viro_team_v2/services/analytics_identity.dart';
+import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 
 /// Aligne l'identité PostHog sur la session : identifie l'utilisateur (uid
 /// Firebase) et son club actif quand le consentement est donné, oublie tout à
@@ -18,6 +19,7 @@ final analyticsIdentitySyncProvider = Provider<void>((ref) {
   String? signedInUid;
   String? sentPerson;
   String? sentClub;
+  String? sentActiveRole;
 
   void sync() {
     final authUser = ref.read(authStateProvider).value;
@@ -26,6 +28,7 @@ final analyticsIdentitySyncProvider = Provider<void>((ref) {
       signedInUid = null;
       sentPerson = null;
       sentClub = null;
+      sentActiveRole = null;
       return;
     }
     signedInUid = authUser.uid;
@@ -34,6 +37,7 @@ final analyticsIdentitySyncProvider = Provider<void>((ref) {
       // Renvoyé tel quel si l'utilisateur accepte plus tard.
       sentPerson = null;
       sentClub = null;
+      sentActiveRole = null;
       return;
     }
 
@@ -56,7 +60,21 @@ final analyticsIdentitySyncProvider = Provider<void>((ref) {
       }
     }
 
-    final clubId = ref.read(sessionProvider).activeClubId;
+    final session = ref.read(sessionProvider);
+    final activeClubId = session.activeClubId;
+    final activeMember = activeClubId == null || activeClubId.isEmpty
+        ? null
+        : ref.read(clubMemberProvider(activeClubId)).value;
+    final activeBadge = analyticsActiveRole(
+      hasMemberDoc: activeMember != null,
+      badge: activeMember?.primaryBadge,
+    );
+    if (activeBadge != sentActiveRole) {
+      sentActiveRole = activeBadge;
+      unawaited(analytics.register(analyticsActiveRoleKey, activeBadge));
+    }
+
+    final clubId = session.activeClubId;
     if (clubId == null || clubId.isEmpty) return;
     final club = (ref.read(userClubsProvider).value ?? const [])
         .where((entry) => entry.club.id == clubId)

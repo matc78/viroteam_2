@@ -12,19 +12,20 @@ import { MemberDetailPanel } from "@/components/dashboard/MemberDetailPanel";
 import { MembersTable } from "@/components/dashboard/MembersTable";
 import { ParentsTable } from "@/components/dashboard/ParentsTable";
 import { TeamsPanel } from "@/components/dashboard/TeamsPanel";
+import { isCurrentUserMember } from "@/components/dashboard/YouChip";
 import type { TeamFormValues } from "@/components/dashboard/CreateTeamDialog";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import tabStyles from "@/components/dashboard/MembersTabs.module.css";
 import { useToast } from "@/components/ToastProvider";
 import {
-  bureauCapabilities,
   canAddPlayerToTeam,
   canShareTeamInvite,
   canSeeMemberContact,
   membersVisibleToViewer,
   teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
+import { useMobileLayout } from "@/lib/ui/useMobileLayout";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import { useAsyncClubResource } from "@/lib/dashboard/useAsyncClubResource";
 import {
@@ -33,7 +34,15 @@ import {
   useIsPortalRouteActive,
 } from "@/lib/dashboard/useClubRealtimeReload";
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
+import { MemberFeeStatuses } from "@/lib/firebase/constants";
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
+import {
+  canEditMemberLicense,
+  isAdminMember,
+  PERMISSION_ADMIN,
+  type ClubPermission,
+} from "@/lib/auth/permissions";
+import { permissionsCopy } from "@/lib/copy/permissionsCopy";
 import {
   extendMemberGuardianInvite,
   inviteMemberGuardian,
@@ -50,18 +59,15 @@ import {
 import {
   addMemberWithInvitation,
   addMemberWithoutInvitation,
-  assignMemberToTeam,
   buildInviteMessage,
   extendMemberInvitation,
-  getLinkedMemberId,
   regenerateMemberInvitation,
   removeMember,
   updateMemberLicense,
-  updateMemberRole,
+  updateMemberPermissions,
   updatePendingMemberNames,
   updatePendingMemberProfile,
   type AddMemberResult,
-  type ClubMemberRole,
 } from "@/lib/firebase/memberService";
 import {
   addMemberToTeam,
@@ -96,7 +102,7 @@ import {
 
 const DEFAULT_FILTERS: MembersFilters = {
   search: "",
-  role: "all",
+  badge: "all",
   teamId: "all",
   registration: "all",
   feeStatus: "all",
@@ -111,12 +117,14 @@ type MembersTab = "activation" | "roster" | "parents" | "teams";
 
 /** Contenu page Membres branché sur Firestore. */
 function MembersPageContent() {
-  const { activeClub, activeClubRole, user } = useAuth();
-  const caps = useMemo(
-    () =>
-      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
-    [activeClubRole, activeClub?.coachPermissions],
-  );
+  const { activeClub, user } = useAuth();
+  const isMobileLayout = useMobileLayout();
+  const caps = useBureauCapabilities();
+  // Import CSV : crée des fiches et les place dans les équipes ⇒ droits
+  // membres et équipes. La colonne `role=admin` n'attribue le droit
+  // Administrateur que si l'importateur est lui-même administrateur.
+  const canImportMembers =
+    caps.canManageMembers && caps.canManageTeams && !isMobileLayout;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -126,8 +134,8 @@ function MembersPageContent() {
     useAsyncClubPageResource(
       activeClub,
       (club) =>
-        loadMembersPageData(club, { role: activeClubRole }),
-      [activeClubRole],
+        loadMembersPageData(club, { canListFees: caps.canViewFees }),
+      [caps.canViewFees],
       "/members",
     );
   const membersActive = useIsPortalRouteActive(["/members"]);
@@ -139,7 +147,6 @@ function MembersPageContent() {
     enabled: membersActive,
   });
 
-  const [linkedMemberId, setLinkedMemberId] = useState<string | null>(null);
   const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(
     null,
   );
@@ -163,6 +170,10 @@ function MembersPageContent() {
   );
 
   useEffect(() => {
+    if (!canImportMembers && showImport) setShowImport(false);
+  }, [canImportMembers, showImport]);
+
+  useEffect(() => {
     setFilters(DEFAULT_FILTERS);
     setParentFilters(DEFAULT_PARENT_FILTERS);
     setSelectedMemberId(null);
@@ -177,31 +188,14 @@ function MembersPageContent() {
     setHighlightedTeamId(null);
   }, [activeClub?.id]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadLinked() {
-      if (!activeClub || !user) {
-        setLinkedMemberId(null);
-        return;
-      }
-      const id = await getLinkedMemberId(activeClub.id, user.uid);
-      if (!cancelled) setLinkedMemberId(id);
-    }
-    void loadLinked();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeClub?.id, user?.uid]);
-
   const scopedTeams = useMemo(() => {
     if (!data) return [];
     return teamsVisibleToViewer({
-      role: activeClubRole,
+      caps,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
     });
-  }, [data, activeClubRole, user?.uid, linkedMemberId]);
+  }, [data, caps, user?.uid]);
 
   useEffect(() => {
     if (!teamQuery || !data) return;
@@ -217,29 +211,27 @@ function MembersPageContent() {
   }, [teamQuery, data, scopedTeams, pathname, router]);
 
   useEffect(() => {
-    if (!caps.canManageParents && membersTab === "parents") {
+    if (!caps.canManageMembers && membersTab === "parents") {
       setMembersTab("roster");
     }
-  }, [caps.canManageParents, membersTab]);
+  }, [caps.canManageMembers, membersTab]);
 
   const filteredRows = useMemo(() => {
     if (!data) return [];
     const scopedMembers = membersVisibleToViewer({
-      role: activeClubRole,
+      caps,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
       members: data.members,
     });
     return filterMemberRows(scopedMembers, filters);
-  }, [data, filters, activeClubRole, user?.uid, linkedMemberId]);
+  }, [data, filters, caps, user?.uid]);
 
   const selectedInviteableCount = useMemo(() => {
     if (!data) return 0;
     const scopedMembers = membersVisibleToViewer({
-      role: activeClubRole,
+      caps,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
       members: data.members,
     });
@@ -250,17 +242,15 @@ function MembersPageContent() {
   }, [
     data,
     selectedIds,
-    activeClubRole,
+    caps,
     user?.uid,
-    linkedMemberId,
   ]);
 
   const selectedMember = useMemo(() => {
     if (!data || !selectedMemberId) return null;
     const scopedMembers = membersVisibleToViewer({
-      role: activeClubRole,
+      caps,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
       members: data.members,
     });
@@ -271,15 +261,16 @@ function MembersPageContent() {
   }, [
     data,
     selectedMemberId,
-    activeClubRole,
+    caps,
     user?.uid,
-    linkedMemberId,
   ]);
+  const selectedIsCurrentUser =
+    selectedMember !== null && isCurrentUserMember(selectedMember, user?.uid);
 
   // Parents : une requête guardians par membre → chargés seulement quand
   // l’onglet Parents ou l’invitation parent est ouvert, puis à chaque reload.
   const parentsWanted =
-    caps.canManageParents && (membersTab === "parents" || showInviteParent);
+    caps.canManageMembers && (membersTab === "parents" || showInviteParent);
   // Club pour lequel les parents ont été demandés (reste chargé ensuite).
   const [parentsRequestedClubId, setParentsRequestedClubId] = useState<
     string | null
@@ -325,18 +316,11 @@ function MembersPageContent() {
     [data?.members, parentRows],
   );
 
-  function memberContactVisible(member: {
-    memberId: string;
-    accountUid?: string | null;
-  }): boolean {
+  function memberContactVisible(member: { memberId: string }): boolean {
     return canSeeMemberContact({
-      role: activeClubRole,
+      caps,
       viewerUid: user?.uid ?? null,
-      viewerLinkedMemberId: linkedMemberId,
-      target: {
-        memberId: member.memberId,
-        accountUid: member.accountUid ?? null,
-      },
+      target: { memberId: member.memberId },
       teams: data?.teams ?? [],
     });
   }
@@ -408,7 +392,6 @@ function MembersPageContent() {
     firstName: string;
     lastName: string;
     email: string;
-    role: typeof MemberRoles.player | typeof MemberRoles.coach;
   }) {
     if (!activeClub || !user) return;
     await runMemberAction(
@@ -417,7 +400,6 @@ function MembersPageContent() {
           clubId: activeClub.id,
           firstName: input.firstName,
           lastName: input.lastName,
-          role: input.role,
           sentByUid: user.uid,
           club: activeClub,
           email: input.email,
@@ -488,21 +470,14 @@ function MembersPageContent() {
     role: TeamRosterRole;
   }) {
     if (!activeClub) return;
-    if (params.role === MemberRoles.coach && !caps.isAdmin) return;
-    if (params.role === MemberRoles.player) {
-      const team = data?.teams.find((item) => item.id === params.teamId);
-      if (
-        !team ||
-        !canAddPlayerToTeam({
-          role: activeClubRole,
-          uid: user?.uid ?? null,
-          linkedMemberId,
-          team,
-          coachPermissions: activeClub?.coachPermissions,
-        })
-      ) {
-        return;
-      }
+    // Nommer un coach : droit équipes ; ajouter un joueur : droit équipes ou
+    // coach autorisé de l’équipe.
+    if (params.role === "coach" && !caps.canManageTeams) return;
+    if (
+      params.role === "player" &&
+      !canAddPlayerToTeam(caps.access, params.teamId)
+    ) {
+      return;
     }
     const ok = await runMemberAction(
       async () => {
@@ -525,7 +500,6 @@ function MembersPageContent() {
   async function handleRemoveTeamMember(params: {
     teamId: string;
     memberId: string;
-    accountUid: string | null;
     role: TeamRosterRole;
   }) {
     if (!activeClub) return;
@@ -536,7 +510,6 @@ function MembersPageContent() {
           teamId: params.teamId,
           memberId: params.memberId,
           role: params.role,
-          accountUid: params.accountUid,
         });
         reload();
       },
@@ -614,20 +587,24 @@ function MembersPageContent() {
     );
   }
 
-  async function handleChangeRole(role: ClubMemberRole) {
+  async function handleChangePermissions(permissions: ClubPermission[]) {
     if (!activeClub || !selectedMember) return;
+    if (isCurrentUserMember(selectedMember, user?.uid)) {
+      showToast(permissionsCopy.cannotChangeOwnRights, "error");
+      return;
+    }
     await runMemberAction(
       async () => {
-        await updateMemberRole({
+        await updateMemberPermissions({
           clubId: activeClub.id,
           memberId: selectedMember.memberId,
-          newRole: role,
+          permissions,
         });
         reload();
       },
       {
-        successMessage: "Rôle mis à jour.",
-        errorFallback: "Changement de rôle impossible.",
+        successMessage: "Droits mis à jour.",
+        errorFallback: permissionsCopy.updateFailed,
       },
     );
   }
@@ -808,12 +785,6 @@ function MembersPageContent() {
             let memberId = action.existingMemberId;
 
             if (action.action === "create" || !memberId) {
-              const createRole =
-                action.role === MemberRoles.admin
-                  ? MemberRoles.admin
-                  : action.role === MemberRoles.coach
-                    ? MemberRoles.coach
-                    : MemberRoles.player;
 
               if (action.email.trim() && meta.sendInvites) {
                 // Invitation créée tout de suite : le mail Brevo part juste après.
@@ -821,7 +792,6 @@ function MembersPageContent() {
                   clubId: activeClub.id,
                   firstName: action.firstName,
                   lastName: action.lastName,
-                  role: createRole,
                   sentByUid: user.uid,
                   club: activeClub,
                   email: action.email,
@@ -834,7 +804,6 @@ function MembersPageContent() {
                   clubId: activeClub.id,
                   firstName: action.firstName,
                   lastName: action.lastName,
-                  role: createRole,
                   sentByUid: user.uid,
                   email: action.email.trim() || undefined,
                   logActivity: false,
@@ -842,15 +811,24 @@ function MembersPageContent() {
                 memberId = member.memberId;
               }
               report.created += 1;
+              // Colonne `role` = admin : droit Administrateur, fiches créées
+              // seulement (une fiche existante garde ses droits). Exige le
+              // droit Administrateur. `coach` : coach de l’équipe, sans droit.
+              if (action.role === "admin") {
+                if (caps.canEditRights) {
+                  await updateMemberPermissions({
+                    clubId: activeClub.id,
+                    memberId,
+                    permissions: [PERMISSION_ADMIN],
+                  });
+                } else {
+                  report.warnings.push(
+                    `Ligne ${action.lineNumber} : droit Administrateur non attribué (seul un administrateur peut attribuer des droits).`,
+                  );
+                }
+              }
             } else {
               const existing = existingById.get(memberId);
-              if (existing && existing.role !== action.role) {
-                await updateMemberRole({
-                  clubId: activeClub.id,
-                  memberId,
-                  newRole: action.role,
-                });
-              }
 
               if (existing && !existing.hasLinkedAccount) {
                 const nameChanged =
@@ -918,7 +896,7 @@ function MembersPageContent() {
 
             if (
               action.teamName.trim() &&
-              action.role !== MemberRoles.admin &&
+              action.role !== "admin" &&
               memberId
             ) {
               const team = teamsByName.get(normalizeTeamKey(action.teamName));
@@ -930,16 +908,13 @@ function MembersPageContent() {
                 importAborted = true;
                 break;
               }
-              const rosterRole =
-                action.role === MemberRoles.coach
-                  ? MemberRoles.coach
-                  : MemberRoles.player;
+              const rosterRole = action.role === "coach" ? "coach" : "player";
               const existingMember = existingById.get(memberId);
               const previousAssignments = existingMember
                 ? existingMember.resolvedTeamIds
                 : [];
 
-              await assignMemberToTeam({
+              await addMemberToTeam({
                 clubId: activeClub.id,
                 memberId,
                 teamId: team.id,
@@ -952,25 +927,14 @@ function MembersPageContent() {
                   (item) => item.id === previousTeamId,
                 );
                 if (!previousTeam) continue;
-                const matchIds = new Set(
-                  [
-                    existingMember?.memberId,
-                    existingMember?.accountUid,
-                  ].filter(Boolean) as string[],
-                );
-                const wasCoach = previousTeam.coachIds.some((id) =>
-                  matchIds.has(id),
-                );
-                const wasPlayer = previousTeam.playerIds.some((id) =>
-                  matchIds.has(id),
-                );
+                const wasCoach = previousTeam.coachIds.includes(memberId);
+                const wasPlayer = previousTeam.playerIds.includes(memberId);
                 if (wasCoach) {
                   await removeMemberFromTeam({
                     clubId: activeClub.id,
                     memberId,
                     teamId: previousTeamId,
-                    role: MemberRoles.coach,
-                    accountUid: existingMember?.accountUid,
+                    role: "coach",
                   });
                 }
                 if (wasPlayer || (!wasCoach && !wasPlayer)) {
@@ -978,8 +942,7 @@ function MembersPageContent() {
                     clubId: activeClub.id,
                     memberId,
                     teamId: previousTeamId,
-                    role: MemberRoles.player,
-                    accountUid: existingMember?.accountUid,
+                    role: "player",
                   });
                 }
               }
@@ -1257,59 +1220,6 @@ function MembersPageContent() {
     }
   }
 
-  async function handleBulkSetRole(role: string) {
-    if (!activeClub) return;
-    if (
-      role !== MemberRoles.admin &&
-      role !== MemberRoles.coach &&
-      role !== MemberRoles.player
-    ) {
-      return;
-    }
-
-    const memberIds = [...selectedIds];
-    if (memberIds.length === 0) return;
-
-    const roleLabel =
-      role === MemberRoles.admin
-        ? "Admin"
-        : role === MemberRoles.coach
-          ? "Coach"
-          : "Joueur";
-    const confirmed = window.confirm(
-      `Passer ${memberIds.length} membre${memberIds.length > 1 ? "s" : ""} en rôle « ${roleLabel} » ?`,
-    );
-    if (!confirmed) return;
-
-    setBusy(true);
-    let ok = 0;
-    let failed = 0;
-    try {
-      for (const memberId of memberIds) {
-        try {
-          await updateMemberRole({
-            clubId: activeClub.id,
-            memberId,
-            newRole: role,
-          });
-          ok += 1;
-        } catch {
-          failed += 1;
-        }
-      }
-      showToast(
-        `Rôles : ${ok} mise${ok > 1 ? "s" : ""} à jour${
-          failed > 0 ? ` · ${failed} échec${failed > 1 ? "s" : ""}` : ""
-        }.`,
-        failed > 0 ? "error" : "success",
-      );
-      clearSelection();
-      reload();
-    } finally {
-      setBusy(false);
-    }
-  }
-
   function handleBulkExport() {
     const rows = selectedMemberRows();
     if (rows.length === 0) return;
@@ -1497,7 +1407,7 @@ function MembersPageContent() {
           >
             Équipes
           </button>
-          {caps.canManageParents ? (
+          {caps.canManageMembers ? (
             <button
               type="button"
               role="tab"
@@ -1519,9 +1429,8 @@ function MembersPageContent() {
         {data && membersTab === "activation" ? (
           <ActivationRosterPanel
             members={membersVisibleToViewer({
-              role: activeClubRole,
+              caps,
               uid: user?.uid ?? null,
-              linkedMemberId,
               teams: data.teams,
               members: data.members,
             })}
@@ -1544,10 +1453,10 @@ function MembersPageContent() {
             bulkBusy={busy}
             inviteableSelectedCount={selectedInviteableCount}
             canAddMember={caps.canAddMember}
-            canImportMembers={caps.canImportMembers}
-            canSelectRows={!caps.isPlayer}
+            canImportMembers={canImportMembers}
+            canSelectRows={caps.isStaff}
             canInviteActions={caps.canAddMember}
-            showAdminBulkActions={caps.isAdmin}
+            showFeeBulkActions={caps.canManageFees}
             canSeeContact={memberContactVisible}
             onFiltersChange={setFilters}
             onSelectMember={setSelectedMemberId}
@@ -1559,9 +1468,6 @@ function MembersPageContent() {
             }}
             onBulkSetFeeStatus={(status) => {
               void handleBulkSetFeeStatus(status);
-            }}
-            onBulkSetRole={(role) => {
-              void handleBulkSetRole(role);
             }}
             onBulkExport={handleBulkExport}
             onCopyInvite={(member) => {
@@ -1593,14 +1499,14 @@ function MembersPageContent() {
 
         {data &&
         membersTab === "parents" &&
-        caps.canManageParents &&
+        caps.canManageMembers &&
         !parentRows ? (
           <DashboardSkeleton variant="members" />
         ) : null}
 
         {data &&
         membersTab === "parents" &&
-        caps.canManageParents &&
+        caps.canManageMembers &&
         parentRows ? (
           <ParentsTable
             rows={filteredParents}
@@ -1639,9 +1545,8 @@ function MembersPageContent() {
             clubName={activeClub.name}
             teams={scopedTeams}
             members={membersVisibleToViewer({
-              role: activeClubRole,
+              caps,
               uid: user?.uid ?? null,
-              linkedMemberId,
               teams: data.teams,
               members: data.members,
             })}
@@ -1649,28 +1554,17 @@ function MembersPageContent() {
             busy={busy}
             error={actionError}
             highlightedTeamId={highlightedTeamId}
-            canCreateTeam={caps.canCreateTeam}
-            canEditTeam={caps.isAdmin}
-            canDeleteTeam={caps.isAdmin}
-            canManageCoaches={caps.isAdmin}
-            canRemovePlayers={caps.isAdmin}
+            viewerMemberId={user?.uid ?? null}
+            canCreateTeam={caps.canManageTeams}
+            canEditTeam={caps.canManageTeams}
+            canDeleteTeam={caps.canManageTeams}
+            canManageCoaches={caps.canManageTeams}
+            canRemovePlayers={caps.canManageTeams}
             canAddPlayerToTeam={(team) =>
-              canAddPlayerToTeam({
-                role: activeClubRole,
-                uid: user?.uid ?? null,
-                linkedMemberId,
-                team,
-                coachPermissions: activeClub?.coachPermissions,
-              })
+              canAddPlayerToTeam(caps.access, team.id)
             }
             canShareTeamInvite={(team) =>
-              canShareTeamInvite({
-                role: activeClubRole,
-                uid: user?.uid ?? null,
-                linkedMemberId,
-                team,
-                coachPermissions: activeClub?.coachPermissions,
-              })
+              canShareTeamInvite(caps.access, team.id)
             }
             onClearError={() => setActionError(null)}
             onCreateTeam={handleCreateTeam}
@@ -1692,16 +1586,25 @@ function MembersPageContent() {
           error={actionError}
           canSeeContact={memberContactVisible(selectedMember)}
           canEditMember={caps.canAddMember}
-          canEditRole={caps.canEditRole}
-          canRemoveMember={caps.canRemoveMember}
-          canManageParents={caps.canManageParents}
+          canEditLicense={canEditMemberLicense(
+            caps.access,
+            selectedMember.teamIds,
+          )}
+          canEditRights={caps.canEditRights && !selectedIsCurrentUser}
+          isOwnProfile={selectedIsCurrentUser}
+          canRemoveMember={
+            caps.canManageMembers &&
+            !selectedIsCurrentUser &&
+            (!isAdminMember(selectedMember) || caps.isClubAdmin)
+          }
+          canManageParents={caps.canManageMembers}
           onClose={() => {
             setSelectedMemberId(null);
             setActionError(null);
           }}
           onSaveProfile={handleSavePendingProfile}
           onSaveLicense={handleSaveLicense}
-          onChangeRole={handleChangeRole}
+          onChangePermissions={handleChangePermissions}
           onCopyInvite={() => {
             if (!activeClub || !selectedMember.pendingInviteCode) return;
             void copyInviteMessage({
@@ -1744,11 +1647,10 @@ function MembersPageContent() {
         />
       ) : null}
 
-      {showImport && data && activeClub && caps.canImportMembers ? (
+      {showImport && data && activeClub && canImportMembers ? (
         <ImportMembersDialog
           sport={activeClub.sport}
           existingMembers={data.members}
-          adminIds={activeClub.adminIds}
           teams={data.teams}
           busy={busy}
           error={actionError}
@@ -1762,7 +1664,7 @@ function MembersPageContent() {
         />
       ) : null}
 
-      {showInviteParent && caps.canManageParents ? (
+      {showInviteParent && caps.canManageMembers ? (
         <InviteParentDialog
           busy={busy}
           error={actionError}

@@ -10,14 +10,12 @@ import homeStyles from "@/components/home/home.module.css";
 /** Accueil joueur : prochain rendez-vous, réponses, cotisation, annonces. */
 export function PlayerHomeView({
   clubId,
-  viewerUid,
   data,
   refreshing,
   error,
   reload,
 }: {
   clubId: string;
-  viewerUid: string | null;
   data: PlayerHomeDashboardData | null;
   refreshing: boolean;
   error: string | null;
@@ -50,10 +48,6 @@ export function PlayerHomeView({
             ? {
                 clubId,
                 memberId: data.linkedMemberId,
-                audienceIds: [
-                  data.linkedMemberId,
-                  ...(viewerUid ? [viewerUid] : []),
-                ],
                 onUpdated: reload,
               }
             : null

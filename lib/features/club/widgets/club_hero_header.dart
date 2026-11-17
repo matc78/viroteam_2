@@ -37,7 +37,8 @@ class ClubHeroHeader extends StatelessWidget {
   final Club club;
   final Color accent;
   final Color? accentSecondary;
-  final String? role;
+  /// Badge du compte dans le club (`null` : aucun badge).
+  final ViroRole? role;
   final List<ClubHeroStat> stats;
   final VoidCallback? onEditAppearance;
 
@@ -83,7 +84,7 @@ class ClubHeroHeader extends StatelessWidget {
         if (role != null) ...[
           const SizedBox(height: ViroSpacing.sm - 2),
           ViroRoleBadge(
-            role: viroRoleFromMemberRole(role!),
+            role: role!,
             compact: true,
           ),
         ],

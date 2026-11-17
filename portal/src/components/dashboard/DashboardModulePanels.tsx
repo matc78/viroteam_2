@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { ReactNode, Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
-import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
+import { useAuth } from "@/lib/firebase/AuthProvider";
+import { isChatMessagingLive } from "@/lib/featureFlags";
 import { preloadWhenIdle } from "@/lib/ui/preloadWhenIdle";
 import styles from "./DashboardModulePanels.module.css";
 
@@ -83,7 +84,6 @@ const MODULE_LOADERS: Array<() => Promise<unknown>> = [
   loadAccount,
   loadEquipment,
   loadActivity,
-  ...(CHAT_MESSAGING_LIVE ? [loadMessages] : []),
 ];
 
 type ModuleId =
@@ -189,12 +189,19 @@ function resolveModuleId(pathname: string): ModuleId {
  */
 export function DashboardModulePanels() {
   const pathname = usePathname();
+  const { profile } = useAuth();
+  const chatLive = isChatMessagingLive(profile);
   const activeId = resolveModuleId(pathname);
   const [mountedIds, setMountedIds] = useState(
     () => new Set<ModuleId>([activeId]),
   );
 
-  useEffect(() => preloadWhenIdle(MODULE_LOADERS), []);
+  useEffect(() => {
+    const loaders = chatLive
+      ? [...MODULE_LOADERS, loadMessages]
+      : MODULE_LOADERS;
+    preloadWhenIdle(loaders);
+  }, [chatLive]);
 
   useEffect(() => {
     setMountedIds((previous) => {
@@ -208,7 +215,7 @@ export function DashboardModulePanels() {
   return (
     <div className={styles.root}>
       {MODULES.map((module) => {
-        if (module.id === "messages" && !CHAT_MESSAGING_LIVE) return null;
+        if (module.id === "messages" && !chatLive) return null;
         if (!mountedIds.has(module.id)) return null;
         const isActive = module.id === activeId;
         return (

@@ -12,6 +12,9 @@ abstract final class ViroIcons {
   static IconData get add => PhosphorIconsBold.plus;
   static IconData get arrowUp => PhosphorIconsRegular.arrowUp;
   static IconData get arrowDown => PhosphorIconsRegular.arrowDown;
+  /// Flèches d’indication (hint scroll RSVP) — trait épais pour le contraste.
+  static IconData get arrowUpBold => PhosphorIconsBold.arrowUp;
+  static IconData get arrowDownBold => PhosphorIconsBold.arrowDown;
   static IconData get chevronRight => PhosphorIconsRegular.caretRight;
   static IconData get chevronLeft => PhosphorIconsRegular.caretLeft;
   static IconData get chevronDown => PhosphorIconsRegular.caretDown;
@@ -35,6 +38,7 @@ abstract final class ViroIcons {
   static IconData get chatFill => PhosphorIconsFill.chatCircle;
   static IconData get whatsapp => PhosphorIconsRegular.whatsappLogo;
   static IconData get send => PhosphorIconsRegular.paperPlaneTilt;
+  static IconData get sendFill => PhosphorIconsFill.paperPlaneRight;
   static IconData get megaphone => PhosphorIconsRegular.megaphone;
 
   // Actions
@@ -74,6 +78,7 @@ abstract final class ViroIcons {
   static IconData get selectAll => PhosphorIconsRegular.selectionAll;
   static IconData get note => PhosphorIconsRegular.notePencil;
   static IconData get block => PhosphorIconsRegular.prohibit;
+  static IconData get lock => PhosphorIconsRegular.lock;
   static IconData get personOutline => PhosphorIconsRegular.user;
   static IconData get groups => PhosphorIconsRegular.usersThree;
   static IconData get key => PhosphorIconsRegular.key;
@@ -105,6 +110,7 @@ abstract final class ViroIcons {
   static IconData get roleCoach => PhosphorIconsFill.megaphoneSimple;
   static IconData get roleParent => PhosphorIconsFill.usersThree;
   static IconData get roleAdmin => PhosphorIconsFill.shieldCheck;
+  static IconData get roleMember => PhosphorIconsFill.user;
 
   /// Catalogue pour l'écran design system (groupé).
   static List<ViroIconCatalogGroup> get catalog => [
@@ -115,6 +121,8 @@ abstract final class ViroIcons {
             ('settings', settings),
             ('add', add),
             ('arrowUp', arrowUp),
+            ('arrowUpBold', arrowUpBold),
+            ('arrowDownBold', arrowDownBold),
             ('chevronRight', chevronRight),
             ('chevronDown', chevronDown),
             ('club', club),
@@ -175,6 +183,7 @@ abstract final class ViroIcons {
             ('addToList', addToList),
             ('leaveGroup', leaveGroup),
             ('block', block),
+            ('lock', lock),
           ],
         ),
         ViroIconCatalogGroup(
@@ -202,6 +211,7 @@ abstract final class ViroIcons {
             ('roleCoach', roleCoach),
             ('roleParent', roleParent),
             ('roleAdmin', roleAdmin),
+            ('roleMember', roleMember),
           ],
         ),
       ];

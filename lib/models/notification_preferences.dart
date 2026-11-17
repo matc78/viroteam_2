@@ -56,12 +56,14 @@ class NotificationPreferences {
 
   factory NotificationPreferences.fromMap(Map<String, dynamic>? map) {
     if (map == null) return defaults;
+    // Compat legacy Functions : si `rsvp` est absent, hériter de `events`.
+    final events = map['events'] as bool? ?? true;
     return NotificationPreferences(
-      events: map['events'] as bool? ?? true,
+      events: events,
       weeklyDigest: map['weeklyDigest'] as bool? ?? true,
       announcements: map['announcements'] as bool? ?? true,
       fees: map['fees'] as bool? ?? true,
-      rsvp: map['rsvp'] as bool? ?? true,
+      rsvp: map['rsvp'] as bool? ?? events,
       rsvpTeammates: map['rsvpTeammates'] as bool? ?? false,
       chat: map['chat'] as bool? ?? true,
       coachSummaryTiming: CoachSummaryTiming.fromWire(

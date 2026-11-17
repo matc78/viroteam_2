@@ -56,6 +56,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # ubuntu-latest peut exposer JDK 25 : AGP 8.11 / Gradle 8.14 plantent
+      # alors avec le seul message « 25.0.x ». On force un LTS supporté.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

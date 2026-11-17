@@ -1,4 +1,9 @@
 import {
+  can,
+  canWriteStaffChannels,
+  type ClubAccess,
+} from "@/lib/auth/permissions";
+import {
   collection,
   doc,
   type DocumentData,
@@ -29,10 +34,11 @@ import {
   ChatWritePolicies,
   Collections,
   Fields,
-  MemberRoles,
 } from "./constants";
 import { prepareChatImageUpload } from "@/lib/chat/createImageThumbnail";
 import { effectiveUnreadCount } from "@/lib/chat/conversationUnread";
+import { parseParticipantProfiles } from "@/lib/chat/participantProfiles";
+import { toggleReactionUid } from "@/lib/chat/reactionToggle";
 import { isAllowedReactionEmoji } from "@/components/chat/emojiCatalog";
 import { uploadImageAtPath, conversationAvatarStoragePath } from "./storage";
 import {
@@ -151,6 +157,9 @@ export function parseChatConversation(
         ? data[Fields.categoryKey]
         : null,
     participantUids: stringList(data[Fields.participantUids]),
+    participantProfiles: parseParticipantProfiles(
+      data[Fields.participantProfiles],
+    ),
     writePolicy: String(data[Fields.writePolicy] ?? ChatWritePolicies.open),
     lastMessageAt: toDate(data[Fields.lastMessageAt]),
     lastMessagePreview: String(data[Fields.lastMessagePreview] ?? ""),
@@ -467,23 +476,23 @@ export function totalUnreadCount(
 }
 
 /**
- * True si l’utilisateur peut écrire selon writePolicy + rôle club.
- * Parents participants : rôle null → autorisé seulement si policy `open`.
+ * True si l’utilisateur peut écrire selon `writePolicy` et ses droits dans
+ * le club (mêmes conditions que les règles Firestore) : `admins_only` →
+ * droit `manageChat` ; `coaches_and_admins` → `manageChat` ou coach
+ * d’équipe. Parent participant (`access` null) : seulement `open`.
  */
 export function canWriteToConversation(params: {
   conversation: ChatConversation;
   uid: string;
-  clubRole: string | null;
+  access: ClubAccess | null;
 }): boolean {
-  const { conversation, uid, clubRole } = params;
+  const { conversation, uid, access } = params;
   if (!conversation.participantUids.includes(uid)) return false;
   switch (conversation.writePolicy) {
     case ChatWritePolicies.adminsOnly:
-      return clubRole === MemberRoles.admin;
+      return access !== null && can(access, "manageChat");
     case ChatWritePolicies.coachesAndAdmins:
-      return (
-        clubRole === MemberRoles.admin || clubRole === MemberRoles.coach
-      );
+      return access !== null && canWriteStaffChannels(access);
     default:
       return true;
   }
@@ -507,18 +516,47 @@ function replyFields(payload: ReplyPayload): Record<string, string> {
   };
 }
 
-/** Envoie un message texte et met à jour le preview. */
+/**
+ * Réserve l’id Firestore d’un futur message (envoi optimiste : le message
+ * local et le doc écrit partagent cet id, ce qui permet de dédoublonner).
+ */
+export function reserveChatMessageId(
+  clubId: string,
+  conversationId: string,
+): string {
+  return doc(messagesCol(clubId, conversationId)).id;
+}
+
+/** Ref du message à écrire : id réservé (`messageId`) ou nouvel id. */
+function messageDocRef(
+  clubId: string,
+  conversationId: string,
+  messageId?: string,
+) {
+  const col = messagesCol(clubId, conversationId);
+  return messageId ? doc(col, messageId) : doc(col);
+}
+
+/**
+ * Envoie un message texte et met à jour le preview.
+ * `messageId` : id réservé via `reserveChatMessageId` (envoi optimiste).
+ */
 export async function sendTextMessage(params: {
   clubId: string;
   conversationId: string;
   senderUid: string;
   text: string;
+  messageId?: string;
   senderFirstName?: string | null;
   senderRole?: string | null;
 } & ReplyPayload): Promise<void> {
   const trimmed = params.text.trim();
   if (!trimmed) return;
-  const messageRef = doc(messagesCol(params.clubId, params.conversationId));
+  const messageRef = messageDocRef(
+    params.clubId,
+    params.conversationId,
+    params.messageId,
+  );
   const batch = writeBatch(db());
   batch.set(messageRef, {
     [Fields.type]: ChatMessageTypes.text,
@@ -540,17 +578,25 @@ export async function sendTextMessage(params: {
   await batch.commit();
 }
 
-/** Upload photo puis crée le message image. */
+/**
+ * Upload photo puis crée le message image.
+ * `messageId` : id réservé via `reserveChatMessageId` (envoi optimiste).
+ */
 export async function sendImageMessage(params: {
   clubId: string;
   conversationId: string;
   senderUid: string;
   bytes: ArrayBuffer;
   contentType?: string;
+  messageId?: string;
   senderFirstName?: string | null;
   senderRole?: string | null;
 } & ReplyPayload): Promise<void> {
-  const messageRef = doc(messagesCol(params.clubId, params.conversationId));
+  const messageRef = messageDocRef(
+    params.clubId,
+    params.conversationId,
+    params.messageId,
+  );
   const prepared = await prepareChatImageUpload(
     params.bytes,
     params.contentType,
@@ -721,6 +767,13 @@ export async function votePollOption(params: {
     const votes = parseUidListsMap(data[Fields.pollVotes]);
     const currentlySelected =
       votes[params.optionId]?.includes(params.uid) ?? false;
+    // Déjà voté (ou heure déjà suivie) → l’heure posée est une modification.
+    const previousTimes = data[Fields.pollVoteTimes];
+    const edited =
+      Object.values(votes).some((voters) => voters.includes(params.uid)) ||
+      (previousTimes != null &&
+        typeof previousTimes === "object" &&
+        params.uid in previousTimes);
 
     if (allowMultiple) {
       const list = [...(votes[params.optionId] ?? [])];
@@ -745,7 +798,14 @@ export async function votePollOption(params: {
       }
     }
 
-    tx.update(ref, { [Fields.pollVotes]: votes });
+    tx.update(ref, {
+      [Fields.pollVotes]: votes,
+      // Chemin pointé : seule mon entrée change (règles Firestore).
+      [`${Fields.pollVoteTimes}.${params.uid}`]: {
+        at: serverTimestamp(),
+        edited,
+      },
+    });
   });
 }
 
@@ -767,15 +827,11 @@ export async function toggleReaction(params: {
   await runTransaction(db(), async (tx) => {
     const snap = await tx.get(ref);
     const data = snap.data() ?? {};
-    const reactions = parseUidListsMap(data[Fields.reactions]);
-    const current = [...(reactions[params.emoji] ?? [])];
-    if (current.includes(params.uid)) {
-      const next = current.filter((id) => id !== params.uid);
-      if (next.length === 0) delete reactions[params.emoji];
-      else reactions[params.emoji] = next;
-    } else {
-      reactions[params.emoji] = [...current, params.uid];
-    }
+    const reactions = toggleReactionUid(
+      parseUidListsMap(data[Fields.reactions]),
+      params.emoji,
+      params.uid,
+    );
     tx.update(ref, { [Fields.reactions]: reactions });
   });
 }

@@ -5,19 +5,21 @@ import type {
 } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable } from "./db";
-import { authEmailOf, normalizeEmail, requireUid, stringArray, uniq } from "./common";
 import {
-  accountUidOf,
-  decrementCount,
-  isLastAdmin,
-  type AdminMemberRef,
-} from "./memberAdminUtils";
+  TEAM_ROSTER_FIELDS,
+  authEmailOf,
+  normalizeEmail,
+  requireUid,
+  stringArray,
+  uniq,
+} from "./common";
+import { decrementCount } from "./memberAdminUtils";
+import { adminIdsUpdate, grantsAdmin, isLastAdmin } from "./permissionsCatalog";
 import { activeGuardianUids, recomputeParentTeamIdsSafe } from "./parentTeams";
 
 const MEMBER_STATUS_ARCHIVED = "archived";
 const INVITATION_STATUS_PENDING = "pending";
 const INVITATION_STATUS_REVOKED = "revoked";
-const TEAM_ROSTER_FIELDS = ["playerIds", "coachIds", "pendingPlayerIds"] as const;
 
 type DeleteMyAccountResponse = { ok: true; anonymizedMembers: number };
 
@@ -41,29 +43,33 @@ function logStep(
   console.error(`deleteMyAccount: ${step} échoué`, details);
 }
 
-/** Fiches liées au compte (`accountUid` puis `userId` en compat v1), dédoublonnées. */
+/**
+ * Fiches liées au compte (`accountUid`). Une seule clé membre : ce sont les
+ * `members/{uid}` des clubs, mais la requête par champ reste la source
+ * (indépendante de `users.memberClubIds`) et exclut d'office les fiches déjà
+ * anonymisées (lien supprimé) — ce qui rend la suppression relançable.
+ */
 async function findMemberDocs(uid: string): Promise<QueryDocumentSnapshot[]> {
-  const [byAccount, byUserId] = await Promise.all([
-    db().collectionGroup("members").where("accountUid", "==", uid).get(),
-    db().collectionGroup("members").where("userId", "==", uid).get(),
-  ]);
-  const byPath = new Map<string, QueryDocumentSnapshot>();
-  for (const doc of [...byAccount.docs, ...byUserId.docs]) {
-    // Ignore les docs qui ne sont pas des fiches club (ex. autre sous-collection "members").
-    if (doc.ref.parent.parent?.parent.id !== "clubs") continue;
-    byPath.set(doc.ref.path, doc);
-  }
-  return [...byPath.values()];
+  const snap = await db()
+    .collectionGroup("members")
+    .where("accountUid", "==", uid)
+    .get();
+  // Ignore les docs qui ne sont pas des fiches club (ex. autre sous-collection "members").
+  return snap.docs.filter((doc) => doc.ref.parent.parent?.parent.id === "clubs");
 }
 
-/** Anonymise une fiche : identité générique, compte délié, statut archivé. */
+/**
+ * Anonymise une fiche : identité générique, compte délié, droits retirés,
+ * statut archivé.
+ */
 async function anonymizeMember(memberDoc: QueryDocumentSnapshot): Promise<void> {
   await memberDoc.ref.update({
     firstName: "Membre",
     lastName: "supprimé",
     snapshot: { displayName: "Membre supprimé" },
     accountUid: admin.firestore.FieldValue.delete(),
-    userId: admin.firestore.FieldValue.delete(),
+    permissions: [],
+    coachTeamIds: [],
     status: MEMBER_STATUS_ARCHIVED,
     anonymizedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -76,27 +82,30 @@ async function detachFromClub(clubRef: DocumentReference, uid: string): Promise<
     const clubSnap = await tx.get(clubRef);
     if (!clubSnap.exists) return;
     const club = clubSnap.data() ?? {};
-    const adminIds = stringArray(club.adminIds);
     const patch: Record<string, unknown> = {
       memberCount: decrementCount(club.memberCount),
       updatedAt: serverTimestamp(),
     };
-    if (adminIds.includes(uid)) {
-      patch.adminIds = adminIds.filter((id) => id !== uid);
-    }
+    const nextAdminIds = adminIdsUpdate({
+      adminIds: stringArray(club.adminIds),
+      memberId: uid,
+      linked: false,
+      permissions: [],
+    });
+    if (nextAdminIds) patch.adminIds = nextAdminIds;
     tx.update(clubRef, patch);
   });
 }
 
-/** Retire `memberId` et `uid` de tous les rosters d'équipe du club. */
+/** Retire `memberId` (= uid du compte) de tous les rosters d'équipe du club. */
 async function removeFromTeams(
   clubRef: DocumentReference,
-  rosterIds: string[],
+  memberId: string,
 ): Promise<void> {
   const teamsCol = clubRef.collection("teams");
   const snaps = await Promise.all(
-    TEAM_ROSTER_FIELDS.flatMap((field) =>
-      rosterIds.map((id) => teamsCol.where(field, "array-contains", id).get()),
+    TEAM_ROSTER_FIELDS.map((field) =>
+      teamsCol.where(field, "array-contains", memberId).get(),
     ),
   );
   const patches = new Map<DocumentReference, Record<string, unknown>>();
@@ -106,7 +115,7 @@ async function removeFromTeams(
       const patch = patches.get(teamDoc.ref) ?? {};
       for (const field of TEAM_ROSTER_FIELDS) {
         const ids = stringArray(data[field]);
-        const next = ids.filter((id) => !rosterIds.includes(id));
+        const next = ids.filter((id) => id !== memberId);
         if (next.length !== ids.length) patch[field] = next;
       }
       if (Object.keys(patch).length > 0) patches.set(teamDoc.ref, patch);
@@ -123,18 +132,18 @@ async function removeFromTeams(
 /**
  * Refuse la suppression si le compte est le dernier admin d'un club (même
  * garde que `removeMember`) : le club resterait sans personne pour le gérer.
- * Les fiches déjà anonymisées (archivées) ne comptent pas comme admin.
+ * Les admins d'un club sont les fiches liées de l'index `club.adminIds` ;
+ * une fiche anonymisée en est retirée et n'a plus de droits.
  */
 async function assertNotLastAdmin(
   uid: string,
   memberDocs: QueryDocumentSnapshot[],
 ): Promise<void> {
-  const targetByClub = new Map<string, AdminMemberRef>();
   const clubIds = new Set<string>();
   for (const memberDoc of memberDocs) {
-    const clubId = memberDoc.ref.parent.parent!.id;
-    targetByClub.set(clubId, { memberId: memberDoc.id, accountUid: uid });
-    if (memberDoc.data().role === "admin") clubIds.add(clubId);
+    if (grantsAdmin(memberDoc.data().permissions)) {
+      clubIds.add(memberDoc.ref.parent.parent!.id);
+    }
   }
   const adminClubs = await db()
     .collection("clubs")
@@ -143,20 +152,12 @@ async function assertNotLastAdmin(
   for (const clubDoc of adminClubs.docs) clubIds.add(clubDoc.id);
 
   for (const clubId of clubIds) {
-    const clubRef = db().collection("clubs").doc(clubId);
-    const [clubSnap, adminsSnap] = await Promise.all([
-      clubRef.get(),
-      clubRef.collection("members").where("role", "==", "admin").get(),
-    ]);
-    const adminMembers = adminsSnap.docs
-      .filter((doc) => doc.data().status !== MEMBER_STATUS_ARCHIVED)
-      .map((doc) => ({ memberId: doc.id, accountUid: accountUidOf(doc.data()) }));
-    const target = targetByClub.get(clubId) ?? { memberId: uid, accountUid: uid };
+    const clubSnap = await db().collection("clubs").doc(clubId).get();
+    // Une seule clé membre : la fiche du compte est members/{uid}.
     if (
       isLastAdmin({
         adminIds: stringArray(clubSnap.data()?.adminIds),
-        adminMembers,
-        target,
+        memberId: uid,
       })
     ) {
       const clubName = String(clubSnap.data()?.name ?? "").trim() || clubId;
@@ -202,13 +203,7 @@ async function anonymizeMemberships(
     }
 
     try {
-      await clubRef.collection("member_accounts").doc(uid).delete();
-    } catch (error) {
-      logStep(failures, "suppression member_accounts", { ...context, error });
-    }
-
-    try {
-      await removeFromTeams(clubRef, uniq([memberId, uid]));
+      await removeFromTeams(clubRef, memberId);
     } catch (error) {
       logStep(failures, "retrait des équipes", { ...context, error });
     }

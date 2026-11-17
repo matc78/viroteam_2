@@ -54,7 +54,6 @@ export function NextEventCard({
             clubId={rsvp.clubId}
             event={event}
             memberId={rsvp.memberId}
-            audienceIds={rsvp.audienceIds}
             onUpdated={() => rsvp.onUpdated?.()}
           />
         </div>

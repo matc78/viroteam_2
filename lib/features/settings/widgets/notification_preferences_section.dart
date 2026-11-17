@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/feature_flags.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/settings/providers/notification_permission_provider.dart';
 import 'package:viro_team_v2/features/settings/widgets/notification_permission_banner.dart';
@@ -14,6 +14,9 @@ import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/services/notification_permission_service.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_access.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Section paramètres : toggles push (convocations / récap / réponses /
 /// annonces / cotisations / chat) et moment du bilan des réponses (coachs).
@@ -112,10 +115,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
     final systemAllowed =
         permission == null ||
         permission == NotificationPermissionStatus.granted;
-    // Le bilan des réponses ne concerne que le staff du club actif.
-    final isCoach = MemberRoleHierarchy.isCoachOrAbove(
-      ref.watch(sessionProvider).activeRole ?? '',
-    );
+    // Le bilan des réponses ne concerne que l'encadrement du club actif
+    // (coach d'équipe ou droit planning).
+    final activeClubId = ref.watch(sessionProvider).activeClubId;
+    final activeAccess = activeClubId == null
+        ? ClubAccess.none
+        : ref.watch(clubAccessProvider(activeClubId));
+    final isCoach = activeAccess.isTeamCoach ||
+        activeAccess.can(ClubPermission.manageEvents);
 
     Widget toggle({
       required String key,
@@ -243,11 +250,14 @@ class NotificationPreferencesSection extends ConsumerWidget {
                         // Le bilan part avec les convocations et rappels.
                         onSelectionChanged: !systemAllowed || !prefs.events
                             ? null
-                            : (selected) => _setCoachSummaryTiming(
+                            : (selected) {
+                                ViroHaptics.selection();
+                                _setCoachSummaryTiming(
                                   context: context,
                                   ref: ref,
                                   timing: selected.first,
-                                ),
+                                );
+                              },
                       ),
                     ],
                   ),
@@ -267,7 +277,7 @@ class NotificationPreferencesSection extends ConsumerWidget {
                 subtitle: AppCopy.settings.notifFeesSubtitle,
                 value: prefs.fees,
               ),
-              if (FeatureFlags.chatMessagingLive) ...[
+              if (ref.watch(chatMessagingLiveProvider)) ...[
                 const Divider(height: 1),
                 toggle(
                   key: 'chat',

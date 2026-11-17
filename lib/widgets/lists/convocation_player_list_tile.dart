@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
+import 'package:viro_team_v2/config/viro_selection.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/widgets/common/viro_selectable_row.dart';
 
-/// Ligne joueur cochable : convoqué (coché) ou retiré de l'événement.
+/// Ligne joueur sélectionnable : convoqué (ligne teintée, coche pleine) ou
+/// retiré de l'événement (ligne nue, « Pas convoqué » sur la même ligne :
+/// la hauteur ne change pas).
 class ConvocationPlayerListTile extends StatelessWidget {
   /// [onChanged] reçoit le nouvel état « convoqué » du joueur.
   const ConvocationPlayerListTile({
@@ -13,6 +17,7 @@ class ConvocationPlayerListTile extends StatelessWidget {
     required this.convoked,
     required this.onChanged,
     this.enabled = true,
+    this.accentColor,
   });
 
   final ClubMember member;
@@ -20,36 +25,33 @@ class ConvocationPlayerListTile extends StatelessWidget {
   final ValueChanged<bool> onChanged;
   final bool enabled;
 
+  /// Couleur club ; accent du thème par défaut.
+  final Color? accentColor;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
     final name = member.fullName.isNotEmpty
         ? member.fullName
         : AppCopy.planning.unnamedMember;
 
-    return CheckboxListTile(
-      value: convoked,
-      onChanged: enabled ? (value) => onChanged(value ?? false) : null,
-      contentPadding: EdgeInsets.zero,
-      secondary: Opacity(
-        opacity: convoked ? 1 : 0.5,
+    return ViroSelectableRow(
+      selected: convoked,
+      onChanged: enabled ? onChanged : null,
+      accentColor: accentColor,
+      title: name,
+      leading: AnimatedOpacity(
+        duration: ViroSelection.fillDuration,
+        opacity: convoked ? 1 : ViroSelection.unselectedAvatarOpacity,
         child: MemberAvatar(member: member, size: 36),
       ),
-      title: Text(
-        name,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.bodyMedium?.copyWith(
-          fontWeight: FontWeight.w600,
-          color: convoked ? palette.textPrimary : palette.textMuted,
-        ),
-      ),
-      subtitle: convoked
+      trailing: convoked
           ? null
           : Text(
               AppCopy.planning.notConvoked,
-              style: theme.bodySmall?.copyWith(color: palette.textSecondary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: palette.textSecondary),
             ),
     );
   }

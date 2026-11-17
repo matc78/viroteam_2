@@ -39,6 +39,10 @@ final class AppCopySettings {
   String get themeLight => 'Clair';
   String get themeDark => 'Sombre';
 
+  String get hapticsToggle => 'Vibrations';
+  String get hapticsToggleSubtitle =>
+      'Un petit retour quand tu réponds, envoies ou valides';
+
   String get analyticsSection => 'Mesure d’audience';
   String get analyticsSubtitle =>
       'Aide-nous à savoir ce qui marche dans l’app et ce qui coince.';

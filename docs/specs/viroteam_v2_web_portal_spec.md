@@ -26,9 +26,9 @@ Garder le **terrain** et les **actions urgentes / simples**. Déplacer le **pilo
 |-------|----------|
 | Pricing / abonnement | **Non** — phase de test / bêta |
 | Tournois / événements lourds | **Hors scope** — prochaine partie |
-| Rôle `owner` | **N’existe pas** (créateur = `admin`) |
-| Rôle `treasurer` | **Pas encore** — au MVP, **tout admin = trésorier** (droits finance + HelloAsso) |
-| Accès dashboard **bureau** | `role` ∈ {`admin`, `coach`, `player`} — pages et actions filtrées par rôle |
+| Modèle d’accès | **Droits purs** : `members/{uid}.permissions` (11 droits) + relation coach d’équipe — pas de rôle stocké ([spec droits](viroteam_v2_permissions_spec.md)) |
+| Trésorier | Droit `manageFees` (fonction « Responsable cotisations »), attribuable à n’importe quel membre ; Stripe Connect reste au droit `admin` |
+| Accès dashboard **bureau** | Une fiche `members/{uid}` dans le club — pages et actions filtrées par les droits (`useBureauCapabilities`) |
 | Accès espace **famille** | `parentLinks` actifs (guardian) — Phase 8 ; spec parents |
 | Équipements | Inventaire **simple** (CRUD) ; prêts / retours plus tard |
 | Stack | **React** (entraînement) + Firebase |
@@ -77,27 +77,31 @@ CTA : stores + « Espace club ».
 ## 5. Auth & garde d’accès
 
 1. Login Firebase Auth (même projet que l’app).
-2. Charger `users/{uid}` : `clubMemberships` + `parentLinks`.
-3. Si `role` ∈ {`admin`, `coach`, `player`} → espace **bureau** (sélecteur de club si plusieurs). L’UI et les actions dépendent du rôle du **club actif** (`admin` > `coach` > `player`).
+2. Charger `users/{uid}` : `memberClubIds` + `parentLinks`.
+3. Si `memberClubIds` non vide → espace **bureau** (sélecteur de club si plusieurs). L’UI et les actions dépendent des droits de la fiche dans le **club actif** (`useBureauCapabilities`, spec [`viroteam_v2_permissions_spec.md`](viroteam_v2_permissions_spec.md)).
 4. Si `parentLinks` actifs → espace **famille** (Phase 8). Spec : [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).
 5. Sinon (aucun club / aucun parentLink) → access-denied ou onboarding join.
 6. Bureau **et** parent → sélecteur d’espace (Bureau ↔ Famille), navs non mélangées.
-7. Rules Firestore : lecture club pour tout membre ; writes admin pour config cotisations / rôles ; coach peut créer events / annonces / ajouter joueurs à ses équipes ; joueur RSVP + lecture de sa cotisation.
-   Les flags `clubs/{clubId}.coachPermissions` masquent les actions côté UI (portail + app) ; le resserrage rules éventuel est reporté.
+7. Rules Firestore : lecture club pour tout membre ; chaque écriture exige le droit concerné (`can()`) ou, pour un coach, la relation avec l’équipe et le réglage `clubs/{clubId}.coachPermissions` (`coachCan()`). Les droits eux-mêmes ne s’écrivent que via la callable `setMemberPermissions` (droit `admin`).
+   Événements : un coach ne modifie / annule / notifie / convoque que s’il **entraîne toutes les équipes** de l’événement et que l’événement n’est pas « tout le club » (`allTeams`) ; RSVP d’autrui : coach d’au moins une équipe, jamais sur « tout le club ». Le droit `manageEvents` garde tout.
 
 ### Matrice Bureau (club actif)
 
-| Zone | Admin | Coach | Joueur |
-|------|-------|-------|--------|
-| Nav | Home, Membres, Planning, Cotisations, Annonces, Équipements, Paramètres | Home, Membres, Planning, Annonces (+ Cotisations si `canViewFees`) | Home, Membres, Planning, Cotisations |
-| Scope données | Club entier | Équipes où `coachIds` contient le viewer | Ses équipes / convocations |
-| Contacts | Complets | Pas d’email/tél des autres | Email/tél des coachs de ses équipes uniquement |
-| Membres | CRUD complet | Ajout joueur / roster ses équipes (aligné app + flags) | Lecture seule (ses équipes) |
-| Planning | Complet | Création + filtre ses équipes (si `canCreateEvents`) | Son planning + RSVP |
-| Cotisations | Config + suivi | Lecture suivi si `canViewFees` ; sinon masqué | Sa fiche (sinon « rien à faire » / « déjà payé ») |
-| Annonces | Complet | Filtre / ciblage ses équipes | Pas de page ; bandeau sur Home |
-| Équipements | CRUD inventaire | Masqué | Masqué |
-| Paramètres | Droits coachs | Masqué | Masqué |
+Chaque zone suit un **droit**, cumulable ; le droit `admin` les accorde tous. Le coach agit en plus sur **ses** équipes (`members/{uid}.coachTeamIds`) selon les réglages `coachPermissions`. Sans droit ni équipe entraînée : vue membre / joueur.
+
+| Zone | Avec le droit | Coach (ses équipes) | Sans droit |
+|------|---------------|---------------------|------------|
+| Nav | Selon les droits (`navHrefs`) | Membres, Planning, Annonces (si `canPublishTeamAnnouncements`) | Home, Équipe, Planning, Cotisations |
+| Scope données | Club entier avec `manageMembers`, `manageTeams` ou `manageEvents` | Ses équipes | Ses équipes / convocations |
+| Contacts | Complets avec `manageMembers` | Pas d’email/tél des autres | Email/tél des coachs de ses équipes uniquement |
+| Membres | `manageMembers` (fiches, invitations, parents) ; import CSV : `manageMembers` + `manageTeams` | Ajout joueur (`canManageTeamRoster`), invitation (`canInvitePlayers`), licence (`canEditMemberLicenses`) | Lecture seule (ses équipes) |
+| Planning | `manageEvents` | Création si `canCreateEvents` ; gestion d’un événement dont il entraîne toutes les équipes (jamais « tout le club ») | Son planning + RSVP |
+| Cotisations | `manageFees` (config, suivi, actions groupées) ; `viewFees` (lecture) ; Stripe Connect : `admin` | — | Sa fiche (sinon « rien à faire » / « déjà payé ») |
+| Annonces | `manageAnnouncements` | Ciblage de ses équipes | Pas de page ; bandeau sur Home |
+| Équipements | `manageEquipment` | — | Masqué |
+| Paramètres | `manageClubSettings` (infos club) ; réglages coach et droits : `admin` | — | Son compte |
+
+Accueil : vue club avec un droit qui voit tout le club ou `viewFees` (blocs cotisations / journal selon `viewFees` / `viewActivity`) ; sinon vue de ses équipes s’il en entraîne ; sinon vue joueur.
 
 ---
 
@@ -107,7 +111,7 @@ CTA : stores + « Espace club ».
 KPIs : nb membres, cotisations `paye` / `partiel` / `a_payer`, aides `pending_proof`, prochains événements (lecture).
 
 ### 6.2 Membres
-Liste filtrable (rôle, équipe, statut cotisation), invitation, changement de rôle (`player` / `coach` / `admin`).  
+Liste filtrable (badge, équipe, statut cotisation), invitation, attribution des droits (bascule Administrateur, fonctions, droits à la carte — droit `admin` seul ; jamais ses propres droits ; toujours au moins un admin).  
 Export CSV (nice-to-have MVP).
 
 ### 6.3 Cotisations
@@ -149,29 +153,21 @@ Exemples de flags :
 - `canManageTeamRoster`
 - `canInvitePlayers`
 - `canTakeAttendance`
-- `canViewFees` (lecture — défaut non)
+- (`canViewFees` est devenu le droit club `viewFees`, attribuable à n’importe quel membre)
 
-Stockage proposé :
-- `clubs/{clubId}.coachPermissions` (defaults club)
-- override optionnel plus tard sur `members/{uid}.permissions`
+Stockage : `clubs/{clubId}.coachPermissions` (mêmes réglages pour tous les coachs du club, modifiables par le droit `admin`). Les droits club d’une personne vivent à part, dans `members/{uid}.permissions`.
 
 ---
 
-## 7. Rôles (état actuel + MVP)
+## 7. Droits et badges
 
-Rôles Firestore inchangés au MVP :
+Plus de rôle stocké : spec de référence [`viroteam_v2_permissions_spec.md`](viroteam_v2_permissions_spec.md).
 
-```
-player | coach | admin
-```
-
-Hiérarchie actuelle : Admin ⊃ Coach ⊃ Player.  
-Parent = relation (`guardians` + `parentLinks`), pas un rôle club — spec [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).  
-Pas d’`owner`.
-
-**MVP finance** : tout `admin` a les droits trésorier (cotisations, HelloAsso, dashboard web).
-
-**Post-MVP** : introduire `treasurer` comme rôle dédié (finance sans gestion complète du club).
+- **Droits** : `members/{uid}.permissions` (11 droits, catalogue `shared/permissions_catalog.json`), écrits uniquement par les Functions. `admin` implique tous les autres et permet seul d’attribuer des droits ; `manageFees` implique `viewFees`. Les « fonctions » (Responsable cotisations, membres, sportif…) ne sont que des raccourcis d’attribution.
+- **Coach d’équipe** : relation `teams.coachIds` (dérivée en `members/{uid}.coachTeamIds`), capacités réglées par `clubs.coachPermissions`.
+- **Parent** : relation (`guardians` + `parentLinks`) — spec [`viroteam_v2_parents_spec.md`](viroteam_v2_parents_spec.md).
+- **Badges** (affichage seulement, jamais une autorisation) : Admin > Entraîneur > Joueur > Membre, plus Parent (membre sans droit admin ni équipe mais avec un lien parent dans le club). Portail : `derivedBadges` / `primaryBadge` (`src/lib/auth/permissions.ts`), libellés `src/lib/copy/badgeCopy.ts`.
+- Point d’entrée portail : `useBureauCapabilities()` ; helpers par équipe / événement dans `src/lib/auth/permissions.ts`.
 
 ---
 
@@ -217,7 +213,7 @@ Tournois / championnats restent retirés du mobile (Phase 1 roadmap).
 - Tournois & événements lourds
 - Rôle `treasurer` distinct
 - Rôle `owner`
-- Mode « vue coach » séparée pour un admin (le rôle club actif suffit)
+- Mode « vue coach » séparée pour un admin (les droits du club actif suffisent)
 - Prêts / retours équipements
 - Multi-prestataires paiement
 - 2ᵉ parent / grands-parents (schéma prêt, plafond V1 = 1)
@@ -230,7 +226,7 @@ Tournois / championnats restent retirés du mobile (Phase 1 roadmap).
 - Un coach / joueur entre dans le bureau avec pages et actions filtrées (scope équipes).
 - Un parent (Phase 8) entre dans l’espace famille, pas dans les KPI / config HelloAsso.
 - L’inventaire simple est utilisable sur le web.
-- Les droits coachs se configurent sur le web et s’appliquent dans l’app (masquage UI ; rules encore basées sur le rôle).
+- Les droits coachs se configurent sur le web et s’appliquent dans l’app comme dans les règles Firestore (`coachCan()`).
 - Sur mobile, l’admin gère surtout les urgences cotisations / membres, pas la config lourde.
 
 ---

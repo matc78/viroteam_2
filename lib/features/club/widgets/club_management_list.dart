@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/lists/club_management_list_tile.dart';
+import 'package:viro_team_v2/models/club_access.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Entrée de gestion (libellé, sous-titre informatif, icône, action).
 class _ManagementEntry {
@@ -21,15 +22,16 @@ class _ManagementEntry {
   final VoidCallback onTap;
 }
 
-/// Zone staff (coach + admin) en listes groupées : « Membres et
-/// activité » puis « Club » (admin seulement).
+/// Zone de gestion en listes groupées : « Membres et activité » puis
+/// « Club ». Chaque entrée n'apparaît qu'avec le droit qui l'ouvre
+/// ([ClubAccess]) ; un groupe vide est masqué.
 ///
 /// [memberCount] / [pendingCount] alimentent le sous-titre de « Membres ».
 /// [accentColor] teinte les tuiles (couleur de zone gestion du club).
 class ClubManagementList extends StatelessWidget {
   const ClubManagementList({
     super.key,
-    required this.role,
+    required this.access,
     required this.accentColor,
     required this.memberCount,
     this.pendingCount = 0,
@@ -42,7 +44,7 @@ class ClubManagementList extends StatelessWidget {
     required this.onSettings,
   });
 
-  final String role;
+  final ClubAccess access;
   final Color accentColor;
   final int memberCount;
   final int pendingCount;
@@ -56,9 +58,10 @@ class ClubManagementList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = role == MemberRoles.admin;
+    final canEditClub = access.can(ClubPermission.manageClubSettings);
 
     final people = [
+      if (access.canOpenMembers)
       _ManagementEntry(
         title: AppCopy.club.actionManageMembers,
         subtitle: pendingCount > 0
@@ -67,6 +70,7 @@ class ClubManagementList extends StatelessWidget {
         icon: ViroIcons.groups,
         onTap: onMembers,
       ),
+      if (access.can(ClubPermission.viewActivity))
       _ManagementEntry(
         title: AppCopy.club.actionRecentActivity,
         subtitle: AppCopy.club.activitySubtitle,
@@ -76,30 +80,35 @@ class ClubManagementList extends StatelessWidget {
     ];
 
     final club = [
+      if (access.can(ClubPermission.viewFees))
       _ManagementEntry(
         title: AppCopy.club.actionFeesTracking,
         subtitle: AppCopy.club.feesTrackingSubtitle,
         icon: ViroIcons.payments,
         onTap: onFees,
       ),
+      if (canEditClub)
       _ManagementEntry(
         title: AppCopy.club.actionAppearance,
         subtitle: AppCopy.club.appearanceSubtitle,
         icon: ViroIcons.image,
         onTap: onAppearance,
       ),
+      if (canEditClub)
       _ManagementEntry(
         title: AppCopy.club.actionLocations,
         subtitle: AppCopy.club.locationsSubtitle,
         icon: ViroIcons.place,
         onTap: onLocations,
       ),
+      if (access.can(ClubPermission.manageEquipment))
       _ManagementEntry(
         title: AppCopy.club.actionEquipment,
         subtitle: AppCopy.club.equipmentSubtitle,
         icon: ViroIcons.ball,
         onTap: onEquipment,
       ),
+      if (canEditClub)
       _ManagementEntry(
         title: AppCopy.club.actionSettings,
         subtitle: AppCopy.club.settingsSubtitle,
@@ -115,12 +124,13 @@ class ClubManagementList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _ManagementGroup(
-            title: AppCopy.club.managementPeopleGroup,
-            accentColor: accentColor,
-            entries: people,
-          ),
-          if (isAdmin)
+          if (people.isNotEmpty)
+            _ManagementGroup(
+              title: AppCopy.club.managementPeopleGroup,
+              accentColor: accentColor,
+              entries: people,
+            ),
+          if (club.isNotEmpty)
             _ManagementGroup(
               title: AppCopy.club.managementClubGroup,
               accentColor: accentColor,

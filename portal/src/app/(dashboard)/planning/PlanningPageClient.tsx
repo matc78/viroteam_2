@@ -1,5 +1,11 @@
 "use client";
 
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
+import {
+  canEditMemberRsvp,
+  canManageEvent,
+  canManageEventAudience,
+} from "@/lib/auth/permissions";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -11,13 +17,13 @@ import {
 import { PlanningEventDetailPanel } from "@/components/dashboard/PlanningEventDetailPanel";
 import { PlanningNewEventDialog } from "@/components/dashboard/PlanningNewEventDialog";
 import { EventConvocationsDialog } from "@/components/dashboard/EventConvocationsDialog";
+import { EventDetailsEditDialog } from "@/components/dashboard/EventDetailsEditDialog";
 import { canManageEventConvocations } from "@/lib/planning/eventConvocations";
 import {
   PlanningSidebar,
   type PlanningSidebarFilters,
 } from "@/components/dashboard/PlanningSidebar";
 import {
-  bureauCapabilities,
   coachedTeamsForViewer,
   teamsVisibleToViewer,
 } from "@/lib/auth/bureauPermissions";
@@ -39,7 +45,7 @@ import type { PopoverAnchorRect } from "@/lib/planning/anchoredPopoverPosition";
 import { findEventBlockAnchor } from "@/lib/planning/anchoredPopoverPosition";
 import { buildGuestDirectoryFromPeople } from "@/lib/planning/eventGuestRows";
 import { colorForFilter } from "@/lib/planning/calendarColors";
-import { getLinkedMemberId } from "@/lib/firebase/memberService";
+import { getOwnMemberId } from "@/lib/firebase/memberRefs";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
 import {
   useOptimisticEventRsvp,
@@ -52,10 +58,7 @@ import {
   resolveAdminPlanningFilters,
   writePlanningFilters,
 } from "@/lib/planning/planningFiltersStorage";
-import {
-  eventVisibleToRosterMember,
-  viewerMatchIds,
-} from "@/lib/teams/viewerTeamScope";
+import { eventVisibleToPlayer } from "@/lib/teams/viewerTeamScope";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import styles from "./page.module.css";
@@ -64,12 +67,11 @@ const NO_EVENTS: ClubEventView[] = [];
 
 /** Contenu page planning branché sur Firestore. */
 function PlanningPageContent() {
-  const { activeClub, activeClubRole, user } = useAuth();
-  const caps = useMemo(
-    () =>
-      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
-    [activeClubRole, activeClub?.coachPermissions],
-  );
+  const { activeClub, user } = useAuth();
+  const caps = useBureauCapabilities();
+  // Planning de tout le club (droit `manageEvents`) ; sinon coach de ses
+  // équipes selon les réglages coach du club.
+  const plansWholeClub = caps.canManageEvents;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -94,6 +96,8 @@ function PlanningPageContent() {
   /** Événement dont on gère les convoqués (dialog dédié). */
   const [convocationsEvent, setConvocationsEvent] =
     useState<ClubEventView | null>(null);
+  /** Événement dont on modifie les infos (dialog dédié). */
+  const [editedEvent, setEditedEvent] = useState<ClubEventView | null>(null);
   const [roleScopeReady, setRoleScopeReady] = useState(false);
 
   const range = useMemo(() => {
@@ -136,7 +140,7 @@ function PlanningPageContent() {
         setLinkedMemberId(null);
         return;
       }
-      const id = await getLinkedMemberId(activeClub.id, user.uid);
+      const id = await getOwnMemberId(activeClub.id, user.uid);
       if (!cancelled) setLinkedMemberId(id);
     }
     void loadLinked();
@@ -145,60 +149,41 @@ function PlanningPageContent() {
     };
   }, [activeClub?.id, user?.uid]);
 
-  const viewerIds = useMemo(
-    () =>
-      viewerMatchIds({
-        uid: user?.uid ?? null,
-        memberId: linkedMemberId,
-      }),
-    [user?.uid, linkedMemberId],
-  );
+  /** Clé roster / RSVP du viewer : sa fiche vit à `members/{uid}`. */
+  const viewerMemberId = user?.uid ?? null;
 
   const scopedTeams = useMemo(() => {
     if (!data) return [];
     return teamsVisibleToViewer({
-      role: activeClubRole,
+      caps,
       uid: user?.uid ?? null,
-      linkedMemberId,
       teams: data.teams,
     });
-  }, [data, activeClubRole, user?.uid, linkedMemberId]);
+  }, [data, caps, user?.uid]);
 
-  /** Équipes où le viewer peut créer (coach = entraînées, admin = toutes). */
+  /**
+   * Équipes où le viewer peut créer : toutes avec le droit planning, sinon
+   * ses équipes si le club autorise ses coachs à créer.
+   */
   const creatableTeams = useMemo(() => {
     if (!data) return [];
-    if (caps.isAdmin) return data.teams;
-    if (caps.isCoach) {
-      return coachedTeamsForViewer({
-        role: activeClubRole,
-        uid: user?.uid ?? null,
-        linkedMemberId,
-        teams: data.teams,
-      });
+    if (plansWholeClub) return data.teams;
+    if (caps.canCreateEvent) {
+      return coachedTeamsForViewer({ access: caps.access, teams: data.teams });
     }
     return [];
-  }, [
-    data,
-    caps.isAdmin,
-    caps.isCoach,
-    activeClubRole,
-    user?.uid,
-    linkedMemberId,
-  ]);
+  }, [data, plansWholeClub, caps.canCreateEvent, caps.access]);
 
-  const creatableTeamIdSet = useMemo(
-    () => new Set(creatableTeams.map((team) => team.id)),
-    [creatableTeams],
-  );
-
-  /** Admin, ou coach d'une des équipes de l'événement ; événement à venir. */
+  /** Droit planning, ou coach de toutes les équipes de l'événement ; à venir. */
   function canManageConvocationsOf(event: ClubEventView): boolean {
     if (!activeClub || !canManageEventConvocations(event)) return false;
-    if (caps.isAdmin) return true;
-    return (
-      caps.isCoach &&
-      event.teamIds.some((teamId) => creatableTeamIdSet.has(teamId))
-    );
+    return canManageEventAudience(caps.access, event);
+  }
+
+  /** Droit planning, ou coach autorisé de toutes les équipes de l'événement. */
+  function canEditEvent(event: ClubEventView): boolean {
+    if (!activeClub) return false;
+    return canManageEvent(caps.access, event);
   }
 
   const scopedTeamIdSet = useMemo(
@@ -238,7 +223,7 @@ function PlanningPageContent() {
 
   useEffect(() => {
     if (!activeClub || filtersClubId !== activeClub.id || !data) return;
-    if (caps.isAdmin) {
+    if (plansWholeClub) {
       const next = resolveAdminPlanningFilters(filters, {
         teamIds: new Set(data.teams.map((team) => team.id)),
         coachIds: new Set(data.coaches.map((coach) => coach.id)),
@@ -272,7 +257,7 @@ function PlanningPageContent() {
     data,
     filters,
     filtersClubId,
-    caps.isAdmin,
+    plansWholeClub,
     scopedTeamIdSet,
   ]);
 
@@ -285,31 +270,31 @@ function PlanningPageContent() {
     data?.events ?? NO_EVENTS,
   );
 
-  /** Override RSVP étendu à tous les ids du viewer (lecture du fill calendrier). */
+  /** Override RSVP local (calendrier + popover changent au clic). */
   const handleRsvpOptimistic: SetRsvpOverride = (eventId, memberIds, value) =>
-    setRsvpOverride(eventId, [...new Set([...memberIds, ...viewerIds])], value);
+    setRsvpOverride(eventId, memberIds, value);
 
   const visibleEvents = useMemo(() => {
     if (!data) return [];
-    if (caps.isAdmin) return clubEvents;
+    if (plansWholeClub) return clubEvents;
     return clubEvents.filter((event) =>
-      eventVisibleToRosterMember({
+      eventVisibleToPlayer({
         event,
-        rosterTeamIds: scopedTeamIdSet,
-        matchIds: viewerIds,
+        viewerTeamIds: scopedTeamIdSet,
+        memberId: viewerMemberId,
       }),
     );
-  }, [data, clubEvents, caps.isAdmin, scopedTeamIdSet, viewerIds]);
+  }, [data, clubEvents, plansWholeClub, scopedTeamIdSet, viewerMemberId]);
 
   const eventBlocks = useMemo(() => {
     if (!data || !roleScopeReady) return [];
     return expandEventsToLabelBlocks(
       visibleEvents,
       scopedTeams,
-      caps.isAdmin ? data.coaches : [],
+      plansWholeClub ? data.coaches : [],
       filters,
     );
-  }, [data, filters, visibleEvents, scopedTeams, caps.isAdmin, roleScopeReady]);
+  }, [data, filters, visibleEvents, scopedTeams, plansWholeClub, roleScopeReady]);
 
   const guestDirectory = useMemo(() => {
     if (!data) return {};
@@ -320,17 +305,25 @@ function PlanningPageContent() {
     ]);
   }, [data]);
 
-  /** Garde le popover ouvert synchronisé après un reload RSVP. */
+  /** Garde le popover ouvert synchronisé après un reload (RSVP, édition, convocations). */
   useEffect(() => {
     if (!selectedEvent) return;
     const fresh = visibleEvents.find((event) => event.id === selectedEvent.id);
     if (!fresh) return;
     if (
+      fresh.startsAt === selectedEvent.startsAt &&
+      fresh.endsAt === selectedEvent.endsAt &&
+      fresh.title === selectedEvent.title &&
+      fresh.location === selectedEvent.location &&
       fresh.rsvpYes === selectedEvent.rsvpYes &&
       fresh.rsvpNo === selectedEvent.rsvpNo &&
       fresh.rsvpPending === selectedEvent.rsvpPending &&
       JSON.stringify(fresh.rsvpByMemberId) ===
-        JSON.stringify(selectedEvent.rsvpByMemberId)
+        JSON.stringify(selectedEvent.rsvpByMemberId) &&
+      JSON.stringify(fresh.excludedMemberIds) ===
+        JSON.stringify(selectedEvent.excludedMemberIds) &&
+      JSON.stringify(fresh.teamMemberIds) ===
+        JSON.stringify(selectedEvent.teamMemberIds)
     ) {
       return;
     }
@@ -372,11 +365,11 @@ function PlanningPageContent() {
           clearPlanningDeepLinkParams();
           return;
         }
-        if (!caps.isAdmin) {
-          const allowed = eventVisibleToRosterMember({
+        if (!plansWholeClub) {
+          const allowed = eventVisibleToPlayer({
             event: matchedEvent,
-            rosterTeamIds: scopedTeamIdSet,
-            matchIds: viewerIds,
+            viewerTeamIds: scopedTeamIdSet,
+            memberId: viewerMemberId,
           });
           if (!allowed) {
             clearPlanningDeepLinkParams();
@@ -426,32 +419,26 @@ function PlanningPageContent() {
     visibleEvents,
     scopedTeamIdSet,
     scopedTeams,
-    caps.isAdmin,
-    viewerIds,
+    plansWholeClub,
+    viewerMemberId,
   ]);
 
   const createEventPeople = useMemo(() => {
     if (!data) return [];
-    if (caps.isCoach) {
+    if (!plansWholeClub) {
       const people = [...data.players, ...data.coaches].filter((person) =>
-        person.matchIds.some((id) => {
-          for (const team of creatableTeams) {
-            if (
-              team.playerIds.includes(id) ||
-              team.coachIds.includes(id)
-            ) {
-              return true;
-            }
-          }
-          return false;
-        }),
+        creatableTeams.some(
+          (team) =>
+            team.playerIds.includes(person.id) ||
+            team.coachIds.includes(person.id),
+        ),
       );
       return people.sort((a, b) => a.name.localeCompare(b.name, "fr"));
     }
     return [...data.players, ...data.coaches, ...data.admins].sort((a, b) =>
       a.name.localeCompare(b.name, "fr"),
     );
-  }, [data, caps.isCoach, creatableTeams]);
+  }, [data, plansWholeClub, creatableTeams]);
 
   function openCreateForDay(day: Date) {
     if (!caps.canCreateEvent) return;
@@ -488,9 +475,9 @@ function PlanningPageContent() {
             cursor={cursor}
             selectedDay={cursor}
             teams={scopedTeams}
-            coaches={caps.isAdmin ? data.coaches : []}
+            coaches={plansWholeClub ? data.coaches : []}
             categories={
-              caps.isAdmin
+              plansWholeClub
                 ? data.categories
                 : Array.from(
                     new Set(
@@ -502,7 +489,7 @@ function PlanningPageContent() {
             }
             filters={filters}
             onFiltersChange={(next) => {
-              if (caps.isAdmin) {
+              if (plansWholeClub) {
                 setFilters(next);
                 return;
               }
@@ -520,7 +507,7 @@ function PlanningPageContent() {
             }}
             onCreateClick={() => openCreateForDay(cursor)}
             canCreate={caps.canCreateEvent}
-            teamsOnlyFilters={caps.isPlayer}
+            teamsOnlyFilters={!caps.isStaff}
             onRefresh={handleRefresh}
             refreshing={refreshing}
             hasNewData={hasNewEvents}
@@ -546,7 +533,7 @@ function PlanningPageContent() {
                   : () => undefined
               }
               pendingCreate={caps.canCreateEvent ? createEventDraft : null}
-              viewerMatchIds={[...viewerIds]}
+              viewerMemberIds={viewerMemberId ? [viewerMemberId] : []}
             />
           </div>
         </div>
@@ -569,18 +556,30 @@ function PlanningPageContent() {
           onRsvpOptimistic={handleRsvpOptimistic}
           onRsvpUpdated={reloadSilently}
           canSendPush={Boolean(
-            activeClub && (caps.isAdmin || caps.isCoach),
+            activeClub &&
+              canManageEventAudience(caps.access, selectedEvent),
           )}
+          canEditMemberRsvp={canEditMemberRsvp(caps.access, selectedEvent)}
           onManageConvocations={
             canManageConvocationsOf(selectedEvent)
-              ? () => {
-                  setConvocationsEvent(selectedEvent);
-                  setSelectedEvent(null);
-                  setSelectedEventAnchor(null);
-                  setSelectedEventColor(null);
-                }
+              ? () => setConvocationsEvent(selectedEvent)
               : undefined
           }
+          onEdit={
+            canEditEvent(selectedEvent)
+              ? () => setEditedEvent(selectedEvent)
+              : undefined
+          }
+        />
+      ) : null}
+
+      {editedEvent && activeClub ? (
+        <EventDetailsEditDialog
+          clubId={activeClub.id}
+          event={editedEvent}
+          practiceLocations={activeClub.practiceLocations}
+          onClose={() => setEditedEvent(null)}
+          onSaved={handleRefresh}
         />
       ) : null}
 
@@ -608,7 +607,7 @@ function PlanningPageContent() {
           creatorId={user.uid}
           teams={creatableTeams}
           categories={
-            caps.isAdmin
+            plansWholeClub
               ? (data?.categories ?? [])
               : Array.from(
                   new Set(

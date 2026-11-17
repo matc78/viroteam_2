@@ -1,0 +1,2 @@
+- Coachs : tu peux enfin modifier un événement (date, heure, lieu) depuis son détail, plus besoin d'annuler et recréer
+- Les convoqués sont prévenus automatiquement du changement

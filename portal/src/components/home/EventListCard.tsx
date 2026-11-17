@@ -15,8 +15,8 @@ import styles from "./home.module.css";
 /** Réponse personnelle possible depuis la liste (membre convoqué). */
 export type EventListRsvpTarget = {
   clubId: string;
+  /** Id de fiche (= uid si liée) : seule clé de convocation et de réponse. */
   memberId: string;
-  audienceIds?: string[];
   onUpdated?: () => void;
 };
 
@@ -74,7 +74,6 @@ export function EventListCard({
                 clubId={rsvp.clubId}
                 event={event}
                 memberId={rsvp.memberId}
-                audienceIds={rsvp.audienceIds}
                 onUpdated={() => rsvp.onUpdated?.()}
                 size="sm"
               />

@@ -1,12 +1,18 @@
 import * as admin from "firebase-admin";
-import type {
-  DocumentReference,
-  QueryDocumentSnapshot,
-} from "firebase-admin/firestore";
-import { requireVerifiedEmail } from "./common";
+import {
+  normalizeEmail,
+  requireVerifiedEmail,
+  resolvedDisplayName,
+  stringArray,
+} from "./common";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
-import { buildEventAudienceMigrationPatch } from "./eventAudienceMigrate";
+import {
+  MemberRekeyError,
+  readRekeyCore,
+  rewriteMemberReferences,
+  writeRekeyCore,
+} from "./memberRekey";
 import {
   buildGuyEmail,
   brevoCallableSecrets,
@@ -21,38 +27,18 @@ import {
   clubMemberCount,
 } from "./analytics";
 import { db, defineDualCallable } from "./db";
+import { mergeMemberDocs } from "./memberRekeyPlan";
+import {
+  adminIdsUpdate,
+  primaryBadge,
+} from "./permissionsCatalog";
 
 export { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
-export {
-  migrateTeamMemberIds,
-  planRsvpMigration,
-  buildEventAudienceMigrationPatch,
-} from "./eventAudienceMigrate";
 
 const INVITATION_TYPE_GUARDIAN = "guardian";
 const INVITATION_TYPE_TEAM = "team";
 const INVITATION_STATUS_PENDING = "pending";
 const INVITATION_STATUS_ACCEPTED = "accepted";
-const ROLE_ADMIN = "admin";
-const ROLE_PLAYER = "player";
-const ROLE_COACH = "coach";
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-function resolvedDisplayName(
-  userData: Record<string, unknown> | undefined,
-  authEmail: string | undefined,
-): string {
-  const fromProfile = String(userData?.displayName ?? "").trim();
-  if (fromProfile.length > 0) return fromProfile;
-  const first = String(userData?.firstName ?? "").trim();
-  const last = String(userData?.lastName ?? "").trim();
-  const combined = `${first} ${last}`.trim();
-  if (combined.length > 0) return combined;
-  return authEmail?.trim() ?? "";
-}
 
 function memberProfilePatch(params: {
   firstName: string;
@@ -71,130 +57,6 @@ function memberProfilePatch(params: {
     },
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-}
-
-/** Début du jour local (fenêtre events à venir, aligné portail / Flutter). */
-function startOfTodayLocal(): Date {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-/**
- * Remplace `legacyMemberId` par `authUid` dans les rosters d’équipe et les
- * convocations / RSVP des events à venir (évite memberId + accountUid empilés).
- */
-async function reconcileRosterIds(params: {
-  clubId: string;
-  legacyMemberId: string;
-  authUid: string;
-}): Promise<void> {
-  const { clubId, legacyMemberId, authUid } = params;
-  if (!legacyMemberId || !authUid || legacyMemberId === authUid) return;
-
-  const clubRef = db().collection("clubs").doc(clubId);
-  const teams = clubRef.collection("teams");
-  const [playerSnap, coachSnap, pendingSnap, eventsSnap] = await Promise.all([
-    teams.where("playerIds", "array-contains", legacyMemberId).get(),
-    teams.where("coachIds", "array-contains", legacyMemberId).get(),
-    teams.where("pendingPlayerIds", "array-contains", legacyMemberId).get(),
-    clubRef
-      .collection("events")
-      .where("date", ">=", admin.firestore.Timestamp.fromDate(startOfTodayLocal()))
-      .limit(200)
-      .get(),
-  ]);
-
-  type Patch = Record<string, unknown>;
-  const updates = new Map<DocumentReference, Patch>();
-
-  const mergePatch = (ref: DocumentReference, patch: Patch) => {
-    updates.set(ref, { ...(updates.get(ref) ?? {}), ...patch });
-  };
-
-  const patchTeam = (
-    doc: QueryDocumentSnapshot,
-    field: string,
-    promoteToPlayers: boolean,
-  ) => {
-    const data = doc.data();
-    const ids = Array.isArray(data[field])
-      ? (data[field] as unknown[]).filter((id): id is string => typeof id === "string")
-      : [];
-    if (!ids.includes(legacyMemberId)) return;
-
-    const next = [...new Set(ids.map((id) => (id === legacyMemberId ? authUid : id)))];
-    const patch: Patch = { [field]: next };
-    if (promoteToPlayers) {
-      const players = new Set(
-        Array.isArray(data.playerIds)
-          ? (data.playerIds as unknown[]).filter((id): id is string => typeof id === "string")
-          : [],
-      );
-      players.add(authUid);
-      patch.playerIds = [...players];
-      const pending = Array.isArray(data.pendingPlayerIds)
-        ? (data.pendingPlayerIds as unknown[]).filter((id): id is string => typeof id === "string")
-        : [];
-      patch.pendingPlayerIds = pending.filter((id) => id !== legacyMemberId);
-    }
-    mergePatch(doc.ref, patch);
-  };
-
-  for (const doc of playerSnap.docs) {
-    patchTeam(doc, "playerIds", false);
-  }
-  for (const doc of coachSnap.docs) {
-    patchTeam(doc, "coachIds", false);
-  }
-  for (const doc of pendingSnap.docs) {
-    patchTeam(doc, "pendingPlayerIds", true);
-  }
-
-  for (const eventDoc of eventsSnap.docs) {
-    const data = eventDoc.data();
-    if (data.canceled === true) continue;
-    const teamMemberIds = Array.isArray(data.teamMemberIds)
-      ? (data.teamMemberIds as unknown[]).filter(
-          (id): id is string => typeof id === "string",
-        )
-      : [];
-    const rsvp =
-      data.rsvp && typeof data.rsvp === "object"
-        ? (data.rsvp as Record<string, unknown>)
-        : null;
-    const rsvpUpdatedAt =
-      data.rsvpUpdatedAt && typeof data.rsvpUpdatedAt === "object"
-        ? (data.rsvpUpdatedAt as Record<string, unknown>)
-        : null;
-    const seenAt =
-      data.seenAt && typeof data.seenAt === "object"
-        ? (data.seenAt as Record<string, unknown>)
-        : null;
-    const patch = buildEventAudienceMigrationPatch({
-      teamMemberIds,
-      rsvp,
-      rsvpUpdatedAt,
-      seenAt,
-      legacyId: legacyMemberId,
-      canonicalId: authUid,
-      deleteField: admin.firestore.FieldValue.delete(),
-    });
-    if (patch) mergePatch(eventDoc.ref, patch);
-  }
-
-  if (updates.size === 0) return;
-  let batch = db().batch();
-  let pending = 0;
-  for (const [ref, patch] of updates) {
-    batch.update(ref, patch);
-    pending += 1;
-    if (pending >= 400) {
-      await batch.commit();
-      batch = db().batch();
-      pending = 0;
-    }
-  }
-  if (pending > 0) await batch.commit();
 }
 
 async function deleteOrphanPendingMembers(params: {
@@ -220,7 +82,9 @@ async function deleteOrphanPendingMembers(params: {
 }
 
 /**
- * Accepte une invitation membre (transaction Admin SDK).
+ * Accepte une invitation membre (transaction Admin SDK). Une invitation ne
+ * porte aucun droit : ils vivent sur la fiche pré-créée et suivent le
+ * re-keying ; une fiche créée ici n'en a aucun.
  * Refuse type guardian — utiliser linkGuardian.
  */
 async function handleAcceptInvitation(
@@ -313,32 +177,46 @@ async function handleAcceptInvitation(
       typeof invite.memberId === "string" && invite.memberId.trim().length > 0
         ? invite.memberId.trim()
         : "";
-    const memberId = linkedMemberId || uid;
+    // Une seule clé membre : la fiche pré-inscrite est re-clée sur l'uid.
+    const rekeyFrom = linkedMemberId && linkedMemberId !== uid ? linkedMemberId : "";
+    const memberId = uid;
     const memberRef = clubRef.collection("members").doc(memberId);
-    const accountIndexRef = clubRef.collection("member_accounts").doc(uid);
     const memberSnap = await tx.get(memberRef);
-    const role = String(invite.role ?? ROLE_PLAYER);
+    const rekeyState = rekeyFrom
+      ? await readRekeyCore(tx, { firestore: db(), clubId, fromMemberId: rekeyFrom, uid })
+      : null;
+    // Fiche telle qu'elle sera une fois liée (badge de l'e-mail de retour).
+    const linkedMember = rekeyState?.source.exists
+      ? rekeyState.target.exists
+        ? mergeMemberDocs(rekeyState.source.data()!, rekeyState.target.data()!)
+        : rekeyState.source.data()!
+      : (memberSnap.data() ?? {});
+    const role = primaryBadge(linkedMember);
 
-    if (linkedMemberId) {
-      if (!memberSnap.exists) {
-        throw new HttpsError("not-found", "Membre du club introuvable");
+    if (rekeyState) {
+      try {
+        // Une fiche déjà à l'uid (doublon) est fusionnée : l'invitation vise
+        // la fiche pré-inscrite, la personne n'en garde qu'une.
+        writeRekeyCore(tx, rekeyState, {
+          extraFields: profilePatch,
+          mergeDuplicates: true,
+        });
+      } catch (error) {
+        if (error instanceof MemberRekeyError) {
+          throw new HttpsError(
+            error.code === "source-missing" ? "not-found" : "failed-precondition",
+            error.code === "source-missing" ? "Membre du club introuvable" : error.message,
+          );
+        }
+        throw error;
       }
-      tx.update(memberRef, {
-        accountUid: uid,
-        userId: uid,
-        ...profilePatch,
-        activeInvitationId: admin.firestore.FieldValue.delete(),
-      });
-      // Index compte → fiche : clé `memberId` (lue par assertClubAdmin et les règles).
-      tx.set(accountIndexRef, { memberId: linkedMemberId });
     } else if (!memberSnap.exists) {
       tx.set(memberRef, {
-        memberId: uid,
         accountUid: uid,
-        userId: uid,
         firstName,
         lastName,
-        role,
+        permissions: [],
+        coachTeamIds: [],
         status: "active",
         teamIds: [],
         snapshot: {
@@ -346,8 +224,7 @@ async function handleAcceptInvitation(
           email,
           ...(avatarUrl ? { avatarUrl } : {}),
         },
-        ...(role === ROLE_PLAYER ? { playerInfo: { license: "" } } : {}),
-        ...(role === ROLE_COACH ? { coachInfo: { headCoach: false } } : {}),
+        playerInfo: { license: "" },
         joinedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -360,38 +237,36 @@ async function handleAcceptInvitation(
     } else {
       tx.update(memberRef, {
         accountUid: uid,
-        userId: uid,
         ...profilePatch,
+        ...(linkedMemberId
+          ? { activeInvitationId: admin.firestore.FieldValue.delete() }
+          : {}),
       });
     }
 
-    if (role === ROLE_ADMIN && clubSnap.exists) {
-      const adminIds = Array.isArray(clubSnap.data()?.adminIds)
-        ? (clubSnap.data()!.adminIds as unknown[]).filter(
-            (id): id is string => typeof id === "string",
-          )
-        : [];
-      if (!adminIds.includes(uid)) {
+    // Fiche déjà à l'uid, liée ici : elle entre dans l'index des admins si
+    // elle porte le droit Administrateur (le re-keying gère son propre cas).
+    if (!rekeyState && memberSnap.exists && clubSnap.exists) {
+      const nextAdminIds = adminIdsUpdate({
+        adminIds: stringArray(clubSnap.data()?.adminIds),
+        memberId: uid,
+        linked: true,
+        permissions: memberSnap.data()?.permissions,
+      });
+      if (nextAdminIds) {
         tx.update(clubRef, {
-          adminIds: [...adminIds, uid],
+          adminIds: nextAdminIds,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
     }
 
-    const memberships = Array.isArray(userData.clubMemberships)
-      ? (userData.clubMemberships as unknown[]).filter(
-          (item): item is Record<string, unknown> =>
-            Boolean(item) && typeof item === "object",
-        )
-      : [];
-    const already = memberships.some((m) => String(m.clubId ?? "") === clubId);
-    if (!already) {
-      memberships.push({ clubId, role });
+    // `memberClubIds` : seul index des clubs du compte (écrit ici seulement).
+    if (!stringArray(userData.memberClubIds).includes(clubId)) {
       tx.set(
         userRef,
         {
-          clubMemberships: memberships,
+          memberClubIds: admin.firestore.FieldValue.arrayUnion(clubId),
           flags: {
             profileCompleted: true,
             disabled: false,
@@ -408,11 +283,12 @@ async function handleAcceptInvitation(
       acceptedBy: uid,
       firstName,
       lastName,
+      ...(rekeyFrom ? { memberId: uid } : {}),
     });
 
     return {
       memberId,
-      linkedMemberId,
+      rekeyFrom,
       email,
       sentBy: String(invite.sentBy ?? "").trim(),
       displayName,
@@ -426,16 +302,23 @@ async function handleAcceptInvitation(
     };
   });
 
-  if (
-    result.linkedMemberId &&
-    result.linkedMemberId.length > 0 &&
-    result.linkedMemberId !== uid
-  ) {
-    await reconcileRosterIds({
-      clubId,
-      legacyMemberId: result.linkedMemberId,
-      authUid: uid,
-    });
+  if (result.rekeyFrom) {
+    try {
+      await rewriteMemberReferences({
+        firestore: db(),
+        clubId,
+        from: result.rekeyFrom,
+        uid,
+      });
+    } catch (error) {
+      // La fiche est déjà sous l'uid ; `rekeyPendingFrom` permet la reprise
+      // par tool/rekey_linked_members.mjs.
+      console.error("rewriteMemberReferences failed", {
+        clubId,
+        from: result.rekeyFrom,
+        error,
+      });
+    }
   }
 
   if (result.email) {
@@ -482,7 +365,7 @@ export const {
 } = defineDualCallable(
   {
     secrets: [...brevoCallableSecrets],
-    timeoutSeconds: 60,
+    timeoutSeconds: 120,
   },
   handleAcceptInvitation,
 );

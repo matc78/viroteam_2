@@ -5,7 +5,6 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/announcements/widgets/announcement_history_card.dart';
 import 'package:viro_team_v2/features/announcements/widgets/announcement_message_sheet.dart';
@@ -22,6 +21,9 @@ import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/features/announcements/utils/announcement_filter.dart';
 
 class ClubAnnouncementsScreen extends ConsumerStatefulWidget {
   const ClubAnnouncementsScreen({super.key, required this.clubId});
@@ -44,12 +46,9 @@ class _ClubAnnouncementsScreenState
   @override
   Widget build(BuildContext context) {
     final sectionsAsync = ref.watch(clubAnnouncementSectionsProvider(clubId));
-    final memberAsync = ref.watch(clubMemberProvider(clubId));
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
-    final canManage = memberAsync.maybeWhen(
-      data: (m) => m != null && MemberRoleHierarchy.isCoachOrAbove(m.role),
-      orElse: () => false,
-    );
+    final access = ref.watch(clubAccessProvider(clubId));
+    final canPublish = access.canPublishAnnouncements;
     final accent = ref.watch(clubMemberAccentProvider(clubId));
 
     final teamNames = <String, String>{
@@ -60,7 +59,7 @@ class _ClubAnnouncementsScreenState
       announcement: announcement,
       targetLabel: announcement.targetLabel(teamNamesById: teamNames),
       accentColor: accent,
-      canManage: canManage,
+      canManage: AnnouncementFilter.canManage(access, announcement),
       onTap: () =>
           showAnnouncementMessageSheet(context, announcement: announcement),
       onEdit: () => showEditAnnouncementSheet(
@@ -81,7 +80,7 @@ class _ClubAnnouncementsScreenState
           title: Text(AppCopy.announcements.screenTitle),
           fallbackRoute: AppRoutes.clubDetailPath(clubId),
         ),
-        floatingActionButton: canManage
+        floatingActionButton: canPublish
             ? FloatingActionButton.extended(
                 onPressed: _openCreateSheet,
                 icon: ViroIcon(ViroIcons.add, color: ViroColors.white),
@@ -89,7 +88,7 @@ class _ClubAnnouncementsScreenState
               )
             : null,
         body: sectionsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => ViroErrorState(
             onRetry: () => ref.invalidate(clubAnnouncementsProvider(clubId)),
           ),
@@ -112,10 +111,10 @@ class _ClubAnnouncementsScreenState
                           child: ViroEmptyState(
                             message: AppCopy.announcements.empty,
                             icon: ViroIcons.bell,
-                            actionLabel: canManage
+                            actionLabel: canPublish
                                 ? AppCopy.announcements.publishAnnouncementCta
                                 : null,
-                            onAction: canManage ? _openCreateSheet : null,
+                            onAction: canPublish ? _openCreateSheet : null,
                           ),
                         ),
                       ],

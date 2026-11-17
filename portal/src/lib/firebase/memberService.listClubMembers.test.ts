@@ -50,8 +50,7 @@ describe("listClubMembers", () => {
   it("aucune lecture par membre quand le snapshot est complet", async () => {
     for (let index = 0; index < 50; index += 1) {
       memberDocs.push(
-        memberDoc(`m${index}`, {
-          role: "player",
+        memberDoc(`uid${index}`, {
           firstName: `Joueur${index}`,
           accountUid: `uid${index}`,
           snapshot: { displayName: `Joueur ${index}`, email: `j${index}@club.fr` },
@@ -62,12 +61,15 @@ describe("listClubMembers", () => {
     expect(members).toHaveLength(50);
     expect(getDocCalls).toEqual([]);
     expect(members.every((member) => member.hasLinkedAccount)).toBe(true);
+    // Une seule clé : l’id de fiche liée est l’uid du compte.
+    expect(
+      members.every((member) => member.memberId === member.accountUid),
+    ).toBe(true);
   });
 
   it("joint les invitations en attente en mémoire", async () => {
     memberDocs.push(
       memberDoc("m1", {
-        role: "player",
         firstName: "Léa",
         activeInvitationId: "inv1",
       }),
@@ -83,7 +85,7 @@ describe("listClubMembers", () => {
 
   it("repli users/{uid} seulement si le snapshot n’a pas d’e-mail", async () => {
     memberDocs.push(
-      memberDoc("m1", { role: "coach", firstName: "Tom", accountUid: "u1" }),
+      memberDoc("u1", { firstName: "Tom", accountUid: "u1" }),
     );
     const [member] = await listClubMembers("club1");
     expect(getDocCalls).toEqual(["users/u1"]);

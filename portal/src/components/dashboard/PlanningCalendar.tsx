@@ -69,10 +69,10 @@ type PlanningCalendarProps = {
   /** Brouillon ouvert : conserve le fantôme de sélection. */
   pendingCreate?: CreateEventDraft | null;
   /**
-   * Ids du viewer (memberId, uid, aliases) pour filled/outline RSVP.
-   * Absent ou vide → style filled legacy sur tous les blocs.
+   * Ids de fiche du viewer (son uid, ses enfants) pour filled/outline RSVP.
+   * Absent ou vide → style par défaut sur tous les blocs.
    */
-  viewerMatchIds?: string[];
+  viewerMemberIds?: string[];
 };
 
 /** Jour court (« lun. »), partagé par les en-têtes mois et semaine. */
@@ -172,7 +172,7 @@ export function PlanningCalendar({
   onSelectDay,
   onCreateEvent,
   pendingCreate = null,
-  viewerMatchIds = [],
+  viewerMemberIds = [],
 }: PlanningCalendarProps) {
   const today = dateOnly(new Date());
   const periodLabel = formatCalendarPeriodLabel(cursor, view);
@@ -255,7 +255,7 @@ export function PlanningCalendar({
                 cursor={cursor}
                 today={today}
                 eventBlocks={eventBlocks}
-                viewerMatchIds={viewerMatchIds}
+                viewerMemberIds={viewerMemberIds}
                 pendingDayKey={
                   pendingCreate ? formatDateId(pendingCreate.day) : null
                 }
@@ -276,7 +276,7 @@ export function PlanningCalendar({
                 days={buildWeekDays(cursor)}
                 today={today}
                 eventBlocks={eventBlocks}
-                viewerMatchIds={viewerMatchIds}
+                viewerMemberIds={viewerMemberIds}
                 pendingCreate={pendingCreate}
                 scrollToNowNonce={scrollToNowNonce}
                 onSelectDay={(day) => {
@@ -294,7 +294,7 @@ export function PlanningCalendar({
                 days={[dateOnly(cursor)]}
                 today={today}
                 eventBlocks={eventBlocks}
-                viewerMatchIds={viewerMatchIds}
+                viewerMemberIds={viewerMemberIds}
                 pendingCreate={pendingCreate}
                 scrollToNowNonce={scrollToNowNonce}
                 onSelectDay={onSelectDay}
@@ -341,7 +341,7 @@ type MonthViewProps = {
   cursor: Date;
   today: Date;
   eventBlocks: CalendarEventBlock[];
-  viewerMatchIds: string[];
+  viewerMemberIds: string[];
   pendingDayKey: string | null;
   onSelectDay: (day: Date, anchor: CreateEventDraft["anchor"]) => void;
   onSelectEvent: (
@@ -355,7 +355,7 @@ function MonthView({
   cursor,
   today,
   eventBlocks,
-  viewerMatchIds,
+  viewerMemberIds,
   pendingDayKey,
   onSelectDay,
   onSelectEvent,
@@ -429,7 +429,7 @@ function MonthView({
                     resolveViewerEventFill({
                       teamMemberIds: block.event.teamMemberIds,
                       rsvpByMemberId: block.event.rsvpByMemberId,
-                      viewerMatchIds,
+                      viewerMemberIds,
                     }),
                   );
                   return (
@@ -474,7 +474,7 @@ type TimeGridViewProps = {
   days: Date[];
   today: Date;
   eventBlocks: CalendarEventBlock[];
-  viewerMatchIds: string[];
+  viewerMemberIds: string[];
   pendingCreate?: CreateEventDraft | null;
   /** Incrémente pour recentrer sur l'heure actuelle (ex. bouton Aujourd'hui). */
   scrollToNowNonce?: number;
@@ -501,7 +501,7 @@ function TimeGridView({
   days,
   today,
   eventBlocks,
-  viewerMatchIds,
+  viewerMemberIds,
   pendingCreate = null,
   scrollToNowNonce = 0,
   onSelectDay,
@@ -817,7 +817,7 @@ function TimeGridView({
 
                   <DayColumnEvents
                     eventBlocks={dayBlocks}
-                    viewerMatchIds={viewerMatchIds}
+                    viewerMemberIds={viewerMemberIds}
                     singleDay={singleDay}
                     onSelectEvent={onSelectEvent}
                   />
@@ -833,7 +833,7 @@ function TimeGridView({
 
 type DayColumnEventsProps = {
   eventBlocks: CalendarEventBlock[];
-  viewerMatchIds: string[];
+  viewerMemberIds: string[];
   singleDay: boolean;
   onSelectEvent: (
     event: ClubEventView,
@@ -890,7 +890,7 @@ function formatEventBlockTitle(event: ClubEventView): string {
 /** Blocs horaires d'une journée, packés en cascade chevauchée (style Google). */
 function DayColumnEvents({
   eventBlocks,
-  viewerMatchIds,
+  viewerMemberIds,
   singleDay,
   onSelectEvent,
 }: DayColumnEventsProps) {
@@ -1041,7 +1041,7 @@ function DayColumnEvents({
           resolveViewerEventFill({
             teamMemberIds: event.teamMemberIds,
             rsvpByMemberId: event.rsvpByMemberId,
-            viewerMatchIds,
+            viewerMemberIds,
           }),
         );
 

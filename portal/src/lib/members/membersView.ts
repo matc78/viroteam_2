@@ -1,3 +1,9 @@
+import {
+  derivedBadges,
+  primaryBadge,
+  type MemberBadge,
+} from "@/lib/auth/permissions";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import type { TeamOption } from "@/lib/firebase/eventService";
 import { loadTeamsForClub } from "@/lib/firebase/eventService";
@@ -9,10 +15,9 @@ import {
 import {
   listClubMembers,
   isMemberInviteValid,
-  memberRoleLabel,
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
-import { MemberFeeStatuses, MemberRoles } from "@/lib/firebase/constants";
+import { MemberFeeStatuses } from "@/lib/firebase/constants";
 
 /** Ligne membre enrichie pour le tableau portail. */
 export type MemberRow = ClubMemberRecord & {
@@ -23,6 +28,8 @@ export type MemberRow = ClubMemberRecord & {
   resolvedTeamIds: string[];
   feeStatus: string | null;
   feeStatusLabel: string;
+  /** Badge principal : `admin` > `coach` > `player` > `member`. */
+  badge: MemberBadge;
 };
 
 /** Affectation roster d’un membre sur une équipe. */
@@ -70,15 +77,11 @@ export function resolveMemberTeams(
   teamLabels: string[];
   assignments: MemberTeamAssignment[];
 } {
-  const matchIds = new Set(
-    [member.memberId, member.accountUid].filter(Boolean) as string[],
-  );
-
   const assignmentsById = new Map<string, MemberTeamAssignment>();
 
   for (const team of teams) {
-    const isPlayer = team.playerIds.some((id) => matchIds.has(id));
-    const isCoach = team.coachIds.some((id) => matchIds.has(id));
+    const isPlayer = team.playerIds.includes(member.memberId);
+    const isCoach = team.coachIds.includes(member.memberId);
     const inDoc = member.teamIds.includes(team.id);
     if (!isPlayer && !isCoach && !inDoc) continue;
     assignmentsById.set(team.id, {
@@ -105,19 +108,13 @@ function feeStatusForMember(
   member: ClubMemberRecord,
   feesById: Map<string, MemberFeeRecord>,
 ): string | null {
-  const byMemberId = feesById.get(member.memberId);
-  if (byMemberId) return byMemberId.status;
-  if (member.accountUid) {
-    const byAccount = feesById.get(member.accountUid);
-    if (byAccount) return byAccount.status;
-  }
-  return null;
+  return feesById.get(member.memberId)?.status ?? null;
 }
 
-/** Options de chargement page Membres (droits selon rôle). */
+/** Options de chargement page Membres (droits du viewer). */
 export type LoadMembersPageOptions = {
-  /** Rôle club du viewer (`admin` / `coach` / `player`). */
-  role?: string | null;
+  /** Le viewer peut lister les cotisations du club (droit `viewFees`). */
+  canListFees?: boolean;
   /** Page Équipe : membres + équipes seulement (ni cotisations, ni réparation). */
   rosterOnly?: boolean;
 };
@@ -132,10 +129,8 @@ export async function loadMembersPageData(
   club: ClubRecord,
   options: LoadMembersPageOptions = {},
 ): Promise<MembersPageData> {
-  const role = options.role ?? null;
   const rosterOnly = options.rosterOnly === true;
-  const canListFees =
-    !rosterOnly && (role === MemberRoles.admin || role === MemberRoles.coach);
+  const canListFees = !rosterOnly && options.canListFees === true;
 
   const [members, teams, season] = await Promise.all([
     listClubMembers(club.id),
@@ -160,6 +155,7 @@ export async function loadMembersPageData(
       resolvedTeamIds: resolved.teamIds,
       feeStatus,
       feeStatusLabel: feeStatusLabel(feeStatus),
+      badge: primaryBadge(member),
     };
   });
 
@@ -174,7 +170,8 @@ export async function loadMembersPageData(
 /** Filtres UI tableau membres. */
 export type MembersFilters = {
   search: string;
-  role: "all" | typeof MemberRoles.admin | typeof MemberRoles.coach | typeof MemberRoles.player;
+  /** Filtre par badge (`all` : tous). */
+  badge: "all" | MemberBadge;
   teamId: string;
   registration: "all" | "registered" | "pending";
   feeStatus: "all" | string;
@@ -187,7 +184,9 @@ export function filterMemberRows(
 ): MemberRow[] {
   const search = filters.search.trim().toLowerCase();
   return rows.filter((row) => {
-    if (filters.role !== "all" && row.role !== filters.role) return false;
+    if (filters.badge !== "all" && !derivedBadges(row).includes(filters.badge)) {
+      return false;
+    }
     if (
       filters.teamId &&
       filters.teamId !== "all" &&
@@ -215,7 +214,7 @@ export function filterMemberRows(
       row.email ?? "",
       row.license,
       row.pendingInviteCode ?? "",
-      memberRoleLabel(row.role),
+      ...derivedBadges(row).map(badgeLabel),
       ...row.teamNames,
       ...row.teamLabels,
     ]

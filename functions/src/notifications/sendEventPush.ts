@@ -1,10 +1,15 @@
 import * as admin from "firebase-admin";
+import type { Firestore } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { captureConvocationSent } from "../analytics";
 import { db, defineDualCallable, isProdDatabase } from "../db";
 import { requireString, requireUid, stringArray } from "../common";
+import { loadClubAccess, permissionDenied } from "../permissions";
 import { ClubDirectory, resolveEventAudience } from "./audience";
-import { eventManualPushCopy } from "./copy";
+import {
+  eventManualPushCopy,
+  eventManualPushSentCopy,
+} from "./copy";
 import {
   contextForEntry,
   eventPushContext,
@@ -14,7 +19,8 @@ import { canSendManualPush } from "./prefs";
 import { MANUAL_PUSH_COOLDOWN_MS } from "./types";
 
 /**
- * Envoi manuel d'une notif event (coach d'une équipe concernée ou admin).
+ * Envoi manuel d'une notif event (droit `manageEvents`, ou coach d'une
+ * équipe concernée).
  * Rate-limit 1/heure en prod uniquement (`v2-dev` libre pour le debug).
  */
 export const {
@@ -41,11 +47,7 @@ export const {
     throw new HttpsError("failed-precondition", "Événement annulé");
   }
 
-  await assertEventCoachOrAdmin({
-    clubId,
-    uid,
-    teamIds: stringArray(preEvent.teamIds),
-  });
+  await assertCanManageEvent({ clubId, uid, event: preEvent });
 
   const event = await firestore.runTransaction(async (tx) => {
     const eventSnap = await tx.get(eventRef);
@@ -87,6 +89,11 @@ export const {
     entries.push({ uid, relation: "coach", rsvp: "none" });
   }
   const base = eventPushContext(event);
+  const coachFirstName = await resolveCoachFirstName({
+    firestore,
+    clubId,
+    uid,
+  });
 
   const result = await sendEventPushToAudience({
     firestore,
@@ -96,11 +103,18 @@ export const {
     type: "event_manual",
     entries,
     copyFor: (entry) => {
-      // Qui a déjà dit non n'a pas besoin d'être relancé.
-      if (entry.relation !== "coach" && entry.rsvp === "no") return null;
+      // Confirmation à l'expéditeur (coach / admin), pas une relance.
+      if (entry.uid === uid) {
+        return eventManualPushSentCopy(base);
+      }
+      // Autres coachs : pas de relance manuelle.
+      if (entry.relation === "coach") return null;
+      // Seulement sans réponse ou « peut-être ».
+      if (entry.rsvp !== "none" && entry.rsvp !== "maybe") return null;
       return eventManualPushCopy({
         ...contextForEntry(base, entry),
-        rsvp: entry.relation === "coach" ? "yes" : entry.rsvp,
+        rsvp: entry.rsvp,
+        coachFirstName,
       });
     },
   });
@@ -114,67 +128,47 @@ export const {
 });
 
 /**
- * Admin du club, ou coach d'une des équipes de l'événement ([teamIds]) :
- * sinon `permission-denied`.
+ * Droit `manageEvents`, ou coach de toutes les équipes de l'événement (jamais
+ * d'un événement « tout le club ») : sinon `permission-denied`.
  */
-export async function assertEventCoachOrAdmin(params: {
+export async function assertCanManageEvent(params: {
   clubId: string;
   uid: string;
-  teamIds: string[];
+  event: Record<string, unknown>;
 }): Promise<void> {
-  const firestore = db();
-  const clubSnap = await firestore.collection("clubs").doc(params.clubId).get();
-  if (!clubSnap.exists) {
-    throw new HttpsError("not-found", "Club introuvable");
+  const access = await loadClubAccess(params.clubId, params.uid);
+  if (access.can("manageEvents")) return;
+  const coachAllowed =
+    params.event.allTeams !== true &&
+    access.coachesAllTeams(stringArray(params.event.teamIds));
+  if (!coachAllowed) {
+    throw permissionDenied("Réservé aux coachs de l’événement ou aux responsables du planning");
   }
-  const club = clubSnap.data()!;
-  const adminIds = Array.isArray(club.adminIds)
-    ? club.adminIds.map(String)
-    : [];
-  if (adminIds.includes(params.uid)) return;
+}
 
-  const accountSnap = await firestore
-    .collection("clubs")
-    .doc(params.clubId)
-    .collection("member_accounts")
-    .doc(params.uid)
-    .get();
-  const linkedMemberId = accountSnap.exists
-    ? String(accountSnap.data()?.memberId ?? "")
-    : params.uid;
-  const memberSnap = await firestore
+/**
+ * Prénom du coach / admin expéditeur pour la signature « Signé coach … ».
+ * Fiche membre d'abord, puis profil user.
+ */
+async function resolveCoachFirstName(params: {
+  firestore: Firestore;
+  clubId: string;
+  uid: string;
+}): Promise<string> {
+  const memberSnap = await params.firestore
     .collection("clubs")
     .doc(params.clubId)
     .collection("members")
-    .doc(linkedMemberId)
+    .doc(params.uid)
     .get();
-  if (memberSnap.exists && memberSnap.data()?.role === "admin") return;
+  const fromMember = String(memberSnap.data()?.firstName ?? "").trim();
+  if (fromMember) return fromMember;
 
-  if (params.teamIds.length === 0) {
-    throw new HttpsError(
-      "permission-denied",
-      "Réservé aux coaches de l’événement ou aux admins",
-    );
-  }
-
-  for (const teamId of params.teamIds) {
-    const teamSnap = await firestore
-      .collection("clubs")
-      .doc(params.clubId)
-      .collection("teams")
-      .doc(teamId)
-      .get();
-    if (!teamSnap.exists) continue;
-    const coachIds = stringArray(teamSnap.data()?.coachIds);
-    if (coachIds.includes(params.uid) || coachIds.includes(linkedMemberId)) {
-      return;
-    }
-  }
-
-  throw new HttpsError(
-    "permission-denied",
-    "Réservé aux coaches de l’événement ou aux admins",
-  );
+  const userSnap = await params.firestore
+    .collection("users")
+    .doc(params.uid)
+    .get();
+  return String(userSnap.data()?.firstName ?? "").trim();
 }
 
 function timestampMillis(value: unknown): number | null {

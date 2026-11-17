@@ -13,6 +13,8 @@ export {
 export {
   onMemberWrittenForChat,
   onMemberWrittenForChatDev,
+  onUserWrittenForChat,
+  onUserWrittenForChatDev,
   onClubWrittenForChat,
   onClubWrittenForChatDev,
   onChatMessageCreatedForPush,
@@ -23,10 +25,3 @@ export {
   createCategoryChannelDev,
 } from "./triggers";
 
-export {
-  syncTeamConversations,
-  syncClubWideConversations,
-  syncAllConversationsForClub,
-} from "./sync";
-
-export { isYouthTeamCategory } from "./youthCategory";

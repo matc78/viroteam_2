@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
-import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/notification_preferences.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/utils/email_validation.dart';
@@ -48,7 +47,7 @@ class UserService {
       displayName: displayName.isNotEmpty ? displayName : user.displayName.trim(),
       phone: user.phone,
       avatarUrl: user.avatarUrl,
-      clubMemberships: user.clubMemberships,
+      memberClubIds: user.memberClubIds,
       parentLinks: user.parentLinks,
       parentClubIds: user.parentClubIds,
       profileCompleted: user.profileCompleted,
@@ -108,7 +107,8 @@ class UserService {
 
   /// Met à jour le profil utilisateur (prénom, nom, téléphone).
   ///
-  /// Propage aussi le nom vers les fiches `members/{uid}` de chaque club.
+  /// La propagation vers les fiches `members/{uid}` est faite côté serveur
+  /// (trigger `onUserWrittenSyncMemberProfile`).
   Future<void> updateProfile({
     required String uid,
     required String firstName,
@@ -138,28 +138,6 @@ class UserService {
     }
 
     await _userRef(uid).set(update, SetOptions(merge: true));
-
-    final profile = await getUser(uid);
-    final clubIds = profile?.clubMemberships
-            .map((membership) => membership.clubId.trim())
-            .where((clubId) => clubId.isNotEmpty)
-            .toSet() ??
-        const <String>{};
-    await Future.wait(
-      clubIds.map(
-        (clubId) => _syncLinkedMemberDoc(
-          uid: uid,
-          clubId: clubId,
-          topLevelFields: {
-            FirestoreFields.firstName: formattedFirst,
-            FirestoreFields.lastName: formattedLast,
-          },
-          snapshotFields: {
-            FirestoreFields.displayName: displayName,
-          },
-        ),
-      ),
-    );
   }
 
   /// Persiste les préférences de notifications push.
@@ -176,11 +154,11 @@ class UserService {
     );
   }
 
-  /// Met à jour l’avatar utilisateur et sync la fiche membre du club actif.
+  /// Met à jour l’avatar utilisateur (propagé aux fiches membres par le
+  /// trigger serveur `onUserWrittenSyncMemberProfile`).
   Future<void> updateAvatarUrl({
     required String uid,
     required String avatarUrl,
-    String? syncMemberClubId,
   }) async {
     await _userRef(uid).set(
       {
@@ -189,89 +167,6 @@ class UserService {
       },
       SetOptions(merge: true),
     );
-
-    final clubId = syncMemberClubId?.trim();
-    if (clubId == null || clubId.isEmpty) return;
-
-    await _syncLinkedMemberDoc(
-      uid: uid,
-      clubId: clubId,
-      snapshotFields: {FirestoreFields.avatarUrl: avatarUrl},
-    );
-  }
-
-  /// Sync best-effort d’une fiche membre liée (`members/{uid}`) avec merge snapshot.
-  Future<void> _syncLinkedMemberDoc({
-    required String uid,
-    required String clubId,
-    Map<String, dynamic>? topLevelFields,
-    Map<String, dynamic>? snapshotFields,
-  }) async {
-    try {
-      final memberRef = _db
-          .collection(ProjectConfig.clubsCollection)
-          .doc(clubId)
-          .collection(ProjectConfig.membersSubcollection)
-          .doc(uid);
-      final memberSnap = await memberRef.get();
-      if (!memberSnap.exists) return;
-
-      final data = memberSnap.data() ?? {};
-      final existingSnapshot =
-          data[FirestoreFields.snapshot] as Map<String, dynamic>? ?? {};
-      final payload = <String, dynamic>{
-        ...?topLevelFields,
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      };
-      if (snapshotFields != null && snapshotFields.isNotEmpty) {
-        payload[FirestoreFields.snapshot] = {
-          ...existingSnapshot,
-          ...snapshotFields,
-        };
-      }
-      await memberRef.set(payload, SetOptions(merge: true));
-    } catch (_) {
-      // Sync membre best-effort — ne bloque pas la sauvegarde user.
-    }
-  }
-
-  Future<void> addClubMembership({
-    required String uid,
-    required String clubId,
-    required String role,
-    bool profileCompleted = true,
-  }) async {
-    final ref = _userRef(uid);
-    await _db.runTransaction((tx) async {
-      final snap = await tx.get(ref);
-      final data = snap.data() ?? {};
-      final existing = (data[FirestoreFields.clubMemberships] as List<dynamic>?)
-              ?.whereType<Map<String, dynamic>>()
-              .toList() ??
-          [];
-
-      final alreadyMember = existing.any(
-        (m) => m[FirestoreFields.clubId] == clubId,
-      );
-      if (!alreadyMember) {
-        existing.add(
-          ClubMembershipSummary(clubId: clubId, role: role).toMap(),
-        );
-      }
-
-      tx.set(
-        ref,
-        {
-          FirestoreFields.clubMemberships: existing,
-          FirestoreFields.flags: {
-            FirestoreFields.profileCompleted: profileCompleted,
-            FirestoreFields.disabled: false,
-          },
-          FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
-    });
   }
 
   /// Formate un prénom ; vide si entrée vide ; rejette les caractères interdits.

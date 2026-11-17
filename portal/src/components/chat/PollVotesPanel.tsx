@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ChatIcon } from "@/components/chat/ChatIcons";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import { RoleBadge } from "@/components/dashboard/RoleBadge";
+import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import {
   participantFirstName,
   type ConversationParticipant,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/firebase/chatTypes";
 import infoStyles from "./ConversationInfoPanel.module.css";
 import styles from "./PollVotesPanel.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 type PollVotesPanelProps = {
   message: ChatMessage;
@@ -32,6 +34,11 @@ export function PollVotesPanel({
   onClose,
 }: PollVotesPanelProps) {
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  // Escape : retour à la liste des votes depuis une fiche, sinon fermeture.
+  const panelRef = useDialogA11y({
+    onClose: () => (selectedUid ? setSelectedUid(null) : onClose()),
+    modal: false,
+  });
 
   const peopleByUid = useMemo(() => {
     const map = new Map<string, ConversationParticipant>();
@@ -50,24 +57,29 @@ export function PollVotesPanel({
 
   if (selected) {
     return (
-      <aside className={infoStyles.panel} aria-label="Fiche membre">
+      <aside
+        ref={panelRef}
+        className={infoStyles.panel}
+        role="dialog"
+        aria-label={chatCopy.memberCard}
+      >
         <header className={infoStyles.header}>
           <button
             type="button"
             className={infoStyles.headerIconBtn}
-            aria-label="Retour"
+            aria-label={chatCopy.back}
             onClick={() => setSelectedUid(null)}
           >
             <ChatIcon name="close" size={20} />
           </button>
-          <h2 className={infoStyles.headerTitle}>Infos du contact</h2>
+          <h2 className={infoStyles.headerTitle}>{chatCopy.contactInfo}</h2>
         </header>
         <div className={infoStyles.memberDetail}>
           <MemberAvatar
             displayName={selected.displayName}
             avatarUrl={selected.avatarUrl}
             hasLinkedAccount={selected.hasLinkedAccount}
-            size="md"
+            diameter="var(--chat-avatar-hero)"
           />
           <h3 className={infoStyles.memberName}>{selected.displayName}</h3>
           <RoleBadge role={selected.role} size="sm" />
@@ -77,34 +89,41 @@ export function PollVotesPanel({
   }
 
   return (
-    <aside className={infoStyles.panel} aria-label="Détails du sondage">
+    <aside
+      ref={panelRef}
+      className={infoStyles.panel}
+      role="dialog"
+      aria-label={chatCopy.pollDetailsTitle}
+    >
       <header className={infoStyles.header}>
         <button
           type="button"
           className={infoStyles.headerIconBtn}
-          aria-label="Fermer"
+          aria-label={chatCopy.close}
           onClick={onClose}
         >
           <ChatIcon name="close" size={20} />
         </button>
-        <h2 className={infoStyles.headerTitle}>Détails du sondage</h2>
+        <h2 className={infoStyles.headerTitle}>
+          {chatCopy.pollDetailsTitle}
+        </h2>
       </header>
 
       <div className={infoStyles.scrollBody}>
         <div className={styles.hero}>
-          <h3 className={styles.question}>{question || "Sondage"}</h3>
+          <h3 className={styles.question}>{question || chatCopy.pollLabel}</h3>
           <p className={styles.mode}>
             {message.pollAllowMultiple
-              ? "Plusieurs réponses possibles"
-              : "Réponse unique"}
+              ? chatCopy.pollAllowMultiple
+              : chatCopy.pollSingleChoice}
           </p>
           <p className={styles.summary}>
-            Membres ayant voté : {voted} sur {participantCount}
+            {chatCopy.pollVotedSummary(voted, participantCount)}
           </p>
         </div>
 
         {voted === 0 ? (
-          <p className={infoStyles.emptyPad}>Personne n’a encore voté.</p>
+          <p className={infoStyles.emptyPad}>{chatCopy.pollNoVotesYet}</p>
         ) : (
           message.pollOptions.map((option) => {
             const voterUids = message.pollVotes[option.id] ?? [];
@@ -114,18 +133,18 @@ export function PollVotesPanel({
                 <div className={styles.optionHeader}>
                   <h4 className={styles.optionTitle}>{option.text}</h4>
                   <span className={styles.voteBadge}>
-                    {count <= 1 ? `${count} vote` : `${count} votes`}
+                    {chatCopy.pollOptionVotesLabel(count)}
                   </span>
                 </div>
                 {count === 0 ? (
-                  <p className={styles.emptyOption}>Aucun vote</p>
+                  <p className={styles.emptyOption}>{chatCopy.pollOptionNoVotes}</p>
                 ) : (
                   <ul className={infoStyles.memberList}>
                     {voterUids.map((uid) => {
                       const person = peopleByUid.get(uid);
                       const label = person
                         ? participantFirstName(person)
-                        : "Membre";
+                        : chatCopy.unknownMember;
                       return (
                         <li key={`${option.id}-${uid}`}>
                           <button
@@ -140,7 +159,7 @@ export function PollVotesPanel({
                               hasLinkedAccount={
                                 person?.hasLinkedAccount ?? false
                               }
-                              size="sm"
+                              diameter="var(--chat-avatar-poll-voter)"
                               enableZoom={false}
                             />
                             <span className={infoStyles.memberRowText}>

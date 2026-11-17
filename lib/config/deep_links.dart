@@ -1,15 +1,22 @@
 import 'package:app_links/app_links.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
+import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
+import 'package:viro_team_v2/features/home/providers/rsvp_push_highlight_provider.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/providers/session_provider.dart';
 
 /// Parse un deep link `viroteam://…` en route GoRouter.
-String? deepLinkRouteFromUri(Uri uri) {
+///
+/// [chatMessagingLive] : liens `chat` ignorés si faux (release sans flag user).
+String? deepLinkRouteFromUri(
+  Uri uri, {
+  bool chatMessagingLive = false,
+}) {
   final host = uri.host.toLowerCase();
   final path = uri.path.replaceFirst(RegExp(r'^/'), '');
 
@@ -45,8 +52,8 @@ String? deepLinkRouteFromUri(Uri uri) {
   }
 
   if (host == 'chat' || path == 'chat') {
-    // Messagerie cachée en release : un lien chat n’ouvre rien.
-    if (!FeatureFlags.chatMessagingLive) return null;
+    // Messagerie cachée sans accès anticipé : un lien chat n’ouvre rien.
+    if (!chatMessagingLive) return null;
     final conversationId =
         uri.queryParameters['conversationId']?.trim() ?? '';
     if (clubId.isEmpty) return AppRoutes.conversations;
@@ -123,10 +130,7 @@ bool applyDeepLinkClubSession({
   if (!userCanOpenClub(user, clubId)) return false;
   final current = ref.read(sessionProvider).activeClubId;
   if (current != clubId) {
-    ref.read(sessionProvider.notifier).setActiveClub(
-          clubId,
-          role: user.membershipInClub(clubId)?.role,
-        );
+    ref.read(sessionProvider.notifier).setActiveClub(clubId);
   }
   return true;
 }
@@ -176,8 +180,19 @@ void handleDeepLinkUri({
   required GoRouter router,
   required Uri uri,
 }) {
-  final route = deepLinkRouteFromUri(uri);
-  if (route == null) return;
+  final linkRoute = deepLinkRouteFromUri(
+    uri,
+    chatMessagingLive: ref.read(chatMessagingLiveProvider),
+  );
+  if (linkRoute == null) return;
+  // Push RSVP : la home encadre les events concernés ; le planning d'origine
+  // ne sert plus que de repli.
+  final rsvpHighlight =
+      rsvpPushHighlightFromUri(uri, fallbackRoute: linkRoute);
+  if (rsvpHighlight != null) {
+    ref.read(rsvpPushHighlightProvider.notifier).set(rsvpHighlight);
+  }
+  final route = rsvpHighlight != null ? AppRoutes.home : linkRoute;
   final clubId = deepLinkClubId(uri);
   final memberId = deepLinkMemberId(uri);
 

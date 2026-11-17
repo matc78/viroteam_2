@@ -87,7 +87,7 @@ Chaque card affiche :
 ### Chargement des données
 
 ```
-1. Lire users/{uid}.clubMemberships  →  liste des clubId du membre
+1. Lire users/{uid}.memberClubIds  →  liste des clubId du membre
 
 2. Pour chaque clubId (en parallèle via Future.wait) :
    Requête : clubs/{clubId}/events

@@ -6,9 +6,13 @@
 /** Textes de la gestion des convoqués. */
 export const convocationsCopy = {
   manageAction: "Gérer les convoqués",
+  /** Libellé compact pour le bouton en rangée (détail événement). */
+  manageActionShort: "Convoqués",
   dialogEyebrow: "Convocations",
   dialogTitle: "Gérer les convoqués",
   close: "Fermer",
+  /** Retour au détail événement (fermeture du dialog). */
+  back: "Retour",
   listLegend: "Joueurs convoqués",
   listHint:
     "Décochez les joueurs qui ne participent pas : ils ne verront plus l’événement et ne recevront aucune notification.",

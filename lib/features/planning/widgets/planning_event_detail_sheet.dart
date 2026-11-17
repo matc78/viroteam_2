@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
+import 'package:viro_team_v2/features/planning/utils/planning_rsvp_badge.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_member_rsvp_row.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_rsvp_badge.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -16,7 +21,6 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
@@ -28,7 +32,11 @@ import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_convocation_sheet.dart';
+import 'package:viro_team_v2/features/planning/widgets/planning_edit_event_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_roll_call_sheet.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_access.dart';
 
 enum _CancelScope { single, series }
 
@@ -40,7 +48,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     required this.scrollController,
     this.teamLabel,
     this.excludeCoachUids = const {},
-    this.canManageEvents = true,
     required this.onCanceled,
     this.onRsvpUpdated,
   });
@@ -50,7 +57,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
   final ScrollController scrollController;
   final String? teamLabel;
   final Set<String> excludeCoachUids;
-  final bool canManageEvents;
   final VoidCallback onCanceled;
 
   /// Notifie l'écran parent après un RSVP (invalidation des listes).
@@ -62,7 +68,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
     required ClubEvent event,
     String? teamLabel,
     Set<String> excludeCoachUids = const {},
-    bool canManageEvents = true,
     required VoidCallback onCanceled,
     VoidCallback? onRsvpUpdated,
   }) {
@@ -92,7 +97,6 @@ class PlanningEventDetailSheet extends ConsumerStatefulWidget {
                 scrollController: scrollController,
                 teamLabel: teamLabel,
                 excludeCoachUids: excludeCoachUids,
-                canManageEvents: canManageEvents,
                 onCanceled: onCanceled,
                 onRsvpUpdated: onRsvpUpdated,
               ),
@@ -140,15 +144,60 @@ class _PlanningEventDetailSheetState
     return !eventDay.isAfter(today);
   }
 
-  bool get _canTakeAttendance {
-    final club = ref.watch(clubProvider(widget.clubId)).value;
-    final member = ref.watch(clubMemberProvider(widget.clubId)).value;
-    if (club == null || member == null) return false;
-    final perms = club.coachPermissions;
-    return perms.allowsTakeAttendance(
-      isAdmin: member.role == MemberRoles.admin,
-      isCoach: member.role == MemberRoles.coach,
-    );
+  /// Droits du compte connecté (fiche + réglages coach du club).
+  ClubAccess get _access => ref.watch(clubAccessProvider(widget.clubId));
+
+  /// Modifier / annuler l'événement : droit planning, ou coach de **toutes**
+  /// ses équipes avec le réglage `canCreateEvents` (jamais « tout le club »).
+  bool get _canManageEvent =>
+      _access.canManageEvent(_event.teamIds, allTeams: _event.allTeams);
+
+  /// Convocations et notification : droit planning ou coach de toutes les
+  /// équipes de l'événement.
+  bool get _canManageAudience => _access.canManageEventAudience(
+    _event.teamIds,
+    allTeams: _event.allTeams,
+  );
+
+  /// Appel : masqué tant que [FeatureFlags.attendanceTracking] est coupé.
+  bool get _canTakeAttendance =>
+      FeatureFlags.attendanceTracking &&
+      _access.canTakeAttendance(_event.teamIds, allTeams: _event.allTeams);
+
+  /// Droit planning (ou coach d'une équipe avec `canEditMemberRsvp`) :
+  /// éditer le RSVP d’un convoqué.
+  bool get _canEditMemberRsvp =>
+      !_event.canceled &&
+      _access.canEditMemberRsvp(_event.teamIds, allTeams: _event.allTeams);
+
+  /// Met à jour le RSVP d’un convoqué via callable staff.
+  Future<void> _setMemberRsvp({
+    required String audienceId,
+    required RsvpStatus status,
+  }) async {
+    final eventService = ref.read(eventServiceProvider);
+    try {
+      await eventService.updateRsvp(
+        clubId: widget.clubId,
+        eventId: _event.id,
+        uid: audienceId,
+        status: status,
+        viaCallable: true,
+      );
+      if (!mounted) return;
+      final fresh = await eventService.getEvent(
+        clubId: widget.clubId,
+        eventId: _event.id,
+      );
+      if (!mounted) return;
+      if (fresh != null) setState(() => _event = fresh);
+      widget.onRsvpUpdated?.call();
+      ViroSnackBar.show(context, AppCopy.planning.staffRsvpUpdated);
+    } catch (_) {
+      if (!mounted) return;
+      ViroHaptics.error();
+      ViroSnackBar.show(context, AppCopy.planning.staffRsvpUpdateFailed);
+    }
   }
 
   Future<void> _openRollCall() async {
@@ -170,7 +219,7 @@ class _PlanningEventDetailSheetState
 
   /// Coach : événement d'équipe(s) à venir, convocations modifiables.
   bool get _canManageConvocations {
-    if (!widget.canManageEvents || _event.canceled) return false;
+    if (!_canManageAudience || _event.canceled) return false;
     if (_event.teamIds.isEmpty || _event.allTeams) return false;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -179,6 +228,25 @@ class _PlanningEventDetailSheetState
 
   Future<void> _openConvocations() async {
     final saved = await PlanningConvocationSheet.show(
+      context: context,
+      clubId: widget.clubId,
+      event: _event,
+    );
+    if (!saved || !mounted) return;
+    final fresh = await ref.read(eventServiceProvider).getEvent(
+          clubId: widget.clubId,
+          eventId: _event.id,
+        );
+    if (!mounted) return;
+    if (fresh != null) setState(() => _event = fresh);
+    widget.onRsvpUpdated?.call();
+  }
+
+  /// Coach / admin : infos d'un événement non annulé modifiables.
+  bool get _canEditEvent => _canManageEvent && !_event.canceled;
+
+  Future<void> _openEditEvent() async {
+    final saved = await PlanningEditEventSheet.show(
       context: context,
       clubId: widget.clubId,
       event: _event,
@@ -204,7 +272,7 @@ class _PlanningEventDetailSheetState
       await eventService.updateRsvp(
         clubId: widget.clubId,
         eventId: _event.id,
-        uid: rsvpTarget.audienceId,
+        uid: rsvpTarget.memberId,
         status: status,
         viaCallable: rsvpTarget.viaCallable,
       );
@@ -218,6 +286,7 @@ class _PlanningEventDetailSheetState
     } catch (_) {
       widget.onRsvpUpdated?.call();
       if (mounted) {
+        ViroHaptics.error();
         ViroSnackBar.show(context, AppCopy.planning.rsvpFailed);
       }
     }
@@ -253,34 +322,10 @@ class _PlanningEventDetailSheetState
     }
   }
 
-  /// RSVP d'un membre en tenant compte de toutes ses clés audience.
-  RsvpStatus _rsvpForMember(String id, ClubMember member) =>
-      _event.rsvpStatusForUser(
-        id,
-        clubAudienceId: member.memberId,
-        memberAudienceKeys: eventAudienceKeys(member),
-      );
-
-  /// Date de dernier vote RSVP du membre, si connue.
-  DateTime? _rsvpUpdatedAtForMember(String id, ClubMember member) =>
-      _event.rsvpUpdatedAtForUser(
-        id,
-        clubAudienceId: member.memberId,
-        memberAudienceKeys: eventAudienceKeys(member),
-      );
-
-  /// Date à laquelle le membre a vu l'événement sur sa home, si connue.
-  DateTime? _seenAtForMember(String id, ClubMember member) =>
-      _event.seenAtForUser(
-        id,
-        clubAudienceId: member.memberId,
-        memberAudienceKeys: eventAudienceKeys(member),
-      );
-
   /// Coachs en tête, puis joueurs ; dans chaque groupe : présent → en attente →
   /// absent, puis alphabétique.
-  List<({String id, ClubMember member, bool isCoach})> _sortedEntries(
-    Map<String, ClubMember> byUid,
+  List<({String id, ClubMember member, ViroRole? badge})> _sortedEntries(
+    Map<String, ClubMember> byId,
     List<ClubTeam> eventTeams,
   ) {
     int order(RsvpStatus status) => switch (status) {
@@ -290,44 +335,50 @@ class _PlanningEventDetailSheetState
         };
 
     int compareEntries(
-      ({String id, ClubMember member, bool isCoach}) left,
-      ({String id, ClubMember member, bool isCoach}) right,
+      ({String id, ClubMember member, ViroRole? badge}) left,
+      ({String id, ClubMember member, ViroRole? badge}) right,
     ) {
-      final statusOrder = order(_rsvpForMember(left.id, left.member))
-          .compareTo(order(_rsvpForMember(right.id, right.member)));
+      final statusOrder = order(_event.rsvpStatusForUser(left.id))
+          .compareTo(order(_event.rsvpStatusForUser(right.id)));
       if (statusOrder != 0) return statusOrder;
       return left.member.fullName
           .toLowerCase()
           .compareTo(right.member.fullName.toLowerCase());
     }
 
-    final seenKeys = <String>{};
-    final coachEntries = <({String id, ClubMember member, bool isCoach})>[];
+    final seenIds = <String>{};
+    final coachEntries = <({String id, ClubMember member, ViroRole? badge})>[];
 
     for (final team in eventTeams) {
-      for (final coachRosterId in team.coachIds) {
-        final member = clubMemberForTeamUid(byUid, coachRosterId);
-        if (member == null) continue;
-        final keys = eventAudienceKeys(member);
-        if (keys.any(seenKeys.contains)) continue;
-        seenKeys.addAll(keys);
+      for (final coachId in team.coachIds) {
+        final member = byId[coachId];
+        if (member == null || !seenIds.add(coachId)) continue;
         coachEntries.add((
-          id: rosterAudienceId(member),
+          id: coachId,
           member: member,
-          isCoach: true,
+          badge: planningRsvpRowBadge(
+            event: _event,
+            member: member,
+            coachesEventTeam: true,
+          ),
         ));
       }
     }
     coachEntries.sort(compareEntries);
 
-    final playerEntries = <({String id, ClubMember member, bool isCoach})>[];
+    final playerEntries = <({String id, ClubMember member, ViroRole? badge})>[];
     for (final id in _event.playerMemberIds(widget.excludeCoachUids)) {
-      final member = clubMemberForTeamUid(byUid, id);
-      if (member == null) continue;
-      final keys = eventAudienceKeys(member);
-      if (keys.any(seenKeys.contains)) continue;
-      seenKeys.addAll(keys);
-      playerEntries.add((id: id, member: member, isCoach: false));
+      final member = byId[id];
+      if (member == null || !seenIds.add(id)) continue;
+      playerEntries.add((
+        id: id,
+        member: member,
+        badge: planningRsvpRowBadge(
+          event: _event,
+          member: member,
+          coachesEventTeam: false,
+        ),
+      ));
     }
     playerEntries.sort(compareEntries);
 
@@ -343,12 +394,12 @@ class _PlanningEventDetailSheetState
     return membersAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(ViroSpacing.xl),
-        child: Center(child: CircularProgressIndicator()),
+        child: const Center(child: ViroLogoLoader()),
       ),
       error: (_, __) => const ViroErrorState(),
       data: (members) {
-        final byUid = indexClubMembersByUid(members);
-        final entries = _sortedEntries(byUid, eventTeams);
+        final entries =
+            _sortedEntries(indexClubMembersById(members), eventTeams);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -380,23 +431,26 @@ class _PlanningEventDetailSheetState
   /// Lignes de réponse ; les yeux « vu » s'ouvrent en cascade dans l'ordre
   /// de la liste (rang compté parmi les seules lignes « vu »).
   List<Widget> _memberRows(
-    List<({String id, ClubMember member, bool isCoach})> entries,
+    List<({String id, ClubMember member, ViroRole? badge})> entries,
   ) {
+    final club = ref.watch(clubProvider(widget.clubId)).value;
+    final accent = ref.watch(clubMemberAccentProvider(widget.clubId));
     var seenRank = 0;
     final rows = <Widget>[];
     for (final entry in entries) {
-      final status = _rsvpForMember(entry.id, entry.member);
-      final lastUpdatedAt = _rsvpUpdatedAtForMember(entry.id, entry.member);
-      final seenAt = _seenAtForMember(entry.id, entry.member);
+      final status = _event.rsvpStatusForUser(entry.id);
+      final lastUpdatedAt = _event.rsvpUpdatedAtForUser(entry.id);
+      final seenAt = _event.seenAtForUser(entry.id);
       final opensEye = seenAt != null &&
           PlanningMemberRsvpRow.showsSeenEye(
             status: status,
             lastUpdatedAt: lastUpdatedAt,
           );
+      final member = entry.member;
       rows.add(
         PlanningMemberRsvpRow(
           key: ValueKey(entry.id),
-          member: entry.member,
+          member: member,
           status: status,
           lastUpdatedAt: lastUpdatedAt,
           seenAt: seenAt,
@@ -404,7 +458,22 @@ class _PlanningEventDetailSheetState
               ? ViroMotion.seenEyeStartDelay +
                   ViroMotion.seenEyeStagger * seenRank++
               : Duration.zero,
-          isTeamCoach: entry.isCoach,
+          badge: entry.badge,
+          onRsvpSelected: _canEditMemberRsvp
+              ? (next) => _setMemberRsvp(
+                    audienceId: entry.id,
+                    status: next,
+                  )
+              : null,
+          onProfileTap: club != null && member.hasLinkedAccount
+              ? () => showMemberDetailSheet(
+                    context,
+                    ref: ref,
+                    club: club,
+                    member: member,
+                    accentColor: accent,
+                  )
+              : null,
         ),
       );
     }
@@ -520,36 +589,19 @@ class _PlanningEventDetailSheetState
       for (final team in ref.watch(clubTeamsProvider(widget.clubId)).value ?? [])
         team.id: team,
     };
-    final members = ref.watch(clubMembersProvider(widget.clubId)).value;
-    final membersByUid =
-        members != null ? indexClubMembersByUid(members) : null;
-    final counts = PlanningEventDisplay.rsvpCountsIncludingCoaches(
-      event,
-      teamsById,
-      membersByUid: membersByUid,
-    );
+    final counts =
+        PlanningEventDisplay.rsvpCountsIncludingCoaches(event, teamsById);
     final rsvpTarget =
         ref.watch(rsvpTargetProvider(widget.clubId)).asData?.value;
-    final rsvpMember = rsvpTarget?.member;
-    final audienceKeys =
-        rsvpMember != null ? eventAudienceKeys(rsvpMember) : null;
     final canRsvp = !event.canceled &&
         rsvpTarget != null &&
         PlanningEventDisplay.canRsvpOnEvent(
           event,
-          rsvpTarget.subjectId,
+          rsvpTarget.memberId,
           teamsById,
-          clubAudienceId: rsvpTarget.audienceId,
-          member: rsvpMember,
-          membersByUid: membersByUid,
         );
-    final rsvpStatus = canRsvp
-        ? event.rsvpStatusForUser(
-            rsvpTarget.subjectId,
-            clubAudienceId: rsvpTarget.audienceId,
-            memberAudienceKeys: audienceKeys,
-          )
-        : null;
+    final rsvpStatus =
+        canRsvp ? event.rsvpStatusForUser(rsvpTarget.memberId) : null;
     final rsvpRow = canRsvp
         ? PlanningRsvpCountChoiceRow(
             counts: counts,
@@ -704,7 +756,7 @@ class _PlanningEventDetailSheetState
                     ),
                   ],
                 ),
-              if (widget.canManageEvents) ...[
+              if (_canManageAudience) ...[
                 const SizedBox(height: ViroSpacing.sm),
                 FilledButton.icon(
                   onPressed: _sendingPush ? null : _sendEventPush,
@@ -741,22 +793,52 @@ class _PlanningEventDetailSheetState
                   ),
                 ),
               ],
-              if (_canManageConvocations) ...[
+              if (_canEditEvent || _canManageConvocations) ...[
                 const SizedBox(height: ViroSpacing.sm),
-                OutlinedButton.icon(
-                  onPressed: _openConvocations,
-                  icon: ViroIcon(ViroIcons.users, size: 18),
-                  label: Text(AppCopy.planning.manageConvocations),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(
-                      ViroSpacing.buttonHeightMedium,
-                    ),
-                  ),
+                Row(
+                  children: [
+                    if (_canEditEvent)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _openEditEvent,
+                          icon: ViroIcon(ViroIcons.edit, size: 18),
+                          label: Text(AppCopy.planning.editEventActionShort),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(
+                              ViroSpacing.buttonHeightMedium,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: ViroSpacing.sm,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (_canEditEvent && _canManageConvocations)
+                      const SizedBox(width: ViroSpacing.sm),
+                    if (_canManageConvocations)
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _openConvocations,
+                          icon: ViroIcon(ViroIcons.users, size: 18),
+                          label: Text(
+                            AppCopy.planning.manageConvocationsShort,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(
+                              ViroSpacing.buttonHeightMedium,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: ViroSpacing.sm,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ],
               const SizedBox(height: ViroSpacing.md),
               _buildMembersList(theme),
-              if (widget.canManageEvents) ...[
+              if (_canManageEvent) ...[
                 const SizedBox(height: ViroSpacing.md),
                 FilledButton(
                   onPressed: _cancelEvent,

@@ -6,7 +6,6 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club_setup/practice_location_categories.dart';
 import 'package:viro_team_v2/features/club_setup/services/french_address_service.dart';
@@ -22,6 +21,7 @@ import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Gestion admin des lieux de pratique du club (ajout / suppression).
 class ClubLocationsScreen extends ConsumerStatefulWidget {
@@ -170,19 +170,9 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
     final clubAsync = ref.watch(clubProvider(clubId));
-    final member = ref.watch(clubMemberProvider(clubId)).value;
     final accent = ref.watch(clubManagementAccentProvider(clubId));
     final palette = context.viroPalette;
     final readableAccent = palette.readableAccent(accent);
-
-    if (member != null && member.role != MemberRoles.admin) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.pop();
-      });
-      return const ViroScaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
 
     return ClubAccentTheme(
       accentColor: accent,
@@ -195,7 +185,7 @@ class _ClubLocationsScreenState extends ConsumerState<ClubLocationsScreen> {
           title: Text(AppCopy.club.locationsScreenTitle),
         ),
         body: clubAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => const ViroErrorState(),
           data: (club) {
             if (club == null) {

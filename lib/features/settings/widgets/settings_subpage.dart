@@ -7,6 +7,7 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/models/viro_user.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Gabarit d'une sous-page des paramètres : AppBar avec retour vers le hub
 /// et contenu défilant.
@@ -41,7 +42,7 @@ class SettingsSubpage extends ConsumerWidget {
 
   Widget _userBody(BuildContext context, WidgetRef ref) {
     return ref.watch(viroUserProvider).when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (_, __) => ViroErrorState(
             message: AppCopy.settings.loadProfileError,
             onRetry: () => ref.invalidate(viroUserProvider),

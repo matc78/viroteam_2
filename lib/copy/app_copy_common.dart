@@ -24,6 +24,7 @@ final class AppCopyCommon {
   String get copy => 'Copier';
   String get done => 'Terminé';
   String get send => 'Envoyer';
+  String get moreActions => 'Plus d’actions';
   String get invite => 'Inviter';
   String get create => 'Créer';
   String get seeAll => 'Voir tout';
@@ -46,10 +47,9 @@ final class AppCopyCommon {
 
   String get rolePlayer => 'Joueur';
   String get roleCoach => 'Entraîneur';
-  String get roleCoachShort => 'Coach';
   String get roleParent => 'Parent';
   String get roleAdmin => 'Admin';
-  String get roleAdminFull => 'Administrateur';
+  String get roleMember => 'Membre';
 
   String get errorRetry => 'Oups, ça n’a pas passé. Réessaie dans un instant.';
   String errorWithDetails(Object error) => 'Oups : $error';

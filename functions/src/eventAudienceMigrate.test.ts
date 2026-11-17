@@ -2,9 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildEventAudienceMigrationPatch,
+  legacyRsvpIsNewer,
   migrateTeamMemberIds,
   planRsvpMigration,
 } from "./eventAudienceMigrate";
+
+/** Timestamp Firestore minimal (seul `toMillis` est lu). */
+const at = (millis: number) => ({ toMillis: () => millis });
 
 test("migrateTeamMemberIds remplace et déduplique", () => {
   assert.deepEqual(
@@ -34,6 +38,19 @@ test("planRsvpMigration ne remplace pas un RSVP canonique existant", () => {
   );
   assert.ok(plan);
   assert.equal(plan!.setCanonical, false);
+});
+
+test("planRsvpMigration preferLegacyWhenBoth écrase le canonique (repair)", () => {
+  const plan = planRsvpMigration(
+    { "mem-a": "no", "uid-a": "yes" },
+    "mem-a",
+    "uid-a",
+    { preferLegacyWhenBoth: true },
+  );
+  assert.ok(plan);
+  assert.equal(plan!.deleteLegacy, true);
+  assert.equal(plan!.setCanonical, true);
+  assert.equal(plan!.legacyValue, "no");
 });
 
 test("buildEventAudienceMigrationPatch combine ids et RSVP", () => {
@@ -71,6 +88,24 @@ test("buildEventAudienceMigrationPatch ne copie pas le timestamp si le RSVP cano
   assert.equal("rsvpUpdatedAt.uid-a" in patch!, false);
 });
 
+test("buildEventAudienceMigrationPatch preferLegacyWhenBoth écrase le RSVP canonique", () => {
+  const deleteSentinel = Symbol("delete");
+  const patch = buildEventAudienceMigrationPatch({
+    teamMemberIds: ["uid-a"],
+    rsvp: { "mem-a": "no", "uid-a": "yes" },
+    rsvpUpdatedAt: { "mem-a": "ts-legacy" },
+    legacyId: "mem-a",
+    canonicalId: "uid-a",
+    deleteField: deleteSentinel,
+    preferLegacyWhenBoth: true,
+  });
+  assert.ok(patch);
+  assert.equal(patch!["rsvp.mem-a"], deleteSentinel);
+  assert.equal(patch!["rsvp.uid-a"], "no");
+  assert.equal(patch!["rsvpUpdatedAt.mem-a"], deleteSentinel);
+  assert.equal(patch!["rsvpUpdatedAt.uid-a"], "ts-legacy");
+});
+
 test("buildEventAudienceMigrationPatch migre seenAt sans écraser la vue canonique", () => {
   const deleteSentinel = Symbol("delete");
   const moved = buildEventAudienceMigrationPatch({
@@ -96,4 +131,11 @@ test("buildEventAudienceMigrationPatch migre seenAt sans écraser la vue canoniq
   assert.ok(kept);
   assert.equal(kept!["seenAt.mem-a"], deleteSentinel);
   assert.equal("seenAt.uid-a" in kept!, false);
+});
+
+test("legacyRsvpIsNewer compare les horodatages rsvpUpdatedAt", () => {
+  assert.equal(legacyRsvpIsNewer({ "mem-a": at(2), "uid-a": at(1) }, "mem-a", "uid-a"), true);
+  assert.equal(legacyRsvpIsNewer({ "mem-a": at(1), "uid-a": at(2) }, "mem-a", "uid-a"), false);
+  assert.equal(legacyRsvpIsNewer({ "mem-a": at(1) }, "mem-a", "uid-a"), true);
+  assert.equal(legacyRsvpIsNewer({ "uid-a": at(1) }, "mem-a", "uid-a"), false);
 });

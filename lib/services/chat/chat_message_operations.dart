@@ -95,6 +95,7 @@ class ChatMessageOperations {
     String? replyToText,
     String? replyToSenderUid,
     String? clientMessageId,
+    void Function(double progress)? onProgress,
   }) async {
     final prepared = await prepareChatImageUpload(bytes);
     final clientId = trimToNull(clientMessageId);
@@ -108,10 +109,21 @@ class ChatMessageOperations {
         'clubs/$clubId/chat/$conversationId/$senderUid/${ref.id}_thumb.png';
     final storageRef = _storage.ref().child(path);
     final thumbRef = _storage.ref().child(thumbPath);
-    await storageRef.putData(
+    final upload = storageRef.putData(
       prepared.fullBytes,
       SettableMetadata(contentType: contentType),
     );
+    final progressSubscription = onProgress == null
+        ? null
+        : upload.snapshotEvents.listen((snapshot) {
+            final total = snapshot.totalBytes;
+            if (total > 0) onProgress(snapshot.bytesTransferred / total);
+          }, onError: (_) {});
+    try {
+      await upload;
+    } finally {
+      await progressSubscription?.cancel();
+    }
     await thumbRef.putData(
       prepared.thumbBytes,
       SettableMetadata(contentType: prepared.thumbContentType),

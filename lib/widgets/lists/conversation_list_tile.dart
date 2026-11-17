@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_chat.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
@@ -10,17 +11,15 @@ import 'package:viro_team_v2/models/chat_conversation.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/widgets/common/club_chip.dart';
-import 'package:viro_team_v2/widgets/common/viro_image_lightbox.dart';
+import 'package:viro_team_v2/widgets/common/viro_conversation_avatar.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
-
-/// Diamètre de l’avatar inbox (pastille initiale / icône groupe-canal).
-const double _kAvatarSize = 44;
 
 /// Tuile inbox style messagerie : avatar, titre + horodatage, badges, preview.
 ///
 /// Ligne 1 : titre (large) + timestamp à droite ; ligne 2 : chips club/rôle ;
-/// ligne 3 : preview (+ badge non-lus). Avatar groupe vert / canal violet.
+/// lignes 3-4 : preview sur deux lignes (+ badge non-lus). Avatar groupe vert
+/// / canal violet.
 class ConversationListTile extends StatelessWidget {
   const ConversationListTile({
     super.key,
@@ -84,20 +83,16 @@ class ConversationListTile extends StatelessWidget {
     final isGroup = conversation.isGroup;
     final isChannel = conversation.isReadonlyForMembers;
     final showSenderInPreview = isGroup && firstName.isNotEmpty && !hasUnread;
-    final previewColor =
-        hasUnread ? palette.textSecondary : palette.textMuted;
-    final previewStyle = theme.bodySmall?.copyWith(
+    final previewColor = hasUnread
+        ? palette.textPrimary
+        : palette.textSecondary;
+    final previewStyle = theme.bodyMedium?.copyWith(
       color: previewColor,
       fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
-      fontSize: 13,
-      fontStyle: FontStyle.italic,
+      fontSize: 14,
+      height: 1.3,
     );
-    final nameStyle = theme.bodySmall?.copyWith(
-      color: previewColor,
-      fontWeight: FontWeight.w600,
-      fontSize: 13,
-      fontStyle: FontStyle.normal,
-    );
+    final nameStyle = previewStyle?.copyWith(fontWeight: FontWeight.w600);
     final timestamp = conversation.lastMessageAt;
     final title = conversation.displayTitle(peerDisplayName: peerDisplayName);
     final initial = _avatarInitial(title);
@@ -123,7 +118,8 @@ class ConversationListTile extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ConversationAvatar(
+                ViroConversationAvatar(
+                  size: ViroChat.avatarInbox,
                   initial: initial,
                   color: clubColor,
                   groupBackground: colorForConversationGroupAvatarTone(
@@ -132,9 +128,7 @@ class ConversationListTile extends StatelessWidget {
                   ),
                   isGroup: isGroup,
                   isChannel: isChannel,
-                  photoUrl: isGroup
-                      ? conversation.avatarUrl
-                      : peerAvatarUrl,
+                  photoUrl: isGroup ? conversation.avatarUrl : peerAvatarUrl,
                   heroTag: ChatThreadOpenSeed.avatarHeroTag(
                     conversation.clubId,
                     conversation.id,
@@ -213,62 +207,53 @@ class ConversationListTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: _FadingPreviewLine(
+                            child: _TwoLinePreview(
+                              style: previewStyle,
                               child: hasUnread
                                   ? Text(
                                       AppCopy.chat.unreadPreview(unread),
-                                      maxLines: 1,
-                                      softWrap: false,
-                                      overflow: TextOverflow.clip,
-                                      style: previewStyle?.copyWith(
-                                        fontStyle: FontStyle.normal,
-                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: previewStyle,
                                     )
                                   : preview.isEmpty
-                                      ? Text(
-                                          AppCopy.chat.emptyPreview,
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          overflow: TextOverflow.clip,
-                                          style: previewStyle,
-                                        )
-                                      : showSenderInPreview
-                                          ? Row(
-                                              children: [
-                                                Text(
-                                                  firstName,
-                                                  maxLines: 1,
-                                                  softWrap: false,
-                                                  overflow: TextOverflow.clip,
-                                                  style: nameStyle,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                _PreviewArrow(
-                                                  color: previewColor,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Expanded(
-                                                  child: Text(
-                                                    preview,
-                                                    maxLines: 1,
-                                                    softWrap: false,
-                                                    overflow:
-                                                        TextOverflow.clip,
-                                                    style: previewStyle,
-                                                  ),
-                                                ),
-                                              ],
-                                            )
-                                          : Text(
-                                              preview,
-                                              maxLines: 1,
-                                              softWrap: false,
-                                              overflow: TextOverflow.clip,
-                                              style: previewStyle,
+                                  ? Text(
+                                      AppCopy.chat.emptyPreview,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: previewStyle?.copyWith(
+                                        color: palette.textMuted,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    )
+                                  : Text.rich(
+                                      TextSpan(
+                                        children: [
+                                          if (showSenderInPreview) ...[
+                                            TextSpan(
+                                              text: firstName,
+                                              style: nameStyle,
                                             ),
+                                            const TextSpan(text: ' '),
+                                            WidgetSpan(
+                                              alignment:
+                                                  PlaceholderAlignment.middle,
+                                              child: _PreviewArrow(
+                                                color: previewColor,
+                                              ),
+                                            ),
+                                            const TextSpan(text: ' '),
+                                          ],
+                                          TextSpan(text: preview),
+                                        ],
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: previewStyle,
+                                    ),
                             ),
                           ),
                           if (hasUnread) ...[
@@ -288,7 +273,10 @@ class ConversationListTile extends StatelessWidget {
           Divider(
             height: 1,
             thickness: 1,
-            indent: ViroSpacing.screenHorizontal + _kAvatarSize + ViroSpacing.md,
+            indent:
+                ViroSpacing.screenHorizontal +
+                ViroChat.avatarInbox +
+                ViroSpacing.md,
             color: palette.border,
           ),
       ],
@@ -338,162 +326,7 @@ class _PreviewArrow extends StatelessWidget {
         color: context.viroPalette.surfaceMuted,
         shape: BoxShape.circle,
       ),
-      child: ViroIcon(
-        ViroIcons.chevronRight,
-        size: 10,
-        color: color,
-      ),
-    );
-  }
-}
-
-/// Avatar circulaire : DM (photo ou initiale marque), groupe (users),
-/// canal (mégaphone violet). Équipe = bleu primary, parents = vert.
-class _ConversationAvatar extends StatelessWidget {
-  const _ConversationAvatar({
-    required this.initial,
-    required this.color,
-    required this.groupBackground,
-    required this.isGroup,
-    required this.isChannel,
-    required this.heroTag,
-    this.photoUrl,
-  });
-
-  final String initial;
-  final Color color;
-  final Color groupBackground;
-  final bool isGroup;
-  final bool isChannel;
-  final String heroTag;
-  final String? photoUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    late final Color background;
-    late final Color foreground;
-    late final Widget child;
-
-    final trimmedPhoto = photoUrl?.trim();
-    final hasPhoto = trimmedPhoto != null && trimmedPhoto.isNotEmpty;
-    final hasDmPhoto = !isGroup && !isChannel && hasPhoto;
-    final hasGroupPhoto = isGroup && !isChannel && hasPhoto;
-
-    if (isChannel) {
-      background = groupBackground;
-      foreground = ViroColors.white;
-      child = ViroIcon(ViroIcons.megaphone, size: 20, color: foreground);
-    } else if (hasGroupPhoto) {
-      background = Colors.transparent;
-      foreground = ViroColors.white;
-      child = ClipOval(
-        child: Image.network(
-          trimmedPhoto,
-          width: _kAvatarSize,
-          height: _kAvatarSize,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            width: _kAvatarSize,
-            height: _kAvatarSize,
-            alignment: Alignment.center,
-            color: groupBackground,
-            child: ViroIcon(ViroIcons.groups, size: 20, color: ViroColors.white),
-          ),
-        ),
-      );
-    } else if (isGroup) {
-      background = groupBackground;
-      foreground = ViroColors.white;
-      child = ViroIcon(ViroIcons.groups, size: 20, color: foreground);
-    } else if (hasDmPhoto) {
-      background = Colors.transparent;
-      foreground = context.viroPalette.readableAccent(color);
-      child = ClipOval(
-        child: Image.network(
-          trimmedPhoto,
-          width: _kAvatarSize,
-          height: _kAvatarSize,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _DmInitial(
-            initial: initial,
-            color: color,
-            size: _kAvatarSize,
-          ),
-        ),
-      );
-    } else {
-      background = Color.lerp(context.viroPalette.surfaceCard, color, 0.35)!;
-      foreground = context.viroPalette.readableAccent(color);
-      child = Text(
-        initial,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: foreground,
-              fontWeight: FontWeight.w800,
-            ),
-      );
-    }
-
-    final avatar = Hero(
-      tag: heroTag,
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          width: _kAvatarSize,
-          height: _kAvatarSize,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: background,
-            shape: BoxShape.circle,
-          ),
-          clipBehavior: (hasDmPhoto || hasGroupPhoto) ? Clip.antiAlias : Clip.none,
-          child: child,
-        ),
-      ),
-    );
-
-    if (!hasDmPhoto && !hasGroupPhoto) return avatar;
-
-    return GestureDetector(
-      onTap: () {
-        showViroImageLightbox(
-          context,
-          imageUrl: trimmedPhoto,
-          shape: ViroImageLightboxShape.circle,
-        );
-      },
-      child: avatar,
-    );
-  }
-}
-
-/// Initiale DM (fallback si la photo réseau échoue).
-class _DmInitial extends StatelessWidget {
-  const _DmInitial({
-    required this.initial,
-    required this.color,
-    required this.size,
-  });
-
-  final String initial;
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.viroPalette;
-    final background = Color.lerp(palette.surfaceCard, color, 0.35)!;
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      color: background,
-      child: Text(
-        initial,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: palette.readableAccent(color),
-              fontWeight: FontWeight.w800,
-            ),
-      ),
+      child: ViroIcon(ViroIcons.chevronRight, size: 10, color: color),
     );
   }
 }
@@ -519,47 +352,36 @@ class _UnreadBadge extends StatelessWidget {
         count > 99 ? '99+' : '$count',
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: palette.onAccent,
-              fontWeight: FontWeight.w800,
-              fontSize: 10,
-            ),
+          color: palette.onAccent,
+          fontWeight: FontWeight.w800,
+          fontSize: 10,
+        ),
       ),
     );
   }
 }
 
-/// Preview inbox tronquée avec fondu à droite (pas de « … »).
-class _FadingPreviewLine extends StatelessWidget {
-  const _FadingPreviewLine({required this.child});
+/// Aperçu inbox toujours haut de deux lignes (comme WhatsApp) : un texte
+/// court laisse la seconde vide pour garder des tuiles de même hauteur.
+class _TwoLinePreview extends StatelessWidget {
+  const _TwoLinePreview({required this.style, required this.child});
 
+  final TextStyle? style;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-        return ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (bounds) {
-            final fadeStart = ((maxWidth - 36) / maxWidth).clamp(0.0, 1.0);
-            return LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: const [
-                Color(0xFF000000),
-                Color(0xFF000000),
-                Color(0x00000000),
-              ],
-              stops: [0.0, fadeStart, 1.0],
-            ).createShader(Offset.zero & Size(maxWidth, bounds.height));
-          },
-          child: SizedBox(
-            width: maxWidth,
-            child: child,
+    return Stack(
+      children: [
+        // Gabarit invisible de deux lignes (suit la taille de texte système).
+        ExcludeSemantics(
+          child: Opacity(
+            opacity: 0,
+            child: Text('\n', maxLines: 2, style: style),
           ),
-        );
-      },
+        ),
+        child,
+      ],
     );
   }
 }

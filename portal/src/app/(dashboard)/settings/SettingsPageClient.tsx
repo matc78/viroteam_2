@@ -1,5 +1,6 @@
 "use client";
 
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useReportPageReady } from "@/components/common/PageLoadProvider";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
@@ -16,7 +17,6 @@ import {
   updateClubSeasonEndDate,
 } from "@/lib/firebase/clubService";
 import { uploadClubLogo } from "@/lib/firebase/callableService";
-import { MemberRoles } from "@/lib/firebase/constants";
 import { parseDateInput } from "@/lib/firebase/feeService";
 import {
   defaultSeasonEndDate,
@@ -46,22 +46,22 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
-/** Contenu page Paramètres du club (admin) — le compte vit sur `/account`. */
+/**
+ * Contenu page Paramètres du club (droit `manageClubSettings`) — le compte et
+ * les notifications vivent sur `/account`.
+ */
 export function SettingsPageClient() {
-  const { activeClub, profile, refreshProfile } = useAuth();
+  const { activeClub, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useReportPageReady(true, "/settings");
 
-  const isAdmin = useMemo(() => {
-    if (!activeClub || !profile) return false;
-    return profile.clubMemberships.some(
-      (membership) =>
-        membership.clubId === activeClub.id &&
-        membership.role === MemberRoles.admin,
-    );
-  }, [activeClub, profile]);
+  const caps = useBureauCapabilities();
+  // Section club : infos du club (droit `manageClubSettings`) ; réglages
+  // coach : droit Administrateur seul.
+  const canManageClubSettings = caps.canManageClubSettings;
+  const canEditCoachRights = caps.isClubAdmin;
 
   const [seasonDraft, setSeasonDraft] = useState("");
   const [seasonBusy, setSeasonBusy] = useState(false);
@@ -208,15 +208,15 @@ export function SettingsPageClient() {
       <DashboardPageIntro
         eyebrow="Club"
         heading="Paramètres du club"
-        lead={`Réglages de ${activeClub?.name ?? "ton club"}. Ton compte et tes notifications sont dans Mon compte (en haut à droite).`}
+        lead={`Réglages de ${activeClub?.name ?? "ton club"}. Ton compte et tes notifications sont dans Mon compte.`}
       />
 
-      {isAdmin ? (
+      {canManageClubSettings ? (
         <section className={`${panelStyles.panel} ${shared.group}`} data-tone="cyan">
           <header className={shared.groupHeader}>
             <h2 className={shared.groupTitle}>Club</h2>
             <p className={shared.groupLead}>
-              Saison, identité visuelle et droits des coachs.
+              Saison, identité visuelle et, pour les admins, droits des coachs.
             </p>
           </header>
 
@@ -332,6 +332,7 @@ export function SettingsPageClient() {
               ) : null}
             </SettingsAccordion>
 
+            {canEditCoachRights ? (
             <SettingsAccordion
               title="Droits des coachs"
               description="Actions visibles pour les coachs du club"
@@ -398,6 +399,7 @@ export function SettingsPageClient() {
                 </button>
               </div>
             </SettingsAccordion>
+            ) : null}
           </div>
         </section>
       ) : null}

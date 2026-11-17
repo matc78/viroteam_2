@@ -26,7 +26,9 @@ import { FamilyRsvpButtons } from "@/components/family/FamilyRsvpButtons";
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
 import { useToast } from "@/components/ToastProvider";
 import { sendEventPush } from "@/lib/firebase/callableService";
+import { badgeLabel } from "@/lib/copy/badgeCopy";
 import { convocationsCopy } from "@/lib/copy/convocationsCopy";
+import { eventEditCopy } from "@/lib/copy/eventEditCopy";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import styles from "./PlanningEventDetailPanel.module.css";
@@ -43,7 +45,7 @@ type PlanningEventDetailPanelProps = {
   eventColor?: string | null;
   /** Équipes pour résoudre les coachs du roster. */
   teams?: TeamOption[];
-  /** Annuaire noms / avatars indexé par memberId ou accountUid. */
+  /** Annuaire noms / avatars indexé par id de fiche. */
   guestDirectory?: Record<string, PlanningGuestDirectoryEntry>;
   clubId?: string;
   /** Si fourni, affiche les boutons RSVP pour ce membre. */
@@ -61,6 +63,10 @@ type PlanningEventDetailPanelProps = {
    * événement à venir lié à une équipe).
    */
   onManageConvocations?: () => void;
+  /** Si fourni, affiche « Modifier » (date, heures, lieu, titre). */
+  onEdit?: () => void;
+  /** Admin / coach autorisé : éditer le RSVP des convoqués. */
+  canEditMemberRsvp?: boolean;
 };
 
 function rsvpRowLabel(status: RsvpRowStatus): string {
@@ -106,6 +112,8 @@ export function PlanningEventDetailPanel({
   onRsvpOptimistic,
   canSendPush = false,
   onManageConvocations,
+  onEdit,
+  canEditMemberRsvp = false,
 }: PlanningEventDetailPanelProps) {
   const { showToast } = useToast();
   const [sendingPush, setSendingPush] = useState(false);
@@ -133,36 +141,22 @@ export function PlanningEventDetailPanel({
   const showRsvpFooter = Boolean(clubId && linkedMemberId);
   const swatchColor = resolveSwatchColor(event, eventColor);
 
-  const linkedAliasIds = useMemo(() => {
-    if (!linkedMemberId) return [] as string[];
-    const entry = guestDirectory[linkedMemberId];
-    if (!entry) return [linkedMemberId];
-    return Object.entries(guestDirectory)
-      .filter(([, other]) => other === entry)
-      .map(([id]) => id);
-  }, [guestDirectory, linkedMemberId]);
-
   useEffect(() => {
     setLocalRsvp(null);
   }, [event.id]);
 
   useEffect(() => {
     if (!localRsvp) return;
-    const matched = linkedAliasIds.some(
-      (id) =>
-        (event.rsvpByMemberId[id] ?? "").toLowerCase() === localRsvp.value,
-    );
-    if (matched) setLocalRsvp(null);
-  }, [event.rsvpByMemberId, localRsvp, linkedAliasIds]);
+    const persisted = (
+      event.rsvpByMemberId[localRsvp.memberId] ?? ""
+    ).toLowerCase();
+    if (persisted === localRsvp.value) setLocalRsvp(null);
+  }, [event.rsvpByMemberId, localRsvp]);
 
   const displayEvent = useMemo(() => {
     if (!localRsvp) return event;
-    return withLocalRsvp(
-      event,
-      [localRsvp.memberId, ...linkedAliasIds],
-      localRsvp.value,
-    );
-  }, [event, localRsvp, linkedAliasIds]);
+    return withLocalRsvp(event, [localRsvp.memberId], localRsvp.value);
+  }, [event, localRsvp]);
 
   const guestRows = useMemo(
     () =>
@@ -199,7 +193,7 @@ export function PlanningEventDetailPanel({
   }, [resolvedAnchor, event.id, guestRows.length, showRsvpFooter]);
 
   const anchored = Boolean(resolvedAnchor && position);
-  // Total / oui / non / attente alignés sur la liste dédupliquée (alias memberId/uid).
+  // Total / oui / non / attente alignés sur la liste dédupliquée.
   const guestYes = guestRows.filter((row) => row.status === "yes").length;
   const guestNo = guestRows.filter((row) => row.status === "no").length;
   const guestPending = guestRows.filter((row) => row.status === "pending").length;
@@ -212,7 +206,7 @@ export function PlanningEventDetailPanel({
   function handleRsvpOptimistic(value: RsvpValue | null) {
     if (!linkedMemberId) return;
     setLocalRsvp(value ? { memberId: linkedMemberId, value } : null);
-    onRsvpOptimistic?.(event.id, [linkedMemberId, ...linkedAliasIds], value);
+    onRsvpOptimistic?.(event.id, [linkedMemberId], value);
   }
 
   function handleRsvpPersisted() {
@@ -350,36 +344,75 @@ export function PlanningEventDetailPanel({
                     </span>
                     <div className={styles.rsvpIdentity}>
                       <span className={styles.rsvpName}>{row.name}</span>
-                      {row.isCoach ? (
-                        <span className={styles.rsvpRole}>Coach</span>
+                      {row.badge ? (
+                        <span className={styles.rsvpRole}>
+                          {badgeLabel(row.badge)}
+                        </span>
                       ) : null}
                     </div>
+                    {canEditMemberRsvp && clubId ? (
+                      <div className={styles.staffRsvpEdit}>
+                        <FamilyRsvpButtons
+                          clubId={clubId}
+                          event={displayEvent}
+                          memberId={row.audienceId}
+                          forceShow
+                          onOptimisticChange={(value) => {
+                            if (!value) {
+                              setLocalRsvp(null);
+                              return;
+                            }
+                            setLocalRsvp({
+                              memberId: row.audienceId,
+                              value,
+                            });
+                          }}
+                          onUpdated={() => {
+                            setLocalRsvp(null);
+                            onRsvpUpdated?.();
+                          }}
+                        />
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>
             ) : null}
           </section>
 
-          {onManageConvocations || (canSendPush && clubId) ? (
+          {onEdit || onManageConvocations || (canSendPush && clubId) ? (
             <div className={styles.pushActions}>
-              {onManageConvocations ? (
+              {canSendPush && clubId ? (
                 <button
                   type="button"
                   className={styles.pushButton}
-                  onClick={onManageConvocations}
+                  disabled={sendingPush}
+                  onClick={() => void handleSendPush()}
                 >
-                  {convocationsCopy.manageAction}
+                  {sendingPush ? "Envoi…" : "Envoyer une notification"}
                 </button>
               ) : null}
-              {canSendPush && clubId ? (
-              <button
-                type="button"
-                className={styles.pushButton}
-                disabled={sendingPush}
-                onClick={() => void handleSendPush()}
-              >
-                {sendingPush ? "Envoi…" : "Envoyer une notification"}
-              </button>
+              {onEdit || onManageConvocations ? (
+                <div className={styles.modActionsRow}>
+                  {onEdit ? (
+                    <button
+                      type="button"
+                      className={styles.pushButton}
+                      onClick={onEdit}
+                    >
+                      {eventEditCopy.editAction}
+                    </button>
+                  ) : null}
+                  {onManageConvocations ? (
+                    <button
+                      type="button"
+                      className={styles.pushButton}
+                      onClick={onManageConvocations}
+                    >
+                      {convocationsCopy.manageActionShort}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -391,7 +424,6 @@ export function PlanningEventDetailPanel({
               clubId={clubId}
               event={displayEvent}
               memberId={linkedMemberId}
-              audienceIds={linkedAliasIds}
               onOptimisticChange={handleRsvpOptimistic}
               onUpdated={handleRsvpPersisted}
               variant="footer"

@@ -10,12 +10,9 @@ import type {
 
 /** Ligne joueur du dialog de gestion des convoqués. */
 export type ConvocationRow = {
-  /** Clé stable (id roster). */
+  /** Clé stable (id de fiche). */
   key: string;
-  /**
-   * Id à envoyer au serveur : celui déjà stocké dans `teamMemberIds` ou
-   * `excludedMemberIds` (même forme), sinon l’id roster.
-   */
+  /** Id envoyé au serveur : id de fiche (= uid si liée), clé de l’audience. */
   audienceId: string;
   name: string;
   avatarUrl: string | null;
@@ -23,23 +20,9 @@ export type ConvocationRow = {
   convoked: boolean;
 };
 
-/** Ids pointant vers la même fiche (memberId, accountUid…) dans l’annuaire. */
-function aliasIds(
-  id: string,
-  directory: Record<string, PlanningGuestDirectoryEntry>,
-): string[] {
-  const entry = directory[id];
-  if (!entry) return [id];
-  const ids = [id];
-  for (const [otherId, other] of Object.entries(directory)) {
-    if (other === entry && otherId !== id) ids.push(otherId);
-  }
-  return ids;
-}
-
 /**
- * Joueurs des équipes de l’événement (+ exclus hors roster), dédoublonnés par
- * alias, triés par nom. Un joueur du roster pas encore synchronisé dans
+ * Joueurs des équipes de l’événement (+ exclus hors roster), dédoublonnés,
+ * triés par nom. Un joueur du roster pas encore synchronisé dans
  * `teamMemberIds` (et non exclu) est considéré convoqué : la synchro l’ajoutera.
  */
 export function buildConvocationRows(params: {
@@ -53,7 +36,6 @@ export function buildConvocationRows(params: {
 }): ConvocationRow[] {
   const { event, teams, directory } = params;
   const teamById = new Map(teams.map((team) => [team.id, team]));
-  const memberSet = new Set(event.teamMemberIds);
   const excludedSet = new Set(event.excludedMemberIds);
 
   const candidateIds: string[] = [];
@@ -64,23 +46,15 @@ export function buildConvocationRows(params: {
   }
   candidateIds.push(...event.excludedMemberIds.filter(Boolean));
 
-  const seen = new Set<string>();
   const rows: ConvocationRow[] = [];
-  for (const rosterId of candidateIds) {
-    if (seen.has(rosterId)) continue;
-    const aliases = aliasIds(rosterId, directory);
-    if (aliases.some((id) => seen.has(id))) continue;
-    for (const id of aliases) seen.add(id);
-
-    const excludedId = aliases.find((id) => excludedSet.has(id));
-    const memberId = aliases.find((id) => memberSet.has(id));
-    const entry = directory[rosterId];
+  for (const memberId of new Set(candidateIds)) {
+    const entry = directory[memberId];
     rows.push({
-      key: rosterId,
-      audienceId: excludedId ?? memberId ?? rosterId,
+      key: memberId,
+      audienceId: memberId,
       name: entry?.name.trim() || "Membre",
       avatarUrl: entry?.avatarUrl ?? null,
-      convoked: excludedId === undefined,
+      convoked: !excludedSet.has(memberId),
     });
   }
   return rows.sort((left, right) => left.name.localeCompare(right.name, "fr"));

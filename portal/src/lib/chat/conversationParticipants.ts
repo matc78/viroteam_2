@@ -1,11 +1,15 @@
+import { primaryBadge } from "@/lib/auth/permissions";
 import type { ChatPreviewSender } from "@/lib/chat/conversationPreview";
 import { previewSenderKey } from "@/lib/chat/conversationPreview";
-import { PortalUiRoles } from "@/lib/firebase/constants";
+import { splitParticipantsByProfiles } from "@/lib/chat/participantProfiles";
+import type { ChatParticipantProfile } from "@/lib/firebase/chatTypes";
+
 import {
   listClubMembers,
   type ClubMemberRecord,
 } from "@/lib/firebase/memberService";
 import { getUserProfile } from "@/lib/firebase/userService";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 /** Participant résolu pour preview / panneau infos. */
 export type ConversationParticipant = {
@@ -54,7 +58,7 @@ export function seedParticipantsFromPreviewCache(params: {
         uid,
         firstName,
         displayName: firstName,
-        role: fromDir.role || PortalUiRoles.parent,
+        role: fromDir.role || "parent",
         avatarUrl: null,
         hasLinkedAccount: true,
       });
@@ -65,7 +69,7 @@ export function seedParticipantsFromPreviewCache(params: {
         uid,
         firstName: peerFirst,
         displayName: peerName || peerFirst,
-        role: PortalUiRoles.parent,
+        role: "parent",
         avatarUrl: null,
         hasLinkedAccount: false,
       });
@@ -78,7 +82,7 @@ export function seedParticipantsFromPreviewCache(params: {
         uid,
         firstName,
         displayName: fromProfile,
-        role: PortalUiRoles.parent,
+        role: "parent",
         avatarUrl: null,
         hasLinkedAccount: false,
       });
@@ -100,19 +104,36 @@ export function participantFirstName(
   const first = participant.firstName.trim();
   if (first) return first;
   const fromDisplay = participant.displayName.trim().split(/\s+/)[0];
-  return fromDisplay || "Membre";
+  return fromDisplay || chatCopy.unknownMember;
+}
+
+function sortByFirstName(
+  participants: ConversationParticipant[],
+): ConversationParticipant[] {
+  return participants.sort((a, b) =>
+    participantFirstName(a).localeCompare(participantFirstName(b), "fr", {
+      sensitivity: "base",
+    }),
+  );
 }
 
 /**
- * Résout les UIDs participants via les membres du club.
- * Les UIDs sans fiche membre (parents) sont enrichis via `users/{uid}`.
+ * Résout les UIDs participants : profils dénormalisés de la conversation
+ * d’abord (aucune lecture), puis membres du club et `users/{uid}` pour les
+ * UIDs pas encore couverts (conversation pas encore resynchronisée).
  */
 export async function resolveConversationParticipants(params: {
   clubId: string;
   participantUids: string[];
+  profiles?: Record<string, ChatParticipantProfile>;
 }): Promise<ConversationParticipant[]> {
-  const uidSet = new Set(params.participantUids.filter(Boolean));
-  if (uidSet.size === 0) return [];
+  const { fromProfiles, missingUids: unprofiledUids } =
+    splitParticipantsByProfiles({
+      participantUids: params.participantUids,
+      profiles: params.profiles ?? {},
+    });
+  if (unprofiledUids.length === 0) return sortByFirstName(fromProfiles);
+  const uidSet = new Set(unprofiledUids);
 
   const members = await listClubMembers(params.clubId);
   const byUid = new Map<string, ClubMemberRecord>();
@@ -138,7 +159,7 @@ export async function resolveConversationParticipants(params: {
         if (!displayName && !profile.firstName) return;
         profileByUid.set(uid, {
           firstName: profile.firstName.trim(),
-          displayName: displayName || "Parent",
+          displayName: displayName || chatCopy.unknownParent,
           avatarUrl: profile.avatarUrl,
         });
       } catch {
@@ -147,7 +168,7 @@ export async function resolveConversationParticipants(params: {
     }),
   );
 
-  const resolved: ConversationParticipant[] = [];
+  const resolved: ConversationParticipant[] = [...fromProfiles];
   for (const uid of uidSet) {
     const member = byUid.get(uid);
     if (member) {
@@ -155,7 +176,7 @@ export async function resolveConversationParticipants(params: {
         uid,
         firstName: member.firstName,
         displayName: member.displayName,
-        role: member.role,
+        role: primaryBadge(member),
         avatarUrl: member.avatarUrl,
         hasLinkedAccount: member.hasLinkedAccount,
       });
@@ -165,19 +186,14 @@ export async function resolveConversationParticipants(params: {
     resolved.push({
       uid,
       firstName: profile?.firstName ?? "",
-      displayName: profile?.displayName ?? "Parent",
-      role: PortalUiRoles.parent,
+      displayName: profile?.displayName ?? chatCopy.unknownParent,
+      role: "parent",
       avatarUrl: profile?.avatarUrl ?? null,
       hasLinkedAccount: false,
     });
   }
 
-  resolved.sort((a, b) =>
-    participantFirstName(a).localeCompare(participantFirstName(b), "fr", {
-      sensitivity: "base",
-    }),
-  );
-  return resolved;
+  return sortByFirstName(resolved);
 }
 
 /** Preview « Prénom, Prénom, … » (tronquée). */

@@ -128,8 +128,8 @@ Pour forcer les utilisateurs à passer sur une nouvelle version, **une fois la v
 
 | Champ | Exemple |
 |-------|---------|
-| `minVersionAndroid` | `2.2.7` (après publication Play Store) |
-| `minVersionIos` | `2.2.7` (après publication App Store) |
+| `minVersionAndroid` | `2.3.0` (après publication Play Store) |
+| `minVersionIos` | `2.3.0` (après publication App Store) |
 
 Format : `X.Y.Z` ; un `v` en tête, un build `+N` ou un suffixe `-xxx` sont ignorés. Une valeur illisible ne bloque personne.
 
@@ -235,6 +235,7 @@ firebase deploy --only firestore
 | Sentry | Monitoring erreurs portail | [sentry.io](https://sentry.io) |
 | GitHub Actions | CI, Release Android / Play Store, deploy portal / functions / Firestore | onglet **Actions** du repo |
 | Google Cloud Billing | Budget / alertes (5 €/mois) | [console.cloud.google.com/billing](https://console.cloud.google.com/billing) |
+| Suivi des coûts | Inventaire vendors, alertes, tableau mensuel | [`docs/COUTS.md`](docs/COUTS.md) · [`docs/couts_mensuel.csv`](docs/couts_mensuel.csv) |
 
 ## Conventions
 

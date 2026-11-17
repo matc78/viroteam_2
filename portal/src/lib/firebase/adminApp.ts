@@ -20,7 +20,8 @@ function loadServiceAccountFromFile(): ServiceAccountJson | null {
   const keyPath = process.env.FIREBASE_ADMIN_KEY_PATH?.trim();
   if (!keyPath) return null;
 
-  const absolutePath = resolve(process.cwd(), keyPath);
+  // Chemin connu seulement à l'exécution (clé locale de dev) : rien à tracer au build.
+  const absolutePath = resolve(/*turbopackIgnore: true*/ process.cwd(), keyPath);
   if (!existsSync(absolutePath)) {
     const doubleExtensionPath = `${absolutePath}.json`;
     if (absolutePath.endsWith(".json") && existsSync(doubleExtensionPath)) {

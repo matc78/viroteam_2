@@ -22,6 +22,9 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 Le `projectId` passé à l'émulateur est fictif : aucun appel réseau vers Firebase.
 
+`member_rekey.test.mjs` exécute le re-keying « une seule clé membre » compilé
+des Functions : lancer d'abord `npm ci && npm run build` dans `functions/`.
+
 ## Ajouter un test
 
 Un test = un scénario métier lisible : « un coach ne peut pas inviter un admin ».

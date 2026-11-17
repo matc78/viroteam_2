@@ -48,6 +48,63 @@ function planningQuery(
   return params.join("&");
 }
 
+/** Event à encadrer sur la home après un tap sur une push RSVP. */
+export type RsvpHighlight = { eventId: string; status: string };
+
+/** Plafond d'events encadrés portés par un lien (taille du payload). */
+export const RSVP_HIGHLIGHT_MAX = 10;
+
+const RSVP_HIGHLIGHT_STATUSES = new Set(["yes", "no", "maybe"]);
+
+/**
+ * Ajoute à un lien planning les events à encadrer sur la home
+ * (`rsvpHighlights=<eventId>:<statut>,…` + `rsvpClubId`). Une app récente
+ * ouvre alors la home ; une ancienne ignore ces paramètres et garde le lien
+ * d'origine. Les retours à « sans réponse » ne sont pas encadrés.
+ */
+export function withRsvpHighlights(
+  deepLink: string,
+  clubId: string,
+  highlights: RsvpHighlight[],
+): string {
+  const kept = highlights
+    .filter(
+      (highlight) =>
+        highlight.eventId.trim().length > 0 &&
+        RSVP_HIGHLIGHT_STATUSES.has(highlight.status),
+    )
+    .slice(0, RSVP_HIGHLIGHT_MAX);
+  if (kept.length === 0) return deepLink;
+  const encoded = kept
+    .map((highlight) => `${highlight.eventId.trim()}:${highlight.status}`)
+    .join(",");
+  const separator = deepLink.includes("?") ? "&" : "?";
+  return (
+    `${deepLink}${separator}rsvpClubId=${encodeURIComponent(clubId)}` +
+    `&rsvpHighlights=${encodeURIComponent(encoded)}`
+  );
+}
+
+/**
+ * Statut le plus récent par event (ordre d'apparition conservé) : plusieurs
+ * réponses sur un même event → la dernière gagne.
+ */
+export function latestStatusByEvent(
+  items: Array<{ eventId: string; status: string; atMs: number }>,
+): RsvpHighlight[] {
+  const latest = new Map<string, { status: string; atMs: number }>();
+  for (const item of items) {
+    const current = latest.get(item.eventId);
+    if (!current || item.atMs >= current.atMs) {
+      latest.set(item.eventId, { status: item.status, atMs: item.atMs });
+    }
+  }
+  return [...latest].map(([eventId, value]) => ({
+    eventId,
+    status: value.status,
+  }));
+}
+
 /** Accueil / home du club. */
 export function homeDeepLink(clubId: string): string {
   return `viroteam://home?clubId=${encodeURIComponent(clubId)}`;

@@ -1,0 +1,50 @@
+{
+  "permissions": [
+    "admin",
+    "manageMembers",
+    "manageTeams",
+    "manageEvents",
+    "manageAnnouncements",
+    "manageFees",
+    "viewFees",
+    "manageClubSettings",
+    "manageEquipment",
+    "manageChat",
+    "viewActivity"
+  ],
+  "adminPermission": "admin",
+  "implies": {
+    "manageFees": [
+      "viewFees"
+    ]
+  },
+  "functions": {
+    "feesManager": [
+      "manageFees",
+      "viewFees"
+    ],
+    "announcementsManager": [
+      "manageAnnouncements"
+    ],
+    "membersManager": [
+      "manageMembers",
+      "manageTeams"
+    ],
+    "sportsManager": [
+      "manageEvents",
+      "manageTeams"
+    ],
+    "equipmentManager": [
+      "manageEquipment"
+    ]
+  },
+  "coachFlags": {
+    "canCreateEvents": true,
+    "canManageTeamRoster": true,
+    "canInvitePlayers": true,
+    "canTakeAttendance": true,
+    "canPublishTeamAnnouncements": true,
+    "canEditMemberLicenses": false,
+    "canEditMemberRsvp": false
+  }
+}

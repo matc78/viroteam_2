@@ -1,37 +1,28 @@
 "use client";
 
 import { useAuth } from "@/lib/firebase/AuthProvider";
-import {
-  bureauCapabilities,
-  isBureauRouteAllowed,
-} from "@/lib/auth/bureauPermissions";
+import { isBureauRouteAllowed } from "@/lib/auth/bureauPermissions";
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 /**
- * Redirige vers /home si la route bureau n’est pas autorisée pour le rôle actif.
+ * Redirige vers /home si la route bureau n’est pas ouverte par les droits du
+ * compte dans le club actif. Attend la lecture de sa fiche (pas de
+ * redirection pendant le chargement).
  */
 export function BureauRouteGuard() {
-  const { activeClub, activeClubRole, status } = useAuth();
+  const { status, activeClubAccessLoading } = useAuth();
+  const caps = useBureauCapabilities();
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    if (status !== "signedIn") return;
-    const caps = bureauCapabilities(
-      activeClubRole,
-      activeClub?.coachPermissions,
-    );
+    if (status !== "signedIn" || activeClubAccessLoading) return;
     if (!isBureauRouteAllowed(pathname, caps)) {
       router.replace("/home");
     }
-  }, [
-    activeClub?.coachPermissions,
-    activeClubRole,
-    pathname,
-    router,
-    status,
-  ]);
+  }, [activeClubAccessLoading, caps, pathname, router, status]);
 
   return null;
 }

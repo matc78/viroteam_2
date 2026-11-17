@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/constants/legal_terms.dart';
-import 'package:viro_team_v2/models/club_membership_summary.dart';
 import 'package:viro_team_v2/models/notification_preferences.dart';
 import 'package:viro_team_v2/models/parent_link.dart';
 
@@ -15,12 +14,13 @@ class ViroUser {
     required this.displayName,
     this.phone,
     this.avatarUrl,
-    this.clubMemberships = const [],
+    this.memberClubIds = const [],
     this.parentLinks = const [],
     this.parentClubIds = const [],
     this.notificationPreferences = NotificationPreferences.defaults,
     this.profileCompleted = false,
     this.disabled = false,
+    this.chatMessaging = false,
     this.termsAcceptedAt,
     this.termsVersion,
     this.createdAt,
@@ -35,12 +35,18 @@ class ViroUser {
   final String displayName;
   final String? phone;
   final String? avatarUrl;
-  final List<ClubMembershipSummary> clubMemberships;
+
+  /// Clubs où le compte a une fiche membre (`memberClubIds`, écrit par les
+  /// Functions).
+  final List<String> memberClubIds;
   final List<ParentLink> parentLinks;
   final List<String> parentClubIds;
   final NotificationPreferences notificationPreferences;
   final bool profileCompleted;
   final bool disabled;
+
+  /// Accès anticipé messagerie (`flags.chatMessaging`), posé en console.
+  final bool chatMessaging;
   final DateTime? termsAcceptedAt;
   final String? termsVersion;
   final DateTime? createdAt;
@@ -48,7 +54,7 @@ class ViroUser {
 
   /// Clubs accessibles : adhésion **ou** lien parent actif.
   bool get hasClubs =>
-      clubMemberships.isNotEmpty || activeParentLinks.isNotEmpty;
+      memberClubIds.isNotEmpty || activeParentLinks.isNotEmpty;
 
   /// Liens parent actifs (espace famille).
   List<ParentLink> get activeParentLinks =>
@@ -58,16 +64,8 @@ class ViroUser {
   List<ParentLink> activeParentLinksInClub(String clubId) =>
       activeParentLinks.where((link) => link.clubId == clubId).toList();
 
-  /// Adhésion club (joueur / coach / admin), pas un lien parent.
-  ClubMembershipSummary? membershipInClub(String clubId) {
-    for (final membership in clubMemberships) {
-      if (membership.clubId == clubId) return membership;
-    }
-    return null;
-  }
-
   /// `true` si l’adulte a une fiche membre dans ce club.
-  bool isLicensedInClub(String clubId) => membershipInClub(clubId) != null;
+  bool isLicensedInClub(String clubId) => memberClubIds.contains(clubId);
 
   /// `true` si l'utilisateur n'est que parent dans ce club (lien actif, pas de
   /// fiche membre) : ses lectures Firestore sont limitées aux équipes de ses
@@ -79,8 +77,8 @@ class ViroUser {
     final data = doc.data() ?? {};
     final flags = data[FirestoreFields.flags] as Map<String, dynamic>? ?? {};
     final legal = data[FirestoreFields.legal] as Map<String, dynamic>? ?? {};
-    final membershipsRaw =
-        data[FirestoreFields.clubMemberships] as List<dynamic>? ?? [];
+    final memberClubIdsRaw =
+        data[FirestoreFields.memberClubIds] as List<dynamic>? ?? [];
     final parentLinksRaw =
         data[FirestoreFields.parentLinks] as List<dynamic>? ?? [];
     final parentClubIdsRaw =
@@ -95,9 +93,9 @@ class ViroUser {
       displayName: data[FirestoreFields.displayName] as String? ?? '',
       phone: data[FirestoreFields.phone] as String?,
       avatarUrl: data[FirestoreFields.avatarUrl] as String?,
-      clubMemberships: membershipsRaw
-          .whereType<Map<String, dynamic>>()
-          .map(ClubMembershipSummary.fromMap)
+      memberClubIds: memberClubIdsRaw
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
           .toList(),
       parentLinks: parentLinksRaw
           .whereType<Map<String, dynamic>>()
@@ -114,6 +112,7 @@ class ViroUser {
       profileCompleted:
           flags[FirestoreFields.profileCompleted] as bool? ?? false,
       disabled: flags[FirestoreFields.disabled] as bool? ?? false,
+      chatMessaging: flags[FirestoreFields.chatMessaging] as bool? ?? false,
       termsAcceptedAt:
           (legal[FirestoreFields.termsAcceptedAt] as Timestamp?)?.toDate(),
       termsVersion: legal[FirestoreFields.termsVersion] as String?,
@@ -132,7 +131,7 @@ class ViroUser {
       FirestoreFields.lastName: lastName,
       FirestoreFields.displayName: displayName,
       if (phone != null) FirestoreFields.phone: phone,
-      FirestoreFields.clubMemberships: <Map<String, dynamic>>[],
+      FirestoreFields.memberClubIds: <String>[],
       FirestoreFields.parentLinks: <Map<String, dynamic>>[],
       FirestoreFields.parentClubIds: <String>[],
       FirestoreFields.flags: {

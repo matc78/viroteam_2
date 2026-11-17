@@ -27,7 +27,6 @@ final class AppCopyHome {
       'il atterrit ici tout seul.';
 
   String get upcomingPlanningTitle => 'Planning à venir';
-  String get seeAllPlanning => 'Voir mes 14 prochains jours';
   String get addClub => 'Ajouter un club';
   String get openClub => 'Ouvrir le club';
   String get createOrJoinClub => 'Créer ou rejoindre un club';
@@ -40,4 +39,7 @@ final class AppCopyHome {
   String get rsvpMaybe => 'Peut-être';
   String get rsvpNo => 'Non';
   String get rsvpYes => 'Oui';
+
+  String get rsvpHighlightScrollUp => 'Un event clignote plus haut';
+  String get rsvpHighlightScrollDown => 'Un event clignote plus bas';
 }

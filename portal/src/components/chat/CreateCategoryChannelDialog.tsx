@@ -11,7 +11,7 @@ import {
 import { ClubSetupDefaults } from "@/lib/clubSetup/constants";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { createCategoryChannel } from "@/lib/firebase/chatService";
-import { MemberRoles } from "@/lib/firebase/constants";
+import { can } from "@/lib/auth/permissions";
 import type { ClubRecord } from "@/lib/firebase/clubService";
 import {
   loadTeamsForClub,
@@ -20,6 +20,7 @@ import {
 import { sortTeamCategories } from "@/lib/teams/compareTeamCategories";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import styles from "./CreateCategoryChannelDialog.module.css";
+import { chatCopy } from "@/lib/copy/chatCopy";
 
 const EMPTY_SCOPE: ChannelAudienceScope = {
   scopeType: "categories",
@@ -43,17 +44,20 @@ function clubBrandStyle(club: ClubRecord): CSSProperties {
  */
 export function CreateCategoryChannelDialog() {
   const { user, bureauClubs } = useAuth();
-  const { closeCategoryChannel, openThread, roleForClub } = useChat();
+  const { closeCategoryChannel, openThread, accessForClub } = useChat();
 
-  const adminClubs = useMemo(
+  const chatManagedClubs = useMemo(
     () =>
       bureauClubs.filter(
-        (club) => roleForClub(club.id) === MemberRoles.admin,
+        (club) => {
+          const access = accessForClub(club.id);
+          return access !== null && can(access, "manageChat");
+        },
       ),
-    [bureauClubs, roleForClub],
+    [bureauClubs, accessForClub],
   );
 
-  const [clubId, setClubId] = useState(adminClubs[0]?.id ?? "");
+  const [clubId, setClubId] = useState(chatManagedClubs[0]?.id ?? "");
   const [scope, setScope] = useState<ChannelAudienceScope>(EMPTY_SCOPE);
   const [title, setTitle] = useState("");
   const [teams, setTeams] = useState<TeamOption[]>([]);
@@ -62,8 +66,8 @@ export function CreateCategoryChannelDialog() {
   const [error, setError] = useState<string | null>(null);
 
   const selectedClub = useMemo(
-    () => adminClubs.find((club) => club.id === clubId) ?? adminClubs[0],
-    [adminClubs, clubId],
+    () => chatManagedClubs.find((club) => club.id === clubId) ?? chatManagedClubs[0],
+    [chatManagedClubs, clubId],
   );
 
   const categories = useMemo(
@@ -78,8 +82,8 @@ export function CreateCategoryChannelDialog() {
   );
 
   useEffect(() => {
-    if (!clubId && adminClubs[0]) setClubId(adminClubs[0].id);
-  }, [adminClubs, clubId]);
+    if (!clubId && chatManagedClubs[0]) setClubId(chatManagedClubs[0].id);
+  }, [chatManagedClubs, clubId]);
 
   useEffect(() => {
     if (!clubId) return;
@@ -97,7 +101,7 @@ export function CreateCategoryChannelDialog() {
         console.error("[chat] loadTeamsForClub failed", loadError);
         if (!cancelled) {
           setTeams([]);
-          setError("Impossible de charger les équipes.");
+          setError(chatCopy.teamsLoadFailed);
         }
       })
       .finally(() => {
@@ -128,7 +132,9 @@ export function CreateCategoryChannelDialog() {
       .map((id) => teams.find((team) => team.id === id)?.name)
       .filter((name): name is string => Boolean(name));
     if (scope.scopeType === "parents") {
-      return names.length > 0 ? `Parents · ${names.join(" · ")}` : "";
+      return names.length > 0
+        ? chatCopy.parentsOfTeamLabel(names.join(" · "))
+        : "";
     }
     return names.join(" · ");
   }, [scope, teams, selectedClub?.sport]);
@@ -148,7 +154,7 @@ export function CreateCategoryChannelDialog() {
       openThread({ clubId, conversationId });
     } catch (submitError) {
       console.error("[chat] createCategoryChannel failed", submitError);
-      setError("Création du canal impossible.");
+      setError(chatCopy.channelCreateFailed);
     } finally {
       setBusy(false);
     }
@@ -156,7 +162,7 @@ export function CreateCategoryChannelDialog() {
 
   const dialogRef = useDialogA11y({ onClose: closeCategoryChannel });
 
-  if (adminClubs.length === 0) return null;
+  if (chatManagedClubs.length === 0) return null;
 
   return (
     <div
@@ -170,20 +176,17 @@ export function CreateCategoryChannelDialog() {
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Créer canal"
+        aria-label={chatCopy.createCategoryChannel}
       >
         <div className={styles.header}>
           <div>
-            <h2 className={styles.title}>Créer canal</h2>
-            <p className={styles.hint}>
-              Canal en lecture seule (seuls les admins écrivent). Le canal
-              « tout le club » existe déjà.
-            </p>
+            <h2 className={styles.title}>{chatCopy.createCategoryChannel}</h2>
+            <p className={styles.hint}>{chatCopy.categoryChannelHint}</p>
           </div>
           <button
             type="button"
             className={styles.close}
-            aria-label="Fermer"
+            aria-label={chatCopy.close}
             onClick={closeCategoryChannel}
           >
             ×
@@ -191,7 +194,7 @@ export function CreateCategoryChannelDialog() {
         </div>
 
         <div className={styles.field}>
-          {adminClubs.length === 1 && selectedClub ? (
+          {chatManagedClubs.length === 1 && selectedClub ? (
             <div className={styles.singleClubWrap}>
               <span
                 className={styles.singleClub}
@@ -204,9 +207,9 @@ export function CreateCategoryChannelDialog() {
             <div
               className={styles.clubChips}
               role="radiogroup"
-              aria-label="Club"
+              aria-label={chatCopy.clubLabel}
             >
-              {adminClubs.map((club) => {
+              {chatManagedClubs.map((club) => {
                 const selected = club.id === clubId;
                 return (
                   <button
@@ -228,10 +231,16 @@ export function CreateCategoryChannelDialog() {
           )}
         </div>
 
-        <div className={styles.field}>
-          <label id="channel-scope-label">Destinataires</label>
+        <div
+          className={styles.field}
+          role="group"
+          aria-labelledby="channel-scope-label"
+        >
+          <p id="channel-scope-label" className={styles.fieldLabel}>
+            {chatCopy.channelAudienceLabel}
+          </p>
           {loadingTeams ? (
-            <p className={styles.hint}>Chargement des équipes…</p>
+            <p className={styles.hint}>{chatCopy.teamsLoading}</p>
           ) : (
             <ClubAudienceScopePicker
               teams={teams}
@@ -246,17 +255,21 @@ export function CreateCategoryChannelDialog() {
         </div>
 
         <div className={styles.field}>
-          <label htmlFor="channel-title">Titre affiché</label>
+          <label htmlFor="channel-title">{chatCopy.channelTitleHint}</label>
           <input
             id="channel-title"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder={suggestedTitle || "Ex. Parents U15"}
+            placeholder={suggestedTitle || chatCopy.channelTitlePlaceholder}
             disabled={busy}
           />
         </div>
 
-        {error ? <p className={styles.error}>{error}</p> : null}
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
 
         <div className={styles.actions}>
           <button
@@ -265,7 +278,7 @@ export function CreateCategoryChannelDialog() {
             onClick={closeCategoryChannel}
             disabled={busy}
           >
-            Annuler
+            {chatCopy.cancel}
           </button>
           <button
             type="button"
@@ -273,7 +286,7 @@ export function CreateCategoryChannelDialog() {
             disabled={busy || scope.scopeIds.length === 0 || loadingTeams}
             onClick={() => void handleSubmit()}
           >
-            {busy ? "Création…" : "Créer le canal"}
+            {busy ? chatCopy.creatingChannel : chatCopy.createChannel}
           </button>
         </div>
       </div>

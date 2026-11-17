@@ -4,14 +4,24 @@
 export const HELLOASSO_PAYMENTS_LIVE =
   process.env.NEXT_PUBLIC_HELLOASSO_LIVE === "true";
 
-/** Paiement CB Stripe Connect live (secrets Functions + onboarding club). */
+/** Paiement CB Stripe Connect live (secrets Functions + Connect club). */
 export const STRIPE_PAYMENTS_LIVE =
   process.env.NEXT_PUBLIC_STRIPE_LIVE === "true";
 
 /**
- * Messagerie in-app (dock, `/messages`, prefs push chat).
- * Off tant que la feature n’est pas déployée sur l’app store (CHANGELOG Unreleased).
- * Activer en local : `NEXT_PUBLIC_CHAT_MESSAGING_LIVE=true`.
+ * Messagerie forcée en local (build) : `NEXT_PUBLIC_CHAT_MESSAGING_LIVE=true`.
+ * En prod App Hosting la variable est absente — l’accès passe par
+ * `users/{uid}.flags.chatMessaging` via [`isChatMessagingLive`].
  */
 export const CHAT_MESSAGING_LIVE =
   process.env.NEXT_PUBLIC_CHAT_MESSAGING_LIVE === "true";
+
+/**
+ * Messagerie visible : env local **ou** flag profil
+ * `users/{uid}.flags.chatMessaging`.
+ */
+export function isChatMessagingLive(
+  profile?: { chatMessaging?: boolean } | null,
+): boolean {
+  return CHAT_MESSAGING_LIVE || profile?.chatMessaging === true;
+}

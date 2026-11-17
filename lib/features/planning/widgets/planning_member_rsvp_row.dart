@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -9,6 +12,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/widgets/common/seen_eye.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
 /// Ligne joueur (même base que [MemberListTile]) + badge RSVP.
@@ -20,7 +24,9 @@ class PlanningMemberRsvpRow extends StatelessWidget {
     this.lastUpdatedAt,
     this.seenAt,
     this.seenEyeDelay = Duration.zero,
-    this.isTeamCoach = false,
+    this.badge,
+    this.onRsvpSelected,
+    this.onProfileTap,
   });
 
   /// `true` si la ligne affiche l'œil « vu » (fermé ou ouvert) : membre
@@ -43,17 +49,77 @@ class PlanningMemberRsvpRow extends StatelessWidget {
   /// Attente avant l'ouverture animée de l'œil (cascade dans la liste).
   final Duration seenEyeDelay;
 
-  /// `true` si le membre est sur le roster coach d'une équipe de l'événement.
-  final bool isTeamCoach;
+  /// Badge de rôle sous le nom (`planningRsvpRowBadge`) : Entraîneur d'une
+  /// équipe de l'événement, Admin sur un événement spécial, sinon `null`.
+  final ViroRole? badge;
+
+  /// Si non null, le badge RSVP ouvre un menu pour changer la réponse (staff).
+  final ValueChanged<RsvpStatus>? onRsvpSelected;
+
+  /// Tap sur la ligne (avatar / nom) pour ouvrir la fiche membre.
+  final VoidCallback? onProfileTap;
 
   String get _seenLabel =>
       AppCopy.planning.seenNotAnswered(formatDayMonthAtTime(seenAt!));
+
+  Future<void> _pickStaffRsvp(BuildContext context) async {
+    final onSelected = onRsvpSelected;
+    if (onSelected == null) return;
+    final chosen = await showModalBottomSheet<RsvpStatus>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final palette = sheetContext.viroPalette;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final option in [
+                (RsvpStatus.yes, ViroIcons.check, ViroColors.success),
+                (RsvpStatus.maybe, ViroIcons.clock, ViroColors.warning),
+                (RsvpStatus.no, ViroIcons.close, ViroColors.error),
+              ])
+                ListTile(
+                  leading: ViroIcon(option.$2, color: option.$3),
+                  title: Text(
+                    switch (option.$1) {
+                      RsvpStatus.yes => AppCopy.planning.rsvpPresent,
+                      RsvpStatus.maybe => AppCopy.planning.rsvpMaybe,
+                      RsvpStatus.no => AppCopy.planning.rsvpAbsent,
+                      RsvpStatus.none => AppCopy.planning.rsvpPending,
+                    },
+                  ),
+                  selected: status == option.$1,
+                  onTap: () => Navigator.pop(sheetContext, option.$1),
+                  selectedColor: palette.brandText,
+                ),
+            ],
+          ),
+        );
+      },
+    );
+    if (chosen == null || chosen == status) return;
+    ViroHaptics.confirm();
+    onSelected(chosen);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
     final answeredAtLocal = lastUpdatedAt?.toLocal();
+    final rsvpBadge = PlanningRsvpStatusBadge(status: status);
+    final trailing = onRsvpSelected == null
+        ? rsvpBadge
+        : ViroPressable(
+            label: AppCopy.planning.editMemberRsvpTooltip,
+            onTap: () => _pickStaffRsvp(context),
+            child: rsvpBadge,
+          );
+
+    final memberName = member.fullName.isNotEmpty
+        ? member.fullName
+        : AppCopy.planning.unnamedMember;
 
     return ViroCard(
       margin: const EdgeInsets.only(bottom: ViroSpacing.sm),
@@ -61,6 +127,8 @@ class PlanningMemberRsvpRow extends StatelessWidget {
         horizontal: ViroSpacing.md,
         vertical: ViroSpacing.sm,
       ),
+      onTap: onProfileTap,
+      semanticLabel: memberName,
       child: Row(
         children: [
           MemberAvatar(member: member),
@@ -70,9 +138,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  member.fullName.isNotEmpty
-                      ? member.fullName
-                      : AppCopy.planning.unnamedMember,
+                  memberName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.titleSmall?.copyWith(
@@ -80,18 +146,15 @@ class PlanningMemberRsvpRow extends StatelessWidget {
                     color: palette.brandText,
                   ),
                 ),
-                if (isTeamCoach || !member.hasLinkedAccount) ...[
+                if (badge != null || !member.hasLinkedAccount) ...[
                   const SizedBox(height: 2),
                   Wrap(
                     spacing: ViroSpacing.xs,
                     runSpacing: 2,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      if (isTeamCoach)
-                        const ViroRoleBadge(
-                          role: ViroRole.coach,
-                          compact: true,
-                        ),
+                      if (badge != null)
+                        ViroRoleBadge(role: badge!, compact: true),
                       if (!member.hasLinkedAccount)
                         Text(
                           AppCopy.planning.notRegisteredYet,
@@ -157,7 +220,7 @@ class PlanningMemberRsvpRow extends StatelessWidget {
             ),
           ],
           const SizedBox(width: ViroSpacing.sm),
-          PlanningRsvpStatusBadge(status: status),
+          trailing,
         ],
       ),
     );

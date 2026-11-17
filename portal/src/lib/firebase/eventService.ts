@@ -11,25 +11,26 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
+import type {
+  EditableEventDetails,
+  EventDetailsPatch,
+} from "@/lib/planning/eventDetailsEdit";
 import { getAppFirestore } from "./app";
 import { dedupeInFlight } from "./dedupeInFlight";
-import { Collections, Fields, MemberRoles } from "./constants";
+import { Collections, Fields } from "./constants";
+import {
+  parsePermissions,
+  primaryBadge,
+  type MemberBadge,
+} from "@/lib/auth/permissions";
 import { getClub } from "./clubService";
 import { toDate } from "./types";
 import { resolveSeasonEndDate } from "@/lib/planning/seasonEnd";
-import {
-  audienceMapKeys,
-  buildAudienceMapsPatch,
-  buildCanonicalByAnyId,
-  excludedCanonicalIds,
-  isAudienceIdExcluded,
-  planAudienceSync,
-  type AudienceAliasPair,
-  type AudienceKeyedMaps,
-} from "@/lib/planning/audienceAliasSync";
+import { missingAudienceIds } from "@/lib/planning/audienceSync";
 import {
   appendClubActivityToBatch,
   ClubActivityTypes,
@@ -82,6 +83,8 @@ export type ClubEventView = {
   excludedMemberIds: string[];
   /** Série récurrente (un doc par occurrence), sinon null. */
   seriesId: string | null;
+  /** « Tout le club » : événement spécial (avec `teamIds` vide). */
+  allTeams?: boolean;
   /** Map memberId → yes | maybe | no. */
   rsvpByMemberId: Record<string, string>;
   rsvpYes: number;
@@ -104,11 +107,11 @@ export type TeamOption = {
 
 /** Membre club pour filtres planning et invités (coach / joueur / admin). */
 export type PlanningPersonOption = {
+  /** Id de fiche (= uid si liée) : clé des rosters et de l’audience. */
   id: string;
-  /** Identifiants possibles (memberId, accountUid) pour matcher les rosters. */
-  matchIds: string[];
   name: string;
-  role: "coach" | "player" | "admin" | "other";
+  /** Badge principal de la fiche (Admin > Entraîneur > Joueur > Membre). */
+  badge: MemberBadge;
   avatarUrl: string | null;
 };
 
@@ -116,6 +119,8 @@ export type PlanningPersonOption = {
 export type PlanningGuestDirectoryEntry = {
   name: string;
   avatarUrl: string | null;
+  /** Droit `admin` sur la fiche (badge Admin des événements spéciaux). */
+  isAdmin: boolean;
 };
 
 export type PlanningPageData = {
@@ -344,6 +349,7 @@ export function parseClubEvent(
       typeof data[Fields.seriesId] === "string" && data[Fields.seriesId]
         ? String(data[Fields.seriesId])
         : null,
+    allTeams: data[Fields.allTeams] === true,
     rsvpByMemberId,
     rsvpYes,
     rsvpNo,
@@ -436,17 +442,12 @@ export async function loadPlanningPeopleForClub(
         [firstName, lastName].filter(Boolean).join(" ") ||
         displayName ||
         "Membre";
-      const accountUid = String(data[Fields.accountUid] ?? "").trim();
-      const matchIds = Array.from(
-        new Set([docSnap.id, accountUid].filter(Boolean)),
-      );
-      const roleRaw = String(data[Fields.role] ?? "");
-      const role =
-        roleRaw === MemberRoles.coach ||
-        roleRaw === MemberRoles.player ||
-        roleRaw === MemberRoles.admin
-          ? roleRaw
-          : "other";
+      // Badge principal de la fiche (regroupement du sélecteur d’invités).
+      const badge = primaryBadge({
+        permissions: parsePermissions(data[Fields.permissions]),
+        coachTeamIds: stringIds(data[Fields.coachTeamIds]),
+        teamIds: stringIds(data[Fields.teamIds]),
+      });
       const snapshot =
         (data[Fields.snapshot] as Record<string, unknown> | undefined) ?? {};
       const avatarRaw = snapshot[Fields.avatarUrl];
@@ -454,9 +455,8 @@ export async function loadPlanningPeopleForClub(
         typeof avatarRaw === "string" ? avatarRaw.trim() || null : null;
       return {
         id: docSnap.id,
-        matchIds,
         name,
-        role,
+        badge,
         avatarUrl,
       } satisfies PlanningPersonOption;
     })
@@ -546,11 +546,83 @@ export async function createClubEvent(
   return dates.length;
 }
 
+/** Champ texte rogné d'un document event, ou `null` s'il est vide. */
+function trimmedStringField(
+  data: Record<string, unknown>,
+  field: string,
+): string | null {
+  const value = data[field];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/**
+ * Infos éditables d'un événement (dialog « Modifier »), lues sur le document
+ * brut pour garder les heures exactes. `null` si absent ou annulé.
+ */
+export async function loadEditableEventDetails(
+  clubId: string,
+  eventId: string,
+): Promise<EditableEventDetails | null> {
+  const snap = await getDoc(doc(eventsCollection(clubId), eventId));
+  if (!snap.exists()) return null;
+  const data = snap.data() as Record<string, unknown>;
+  if (data[Fields.canceled] === true) return null;
+  const eventDate = eventCalendarDate(data);
+  if (!eventDate) return null;
+  const type = parseEventType(data[Fields.type]);
+  const isMatch = type === "match";
+  return {
+    type,
+    title: String(data[Fields.title] ?? ""),
+    day: formatDateId(eventDate).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"),
+    startTime: trimmedStringField(data, Fields.startTime) ?? "",
+    endTime: isMatch ? null : (trimmedStringField(data, Fields.endTime) ?? ""),
+    meetingTime: isMatch
+      ? (trimmedStringField(data, Fields.meetingTime) ?? "")
+      : null,
+    location: String(data[Fields.location] ?? ""),
+    meetingLocation: trimmedStringField(data, Fields.meetingLocation),
+  };
+}
+
+/**
+ * Applique un patch d'édition (champs modifiés seulement) sur un événement.
+ * Le trigger push prévient les convoqués (« reporté » si date / heure de
+ * début changent, sinon « modifié »).
+ */
+export async function updateClubEventDetails(
+  clubId: string,
+  eventId: string,
+  patch: EventDetailsPatch,
+): Promise<void> {
+  const update: Record<string, unknown> = {};
+  if (patch.title !== undefined) update[Fields.title] = patch.title;
+  if (patch.day !== undefined) {
+    const [year, month, day] = patch.day.split("-").map(Number);
+    const calendarDay = new Date(year, month - 1, day);
+    update[Fields.date] = Timestamp.fromDate(
+      new Date(Date.UTC(year, month - 1, day)),
+    );
+    update[Fields.dateId] = formatDateId(calendarDay);
+  }
+  if (patch.startTime !== undefined) update[Fields.startTime] = patch.startTime;
+  if (patch.endTime !== undefined) update[Fields.endTime] = patch.endTime;
+  if (patch.meetingTime !== undefined) {
+    update[Fields.meetingTime] = patch.meetingTime;
+  }
+  if (patch.location !== undefined) update[Fields.location] = patch.location;
+  if (patch.meetingLocation !== undefined) {
+    update[Fields.meetingLocation] = patch.meetingLocation ?? deleteField();
+  }
+  if (Object.keys(update).length === 0) return;
+  await updateDoc(doc(eventsCollection(clubId), eventId), update);
+}
+
 /**
  * Ajoute un convoqué aux événements à venir d'une équipe
  * (aligné EventService Flutter `addAudienceToUpcomingTeamEvents`).
- * Ignore les événements où ce joueur (ou un de ses alias) a été retiré des
- * convoqués (`excludedMemberIds`).
+ * Ignore les événements où ce joueur a été retiré des convoqués
+ * (`excludedMemberIds`).
  */
 export async function addAudienceToUpcomingTeamEvents(params: {
   clubId: string;
@@ -561,13 +633,6 @@ export async function addAudienceToUpcomingTeamEvents(params: {
   if (!audienceId) return;
 
   const snap = await queryUpcomingTeamEvents(params.clubId, params.teamId);
-  const hasExclusions = snap.some(
-    ({ data }) => stringArrayField(data, Fields.excludedMemberIds).length > 0,
-  );
-  // Alias chargés seulement si un event porte des exclus (une seule requête).
-  const canonicalByAnyId = hasExclusions
-    ? buildCanonicalByAnyId(await loadAudienceAliasPairs(params.clubId))
-    : new Map<string, string>();
   const db = getAppFirestore();
   let batch = writeBatch(db);
   let pending = 0;
@@ -579,11 +644,9 @@ export async function addAudienceToUpcomingTeamEvents(params: {
       ? (data[Fields.teamMemberIds] as unknown[]).map(String)
       : [];
     if (members.includes(audienceId)) continue;
-    const excluded = excludedCanonicalIds(
-      stringArrayField(data, Fields.excludedMemberIds),
-      canonicalByAnyId,
-    );
-    if (isAudienceIdExcluded(audienceId, excluded, canonicalByAnyId)) continue;
+    if (stringArrayField(data, Fields.excludedMemberIds).includes(audienceId)) {
+      continue;
+    }
 
     batch.update(doc(eventsCollection(params.clubId), docSnap.id), {
       [Fields.teamMemberIds]: arrayUnion(audienceId),
@@ -644,31 +707,9 @@ export async function removeAudienceFromUpcomingTeamEvents(params: {
   if (pending > 0) await batch.commit();
 }
 
-/** Charge les paires memberId / canonicalId pour la sync audience. */
-async function loadAudienceAliasPairs(
-  clubId: string,
-): Promise<AudienceAliasPair[]> {
-  const membersCol = collection(
-    getAppFirestore(),
-    Collections.clubs,
-    clubId,
-    Collections.members,
-  );
-  const snap = await getDocs(query(membersCol, limit(300)));
-  return snap.docs.map((docSnap) => {
-    const data = docSnap.data() as Record<string, unknown>;
-    const accountUid = String(data[Fields.accountUid] ?? "").trim();
-    return {
-      memberId: docSnap.id,
-      canonicalId: accountUid || docSnap.id,
-    };
-  });
-}
-
 /**
  * Aligne `teamMemberIds` des événements à venir sur les rosters joueurs actuels.
- * Ajoute les manquants, migre les alias legacy → uid Auth, ne retire pas les
- * invités manuels hors alias.
+ * Ajoute les manquants (hors exclus), ne retire pas les invités manuels.
  * @returns nombre d’événements mis à jour.
  */
 export async function syncUpcomingEventsAudienceFromTeams(
@@ -678,9 +719,6 @@ export async function syncUpcomingEventsAudienceFromTeams(
   const teamById = new Map(teams.map((team) => [team.id, team]));
   const today = dateOnly(new Date());
   const eventsCol = eventsCollection(clubId);
-  const canonicalByAnyId = buildCanonicalByAnyId(
-    await loadAudienceAliasPairs(clubId),
-  );
 
   let raw: Array<{ id: string; data: Record<string, unknown> }>;
   try {
@@ -727,26 +765,16 @@ export async function syncUpcomingEventsAudienceFromTeams(
     const currentMemberIds = Array.isArray(data[Fields.teamMemberIds])
       ? (data[Fields.teamMemberIds] as unknown[]).map(String)
       : [];
-    const maps: AudienceKeyedMaps = {
-      rsvp: objectField(data, Fields.rsvp),
-      rsvpUpdatedAt: objectField(data, Fields.rsvpUpdatedAt),
-      seenAt: objectField(data, Fields.seenAt),
-    };
-    const plan = planAudienceSync({
+    const missing = missingAudienceIds({
       currentMemberIds,
-      expectedCanonicalIds: expected,
-      canonicalByAnyId,
-      rsvpKeys: audienceMapKeys(maps),
+      expectedMemberIds: expected,
       excludedMemberIds: stringArrayField(data, Fields.excludedMemberIds),
     });
-    if (!plan.changed) continue;
+    if (missing.length === 0) continue;
 
-    const patch: Record<string, unknown> = {
-      [Fields.teamMemberIds]: plan.nextMemberIds,
-      ...buildAudienceMapsPatch({ plan, maps, deleteField: deleteField() }),
-    };
-
-    batch.update(doc(eventsCol, id), patch);
+    batch.update(doc(eventsCol, id), {
+      [Fields.teamMemberIds]: arrayUnion(...missing),
+    });
     pending += 1;
     updated += 1;
     if (pending >= 400) {
@@ -1187,7 +1215,7 @@ export async function loadPlanningPageData(
     );
 
   const { coaches, players } = splitPlanningPeopleByRoster(people, teams);
-  const admins = people.filter((person) => person.role === "admin");
+  const admins = people.filter((person) => person.badge === "admin");
   const categories = Array.from(
     new Set(
       teams
@@ -1209,7 +1237,7 @@ export async function loadPlanningPageData(
 
 /**
  * Sépare coachs / joueurs à partir des rosters d’équipes (prioritaire),
- * puis complète avec le rôle club pour les membres hors roster.
+ * puis complète avec le badge de la fiche pour les membres hors roster.
  */
 function splitPlanningPeopleByRoster(
   people: PlanningPersonOption[],
@@ -1218,33 +1246,27 @@ function splitPlanningPeopleByRoster(
   coaches: PlanningPersonOption[];
   players: PlanningPersonOption[];
 } {
-  const peopleByMatchId = new Map<string, PlanningPersonOption>();
-  for (const person of people) {
-    peopleByMatchId.set(person.id, person);
-    for (const matchId of person.matchIds) {
-      peopleByMatchId.set(matchId, person);
-    }
-  }
+  const peopleById = new Map(people.map((person) => [person.id, person]));
 
   const coachesById = new Map<string, PlanningPersonOption>();
   const playersById = new Map<string, PlanningPersonOption>();
 
   for (const team of teams) {
     for (const coachId of team.coachIds) {
-      const person = peopleByMatchId.get(coachId);
+      const person = peopleById.get(coachId);
       if (person) coachesById.set(person.id, person);
     }
     for (const playerId of team.playerIds) {
-      const person = peopleByMatchId.get(playerId);
+      const person = peopleById.get(playerId);
       if (person) playersById.set(person.id, person);
     }
   }
 
-  // Membres hors roster : classés via le rôle club.
+  // Membres hors roster : classés via le badge de la fiche.
   for (const person of people) {
     if (coachesById.has(person.id) || playersById.has(person.id)) continue;
-    if (person.role === "coach") coachesById.set(person.id, person);
-    if (person.role === "player") playersById.set(person.id, person);
+    if (person.badge === "coach") coachesById.set(person.id, person);
+    if (person.badge === "player") playersById.set(person.id, person);
   }
 
   const byName = (a: PlanningPersonOption, b: PlanningPersonOption) =>
@@ -1375,4 +1397,11 @@ export function formatDayHeading(date: Date): string {
     day: "numeric",
     month: "long",
   }).format(date);
+}
+
+/** Liste d’ids non vides d’un champ Firestore. */
+function stringIds(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
 }

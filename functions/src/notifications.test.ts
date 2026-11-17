@@ -9,6 +9,7 @@ import {
   eventCreatedCopy,
   eventDayOfReminderCopy,
   eventManualPushCopy,
+  eventManualPushSentCopy,
   eventModifiedCopy,
   eventPostponedCopy,
   eventCoachSummaryCopy,
@@ -21,12 +22,23 @@ import {
   feeReminderCopy,
   formatMemberShortName,
   formatRsvpTally,
+  isRsvpPresenceFlip,
+  CREATED_MATCH_ONLY_TITLE,
+  CREATED_PLAYER_TITLES,
+  J2_NONE_BODY_ACTION,
+  J2_NONE_TITLES,
+  MANUAL_PLAYER_TITLES,
+  pickRandom,
   preferenceOffWarning,
   rsvpStatusLabel,
+  teammateRsvpDigestCopy,
   truncatePushBody,
   weeklyDigestCopy,
   type EventPushContext,
 } from "./notifications/copy";
+
+/** Tirage déterministe : toujours le 1er élément de la pool. */
+const firstPick = () => 0;
 import {
   addDaysToDateId,
   calendarDaysUntil,
@@ -37,9 +49,13 @@ import {
   feesDeepLink,
   formatTimeFr,
   homeDeepLink,
+  latestStatusByEvent,
+  memberPlanningDeepLink,
   parisDateId,
   planningDeepLink,
   planningWebPath,
+  RSVP_HIGHLIGHT_MAX,
+  withRsvpHighlights,
 } from "./notifications/deepLinks";
 import {
   creationReminderFlags,
@@ -47,6 +63,7 @@ import {
   describeChanges,
   isConvocationReintegration,
   isEventContentModified,
+  eventScheduleChange,
   isEventPostponedChange,
   isOnlyPushBookkeepingChange,
   listAddedTeamMemberIds,
@@ -75,6 +92,7 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   MANUAL_PUSH_COOLDOWN_MS,
   RSVP_NOTIFY_DEBOUNCE_MS,
+  TEAMMATE_RSVP_DIGEST_MS,
 } from "./notifications/types";
 
 const training: EventPushContext = {
@@ -95,31 +113,37 @@ test("truncatePushBody tronque avec ellipse", () => {
   assert.ok(out.endsWith("…"));
 });
 
-test("rappels J-7 / J-2 : titre court (type + jour), équipe dans le corps", () => {
-  const j7 = eventReminderJ7Copy({ ...training, type: "tournament", title: "Tournoi de Noël" });
+test("rappels J-7 / J-2 : titres vestiaire, équipe dans le corps", () => {
+  const j7 = eventReminderJ7Copy(
+    { ...training, type: "tournament", title: "Tournoi de Noël" },
+    { random: firstPick },
+  );
   assert.equal(j7.title, "Tournoi jeu. 23/10");
-  assert.match(j7.body, /^Dans une semaine · Tournoi de Noël · Gymnase Jean Moulin\. Tu viens \?/);
+  assert.match(
+    j7.body,
+    /^Dans une semaine · Tournoi de Noël · Gymnase Jean Moulin\. Tu viens \? Le coach/,
+  );
 
-  const j2 = eventReminderJ2Copy(training);
-  assert.equal(j2.title, "Entraînement jeu. 23/10");
-  assert.equal(j2.body, "U15 · 18h00. Toujours pas de réponse : tu viens ? Un tap suffit.");
+  const j2 = eventReminderJ2Copy(training, { random: firstPick });
+  assert.equal(j2.title, J2_NONE_TITLES[0]);
+  assert.equal(j2.body, `U15 · 18h00. ${J2_NONE_BODY_ACTION}`);
   assert.notEqual(j2.body, j7.body);
 
-  // Parent : prénom + type dans le titre (jour / équipe dans le corps).
-  const j2Parent = eventReminderJ2Copy(forLeo);
+  // Parent : prénom + type dans le titre (jour / équipe dans le corps), ton soft.
+  const j2Parent = eventReminderJ2Copy(forLeo, { random: firstPick });
   assert.equal(j2Parent.title, "Léo · Entraînement");
   assert.match(j2Parent.body, /pour Léo/);
   assert.match(j2Parent.body, /^U15 · 18h00/);
-  assert.match(eventReminderJ7Copy(forLeo).body, /Léo vient \?/);
+  assert.match(eventReminderJ7Copy(forLeo, { random: firstPick }).body, /Léo vient \?/);
 
   // Titre libre identique au type : pas de répétition dans le corps.
   assert.equal(
-    eventReminderJ2Copy({ ...training, title: "Entraînement" }).title,
-    "Entraînement jeu. 23/10",
+    eventReminderJ2Copy({ ...training, title: "Entraînement" }, { random: firstPick }).title,
+    J2_NONE_TITLES[0],
   );
   assert.equal(
-    eventReminderJ2Copy({ ...training, title: "Entraînement" }).body,
-    "18h00. Toujours pas de réponse : tu viens ? Un tap suffit.",
+    eventReminderJ2Copy({ ...training, title: "Entraînement" }, { random: firstPick }).body,
+    `18h00. ${J2_NONE_BODY_ACTION}`,
   );
 });
 
@@ -135,22 +159,49 @@ test("rappel jour J : aujourd'hui / demain, RDV, relance si pas de réponse", ()
   assert.equal(today.title, "Aujourd’hui · Match");
   assert.equal(today.body, "U15 · 15h00 · RDV 14h15 · Gymnase Jean Moulin");
 
-  const tomorrow = eventDayOfReminderCopy({ ...training, when: "tomorrow", rsvp: "none" });
+  const tomorrow = eventDayOfReminderCopy(
+    { ...training, when: "tomorrow", rsvp: "none" },
+    { random: firstPick },
+  );
   assert.equal(tomorrow.title, "Demain · Entraînement");
   assert.match(tomorrow.body, /^U15 · 18h00 · /);
-  assert.match(tomorrow.body, /Pense à répondre\.$/);
+  assert.match(tomorrow.body, /Hésite surtout pas à faire un choix\.$/);
 
-  const parent = eventDayOfReminderCopy({ ...forLeo, when: "today", rsvp: "none" });
+  const parent = eventDayOfReminderCopy(
+    { ...forLeo, when: "today", rsvp: "none" },
+    { random: firstPick },
+  );
   // « Aujourd’hui · Léo · Entraînement » dépasse ~26 car. → fallback.
   assert.equal(parent.title, "Léo · Entraînement");
-  assert.match(parent.body, /Pense à répondre pour Léo\.$/);
+  assert.match(parent.body, /Hésite surtout pas à faire un choix pour Léo\.$/);
 });
 
 test("création, annulation, report, modification, push coach", () => {
-  const created = eventCreatedCopy({ ...training, type: "match", dayLabel: "sam. 25/10" });
-  assert.equal(created.title, "Nouvelle convocation");
-  assert.equal(created.body, "Match sam. 25/10 · U15 · 18h00 · Gymnase Jean Moulin. Tu viens ?");
-  assert.equal(eventCreatedCopy(forLeo).title, "Convocation · Léo");
+  const created = eventCreatedCopy(
+    { ...training, type: "match", dayLabel: "sam. 25/10" },
+    { random: firstPick },
+  );
+  assert.equal(created.title, CREATED_PLAYER_TITLES[0]);
+  assert.equal(
+    created.body,
+    "Match sam. 25/10 · U15 · 18h00 · Gymnase Jean Moulin. Tu viens ?",
+  );
+  assert.equal(eventCreatedCopy(forLeo, { random: firstPick }).title, "Convocation · Léo");
+  // Dernier index de la pool match = titre réservé aux matchs.
+  const matchLast = eventCreatedCopy(
+    { ...training, type: "match", dayLabel: "sam. 25/10" },
+    { random: () => 0.999 },
+  );
+  assert.equal(matchLast.title, CREATED_MATCH_ONLY_TITLE);
+  assert.match(matchLast.body, /Confirme vite\.$/);
+  assert.equal(
+    eventCreatedCopy(training, { random: () => 0.999 }).title,
+    CREATED_PLAYER_TITLES[CREATED_PLAYER_TITLES.length - 1],
+  );
+  assert.doesNotMatch(
+    eventCreatedCopy(training, { random: () => 0.999 }).body,
+    /Confirme vite/,
+  );
 
   const canceled = eventCanceledCopy(training);
   assert.equal(canceled.title, "Annulé · Entraînement");
@@ -160,11 +211,67 @@ test("création, annulation, report, modification, push coach", () => {
     "jeu. 23/10 — La réunion n’aura pas lieu.",
   );
 
-  const postponed = eventPostponedCopy({ ...training, dayLabel: "lun. 27/10" });
-  assert.equal(postponed.title, "Report · Entraînement");
-  assert.equal(postponed.body, "U15 — Maintenant lun. 27/10 à 18h00. Vérifie ta dispo.");
-  assert.match(eventPostponedCopy(forLeo).body, /Vérifie la dispo de Léo\.$/);
-  assert.equal(eventPostponedCopy(forLeo).title, "Léo · Report");
+  const postponedDate = eventPostponedCopy({
+    ...training,
+    dayLabel: "lun. 27/10",
+    dateChanged: true,
+    timeChanged: false,
+    previousDayLabel: "jeu. 23/10",
+  });
+  assert.equal(postponedDate.title, "Report · Entraînement");
+  assert.equal(
+    postponedDate.body,
+    "U15 · Reporté au lun. 27/10 à 18h00 (au lieu de jeu. 23/10). Vérifie ta dispo.",
+  );
+
+  const postponedTime = eventPostponedCopy({
+    ...training,
+    startTime: "19h00",
+    dateChanged: false,
+    timeChanged: true,
+    previousStartTime: "18h00",
+  });
+  assert.equal(
+    postponedTime.body,
+    "U15 · jeu. 23/10 — passe à 19h00 (au lieu de 18h00). Vérifie ta dispo.",
+  );
+
+  const postponedBoth = eventPostponedCopy({
+    ...training,
+    type: "match",
+    dayLabel: "dim. 08/11",
+    startTime: "16h00",
+    dateChanged: true,
+    timeChanged: true,
+    previousDayLabel: "dim. 01/11",
+    previousStartTime: "14h30",
+  });
+  assert.equal(postponedBoth.title, "Report · Match");
+  assert.equal(
+    postponedBoth.body,
+    "U15 · Reporté au dim. 08/11 à 16h00 (au lieu de dim. 01/11 à 14h30). Vérifie ta dispo.",
+  );
+
+  assert.match(
+    eventPostponedCopy({
+      ...forLeo,
+      dateChanged: false,
+      timeChanged: true,
+      previousStartTime: "18h00",
+      startTime: "19h00",
+    }).body,
+    /Vérifie la dispo de Léo\.$/,
+  );
+  assert.equal(
+    eventPostponedCopy({
+      ...forLeo,
+      dateChanged: true,
+      timeChanged: false,
+      previousDayLabel: "jeu. 23/10",
+      dayLabel: "lun. 27/10",
+    }).title,
+    "Léo · Report",
+  );
 
   const modified = eventModifiedCopy({
     ...training,
@@ -179,38 +286,105 @@ test("création, annulation, report, modification, push coach", () => {
     "U15 · Entraînement jeu. 23/10 · Nouveau lieu : Salle B · RDV à 17h30.",
   );
 
-  assert.equal(
-    eventManualPushCopy({ ...training, rsvp: "none" }).body,
-    "Entraînement jeu. 23/10 à 18h00 · U15 · Gymnase Jean Moulin — tu viens ?",
+  const manual = eventManualPushCopy(
+    { ...training, rsvp: "none", coachFirstName: "Marc" },
+    { random: firstPick },
   );
-  assert.equal(eventManualPushCopy({ ...training, rsvp: "yes" }).title, "Rappel du coach");
-  assert.doesNotMatch(eventManualPushCopy({ ...training, rsvp: "yes" }).body, /\?/);
+  assert.equal(manual.title, MANUAL_PLAYER_TITLES[0]);
+  assert.equal(
+    manual.body,
+    "Signé coach Marc · Entraînement jeu. 23/10 · U15 · 18h00 · Gymnase Jean Moulin",
+  );
+  const manualParent = eventManualPushCopy(
+    { ...forLeo, rsvp: "maybe", coachFirstName: "Marc" },
+    { random: firstPick },
+  );
+  assert.equal(manualParent.title, "Réponds pour Léo");
+  assert.doesNotMatch(manualParent.title, /Batard|neuille/i);
+  assert.equal(eventManualPushSentCopy(training).title, "Notif envoyée");
+});
+
+test("pickRandom et pools manuelles exposées", () => {
+  assert.equal(pickRandom(["a", "b", "c"], () => 0), "a");
+  assert.equal(pickRandom(["a", "b", "c"], () => 0.99), "c");
+  assert.ok(MANUAL_PLAYER_TITLES.includes("Réponds Batard !!"));
+  assert.ok(MANUAL_PLAYER_TITLES.includes("Réponds, tête de neuille"));
 });
 
 test("RSVP : digest staff avec décompte, confirmation parent", () => {
   const tally = { yes: 12, no: 3, maybe: 0, none: 4 };
   assert.equal(formatRsvpTally(tally), "12 oui, 3 non, 4 sans réponse");
 
-  const single = eventRsvpChangedCopy({
-    responses: [{ memberName: "Marie D.", status: "yes" }],
-    ctx: training,
-    tally,
-  });
+  const single = eventRsvpChangedCopy(
+    {
+      responses: [{ memberName: "Marie D.", status: "yes" }],
+      ctx: training,
+      tally,
+    },
+    { random: firstPick },
+  );
   assert.equal(single.title, "Marie D. vient");
   assert.equal(single.body, "Entraînement jeu. 23/10 · U15 · 12 oui, 3 non, 4 sans réponse");
 
-  const digest = eventRsvpChangedCopy({
-    responses: [
-      { memberName: "Marie D.", status: "yes" },
-      { memberName: "Paul G.", status: "no" },
-      { memberName: "Zoé R.", status: "maybe" },
-    ],
-    ctx: forLeo,
-    tally,
-  });
+  const flip = eventRsvpChangedCopy(
+    {
+      responses: [
+        { memberName: "Marie D.", status: "no", previousStatus: "yes" },
+      ],
+      ctx: training,
+      tally,
+    },
+    { random: firstPick },
+  );
+  assert.equal(isRsvpPresenceFlip("yes", "no"), true);
+  assert.equal(flip.title, "Marie D. a basculé");
+  assert.match(flip.body, /ne vient plus/i);
+
+  const digest = eventRsvpChangedCopy(
+    {
+      responses: [
+        { memberName: "Marie D.", status: "yes" },
+        { memberName: "Paul G.", status: "no" },
+        { memberName: "Zoé R.", status: "maybe" },
+      ],
+      ctx: forLeo,
+      tally,
+    },
+    { random: firstPick },
+  );
   // Le digest staff ne prend jamais le prénom d'un enfant dans le titre.
   assert.equal(digest.title, "3 nouvelles réponses");
   assert.equal(digest.body, "Entraînement jeu. 23/10 · U15 · 12 oui, 3 non, 4 sans réponse");
+
+  const teammateMulti = teammateRsvpDigestCopy(
+    {
+      items: [
+        {
+          responderMemberId: "m1",
+          responderName: "Marie D.",
+          eventId: "e1",
+          status: "yes",
+        },
+        {
+          responderMemberId: "m1",
+          responderName: "Marie D.",
+          eventId: "e2",
+          status: "no",
+        },
+        {
+          responderMemberId: "m1",
+          responderName: "Marie D.",
+          eventId: "e3",
+          status: "maybe",
+        },
+      ],
+    },
+    { random: firstPick },
+  );
+  assert.equal(teammateMulti.title, "Marie D. · 3 réponses");
+  assert.match(teammateMulti.body, /Marie D\. a répondu à 3 convocations/);
+  assert.match(teammateMulti.body, /Jette un œil|Check le planning/);
+  assert.equal(TEAMMATE_RSVP_DIGEST_MS, 2 * 60 * 1000);
 
   assert.equal(childRsvpConfirmationCopy({ ctx: forLeo, status: "no" }).title, "Léo · Entraînement");
   assert.equal(
@@ -226,18 +400,24 @@ test("RSVP : digest staff avec décompte, confirmation parent", () => {
 
 test("récap hebdo : rien sans event, réponses attendues sinon", () => {
   assert.equal(weeklyDigestCopy([]), null);
-  const copy = weeklyDigestCopy([
-    { type: "training", dayLabel: "lun. 27/10", awaitingResponse: false },
-    { type: "training", dayLabel: "mer. 29/10", awaitingResponse: true },
-    { type: "match", dayLabel: "sam. 1/11", awaitingResponse: true },
-  ]);
+  const copy = weeklyDigestCopy(
+    [
+      { type: "training", dayLabel: "lun. 27/10", awaitingResponse: false },
+      { type: "training", dayLabel: "mer. 29/10", awaitingResponse: true },
+      { type: "match", dayLabel: "sam. 1/11", awaitingResponse: true },
+    ],
+    { random: firstPick },
+  );
   assert.equal(copy?.title, "Ta semaine");
   assert.equal(
     copy?.body,
-    "1 match, 2 entraînements. 2 réponses attendues (mer. 29/10, sam. 1/11). Jette un œil au planning.",
+    "1 match, 2 entraînements. 2 réponses attendues (mer. 29/10, sam. 1/11). Hésite pas à checker.",
   );
   assert.equal(
-    weeklyDigestCopy([{ type: "meeting", dayLabel: "jeu. 30/10", awaitingResponse: false }])?.body,
+    weeklyDigestCopy(
+      [{ type: "meeting", dayLabel: "jeu. 30/10", awaitingResponse: false }],
+      { random: firstPick },
+    )?.body,
     "1 réunion. Tout est répondu, bonne semaine !",
   );
 });
@@ -309,6 +489,52 @@ test("deep links, dateId et libellés", () => {
   assert.equal(formatTimeFr("18:00"), "18h00");
   assert.equal(formatTimeFr("9:30"), "9h30");
   assert.equal(formatTimeFr(""), "");
+});
+
+test("deep links RSVP : events à encadrer sur la home", () => {
+  assert.equal(
+    withRsvpHighlights(memberPlanningDeepLink(), "c 1", [
+      { eventId: "e1", status: "yes" },
+      { eventId: "e2", status: "no" },
+    ]),
+    "viroteam://planning?rsvpClubId=c%201&rsvpHighlights=e1%3Ayes%2Ce2%3Ano",
+  );
+  assert.equal(
+    withRsvpHighlights(planningDeepLink("c1", "20260908", { eventId: "e1" }), "c1", [
+      { eventId: "e1", status: "maybe" },
+    ]),
+    "viroteam://planning?clubId=c1&date=2026-09-08&eventId=e1" +
+      "&rsvpClubId=c1&rsvpHighlights=e1%3Amaybe",
+  );
+  // Retour à « sans réponse » : rien à encadrer, lien inchangé.
+  assert.equal(
+    withRsvpHighlights(memberPlanningDeepLink(), "c1", [
+      { eventId: "e1", status: "none" },
+    ]),
+    "viroteam://planning",
+  );
+  const many = Array.from({ length: RSVP_HIGHLIGHT_MAX + 3 }, (_, index) => ({
+    eventId: `e${index}`,
+    status: "yes",
+  }));
+  const capped = new URL(withRsvpHighlights("viroteam://planning", "c1", many));
+  assert.equal(
+    capped.searchParams.get("rsvpHighlights")!.split(",").length,
+    RSVP_HIGHLIGHT_MAX,
+  );
+
+  assert.deepEqual(
+    latestStatusByEvent([
+      { eventId: "e1", status: "yes", atMs: 10 },
+      { eventId: "e2", status: "maybe", atMs: 5 },
+      { eventId: "e1", status: "no", atMs: 20 },
+      { eventId: "e2", status: "yes", atMs: 1 },
+    ]),
+    [
+      { eventId: "e1", status: "no" },
+      { eventId: "e2", status: "maybe" },
+    ],
+  );
 });
 
 test("calendarDaysUntil et parisDateId", () => {
@@ -499,24 +725,36 @@ test("isConvocationReintegration : un exclu quitte excludedMemberIds", () => {
 });
 
 test("copies peut-être J-7 / J-2 et bilan coach", () => {
-  const maybe = eventReminderJ2MaybeCopy(training);
-  assert.match(maybe.body, /peut-être/);
-  const maybeParent = eventReminderJ2MaybeCopy({ ...training, childFirstName: "Mia" });
+  const maybe = eventReminderJ2MaybeCopy(training, { random: firstPick });
+  assert.match(maybe.body, /peut-être|fige|flou/);
+  const maybeParent = eventReminderJ2MaybeCopy(
+    { ...training, childFirstName: "Mia" },
+    { random: firstPick },
+  );
   assert.match(maybeParent.body, /Mia/);
-  assert.match(eventReminderJ7MaybeCopy(training).body, /Dans une semaine/);
-  const coach = eventCoachSummaryCopy({
-    ...training,
-    tally: { yes: 8, no: 1, maybe: 2, none: 5 },
-    when: "j2",
-  });
+  assert.match(
+    eventReminderJ7MaybeCopy(training, { random: firstPick }).body,
+    /Dans une semaine/,
+  );
+  const coach = eventCoachSummaryCopy(
+    {
+      ...training,
+      tally: { yes: 8, no: 1, maybe: 2, none: 5 },
+      when: "j2",
+    },
+    { random: firstPick },
+  );
   assert.equal(coach.title, "Entraînement jeu. 23/10");
   assert.match(coach.body, /^Dans 2 jours · 18h00 · 8 oui/);
   assert.match(coach.body, /5 sans réponse/);
-  const coachEve = eventCoachSummaryCopy({
-    ...training,
-    tally: { yes: 8, no: 1, maybe: 0, none: 0 },
-    when: "eve",
-  });
+  const coachEve = eventCoachSummaryCopy(
+    {
+      ...training,
+      tally: { yes: 8, no: 1, maybe: 0, none: 0 },
+      when: "eve",
+    },
+    { random: firstPick },
+  );
   assert.equal(coachEve.body, "Demain · 18h00 · 8 oui, 1 non");
   const dayWithTally = eventDayOfReminderCopy({
     ...training,
@@ -525,7 +763,7 @@ test("copies peut-être J-7 / J-2 et bilan coach", () => {
     tally: { yes: 8, no: 1, maybe: 0, none: 2 },
   });
   assert.match(dayWithTally.body, /^8 oui, 1 non, 2 sans réponse · /);
-  assert.doesNotMatch(dayWithTally.body, /répondre/);
+  assert.doesNotMatch(dayWithTally.body, /répondre|choix/);
 });
 
 test("récap : agrège par personne, ignore les non, un parent voit l'enfant", () => {
@@ -553,6 +791,24 @@ test("tallyRsvp : une voix par joueur convoqué", () => {
   assert.deepEqual(tallyRsvp(audience), { yes: 1, no: 1, maybe: 0, none: 1 });
 });
 
+test("fiche non liée (uid null) : comptée au décompte, absente des récaps", () => {
+  const withUnlinked: EventAudienceEntry[] = [
+    ...audience,
+    { uid: null, relation: "self", memberId: "m-kid", rsvp: "yes" },
+    { uid: "p-kid", relation: "guardian", memberId: "m-kid", rsvp: "yes" },
+  ];
+  assert.deepEqual(tallyRsvp(withUnlinked), { yes: 2, no: 1, maybe: 0, none: 1 });
+  const digests = new Map<string, DigestRecipient>();
+  addEventToDigests({
+    digests,
+    clubId: "c1",
+    eventData: { type: "training", dateId: "20261027" },
+    entries: withUnlinked,
+  });
+  assert.equal(digests.has("m-kid"), false);
+  assert.equal(digests.get("p-kid")!.items.length, 1);
+});
+
 test("isEventPostponedChange / champs modifiés / bookkeeping", () => {
   assert.equal(
     isEventPostponedChange(
@@ -560,6 +816,27 @@ test("isEventPostponedChange / champs modifiés / bookkeeping", () => {
       { dateId: "20260909", startTime: "18:00" },
     ),
     true,
+  );
+  assert.deepEqual(
+    eventScheduleChange(
+      { dateId: "20260908", startTime: "18:00" },
+      { dateId: "20260909", startTime: "18:00" },
+    ),
+    { dateChanged: true, timeChanged: false },
+  );
+  assert.deepEqual(
+    eventScheduleChange(
+      { dateId: "20260908", startTime: "14:30" },
+      { dateId: "20260908", startTime: "16:00" },
+    ),
+    { dateChanged: false, timeChanged: true },
+  );
+  assert.deepEqual(
+    eventScheduleChange(
+      { dateId: "20260908", startTime: "14:30" },
+      { dateId: "20260909", startTime: "16:00" },
+    ),
+    { dateChanged: true, timeChanged: true },
   );
   assert.equal(
     isEventPostponedChange(
@@ -646,11 +923,11 @@ test("listRsvpStatusChanges détecte les deltas (ignore les suppressions)", () =
       { rsvp: { a: "yes", b: "no" } },
       { rsvp: { a: "maybe", b: "no" } },
     ),
-    [{ memberId: "a", status: "maybe" }],
+    [{ memberId: "a", status: "maybe", previousStatus: "yes" }],
   );
   assert.deepEqual(
     listRsvpStatusChanges({ rsvp: {} }, { rsvp: { a: "yes" } }),
-    [{ memberId: "a", status: "yes" }],
+    [{ memberId: "a", status: "yes", previousStatus: "none" }],
   );
   // Suppression de clé = nettoyage audience, pas une réponse utilisateur.
   assert.deepEqual(
@@ -741,6 +1018,14 @@ test("pushGrouping : tag par entité (et par enfant), thread sans tag pour le ch
   assert.deepEqual(
     pushGrouping({ type: "event_rsvp_changed", eventId: "e1", memberId: "m1" }),
     { tag: "rsvp_e1", threadId: "event_e1" },
+  );
+  assert.deepEqual(
+    pushGrouping({
+      type: "event_rsvp_changed",
+      teammateDigest: "1",
+      clubId: "c1",
+    }),
+    { tag: "teammate_rsvp_c1", threadId: "teammate_rsvp_c1" },
   );
   assert.deepEqual(
     pushGrouping({ type: "event_weekly_digest" }),

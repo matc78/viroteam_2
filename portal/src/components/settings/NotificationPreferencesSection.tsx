@@ -11,7 +11,7 @@ import {
   type NotificationToggleKey,
 } from "@/lib/firebase/notificationPreferences";
 import { updateNotificationPreferences } from "@/lib/firebase/userService";
-import { CHAT_MESSAGING_LIVE } from "@/lib/featureFlags";
+import { isChatMessagingLive } from "@/lib/featureFlags";
 import panelStyles from "@/components/dashboard/DashboardPanel.module.css";
 import shared from "@/components/settings/settingsShared.module.css";
 
@@ -69,10 +69,8 @@ const COACH_SUMMARY_OPTIONS: Array<{ value: CoachSummaryTiming; label: string }>
   { value: "day", label: "Avec le rappel du jour J" },
 ];
 
-function visibleToggleRows() {
-  return TOGGLE_ROWS.filter(
-    (row) => row.key !== "chat" || CHAT_MESSAGING_LIVE,
-  );
+function visibleToggleRows(chatLive: boolean) {
+  return TOGGLE_ROWS.filter((row) => row.key !== "chat" || chatLive);
 }
 
 /**
@@ -87,6 +85,8 @@ export function NotificationPreferencesSection({
   const { user, profile, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const chatLive = isChatMessagingLive(profile);
+  const toggleRows = visibleToggleRows(chatLive);
 
   const prefs =
     profile?.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
@@ -129,7 +129,7 @@ export function NotificationPreferencesSection({
         </p>
       </header>
       <ul className={shared.permissionList}>
-        {visibleToggleRows().map((row) => {
+        {toggleRows.map((row) => {
           const parentOff = row.dependsOn != null && !prefs[row.dependsOn];
           const enabled = prefs[row.key] && !parentOff;
           return (

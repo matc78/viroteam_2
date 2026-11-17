@@ -53,6 +53,11 @@ abstract final class ViroColors {
   static const Color adminBadgeStart = Color(0xFFA78BFA);
   static const Color adminBadgeEnd = Color(0xFF7C3AED);
 
+  /// Badge Membre (ni admin ni équipe) : aplat gris simple, sans dégradé ni
+  /// halo, identique en clair et en sombre (texte blanc lisible).
+  static const Color memberBadgeBackground = Color(0xFF6B7586); // = --color-gray-500 du portail
+  static const Color memberBadgeText = white;
+
   static const Color roleBadgeText = white;
   static const Color roleBadgeIconBg = Color(0x33FFFFFF);
 

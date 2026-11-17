@@ -172,7 +172,7 @@ Suivre intégralement [`DEPLOY_IOS.md`](DEPLOY_IOS.md) (compte Apple, Firebase p
 
 | Item | Notes |
 |------|--------|
-| **Messagerie in-app** | Code prêt (Flutter + portail) ; **désactivée** en prod (`CHAT_MESSAGING_LIVE` / `FeatureFlags.chatMessagingLive`) jusqu’à release store. Local portail : `NEXT_PUBLIC_CHAT_MESSAGING_LIVE=true` |
+| **Messagerie in-app** | Code prêt ; en prod **accès anticipé** via `users/{uid}.flags.chatMessaging` (debug / `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` toujours ON en local). Push : taggés tant que `CHAT_MESSAGING_LIVE=false` |
 | **Stripe Connect live** | Secrets `STRIPE_*_TEST` (dev) puis `STRIPE_*_LIVE` (prod) → webhooks Dashboard → `NEXT_PUBLIC_STRIPE_LIVE=true` (portail) → onboarding Express par club → `onlinePaymentEnabled` |
 | **HelloAsso** (futur) | Partenariat → secrets Functions → flags HelloAsso (code conservé, dormant) |
 | Upload photo justificatif d’aide | Backlog Phase 7 |

@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_event.dart';
-import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/event/event_paths.dart';
 import 'package:viro_team_v2/utils/stream_combine.dart';
@@ -12,56 +11,22 @@ class EventUpcomingQueries {
   /// Crée le module de requêtes événements à venir.
   EventUpcomingQueries({
     required EventPaths paths,
-    required this.watchClubMember,
-    required this.rosterAudienceId,
   }) : _paths = paths;
 
   final EventPaths _paths;
 
-  /// Stream fiche membre (délégation RSVP / accounts).
-  final Stream<ClubMember?> Function({
-    required String clubId,
-    required String uid,
-  }) watchClubMember;
-
-  /// Clé roster pour un [ClubMember] authentifié.
-  final String Function(ClubMember member, String authUid) rosterAudienceId;
-
-  /// Événements à venir où [uid] (et optionnellement [alternateUid]) est convoqué.
+  /// Événements à venir où [memberId] (id de fiche) est convoqué.
   Stream<List<ClubEvent>> watchUpcomingEventsForClub({
     required String clubId,
-    required String uid,
-    String? alternateUid,
-  }) {
-    final lowerBound = EventDateHelpers.upcomingQueryLowerBound;
-    final alt = alternateUid;
-    final streams = <Stream<List<ClubEvent>>>[
-      _watchUpcomingEventsForClubAudience(
-        clubId: clubId,
-        uid: uid,
-        lowerBound: lowerBound,
-      ),
-      if (alt != null && alt.isNotEmpty && alt != uid)
-        _watchUpcomingEventsForClubAudience(
-          clubId: clubId,
-          uid: alt,
-          lowerBound: lowerBound,
-        ),
-    ];
-
-    return combineLatestListStreams(streams)
-        .map(EventDateHelpers.dedupeEvents);
-  }
-
-  Stream<List<ClubEvent>> _watchUpcomingEventsForClubAudience({
-    required String clubId,
-    required String uid,
-    required Timestamp lowerBound,
+    required String memberId,
   }) {
     return _paths
         .events(clubId)
-        .where(FirestoreFields.teamMemberIds, arrayContains: uid)
-        .where(FirestoreFields.date, isGreaterThanOrEqualTo: lowerBound)
+        .where(FirestoreFields.teamMemberIds, arrayContains: memberId)
+        .where(
+          FirestoreFields.date,
+          isGreaterThanOrEqualTo: EventDateHelpers.upcomingQueryLowerBound,
+        )
         .where(
           FirestoreFields.date,
           isLessThan: EventDateHelpers.upcomingQueryUpperBound,
@@ -123,23 +88,21 @@ class EventUpcomingQueries {
     });
   }
 
-  /// Joueur convoqué + entraînements des équipes coachées.
+  /// Joueur convoqué + entraînements des équipes coachées ([authUid] = id
+  /// de sa fiche).
   Stream<List<ClubEvent>> watchUpcomingEventsForClubMember({
     required String clubId,
-    required String audienceId,
     required String authUid,
   }) {
     final asPlayer = watchUpcomingEventsForClub(
       clubId: clubId,
-      uid: audienceId,
-      alternateUid: authUid,
+      memberId: authUid,
     );
     final asCoach =
         watchUpcomingEventsAsCoach(clubId: clubId, authUid: authUid);
     final asTeamPlayer = watchUpcomingEventsForPlayerTeams(
       clubId: clubId,
-      audienceId: audienceId,
-      authUid: authUid,
+      memberId: authUid,
     );
 
     return combineLatestListStreams([asPlayer, asCoach, asTeamPlayer])
@@ -151,32 +114,25 @@ class EventUpcomingQueries {
   /// Sans ceux dont le coach l'a retiré (`excludedMemberIds`).
   Stream<List<ClubEvent>> watchUpcomingEventsForPlayerTeams({
     required String clubId,
-    required String audienceId,
-    required String authUid,
+    required String memberId,
   }) {
-    final playerKeys = {audienceId, authUid};
     return _watchUpcomingEventsForPlayerTeams(
       clubId: clubId,
-      audienceId: audienceId,
-      authUid: authUid,
+      memberId: memberId,
     ).map(
       (events) =>
-          events.where((event) => !event.isExcludedFor(playerKeys)).toList(),
+          events.where((event) => !event.isExcludedFor(memberId)).toList(),
     );
   }
 
   Stream<List<ClubEvent>> _watchUpcomingEventsForPlayerTeams({
     required String clubId,
-    required String audienceId,
-    required String authUid,
+    required String memberId,
   }) {
     // Seulement les équipes du joueur (avant : toute la collection `teams`).
     return _paths
         .teams(clubId)
-        .where(
-          FirestoreFields.playerIds,
-          arrayContainsAny: {audienceId, authUid}.toList(),
-        )
+        .where(FirestoreFields.playerIds, arrayContains: memberId)
         .snapshots()
         .switchMap((teamsSnap) {
       final playerTeamIds = <String>[];
@@ -293,11 +249,11 @@ class EventUpcomingQueries {
   /// Événements à venir visibles par un parent : uniquement ceux des équipes
   /// de l'enfant ([childTeamIds] = `members/{child}.teamIds`), une requête
   /// par équipe. Pas de lecture globale ni de fallback v1 `teamName`.
-  /// Sans ceux dont l'enfant ([childAudienceKeys]) a été retiré par le coach.
+  /// Sans ceux dont l'enfant ([childMemberId]) a été retiré par le coach.
   Stream<List<ClubEvent>> watchUpcomingEventsForGuardian({
     required String clubId,
     required List<String> childTeamIds,
-    Set<String> childAudienceKeys = const {},
+    String? childMemberId,
   }) {
     final teamIds = childTeamIds.where((id) => id.isNotEmpty).toSet();
     if (teamIds.isEmpty) return Stream.value(<ClubEvent>[]);
@@ -314,7 +270,10 @@ class EventUpcomingQueries {
         .toList();
     return combineLatestListStreams(streams).map(
       (events) => EventDateHelpers.dedupeEvents(events)
-          .where((event) => !event.isExcludedFor(childAudienceKeys))
+          .where(
+            (event) =>
+                childMemberId == null || !event.isExcludedFor(childMemberId),
+          )
           .toList(),
     );
   }
@@ -326,12 +285,11 @@ class EventUpcomingQueries {
   }) {
     final asPlayer = watchUpcomingEventsForClub(
       clubId: clubId,
-      uid: memberId,
+      memberId: memberId,
     );
     final asTeamPlayer = watchUpcomingEventsForPlayerTeams(
       clubId: clubId,
-      audienceId: memberId,
-      authUid: memberId,
+      memberId: memberId,
     );
     return combineLatestListStreams([asPlayer, asTeamPlayer])
         .map(EventDateHelpers.dedupeEvents);
@@ -344,31 +302,16 @@ class EventUpcomingQueries {
   }) {
     if (clubIds.isEmpty) return Stream.value([]);
 
-    final audienceStreams = clubIds.map((clubId) {
-      return watchClubMember(clubId: clubId, uid: authUid).map(
-        (member) => [
-          MapEntry(
-            clubId,
-            member == null ? authUid : rosterAudienceId(member, authUid),
+    final eventStreams = clubIds
+        .map(
+          (clubId) => watchUpcomingEventsForClubMember(
+            clubId: clubId,
+            authUid: authUid,
           ),
-        ],
-      );
-    }).toList();
+        )
+        .toList();
 
-    return combineLatestListStreams(audienceStreams).switchMap((entries) {
-      final audienceByClub = Map<String, String>.fromEntries(entries);
-
-      final eventStreams = clubIds.map((clubId) {
-        final audienceId = audienceByClub[clubId] ?? authUid;
-        return watchUpcomingEventsForClubMember(
-          clubId: clubId,
-          audienceId: audienceId,
-          authUid: authUid,
-        );
-      }).toList();
-
-      return combineLatestListStreams(eventStreams)
-          .map(EventDateHelpers.dedupeEvents);
-    });
+    return combineLatestListStreams(eventStreams)
+        .map(EventDateHelpers.dedupeEvents);
   }
 }

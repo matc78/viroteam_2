@@ -6,9 +6,8 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/event/event_paths.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
-import 'package:viro_team_v2/utils/stream_switch_map.dart';
 
-/// RSVP, appel coach, résolution d'audience et stats de présence.
+/// RSVP, appel coach, fiche membre et stats de présence.
 class EventRsvpOperations {
   /// Crée le module RSVP / attendance / audience.
   EventRsvpOperations({
@@ -27,35 +26,7 @@ class EventRsvpOperations {
     FirestoreFields.seenAt,
   ];
 
-  /// ID présent dans `teamMemberIds` / `playerIds` (doc `members/{memberId}`).
-  String rosterAudienceId(ClubMember member, String authUid) =>
-      member.memberId;
-
-  /// Identifiant utilisé dans `teamMemberIds` / `rsvp` pour un membre du club.
-  Future<String> resolveAudienceId({
-    required String clubId,
-    required String authUid,
-  }) async {
-    final indexSnap = await _paths.memberAccountRef(clubId, authUid).get();
-
-    if (indexSnap.exists) {
-      final linked =
-          indexSnap.data()?[FirestoreFields.linkedMemberId] as String?;
-      if (linked != null && linked.isNotEmpty) return linked;
-    }
-
-    final memberSnap = await _paths.memberRef(clubId, authUid).get();
-    if (memberSnap.exists) {
-      final accountUid =
-          memberSnap.data()?[FirestoreFields.accountUid] as String?;
-      if (accountUid != null && accountUid.isNotEmpty) return authUid;
-      return memberSnap.id;
-    }
-
-    return authUid;
-  }
-
-  /// Enregistre le RSVP de [uid] (memberId cible : soi ou enfant).
+  /// Enregistre le RSVP de [uid] (id de fiche : soi = authUid, ou enfant).
   ///
   /// [viaCallable] : parent pour un enfant (rules : clé du connecté seulement).
   Future<void> updateRsvp({
@@ -128,25 +99,14 @@ class EventRsvpOperations {
     await _paths.events(clubId).doc(eventId).update(updates);
   }
 
-  /// Stream de la fiche membre liée à [uid] (via `memberAccounts` si besoin).
+  /// Stream de la fiche `members/{memberId}` (soi : [memberId] = authUid).
   Stream<ClubMember?> watchClubMember({
     required String clubId,
-    required String uid,
+    required String memberId,
   }) {
-    final accountIndexRef = _paths.memberAccountRef(clubId, uid);
-
-    return accountIndexRef.snapshots().switchMap((indexSnap) {
-      String? linkedMemberId;
-      if (indexSnap.exists) {
-        final indexData = indexSnap.data();
-        linkedMemberId =
-            indexData?[FirestoreFields.linkedMemberId] as String?;
-      }
-      final targetId = linkedMemberId ?? uid;
-      return _paths.memberRef(clubId, targetId).snapshots().map((doc) {
-        if (!doc.exists) return null;
-        return ClubMember.fromFirestore(doc);
-      });
+    return _paths.memberRef(clubId, memberId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return ClubMember.fromFirestore(doc);
     });
   }
 
@@ -158,14 +118,10 @@ class EventRsvpOperations {
     required String clubId,
     required String authUid,
   }) async {
-    final audienceId = await resolveAudienceId(
-      clubId: clubId,
-      authUid: authUid,
-    );
     final since = DateTime.now().subtract(const Duration(days: 30));
     final snap = await _paths
         .events(clubId)
-        .where(FirestoreFields.teamMemberIds, arrayContains: audienceId)
+        .where(FirestoreFields.teamMemberIds, arrayContains: authUid)
         .where(
           FirestoreFields.date,
           isGreaterThanOrEqualTo: Timestamp.fromDate(since),
@@ -182,10 +138,7 @@ class EventRsvpOperations {
     for (final doc in snap.docs) {
       final event = ClubEvent.fromFirestore(clubId: clubId, doc: doc);
       if (event.canceled) continue;
-      final status = event.rsvpStatusForUser(
-        authUid,
-        clubAudienceId: audienceId,
-      );
+      final status = event.rsvpStatusForUser(authUid);
       if (status == RsvpStatus.none) continue;
       answered++;
       if (status == RsvpStatus.yes) yesCount++;

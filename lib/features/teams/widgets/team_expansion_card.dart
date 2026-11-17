@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
-import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/teams/widgets/team_messaging_links_section.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -15,6 +15,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
 
@@ -67,11 +68,10 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
         !hasAvatar && club.logoUrl != null && club.logoUrl!.isNotEmpty;
 
     final membersAsync = ref.watch(clubMembersProvider(team.clubId));
-    final viewerRole =
-        ref.watch(clubMemberProvider(team.clubId)).value?.role ??
-            MemberRoles.player;
+    final sessionMemberId =
+        ref.watch(rosterSessionMemberIdProvider(team.clubId));
     final membersByUid = membersAsync.value != null
-        ? indexClubMembersByUid(membersAsync.value!)
+        ? indexClubMembersById(membersAsync.value!)
         : <String, ClubMember>{};
 
     return ViroCard(
@@ -146,8 +146,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                 ),
               )
             else ...[
-              // Messagerie cachée en release tant que la feature n’est pas live.
-              if (FeatureFlags.chatMessagingLive)
+              if (ref.watch(chatMessagingLiveProvider))
                 TeamMessagingLinksSection(
                   team: team,
                   accent: widget.accent,
@@ -157,14 +156,16 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                 title: AppCopy.teams.staffCoachesSection,
                 uids: team.coachIds,
                 membersByUid: membersByUid,
-                viewerRole: viewerRole,
+                sessionMemberId: sessionMemberId,
+                displayRole: ViroRole.coach,
               ),
               ..._buildMemberSection(
                 context,
                 title: AppCopy.teams.teammatesSection,
                 uids: team.playerIds,
                 membersByUid: membersByUid,
-                viewerRole: viewerRole,
+                sessionMemberId: sessionMemberId,
+                displayRole: ViroRole.player,
               ),
               if (team.pendingPlayerIds.isNotEmpty) ...[
                 if (_loadingPending)
@@ -188,9 +189,9 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                     (p) => MemberListTile(
                       member: pendingAsClubMember(p),
                       club: club,
-                      viewerRole: viewerRole,
                       accentColor: widget.accent,
                       showClubAdminActions: false,
+                      displayRole: ViroRole.player,
                     ),
                   ),
                 ],
@@ -207,24 +208,39 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
     required String title,
     required List<String> uids,
     required Map<String, ClubMember> membersByUid,
-    required String viewerRole,
+    required String? sessionMemberId,
+    required ViroRole displayRole,
   }) {
     if (uids.isEmpty) return [];
 
     final titleColor =
         title.contains('Coach') ? ViroColors.coachBadgeEnd : widget.accent;
+    final orderedIds = pinSessionMemberIdFirst(
+      uids,
+      sessionMemberId: sessionMemberId,
+    );
 
     return [
       _sectionHeader(context, title, titleColor),
-      ...uids.map((uid) {
-        final member = clubMemberForTeamUid(membersByUid, uid);
+      ...orderedIds.map((uid) {
+        final member = membersByUid[uid];
         if (member == null) return const SizedBox.shrink();
         return MemberListTile(
           member: member,
           club: widget.club,
-          viewerRole: viewerRole,
           accentColor: widget.accent,
           showClubAdminActions: false,
+          displayRole: displayRole,
+          isSessionMember: member.memberId == sessionMemberId,
+          onTap: member.hasLinkedAccount
+              ? () => showMemberDetailSheet(
+                    context,
+                    ref: ref,
+                    club: widget.club,
+                    member: member,
+                    accentColor: widget.accent,
+                  )
+              : null,
         );
       }),
     ];

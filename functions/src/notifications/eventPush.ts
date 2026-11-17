@@ -7,6 +7,8 @@ import {
   parisDateId,
   planningDeepLink,
   planningWebPath,
+  withRsvpHighlights,
+  type RsvpHighlight,
 } from "./deepLinks";
 import { buildPushData, sendPushToUids } from "./send";
 import type { NotificationPreferenceKey } from "./types";
@@ -45,6 +47,9 @@ export function contextForEntry(
  * Les entrées qui partagent la même copy (et le même enfant pour un parent)
  * partent dans un seul envoi. Le lien ouvre le planning sur l'event, avec
  * l'enfant sélectionné pour un parent.
+ *
+ * [rsvpHighlights] (push RSVP) : events à encadrer sur la home, par enfant
+ * visé (`undefined` pour une push qui ne vise pas d'enfant).
  */
 export async function sendEventPushToAudience(params: {
   firestore: Firestore;
@@ -59,6 +64,7 @@ export async function sendEventPushToAudience(params: {
   alsoRequire?: NotificationPreferenceKey;
   onlyIfDisabled?: NotificationPreferenceKey;
   extraData?: Record<string, string>;
+  rsvpHighlights?: (forMemberId: string | undefined) => RsvpHighlight[];
 }): Promise<{ recipientCount: number; tokenCount: number }> {
   const exclude = new Set(params.excludeUids ?? []);
   const dateId = eventDateId(params.eventData);
@@ -70,11 +76,13 @@ export async function sendEventPushToAudience(params: {
   >();
   const sentKeys = new Set<string>();
   for (const entry of params.entries) {
-    if (exclude.has(entry.uid)) continue;
+    const uid = entry.uid;
+    // Fiche non liée : pas de compte à notifier (ses parents ont leur entrée).
+    if (!uid || exclude.has(uid)) continue;
     const forMemberId =
       entry.relation === "guardian" ? entry.memberId : undefined;
     // Une même personne n'est notifiée qu'une fois par sujet (soi / chaque enfant).
-    const subjectKey = `${entry.uid}\u0000${forMemberId ?? ""}`;
+    const subjectKey = `${uid}\u0000${forMemberId ?? ""}`;
     if (sentKeys.has(subjectKey)) continue;
     const copy = params.copyFor(entry);
     if (!copy) continue;
@@ -86,7 +94,7 @@ export async function sendEventPushToAudience(params: {
       group = { copy, forMemberId, uids: new Set() };
       groups.set(groupKey, group);
     }
-    group.uids.add(entry.uid);
+    group.uids.add(uid);
   }
 
   let recipientCount = 0;
@@ -99,6 +107,14 @@ export async function sendEventPushToAudience(params: {
       ...(group.forMemberId ? { forMemberId: group.forMemberId } : {}),
       ...(params.extraData ?? {}),
     };
+    const planningLink = planningDeepLink(params.clubId, dateId, target);
+    const deepLink = params.rsvpHighlights
+      ? withRsvpHighlights(
+          planningLink,
+          params.clubId,
+          params.rsvpHighlights(group.forMemberId),
+        )
+      : planningLink;
     const result = await sendPushToUids({
       firestore: params.firestore,
       uids: [...group.uids],
@@ -111,7 +127,7 @@ export async function sendEventPushToAudience(params: {
         data: buildPushData({
           type: params.type,
           clubId: params.clubId,
-          deepLink: planningDeepLink(params.clubId, dateId, target),
+          deepLink,
           webPath: planningWebPath(params.clubId, dateId, target),
           preferenceKey,
           extra,

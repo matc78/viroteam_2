@@ -57,43 +57,6 @@ Future<bool> showChatDeleteMessageDialog(BuildContext context) async {
   return ok == true;
 }
 
-/// Dialog d’édition de texte ; retourne le nouveau texte ou null.
-Future<String?> showChatEditMessageDialog({
-  required BuildContext context,
-  required String initialText,
-}) async {
-  final controller = TextEditingController(text: initialText);
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(AppCopy.chat.editMessage),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        minLines: 2,
-        maxLines: 6,
-        decoration: InputDecoration(hintText: AppCopy.chat.editMessageHint),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: Text(AppCopy.common.cancel),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: Text(AppCopy.common.save),
-        ),
-      ],
-    ),
-  );
-  final next = controller.text.trim();
-  controller.dispose();
-  if (ok != true || next.isEmpty || next == initialText.trim()) {
-    return null;
-  }
-  return next;
-}
-
 /// Copie [text] dans le presse-papiers et affiche un snackbar.
 Future<void> copyChatMessageText({
   required BuildContext context,

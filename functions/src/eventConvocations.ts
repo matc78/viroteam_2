@@ -2,12 +2,8 @@ import * as admin from "firebase-admin";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable } from "./db";
 import { requireString, requireUid, stringArray, uniq } from "./common";
-import {
-  planConvocationChange,
-  type ConvocationTarget,
-} from "./eventConvocationsUtils";
-import { assertEventCoachOrAdmin } from "./notifications/sendEventPush";
-import { audienceKeysForRosterId } from "./parentTeams";
+import { planConvocationChange } from "./eventConvocationsUtils";
+import { assertCanManageEvent } from "./notifications/sendEventPush";
 
 /** Garde-fou : un roster d'équipe reste bien en dessous. */
 const MAX_IDS_PER_CALL = 200;
@@ -55,21 +51,7 @@ export const {
     throw new HttpsError("failed-precondition", "Événement annulé");
   }
 
-  await assertEventCoachOrAdmin({
-    clubId,
-    uid,
-    teamIds: stringArray(event.teamIds),
-  });
-
-  const withAliases = async (ids: string[]): Promise<ConvocationTarget[]> =>
-    Promise.all(
-      ids.map(async (id) => ({
-        id,
-        aliases: uniq([id, ...(await audienceKeysForRosterId(firestore, clubId, id))]),
-      })),
-    );
-  const exclude = await withAliases(excludeIds);
-  const reintegrate = await withAliases(reintegrateIds);
+  await assertCanManageEvent({ clubId, uid, event });
 
   const targets = [eventSnap];
   const seriesId = String(event.seriesId ?? "").trim();
@@ -91,8 +73,8 @@ export const {
   for (const doc of targets) {
     const plan = planConvocationChange({
       eventData: doc.data() ?? {},
-      exclude,
-      reintegrate,
+      exclude: excludeIds,
+      reintegrate: reintegrateIds,
       isPrimary: doc.id === eventId,
     });
     if (!plan.changed) continue;

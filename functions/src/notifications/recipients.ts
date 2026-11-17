@@ -1,5 +1,5 @@
-import type { DocumentData, Firestore } from "firebase-admin/firestore";
-import { stringArray, uniq } from "../common";
+import type { Firestore } from "firebase-admin/firestore";
+import { accountUidOf, stringArray, uniq } from "../common";
 
 const GUARDIAN_STATUS_ACTIVE = "active";
 
@@ -8,21 +8,6 @@ const TARGET_ALL_LEGACY = "all";
 const TARGET_TEAMS = "Équipes";
 const TARGET_CATEGORIES = "Catégories";
 const TARGET_PERSONNES = "Personnes";
-
-/**
- * UID Auth d'une fiche membre (accountUid / userId / memberId).
- */
-export function memberAccountUid(
-  memberData: DocumentData,
-  memberId: string,
-): string | null {
-  const accountUid = String(memberData.accountUid ?? "").trim();
-  if (accountUid) return accountUid;
-  const userId = String(memberData.userId ?? "").trim();
-  if (userId) return userId;
-  const fallback = memberId.trim();
-  return fallback.length > 0 ? fallback : null;
-}
 
 /** Guardians actifs d'une fiche. */
 export async function activeGuardianUids(
@@ -86,7 +71,9 @@ export async function resolveAnnouncementRecipientUids(params: {
         .get();
       if (!teamSnap.exists) continue;
       const data = teamSnap.data()!;
-      for (const coachId of stringArray(data.coachIds)) uids.add(coachId);
+      for (const coachId of stringArray(data.coachIds)) {
+        await addMemberAccount(firestore, clubId, coachId, uids);
+      }
       for (const playerId of stringArray(data.playerIds)) {
         await addMemberAndGuardians(firestore, clubId, playerId, uids);
       }
@@ -105,7 +92,9 @@ export async function resolveAnnouncementRecipientUids(params: {
       const data = teamDoc.data();
       const category = String(data.category ?? "").trim();
       if (!categorySet.has(category)) continue;
-      for (const coachId of stringArray(data.coachIds)) uids.add(coachId);
+      for (const coachId of stringArray(data.coachIds)) {
+        await addMemberAccount(firestore, clubId, coachId, uids);
+      }
       for (const playerId of stringArray(data.playerIds)) {
         await addMemberAndGuardians(firestore, clubId, playerId, uids);
       }
@@ -144,61 +133,37 @@ export async function resolveFeeRecipientUids(params: {
   return [...uids];
 }
 
-async function addMemberAndGuardians(
+/**
+ * Ajoute l'uid du compte lié à `members/{memberId}` (ids de roster = ids de
+ * fiche). Fiche absente ou non liée : rien (un id de fiche n'est jamais un uid).
+ */
+async function addMemberAccount(
   firestore: Firestore,
   clubId: string,
-  memberOrRosterId: string,
+  memberId: string,
   uids: Set<string>,
 ): Promise<void> {
-  const memberId = await resolveMemberId(firestore, clubId, memberOrRosterId);
-  const resolvedId = memberId ?? memberOrRosterId;
-
   const memberSnap = await firestore
     .collection("clubs")
     .doc(clubId)
     .collection("members")
-    .doc(resolvedId)
+    .doc(memberId)
     .get();
-  if (memberSnap.exists) {
-    const accountUid = memberAccountUid(memberSnap.data()!, resolvedId);
-    if (accountUid) uids.add(accountUid);
-  } else {
-    uids.add(memberOrRosterId);
-  }
-
-  for (const guardianUid of await activeGuardianUids(
-    firestore,
-    clubId,
-    resolvedId,
-  )) {
-    uids.add(guardianUid);
-  }
+  const accountUid = accountUidOf(memberSnap.data());
+  if (accountUid) uids.add(accountUid);
 }
 
-async function resolveMemberId(
+/** Compte lié de la fiche + ses guardians actifs. */
+async function addMemberAndGuardians(
   firestore: Firestore,
   clubId: string,
-  rosterId: string,
-): Promise<string | null> {
-  const direct = await firestore
-    .collection("clubs")
-    .doc(clubId)
-    .collection("members")
-    .doc(rosterId)
-    .get();
-  if (direct.exists) return direct.id;
-
-  const account = await firestore
-    .collection("clubs")
-    .doc(clubId)
-    .collection("member_accounts")
-    .doc(rosterId)
-    .get();
-  if (account.exists) {
-    const memberId = String(account.data()?.memberId ?? "").trim();
-    return memberId || null;
+  memberId: string,
+  uids: Set<string>,
+): Promise<void> {
+  await addMemberAccount(firestore, clubId, memberId, uids);
+  for (const guardianUid of await activeGuardianUids(firestore, clubId, memberId)) {
+    uids.add(guardianUid);
   }
-  return null;
 }
 
 async function allMemberAccountUids(
@@ -214,7 +179,7 @@ async function allMemberAccountUids(
   for (const doc of snap.docs) {
     const status = String(doc.data().status ?? "active").trim();
     if (status === "archived") continue;
-    const uid = memberAccountUid(doc.data(), doc.id);
+    const uid = accountUidOf(doc.data());
     if (uid) uids.push(uid);
   }
   return uniq(uids);

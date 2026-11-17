@@ -26,7 +26,7 @@ import shared from "@/components/settings/settingsShared.module.css";
  * vivent à part dans `AccountExitSection`, en bas de page.
  */
 export function AccountSettingsSection() {
-  const { user, profile, activeClub, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { showToast } = useToast();
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -78,7 +78,6 @@ export function AccountSettingsSection() {
       await updateUserAvatarUrl({
         uid: user.uid,
         avatarUrl: url,
-        syncMemberClubId: activeClub?.id ?? null,
       });
       await refreshProfile();
       showToast("Avatar mis à jour.", "success");

@@ -37,16 +37,12 @@ import {
   type MemberFeeRecord,
 } from "@/lib/firebase/feeService";
 import { getClubMember } from "@/lib/firebase/memberService";
-import {
-  isExcludedFromEvent,
-  memberMatchIds,
-} from "@/lib/teams/viewerTeamScope";
+import { isExcludedFromEvent } from "@/lib/teams/viewerTeamScope";
 
 /** Vue membre : événement le convoquant (jamais s’il en a été retiré). */
-function eventForMember(event: ClubEventView, matchIds: Set<string>): boolean {
-  if (isExcludedFromEvent(event, matchIds)) return false;
-  if (event.teamMemberIds.length === 0) return false;
-  return event.teamMemberIds.some((id) => matchIds.has(id));
+function eventForMember(event: ClubEventView, memberId: string): boolean {
+  if (isExcludedFromEvent(event, memberId)) return false;
+  return event.teamMemberIds.includes(memberId);
 }
 
 /**
@@ -55,11 +51,11 @@ function eventForMember(event: ClubEventView, matchIds: Set<string>): boolean {
  */
 function eventForChild(
   event: ClubEventView,
-  childMatchIds: Set<string>,
+  childMemberId: string,
   childTeamIds: string[],
 ): boolean {
-  if (isExcludedFromEvent(event, childMatchIds)) return false;
-  if (event.teamMemberIds.some((id) => childMatchIds.has(id))) return true;
+  if (isExcludedFromEvent(event, childMemberId)) return false;
+  if (event.teamMemberIds.includes(childMemberId)) return true;
   return event.teamIds.some((teamId) => childTeamIds.includes(teamId));
 }
 
@@ -143,12 +139,8 @@ export function FamilyHomeClient() {
               })
             : Promise.resolve([]),
         ]);
-        const childMatchIds = memberMatchIds({
-          memberId: selectedMemberId,
-          accountUid: childMember?.accountUid ?? null,
-        });
         filtered = events.filter((event) =>
-          eventForChild(event, childMatchIds, childTeamIds),
+          eventForChild(event, selectedMemberId, childTeamIds),
         );
         announcements = guardianAnnouncements;
       } else {
@@ -160,12 +152,8 @@ export function FamilyHomeClient() {
           loadTeamsForClub(club.id),
           seasonPromise,
         ]);
-        const selfMatchIds = memberMatchIds({
-          memberId: selectedMemberId,
-          accountUid: member?.accountUid ?? null,
-        });
         filtered = events.filter((event) =>
-          eventForMember(event, selfMatchIds),
+          eventForMember(event, selectedMemberId),
         );
         const teamCategoryById = new Map(
           teams.map((team) => [team.id, team.category]),

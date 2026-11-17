@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -16,14 +17,19 @@ import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/widgets/common/viro_selection_mark.dart';
 
+/// Ligne de membre (liste du club, effectifs d'équipe).
+///
+/// Ne connaît pas les droits du lecteur : l'écran décide quelles actions
+/// passer ([onEditRights], [onInviteParent], [onRemove]) ; le menu ⋮
+/// n'apparaît que si au moins l'une d'elles est fournie.
 class MemberListTile extends StatelessWidget {
   const MemberListTile({
     super.key,
     required this.member,
     required this.club,
-    required this.viewerRole,
-    this.onChangeRole,
+    this.onEditRights,
     this.onRemove,
     this.onInviteParent,
     this.onSendEmailInvite,
@@ -34,12 +40,15 @@ class MemberListTile extends StatelessWidget {
     this.parentLinkStatus,
     this.selectionMode = false,
     this.selected = false,
+    this.displayRole,
+    this.isSessionMember = false,
   });
 
   final ClubMember member;
   final Club club;
-  final String viewerRole;
-  final VoidCallback? onChangeRole;
+
+  /// Ouvre l'attribution des droits (droit Administrateur du lecteur).
+  final VoidCallback? onEditRights;
   final VoidCallback? onRemove;
   final VoidCallback? onInviteParent;
   final Future<bool> Function()? onSendEmailInvite;
@@ -53,7 +62,16 @@ class MemberListTile extends StatelessWidget {
   final bool selectionMode;
   final bool selected;
 
-  bool get _isAdmin => viewerRole == MemberRoles.admin;
+  /// Badge affiché à la place des badges dérivés (ex. slot roster
+  /// Entraîneur / Joueur d'une équipe).
+  final ViroRole? displayRole;
+
+  /// `true` pour le membre en session : nom en gras pour le repérer dans la liste.
+  final bool isSessionMember;
+
+  bool get _hasAdminMenu =>
+      showClubAdminActions &&
+      (onEditRights != null || onInviteParent != null || onRemove != null);
   bool get _canEmailInvite =>
       showClubAdminActions &&
       member.canReceiveInviteEmail &&
@@ -70,7 +88,6 @@ class MemberListTile extends StatelessWidget {
       id: member.activeInvitationId ?? '',
       clubId: club.id,
       code: member.pendingInviteCode!,
-      role: member.role,
       status: InvitationStatus.pending,
       memberId: member.memberId,
       expiresAt: member.pendingInviteExpiresAt,
@@ -101,7 +118,12 @@ class MemberListTile extends StatelessWidget {
         horizontal: ViroSpacing.md,
         vertical: ViroSpacing.sm,
       ),
-      onTap: onTap,
+      onTap: onTap == null
+          ? null
+          : () {
+              if (selectionMode) ViroHaptics.selection();
+              onTap!();
+            },
       onLongPress: onLongPress,
       borderColor: selected ? accent : null,
       semanticLabel: memberName,
@@ -120,7 +142,8 @@ class MemberListTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                        isSessionMember ? FontWeight.w800 : FontWeight.w600,
                     color: accent,
                   ),
                 ),
@@ -130,10 +153,14 @@ class MemberListTile extends StatelessWidget {
                   runSpacing: 2,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    ViroRoleBadge(
-                      role: viroRoleFromMemberRole(member.role),
-                      compact: true,
-                    ),
+                    if (displayRole != null)
+                      ViroRoleBadge(role: displayRole!, compact: true)
+                    else
+                      for (final badge in member.badges)
+                        ViroRoleBadge(
+                          role: viroRoleFromBadge(badge),
+                          compact: true,
+                        ),
                     if (!member.hasLinkedAccount)
                       Text(
                         AppCopy.members.notRegisteredYet,
@@ -142,8 +169,7 @@ class MemberListTile extends StatelessWidget {
                         ),
                       ),
                     if (parentLinkStatus != null &&
-                        parentLinkStatus != ParentLinkStatus.none &&
-                        member.role == MemberRoles.player) ...[
+                        parentLinkStatus != ParentLinkStatus.none) ...[
                       ViroRoleBadge(
                         role: ViroRole.parent,
                         compact: true,
@@ -183,16 +209,14 @@ class MemberListTile extends StatelessWidget {
               onPressed: onRemove,
               tooltip: AppCopy.members.removeFromTeam,
             ),
-          if (!selectionMode &&
-              showClubAdminActions &&
-              _isAdmin &&
-              member.role != MemberRoles.admin)
+          if (!selectionMode && _hasAdminMenu)
             PopupMenuButton<String>(
+              tooltip: AppCopy.common.moreActions,
               icon: ViroIcon(ViroIcons.moreVertical, color: palette.textSecondary),
               onSelected: (value) {
                 switch (value) {
-                  case 'role':
-                    onChangeRole?.call();
+                  case 'rights':
+                    onEditRights?.call();
                   case 'parent':
                     onInviteParent?.call();
                   case 'remove':
@@ -200,28 +224,27 @@ class MemberListTile extends StatelessWidget {
                 }
               },
               itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: 'role',
-                  child: Text(AppCopy.members.changeRole),
-                ),
+                if (onEditRights != null)
+                  PopupMenuItem(
+                    value: 'rights',
+                    child: Text(AppCopy.permissions.manageRights),
+                  ),
                 if (onInviteParent != null)
                   PopupMenuItem(
                     value: 'parent',
                     child: Text(AppCopy.members.inviteParent),
                   ),
-                PopupMenuItem(
-                  value: 'remove',
-                  child: Text(AppCopy.common.delete),
-                ),
+                if (onRemove != null)
+                  PopupMenuItem(
+                    value: 'remove',
+                    child: Text(AppCopy.common.delete),
+                  ),
               ],
             ),
           if (selectionMode)
             Padding(
               padding: const EdgeInsets.only(left: ViroSpacing.xs),
-              child: ViroIcon(
-                selected ? ViroIcons.checkCircle : ViroIcons.selectAll,
-                color: selected ? accent : palette.textMuted,
-              ),
+              child: ViroSelectionMark(value: selected, color: rawAccent),
             ),
         ],
       ),

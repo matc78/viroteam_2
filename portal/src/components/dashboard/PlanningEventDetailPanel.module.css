@@ -283,6 +283,22 @@
   line-height: 1.15;
 }
 
+/* Édition du RSVP d'un convoqué par le staff (boutons compacts en bout de ligne). */
+.staffRsvpEdit {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.staffRsvpEdit :global([data-variant="default"]) {
+  gap: 0.2rem;
+}
+
+.staffRsvpEdit :global(button) {
+  min-height: 1.55rem;
+  padding: 0.12rem 0.45rem;
+  font-size: var(--font-size-xs);
+}
+
 .rsvpFooter {
   flex-shrink: 0;
   margin-top: auto;
@@ -298,6 +314,16 @@
   margin-top: 0.5rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-subtle);
+}
+
+.modActionsRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.modActionsRow .pushButton {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .pushButton {

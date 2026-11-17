@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
-import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
@@ -54,7 +53,7 @@ final teamConvocationPlayersProvider = Provider.family<
   if (teams == null || members == null) return null;
   return teamPlayerEntries(
     teams.where((team) => team.id == params.teamId).toList(),
-    indexClubMembersByUid(members),
+    indexClubMembersById(members),
   );
 });
 
@@ -68,12 +67,10 @@ final memberClubUpcomingPlanningEventsProvider =
   final auth = ref.watch(firestoreAuthReadyProvider).value;
   if (auth == null) return Stream.value([]);
 
-  final member = ref.watch(clubMemberProvider(clubId)).value;
   final target = ref.watch(selectedClubAudienceProvider(clubId));
-  final audienceId = target?.memberId ?? member?.memberId ?? auth.uid;
   final eventService = ref.read(eventServiceProvider);
 
-  if (target?.isChild == true) {
+  if (target != null && target.isChild) {
     // Parent sans fiche : uniquement les événements des équipes de l'enfant.
     return ref.watch(isGuardianOnlyInClubProvider(clubId))
         ? Stream.fromFuture(
@@ -82,19 +79,17 @@ final memberClubUpcomingPlanningEventsProvider =
             (child) => eventService.watchUpcomingEventsForGuardian(
               clubId: clubId,
               childTeamIds: child?.teamIds ?? const [],
-              childAudienceKeys:
-                  child != null ? eventAudienceKeys(child) : const {},
+              childMemberId: child?.memberId,
             ),
           )
         : eventService.watchEventsForTargetMember(
             clubId: clubId,
-            memberId: audienceId,
+            memberId: target.memberId,
           );
   }
 
   return eventService.watchUpcomingEventsForClubMember(
     clubId: clubId,
-    audienceId: audienceId,
     authUid: auth.uid,
   );
 });
@@ -157,7 +152,7 @@ final guardianClubPlanningRangeEventsProvider = StreamProvider.family<
     (child) => eventService.watchGuardianEventsInRange(
       clubId: params.clubId,
       childTeamIds: child?.teamIds ?? const [],
-      childAudienceKeys: child != null ? eventAudienceKeys(child) : const {},
+      childMemberId: child?.memberId,
       start: params.start,
       endExclusive: params.endExclusive,
     ),
@@ -194,16 +189,13 @@ final memberClubPlanningRangeEventsProvider = Provider.family<
   final playerTeamIds = <String>{
     ...?target.member?.teamIds,
     for (final team in teams)
-      if (team.playerIds.contains(target.audienceId) ||
-          team.playerIds.contains(target.subjectId))
-        team.id,
+      if (team.playerIds.contains(target.memberId)) team.id,
   };
   return AsyncValue.data([
     for (final event in events)
       if (PlanningEventDisplay.isVisibleToMember(
         event: event,
-        authUid: target.subjectId,
-        audienceId: target.audienceId,
+        authUid: target.memberId,
         playerTeamIds: playerTeamIds,
         teamsById: teamsById,
       ))

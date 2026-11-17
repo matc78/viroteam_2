@@ -56,13 +56,33 @@ describe("buildMembersImportPlan — e-mail optionnel", () => {
   it("tolère l’absence d’e-mail pour un membre déjà inscrit (compte lié)", () => {
     const result = plan(["Alice,Dupont,player,,,,"], [
       {
-        memberId: "m1",
+        memberId: "uid-alice",
         firstName: "Alice",
         lastName: "Dupont",
-        role: "player",
         accountUid: "uid-alice",
       },
     ]);
+    expect(result.blockingErrors).toEqual([]);
+    expect(result.memberActions[0]?.action).toBe("update");
+  });
+});
+
+
+describe("buildMembersImportPlan — droits", () => {
+  it("ne bloque jamais sur le rôle d’une fiche existante (droits conservés)", () => {
+    const result = buildMembersImportPlan({
+      content: [HEADER, "Alice,Dupont,player,,,,"].join("\n"),
+      sport: "football",
+      existingMembers: [
+        {
+          memberId: "uid-alice",
+          firstName: "Alice",
+          lastName: "Dupont",
+          accountUid: "uid-alice",
+        },
+      ],
+      existingTeams: [],
+    });
     expect(result.blockingErrors).toEqual([]);
     expect(result.memberActions[0]?.action).toBe("update");
   });

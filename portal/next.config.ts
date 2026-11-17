@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
     ];
   },
   // Fallback local / hors App Hosting. En prod FAH, le Host client n’atteint
-  // pas toujours next.config — voir aussi `src/middleware.ts` (X-Forwarded-Host).
+  // pas toujours next.config — voir aussi `src/proxy.ts` (X-Forwarded-Host).
   async redirects() {
     return [
       {

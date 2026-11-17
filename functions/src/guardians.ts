@@ -1,6 +1,14 @@
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
-import { requireVerifiedEmail } from "./common";
+import {
+  normalizeEmail,
+  parseParentLinks,
+  requireString,
+  requireUid,
+  requireVerifiedEmail,
+  stringArray,
+  type ParentLink,
+} from "./common";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import type { DocumentData, DocumentReference } from "firebase-admin/firestore";
 import {
@@ -16,6 +24,7 @@ import {
 import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
 import { db, defineDualCallable } from "./db";
 import { recomputeParentTeamIdsSafe } from "./parentTeams";
+import { loadClubAccess, permissionDenied } from "./permissions";
 
 const MAX_ACTIVE_GUARDIANS_PER_MEMBER = 1;
 const INVITE_TTL_DAYS = 7;
@@ -29,36 +38,11 @@ const INVITATION_TYPE_GUARDIAN = "guardian";
 const RELATION_PARENT = "parent";
 const RSVP_VALUES = new Set(["yes", "maybe", "no"]);
 
-type ParentLink = {
-  clubId: string;
-  memberId: string;
-  relation: string;
-  status: string;
-};
-
 type GuardianPermissions = {
   canView: boolean;
   canRsvp: boolean;
   canPay: boolean;
 };
-
-function requireUid(request: { auth?: { uid: string } }): string {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Connexion requise");
-  }
-  return request.auth.uid;
-}
-
-function requireString(value: unknown, name: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new HttpsError("invalid-argument", `${name} requis`);
-  }
-  return value.trim();
-}
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
 
 function requireEmail(value: unknown, name = "email"): string {
   const email = normalizeEmail(requireString(value, name));
@@ -97,23 +81,6 @@ function userRef(uid: string) {
   return db().collection("users").doc(uid);
 }
 
-function memberAccountRef(clubId: string, accountUid: string) {
-  return clubRef(clubId).collection("member_accounts").doc(accountUid);
-}
-
-function parseParentLinks(raw: unknown): ParentLink[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
-    .map((item) => ({
-      clubId: String(item.clubId ?? ""),
-      memberId: String(item.memberId ?? ""),
-      relation: String(item.relation ?? RELATION_PARENT),
-      status: String(item.status ?? GUARDIAN_STATUS_PENDING),
-    }))
-    .filter((link) => link.clubId.length > 0 && link.memberId.length > 0);
-}
-
 function upsertParentLink(links: ParentLink[], next: ParentLink): ParentLink[] {
   const without = links.filter(
     (link) => !(link.clubId === next.clubId && link.memberId === next.memberId),
@@ -125,75 +92,28 @@ function parentClubIdsFromLinks(links: ParentLink[]): string[] {
   return [...new Set(links.filter((link) => link.status === GUARDIAN_STATUS_ACTIVE).map((link) => link.clubId))];
 }
 
-/** Vérifie que l’uid est admin du club (adminIds ou fiche role admin). */
-export async function assertClubAdmin(
-  clubId: string,
-  uid: string,
-): Promise<DocumentData> {
-  const clubSnap = await clubRef(clubId).get();
-  if (!clubSnap.exists) {
-    throw new HttpsError("not-found", "Club introuvable");
-  }
-  const club = clubSnap.data()!;
-  const adminIds = Array.isArray(club.adminIds) ? club.adminIds.map(String) : [];
-  if (adminIds.includes(uid)) {
-    return club;
-  }
-
-  const accountSnap = await memberAccountRef(clubId, uid).get();
-  const linkedMemberId = accountSnap.exists
-    ? String(accountSnap.data()?.memberId ?? "")
-    : uid;
-  const memberSnap = await memberRef(clubId, linkedMemberId).get();
-  if (memberSnap.exists && memberSnap.data()?.role === "admin") {
-    return club;
-  }
-
-  throw new HttpsError("permission-denied", "Réservé aux admins du club");
-}
-
-async function isClubAdmin(clubId: string, uid: string): Promise<boolean> {
-  try {
-    await assertClubAdmin(clubId, uid);
-    return true;
-  } catch (error) {
-    if (error instanceof HttpsError && error.code === "permission-denied") {
-      return false;
-    }
-    throw error;
-  }
-}
-
 /**
- * Admin du club, ou propriétaire Auth de la fiche membre cible.
+ * Droit `manageMembers`, ou titulaire de la fiche membre cible.
+ * Retourne les données du club.
  */
 async function assertCanManageGuardian(params: {
   clubId: string;
   memberId: string;
   uid: string;
 }): Promise<DocumentData> {
-  const clubSnap = await clubRef(params.clubId).get();
-  if (!clubSnap.exists) {
-    throw new HttpsError("not-found", "Club introuvable");
-  }
-  const club = clubSnap.data()!;
-
-  if (await isClubAdmin(params.clubId, params.uid)) {
-    return club;
-  }
+  const access = await loadClubAccess(params.clubId, params.uid);
+  if (access.can("manageMembers")) return access.club;
 
   const memberSnap = await memberRef(params.clubId, params.memberId).get();
   if (!memberSnap.exists) {
     throw new HttpsError("not-found", "Fiche membre introuvable");
   }
-  const ownerUid = childAccountUid(memberSnap.data()!, params.memberId);
-  if (ownerUid && ownerUid === params.uid) {
-    return club;
-  }
+  // Une seule clé membre : la fiche d'un compte vit à members/{uid}.
+  if (params.memberId === params.uid) return access.club;
 
   throw new HttpsError(
     "permission-denied",
-    "Réservé à l’admin ou au titulaire de la fiche",
+    "Réservé au responsable des membres ou au titulaire de la fiche",
   );
 }
 
@@ -206,17 +126,6 @@ function removeParentLink(
   return links.filter(
     (link) => !(link.clubId === clubId && link.memberId === memberId),
   );
-}
-
-async function resolveCallerMemberId(clubId: string, uid: string): Promise<string | null> {
-  const accountSnap = await memberAccountRef(clubId, uid).get();
-  if (accountSnap.exists) {
-    const linked = String(accountSnap.data()?.memberId ?? "").trim();
-    if (linked) return linked;
-  }
-  const selfSnap = await memberRef(clubId, uid).get();
-  if (selfSnap.exists) return uid;
-  return null;
 }
 
 function guardianPermissions(data: DocumentData | undefined): GuardianPermissions {
@@ -238,8 +147,11 @@ export async function assertCanActForMember(params: {
   uid: string;
   permission: "canRsvp" | "canPay";
 }): Promise<{ forChild: boolean }> {
-  const ownMemberId = await resolveCallerMemberId(params.clubId, params.uid);
-  if (ownMemberId === params.memberId) return { forChild: false };
+  // Sa propre fiche : members/{uid}, qui doit exister.
+  if (params.memberId === params.uid) {
+    const ownSnap = await memberRef(params.clubId, params.uid).get();
+    if (ownSnap.exists) return { forChild: false };
+  }
 
   const snap = await guardianRef(params.clubId, params.memberId, params.uid).get();
   if (!snap.exists) {
@@ -290,14 +202,6 @@ async function countGuardiansOccupyingSlot(
     }
     return true;
   }).length;
-}
-
-function childAccountUid(memberData: DocumentData, memberId: string): string | null {
-  const accountUid = String(memberData.accountUid ?? "").trim();
-  if (accountUid) return accountUid;
-  const userId = String(memberData.userId ?? "").trim();
-  if (userId) return userId;
-  return memberId;
 }
 
 async function writeGuardianAndParentLinks(params: {
@@ -500,7 +404,6 @@ export const {
     throw new HttpsError("not-found", "Fiche membre introuvable");
   }
   const member = memberSnap.data()!;
-  const childUid = childAccountUid(member, memberId);
 
   let existingParentUid: string | null = null;
   try {
@@ -513,7 +416,7 @@ export const {
     }
   }
 
-  if (existingParentUid && (existingParentUid === childUid || existingParentUid === memberId)) {
+  if (existingParentUid && existingParentUid === memberId) {
     throw new HttpsError(
       "failed-precondition",
       "Impossible de lier un adulte à sa propre fiche",
@@ -692,8 +595,8 @@ export const {
     throw new HttpsError("not-found", "Fiche membre introuvable");
   }
   const memberData = memberSnap.data()!;
-  const childUid = childAccountUid(memberData, memberId);
-  if (parentUid === childUid || parentUid === memberId) {
+  // Fiche liée : son id est l'uid du compte (une seule clé membre).
+  if (parentUid === memberId) {
     throw new HttpsError(
       "failed-precondition",
       "Impossible de lier un adulte à sa propre fiche",
@@ -922,11 +825,7 @@ export const {
     }
   }
   if (newParentUid) {
-    const memberSnap = await memberRef(clubId, memberId).get();
-    const childUid = memberSnap.exists
-      ? childAccountUid(memberSnap.data()!, memberId)
-      : null;
-    if (newParentUid !== childUid && newParentUid !== memberId) {
+    if (newParentUid !== memberId) {
       await writeGuardianAndParentLinks({
         clubId,
         memberId,
@@ -1047,7 +946,28 @@ export const {
 });
 
 /**
- * RSVP pour soi ou pour un enfant lié (clé events.rsvp[memberId]).
+ * Droit `manageEvents`, ou coach d'une équipe de l'événement si le club active
+ * `canEditMemberRsvp` (jamais sur un événement « tout le club »).
+ */
+async function assertCanEditMemberRsvpAsStaff(
+  clubId: string,
+  uid: string,
+  event: Record<string, unknown>,
+): Promise<void> {
+  const access = await loadClubAccess(clubId, uid);
+  if (access.can("manageEvents")) return;
+  const coachAllowed =
+    event.allTeams !== true &&
+    access.coachCan("canEditMemberRsvp") &&
+    access.coachesAnyTeam(stringArray(event.teamIds));
+  if (!coachAllowed) {
+    throw permissionDenied("Tu n’as pas le droit de modifier les réponses des joueurs");
+  }
+}
+
+/**
+ * RSVP pour soi, un enfant lié, ou (droit `manageEvents` / coach autorisé de
+ * l'événement) un autre membre.
  * Prod → v2-prod ; `setEventRsvpDev` → v2-dev.
  */
 export const {
@@ -1063,17 +983,28 @@ export const {
     throw new HttpsError("invalid-argument", "Réponse RSVP invalide");
   }
 
-  const { forChild } = await assertCanActForMember({
-    clubId,
-    memberId,
-    uid,
-    permission: "canRsvp",
-  });
-
   const eventRef = clubRef(clubId).collection("events").doc(eventId);
   const eventSnap = await eventRef.get();
   if (!eventSnap.exists) {
     throw new HttpsError("not-found", "Événement introuvable");
+  }
+
+  let forChild = false;
+  let via: "callable" | "staff" = "callable";
+  try {
+    const result = await assertCanActForMember({
+      clubId,
+      memberId,
+      uid,
+      permission: "canRsvp",
+    });
+    forChild = result.forChild;
+  } catch (error) {
+    if (!(error instanceof HttpsError) || error.code !== "permission-denied") {
+      throw error;
+    }
+    await assertCanEditMemberRsvpAsStaff(clubId, uid, eventSnap.data() ?? {});
+    via = "staff";
   }
 
   await eventRef.update({
@@ -1087,7 +1018,7 @@ export const {
   await captureClubEvent({
     clubId,
     event: ServerAnalyticsEvents.rsvpSet,
-    properties: { status: value, for_child: forChild, via: "callable" },
+    properties: { status: value, for_child: forChild, via },
   });
 
   return { ok: true };

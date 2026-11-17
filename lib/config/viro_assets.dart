@@ -15,6 +15,10 @@ abstract final class ViroAssets {
   /// Son de sifflet.
   static const String whistleSound = 'assets/sons/son_sifflet.mp3';
 
+  /// Motif de fond du fil de discussion (répété).
+  static const String chatThreadBackground =
+      'assets/images/chat/thread_bg.png';
+
   /// Son de buzzer.
   static const String buzzerSound = 'assets/sons/son_buzzer.mp3';
 }

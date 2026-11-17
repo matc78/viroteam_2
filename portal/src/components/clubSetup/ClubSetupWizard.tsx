@@ -174,7 +174,6 @@ export function ClubSetupWizard() {
     try {
       const clubId = await createClubFromDraft({
         founderUid: userId,
-        founder: profile,
         draft,
       });
       ClubSetupAnalytics.trackCompleted({

@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
-import { bureauCapabilities } from "@/lib/auth/bureauPermissions";
 import { useAsyncClubPageResource } from "@/components/common/useAsyncClubPageResource";
 import {
   ClubListenSets,
@@ -46,16 +45,12 @@ async function loadActivityPage(
 }
 
 /**
- * Journal des dernières actions club (admin / coach).
+ * Journal des dernières actions club (droit `viewActivity`).
  */
 export function ActivityPageClient() {
-  const { activeClub, activeClubRole } = useAuth();
-  const caps = useMemo(
-    () =>
-      bureauCapabilities(activeClubRole, activeClub?.coachPermissions),
-    [activeClubRole, activeClub?.coachPermissions],
-  );
-  const canAccess = caps.isAdmin || caps.isCoach;
+  const { activeClub } = useAuth();
+  const caps = useBureauCapabilities();
+  const canAccess = caps.canViewActivity;
   const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     canAccess ? activeClub : null,
     loadActivityPage,
@@ -76,7 +71,7 @@ export function ActivityPageClient() {
         <DashboardPageIntro
           eyebrow="Espace club"
           heading="Dernières actions"
-          lead="Réservé aux admins et coachs."
+          lead="Réservé aux membres qui ont le droit de voir le journal d’activité."
         />
       </div>
     );

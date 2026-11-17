@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/chat/open_chat_thread.dart';
@@ -12,7 +11,7 @@ import 'package:viro_team_v2/features/chat/providers/chat_providers.dart';
 import 'package:viro_team_v2/features/chat/widgets/create_channel_dialog.dart';
 import 'package:viro_team_v2/features/chat/widgets/new_conversation_sheet.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
-import 'package:viro_team_v2/models/chat_conversation.dart';
+import 'package:viro_team_v2/services/chat/chat_inbox_search.dart';
 import 'package:viro_team_v2/models/chat_user_state.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/chat_service.dart';
@@ -25,6 +24,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/conversation_list_tile.dart';
+import 'package:viro_team_v2/features/clubs/providers/club_session_badge_provider.dart';
 
 /// Hauteur du fondu bas (contenu qui disparaît doucement).
 const double _kBottomFadeHeight = 56;
@@ -47,7 +47,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      _queryNotifier.value = _searchController.text.trim().toLowerCase();
+      _queryNotifier.value = normalizeInboxQuery(_searchController.text);
     });
   }
 
@@ -69,22 +69,6 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     super.dispose();
   }
 
-  bool _matchesQuery(
-    ChatConversation conv, {
-    required String clubName,
-    required String query,
-    String? peerDisplayName,
-  }) {
-    if (query.isEmpty) return true;
-    final haystack = [
-      conv.displayTitle(peerDisplayName: peerDisplayName),
-      clubName,
-      conv.lastMessagePreview,
-      conv.lastSenderFirstName ?? '',
-    ].join(' ').toLowerCase();
-    return haystack.contains(query);
-  }
-
   /// Relance les streams inbox / états pour le pull-to-refresh.
   Future<void> _refreshInbox() async {
     ref.invalidate(chatInboxProvider);
@@ -102,20 +86,14 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     final states = ref.watch(chatStatesProvider).value ?? const {};
     final clubs = ref.watch(userClubsProvider).value ?? const [];
     final clubById = {for (final e in clubs) e.club.id: e.club};
-    final clubRoleById = <String, ViroRole>{};
-    for (final entry in clubs) {
-      final role = viroRoleForClubSession(
-        memberRole: entry.membership?.role,
-        hasFamilyLinks: entry.hasFamilyLinks,
-      );
-      if (role != null) clubRoleById[entry.club.id] = role;
-    }
+    final clubRoleById = <String, ViroRole>{
+      for (final entry in clubs)
+        entry.club.id: ?ref.watch(clubSessionBadgeProvider(entry.club.id)),
+    };
     final previewSenders =
         ref.watch(chatPreviewSendersProvider).value ?? const {};
     final dmPeers = ref.watch(chatDmPeersProvider).value ?? const {};
-    final isAdminSomewhere = clubs.any(
-      (e) => e.membership?.role == MemberRoles.admin,
-    );
+    final canManageChatSomewhere = ref.watch(manageChatClubsProvider).isNotEmpty;
 
     return ViroScaffold(
       fallbackRoute: AppRoutes.home,
@@ -123,7 +101,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
         fallbackRoute: AppRoutes.home,
         title: Text(AppCopy.chat.conversationsTitle),
         actions: [
-          if (isAdminSomewhere)
+          if (canManageChatSomewhere)
             Padding(
               padding: const EdgeInsets.only(right: ViroSpacing.sm),
               child: Center(
@@ -156,7 +134,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
         children: [
           inboxAsync.when(
             loading: () => const Center(child: ViroLogoLoader()),
-            error: (_, __) => ViroErrorState(
+            error: (_, _) => ViroErrorState(
               message: AppCopy.chat.loadError,
               onRetry: () {
                 _refreshInbox();
@@ -166,6 +144,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
               if (conversations.isEmpty) {
                 return ViroEmptyState(
                   message: AppCopy.chat.emptyInbox,
+                  hint: AppCopy.chat.emptyInboxHint,
                   icon: ViroIcons.chat,
                   actionLabel: AppCopy.chat.newConversation,
                   onAction: () => showNewConversationSheet(context, ref),
@@ -180,16 +159,17 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
               return ValueListenableBuilder<String>(
                 valueListenable: _queryNotifier,
                 builder: (context, query, _) {
-                  final filtered = sorted.where((conv) {
-                    final club = clubById[conv.clubId];
-                    final peer = dmPeers['${conv.clubId}|${conv.id}'];
-                    return _matchesQuery(
-                      conv,
-                      clubName: club?.name ?? conv.clubId,
-                      query: query,
-                      peerDisplayName: peer?.displayName,
-                    );
-                  }).toList();
+                  final filtered = filterInboxConversations(
+                    sorted,
+                    query: query,
+                    clubNameById: {
+                      for (final club in clubById.values) club.id: club.name,
+                    },
+                    peerNameByKey: {
+                      for (final entry in dmPeers.entries)
+                        entry.key: entry.value.displayName,
+                    },
+                  );
 
                   return ViroRefreshIndicator(
                 onRefresh: _refreshInbox,
@@ -238,7 +218,8 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: ViroEmptyState(
-                          message: AppCopy.chat.searchNoResults,
+                          message: AppCopy.chat.inboxSearchNoResults,
+                          hint: AppCopy.chat.inboxSearchNoResultsHint,
                           icon: ViroIcons.search,
                         ),
                       )
@@ -342,11 +323,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final clubs = ref.read(userClubsProvider).value ?? const [];
-    final adminClubs = clubs
-        .where((e) => e.membership?.role == MemberRoles.admin)
-        .map((e) => e.club)
-        .toList();
+    final adminClubs = ref.read(manageChatClubsProvider);
     if (adminClubs.isEmpty) return;
     final result = await CreateChannelDialog.show(
       context,

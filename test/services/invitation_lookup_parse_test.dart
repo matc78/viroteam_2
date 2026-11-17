@@ -13,7 +13,6 @@ void main() {
           'clubId': 'club42',
           'invitationId': 'inv7',
           'code': 'ABC123',
-          'role': 'coach',
           'type': 'member',
           'status': 'pending',
           'firstName': 'Marie',
@@ -36,7 +35,6 @@ void main() {
       expect(invitation.id, 'inv7');
       expect(invitation.clubId, 'club42');
       expect(invitation.code, 'ABC123');
-      expect(invitation.role, MemberRoles.coach);
       expect(invitation.type, InvitationTypes.member);
       expect(invitation.status, InvitationStatus.pending);
       expect(invitation.firstName, 'Marie');
@@ -56,7 +54,6 @@ void main() {
         'clubId': 'club42',
         'invitationId': 'inv7',
         'code': 'ABC123',
-        'role': 'player',
         'status': 'pending',
         'memberId': null,
         'expiresAt': null,
@@ -134,7 +131,6 @@ void main() {
         foundResponse(
           overrides: {
             'type': 'team',
-            'role': 'player',
             'teamId': 'team1',
             'teamName': 'U15 Filles',
             'useCount': 3,
@@ -157,7 +153,6 @@ void main() {
         foundResponse(
           overrides: {
             'type': 'team',
-            'role': 'player',
             'teamId': 'team1',
             'teamName': 'U15 Filles',
             'useCount': TeamInviteLimits.maxUses,

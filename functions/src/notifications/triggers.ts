@@ -22,9 +22,16 @@ import {
   eventCreatedCopy,
   eventPostponedCopy,
 } from "./copy";
-import { calendarDaysUntil, feesDeepLink, homeDeepLink } from "./deepLinks";
+import {
+  calendarDaysUntil,
+  dateIdToShortDayLabel,
+  feesDeepLink,
+  formatTimeFr,
+  homeDeepLink,
+} from "./deepLinks";
 import {
   creationReminderFlags,
+  eventScheduleChange,
   isConvocationReintegration,
   isEventPostponedChange,
   isOnlyPushBookkeepingChange,
@@ -35,11 +42,13 @@ import {
 import { scheduleEventModifiedNotify } from "./eventModifiedNotify";
 import {
   contextForEntry,
+  eventDateId,
   eventPushContext,
   sendEventPushToAudience,
 } from "./eventPush";
 import { resolveAnnouncementRecipientUids } from "./recipients";
 import { scheduleRsvpNotifyDebounce } from "./rsvpNotify";
+import { isSilentWrite } from "./silentWrite";
 import { buildPushData, sendPushToUids } from "./send";
 
 const REGION = "europe-west1";
@@ -79,6 +88,8 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
     : undefined;
   const after = event.data?.after?.exists ? event.data.after.data() : undefined;
   if (!after) return;
+  // Écriture technique (script admin, normalisation serveur) : aucune push.
+  if (isSilentWrite(before, after)) return;
 
   const clubId = event.params.clubId;
   const eventId = event.params.eventId;
@@ -156,6 +167,9 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
   }
 
   if (isEventPostponedChange(before, after)) {
+    const schedule = eventScheduleChange(before, after);
+    const previousDayLabel = dateIdToShortDayLabel(eventDateId(before));
+    const previousStartTime = formatTimeFr(before.startTime) || undefined;
     await sendToWholeAudience({
       firestore,
       clubId,
@@ -163,7 +177,13 @@ async function handleEventWritten(event: EventWrittenEvent): Promise<void> {
       eventData: after,
       type: "event_postponed",
       actor,
-      copy: eventPostponedCopy,
+      copy: (ctx) =>
+        eventPostponedCopy({
+          ...ctx,
+          ...schedule,
+          previousDayLabel: schedule.dateChanged ? previousDayLabel : undefined,
+          previousStartTime,
+        }),
     });
     // Le calendrier normal reprend pour la nouvelle date ; les rappels dont la
     // fenêtre est déjà passée sont couverts par la push de report.
@@ -260,10 +280,7 @@ async function handleAudienceAdded(params: {
   if (creationReminderFlags(daysUntil).length === 0) return;
 
   const directory = new ClubDirectory(params.firestore, params.clubId);
-  const addedMemberIds = new Set<string>();
-  for (const rosterId of params.addedRosterIds) {
-    addedMemberIds.add((await directory.resolveMemberId(rosterId)) ?? rosterId);
-  }
+  const addedMemberIds = new Set(params.addedRosterIds);
 
   const entries = (await resolveEventAudience(directory, params.eventData)).filter(
     (entry) =>

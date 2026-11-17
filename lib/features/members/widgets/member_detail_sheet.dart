@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
-import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
+import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/fees/models/member_fee.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
 import 'package:viro_team_v2/features/members/utils/member_team_labels.dart';
-import 'package:viro_team_v2/features/members/widgets/change_role_sheet.dart';
+import 'package:viro_team_v2/features/members/widgets/member_permissions_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
@@ -26,6 +27,9 @@ import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_access.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Ouvre la fiche récap d’un membre inscrit (statut, équipes, cotisation…).
 Future<void> showMemberDetailSheet(
@@ -33,7 +37,6 @@ Future<void> showMemberDetailSheet(
   required WidgetRef ref,
   required Club club,
   required ClubMember member,
-  required String viewerRole,
   required Color accentColor,
   VoidCallback? onMemberRemoved,
 }) {
@@ -55,7 +58,6 @@ Future<void> showMemberDetailSheet(
         builder: (_, scrollController) => MemberDetailSheet(
           club: club,
           member: member,
-          viewerRole: viewerRole,
           scrollController: scrollController,
           onMemberRemoved: onMemberRemoved,
         ),
@@ -70,14 +72,12 @@ class MemberDetailSheet extends ConsumerStatefulWidget {
     super.key,
     required this.club,
     required this.member,
-    required this.viewerRole,
     required this.scrollController,
     this.onMemberRemoved,
   });
 
   final Club club;
   final ClubMember member;
-  final String viewerRole;
   final ScrollController scrollController;
   final VoidCallback? onMemberRemoved;
 
@@ -92,15 +92,15 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
   bool _confirmRemove = false;
   bool _busy = false;
 
-  bool get _isAdmin => widget.viewerRole == MemberRoles.admin;
-  bool get _isCoach => widget.viewerRole == MemberRoles.coach;
+  /// Droits du compte connecté dans le club de la fiche.
+  ClubAccess get _access => ref.watch(clubAccessProvider(widget.club.id));
 
-  bool get _canSeeContact {
-    if (_isAdmin) return true;
-    final viewer = ref.read(clubMemberProvider(widget.club.id)).value;
-    return viewer?.memberId == widget.member.memberId ||
-        viewer?.accountUid == widget.member.accountUid;
-  }
+  /// Gestion des membres (contacts, parents, retrait).
+  bool get _canManageMembers => _access.can(ClubPermission.manageMembers);
+
+  /// Cotisation : droit de lecture des cotisations, ou sa propre fiche.
+  bool _canSeeFee({required bool isOwnProfile}) =>
+      isOwnProfile || _access.can(ClubPermission.viewFees);
 
   ClubAccentStyle get _accentStyle => clubAccentStyle(
         brandColorHex: widget.club.brandColorHex,
@@ -126,8 +126,9 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
         clubId: widget.club.id,
         memberId: widget.member.memberId,
       );
-      final guardianFuture =
-          _isAdmin && widget.member.role == MemberRoles.player
+      final guardianFuture = ref
+                  .read(clubAccessProvider(widget.club.id))
+                  .can(ClubPermission.manageMembers)
               ? ref.read(guardianServiceProvider).getMemberGuardian(
                     clubId: widget.club.id,
                     memberId: widget.member.memberId,
@@ -154,55 +155,50 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
   MemberFee? _feeForMember(List<MemberFee> fees) {
     for (final fee in fees) {
       if (fee.memberId == widget.member.memberId) return fee;
-      final accountUid = widget.member.accountUid;
-      if (accountUid != null && fee.memberId == accountUid) return fee;
     }
     return null;
   }
 
-  bool _canEditLicense(ClubMember? viewerMember) {
-    final targetRole = widget.member.role;
-    final isPlayerOrCoach =
-        targetRole == MemberRoles.player || targetRole == MemberRoles.coach;
-    if (!isPlayerOrCoach) return false;
+  /// Licence : droit membres, ou coach autorisé d'une équipe de la fiche.
+  bool get _canEditLicense =>
+      _access.canEditMemberLicense(widget.member.teamIds);
 
-    if (_isAdmin) return true;
-
-    // Coach autorisé : uniquement les joueurs de ses équipes.
-    if (!_isCoach || viewerMember == null || targetRole != MemberRoles.player) {
-      return false;
+  Future<void> _editRights() async {
+    if (widget.member.memberId == ref.read(authStateProvider).value?.uid) {
+      ViroSnackBar.show(context, AppCopy.permissions.cannotChangeOwnRights);
+      return;
     }
-    final allowedByClub = widget.club.coachPermissions.allowsEditMemberLicenses(
-      isAdmin: false,
-      isCoach: true,
-    );
-    if (!allowedByClub) return false;
-    return viewerMember.teamIds.any(widget.member.teamIds.contains);
-  }
-
-  Future<void> _changeRole() async {
-    final newRole = await showChangeRoleSheet(
+    final teams = ref.read(clubTeamsProvider(widget.club.id)).value ?? [];
+    final next = await showMemberPermissionsSheet(
       context,
       member: widget.member,
       accentColor: _accent,
+      coachPermissions: widget.club.coachPermissions,
+      coachedTeamNames: resolveCoachedTeamNames(widget.member, teams),
+      onEditCoachRights: ref.read(clubAccessProvider(widget.club.id)).isAdmin
+          ? () => context.push(AppRoutes.clubSettingsPath(widget.club.id))
+          : null,
     );
-    if (newRole == null || newRole == widget.member.role) return;
+    if (next == null) return;
 
     setState(() => _busy = true);
     try {
-      await ref.read(memberServiceProvider).updateMemberRole(
+      await ref.read(memberServiceProvider).updateMemberPermissions(
             clubId: widget.club.id,
             memberId: widget.member.memberId,
-            newRole: newRole,
+            permissions: next,
           );
       if (!mounted) return;
-      ViroSnackBar.show(context, AppCopy.members.roleUpdated);
+      ViroSnackBar.show(context, AppCopy.permissions.rightsUpdated);
       Navigator.of(context).pop();
     } catch (error) {
       if (!mounted) return;
       ViroSnackBar.show(
         context,
-        callableErrorMessage(error, fallback: AppCopy.members.roleChangeImpossible),
+        callableErrorMessage(
+          error,
+          fallback: AppCopy.permissions.rightsUpdateFailed,
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -315,11 +311,12 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
     }
   }
 
-  String _roleLabel(String role) => switch (role) {
-        MemberRoles.admin => AppCopy.common.roleAdminFull,
-        MemberRoles.coach => AppCopy.common.roleCoachShort,
-        _ => AppCopy.common.rolePlayer,
-      };
+  /// Résumé des droits de la fiche (« Entraîneur · 1 droit club », …).
+  String get _rightsSummary => AppCopy.permissions.rightsSummary(
+        isAdmin: widget.member.isAdmin,
+        permissionCount: widget.member.permissionCount,
+        isTeamCoach: widget.member.coachTeamIds.isNotEmpty,
+      );
 
   String? _parentSubtitle() {
     if (_loadingExtras) return null;
@@ -341,21 +338,30 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
     final accentStyle = _accentStyle;
     final accent = _accent;
     final teams = ref.watch(clubTeamsProvider(widget.club.id)).value ?? [];
-    final fees = ref.watch(allMemberFeesProvider(widget.club.id)).value ?? [];
     final teamLabels = resolveMemberTeamLabels(widget.member, teams);
-    final fee = _feeForMember(fees);
-    final feeLabel = fee?.status.label ?? '—';
-    final emailDisplay = _canSeeContact
-        ? (widget.member.email?.trim().isNotEmpty == true
-            ? widget.member.email!.trim()
-            : '—')
+    final access = _access;
+    final canManageMembers = _canManageMembers;
+    final showParentAction = canManageMembers;
+    final canEditLicense = _canEditLicense;
+    final isOwnProfile =
+        widget.member.memberId == ref.watch(authStateProvider).value?.uid;
+    final canSeeContact = canManageMembers || isOwnProfile;
+    final canSeeFee = _canSeeFee(isOwnProfile: isOwnProfile);
+    final canSeeLicense = canEditLicense || canManageMembers;
+    final fees = canSeeFee
+        ? (ref.watch(allMemberFeesProvider(widget.club.id)).value ?? [])
+        : const <MemberFee>[];
+    final feeLabel = _feeForMember(fees)?.status.label ?? '—';
+    final emailDisplay = widget.member.email?.trim().isNotEmpty == true
+        ? widget.member.email!.trim()
         : '—';
-    final showParentAction =
-        _isAdmin && widget.member.role == MemberRoles.player;
-    final viewerMember = ref.watch(clubMemberProvider(widget.club.id)).value;
-    final canEditLicense = _canEditLicense(viewerMember);
-    final showDangerAction =
-        _isAdmin && widget.member.role != MemberRoles.admin;
+    // Attribuer des droits : droit Administrateur, jamais sur soi.
+    final canEditRights = access.isAdmin && !isOwnProfile;
+    // Retirer un admin exige d'être admin (garde « dernier admin » côté
+    // serveur) ; jamais sa propre fiche ici.
+    final showDangerAction = canManageMembers &&
+        !isOwnProfile &&
+        (!widget.member.isAdmin || access.isAdmin);
     final licenseValue =
         _loadingExtras ? '…' : (_license?.isNotEmpty == true ? _license! : '—');
 
@@ -377,7 +383,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
             accent: accent,
             accentStyle: accentStyle,
             subtitle:
-                _canSeeContact && widget.member.email?.trim().isNotEmpty == true
+                canSeeContact && widget.member.email?.trim().isNotEmpty == true
                     ? widget.member.email!.trim()
                     : AppCopy.members.accountLinked,
           ),
@@ -396,12 +402,14 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                   value: AppCopy.members.accountLinked,
                   accent: accent,
                 ),
-                _InfoDivider(color: accentStyle.border),
-                _InfoRow(
-                  label: AppCopy.members.labelEmail,
-                  value: emailDisplay,
-                  accent: accent,
-                ),
+                if (canSeeContact) ...[
+                  _InfoDivider(color: accentStyle.border),
+                  _InfoRow(
+                    label: AppCopy.members.labelEmail,
+                    value: emailDisplay,
+                    accent: accent,
+                  ),
+                ],
                 _InfoDivider(color: accentStyle.border),
                 _InfoRow(
                   label: AppCopy.members.labelTeams,
@@ -409,13 +417,15 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                       teamLabels.isNotEmpty ? teamLabels.join(', ') : AppCopy.common.none,
                   accent: accent,
                 ),
-                _InfoDivider(color: accentStyle.border),
-                _InfoRow(
-                  label: AppCopy.members.labelFee,
-                  value: feeLabel,
-                  accent: accent,
-                ),
-                if (canEditLicense || _isAdmin) ...[
+                if (canSeeFee) ...[
+                  _InfoDivider(color: accentStyle.border),
+                  _InfoRow(
+                    label: AppCopy.members.labelFee,
+                    value: feeLabel,
+                    accent: accent,
+                  ),
+                ],
+                if (canSeeLicense) ...[
                   _InfoDivider(color: accentStyle.border),
                   if (canEditLicense)
                     _ActionRow(
@@ -437,7 +447,7 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
               ],
             ),
           ),
-          if (_isAdmin) ...[
+          if (canManageMembers || access.isAdmin) ...[
             const SizedBox(height: ViroSpacing.lg),
             _SectionLabel(label: AppCopy.members.sectionAdmin),
             const SizedBox(height: ViroSpacing.sm),
@@ -457,12 +467,19 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                       onTap: _busy ? null : _openParentSheet,
                     ),
                   if (showParentAction) _InfoDivider(color: accentStyle.border),
-                  _ActionRow(
-                    label: AppCopy.members.labelRole,
-                    subtitle: _roleLabel(widget.member.role),
-                    accent: accent,
-                    onTap: _busy ? null : _changeRole,
-                  ),
+                  if (canEditRights)
+                    _ActionRow(
+                      label: AppCopy.permissions.manageRights,
+                      subtitle: _rightsSummary,
+                      accent: accent,
+                      onTap: _busy ? null : _editRights,
+                    )
+                  else
+                    _InfoRow(
+                      label: AppCopy.permissions.rightsReadOnlyLabel,
+                      value: _rightsSummary,
+                      accent: accent,
+                    ),
                 ],
               ),
             ),
@@ -576,7 +593,7 @@ class _ProfileHeader extends StatelessWidget {
           ),
           const SizedBox(height: ViroSpacing.xs),
           ViroRoleBadge(
-            role: viroRoleFromMemberRole(member.role),
+            role: viroRoleFromBadge(member.primaryBadge),
             compact: true,
           ),
           const SizedBox(height: ViroSpacing.xs),
@@ -683,8 +700,11 @@ class _ActionRow extends StatelessWidget {
     final palette = context.viroPalette;
     final textTheme = Theme.of(context).textTheme;
 
+    // Ligne posée dans une carte : pas d'ombre flottante (elle transparaît
+    // en voile gris sous une ligne sans fond).
     return ViroPressable(
       onTap: onTap,
+      floating: false,
       borderRadius: BorderRadius.zero,
       child: Padding(
         padding: const EdgeInsets.symmetric(

@@ -5,9 +5,10 @@ import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
-import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_sender_meta_provider.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
+import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 
 /// Sheet de création d’un sondage (groupes / canaux).
 ///
@@ -23,11 +24,18 @@ Future<bool> showCreatePollSheet(
     isScrollControlled: true,
     backgroundColor: context.viroPalette.surfaceCard,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(ViroSpacing.cardRadius),
+      ),
     ),
-    builder: (ctx) => _CreatePollSheet(
-      clubId: clubId,
-      conversationId: conversationId,
+    builder: (sheetContext) => Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+      ),
+      child: _CreatePollSheet(
+        clubId: clubId,
+        conversationId: conversationId,
+      ),
     ),
   );
   return sent == true;
@@ -88,18 +96,10 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
       ViroSnackBar.show(context, AppCopy.chat.pollNeedOptions);
       return;
     }
-    final user = ref.read(viroUserProvider).value;
-    final clubs = ref.read(userClubsProvider).value ?? const [];
-    final membership = clubs
-        .where((e) => e.club.id == widget.clubId)
-        .map((e) => e.membership)
-        .firstOrNull;
-    final firstName = (user?.firstName.trim().isNotEmpty == true)
-        ? user!.firstName.trim()
-        : (user?.displayName.trim().split(RegExp(r'\s+')).firstOrNull ?? '');
-    final senderRole = membership?.role ?? 'parent';
     setState(() => _busy = true);
     try {
+      final sender =
+          await ref.read(chatSenderMetaProvider(widget.clubId).future);
       await ref.read(chatServiceProvider).sendPollMessage(
             clubId: widget.clubId,
             conversationId: widget.conversationId,
@@ -107,8 +107,8 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
             question: question,
             optionTexts: options,
             allowMultiple: _allowMultiple,
-            senderFirstName: firstName,
-            senderRole: senderRole,
+            senderFirstName: sender.firstName,
+            senderRole: sender.senderRole,
           );
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
@@ -124,15 +124,14 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return SafeArea(
       child: Padding(
-        padding: EdgeInsets.only(
-          left: ViroSpacing.screenHorizontal,
-          right: ViroSpacing.screenHorizontal,
-          top: ViroSpacing.md,
-          bottom: bottomInset + ViroSpacing.md,
+        padding: const EdgeInsets.fromLTRB(
+          ViroSpacing.lg,
+          ViroSpacing.md,
+          ViroSpacing.lg,
+          ViroSpacing.lg,
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -148,12 +147,18 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
                       AppCopy.chat.createPoll,
                       style: theme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
+                        color: palette.brandText,
                       ),
                     ),
                   ),
+                  IconButton(
+                    tooltip: AppCopy.common.close,
+                    icon: ViroIcon(ViroIcons.close),
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                  ),
                 ],
               ),
-              const SizedBox(height: ViroSpacing.md),
+              const SizedBox(height: ViroSpacing.sm),
               TextField(
                 controller: _questionController,
                 textCapitalization: TextCapitalization.sentences,
@@ -180,6 +185,7 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
                       ),
                       if (_optionControllers.length > 2)
                         IconButton(
+                          tooltip: AppCopy.chat.pollRemoveOption,
                           onPressed: () => _removeOption(i),
                           icon: ViroIcon(
                             ViroIcons.trash,
@@ -201,10 +207,11 @@ class _CreatePollSheetState extends ConsumerState<_CreatePollSheet> {
                 onChanged: (value) => setState(() => _allowMultiple = value),
                 title: Text(AppCopy.chat.pollAllowMultiple),
               ),
-              const SizedBox(height: ViroSpacing.sm),
-              FilledButton(
+              const SizedBox(height: ViroSpacing.lg),
+              ViroPrimaryButton(
+                label: AppCopy.chat.pollSend,
+                isLoading: _busy,
                 onPressed: _busy ? null : _submit,
-                child: Text(AppCopy.chat.pollSend),
               ),
             ],
           ),

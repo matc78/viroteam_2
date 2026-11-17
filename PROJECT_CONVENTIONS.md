@@ -77,7 +77,7 @@ Scaffold(
 | AppBar | `ViroAppBar` transparente (laisse voir le fond), titre `palette.brandText`, icônes `palette.accent` (thème) |
 | Cartes / listes | `ViroCard`, fond `palette.surfaceCard`, bordure `palette.cardBorder` légère |
 | Bleu fort (`palette.accent` / `accentFill`) | Boutons primaires, liens, accents, badges — **pas** en plein écran |
-| Badges rôles | `ViroRoleBadge` (dégradés vifs, texte blanc) |
+| Badges rôles | `ViroRoleBadge` (dégradés vifs, texte blanc ; badge Membre en aplat gris simple) |
 
 ### Composants UI à réutiliser
 
@@ -91,6 +91,28 @@ Scaffold(
 | Bouton icône / FAB | `ViroFloatingIconButton`, `ViroFloatingActionButton` |
 | Tap avec animation | `ViroPressable` |
 | Bouton pleine largeur | `ElevatedButton` / `OutlinedButton` (thème) |
+| Avatar de conversation (DM, groupe, canal) | `ViroConversationAvatar` (tailles `ViroChat.avatar*`) |
+| Retour haptique | `ViroHaptics` (voir « Retour haptique ») |
+| Sélection (cocher / décocher) | `ViroSelectableRow` (ligne de liste), `ViroSelectionMark` (coche seule) — voir « Sélection » |
+| Icône sur mesure | `ViroGlyphIcon` + `ViroGlyph` (voir « Icônes ») |
+
+### Sélection
+
+- Jamais de `Checkbox` / `CheckboxListTile` Material dans l’UI (garde-fou `test/selection_usage_test.dart`).
+- Coche ronde **`ViroSelectionMark`** (`lib/widgets/common/viro_selection_mark.dart`) : anneau au repos, disque plein + coche tracée si sélectionné, tiret si partiel (`value: null`). Purement visuelle : la ligne qui la porte gère tap et sémantique.
+- Ligne de liste sélectionnable → **`ViroSelectableRow`** : fond teinté (`ClubAccentStyle.chipFill`) et nom en semi-gras quand sélectionnée, **sans hauteur en plus** (une info d’état va sur la même ligne, pas en sous-titre) ; un nouveau tap rend la forme d’origine ; `ViroHaptics.selection()` intégré. Une tuile qui est déjà une `ViroCard` met la ligne dedans avec `padding: EdgeInsets.zero` et passe `borderColor` d’accent quand sélectionnée.
+- Choix riches (droits d’une fiche) → cartes sélectionnables avec icône sur mesure (`MemberPermissionListTile`).
+- Dimensions et durées : **`ViroSelection`** (`lib/config/viro_selection.dart`). Interrupteurs (`Switch`) réservés aux réglages on/off.
+
+### Messagerie : tokens partagés app ↔ portail
+
+- Dimensions du chat (rayons et marges de bulle, largeur max 78 %, écart entre messages, rayon de citation, tailles d’avatar) → **`ViroChat`** (`lib/config/viro_chat.dart`) dans l’app, variables **`--chat-*`** (`portal/src/app/globals.css`) dans le portail. Mêmes noms, mêmes valeurs : toute nouvelle valeur est ajoutée des deux côtés.
+- Fond du fil : `ViroChat.threadBackgroundAsset` (app), `--chat-thread-background` (portail).
+- Bulles : les miennes sur `palette.accentFill` / texte `palette.onAccent` (portail : `--chat-bubble-mine-bg` / `--chat-bubble-mine-text`), celles des autres sur `surfaceCard` avec la bordure de rôle. Regroupement (même règle des deux côtés, testée : `chatThreadGroupPositions` ↔ `messageGrouping.ts`) : même expéditeur, même jour, moins de 5 min, pas de séparateur, ni supprimé ni sondage ; nom sur le premier, avatar et coin « queue » sur le dernier, écart `messageGroupGap` / `--chat-message-group-gap` (2 px).
+- Photos : 220 px de large, hauteur au ratio bornée 120–320 px (`chatThreadImageSize` ↔ `messageImageLayout.ts`, tokens `ViroChat.image*` / `--chat-image-*`).
+- Recherche dans le fil : compteur « n / total » où 1 = résultat le plus récent, sur les deux plateformes.
+- Points de rupture du chat : 767 px (mobile : page Messages en bascule liste ↔ fil) et 1024 px (panneaux par-dessus le fil) uniquement — `ChatBreakpoints` (`portal/src/lib/chat/chatBreakpoints.ts`), vérifié par `chatBreakpoints.test.ts`.
+- Portail : pas d’hexa en dur dans les modules CSS du chat (variables `--color-*` / `--chat-*`, vérifié par `cssColorTokens.test.ts`) ; briques communes (`iconBtn`, `search`, dialogues…) dans `chatShared.module.css` via `composes:` ; textes dans `src/lib/copy/chatCopy.ts`, mêmes clés que `app_copy_chat.dart` quand le sens est le même.
 
 ### Motion & ombres
 
@@ -101,12 +123,20 @@ Scaffold(
 - Menus / sheets / dialogs → thème Material (`ViroMotion.elevationMenu`).
 - Transitions d’écran : fade / Cupertino, pas de slides lourds.
 
+### Retour haptique
+
+- Toujours via **`ViroHaptics`** (`lib/config/viro_haptics.dart`), jamais `HapticFeedback` en direct (garde-fou `test/haptics_usage_test.dart`). Réglage « Vibrations » (Paramètres > Apparence, activé par défaut) respecté automatiquement.
+- Vocabulaire : `confirm()` action rapide validée (RSVP, envoi de message, au tap, avant le réseau) ; `selection()` valeur d’un sélecteur qui change vraiment ; `threshold()` seuil de geste franchi (swipe, pull-to-refresh) ou appui long reconnu ; `success()` / `error()` résultat (toasts, échec de RSVP).
+- Déjà branché dans les briques communes : `RsvpChoiceButton`, `ViroPressable.onLongPress`, `ViroSwipeToReveal`, `ViroRefreshIndicator`, `ViroStatusToast`. Appui long hors `ViroPressable` (`GestureDetector`, `InkWell`) → `onLongPress: ViroHaptics.longPress(action)`.
+- Pas de vibration sur la navigation, les taps génériques, les formulaires, la réception de message, les animations, ni les confirmations destructives. `ViroSnackBar` (info neutre) reste muet. `Switch.adaptive` vibre déjà sur iOS : ne rien ajouter.
+
 ### Icônes
 
 - [Phosphor](https://phosphoricons.com) via `ViroIcons` + `ViroIcon`.
 - Pas de `Icons.*` Material dans les écrans.
 - Nouvelle icône → l’ajouter dans `ViroIcons` (+ `ViroIcons.catalog` si pertinent).
 - `ViroIcon` décorative (texte voisin) → pas de `semanticLabel` ; informative seule → `semanticLabel` obligatoire.
+- Icônes dessinées pour ViroTeam (droits, fonctions) : SVG deux tons (trait 1,7 + aplat noir à 20 %, grille 24) dans `assets/icons/glyphs/`, déclarés dans **`ViroGlyph`** (`lib/config/viro_glyphs.dart`), rendus par **`ViroGlyphIcon`** (recolorée, mêmes règles `semanticLabel` que `ViroIcon`) et visibles dans l’écran design system. Phosphor reste la règle pour tout le reste.
 
 ### Accessibilité (pragmatique)
 
@@ -114,14 +144,15 @@ Scaffold(
 - `ViroFloatingIconButton` exige toujours un `tooltip` (Tooltip + Semantics).
 - Tuiles / cartes tappables → `semanticLabel` (ou texte enfant clairement annoncé), pas de double lecture.
 - Cibles tactiles ≥ `ViroSpacing.minTouchTarget` (44).
-- Portail : dialogs via `useDialogA11y` (focus + Escape) ; formulaires sur le modèle Login (`label`, `aria-invalid`, `role="alert"`).
-- Smoke manuel : [`docs/A11Y_SMOKE.md`](docs/A11Y_SMOKE.md).
+- Portail : dialogs via `useDialogA11y` (focus + Escape) ; panneaux latéraux et fenêtres qui ne bloquent pas la page avec `modal: false` (pas de piège Tab, Escape seulement si le focus est dedans) ; menus déroulants (`aria-haspopup="menu"` + `role="menu"`) via `useMenuA11y` (flèches, Escape qui ne ferme que le menu) ; pas de `window.confirm`, confirmation dans l’UI ; formulaires sur le modèle Login (`label`, `aria-invalid`, `role="alert"`).
+- Portail : action réservée au clic droit ou à l’appui long → aussi un bouton visible au survol et au focus clavier. Zone `aria-live` limitée à ce qui est nouveau (pas un fil entier).
+- Smoke manuel : [`docs/A11Y_SMOKE.md`](docs/A11Y_SMOKE.md) ; recette messagerie avant ouverture : [`docs/CHAT_SMOKE.md`](docs/CHAT_SMOKE.md).
 
 ### Portail web — espace connecté
 
 - Coquille unique `PortalShell` (`portal/src/components/shell/`) : sidebar (sélecteur de club, modules, Mon planning / Messagerie, compte) ; top bar + tiroir sous 960 px. `DashboardShell` / `FamilyShell` ne font que lui passer leurs entrées de nav.
 - Primitives dans `portal/src/components/ui/` à utiliser avant d’en créer : `Card` / `CardHeader`, `PageHeader`, `StatTile` / `StatGrid`, `StatusBadge`, `EmptyState`, `ListRow` / `ListRows`, `ToggleRow` / `SettingRow`, `SegmentedChoice`, `Button` / `ButtonLink` / `TextLink`, `DateBadge`, `Icon`.
-- Couleurs : uniquement les tokens sémantiques de `globals.css` (`--surface-*`, `--text-*`, `--border-*`, `--accent*`, `--status-*`), pas de hex dans les modules. Cartes blanches à bordure neutre ; la couleur est réservée aux statuts (payé, à payer, en retard, réponse attendue) et à l’action principale. Exception : la sidebar `PortalShell`, où chaque lien porte un ton (`PortalNavItem.tone` → tokens `--tone-*`) et le rôle de chaque club sa couleur (`--color-role-*`). Ces tokens sont la seule couche à redéfinir pour un futur dark mode.
+- Couleurs : uniquement les tokens sémantiques de `globals.css` (`--surface-*`, `--text-*`, `--border-*`, `--accent*`, `--status-*`), pas de hex dans les modules. Cartes blanches à bordure neutre ; la couleur est réservée aux statuts (payé, à payer, en retard, réponse attendue) et à l’action principale. Exception : la sidebar `PortalShell`, où chaque lien porte un ton (`PortalNavItem.tone` → tokens `--tone-*`) et le badge de chaque club sa couleur (`--color-role-*`). Ces tokens sont la seule couche à redéfinir pour un futur dark mode.
 - Gabarit de page : `PageHeader` (actions principales à droite) → ce qui demande une action (bandeau « À traiter », réponses attendues) → chiffres clés → contenu. Listes denses en `ListRow`, états vides en une ligne (`EmptyState`).
 - Formes décoratives (`DecorShapes`) : landing, auth et club-setup seulement ; le shell a un fond uni `--bg-app`.
 
@@ -178,9 +209,20 @@ lib/
 - Peu de règles complexes côté Firestore ; préférer :
   - `request.auth != null`
   - appartenance club via un champ / sous-doc vérifiable
-- Logique sensible (acceptation invitation, fusion de rôles, **lien parent** `linkGuardian`) → **Cloud Functions** callable.
+- Logique sensible (acceptation invitation, attribution de droits, **lien parent** `linkGuardian`) → **Cloud Functions** callable.
+- **Droits purs** : seule `members/{id}.permissions` autorise (droit `admin` = tous), écrite par les Functions ; pas de modèle de rôle (bascule Administrateur, « fonctions » = groupes de droits non stockés, droits à la carte), pas de demande de rôle. Champs d'accès d'une fiche (Functions seules) : `permissions`, `coachTeamIds`, `teamIds` (trigger d'équipe), `accountUid` ; clubs d'un compte : `users.memberClubIds` seul. Badges dérivés : Admin > Entraîneur > Joueur > Membre (gris simple) ; vue équipe sans Admin ; RSVP d'événement d'équipe : Entraîneur seul ; RSVP d'événement spécial (toutes équipes ou aucune) : Admin aussi. Coach d'équipe = relation (`teams.coachIds` → `coachTeamIds`) avec capacités `clubs.coachPermissions` sur ses seules équipes. `adminIds` = index d'audience, jamais une autorisation. Vérifier un droit via le point d'entrée de la couche (`permissions.ts`, `ClubAccess` / `clubAccessProvider`, `useBureauCapabilities`, `can()` dans les règles), jamais par comparaison de rôle (garde-fous `permissionUsage`). Spec : [`docs/specs/viroteam_v2_permissions_spec.md`](docs/specs/viroteam_v2_permissions_spec.md).
 - Parent ≠ rôle club : relation `members/{memberId}/guardians/{parentUid}` + index `users.parentLinks`. Spec : [`docs/specs/viroteam_v2_parents_spec.md`](docs/specs/viroteam_v2_parents_spec.md). Écriture des deux faces via Function, jamais un seul côté client.
 - Éviter les `get()` multiples et conditions imbriquées dans les rules.
+
+### Une seule clé membre (obligatoire)
+
+- Une fiche liée à un compte vit à **`members/{uid}`** : son id est la seule clé membre partout (rosters, RSVP / `seenAt`, guardians, cotisations, annonces « Personnes », invitations, `parentLinks`, `adminIds`). Une fiche pré-inscrite garde un id aléatoire jusqu'à la liaison ; elle est alors **re-clée** côté Functions (`functions/src/memberRekey.ts`), anciens ids gardés dans `formerMemberIds`.
+- Ma fiche = `members/{monUid}` ; l'uid Auth d'une fiche = son `accountUid` (aucun si la fiche n'est pas liée — jamais son id aléatoire).
+- Référence d'une fiche : `clubMemberRef` / `clubMembersCollection` (`lib/services/member/member_paths.dart`, seul fichier qui construit la collection) dans l'app, `src/lib/firebase/memberRefs.ts` dans le portail.
+- Interdit : l'index `member_accounts` (supprimé en 2.3.0), les champs `userId` / `memberId` sur une fiche (`accountUid` seul), tout résolveur uid ↔ memberId, créer une fiche de compte à id aléatoire, un repli `accountUid ?? memberId`. Garde-fous : `functions/src/memberKeyUsage.test.ts`, `test/member_key_usage_test.dart`, `portal/src/lib/members/memberKeyUsage.test.ts`.
+- Nom / photo d'un compte → fiche : uniquement le trigger `onUserWrittenSyncMemberProfile` (le client écrit `users/{uid}`, jamais la fiche).
+- Index `clubs.adminIds` : calculé uniquement par `adminIdsUpdate` (`functions/src/permissionsCatalog.ts`) ; jamais lu pour autoriser (garde-fous Functions et app).
+- Portée coach sur un événement : modifier / annuler / notifier = coach de **toutes** les équipes, jamais un événement `allTeams` ; appel et RSVP d'autrui = coach d'une des équipes, hors `allTeams` (`ClubAccess`, règles, Functions alignés). « Encadrement » d'une fiche = `ClubMember.hasStaffBadge` (source unique).
 
 ---
 
@@ -282,4 +324,11 @@ Plus tard :
 | 2026-10 | Analytics : PostHog seul (Firebase Analytics retiré), projets dev / prod séparés, consentement explicite dans l’app (feuille + Paramètres) et bandeau cookies sur le portail ; identify uid Firebase + groupe `club`, mêmes clés web / mobile |
 | 2026-10 | Événements clés envoyés par les Functions, rattachés au club seul (pas d’uid, pas besoin du consentement client) ; plan de taggage `docs/analytics_events.csv` ; liens stores marqués par campagne (`utm_source` = surface, `utm_campaign` = emplacement) ; replay de sessions portail écarté pour l’instant |
 | 2026-10 | Portail : refonte de l’espace connecté — sidebar `PortalShell` (club en menu déroulant), primitives `components/ui/`, tokens sémantiques, couleur réservée aux statuts, accueils centrés sur « ce qu’il faut faire » ; décor réservé à la landing / auth ; dark mode portail toujours hors scope |
-| 2026-11 | Portail : sidebar colorée (portail jugé trop sobre) — pastille d’icône teintée par module, lavis + liseré multicolore en tête, rôle coloré sous chaque club ; le contenu des pages reste neutre |
+| 2026-11 | Portail : sidebar colorée (portail jugé trop sobre) — pastille d’icône teintée par module, lavis + liseré multicolore en tête, badge coloré sous chaque club ; le contenu des pages reste neutre |
+| 2026-11 | Messagerie : mes bulles en `accentFill`, les autres en `surfaceCard`, messages consécutifs regroupés (app + portail) ; bouton Messagerie du header portail = page Messages ; portail mobile = bascule liste ↔ fil ; « en train d’écrire », accusés de lecture et multi-photos hors MVP |
+| 2026-11 | A11y portail : `useDialogA11y({ modal: false })` pour panneaux latéraux et fenêtre flottante, `useMenuA11y` pour les menus, bouton d’actions au focus à la place du seul clic droit ; points de rupture du chat 767 / 1024 px ; ouverture de la messagerie conditionnée à `docs/CHAT_SMOKE.md` |
+| 2026-11 | Une seule clé membre : une fiche liée vit à `members/{uid}` (re-keying à la liaison + migration `tool/rekey_linked_members.mjs`) ; profil compte → fiche par trigger serveur ; `member_accounts` et résolveurs uid ↔ memberId supprimés en 2.3.0 (app, portail, Functions, rules) |
+| 2026-11 | Droits purs (app 2.4.0, mise à jour obligatoire) : `members.permissions` seule autorité, catalogue partagé `shared/permissions_catalog.json`, droit `admin` protégé (≥ 1 par club), fonctions prédéfinies + droits à la carte, coach d'équipe = relation (`coachTeamIds` + `coachPermissions`), badges dérivés ; `role` supprimé (migration `tool/migrate_roles_to_permissions.mjs`) ; spec `viroteam_v2_permissions_spec.md` |
+| 2026-11 | Fin des droits purs : plus de modèles Entraîneur / Joueur ni de demande de rôle (`join_requests`, `resolveJoinRequest` supprimés) ; fiche = `permissions`, `coachTeamIds`, `teamIds`, `accountUid` écrits par les Functions seules (`userId` / `memberId` abandonnés) ; `users.memberClubIds` seul index des clubs (`clubMemberships` et trigger `onUserWrittenSyncClubIds` supprimés) ; badge Membre gris pour une fiche sans admin ni équipe |
+| 2026-11 | Retour haptique : `ViroHaptics` seul point d’entrée (confirm / selection / threshold / success / error, anti-rafale 60 ms), sans paquet ; peu de vibrations, sur les actions clés et les gestes à seuil ; réglage « Vibrations » local, activé par défaut |
+| 2026-11 | Sélection (app) : coche ronde `ViroSelectionMark` + ligne `ViroSelectableRow` (fond teinté, hauteur constante) à la place des cases Material ; feuille des droits en cartes avec icônes sur mesure (`ViroGlyph`, SVG via `flutter_svg`) ; portail inchangé pour l’instant |

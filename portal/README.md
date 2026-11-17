@@ -39,7 +39,7 @@ Credentials Admin (route `/api/club-setup/places`, une des deux options) :
 ### Accès
 
 - Login / signup via **Firebase Auth** (email + mot de passe).
-- Dashboard bureau (`/home`, `/members`, `/planning`, …) : si `clubMemberships` contient un club avec rôle **admin**, **coach** ou **joueur** — la nav est filtrée par rôle (`bureauPermissions`).
+- Dashboard bureau (`/home`, `/members`, `/planning`, …) : si `users/{uid}.memberClubIds` contient au moins un club (fiche `members/{uid}`). Nav et actions suivent les **droits** de la fiche (`members/{uid}.permissions`) et la relation **coach d’équipe** (`coachTeamIds` + `clubs.coachPermissions`), via `useBureauCapabilities` — voir [`docs/specs/viroteam_v2_permissions_spec.md`](../docs/specs/viroteam_v2_permissions_spec.md).
 - Parent seul (guardian) → espace `/family` (pas le dashboard bureau).
 - Sans club / sans droit → `/access-denied` (message + stores + déconnexion).
 - Création de club fondateur → `/signup?intent=founder` puis wizard `/club-setup` (desktop).
@@ -54,14 +54,14 @@ Credentials Admin (route `/api/club-setup/places`, une des deux options) :
 | `/signup` | Inscription + profil `users/{uid}` |
 | `/club-setup` | Wizard création club (fondateur, desktop) |
 | `/access-denied` | Accès refusé |
-| `/home` | Home dashboard (admin / coach / joueur) |
+| `/home` | Accueil (vue club, équipes entraînées ou joueur, selon les droits) |
 | `/members` | Membres, équipes, invitations |
 | `/planning` | Calendrier + création d’événements |
-| `/fees` | Cotisations (admin : config + suivi ; joueur : self) |
-| `/announcements` | Annonces (admin / coach) |
-| `/equipment` | Inventaire équipements (admin) |
+| `/fees` | Cotisations (`manageFees` : config + suivi ; `viewFees` : lecture ; sinon sa cotisation) |
+| `/announcements` | Annonces (`manageAnnouncements`, ou coach pour ses équipes) |
+| `/equipment` | Inventaire équipements (`manageEquipment`) |
 | `/settings` | Paramètres club (saison, logo, droits coachs) + compte |
-| `/messages` | Messagerie (désactivée en prod tant que `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` absent) |
+| `/messages` | Messagerie (local : `NEXT_PUBLIC_CHAT_MESSAGING_LIVE` ; prod : `flags.chatMessaging`) |
 | `/family` | Espace parent |
 | `/family/settings` | Paramètres compte (espace famille) |
 | `/legal/cgu` | Conditions générales |
@@ -116,7 +116,7 @@ Redeploy manuel : **Actions → Deploy portal → Run workflow**.
 URL live : [https://www.viroteam.com](https://www.viroteam.com)  
 (fallback App Hosting : console → backend `portal`, sous-domaine `*.hosted.app`).
 
-Hôte canonique : **`www.viroteam.com`**. L’apex est redirigé en 301 par le middleware (`src/middleware.ts`). Idéalement, cocher aussi la redirection domaine dans Firebase Console → App Hosting → Domaines (CDN avant Cloud Run).
+Hôte canonique : **`www.viroteam.com`**. L’apex est redirigé en 301 par le proxy Next (`src/proxy.ts`). Idéalement, cocher aussi la redirection domaine dans Firebase Console → App Hosting → Domaines (CDN avant Cloud Run).
 
 ## Thème
 

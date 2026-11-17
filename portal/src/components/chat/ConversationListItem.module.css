@@ -56,57 +56,6 @@
   color: var(--color-gray-600);
 }
 
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 999px;
-  flex-shrink: 0;
-  background: var(--color-gray-100);
-  color: var(--color-primary-900);
-  font-weight: 800;
-  font-size: 0.95rem;
-}
-
-.avatarGroup {
-  background: var(--color-sport-green);
-  color: #fff;
-}
-
-.avatarParents {
-  background: var(--color-sport-green);
-  color: #fff;
-}
-
-.avatarTeam {
-  background: var(--color-primary-600);
-  color: #fff;
-}
-
-.avatarPhoto {
-  padding: 0;
-  overflow: hidden;
-  background: var(--color-gray-100);
-}
-
-.avatarZoomable {
-  cursor: zoom-in;
-}
-
-.avatarPhoto img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.avatarChannel {
-  background: var(--color-role-admin);
-  color: #fff;
-}
-
 .body {
   display: flex;
   flex-direction: column;
@@ -134,10 +83,9 @@
 }
 
 .favMark {
-  display: inline-flex;
+  composes: favMark from "./chatShared.module.css";
   align-items: center;
   margin-right: 0.2rem;
-  color: var(--color-sport-orange, #e85d04);
   vertical-align: -0.1em;
 }
 
@@ -149,19 +97,7 @@
 }
 
 .clubBadge {
-  display: inline-block;
-  flex-shrink: 1;
-  min-width: 0;
   max-width: 8rem;
-  padding: 0.08rem 0.45rem;
-  border-radius: 999px;
-  background: var(--club-brand, var(--color-primary-500));
-  color: var(--club-brand-text, #fff);
-  font-size: 0.65rem;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .muteMark {
@@ -238,7 +174,7 @@
   margin-top: 0.2rem;
   border-radius: 999px;
   background: var(--color-primary-500);
-  color: #fff;
+  color: var(--color-white);
   font-size: 0.68rem;
   font-weight: 800;
   line-height: 1.2rem;

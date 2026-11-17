@@ -4,7 +4,6 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
@@ -13,6 +12,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 enum TeamRosterSlot { player, coach }
 
@@ -144,7 +144,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
         ),
         Expanded(
           child: membersAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: ViroLogoLoader()),
             error: (error, stackTrace) => ViroErrorState(
               onRetry: () => ref.invalidate(clubMembersProvider(widget.clubId)),
             ),
@@ -153,10 +153,9 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                 final coaches = members
                     .where(
                       (m) =>
+                          // Coach = relation d'équipe : tout membre actif.
                           m.isActive &&
-                          (m.role == MemberRoles.coach ||
-                              m.role == MemberRoles.admin) &&
-                          m.effectiveUid.isNotEmpty &&
+                          m.memberId.isNotEmpty &&
                           !widget.team.isOnCoachRoster(m) &&
                           _matchesSearch(m),
                     )
@@ -171,7 +170,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
               }
 
               return pendingAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: ViroLogoLoader()),
                 error: (error, stackTrace) => ViroErrorState(
                   onRetry: () => ref.invalidate(
                     pendingTeamMembersProvider(widget.clubId),
@@ -183,14 +182,10 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                       .where(_matchesSearch)
                       .toList();
                   final players = eligible
-                      .where((m) => m.role == MemberRoles.player)
+                      .where((m) => !m.hasStaffBadge)
                       .toList();
                   final staffAsPlayers = eligible
-                      .where(
-                        (m) =>
-                            m.role == MemberRoles.coach ||
-                            m.role == MemberRoles.admin,
-                      )
+                      .where((m) => m.hasStaffBadge)
                       .toList();
                   final pendingAvailable = pending
                       .where(
@@ -244,7 +239,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                         ...players.map(
                           (m) => _MemberPickTile(
                             member: m,
-                            onTap: () => _add(context, m.effectiveUid),
+                            onTap: () => _add(context, m.memberId),
                           ),
                         ),
                       ],
@@ -255,7 +250,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                         ...staffAsPlayers.map(
                           (m) => _MemberPickTile(
                             member: m,
-                            onTap: () => _add(context, m.effectiveUid),
+                            onTap: () => _add(context, m.memberId),
                           ),
                         ),
                       ],
@@ -328,7 +323,7 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
         final m = items[index];
         return _MemberPickTile(
           member: m,
-          onTap: () => _add(context, m.effectiveUid),
+          onTap: () => _add(context, m.memberId),
         );
       },
     );
@@ -355,11 +350,8 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
 
   bool _canAddAsPlayer(ClubMember m) =>
       m.isActive &&
-      m.effectiveUid.isNotEmpty &&
-      !widget.team.isOnPlayerRoster(m) &&
-      (m.role == MemberRoles.player ||
-          m.role == MemberRoles.coach ||
-          m.role == MemberRoles.admin);
+      m.memberId.isNotEmpty &&
+      !widget.team.isOnPlayerRoster(m);
 
   static bool _isPendingAvailableToAdd({
     required PendingTeamMember pending,

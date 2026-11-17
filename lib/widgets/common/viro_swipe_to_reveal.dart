@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_motion.dart';
 
@@ -37,6 +38,9 @@ class ViroSwipeToRevealState extends State<ViroSwipeToReveal>
 
   bool _committing = false;
 
+  /// Vibration de seuil déjà jouée pour ce geste (réarmée sous le seuil).
+  bool _thresholdFelt = false;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +56,7 @@ class ViroSwipeToRevealState extends State<ViroSwipeToReveal>
   /// Remet le reveal à zéro (ex. ouverture via la bulle chat).
   void reset() {
     _committing = false;
+    _thresholdFelt = false;
     _progress.stop();
     _progress.value = 0;
   }
@@ -66,6 +71,15 @@ class ViroSwipeToRevealState extends State<ViroSwipeToReveal>
     if (_progress.value == 0 && delta >= 0) return;
 
     _progress.value = (_progress.value - delta / width).clamp(0.0, 1.0);
+
+    // Une vibration au franchissement du seuil : « tu peux lâcher ».
+    final pastThreshold = _progress.value >= _commitProgress;
+    if (pastThreshold && !_thresholdFelt) {
+      _thresholdFelt = true;
+      ViroHaptics.threshold();
+    } else if (!pastThreshold) {
+      _thresholdFelt = false;
+    }
   }
 
   Future<void> _onDragEnd(DragEndDetails details) async {
@@ -75,6 +89,10 @@ class ViroSwipeToRevealState extends State<ViroSwipeToReveal>
     final velocity = details.primaryVelocity ?? 0;
     final shouldCommit =
         _progress.value >= _commitProgress || velocity < -_commitVelocity;
+
+    // Commit à la vitesse avant le seuil : on confirme quand même.
+    if (shouldCommit && !_thresholdFelt) ViroHaptics.threshold();
+    _thresholdFelt = false;
 
     if (shouldCommit) {
       await _commit();

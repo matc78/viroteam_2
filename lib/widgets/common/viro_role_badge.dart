@@ -3,48 +3,82 @@ import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/project_config.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
-/// Rôles affichables en UI.
+/// Badges affichables en UI.
 ///
-/// [ViroRole.parent] = relation parent↔enfant ([ProjectConfig.parentLinksField],
-/// [ProjectConfig.guardiansSubcollection]) — pas un rôle `members/{uid}.role`.
-/// Utiliser [viroRoleFromMemberRole] pour les badges issus d'une adhésion club.
-enum ViroRole { player, coach, parent, admin }
+/// Admin / Entraîneur / Joueur / Membre se dérivent de la fiche (droit
+/// `admin`, équipes entraînées, effectif : voir [MemberBadge]).
+/// [ViroRole.parent] = relation parent↔enfant
+/// ([ProjectConfig.parentLinksField]), pas un droit.
+enum ViroRole { player, coach, parent, admin, member }
 
-/// Mappe un rôle club (`player` | `coach` | `admin`) vers le badge UI.
-ViroRole viroRoleFromMemberRole(String role) => switch (role) {
-      MemberRoles.admin => ViroRole.admin,
-      MemberRoles.coach => ViroRole.coach,
-      _ => ViroRole.player,
+/// Badge UI d'un [MemberBadge].
+ViroRole viroRoleFromBadge(MemberBadge badge) => switch (badge) {
+      MemberBadge.admin => ViroRole.admin,
+      MemberBadge.coach => ViroRole.coach,
+      MemberBadge.player => ViroRole.player,
+      MemberBadge.member => ViroRole.member,
     };
 
-/// Rôle affiché pour un club en session : adhésion licenciée, sinon parent.
+/// Badge principal d'une fiche (ou de son profil de conversation), ou
+/// `null` si l'identifiant de profil est inconnu.
+ViroRole? viroRoleForMember(ClubMember member) =>
+    viroRoleFromChatSenderRole(member.chatBadgeId);
+
+/// Badge affiché pour un club en session (listes de clubs).
 ///
-/// [memberRole] = `clubMemberships[].role` ; [hasFamilyLinks] = liens parent actifs.
+/// [memberBadge] = badge principal de `members/{uid}` (`null` sans fiche) ;
+/// [hasFamilyLinks] = liens parent actifs. Une fiche au seul badge Membre qui
+/// suit un enfant affiche Parent, plus parlant.
 ViroRole? viroRoleForClubSession({
-  String? memberRole,
+  MemberBadge? memberBadge,
   bool hasFamilyLinks = false,
 }) {
-  if (memberRole != null) return viroRoleFromMemberRole(memberRole);
+  if (memberBadge != null && memberBadge != MemberBadge.member) {
+    return viroRoleFromBadge(memberBadge);
+  }
   if (hasFamilyLinks) return ViroRole.parent;
+  if (memberBadge != null) return ViroRole.member;
   return null;
 }
 
-/// Mappe un rôle chat (`player` | `coach` | `admin` | `parent`) vers le badge UI.
-ViroRole viroRoleFromChatSenderRole(String role) => switch (role) {
-      MemberRoles.admin => ViroRole.admin,
-      MemberRoles.coach => ViroRole.coach,
-      'parent' => ViroRole.parent,
-      _ => ViroRole.player,
+/// Badges d'un club du sélecteur : badges de la fiche ([memberBadges],
+/// `null` sans fiche), Parent à la place d'un seul badge Membre quand le
+/// compte suit un enfant ([hasFamilyLinks]).
+List<ViroRole> viroRolesForClubSelector({
+  List<MemberBadge>? memberBadges,
+  bool hasFamilyLinks = false,
+}) {
+  final onlyMember = memberBadges == null ||
+      memberBadges.every((badge) => badge == MemberBadge.member);
+  if (onlyMember && hasFamilyLinks) return const [ViroRole.parent];
+  if (memberBadges == null) return const [];
+  return [for (final badge in memberBadges) viroRoleFromBadge(badge)];
+}
+
+/// Badge d'un identifiant de chat ([ChatBadgeIds]), ou `null` si inconnu.
+ViroRole? viroRoleFromChatSenderRole(String role) => switch (role) {
+      'admin' => ViroRole.admin,
+      'coach' => ViroRole.coach,
+      'player' => ViroRole.player,
+      ChatBadgeIds.member => ViroRole.member,
+      ChatBadgeIds.parent => ViroRole.parent,
+      _ => null,
     };
 
-/// Couleur de bordure des bulles de discussion selon le rôle de l’expéditeur.
-Color chatBubbleBorderForRole(String role) =>
-    RoleBadgeVisual.forRole(viroRoleFromChatSenderRole(role)).end;
+/// Couleur de bordure des bulles de discussion selon le rôle de l’expéditeur
+/// (aucune pour un simple membre).
+Color? chatBubbleBorderForRole(String role) {
+  final viroRole = viroRoleFromChatSenderRole(role);
+  if (viroRole == null || viroRole == ViroRole.member) return null;
+  return RoleBadgeVisual.forRole(viroRole).end;
+}
 
-/// Badge de rôle coloré (joueur, entraîneur, parent, admin).
+/// Badge de rôle coloré (joueur, entraîneur, parent, admin) ; Membre en
+/// aplat gris, sans dégradé ni halo.
 class ViroRoleBadge extends StatelessWidget {
   const ViroRoleBadge({
     super.key,
@@ -75,19 +109,18 @@ class ViroRoleBadge extends StatelessWidget {
       return Container(
         padding: EdgeInsets.all(pad),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [style.start, style.end],
-          ),
+          color: style.flat ? style.start : null,
+          gradient: style.gradient,
           borderRadius: BorderRadius.circular(compact ? 6 : 8),
-          boxShadow: [
-            BoxShadow(
-              color: style.end.withValues(alpha: 0.4),
-              blurRadius: compact ? 6 : 10,
-              offset: Offset(0, compact ? 2 : 3),
-            ),
-          ],
+          boxShadow: style.flat
+              ? null
+              : [
+                  BoxShadow(
+                    color: style.end.withValues(alpha: 0.4),
+                    blurRadius: compact ? 6 : 10,
+                    offset: Offset(0, compact ? 2 : 3),
+                  ),
+                ],
         ),
         child: Container(
           width: box,
@@ -100,7 +133,7 @@ class ViroRoleBadge extends StatelessWidget {
           child: ViroIcon(
             style.icon,
             size: glyph,
-            color: ViroColors.roleBadgeText,
+            color: style.foreground,
           ),
         ),
       );
@@ -113,19 +146,18 @@ class ViroRoleBadge extends StatelessWidget {
         right: compact ? 10 : 12,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [style.start, style.end],
-        ),
+        color: style.flat ? style.start : null,
+        gradient: style.gradient,
         borderRadius: BorderRadius.circular(compact ? 8 : 10),
-        boxShadow: [
-          BoxShadow(
-            color: style.end.withValues(alpha: 0.45),
-            blurRadius: compact ? 8 : 12,
-            offset: Offset(0, compact ? 3 : 4),
-          ),
-        ],
+        boxShadow: style.flat
+            ? null
+            : [
+                BoxShadow(
+                  color: style.end.withValues(alpha: 0.45),
+                  blurRadius: compact ? 8 : 12,
+                  offset: Offset(0, compact ? 3 : 4),
+                ),
+              ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -141,7 +173,7 @@ class ViroRoleBadge extends StatelessWidget {
             child: ViroIcon(
               style.icon,
               size: iconSize,
-              color: ViroColors.roleBadgeText,
+              color: style.foreground,
             ),
           ),
           SizedBox(width: compact ? 6 : 8),
@@ -150,7 +182,7 @@ class ViroRoleBadge extends StatelessWidget {
             style: TextStyle(
               fontSize: fontSize,
               fontWeight: FontWeight.w700,
-              color: ViroColors.roleBadgeText,
+              color: style.foreground,
               letterSpacing: 0.2,
             ),
           ),
@@ -176,27 +208,26 @@ class ViroRoleSatelliteBadge extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [style.start, style.end],
-        ),
+        color: style.flat ? style.start : null,
+        gradient: style.gradient,
         shape: BoxShape.circle,
         // Anneau de découpe : couleur de la carte sous l'avatar.
         border: Border.all(color: context.viroPalette.surfaceCard, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: style.end.withValues(alpha: 0.4),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: style.flat
+            ? null
+            : [
+                BoxShadow(
+                  color: style.end.withValues(alpha: 0.4),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       alignment: Alignment.center,
       child: ViroIcon(
         style.icon,
         size: 12,
-        color: ViroColors.roleBadgeText,
+        color: style.foreground,
       ),
     );
   }
@@ -208,6 +239,7 @@ abstract final class RoleBadgeVisual {
         ViroRole.coach => AppCopy.common.roleCoach,
         ViroRole.parent => AppCopy.common.roleParent,
         ViroRole.admin => AppCopy.common.roleAdmin,
+        ViroRole.member => AppCopy.common.roleMember,
       };
 
   static RoleBadgeStyle forRole(ViroRole role) => switch (role) {
@@ -231,6 +263,13 @@ abstract final class RoleBadgeVisual {
             end: ViroColors.adminBadgeEnd,
             icon: ViroIcons.roleAdmin,
           ),
+        ViroRole.member => RoleBadgeStyle(
+            start: ViroColors.memberBadgeBackground,
+            end: ViroColors.memberBadgeBackground,
+            icon: ViroIcons.roleMember,
+            foreground: ViroColors.memberBadgeText,
+            flat: true,
+          ),
       };
 }
 
@@ -239,9 +278,26 @@ class RoleBadgeStyle {
     required this.start,
     required this.end,
     required this.icon,
+    this.foreground = ViroColors.roleBadgeText,
+    this.flat = false,
   });
 
   final Color start;
   final Color end;
   final IconData icon;
+
+  /// Couleur du texte et de l'icône.
+  final Color foreground;
+
+  /// Aplat simple ([start]), sans dégradé ni halo (badge Membre).
+  final bool flat;
+
+  /// Dégradé du badge, ou `null` pour un aplat.
+  Gradient? get gradient => flat
+      ? null
+      : LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [start, end],
+        );
 }

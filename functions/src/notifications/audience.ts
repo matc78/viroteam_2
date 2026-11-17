@@ -1,7 +1,6 @@
 import type { DocumentData, Firestore } from "firebase-admin/firestore";
-import { stringArray, uniq } from "../common";
+import { accountUidOf, stringArray, uniq } from "../common";
 import { normalizeRsvpStatus, type RsvpStatus, type RsvpTally } from "./copy";
-import { memberAccountUid } from "./recipients";
 
 const GUARDIAN_STATUS_ACTIVE = "active";
 
@@ -12,7 +11,6 @@ const GUARDIAN_STATUS_ACTIVE = "active";
 export class ClubDirectory {
   private readonly teams = new Map<string, Promise<DocumentData | null>>();
   private readonly members = new Map<string, Promise<DocumentData | null>>();
-  private readonly memberIds = new Map<string, Promise<string | null>>();
   private readonly guardians = new Map<string, Promise<string[]>>();
   private club: Promise<DocumentData | null> | null = null;
 
@@ -61,20 +59,11 @@ export class ClubDirectory {
   }
 
   /**
-   * memberId d'un identifiant d'audience (memberId direct ou uid de compte via
-   * `member_accounts`), `null` si inconnu.
+   * Uid du compte lié à une fiche (== son id, une seule clé membre), `null`
+   * si la fiche est absente ou non liée.
    */
-  resolveMemberId(rosterId: string): Promise<string | null> {
-    return cached(this.memberIds, rosterId, async () => {
-      if (await this.member(rosterId)) return rosterId;
-      const account = await this.clubRef()
-        .collection("member_accounts")
-        .doc(rosterId)
-        .get();
-      if (!account.exists) return null;
-      const memberId = String(account.data()?.memberId ?? "").trim();
-      return memberId || null;
-    });
+  async memberAccountUid(memberId: string): Promise<string | null> {
+    return accountUidOf(await this.member(memberId));
   }
 
   /** Guardians actifs d'une fiche membre. */
@@ -92,14 +81,6 @@ export class ClubDirectory {
     });
   }
 
-  /**
-   * Uid de compte d'un coach : `coachIds` contient un uid ou un memberId selon
-   * l'ancienneté de l'équipe.
-   */
-  async coachAccountUid(coachId: string): Promise<string> {
-    const member = await this.member(coachId);
-    return member ? (memberAccountUid(member, coachId) ?? coachId) : coachId;
-  }
 }
 
 function cached<T>(
@@ -117,7 +98,12 @@ function cached<T>(
 
 /** Une personne à notifier pour un event, et à quel titre. */
 export type EventAudienceEntry = {
-  uid: string;
+  /**
+   * Uid du compte. `null` seulement pour un `self` sans compte (fiche non
+   * liée, ex. enfant géré par ses parents) : compté dans le décompte des
+   * réponses, jamais notifié.
+   */
+  uid: string | null;
   /**
    * `self` : le joueur convoqué ; `guardian` : un parent de ce joueur ;
    * `coach` : un coach d'équipe non convoqué lui-même.
@@ -142,25 +128,16 @@ export async function resolveEventAudience(
 ): Promise<EventAudienceEntry[]> {
   const rsvp = rsvpMap(eventData.rsvp);
   const entries: EventAudienceEntry[] = [];
-  const seenMembers = new Set<string>();
   const selfUids = new Set<string>();
 
-  for (const rosterId of uniq(stringArray(eventData.teamMemberIds))) {
-    const memberId = (await directory.resolveMemberId(rosterId)) ?? rosterId;
-    // `teamMemberIds` peut contenir les deux alias d'une même personne.
-    if (seenMembers.has(memberId)) continue;
-    seenMembers.add(memberId);
-
+  // Une seule clé membre : `teamMemberIds` et `rsvp` sont indexés par id de fiche.
+  for (const memberId of uniq(stringArray(eventData.teamMemberIds))) {
     const member = await directory.member(memberId);
-    const accountUid = member
-      ? (memberAccountUid(member, memberId) ?? memberId)
-      : rosterId;
-    const status = normalizeRsvpStatus(
-      rsvp[rosterId] ?? rsvp[memberId] ?? rsvp[accountUid],
-    );
+    const accountUid = accountUidOf(member);
+    const status = normalizeRsvpStatus(rsvp[memberId]);
 
     entries.push({ uid: accountUid, relation: "self", memberId, rsvp: status });
-    selfUids.add(accountUid);
+    if (accountUid) selfUids.add(accountUid);
 
     const childFirstName =
       String(member?.firstName ?? "").trim() ||
@@ -194,7 +171,8 @@ export async function eventCoachUids(
   for (const teamId of uniq(stringArray(eventData.teamIds))) {
     const team = await directory.team(teamId);
     for (const coachId of stringArray(team?.coachIds)) {
-      coachUids.add(await directory.coachAccountUid(coachId));
+      const uid = await directory.memberAccountUid(coachId);
+      if (uid) coachUids.add(uid);
     }
   }
   return [...coachUids];

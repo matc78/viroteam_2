@@ -1,11 +1,21 @@
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import type { DocumentData, Firestore } from "firebase-admin/firestore";
-import { stringArray, uniq } from "../common";
+import { accountUidOf, stringArray, uniq } from "../common";
 import { activeGuardianUids } from "../parentTeams";
+import { isStaffMember } from "../permissionsCatalog";
+import {
+  memberDirectoryFromDocs,
+  participantProfilesEqual,
+  profileFromUser,
+  type ChatParticipantProfile,
+} from "./participantProfiles";
 
 const WRITE_OPEN = "open";
 const WRITE_ADMINS = "admins_only";
+
+/** Uid Auth → profil, construit depuis les fiches membres du club. */
+export type ClubMemberDirectory = Map<string, ChatParticipantProfile>;
 
 type UpsertConversationParams = {
   firestore: Firestore;
@@ -17,7 +27,50 @@ type UpsertConversationParams = {
   writePolicy: string;
   teamId?: string;
   categoryKey?: string;
+  /** Annuaire déjà chargé (sync en lot) ; sinon lu à la demande. */
+  memberDirectory?: ClubMemberDirectory;
 };
+
+/** Charge l’annuaire des fiches membres d’un club (une requête). */
+export async function loadClubMemberDirectory(
+  firestore: Firestore,
+  clubId: string,
+): Promise<ClubMemberDirectory> {
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("members")
+    .get();
+  return memberDirectoryFromDocs(snap.docs);
+}
+
+/**
+ * Profils des participants : fiche membre si elle existe, sinon `users/{uid}`
+ * (parents), lus en un seul `getAll`. Un uid sans profil lisible est omis.
+ */
+export async function buildParticipantProfiles(params: {
+  firestore: Firestore;
+  participantUids: string[];
+  memberDirectory: ClubMemberDirectory;
+}): Promise<Record<string, ChatParticipantProfile>> {
+  const { firestore, participantUids, memberDirectory } = params;
+  const profiles: Record<string, ChatParticipantProfile> = {};
+  const missingUids: string[] = [];
+  for (const uid of participantUids) {
+    const fromMember = memberDirectory.get(uid);
+    if (fromMember) profiles[uid] = fromMember;
+    else missingUids.push(uid);
+  }
+  if (missingUids.length > 0) {
+    const snaps = await firestore.getAll(
+      ...missingUids.map((uid) => firestore.collection("users").doc(uid)),
+    );
+    for (const snap of snaps) {
+      if (snap.exists) profiles[snap.id] = profileFromUser(snap.data() ?? {});
+    }
+  }
+  return profiles;
+}
 
 /** Id déterministe pour rendre les créations concurrentes idempotentes. */
 function stableConversationId(systemKey: string): string {
@@ -47,11 +100,21 @@ export async function upsertSystemConversation(
     .limit(1)
     .get();
 
+  const participantUids = uniq(params.participantUids.filter(Boolean));
+  const participantProfiles = await buildParticipantProfiles({
+    firestore: params.firestore,
+    participantUids,
+    memberDirectory:
+      params.memberDirectory ??
+      (await loadClubMemberDirectory(params.firestore, params.clubId)),
+  });
+
   const payload: Record<string, unknown> = {
     type: params.type,
     systemKey: params.systemKey,
     title: params.title,
-    participantUids: uniq(params.participantUids.filter(Boolean)),
+    participantUids,
+    participantProfiles,
     writePolicy: params.writePolicy,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
@@ -60,12 +123,14 @@ export async function upsertSystemConversation(
 
   if (!existing.empty) {
     const ref = existing.docs[0]!.ref;
-    // Pas de réécriture si rien ne change (participants triés, titre,
+    // Pas de réécriture si rien ne change (participants triés, profils, titre,
     // politique, cibles) : évite un `updatedAt` et un fan-out inutiles.
     if (systemConversationUnchanged(existing.docs[0]!.data(), payload)) {
       return ref.id;
     }
-    await ref.set(payload, { merge: true });
+    // `update` (pas `set` merge) : remplace `participantProfiles` en entier,
+    // sinon le profil d’un participant retiré resterait dans la map.
+    await ref.update(payload);
     return ref.id;
   }
 
@@ -80,7 +145,7 @@ export async function upsertSystemConversation(
     });
   } catch (error) {
     if (!isAlreadyExistsError(error)) throw error;
-    await ref.set(payload, { merge: true });
+    await ref.update(payload);
   }
   return ref.id;
 }
@@ -94,48 +159,103 @@ function systemConversationUnchanged(
   if (sortedJoin(current.participantUids) !== sortedJoin(payload.participantUids)) {
     return false;
   }
+  if (!participantProfilesEqual(current.participantProfiles, payload.participantProfiles)) {
+    return false;
+  }
   for (const key of ["type", "title", "writePolicy", "teamId", "categoryKey"]) {
     if (String(current[key] ?? "") !== String(payload[key] ?? "")) return false;
   }
   return true;
 }
 
-/** Résout un id roster → Auth uid (accountUid / userId). */
+/**
+ * Remplace le profil de [uid] dans les conversations du club où il participe
+ * (changement de nom / photo). [onlyRole] : ne touche que les profils de ce
+ * rôle (ex. `parent` : une fiche membre reste prioritaire sur `users/{uid}`).
+ * Retourne le nombre de conversations mises à jour.
+ */
+export async function refreshParticipantProfile(params: {
+  firestore: Firestore;
+  clubId: string;
+  uid: string;
+  profile: ChatParticipantProfile;
+  onlyRole?: string;
+}): Promise<number> {
+  const { firestore, clubId, uid, profile, onlyRole } = params;
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("conversations")
+    .where("participantUids", "array-contains", uid)
+    .get();
+  let updated = 0;
+  for (const doc of snap.docs) {
+    const profiles = (doc.data().participantProfiles ?? {}) as Record<
+      string,
+      ChatParticipantProfile | undefined
+    >;
+    const current = profiles[uid];
+    // Profil absent : la prochaine sync complète le posera avec le bon rôle.
+    if (onlyRole && current?.role !== onlyRole) continue;
+    if (participantProfilesEqual(current, profile)) continue;
+    await doc.ref.update(
+      new admin.firestore.FieldPath("participantProfiles", uid),
+      profile,
+    );
+    updated += 1;
+  }
+  return updated;
+}
+
+/**
+ * Recalcule `participantProfiles` de toutes les conversations du club (DM et
+ * canaux compris, que la sync système ne revisite pas). Rattrapage ops.
+ * Retourne le nombre de conversations mises à jour.
+ */
+export async function backfillConversationProfiles(params: {
+  firestore: Firestore;
+  clubId: string;
+}): Promise<number> {
+  const { firestore, clubId } = params;
+  const memberDirectory = await loadClubMemberDirectory(firestore, clubId);
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
+    .collection("conversations")
+    .get();
+  let updated = 0;
+  for (const doc of snap.docs) {
+    const data = doc.data();
+    const participantProfiles = await buildParticipantProfiles({
+      firestore,
+      participantUids: uniq(stringArray(data.participantUids)),
+      memberDirectory,
+    });
+    if (participantProfilesEqual(data.participantProfiles, participantProfiles)) {
+      continue;
+    }
+    await doc.ref.update({ participantProfiles });
+    updated += 1;
+  }
+  return updated;
+}
+
+/**
+ * Uid Auth de `members/{memberId}` (ids roster = ids de fiche, une seule clé
+ * membre). Fiche absente ou pré-créée sans compte : `null` (pas de participant).
+ */
 export async function resolveAuthUid(
   firestore: Firestore,
   clubId: string,
-  rosterId: string,
+  memberId: string,
 ): Promise<string | null> {
-  const clubRef = firestore.collection("clubs").doc(clubId);
-  const direct = await clubRef.collection("members").doc(rosterId).get();
-  if (direct.exists) {
-    return authUidFromMember(rosterId, direct.data() ?? {});
-  }
-
-  const account = await clubRef.collection("member_accounts").doc(rosterId).get();
-  if (account.exists) {
-    // rosterId est déjà un accountUid
-    return rosterId;
-  }
-
-  const byAccount = await clubRef
+  const snap = await firestore
+    .collection("clubs")
+    .doc(clubId)
     .collection("members")
-    .where("accountUid", "==", rosterId)
-    .limit(1)
+    .doc(memberId)
     .get();
-  if (!byAccount.empty) return rosterId;
-
-  return null;
-}
-
-function authUidFromMember(memberId: string, data: DocumentData): string | null {
-  const accountUid = String(data.accountUid ?? "").trim();
-  if (accountUid) return accountUid;
-  const userId = String(data.userId ?? "").trim();
-  if (userId) return userId;
-  // Fiche pré-créée sans compte : pas de participant pushable.
-  if (memberId && data.accountUid == null && data.userId == null) return null;
-  return null;
+  return accountUidOf(snap.data());
 }
 
 /** Uids Auth pour une liste d’ids roster. */
@@ -160,6 +280,7 @@ export async function syncTeamConversations(params: {
   clubId: string;
   teamId: string;
   teamData: DocumentData | undefined;
+  memberDirectory?: ClubMemberDirectory;
 }): Promise<void> {
   const { firestore, clubId, teamId, teamData } = params;
   if (!teamData) {
@@ -179,8 +300,11 @@ export async function syncTeamConversations(params: {
 
   const playerUids = await resolveAuthUids(firestore, clubId, playerIds);
   const coachUids = await resolveAuthUids(firestore, clubId, coachIds);
+  const memberDirectory =
+    params.memberDirectory ?? (await loadClubMemberDirectory(firestore, clubId));
 
   await upsertSystemConversation({
+    memberDirectory,
     firestore,
     clubId,
     systemKey: `team:${teamId}`,
@@ -192,15 +316,14 @@ export async function syncTeamConversations(params: {
   });
 
   const parentUids: string[] = [];
-  for (const rosterId of playerIds) {
-    const memberId = await resolveMemberIdForChat(firestore, clubId, rosterId);
-    if (!memberId) continue;
+  for (const memberId of playerIds) {
     parentUids.push(
       ...(await activeGuardianUids(firestore, clubId, memberId)),
     );
   }
 
   await upsertSystemConversation({
+    memberDirectory,
     firestore,
     clubId,
     systemKey: `parents:${teamId}`,
@@ -225,36 +348,15 @@ async function clearSystemConversationParticipants(
     .limit(1)
     .get();
   if (snap.empty) return;
-  await snap.docs[0]!.ref.set(
-    {
-      participantUids: [],
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    },
-    { merge: true },
-  );
-}
-
-async function resolveMemberIdForChat(
-  firestore: Firestore,
-  clubId: string,
-  rosterId: string,
-): Promise<string | null> {
-  const clubRef = firestore.collection("clubs").doc(clubId);
-  const direct = await clubRef.collection("members").doc(rosterId).get();
-  if (direct.exists) return rosterId;
-  const account = await clubRef.collection("member_accounts").doc(rosterId).get();
-  const linked = String(account.data()?.memberId ?? "").trim();
-  if (account.exists && linked) return linked;
-  const byAccount = await clubRef
-    .collection("members")
-    .where("accountUid", "==", rosterId)
-    .limit(1)
-    .get();
-  return byAccount.docs[0]?.id ?? null;
+  await snap.docs[0]!.ref.update({
+    participantUids: [],
+    participantProfiles: {},
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
 }
 
 /**
- * Sync `staff` (coachs + admins) et `club` (tous les licenciés, écriture admin).
+ * Sync `staff` (admins, coachs d'équipe, membres ayant au moins un droit) et `club` (tous les licenciés, écriture admin).
  */
 export async function syncClubWideConversations(params: {
   firestore: Firestore;
@@ -270,6 +372,7 @@ export async function syncClubWideConversations(params: {
     .doc(clubId)
     .collection("members")
     .get();
+  const memberDirectory = memberDirectoryFromDocs(membersSnap.docs);
 
   const licensedUids: string[] = [];
   const staffUids: string[] = [...adminIds];
@@ -277,16 +380,14 @@ export async function syncClubWideConversations(params: {
   for (const doc of membersSnap.docs) {
     const data = doc.data();
     if (String(data.status ?? "") === "archived") continue;
-    const uid = authUidFromMember(doc.id, data);
+    const uid = accountUidOf(data);
     if (!uid) continue;
     licensedUids.push(uid);
-    const role = String(data.role ?? "");
-    if (role === "admin" || role === "coach") {
-      staffUids.push(uid);
-    }
+    if (isStaffMember(data)) staffUids.push(uid);
   }
 
   await upsertSystemConversation({
+    memberDirectory,
     firestore,
     clubId,
     systemKey: "staff",
@@ -297,6 +398,7 @@ export async function syncClubWideConversations(params: {
   });
 
   await upsertSystemConversation({
+    memberDirectory,
     firestore,
     clubId,
     systemKey: "club",
@@ -321,6 +423,7 @@ export async function syncAllConversationsForClub(params: {
     .doc(clubId)
     .collection("teams")
     .get();
+  const memberDirectory = await loadClubMemberDirectory(firestore, clubId);
 
   for (const teamDoc of teamsSnap.docs) {
     await syncTeamConversations({
@@ -328,6 +431,7 @@ export async function syncAllConversationsForClub(params: {
       clubId,
       teamId: teamDoc.id,
       teamData: teamDoc.data(),
+      memberDirectory,
     });
   }
 
@@ -398,25 +502,12 @@ export async function resolveScopedChannelParticipants(params: {
     coachIds.push(...stringArray(data.coachIds));
   }
 
-  // adminIds peut être memberId ou Auth uid — toujours résoudre.
-  const adminUids = await resolveAuthUids(firestore, clubId, adminIds);
-  // Filet : admins déclarés par rôle fiche (adminIds parfois incomplet).
-  const adminMembersSnap = await clubRef
-    .collection("members")
-    .where("role", "==", "admin")
-    .get();
-  for (const adminDoc of adminMembersSnap.docs) {
-    const adminUid = await resolveAuthUid(firestore, clubId, adminDoc.id);
-    if (adminUid) adminUids.push(adminUid);
-  }
-
+  // `adminIds` = index des comptes ayant le droit Administrateur.
   const coachUids = await resolveAuthUids(firestore, clubId, coachIds);
-  const participantUids = [...adminUids, ...coachUids];
+  const participantUids = [...adminIds, ...coachUids];
 
   if (scopeType === "parents") {
-    for (const rosterId of uniq(playerIds)) {
-      const memberId = await resolveMemberIdForChat(firestore, clubId, rosterId);
-      if (!memberId) continue;
+    for (const memberId of uniq(playerIds)) {
       participantUids.push(
         ...(await activeGuardianUids(firestore, clubId, memberId)),
       );
@@ -457,28 +548,5 @@ export async function createScopedChannelConversation(params: {
     categoryKey,
     participantUids: params.participantUids,
     writePolicy: params.writePolicy ?? WRITE_ADMINS,
-  });
-}
-
-/**
- * @deprecated Préférer [createScopedChannelConversation].
- * Crée un canal catégorie (admins only write) et retourne son id.
- */
-export async function createCategoryConversation(params: {
-  firestore: Firestore;
-  clubId: string;
-  categoryKey: string;
-  title: string;
-  participantUids: string[];
-  writePolicy?: string;
-}): Promise<string> {
-  return createScopedChannelConversation({
-    firestore: params.firestore,
-    clubId: params.clubId,
-    scopeType: "categories",
-    scopeIds: [params.categoryKey],
-    title: params.title,
-    participantUids: params.participantUids,
-    writePolicy: params.writePolicy,
   });
 }

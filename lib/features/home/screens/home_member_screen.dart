@@ -3,21 +3,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:viro_team_v2/config/feature_flags.dart';
+import 'package:viro_team_v2/config/deep_links.dart';
 import 'package:viro_team_v2/config/project_config.dart';
 import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
+import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
+import 'package:viro_team_v2/features/home/providers/rsvp_push_highlight_provider.dart';
 import 'package:viro_team_v2/features/clubs/widgets/add_club_sheet.dart';
 import 'package:viro_team_v2/features/home/widgets/club_selector_bar.dart';
+import 'package:viro_team_v2/features/home/widgets/rsvp_highlight_scroll_hints.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_event_detail_sheet.dart';
@@ -49,11 +51,65 @@ class HomeMemberScreen extends ConsumerStatefulWidget {
 class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
   final _scrollController = ScrollController();
   final _swipeToMessagingKey = GlobalKey<ViroSwipeToRevealState>();
+  GoRouter? _router;
+  bool _highlightResolveScheduled = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _offerNotifications());
+    _scheduleRsvpHighlightResolve();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final router = GoRouter.of(context);
+    if (router == _router) return;
+    _router?.routerDelegate.removeListener(_clearRsvpHighlightOffHome);
+    _router = router..routerDelegate.addListener(_clearRsvpHighlightOffHome);
+  }
+
+  /// Changement de page : le liseré des events (push RSVP) s'arrête.
+  void _clearRsvpHighlightOffHome() {
+    final path = _router?.routerDelegate.currentConfiguration.uri.path;
+    if (path == AppRoutes.home) return;
+    ref.read(rsvpPushHighlightProvider.notifier).clear();
+  }
+
+  /// Résout le liseré après le frame (events chargés ou liseré posé).
+  void _scheduleRsvpHighlightResolve() {
+    if (_highlightResolveScheduled) return;
+    _highlightResolveScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _highlightResolveScheduled = false;
+      if (mounted) _resolveRsvpHighlight();
+    });
+  }
+
+  /// Events de la push affichés → compte à rebours ; aucun sur la home (coach
+  /// hors audience, event lointain…) → planning d'origine du lien.
+  void _resolveRsvpHighlight() {
+    final highlight = ref.read(rsvpPushHighlightProvider);
+    final events = ref.read(memberEventsProvider).value;
+    final user = ref.read(viroUserProvider).value;
+    // Auth pas prête : la liste vide est provisoire, on attend la suivante.
+    final authReady = ref.read(firestoreAuthReadyProvider).value != null;
+    if (highlight == null || events == null || user == null || !authReady) {
+      return;
+    }
+    final notifier = ref.read(rsvpPushHighlightProvider.notifier);
+    final keys = highlight.statusesByEventKey.keys.toSet();
+    final shown = events.upcoming.any(
+      (event) => keys.contains(RsvpPushHighlight.eventKey(event.clubId, event.id)),
+    );
+    if (shown) {
+      notifier.startCountdown();
+      return;
+    }
+    notifier.clear();
+    if (!userCanOpenClub(user, highlight.clubId)) return;
+    context.go(highlight.fallbackRoute);
   }
 
   /// Pré-demandes (mesure d'audience puis notifs) : seulement avec au moins
@@ -76,6 +132,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
 
   @override
   void dispose() {
+    _router?.routerDelegate.removeListener(_clearRsvpHighlightOffHome);
     _scrollController.dispose();
     super.dispose();
   }
@@ -112,21 +169,13 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
   void _showEventDetail({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) {
-    final members = ref.read(clubMembersProvider(event.clubId)).value;
     PlanningEventDetailSheet.show(
       context: context,
       clubId: event.clubId,
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teams),
-      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(
-        event,
-        teams,
-        membersByUid:
-            members != null ? indexClubMembersByUid(members) : null,
-      ),
-      canManageEvents: canManageEvents,
+      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(event, teams),
       onCanceled: () {},
       onRsvpUpdated: () => ref.invalidate(memberEventsProvider),
     );
@@ -164,14 +213,14 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
 
   /// Ouvre la messagerie via la bulle chat (expand circulaire).
   void _openMessagingFromBubble(Offset bubbleOrigin) {
-    if (!FeatureFlags.chatMessagingLive) return;
+    if (!ref.read(chatMessagingLiveProvider)) return;
     _swipeToMessagingKey.currentState?.reset();
     context.push(AppRoutes.conversations, extra: bubbleOrigin);
   }
 
   /// Finalise le swipe interactif → route messagerie sans rejouer le slide.
   void _commitMessagingFromSwipe() {
-    if (!FeatureFlags.chatMessagingLive) return;
+    if (!ref.read(chatMessagingLiveProvider)) return;
     context.push(
       AppRoutes.conversations,
       extra: const ConversationsSwipeCommit(),
@@ -186,10 +235,19 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
         const <String, Map<String, ClubTeam>>{};
     final pendingCounts = ref.watch(pendingCountByClubProvider);
     final userAsync = ref.watch(viroUserProvider);
+    final chatMessagingLive = ref.watch(chatMessagingLiveProvider);
+    final highlightStatuses =
+        ref.watch(rsvpPushHighlightProvider)?.statusesByEventKey ??
+            const <String, RsvpStatus>{};
+    ref.listen(
+      rsvpPushHighlightProvider,
+      (_, _) => _scheduleRsvpHighlightResolve(),
+    );
+    ref.listen(memberEventsProvider, (_, _) => _scheduleRsvpHighlightResolve());
 
     return ViroSwipeToReveal(
       key: _swipeToMessagingKey,
-      enabled: FeatureFlags.chatMessagingLive,
+      enabled: chatMessagingLive,
       reveal: const ConversationsScreen(),
       onCommit: _commitMessagingFromSwipe,
       child: ViroScaffold(
@@ -271,27 +329,10 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                               clubColors: colors,
                               clubSecondaryColors: secondaryColors,
                               teamsByClub: teamsByClub,
-                              maxEvents: memberHomePlanningPreviewLimit,
+                              highlightStatuses: highlightStatuses,
                               onShowDetail: _showEventDetail,
                               onSetRsvp: _setRsvp,
                             ),
-                            if (state.upcoming.length >
-                                memberHomePlanningPreviewLimit)
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    ViroSpacing.screenHorizontal,
-                                    0,
-                                    ViroSpacing.screenHorizontal,
-                                    ViroSpacing.lg,
-                                  ),
-                                  child: ViroPrimaryButton(
-                                    label: AppCopy.home.seeAllPlanning,
-                                    onPressed: () =>
-                                        context.push(AppRoutes.memberPlanning),
-                                  ),
-                                ),
-                              ),
                           ],
                           if (isFullyQuiet)
                             SliverToBoxAdapter(
@@ -310,6 +351,9 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                     );
                   },
                 ),
+                const Positioned.fill(
+                  child: RsvpHighlightScrollHints(),
+                ),
                 Positioned(
                   left: 0,
                   right: 0,
@@ -318,9 +362,8 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
                     clubs: clubs,
                     pendingByClub: pendingCounts,
                     onAddClub: () => showAddClubSheet(context, ref),
-                    onOpenChat: FeatureFlags.chatMessagingLive
-                        ? _openMessagingFromBubble
-                        : null,
+                    onOpenChat:
+                        chatMessagingLive ? _openMessagingFromBubble : null,
                   ),
                 ),
               ],

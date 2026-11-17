@@ -59,7 +59,11 @@ class MemberAvatar extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: accent.withValues(alpha: 0.15),
+          // Teinte opaque : le fond (motif du fil, etc.) ne transparaît pas.
+          color: Color.alphaBlend(
+            accent.withValues(alpha: 0.15),
+            palette.surfaceCard,
+          ),
           border: accentBorder,
         ),
         alignment: Alignment.center,

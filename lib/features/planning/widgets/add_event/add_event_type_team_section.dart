@@ -37,7 +37,10 @@ class AddEventTypeTeamSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dropdownStyle = Theme.of(context).textTheme.bodyMedium;
+    final palette = context.viroPalette;
+    final dropdownStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: palette.textPrimary,
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -47,9 +50,10 @@ class AddEventTypeTeamSection extends StatelessWidget {
           isDense: true,
           isExpanded: true,
           style: dropdownStyle,
+          iconEnabledColor: palette.textPrimary,
           menuMaxHeight: 240,
           decoration: addEventInputDecoration(
-            palette: context.viroPalette,
+            palette: palette,
             label: AppCopy.planning.fieldType,
           ),
           items: [
@@ -83,9 +87,10 @@ class AddEventTypeTeamSection extends StatelessWidget {
             isDense: true,
             isExpanded: true,
             style: dropdownStyle,
+            iconEnabledColor: palette.textPrimary,
             menuMaxHeight: 240,
             decoration: addEventInputDecoration(
-              palette: context.viroPalette,
+              palette: palette,
               label: AppCopy.planning.fieldTeam,
             ),
             hint: Text(AppCopy.planning.chooseTeam, style: dropdownStyle),

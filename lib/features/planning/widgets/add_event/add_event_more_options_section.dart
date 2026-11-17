@@ -51,7 +51,10 @@ class AddEventMoreOptionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dropdownStyle = Theme.of(context).textTheme.bodyMedium;
+    final palette = context.viroPalette;
+    final dropdownStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: palette.textPrimary,
+        );
     final valueStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
         );
@@ -136,9 +139,10 @@ class AddEventMoreOptionsSection extends StatelessWidget {
               isDense: true,
               isExpanded: true,
               style: dropdownStyle,
+              iconEnabledColor: palette.textPrimary,
               menuMaxHeight: 240,
               decoration: addEventInputDecoration(
-                palette: context.viroPalette,
+                palette: palette,
                 label: AppCopy.planning.meetingLocation,
               ),
               selectedItemBuilder: (context) => [

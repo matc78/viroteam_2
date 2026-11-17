@@ -18,12 +18,6 @@ class ThemePreferenceService {
   /// préchargées au démarrage ; [ThemeMode.system] sinon ou si absent.
   ThemeMode readSync() => _decode(_preferences?.getString(_prefsKey));
 
-  /// Mode enregistré ([ThemeMode.system] si aucun choix).
-  Future<ThemeMode> read() async {
-    final prefs = await _prefs();
-    return _decode(prefs.getString(_prefsKey));
-  }
-
   /// Enregistre [mode] comme choix de l'utilisateur.
   Future<void> write(ThemeMode mode) async {
     final prefs = await _prefs();

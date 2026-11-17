@@ -21,6 +21,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/lists/equipment_list_tile.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Inventaire équipements club (aligné portail `/equipment`).
 class ClubEquipmentScreen extends ConsumerStatefulWidget {
@@ -191,20 +192,10 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
   @override
   Widget build(BuildContext context) {
     final clubId = widget.clubId;
-    final member = ref.watch(clubMemberProvider(clubId)).value;
     final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
     final managementAccent = ref.watch(clubManagementAccentProvider(clubId));
     final itemsAsync = ref.watch(clubEquipmentProvider(clubId));
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
-
-    if (member != null && member.role != MemberRoles.admin) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.pop();
-      });
-      return const ViroScaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
 
     final teamNames = {
       for (final team in teamsAsync.value ?? []) team.id: team.name,
@@ -227,7 +218,7 @@ class _ClubEquipmentScreenState extends ConsumerState<ClubEquipmentScreen> {
                 onPressed: () => _openForm(),
               ),
         body: itemsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const Center(child: ViroLogoLoader()),
           error: (error, stackTrace) => const ViroErrorState(),
           data: (items) {
             final categories = _categories(items).toList()..sort();

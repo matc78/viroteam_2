@@ -27,11 +27,11 @@ export function AccessDeniedContent() {
   const searchParams = useSearchParams();
   const fromSignup = searchParams.get("from") === "signup";
   const reason = searchParams.get("reason");
-  const forceAppMessage = reason === "unknown" || reason === "role";
+  const forceAppMessage = reason === "unknown" || reason === "no-access";
   const [clubNames, setClubNames] = useState<string[]>([]);
   const pendingOverlay = usePendingOverlay("Déconnexion…");
 
-  const hasClubs = (profile?.clubMemberships.length ?? 0) > 0;
+  const hasClubs = (profile?.memberClubIds.length ?? 0) > 0;
   const isParent = (profile?.parentLinks ?? []).some(
     (link) => link.status === GuardianStatuses.active,
   );
@@ -43,8 +43,7 @@ export function AccessDeniedContent() {
       setClubNames([]);
       return;
     }
-    const clubIds =
-      profile?.clubMemberships.map((membership) => membership.clubId) ?? [];
+    const clubIds = profile?.memberClubIds ?? [];
     if (clubIds.length === 0) {
       setClubNames([]);
       return;

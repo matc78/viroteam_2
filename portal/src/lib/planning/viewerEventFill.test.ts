@@ -7,7 +7,7 @@ describe("resolveViewerEventFill", () => {
       resolveViewerEventFill({
         teamMemberIds: ["mem-a"],
         rsvpByMemberId: { "mem-a": "yes" },
-        viewerMatchIds: [],
+        viewerMemberIds: [],
       }),
     ).toBe("default");
   });
@@ -17,13 +17,13 @@ describe("resolveViewerEventFill", () => {
       resolveViewerEventFill({
         teamMemberIds: ["mem-b"],
         rsvpByMemberId: {},
-        viewerMatchIds: ["mem-a"],
+        viewerMemberIds: ["mem-a"],
       }),
     ).toBe("default");
   });
 
   it("distingue oui, peut-être, non et sans réponse", () => {
-    const base = { teamMemberIds: ["mem-a"], viewerMatchIds: ["mem-a"] };
+    const base = { teamMemberIds: ["mem-a"], viewerMemberIds: ["mem-a"] };
     expect(
       resolveViewerEventFill({ ...base, rsvpByMemberId: { "mem-a": "yes" } }),
     ).toBe("filled");
@@ -42,20 +42,20 @@ describe("resolveViewerEventFill", () => {
     expect(
       resolveViewerEventFill({
         teamMemberIds: [],
-        rsvpByMemberId: { "uid-a": "MAYBE" },
-        viewerMatchIds: ["mem-a", "uid-a"],
+        rsvpByMemberId: { "mem-a": "MAYBE" },
+        viewerMemberIds: ["mem-a"],
       }),
     ).toBe("maybe");
   });
 
-  it("lit la réponse portée par un alias (uid)", () => {
+  it("ignore la réponse d'une autre fiche (une seule clé membre)", () => {
     expect(
       resolveViewerEventFill({
         teamMemberIds: ["mem-a"],
-        rsvpByMemberId: { "uid-a": "no" },
-        viewerMatchIds: ["mem-a", "uid-a"],
+        rsvpByMemberId: { "mem-b": "no" },
+        viewerMemberIds: ["mem-a"],
       }),
-    ).toBe("declined");
+    ).toBe("outline");
   });
 });
 

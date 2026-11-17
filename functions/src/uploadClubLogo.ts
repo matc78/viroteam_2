@@ -4,7 +4,7 @@ import { getStorage } from "firebase-admin/storage";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable } from "./db";
 import { requireString, requireUid } from "./common";
-import { assertClubAdmin } from "./guardians";
+import { assertPermission } from "./permissions";
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
@@ -81,7 +81,7 @@ async function handleUploadClubLogo(
 ): Promise<UploadClubLogoResponse> {
   const callerUid = requireUid(request);
   const { clubId, bytes, contentType } = parseLogoPayload(request.data);
-  await assertClubAdmin(clubId, callerUid);
+  await assertPermission(clubId, callerUid, "manageClubSettings");
 
   const objectPath = `clubs/${clubId}/logo.jpg`;
   const bucket = getStorage().bucket();

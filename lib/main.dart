@@ -12,6 +12,7 @@ import 'package:viro_team_v2/firebase_options.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/analytics_consent_service.dart';
 import 'package:viro_team_v2/services/analytics_service.dart';
+import 'package:viro_team_v2/services/haptics_preference_service.dart';
 import 'package:viro_team_v2/services/theme_preference_service.dart';
 import 'package:viro_team_v2/utils/viro_debug_log.dart';
 
@@ -47,7 +48,8 @@ Future<void> main() async {
       .setCrashlyticsCollectionEnabled(!kDebugMode);
 
   await initializeDateFormatting('fr_FR');
-  // Préférences préchargées : le thème choisi s'applique dès la 1re frame.
+  // Préférences préchargées : le thème et le réglage « Vibrations »
+  // s'appliquent dès la 1re frame.
   final preferences = await SharedPreferences.getInstance();
   // PostHog muet tant que l'utilisateur n'a pas accepté la mesure d'audience.
   final analyticsConsent = AnalyticsConsentService(preferences: preferences);
@@ -60,6 +62,9 @@ Future<void> main() async {
       overrides: [
         themePreferenceServiceProvider.overrideWithValue(
           ThemePreferenceService(preferences: preferences),
+        ),
+        hapticsPreferenceServiceProvider.overrideWithValue(
+          HapticsPreferenceService(preferences: preferences),
         ),
         analyticsConsentServiceProvider.overrideWithValue(analyticsConsent),
         analyticsServiceProvider.overrideWithValue(analytics),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/members/utils/member_invite_feedback.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -14,6 +13,7 @@ import 'package:viro_team_v2/utils/callable_error.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Ouvre les actions de masse disponibles sur la sélection des membres.
 ///
@@ -33,9 +33,8 @@ Future<bool?> showMemberBulkActionSheet(
 }) {
   final eligibleInviteMembers =
       selectedMembers.where((member) => member.canReceiveInviteEmail).toList();
-  final playersToAdd = selectedMembers
-      .where((member) => member.role == MemberRoles.player)
-      .toList();
+  // Tout membre peut rejoindre l'effectif d'une équipe.
+  final playersToAdd = selectedMembers.toList();
 
   return showModalBottomSheet<bool>(
     context: context,
@@ -187,7 +186,7 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
               if (_busy)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: ViroSpacing.lg),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: const Center(child: ViroLogoLoader()),
                 )
               else if (_pickingTeam)
                 ..._buildTeamPicker(context)

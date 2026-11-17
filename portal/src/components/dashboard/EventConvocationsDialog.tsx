@@ -29,7 +29,7 @@ type EventConvocationsDialogProps = {
   event: ClubEventView;
   /** Équipes du club (roster joueurs des équipes de l'événement). */
   teams: TeamOption[];
-  /** Annuaire noms / avatars indexé par memberId et accountUid. */
+  /** Annuaire noms / avatars indexé par id de fiche. */
   directory: Record<string, PlanningGuestDirectoryEntry>;
   onClose: () => void;
   onSaved: () => void;
@@ -136,7 +136,7 @@ export function EventConvocationsDialog({
             type="button"
             className={dialogStyles.closeButton}
             disabled={saving}
-            aria-label={convocationsCopy.close}
+            aria-label={convocationsCopy.back}
             onClick={requestClose}
           >
             ×
@@ -202,7 +202,7 @@ export function EventConvocationsDialog({
               onClick={requestClose}
               disabled={saving}
             >
-              {convocationsCopy.cancel}
+              {convocationsCopy.back}
             </button>
             <button
               type="submit"

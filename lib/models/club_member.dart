@@ -1,12 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 class ClubMember {
   const ClubMember({
     required this.memberId,
-    required this.role,
     required this.status,
+    this.permissions = const {},
+    this.coachTeamIds = const [],
     this.accountUid,
     this.firstName,
     this.lastName,
@@ -20,15 +22,23 @@ class ClubMember {
     this.pendingInviteExpiresAt,
     this.hasLinkedAccount = false,
     this.dismissedAnnouncementIds = const [],
+    this.profileBadgeId,
   });
 
-  /// ID stable du document `members/{memberId}`.
+  /// Id du document `members/{memberId}` : clé unique du membre (rosters,
+  /// convocations, RSVP, cotisations…), égale à l'UID Auth une fois lié.
   final String memberId;
 
-  /// UID Firebase Auth si le membre a créé son compte.
+  /// UID Firebase Auth si le membre a créé son compte (== [memberId]).
   final String? accountUid;
 
-  final String role;
+  /// Droits club de la fiche (`permissions`), seule autorité. Écrits par
+  /// les Functions uniquement.
+  final Set<ClubPermission> permissions;
+
+  /// Équipes entraînées (`coachTeamIds`, dérivé de `teams.coachIds`).
+  final List<String> coachTeamIds;
+
   final String status;
   final String? firstName;
   final String? lastName;
@@ -47,10 +57,41 @@ class ClubMember {
   /// Annonces masquées par le membre sur la home (croix).
   final List<String> dismissedAnnouncementIds;
 
-  /// Compatibilité : identifiant utilisé pour RSVP/events (accountUid ou memberId).
-  String get effectiveUid => accountUid ?? memberId;
+  /// Badge dénormalisé d'un profil de conversation ([ChatBadgeIds]), pour un
+  /// participant dont la fiche n'est pas lisible (vue parent). `null` pour
+  /// une vraie fiche : le badge se dérive alors de ses droits et équipes.
+  final String? profileBadgeId;
+
+  /// Identifiant de badge affiché dans le chat ([ChatBadgeIds]).
+  String get chatBadgeId => profileBadgeId ?? ChatBadgeIds.of(primaryBadge);
 
   bool get isActive => status == 'active';
+
+  /// Droit Administrateur (implique tous les autres).
+  bool get isAdmin => permissions.contains(ClubPermission.admin);
+
+  /// Badges dérivés, par priorité décroissante (jamais vide : `[member]` à
+  /// défaut).
+  List<MemberBadge> get badges => derivedMemberBadges(
+        permissions: permissions,
+        coachTeamIds: coachTeamIds,
+        teamIds: teamIds,
+      );
+
+  /// Badge principal (bulle de chat, avatar) : Admin > Entraîneur > Joueur >
+  /// Membre.
+  MemberBadge get primaryBadge => badges.first;
+
+  /// Encadrement : badge principal Admin ou Entraîneur (droit
+  /// Administrateur ou coach d'au moins une équipe). Source unique pour
+  /// séparer l'encadrement des joueurs (listes, « Mon parent »…).
+  bool get hasStaffBadge => switch (primaryBadge) {
+        MemberBadge.admin || MemberBadge.coach => true,
+        MemberBadge.player || MemberBadge.member => false,
+      };
+
+  /// Nombre de droits club stockés sur la fiche (résumé « n droits »).
+  int get permissionCount => permissions.length;
 
   String get fullName {
     if (firstName != null || lastName != null) {
@@ -95,7 +136,6 @@ class ClubMember {
   }) {
     return ClubMember(
       memberId: pendingId,
-      role: MemberRoles.player,
       status: 'active',
       firstName: firstName,
       lastName: lastName,
@@ -118,15 +158,17 @@ class ClubMember {
             ? '${firstName ?? ''} ${lastName ?? ''}'.trim()
             : null);
 
-    // Legacy : fondateurs / membres inscrits avant accountUid utilisaient userId.
-    final legacyUserId = data[FirestoreFields.userId] as String?;
-    final accountUid = data[FirestoreFields.accountUid] as String? ??
-        (legacyUserId != null && legacyUserId.isNotEmpty ? legacyUserId : null);
+    final accountUid = (data[FirestoreFields.accountUid] as String?)?.trim();
 
     return ClubMember(
-      memberId: data[FirestoreFields.memberId] as String? ?? doc.id,
-      accountUid: accountUid,
-      role: data[FirestoreFields.role] as String? ?? MemberRoles.player,
+      memberId: doc.id,
+      accountUid:
+          accountUid != null && accountUid.isNotEmpty ? accountUid : null,
+      permissions: ClubPermission.parse(data[FirestoreFields.permissions]),
+      coachTeamIds: (data[FirestoreFields.coachTeamIds] as List<dynamic>?)
+              ?.whereType<String>()
+              .toList() ??
+          const [],
       status: data[FirestoreFields.status] as String? ?? 'active',
       firstName: firstName,
       lastName: lastName,
@@ -148,7 +190,6 @@ class ClubMember {
   }
 
   ClubMember copyWith({
-    String? accountUid,
     bool? hasLinkedAccount,
     String? firstName,
     String? lastName,
@@ -157,12 +198,13 @@ class ClubMember {
     String? email,
     String? pendingInviteCode,
     DateTime? pendingInviteExpiresAt,
-    String? role,
+    Set<ClubPermission>? permissions,
   }) {
     return ClubMember(
       memberId: memberId,
-      accountUid: accountUid ?? this.accountUid,
-      role: role ?? this.role,
+      accountUid: accountUid,
+      permissions: permissions ?? this.permissions,
+      coachTeamIds: coachTeamIds,
       status: status,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
@@ -176,6 +218,8 @@ class ClubMember {
       pendingInviteExpiresAt:
           pendingInviteExpiresAt ?? this.pendingInviteExpiresAt,
       hasLinkedAccount: hasLinkedAccount ?? this.hasLinkedAccount,
+      dismissedAnnouncementIds: dismissedAnnouncementIds,
+      profileBadgeId: profileBadgeId,
     );
   }
 }

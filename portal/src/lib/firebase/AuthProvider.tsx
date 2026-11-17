@@ -19,8 +19,14 @@ import {
   useRef,
   useState,
 } from "react";
+import { onSnapshot } from "firebase/firestore";
 import { getFirebaseAuth, resetAppFirestore } from "@/lib/firebase/app";
-import { clearLinkedMemberIdCache } from "@/lib/firebase/memberService";
+import {
+  buildClubAccess,
+  NO_CLUB_ACCESS,
+  type ClubAccess,
+} from "@/lib/auth/permissions";
+import { clearOwnMemberIdCache, ownMemberRef } from "@/lib/firebase/memberRefs";
 import {
   passwordResetErrorMessage,
   toAuthActionError,
@@ -34,14 +40,11 @@ import { ClubRecord, getClubsByIds } from "@/lib/firebase/clubService";
 import {
   ACTIVE_CLUB_STORAGE_KEY,
   ACTIVE_SPACE_STORAGE_KEY,
-  MemberRoles,
 } from "@/lib/firebase/constants";
 import { claimPendingGuardianInvites } from "@/lib/firebase/guardianService";
 import {
-  adminClubIds,
   bureauClubIds,
   familyClubIds,
-  membershipRoleForClub,
   ViroUserProfile,
   type PortalSpace,
 } from "@/lib/firebase/types";
@@ -67,26 +70,26 @@ type AuthContextValue = {
   user: User | null;
   /** Document Firestore `users/{uid}`. */
   profile: ViroUserProfile | null;
-  /** Clubs où l’utilisateur est admin (sous-ensemble de bureauClubs). */
-  adminClubs: ClubRecord[];
-  /** Clubs avec accès Bureau (admin, coach ou joueur). */
+  /** Clubs où le compte a une fiche membre (accès Bureau). */
   bureauClubs: ClubRecord[];
+  /**
+   * Droits effectifs par club du bureau (fiche `members/{uid}` suivie en
+   * temps réel + réglages coach du club). Club absent : fiche pas encore lue.
+   */
+  accessByClub: Record<string, ClubAccess>;
   /** Clubs où l’utilisateur a un lien parent actif. */
   familyClubs: ClubRecord[];
   /** Club sélectionné dans l’espace courant. */
   activeClub: ClubRecord | null;
-  /** Rôle membership du club actif (admin | coach | player), ou null. */
-  activeClubRole: string | null;
-  /** Vrai si l’utilisateur administre au moins un club. */
-  isAdmin: boolean;
-  /** Vrai si accès Bureau (admin, coach ou joueur sur au moins un club). */
+  /**
+   * Droits effectifs dans le club actif de l’espace Bureau
+   * (`NO_CLUB_ACCESS` en espace famille ou tant que la fiche n’est pas lue).
+   */
+  activeClubAccess: ClubAccess;
+  /** Vrai tant que la fiche du club actif n’a pas encore été lue. */
+  activeClubAccessLoading: boolean;
+  /** Vrai si accès Bureau (une fiche membre dans au moins un club). */
   isBureauUser: boolean;
-  /** Vrai si le club actif a le rôle admin. */
-  isActiveClubAdmin: boolean;
-  /** Vrai si le club actif a le rôle coach (pas admin). */
-  isActiveClubCoach: boolean;
-  /** Vrai si le club actif a le rôle player (pas admin/coach). */
-  isActiveClubPlayer: boolean;
   /** Vrai si au moins un parentLink est active. */
   isParent: boolean;
   /** Espace courant (bureau vs famille). */
@@ -211,8 +214,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ViroUserProfile | null>(null);
-  const [adminClubs, setAdminClubs] = useState<ClubRecord[]>([]);
   const [bureauClubs, setBureauClubs] = useState<ClubRecord[]>([]);
+  const [memberDataByClub, setMemberDataByClub] = useState<
+    Record<string, Record<string, unknown> | null>
+  >({});
   const [familyClubs, setFamilyClubs] = useState<ClubRecord[]>([]);
   const [activeClubId, setActiveClubIdState] = useState<string | null>(null);
   const [activeSpace, setActiveSpaceState] = useState<PortalSpace>("bureau");
@@ -231,11 +236,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!firebaseUser) {
       lastUidRef.current = null;
       claimedUidsRef.current.clear();
-      clearLinkedMemberIdCache();
+      clearOwnMemberIdCache();
       setUser(null);
       setProfile(null);
-      setAdminClubs([]);
       setBureauClubs([]);
+      setMemberDataByClub({});
       setFamilyClubs([]);
       setActiveClubIdState(null);
       setStatus("signedOut");
@@ -250,31 +255,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const previousUid = lastUidRef.current;
     lastUidRef.current = firebaseUser.uid;
     if (previousUid && previousUid !== firebaseUser.uid) {
-      clearLinkedMemberIdCache();
+      clearOwnMemberIdCache();
       await resetAppFirestore();
       if (isStale()) return;
     }
     const userProfile = await getUserProfile(firebaseUser.uid);
     if (isStale()) return;
 
-    const adminIds = adminClubIds(userProfile);
     const bureauIds = bureauClubIds(userProfile);
     const familyIds = familyClubIds(userProfile);
-    // Une seule lecture par club (admin ⊂ bureau, et un club peut être bureau + famille).
-    const loadedClubs = await getClubsByIds([
-      ...bureauIds,
-      ...adminIds,
-      ...familyIds,
-    ]);
+    // Une seule lecture par club (un club peut être bureau + famille).
+    const loadedClubs = await getClubsByIds([...bureauIds, ...familyIds]);
     if (isStale()) return;
     const clubsIn = (ids: string[]) =>
       loadedClubs.filter((club) => ids.includes(club.id));
-    const loadedAdminClubs = clubsIn(adminIds);
     const loadedBureauClubs = clubsIn(bureauIds);
     const loadedFamilyClubs = clubsIn(familyIds);
 
     setProfile(userProfile);
-    setAdminClubs(loadedAdminClubs);
     setBureauClubs(loadedBureauClubs);
     setFamilyClubs(loadedFamilyClubs);
 
@@ -341,6 +339,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return unsubscribe;
   }, [runSession]);
+
+  // Fiches `members/{uid}` des clubs du bureau, suivies en temps réel : un
+  // droit attribué ou retiré s’applique sans recharger la session.
+  const bureauClubIdsKey = bureauClubs.map((club) => club.id).join(",");
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid || status !== "signedIn" || !bureauClubIdsKey) return;
+    const unsubscribers = bureauClubIdsKey.split(",").map((clubId) =>
+      onSnapshot(
+        ownMemberRef(clubId, uid),
+        (snapshot) =>
+          setMemberDataByClub((current) => ({
+            ...current,
+            [clubId]: snapshot.exists() ? snapshot.data() : null,
+          })),
+        (error) => {
+          console.error("Lecture de la fiche membre", { clubId, error });
+          setMemberDataByClub((current) => ({ ...current, [clubId]: null }));
+        },
+      ),
+    );
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+  }, [user?.uid, status, bureauClubIdsKey]);
+
+  const accessByClub = useMemo(() => {
+    const result: Record<string, ClubAccess> = {};
+    for (const club of bureauClubs) {
+      if (!(club.id in memberDataByClub)) continue;
+      result[club.id] = buildClubAccess(
+        memberDataByClub[club.id],
+        club.coachPermissions,
+      );
+    }
+    return result;
+  }, [bureauClubs, memberDataByClub]);
 
   const setActiveClubId = useCallback(
     (clubId: string) => {
@@ -482,26 +515,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [clubPool, activeClubId],
   );
 
-  const activeClubRole = useMemo(
-    () => membershipRoleForClub(profile, activeClub?.id),
-    [profile, activeClub?.id],
+  const activeClubAccess = useMemo(
+    () =>
+      activeSpace === "bureau" && activeClub
+        ? (accessByClub[activeClub.id] ?? NO_CLUB_ACCESS)
+        : NO_CLUB_ACCESS,
+    [activeSpace, activeClub, accessByClub],
   );
+  const activeClubAccessLoading =
+    activeSpace === "bureau" &&
+    activeClub !== null &&
+    !(activeClub.id in accessByClub);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
       user,
       profile,
-      adminClubs,
       bureauClubs,
+      accessByClub,
       familyClubs,
       activeClub,
-      activeClubRole,
-      isAdmin: adminClubs.length > 0,
+      activeClubAccess,
+      activeClubAccessLoading,
       isBureauUser: bureauClubs.length > 0,
-      isActiveClubAdmin: activeClubRole === MemberRoles.admin,
-      isActiveClubCoach: activeClubRole === MemberRoles.coach,
-      isActiveClubPlayer: activeClubRole === MemberRoles.player,
       isParent: familyClubs.length > 0,
       activeSpace,
       setActiveClubId,
@@ -519,11 +556,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       user,
       profile,
-      adminClubs,
       bureauClubs,
+      accessByClub,
       familyClubs,
       activeClub,
-      activeClubRole,
+      activeClubAccess,
+      activeClubAccessLoading,
       activeSpace,
       setActiveClubId,
       setActiveSpace,

@@ -14,14 +14,22 @@ class ChatBubbleTimestamp extends StatelessWidget {
     required this.sentAt,
     this.edited = false,
     this.onImage = false,
+    this.onAccent = false,
     this.localStatus,
+    this.color,
   });
 
   final DateTime sentAt;
   final bool edited;
 
+  /// Couleur imposée par la bulle (hors image / accent) ; défaut texte discret.
+  final Color? color;
+
   /// Sur une image : contraste renforcé (fond semi-transparent).
   final bool onImage;
+
+  /// Dans une de mes bulles (fond accent) : texte clair.
+  final bool onAccent;
 
   /// Statut d’envoi optimiste (horloge / échec).
   final ChatMessageLocalStatus? localStatus;
@@ -30,10 +38,14 @@ class ChatBubbleTimestamp extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: onImage ? ViroColors.white : palette.textMuted,
-          fontWeight: FontWeight.w500,
-          height: 1.1,
-        );
+      color: onImage
+          ? ViroColors.white
+          : onAccent
+          ? palette.onAccent.withValues(alpha: 0.8)
+          : color ?? palette.textMuted,
+      fontWeight: FontWeight.w500,
+      height: 1.1,
+    );
 
     final Widget label;
     if (localStatus == ChatMessageLocalStatus.sending) {
@@ -41,7 +53,10 @@ class ChatBubbleTimestamp extends StatelessWidget {
     } else if (localStatus == ChatMessageLocalStatus.failed) {
       label = Text(
         AppCopy.chat.messageSendFailed,
-        style: style?.copyWith(color: palette.errorText),
+        style: style?.copyWith(
+          color: onAccent ? palette.onAccent : palette.errorText,
+          fontWeight: onAccent ? FontWeight.w800 : null,
+        ),
       );
     } else {
       final time = formatChatMessageTime(sentAt);
@@ -72,9 +87,14 @@ class ChatBubbleTextWithTime extends StatefulWidget {
     this.edited = false,
     this.highlightQuery,
     this.localStatus,
+    this.onAccent = false,
+    this.timestampColor,
   });
 
   final String text;
+
+  /// Couleur de l’heure (voir [ChatBubbleTimestamp.color]).
+  final Color? timestampColor;
   final DateTime sentAt;
   final TextStyle? style;
   final bool edited;
@@ -83,6 +103,9 @@ class ChatBubbleTextWithTime extends StatefulWidget {
   final String? highlightQuery;
 
   final ChatMessageLocalStatus? localStatus;
+
+  /// Dans une de mes bulles (fond accent) : liens et heure en clair.
+  final bool onAccent;
 
   @override
   State<ChatBubbleTextWithTime> createState() => _ChatBubbleTextWithTimeState();
@@ -115,11 +138,19 @@ class _ChatBubbleTextWithTimeState extends State<ChatBubbleTextWithTime> {
       recognizer.dispose();
     }
     _recognizers.clear();
+    final palette = context.viroPalette;
     final spans = linkifyInlineSpans(
       widget.text,
       style: widget.style,
+      linkStyle: widget.onAccent
+          ? (widget.style ?? const TextStyle()).copyWith(
+              color: palette.onAccent,
+              decoration: TextDecoration.underline,
+              decorationColor: palette.onAccent,
+            )
+          : null,
       recognizers: _recognizers,
-      palette: context.viroPalette,
+      palette: palette,
     );
     final query = widget.highlightQuery?.trim();
     if (query == null || query.isEmpty) return spans;
@@ -181,6 +212,8 @@ class _ChatBubbleTextWithTimeState extends State<ChatBubbleTextWithTime> {
       sentAt: widget.sentAt,
       edited: widget.edited,
       localStatus: widget.localStatus,
+      onAccent: widget.onAccent,
+      color: widget.timestampColor,
     );
 
     return Stack(
@@ -195,20 +228,13 @@ class _ChatBubbleTextWithTimeState extends State<ChatBubbleTextWithTime> {
                 baseline: TextBaseline.alphabetic,
                 child: Padding(
                   padding: const EdgeInsets.only(left: 8),
-                  child: Opacity(
-                    opacity: 0,
-                    child: timestamp,
-                  ),
+                  child: Opacity(opacity: 0, child: timestamp),
                 ),
               ),
             ],
           ),
         ),
-        Positioned(
-          right: 0,
-          bottom: 0,
-          child: timestamp,
-        ),
+        Positioned(right: 0, bottom: 0, child: timestamp),
       ],
     );
   }

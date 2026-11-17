@@ -1,42 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
-import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/home/providers/event_seen_provider.dart';
 import 'package:viro_team_v2/features/home/widgets/event_planning_card.dart';
 import 'package:viro_team_v2/features/home/widgets/event_seen_visibility_tracker.dart';
 import 'package:viro_team_v2/features/home/widgets/planning_day_section_header.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
+import 'package:viro_team_v2/features/home/providers/rsvp_highlight_offscreen_provider.dart';
+import 'package:viro_team_v2/features/planning/widgets/planning_focused_event_highlight.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 
-/// Limite d'événements affichés en aperçu sur la home membre.
-const memberHomePlanningPreviewLimit = 5;
-
-/// Clé RSVP lecture/écriture — même logique que [EventService.resolveAudienceId].
-final memberEventAudienceIdProvider =
-    FutureProvider.family<String?, String>((ref, clubId) async {
-  final uid = ref.watch(authStateProvider).value?.uid;
-  if (uid == null) return null;
-  return ref.read(eventServiceProvider).resolveAudienceId(
-        clubId: clubId,
-        authUid: uid,
-      );
-});
-
 /// RSVP du membre connecté sur un événement de son planning (home, planning).
 ///
-/// La clé d'audience vient de [memberEventAudienceIdProvider] (même cache que
-/// la carte, pas de lecture en plus) et est lue dans le `try` : une erreur
-/// réseau affiche [failureMessage]. L'écriture directe est reflétée tout de
+/// Clé RSVP = UID Auth (id de sa fiche). Une erreur réseau affiche
+/// [failureMessage]. L'écriture directe est reflétée tout de
 /// suite par le flux Firestore (latence compensée) et annulée par Firestore
 /// si le serveur la refuse : pas besoin d'invalider le planning.
 Future<void> setMemberEventRsvp({
@@ -46,18 +32,20 @@ Future<void> setMemberEventRsvp({
   required RsvpStatus status,
   required String failureMessage,
 }) async {
+  final uid = ref.read(authStateProvider).value?.uid;
+  if (uid == null) return;
   try {
-    final audienceId =
-        await ref.read(memberEventAudienceIdProvider(event.clubId).future);
-    if (audienceId == null) return;
     await ref.read(eventServiceProvider).updateRsvp(
           clubId: event.clubId,
           eventId: event.id,
-          uid: audienceId,
+          uid: uid,
           status: status,
         );
   } catch (_) {
-    if (context.mounted) ViroSnackBar.show(context, failureMessage);
+    if (context.mounted) {
+      ViroHaptics.error();
+      ViroSnackBar.show(context, failureMessage);
+    }
   }
 }
 
@@ -73,6 +61,7 @@ class MemberUpcomingEventsList extends ConsumerWidget {
     required this.onShowDetail,
     required this.onSetRsvp,
     this.maxEvents,
+    this.highlightStatuses = const {},
   });
 
   final List<ClubEvent> events;
@@ -83,10 +72,13 @@ class MemberUpcomingEventsList extends ConsumerWidget {
   final void Function({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) onShowDetail;
   final Future<void> Function(ClubEvent event, RsvpStatus status) onSetRsvp;
   final int? maxEvents;
+
+  /// Events encadrés (push RSVP), par [RsvpPushHighlight.eventKey] : couleur
+  /// de la réponse, liseré clignotant.
+  final Map<String, RsvpStatus> highlightStatuses;
 
   static DateTime _dateOnly(DateTime date) =>
       DateTime(date.year, date.month, date.day);
@@ -107,6 +99,7 @@ class MemberUpcomingEventsList extends ConsumerWidget {
     }
 
     final children = <Widget>[];
+    var scrollTargetAssigned = false;
     for (var groupIndex = 0; groupIndex < groups.length; groupIndex++) {
       final group = groups[groupIndex];
       children.add(
@@ -116,8 +109,15 @@ class MemberUpcomingEventsList extends ConsumerWidget {
         ),
       );
       for (final event in group.events) {
+        final highlightStatus = highlightStatuses[
+            RsvpPushHighlight.eventKey(event.clubId, event.id)];
+        // Seul le premier event encadré défile à l'écran.
+        final scrollIntoView = highlightStatus != null && !scrollTargetAssigned;
+        if (highlightStatus != null) scrollTargetAssigned = true;
         children.add(
           _MemberEventCard(
+            highlightStatus: highlightStatus,
+            highlightScrollIntoView: scrollIntoView,
             event: event,
             clubNames: clubNames,
             clubColors: clubColors,
@@ -146,6 +146,8 @@ class _MemberEventCard extends ConsumerWidget {
     required this.teamsByClub,
     required this.onShowDetail,
     required this.onSetRsvp,
+    this.highlightStatus,
+    this.highlightScrollIntoView = false,
   });
 
   final ClubEvent event;
@@ -156,53 +158,25 @@ class _MemberEventCard extends ConsumerWidget {
   final void Function({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) onShowDetail;
   final Future<void> Function(ClubEvent event, RsvpStatus status) onSetRsvp;
+  final RsvpStatus? highlightStatus;
+  final bool highlightScrollIntoView;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final uid = ref.read(authStateProvider).value?.uid;
     final teams = teamsByClub[event.clubId] ?? {};
-    final clubMembers = ref.watch(clubMembersProvider(event.clubId)).value;
-    final membersByUid =
-        clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
-    final counts = PlanningEventDisplay.rsvpCountsIncludingCoaches(
-      event,
-      teams,
-      membersByUid: membersByUid,
-    );
-    final clubMember = ref.watch(clubMemberProvider(event.clubId)).value;
-    final audienceAsync =
-        ref.watch(memberEventAudienceIdProvider(event.clubId));
-    // Pas de fallback uid tant que resolveAudienceId n'a pas répondu (asymétrie écriture).
-    final audienceId = audienceAsync.asData?.value;
-    final audienceKeys =
-        clubMember != null ? eventAudienceKeys(clubMember) : null;
-    final canRsvp = uid != null &&
-        audienceId != null &&
-        PlanningEventDisplay.canRsvpOnEvent(
-          event,
-          uid,
-          teams,
-          clubAudienceId: audienceId,
-          member: clubMember,
-          membersByUid: membersByUid,
-        );
-    final status = uid != null && audienceId != null
-        ? event.rsvpStatusForUser(
-            uid,
-            clubAudienceId: audienceId,
-            memberAudienceKeys: audienceKeys,
-          )
-        : RsvpStatus.none;
-    final canManageEvents = clubMember != null &&
-        MemberRoleHierarchy.isCoachOrAbove(clubMember.role);
+    final counts =
+        PlanningEventDisplay.rsvpCountsIncludingCoaches(event, teams);
+    final canRsvp =
+        uid != null && PlanningEventDisplay.canRsvpOnEvent(event, uid, teams);
+    final status =
+        uid != null ? event.rsvpStatusForUser(uid) : RsvpStatus.none;
 
     void openDetail() => onShowDetail(
           event: event,
           teams: teams,
-          canManageEvents: canManageEvents,
         );
 
     final card = EventPlanningCard(
@@ -219,13 +193,35 @@ class _MemberEventCard extends ConsumerWidget {
           canRsvp ? (next) => onSetRsvp(event, next) : null,
     );
 
-    final needsSeen = canRsvp &&
-        event.awaitsSeenBy(
-          uid,
-          clubAudienceId: audienceId,
-          memberAudienceKeys: audienceKeys,
-        );
-    if (!needsSeen) return card;
+    final needsSeen = canRsvp && event.awaitsSeenBy(uid);
+    final trackedCard = needsSeen ? _trackSeen(ref, card, uid) : card;
+    final highlightColor = _highlightColor(highlightStatus);
+    if (highlightColor == null) return trackedCard;
+    final eventKey = RsvpPushHighlight.eventKey(event.clubId, event.id);
+    return PlanningFocusedEventHighlight(
+      color: highlightColor,
+      blinking: true,
+      scrollIntoView: highlightScrollIntoView,
+      onOffscreenChanged: (side, {reveal}) {
+        ref.read(rsvpHighlightOffscreenProvider.notifier).report(
+              eventKey,
+              side,
+              reveal: reveal,
+            );
+      },
+      child: trackedCard,
+    );
+  }
+
+  /// Couleur du liseré pour une réponse (mêmes teintes que le choix RSVP).
+  static Color? _highlightColor(RsvpStatus? status) => switch (status) {
+        RsvpStatus.yes => ViroColors.success,
+        RsvpStatus.maybe => ViroColors.warning,
+        RsvpStatus.no => ViroColors.error,
+        RsvpStatus.none || null => null,
+      };
+
+  Widget _trackSeen(WidgetRef ref, Widget card, String audienceId) {
     return EventSeenVisibilityTracker(
       trackingKey: '${event.clubId}/${event.id}',
       onSeen: () => ref.read(eventSeenControllerProvider).markSeen(
@@ -250,6 +246,7 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
     required this.onShowDetail,
     required this.onSetRsvp,
     this.maxEvents,
+    this.highlightStatuses = const {},
   });
 
   final List<ClubEvent> events;
@@ -260,10 +257,13 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
   final void Function({
     required ClubEvent event,
     required Map<String, ClubTeam> teams,
-    required bool canManageEvents,
   }) onShowDetail;
   final Future<void> Function(ClubEvent event, RsvpStatus status) onSetRsvp;
   final int? maxEvents;
+
+  /// Events encadrés (push RSVP), par [RsvpPushHighlight.eventKey] : couleur
+  /// de la réponse, liseré clignotant.
+  final Map<String, RsvpStatus> highlightStatuses;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -284,6 +284,7 @@ class MemberUpcomingEventsSliver extends ConsumerWidget {
           onShowDetail: onShowDetail,
           onSetRsvp: onSetRsvp,
           maxEvents: maxEvents,
+          highlightStatuses: highlightStatuses,
         ),
       ),
     );

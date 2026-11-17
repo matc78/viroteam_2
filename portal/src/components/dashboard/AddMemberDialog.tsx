@@ -3,7 +3,6 @@
 import { FormEvent, useState } from "react";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { validateEmail } from "@/lib/auth/validateEmail";
-import { MemberRoles } from "@/lib/firebase/constants";
 import type { AddMemberResult } from "@/lib/firebase/memberService";
 import {
   firstNameError,
@@ -12,7 +11,6 @@ import {
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
-import { PlanningSelect } from "./PlanningSelect";
 import { InviteEmailButton } from "./InviteEmailButton";
 import styles from "./AddMemberDialog.module.css";
 
@@ -26,14 +24,14 @@ type AddMemberDialogProps = {
     firstName: string;
     lastName: string;
     email: string;
-    role: typeof MemberRoles.player | typeof MemberRoles.coach;
   }) => Promise<void>;
   onCopyInvite: () => void;
   onEmailInvite: () => Promise<boolean>;
 };
 
 /**
- * Dialog ajout membre (prénom / nom / e-mail obligatoire / rôle joueur|coach).
+ * Dialog ajout membre (prénom / nom / e-mail obligatoire). La fiche est créée
+ * sans droit : un admin les attribue ensuite depuis la fiche.
  * L’e-mail est requis : seule l’adresse invitée pourra accepter l’invitation.
  */
 export function AddMemberDialog({
@@ -50,9 +48,6 @@ export function AddMemberDialog({
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
-  const [role, setRole] = useState<
-    typeof MemberRoles.player | typeof MemberRoles.coach
-  >(MemberRoles.player);
 
   function requestClose() {
     if (busy) return;
@@ -77,7 +72,7 @@ export function AddMemberDialog({
     }
     setNameError(null);
     setEmailError(null);
-    await onSubmit({ firstName, lastName, email: normalizedEmail, role });
+    await onSubmit({ firstName, lastName, email: normalizedEmail });
   }
 
   return (
@@ -213,26 +208,6 @@ export function AddMemberDialog({
                 </span>
               ) : null}
             </label>
-            <label className={dialogStyles.field}>
-              <span className={dialogStyles.label}>Rôle</span>
-              <PlanningSelect
-                id="add-member-role"
-                value={role}
-                disabled={busy}
-                options={[
-                  { value: MemberRoles.player, label: "Joueur" },
-                  { value: MemberRoles.coach, label: "Coach" },
-                ]}
-                onChange={(next) =>
-                  setRole(
-                    next as
-                      | typeof MemberRoles.player
-                      | typeof MemberRoles.coach,
-                  )
-                }
-              />
-            </label>
-
             {error ? (
               <p className={dialogStyles.error} role="alert">
                 {error}

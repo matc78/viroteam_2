@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -16,6 +17,7 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
 /// Sheet coach : pointer Présent / Absent sans modifier le RSVP.
 class PlanningRollCallSheet extends ConsumerStatefulWidget {
@@ -126,26 +128,20 @@ class _PlanningRollCallSheetState extends ConsumerState<PlanningRollCallSheet> {
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
 
     return membersAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: ViroLogoLoader()),
       error: (_, __) => const ViroErrorState(),
       data: (members) {
-        final byUid = indexClubMembersByUid(members);
+        final byId = indexClubMembersById(members);
         final playerIds = dedupedPlayerMemberIds(
           event: widget.event,
           excludeCoachUids: widget.excludeCoachUids,
-          membersByUid: byUid,
         );
         _seedFromEvent(playerIds);
 
-        final entries = <({String id, ClubMember member})>[];
-        final seenMembers = <String>{};
-        for (final id in playerIds) {
-          final member = clubMemberForTeamUid(byUid, id);
-          if (member == null) continue;
-          if (seenMembers.contains(member.memberId)) continue;
-          seenMembers.add(member.memberId);
-          entries.add((id: id, member: member));
-        }
+        final entries = <({String id, ClubMember member})>[
+          for (final id in playerIds)
+            if (byId[id] case final member?) (id: id, member: member),
+        ];
         entries.sort((a, b) {
           final an = a.member.fullName.toLowerCase();
           final bn = b.member.fullName.toLowerCase();
@@ -312,6 +308,7 @@ class _RollCallRow extends StatelessWidget {
                 ? null
                 : (selected) {
                     if (selected.isEmpty) return;
+                    ViroHaptics.selection();
                     onChanged(selected.first);
                   },
           ),

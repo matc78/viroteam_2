@@ -53,13 +53,13 @@ export {
 export { deleteMyAccount, deleteMyAccountDev } from "./deleteAccount";
 
 export {
-  setMemberRole,
-  setMemberRoleDev,
+  setMemberPermissions,
+  setMemberPermissionsDev,
   removeMember,
   removeMemberDev,
-  resolveJoinRequest,
-  resolveJoinRequestDev,
 } from "./memberAdmin";
+
+export { createClub, createClubDev } from "./createClub";
 
 export { uploadClubLogo, uploadClubLogoDev } from "./uploadClubLogo";
 
@@ -73,9 +73,9 @@ export {
 } from "./analyticsTriggers";
 
 export {
-  onUserWrittenSyncClubIds,
-  onUserWrittenSyncClubIdsDev,
-} from "./userClubIds";
+  onUserWrittenSyncMemberProfile,
+  onUserWrittenSyncMemberProfileDev,
+} from "./memberProfileSync";
 
 export {
   updateEventConvocations,
@@ -93,6 +93,8 @@ export {
   backfillMyAdminClubChatsDev,
   onMemberWrittenForChat,
   onMemberWrittenForChatDev,
+  onUserWrittenForChat,
+  onUserWrittenForChatDev,
   onClubWrittenForChat,
   onClubWrittenForChatDev,
   onChatMessageCreatedForPush,

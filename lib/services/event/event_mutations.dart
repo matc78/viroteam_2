@@ -107,6 +107,42 @@ class EventMutations {
     return dates.isEmpty ? [start] : dates;
   }
 
+  /// Modifie les infos d'une occurrence. Seuls les paramètres non nuls sont
+  /// écrits (l'appelant ne passe que ce qui a changé) ; [clearMeetingLocation]
+  /// supprime le lieu de RDV. Le trigger push prévient les convoqués
+  /// (« reporté » si date / heure de début changent, sinon « modifié »).
+  Future<void> updateEventDetails({
+    required String clubId,
+    required String eventId,
+    String? title,
+    DateTime? date,
+    String? startTime,
+    String? endTime,
+    String? meetingTime,
+    String? location,
+    String? meetingLocation,
+    bool clearMeetingLocation = false,
+  }) async {
+    final Object? meetingLocationValue =
+        clearMeetingLocation ? FieldValue.delete() : meetingLocation;
+    final update = <String, Object>{
+      FirestoreFields.title: ?title,
+      if (date != null) ...{
+        FirestoreFields.date: Timestamp.fromDate(
+          DateTime.utc(date.year, date.month, date.day),
+        ),
+        FirestoreFields.dateId: EventDateHelpers.dateIdFor(date),
+      },
+      FirestoreFields.startTime: ?startTime,
+      FirestoreFields.endTime: ?endTime,
+      FirestoreFields.meetingTime: ?meetingTime,
+      FirestoreFields.location: ?location,
+      FirestoreFields.meetingLocation: ?meetingLocationValue,
+    };
+    if (update.isEmpty) return;
+    await _paths.events(clubId).doc(eventId).update(update);
+  }
+
   /// Annule un événement (marque `canceled`).
   Future<void> cancelEvent({
     required String clubId,

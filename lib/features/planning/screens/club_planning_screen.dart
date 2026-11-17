@@ -4,19 +4,16 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
-import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
-import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
 import 'package:viro_team_v2/features/club/widgets/club_audience_switcher.dart';
-import 'package:viro_team_v2/features/members/providers/member_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/planning/providers/planning_providers.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/features/home/providers/event_seen_provider.dart';
@@ -46,6 +43,7 @@ import 'package:viro_team_v2/widgets/common/viro_refresh_indicator.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 
 class ClubPlanningScreen extends ConsumerStatefulWidget {
   const ClubPlanningScreen({
@@ -271,19 +269,13 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     Map<String, ClubTeam> teamsById, {
     required bool canManage,
   }) {
-    final members = ref.read(clubMembersProvider(widget.clubId)).value;
     PlanningEventDetailSheet.show(
       context: context,
       clubId: widget.clubId,
       event: event,
       teamLabel: PlanningEventDisplay.teamLabel(event, teamsById),
-      excludeCoachUids: PlanningEventDisplay.coachUidsToExclude(
-        event,
-        teamsById,
-        membersByUid:
-            members != null ? indexClubMembersByUid(members) : null,
-      ),
-      canManageEvents: canManage,
+      excludeCoachUids:
+          PlanningEventDisplay.coachUidsToExclude(event, teamsById),
       onCanceled: () {},
       onRsvpUpdated: () => _invalidateEvents(canManage: canManage),
     );
@@ -307,7 +299,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       await eventService.updateRsvp(
         clubId: event.clubId,
         eventId: event.id,
-        uid: rsvpTarget.audienceId,
+        uid: rsvpTarget.memberId,
         status: status,
         viaCallable: rsvpTarget.viaCallable,
       );
@@ -315,6 +307,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     } catch (_) {
       invalidateDay();
       if (mounted) {
+        ViroHaptics.error();
         ViroSnackBar.show(context, AppCopy.planning.rsvpFailed);
       }
     }
@@ -327,12 +320,10 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
     final club = ref.watch(clubProvider(clubId)).value;
     final target = ref.watch(selectedClubAudienceProvider(clubId));
     final isChildView = target?.isChild == true;
-    final canManage = !isChildView &&
-        member != null &&
-        (club?.coachPermissions ?? CoachPermissions.defaults).allowsCreateEvents(
-          isAdmin: member.role == MemberRoles.admin,
-          isCoach: member.role == MemberRoles.coach,
-        );
+    // Vue gestion (tous les événements + création) : droit planning, ou
+    // coach d'équipe avec le réglage `canCreateEvents`.
+    final canManage =
+        !isChildView && ref.watch(clubAccessProvider(clubId)).canCreateEvents;
     final canBrowsePeriods = canManage ||
         member != null ||
         ref.watch(isGuardianOnlyInClubProvider(clubId));
@@ -357,15 +348,7 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
           )
         : null;
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
-    final clubMembers = member != null
-        ? ref.watch(clubMembersProvider(clubId)).value
-        : null;
-    final membersByUid =
-        clubMembers != null ? indexClubMembersByUid(clubMembers) : null;
     final rsvpTarget = ref.watch(rsvpTargetProvider(clubId)).asData?.value;
-    final rsvpMember = rsvpTarget?.member;
-    final audienceKeys =
-        rsvpMember != null ? eventAudienceKeys(rsvpMember) : null;
 
     final clubBrandColors = club != null
         ? resolveClubBrandColors(
@@ -389,29 +372,19 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       final canRsvp = rsvpTarget != null &&
           PlanningEventDisplay.canRsvpOnEvent(
             event,
-            rsvpTarget.subjectId,
+            rsvpTarget.memberId,
             teamsById,
-            clubAudienceId: rsvpTarget.audienceId,
-            member: rsvpMember,
-            membersByUid: membersByUid,
           );
       final tile = PlanningEventTile(
         event: event,
         teamLabel: PlanningEventDisplay.teamLabel(event, teamsById),
-        teamRsvpCounts: PlanningEventDisplay.rsvpCountsIncludingCoaches(
-          event,
-          teamsById,
-          membersByUid: membersByUid,
-        ),
+        teamRsvpCounts:
+            PlanningEventDisplay.rsvpCountsIncludingCoaches(event, teamsById),
         clubColor: clubColor,
         clubColorSecondary: clubColorSecondary,
         onTap: () => _showEventSheet(event, teamsById, canManage: canManage),
         rsvpStatus: canRsvp
-            ? event.rsvpStatusForUser(
-                rsvpTarget.subjectId,
-                clubAudienceId: rsvpTarget.audienceId,
-                memberAudienceKeys: audienceKeys,
-              )
+            ? event.rsvpStatusForUser(rsvpTarget.memberId)
             : null,
         onRsvpSelected: canRsvp
             ? (next) => _setRsvp(event, next, canManage: canManage)
@@ -420,17 +393,13 @@ class _ClubPlanningScreenState extends ConsumerState<ClubPlanningScreen> {
       // Parent : la vue du planning de l'enfant vaut « vu » (pas de home enfant).
       final trackedTile = canRsvp &&
               rsvpTarget.viaCallable &&
-              event.awaitsSeenBy(
-                rsvpTarget.subjectId,
-                clubAudienceId: rsvpTarget.audienceId,
-                memberAudienceKeys: audienceKeys,
-              )
+              event.awaitsSeenBy(rsvpTarget.memberId)
           ? EventSeenVisibilityTracker(
-              trackingKey: '${event.clubId}/${event.id}/${rsvpTarget.audienceId}',
+              trackingKey: '${event.clubId}/${event.id}/${rsvpTarget.memberId}',
               onSeen: () => ref.read(eventSeenControllerProvider).markSeen(
                     clubId: event.clubId,
                     eventId: event.id,
-                    audienceId: rsvpTarget.audienceId,
+                    audienceId: rsvpTarget.memberId,
                     viaCallable: true,
                   ),
               child: tile,

@@ -12,8 +12,15 @@ import {
   sendGuyTransactionalEmail,
 } from "./email";
 import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
+import {
+  accountUidOf,
+  normalizeEmail,
+  requireUid,
+  stringArray,
+} from "./common";
 import { db, defineDualCallable } from "./db";
-import { assertClubAdmin } from "./guardians";
+import { loadClubAccess, permissionDenied } from "./permissions";
+import { primaryBadge } from "./permissionsCatalog";
 import { ClubActivityTypes, logClubActivity } from "./clubActivity";
 
 const MAX_MEMBER_IDS = 100;
@@ -46,13 +53,6 @@ type SendMemberInvitesResponse = {
   results: InviteSendItemResult[];
 };
 
-function requireUid(request: { auth?: { uid: string } }): string {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Connexion requise");
-  }
-  return request.auth.uid;
-}
-
 function requireClubId(value: unknown): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new HttpsError("invalid-argument", "clubId requis");
@@ -84,11 +84,10 @@ function normalizeMemberIds(raw: unknown): string[] {
   return ids;
 }
 
-function normalizeEmail(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const email = value.trim().toLowerCase();
-  if (!email || !email.includes("@")) return null;
-  return email;
+/** E-mail normalisé s'il ressemble à une adresse, sinon `null`. */
+function validEmailOrNull(value: unknown): string | null {
+  const email = normalizeEmail(value);
+  return email.includes("@") ? email : null;
 }
 
 function inviteStillValid(expiresAt: admin.firestore.Timestamp | Date | null): boolean {
@@ -169,7 +168,6 @@ async function ensurePendingInvite(params: {
     }
   }
 
-  const role = String(memberData.role ?? "player").trim() || "player";
   const firstName = String(memberData.firstName ?? "").trim();
   const lastName = String(memberData.lastName ?? "").trim();
   const code = generateInviteCode();
@@ -202,7 +200,6 @@ async function ensurePendingInvite(params: {
     tx.set(newInviteRef, {
       code,
       type: INVITATION_TYPE_MEMBER,
-      role,
       status: INVITATION_STATUS_PENDING,
       email,
       memberId,
@@ -224,7 +221,8 @@ async function ensurePendingInvite(params: {
 }
 
 /**
- * Envoie les e-mails d’invitation membre via Brevo (admin club uniquement).
+ * Envoie les e-mails d’invitation membre via Brevo (droit membres, ou coach
+ * autorisé pour les fiches de ses équipes et les fiches non rattachées).
  * Chaque membre reçoit son code pending individuel (voix Guy).
  * Prod → v2-prod ; `sendMemberInvitesDev` → v2-dev.
  */
@@ -241,7 +239,14 @@ export const {
     const clubId = requireClubId(request.data?.clubId);
     const memberIds = normalizeMemberIds(request.data?.memberIds);
 
-    const club = await assertClubAdmin(clubId, callerUid);
+    // Droit membres : tout le club. Coach autorisé (`canInvitePlayers`) :
+    // fiches sans droit de ses équipes, ou pas encore rattachées.
+    const access = await loadClubAccess(clubId, callerUid);
+    const canInviteAnyone = access.can("manageMembers");
+    if (!canInviteAnyone && !access.coachCan("canInvitePlayers")) {
+      throw permissionDenied();
+    }
+    const { club } = access;
     const clubName = String(club.name ?? "ton club").trim() || "ton club";
     const clubLogoUrl = clubLogoUrlFromData(club as Record<string, unknown>);
     const apiKey = brevoApiKey.value();
@@ -277,15 +282,20 @@ export const {
         }
 
         const memberData = memberSnap.data()!;
-        const accountUid = String(memberData.accountUid ?? "").trim();
-        const legacyUserId = String(memberData.userId ?? "").trim();
-        let linkedUid = accountUid;
-        // Legacy `userId` : ne considérer comme lié que si le profil users existe.
-        if (!linkedUid && legacyUserId) {
-          const userSnap = await db().collection("users").doc(legacyUserId).get();
-          if (userSnap.exists) linkedUid = legacyUserId;
+        const memberTeamIds = stringArray(memberData.teamIds);
+        const coachMayInvite =
+          stringArray(memberData.permissions).length === 0 &&
+          (memberTeamIds.length === 0 || access.coachesAnyTeam(memberTeamIds));
+        if (!canInviteAnyone && !coachMayInvite) {
+          skipped += 1;
+          results.push({
+            memberId,
+            status: "skipped",
+            reason: "Hors de ta portée",
+          });
+          continue;
         }
-        if (linkedUid) {
+        if (accountUidOf(memberData)) {
           skipped += 1;
           results.push({
             memberId,
@@ -301,7 +311,7 @@ export const {
             : {};
         // E-mail : snapshot d’abord ; sinon champ membre ; sinon invitation active.
         let resolvedEmail =
-          normalizeEmail(snapshot.email) ?? normalizeEmail(memberData.email);
+          validEmailOrNull(snapshot.email) ?? validEmailOrNull(memberData.email);
         if (!resolvedEmail) {
           const inviteId = String(memberData.activeInvitationId ?? "").trim();
           if (inviteId) {
@@ -312,7 +322,7 @@ export const {
               .doc(inviteId)
               .get();
             if (inviteSnap.exists) {
-              resolvedEmail = normalizeEmail(inviteSnap.data()?.email);
+              resolvedEmail = validEmailOrNull(inviteSnap.data()?.email);
             }
           }
         }
@@ -342,7 +352,7 @@ export const {
         const lastName = String(memberData.lastName ?? "").trim();
         const displayName =
           [firstName, lastName].filter(Boolean).join(" ") || undefined;
-        const role = normalizeMemberInviteRole(String(memberData.role ?? "player"));
+        const role = normalizeMemberInviteRole(primaryBadge(memberData));
         const joinUrl = buildJoinUrl(ensured.code);
         const emailContent = buildGuyEmail({
           kind: "memberInvite",

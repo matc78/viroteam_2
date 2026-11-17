@@ -4,25 +4,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 
 /// Statut d’envoi local (UI only, pas Firestore).
-enum ChatMessageLocalStatus {
-  sending,
-  failed,
-}
+enum ChatMessageLocalStatus { sending, failed }
 
 /// Option d’un sondage chat.
 class ChatPollOption {
-  const ChatPollOption({
-    required this.id,
-    required this.text,
-  });
+  const ChatPollOption({required this.id, required this.text});
 
   final String id;
   final String text;
 
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'text': text,
-      };
+  Map<String, dynamic> toMap() => {'id': id, 'text': text};
 
   factory ChatPollOption.fromMap(Map<String, dynamic> map) {
     return ChatPollOption(
@@ -30,6 +21,17 @@ class ChatPollOption {
       text: (map['text'] as String? ?? '').trim(),
     );
   }
+}
+
+/// Horodatage du vote d’un membre sur un sondage (dernière modification).
+class ChatPollVoteTime {
+  const ChatPollVoteTime({required this.at, this.edited = false});
+
+  /// Moment du vote, ou de son dernier changement.
+  final DateTime at;
+
+  /// Le membre avait déjà voté : [at] est la date de la modification.
+  final bool edited;
 }
 
 /// Message d’une conversation chat.
@@ -54,6 +56,7 @@ class ChatMessage {
     this.pollQuestion,
     this.pollOptions = const [],
     this.pollVotes = const {},
+    this.pollVoteTimes = const {},
     this.pollAllowMultiple = false,
     this.replyToMessageId,
     this.replyToText,
@@ -87,6 +90,9 @@ class ChatMessage {
 
   /// Votes : optionId → uids.
   final Map<String, List<String>> pollVotes;
+
+  /// Heure du vote par uid (absente pour les votes antérieurs au suivi).
+  final Map<String, ChatPollVoteTime> pollVoteTimes;
 
   /// Si true, plusieurs options peuvent être cochées.
   final bool pollAllowMultiple;
@@ -183,6 +189,7 @@ class ChatMessage {
       pollQuestion: pollQuestion,
       pollOptions: pollOptions,
       pollVotes: pollVotes,
+      pollVoteTimes: pollVoteTimes,
       pollAllowMultiple: pollAllowMultiple,
       replyToMessageId: replyToMessageId,
       replyToText: replyToText,
@@ -205,7 +212,8 @@ class ChatMessage {
       clubId: clubId,
       conversationId: conversationId,
       type: data[FirestoreFields.type] as String? ?? ChatMessageTypes.text,
-      text: data[FirestoreFields.text] as String? ??
+      text:
+          data[FirestoreFields.text] as String? ??
           data[FirestoreFields.message] as String?,
       storagePath: data[FirestoreFields.storagePath] as String?,
       downloadUrl: data[FirestoreFields.downloadUrl] as String?,
@@ -221,6 +229,7 @@ class ChatMessage {
       pollQuestion: data[FirestoreFields.pollQuestion] as String?,
       pollOptions: _parsePollOptions(data[FirestoreFields.pollOptions]),
       pollVotes: _parseUidListsMap(data[FirestoreFields.pollVotes]),
+      pollVoteTimes: _parsePollVoteTimes(data[FirestoreFields.pollVoteTimes]),
       pollAllowMultiple:
           data[FirestoreFields.pollAllowMultiple] as bool? ?? false,
       replyToMessageId: data[FirestoreFields.replyToMessageId] as String?,
@@ -231,30 +240,37 @@ class ChatMessage {
 
   /// Sérialisation cache disque (ISO8601, sans Timestamp Firestore).
   Map<String, dynamic> toLocalMap() => {
-        'id': id,
-        'conversationId': conversationId,
-        'clubId': clubId,
-        'type': type,
-        'text': text,
-        'storagePath': storagePath,
-        'downloadUrl': downloadUrl,
-        'thumbUrl': thumbUrl,
-        'width': width,
-        'height': height,
-        'senderUid': senderUid,
-        'createdAt': createdAt.toIso8601String(),
-        'deletedAt': deletedAt?.toIso8601String(),
-        'deletedByUid': deletedByUid,
-        'editedAt': editedAt?.toIso8601String(),
-        'reactions': reactions,
-        'pollQuestion': pollQuestion,
-        'pollOptions': pollOptions.map((o) => o.toMap()).toList(),
-        'pollVotes': pollVotes,
-        'pollAllowMultiple': pollAllowMultiple,
-        'replyToMessageId': replyToMessageId,
-        'replyToText': replyToText,
-        'replyToSenderUid': replyToSenderUid,
-      };
+    'id': id,
+    'conversationId': conversationId,
+    'clubId': clubId,
+    'type': type,
+    'text': text,
+    'storagePath': storagePath,
+    'downloadUrl': downloadUrl,
+    'thumbUrl': thumbUrl,
+    'width': width,
+    'height': height,
+    'senderUid': senderUid,
+    'createdAt': createdAt.toIso8601String(),
+    'deletedAt': deletedAt?.toIso8601String(),
+    'deletedByUid': deletedByUid,
+    'editedAt': editedAt?.toIso8601String(),
+    'reactions': reactions,
+    'pollQuestion': pollQuestion,
+    'pollOptions': pollOptions.map((o) => o.toMap()).toList(),
+    'pollVotes': pollVotes,
+    'pollVoteTimes': {
+      for (final entry in pollVoteTimes.entries)
+        entry.key: {
+          'at': entry.value.at.toIso8601String(),
+          'edited': entry.value.edited,
+        },
+    },
+    'pollAllowMultiple': pollAllowMultiple,
+    'replyToMessageId': replyToMessageId,
+    'replyToText': replyToText,
+    'replyToSenderUid': replyToSenderUid,
+  };
 
   /// Désérialisation depuis le cache local.
   factory ChatMessage.fromLocalMap(Map<String, dynamic> map) {
@@ -278,6 +294,7 @@ class ChatMessage {
       pollQuestion: map['pollQuestion'] as String?,
       pollOptions: _parsePollOptions(map['pollOptions']),
       pollVotes: _parseUidListsMap(map['pollVotes']),
+      pollVoteTimes: _parsePollVoteTimes(map['pollVoteTimes']),
       pollAllowMultiple: map['pollAllowMultiple'] as bool? ?? false,
       replyToMessageId: map['replyToMessageId'] as String?,
       replyToText: map['replyToText'] as String?,
@@ -307,6 +324,21 @@ Map<String, List<String>> _parseUidListsMap(Object? raw) {
     final value = entry.value;
     if (value is! List) continue;
     out[key] = value.whereType<String>().toList(growable: false);
+  }
+  return out;
+}
+
+/// `uid → {at, edited}` (Timestamp Firestore ou ISO8601 du cache local).
+Map<String, ChatPollVoteTime> _parsePollVoteTimes(Object? raw) {
+  if (raw is! Map) return const {};
+  final out = <String, ChatPollVoteTime>{};
+  for (final entry in raw.entries) {
+    final key = entry.key;
+    final value = entry.value;
+    if (key is! String || key.isEmpty || value is! Map) continue;
+    final at = _asDateTime(value['at']) ?? _asLocalDateTime(value['at']);
+    if (at == null) continue;
+    out[key] = ChatPollVoteTime(at: at, edited: value['edited'] == true);
   }
   return out;
 }

@@ -31,6 +31,11 @@
   --role-color: var(--color-role-player);
 }
 
+/* Membre (ni admin ni équipe) : aplat gris, sans dégradé ni halo. */
+.badge[data-tone="member"] {
+  background: var(--color-gray-500);
+}
+
 .badge[data-tone="parent"] {
   --role-color: var(--color-role-parent);
 }

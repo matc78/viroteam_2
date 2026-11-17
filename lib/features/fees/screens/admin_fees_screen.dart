@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
-import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -21,6 +19,9 @@ import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
+import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Admin cotisations : configuration saison + suivi membres.
 class AdminFeesScreen extends ConsumerStatefulWidget {
@@ -93,23 +94,17 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final member = ref.watch(clubMemberProvider(widget.clubId)).value;
     final accent = ref.watch(clubManagementAccentProvider(widget.clubId));
     final memberAccent = ref.watch(clubMemberAccentProvider(widget.clubId));
     final seasonAsync = ref.watch(activeSeasonProvider(widget.clubId));
+    // Lecture (`viewFees`) vérifiée par la garde du routeur ; écriture :
+    // `manageFees` (configuration, encaissements, actions groupées).
+    final canManage =
+        ref.watch(clubAccessProvider(widget.clubId)).can(ClubPermission.manageFees);
 
     _ensureDefaultSection(seasonAsync);
+    final section = canManage ? _section : (_section == null ? null : 'tracking');
 
-    if (member != null && member.role != MemberRoles.admin) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.replace(AppRoutes.clubMyFeePath(widget.clubId));
-      });
-      return const ViroScaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    final section = _section;
 
     return ClubAccentTheme(
       accentColor: memberAccent,
@@ -128,7 +123,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
           ],
         ),
         body: section == null
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(child: ViroLogoLoader())
             : Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -142,6 +137,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
               ),
               child: Row(
                 children: [
+                  if (canManage) ...[
                   _sectionChip(
                     label: AppCopy.fees.tabConfig,
                     selected: section == 'config',
@@ -149,6 +145,7 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
                     onSelected: (_) => _openConfigTab(),
                   ),
                   const SizedBox(width: ViroSpacing.xs),
+                  ],
                   _sectionChip(
                     label: AppCopy.fees.tabTracking,
                     selected: section == 'tracking',
@@ -187,7 +184,8 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen> {
                         }
                       }),
                       onOpenBulk: _openBulkActions,
-                      onOpenConfig: _openConfigTab,
+                      onOpenConfig: canManage ? _openConfigTab : null,
+                      readOnly: !canManage,
                     ),
             ),
           ],

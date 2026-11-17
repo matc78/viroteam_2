@@ -177,6 +177,20 @@ export async function updateClubLogoUrl(params: {
   });
 }
 
+/**
+ * Met à jour la couleur du club (`brandColorHex`, `#RRGGBB` ou
+ * `#RRGGBB+#RRGGBB` pour un club bicolore — voir `encodeBrandColorHex`).
+ */
+export async function updateClubBrandColor(params: {
+  clubId: string;
+  brandColorHex: string;
+}): Promise<void> {
+  await updateDoc(doc(getAppFirestore(), Collections.clubs, params.clubId), {
+    [Fields.brandColorHex]: params.brandColorHex,
+    [Fields.updatedAt]: Timestamp.now(),
+  });
+}
+
 /** Met à jour la matrice des droits coach du club. */
 export async function updateClubCoachPermissions(params: {
   clubId: string;

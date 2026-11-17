@@ -13,9 +13,16 @@ import {
 } from "@/lib/auth/coachPermissions";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
+  updateClubBrandColor,
   updateClubCoachPermissions,
   updateClubSeasonEndDate,
 } from "@/lib/firebase/clubService";
+import { ClubBrandColorPicker } from "@/components/settings/ClubBrandColorPicker";
+import {
+  encodeBrandColorHex,
+  sanitizeBrandColorHex,
+  splitBrandColorHex,
+} from "@/lib/clubSetup/clubBrandColors";
 import { uploadClubLogo } from "@/lib/firebase/callableService";
 import { parseDateInput } from "@/lib/firebase/feeService";
 import {
@@ -73,6 +80,13 @@ export function SettingsPageClient() {
   const [coachBusy, setCoachBusy] = useState(false);
   const [coachError, setCoachError] = useState<string | null>(null);
 
+  const storedBrandColor = sanitizeBrandColorHex(activeClub?.brandColorHex);
+  const [colorDraft, setColorDraft] = useState(() =>
+    splitBrandColorHex(storedBrandColor),
+  );
+  const [colorBusy, setColorBusy] = useState(false);
+  const [colorError, setColorError] = useState<string | null>(null);
+
   const [logoBusy, setLogoBusy] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [logoLightboxOpen, setLogoLightboxOpen] = useState(false);
@@ -100,6 +114,14 @@ export function SettingsPageClient() {
     setDraft(activeClub?.coachPermissions ?? DEFAULT_COACH_PERMISSIONS);
     setCoachError(null);
   }, [activeClub?.id, activeClub?.coachPermissions]);
+
+  useEffect(() => {
+    setColorDraft(splitBrandColorHex(storedBrandColor));
+    setColorError(null);
+  }, [activeClub?.id, storedBrandColor]);
+
+  const colorDraftHex = encodeBrandColorHex(colorDraft);
+  const colorDirty = colorDraftHex !== storedBrandColor;
 
   const coachDirty = useMemo(() => {
     const current = activeClub?.coachPermissions ?? DEFAULT_COACH_PERMISSIONS;
@@ -178,6 +200,28 @@ export function SettingsPageClient() {
     }
   }
 
+  async function handleColorSave() {
+    if (!activeClub) return;
+    setColorBusy(true);
+    setColorError(null);
+    try {
+      await updateClubBrandColor({
+        clubId: activeClub.id,
+        brandColorHex: colorDraftHex,
+      });
+      await refreshProfile();
+      showToast("Couleur du club enregistrée.", "success");
+    } catch (saveError) {
+      setColorError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Enregistrement impossible.",
+      );
+    } finally {
+      setColorBusy(false);
+    }
+  }
+
   async function handleCoachSave() {
     if (!activeClub) return;
     setCoachBusy(true);
@@ -204,7 +248,7 @@ export function SettingsPageClient() {
     (activeClub?.name ?? "C").trim().slice(0, 1).toUpperCase() || "C";
 
   return (
-    <div className={`${transitionStyles.page} ${shared.stack}`}>
+    <div className={`${transitionStyles.page} ${shared.stack} ${shared.stackWide}`}>
       <DashboardPageIntro
         eyebrow="Club"
         heading="Paramètres du club"
@@ -212,12 +256,13 @@ export function SettingsPageClient() {
       />
 
       {canManageClubSettings ? (
+        // En large : saison + logo à gauche, droits des coachs à droite ; sans
+        // ces droits (non-admin), le bloc Club garde la largeur de lecture.
+        <div className={canEditCoachRights ? shared.columns : shared.stack}>
         <section className={`${panelStyles.panel} ${shared.group}`} data-tone="cyan">
           <header className={shared.groupHeader}>
             <h2 className={shared.groupTitle}>Club</h2>
-            <p className={shared.groupLead}>
-              Saison, identité visuelle et, pour les admins, droits des coachs.
-            </p>
+            <p className={shared.groupLead}>Saison, logo et couleur du club.</p>
           </header>
 
           <div className={shared.accordionList}>
@@ -332,11 +377,67 @@ export function SettingsPageClient() {
               ) : null}
             </SettingsAccordion>
 
-            {canEditCoachRights ? (
             <SettingsAccordion
-              title="Droits des coachs"
-              description="Actions visibles pour les coachs du club"
+              title="Couleur du club"
+              description="Surtout visible dans l’app : page du club, planning et cartes"
             >
+              <ClubBrandColorPicker
+                primaryHex={colorDraft.primary}
+                secondaryHex={colorDraft.secondary}
+                disabled={colorBusy}
+                onPrimarySelected={(hex) =>
+                  setColorDraft((current) => ({
+                    primary: hex,
+                    secondary:
+                      current.secondary === hex ? null : current.secondary,
+                  }))
+                }
+                onSecondaryChanged={(hex) =>
+                  setColorDraft((current) => ({ ...current, secondary: hex }))
+                }
+              />
+              {colorError ? (
+                <p className={shared.error} role="alert">
+                  {colorError}
+                </p>
+              ) : null}
+              <div className={shared.actions}>
+                {colorDirty ? (
+                  <button
+                    type="button"
+                    className={shared.resetButton}
+                    disabled={colorBusy}
+                    onClick={() =>
+                      setColorDraft(splitBrandColorHex(storedBrandColor))
+                    }
+                  >
+                    Annuler
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={shared.saveButton}
+                  disabled={colorBusy || !colorDirty}
+                  onClick={() => void handleColorSave()}
+                >
+                  {colorBusy ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </div>
+            </SettingsAccordion>
+          </div>
+        </section>
+
+        {canEditCoachRights ? (
+          <section
+            className={`${panelStyles.panel} ${shared.group} ${shared.tall}`}
+            data-tone="cyan"
+          >
+            <header className={shared.groupHeader}>
+              <h2 className={shared.groupTitle}>Droits des coachs</h2>
+              <p className={shared.groupLead}>
+                Actions visibles pour les coachs du club.
+              </p>
+            </header>
               <ul className={shared.permissionList}>
                 {COACH_PERMISSION_LABELS.map((item) => (
                   <li key={item.key} className={shared.permissionRow}>
@@ -398,10 +499,9 @@ export function SettingsPageClient() {
                   {coachBusy ? "Enregistrement…" : "Enregistrer"}
                 </button>
               </div>
-            </SettingsAccordion>
-            ) : null}
-          </div>
-        </section>
+          </section>
+        ) : null}
+        </div>
       ) : null}
     </div>
   );

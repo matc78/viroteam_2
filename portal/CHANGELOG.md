@@ -16,6 +16,8 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Modifié
 
 - Mon compte : la page occupe toute la largeur disponible ; en écran large, Compte et Mes clubs à gauche, Notifications à droite (une seule colonne sinon).
+- Paramètres du club : même mise en page pleine largeur ; en écran large, Club (fin de saison, logo) à gauche et Droits des coachs (désormais une section à part) à droite.
+  - Couleur du club modifiable depuis le portail (couleur unie + 2e couleur facultative), comme dans l’app.
 - Barre latérale plus colorée : chaque module a sa pastille d’icône teintée (pleine quand il est actif), lavis bleu et liseré multicolore en tête, badge de chaque club en couleur (Admin, Entraîneur, Joueur, Membre, Parent), avatar initiales en dégradé.
 - Planning : la réponse à une convocation s’affiche immédiatement sur le calendrier (bloc plein, contour…) ; l’enregistrement et la resynchronisation se font en arrière-plan, sans voile de rechargement.
   - Samedi et dimanche ne sont plus grisés ; seuls les jours hors du mois affiché le restent en vue Mois.

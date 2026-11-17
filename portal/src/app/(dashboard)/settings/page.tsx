@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Paramètres du club — ViroTeam",
-  description: "Saison, logo et droits des coachs du club.",
+  description: "Saison, logo, couleur et droits des coachs du club.",
 };
 
 /**

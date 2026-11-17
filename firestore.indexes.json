@@ -84,6 +84,14 @@
       ]
     },
     {
+      "collectionGroup": "members",
+      "fieldPath": "rekeyPendingFrom",
+      "indexes": [
+        { "queryScope": "COLLECTION", "order": "ASCENDING" },
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "guardians",
       "fieldPath": "parentUid",
       "indexes": [

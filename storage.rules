@@ -12,9 +12,12 @@ service firebase.storage {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    /// Image < 2 Mo, jamais SVG (vecteur XSS quand servi inline, comme pour
+    /// les médias chat).
     function isImageUnder2Mb() {
       return request.resource.size < 2 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/.*')
+        && !request.resource.contentType.matches('image/svg.*');
     }
 
     match /users/{userId}/{allPaths=**} {

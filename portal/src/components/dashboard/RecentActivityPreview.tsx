@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TextLink } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -49,11 +49,19 @@ export function RecentActivityPreview({ clubId }: RecentActivityPreviewProps) {
   );
   const [error, setError] = useState<string | null>(null);
 
+  /** Numéro de la dernière requête : une réponse plus ancienne est ignorée. */
+  const requestIdRef = useRef(0);
+
   const load = useCallback(() => {
+    const requestId = ++requestIdRef.current;
     setError(null);
     listClubActivity(clubId, PREVIEW_LIMIT)
-      .then(setEvents)
+      .then((result) => {
+        if (requestId !== requestIdRef.current) return;
+        setEvents(result);
+      })
       .catch((err: unknown) => {
+        if (requestId !== requestIdRef.current) return;
         setError(
           err instanceof Error
             ? err.message

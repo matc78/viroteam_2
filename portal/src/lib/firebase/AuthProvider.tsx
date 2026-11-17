@@ -169,7 +169,11 @@ function pickActiveClub(
   return clubs[0];
 }
 
-/** Démarre le push web quand le navigateur est libre (module chargé à la demande). */
+/**
+ * Démarre le push web quand le navigateur est libre (module chargé à la
+ * demande). Sans geste utilisateur : abonnement seulement si la permission
+ * est déjà accordée (la demande passe par le bouton des réglages).
+ */
 function startWebPushWhenIdle(): void {
   if (typeof window === "undefined") return;
   const start = () => {

@@ -50,6 +50,9 @@ import tabStyles from "@/components/dashboard/MembersTabs.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import feeStyles from "@/components/family/FamilyFeesClient.module.css";
 import familyStyles from "@/components/family/FamilyHomeClient.module.css";
+import { feesCopy } from "@/lib/copy/feesCopy";
+import type { FeePaymentKey } from "@/lib/fees/pendingFeePayment";
+import { usePendingFeePayment } from "@/lib/fees/usePendingFeePayment";
 
 type FeesTab = "config" | "tracking";
 
@@ -136,12 +139,28 @@ function PlayerFeesSelfView() {
   const [checkoutSession, setCheckoutSession] = useState<{
     clientSecret: string;
     publishableKey: string;
+    /** Cotisation et reste dû au lancement (suivi « en validation »). */
+    key: FeePaymentKey;
+    remainingCents: number;
+    currency: string;
   } | null>(null);
   const { data, loading, refreshing, error, reload } = useAsyncClubPageResource(
     activeClub && user ? activeClub : null,
     (club) => loadPlayerSelfFee(club, user!.uid),
     [user?.uid],
     "/fees",
+  );
+  const feeKey: FeePaymentKey | null =
+    activeClub && data?.season && data.fee && data.linkedMemberId
+      ? {
+          clubId: activeClub.id,
+          seasonId: data.season.id,
+          memberId: data.linkedMemberId,
+        }
+      : null;
+  const { pending: paymentPending, markSubmitted } = usePendingFeePayment(
+    feeKey,
+    data?.remaining ?? 0,
   );
   const feesActive = useIsPortalRouteActive(["/fees"]);
   useClubRealtimeReload({
@@ -154,33 +173,36 @@ function PlayerFeesSelfView() {
   });
 
   async function handleCheckout() {
-    if (!activeClub || !data?.season || !data.fee || !data.linkedMemberId) {
-      return;
-    }
+    if (!feeKey || !data?.season || refreshing || paymentPending) return;
+    const amountCents = data.remaining;
+    const currency = data.season.currency || "eur";
     setCheckoutBusy(true);
     try {
       const result = await createStripeCheckout({
-        clubId: activeClub.id,
-        seasonId: data.season.id,
-        memberId: data.linkedMemberId,
-        amountCents: data.remaining,
-        currency: data.season.currency || "eur",
+        clubId: feeKey.clubId,
+        seasonId: feeKey.seasonId,
+        memberId: feeKey.memberId,
+        amountCents,
+        currency,
       });
       if (result.clientSecret && result.publishableKey) {
         FeePaymentAnalytics.trackStarted({
-          amountCents: data.remaining,
-          currency: data.season.currency || "eur",
+          amountCents,
+          currency,
           hasSession: Boolean(result.sessionId),
         });
         setCheckoutSession({
           clientSecret: result.clientSecret,
           publishableKey: result.publishableKey,
+          key: feeKey,
+          remainingCents: amountCents,
+          currency,
         });
         return;
       }
       FeePaymentAnalytics.trackStarted({
-        amountCents: data.remaining,
-        currency: data.season.currency || "eur",
+        amountCents,
+        currency,
         hasSession: Boolean(result.sessionId),
       });
       showToast(result.message ?? "Paiement enregistré.");
@@ -288,16 +310,24 @@ function PlayerFeesSelfView() {
           </dl>
         )}
 
-        {canPayOnline ? (
+        {canPayOnline && paymentPending ? (
+          <p className={familyStyles.empty} role="status">
+            <strong>{feesCopy.paymentPendingTitle}</strong>
+            {" — "}
+            {feesCopy.paymentPendingText}
+          </p>
+        ) : canPayOnline ? (
           <button
             type="button"
             className={feeStyles.payButton}
-            disabled={checkoutBusy}
+            disabled={checkoutBusy || refreshing}
             onClick={() => void handleCheckout()}
           >
             {checkoutBusy
               ? "Préparation…"
-              : `Payer ${formatEuros(cardGrossCentsFromNet(data!.remaining))}`}
+              : refreshing
+                ? feesCopy.payButtonRefreshing
+                : `Payer ${formatEuros(cardGrossCentsFromNet(data!.remaining))}`}
           </button>
         ) : null}
 
@@ -314,10 +344,16 @@ function PlayerFeesSelfView() {
         <StripeFeeCheckout
           clientSecret={checkoutSession.clientSecret}
           publishableKey={checkoutSession.publishableKey}
-          amountCents={data?.remaining}
-          currency={data?.season?.currency || "eur"}
+          amountCents={checkoutSession.remainingCents}
+          currency={checkoutSession.currency}
           onClose={() => setCheckoutSession(null)}
-          onPaid={() => reload()}
+          onPaid={() => {
+            markSubmitted(
+              checkoutSession.key,
+              checkoutSession.remainingCents,
+            );
+            reload();
+          }}
         />
       ) : null}
     </div>

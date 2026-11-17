@@ -36,6 +36,11 @@ export const chatCopy = {
 
   // --- Entrée messagerie, dock, page ---
   chatEntry: "Messagerie",
+  /** Page Messagerie ouverte alors que la messagerie n'est pas active. */
+  messagingUnavailableTitle: "La messagerie arrive bientôt",
+  messagingUnavailableText:
+    "Elle n’est pas encore ouverte sur ton compte. Tu seras prévenu dès qu’elle sera disponible.",
+  messagingUnavailableAction: "Retour à l’accueil",
   chatEntryWithUnread: (count: number) =>
     count <= 0
       ? "Messagerie"

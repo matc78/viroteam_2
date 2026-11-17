@@ -7,14 +7,20 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { GuardianStatuses } from "@/lib/firebase/constants";
 import {
   childNames,
 } from "@/lib/firebase/guardianService";
 import { getOwnMemberId } from "@/lib/firebase/memberRefs";
+import {
+  audienceForActiveClub,
+  type FamilyAudienceResolution,
+} from "@/lib/family/familyScope";
 
 const TARGET_STORAGE_PREFIX = "viro.familyTarget.";
 
@@ -58,18 +64,19 @@ function writeStoredTarget(clubId: string, memberId: string): void {
 /** Résout Moi + enfants du club actif pour l’espace famille. */
 export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
   const { activeClub, profile, user } = useAuth();
-  const [targets, setTargets] = useState<FamilyTarget[]>([]);
-  const [selectedMemberId, setSelectedMemberIdState] = useState<string | null>(
-    null,
-  );
-  const [loading, setLoading] = useState(true);
+  // Cibles + sélection étiquetées par club : pendant la résolution d’un
+  // nouveau club, l’ancien enfant n’est jamais exposé (pas de lecture
+  // « nouveau club, ancien enfant »).
+  const [resolution, setResolution] = useState<
+    FamilyAudienceResolution<FamilyTarget>
+  >({ clubId: null, targets: [], selectedMemberId: null });
+  const [rawLoading, setLoading] = useState(true);
 
   useEffect(() => {
     const clubId = activeClub?.id;
     const uid = user?.uid;
     if (!clubId || !uid || !profile) {
-      setTargets([]);
-      setSelectedMemberIdState(null);
+      setResolution({ clubId: clubId ?? null, targets: [], selectedMemberId: null });
       setLoading(false);
       return;
     }
@@ -122,7 +129,6 @@ export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
       }
 
       if (cancelled) return;
-      setTargets(nextTargets);
 
       const stored = readStoredTarget(clubId);
       const storedValid = nextTargets.some(
@@ -133,13 +139,16 @@ export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
         nextTargets.find((target) => target.kind === "child")?.memberId ??
         nextTargets[0]?.memberId ??
         null;
-      setSelectedMemberIdState(preferred);
+      setResolution({
+        clubId,
+        targets: nextTargets,
+        selectedMemberId: preferred,
+      });
       if (preferred) writeStoredTarget(clubId, preferred);
       setLoading(false);
     })().catch(() => {
       if (!cancelled) {
-        setTargets([]);
-        setSelectedMemberIdState(null);
+        setResolution({ clubId, targets: [], selectedMemberId: null });
         setLoading(false);
       }
     });
@@ -149,13 +158,29 @@ export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
     };
   }, [activeClub?.id, profile, user?.uid]);
 
+  const activeClubId = activeClub?.id ?? null;
   const setSelectedMemberId = useCallback(
     (memberId: string) => {
-      setSelectedMemberIdState(memberId);
-      if (activeClub?.id) writeStoredTarget(activeClub.id, memberId);
+      setResolution((current) =>
+        current.clubId === activeClubId &&
+        current.targets.some((target) => target.memberId === memberId)
+          ? { ...current, selectedMemberId: memberId }
+          : current,
+      );
+      if (activeClubId) writeStoredTarget(activeClubId, memberId);
     },
-    [activeClub?.id],
+    [activeClubId],
   );
+
+  const {
+    targets,
+    selectedMemberId,
+    pending: resolutionPending,
+  } = useMemo(
+    () => audienceForActiveClub(resolution, activeClubId),
+    [resolution, activeClubId],
+  );
+  const loading = rawLoading || resolutionPending;
 
   const selectedTarget =
     targets.find((target) => target.memberId === selectedMemberId) ?? null;
@@ -176,6 +201,33 @@ export function FamilyAudienceProvider({ children }: { children: ReactNode }) {
       {children}
     </FamilyAudienceContext.Provider>
   );
+}
+
+/**
+ * Lit `?memberId=` (deep link push) et sélectionne cette cible si elle fait
+ * partie de Moi / mes enfants du club actif. À monter sous Suspense.
+ */
+export function FamilyTargetFromUrlSync() {
+  const searchParams = useSearchParams();
+  const { targets, setSelectedMemberId } = useFamilyAudience();
+  const requestedMemberId = searchParams.get("memberId")?.trim() || null;
+  /** Dernière demande appliquée (n’écrase pas un choix manuel ensuite). */
+  const appliedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!requestedMemberId) {
+      appliedRef.current = null;
+      return;
+    }
+    if (appliedRef.current === requestedMemberId) return;
+    if (!targets.some((target) => target.memberId === requestedMemberId)) {
+      return;
+    }
+    appliedRef.current = requestedMemberId;
+    setSelectedMemberId(requestedMemberId);
+  }, [requestedMemberId, targets, setSelectedMemberId]);
+
+  return null;
 }
 
 /** Accède à la cible famille (Moi / enfant). */

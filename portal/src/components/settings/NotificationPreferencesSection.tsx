@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useToast } from "@/components/ToastProvider";
+import { WebPushPermissionRow } from "@/components/settings/WebPushPermissionRow";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -129,6 +130,7 @@ export function NotificationPreferencesSection({
         </p>
       </header>
       <ul className={shared.permissionList}>
+        <WebPushPermissionRow />
         {toggleRows.map((row) => {
           const parentOff = row.dependsOn != null && !prefs[row.dependsOn];
           const enabled = prefs[row.key] && !parentOff;

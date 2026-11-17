@@ -20,7 +20,32 @@ export const joinCopy = {
   joinTeamLead: (teamLabel: string, clubName: string) =>
     `Tu vas rejoindre ${teamLabel} (${clubName}). Crée un compte ou connecte-toi, puis c’est direct.`,
   acceptingTeam: (teamLabel: string) => `On t’ajoute à ${teamLabel}…`,
+  confirmTeamJoinLead: (teamLabel: string, clubName: string) =>
+    `Tu vas rejoindre ${teamLabel} (${clubName}). Vérifie que c’est le bon compte avant de valider.`,
+  confirmTeamJoin: "Rejoindre",
+  signedInAs: "Connecté avec",
+  switchAccount: "Changer de compte",
+  switchingAccount: "Déconnexion…",
+  declineJoin: "Pas maintenant",
   validatingInviteTitle: "Validation de l’invitation",
+  /** Échec de la recherche du code, par cause. */
+  lookupMissingCodeTitle: "Code manquant",
+  lookupMissingCodeLead:
+    "Demande ton code d’invitation à l’admin ou à ton entraîneur, puis réessaie.",
+  lookupNotFoundTitle: "Code introuvable",
+  lookupNotFoundLead:
+    "Ce code n’existe pas. Vérifie qu’il est bien recopié, ou demande un nouveau code à ton club.",
+  lookupExpiredTitle: "Code expiré",
+  lookupExpiredLead:
+    "Ce code n’est plus valable. Demande un nouveau code à ton club.",
+  lookupExhaustedTitle: "Code complet",
+  lookupExhaustedLead:
+    "Ce code a atteint son nombre maximum d’utilisations. Demande un nouveau code à ton club.",
+  lookupErrorTitle: "Vérification impossible",
+  lookupErrorLead:
+    "On n’a pas pu vérifier ton code (connexion ou service indisponible). Réessaie dans un instant.",
+  lookupRetry: "Réessayer",
+  lookupSignInHint: "Tu peux te connecter sur le portail si tu as déjà un compte.",
   teamInviteFallbackLead: "Invitation d’équipe.",
   clubInviteMessage: (params: {
     clubName: string;

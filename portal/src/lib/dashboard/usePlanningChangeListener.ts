@@ -22,6 +22,23 @@ function listenWindowStart(): Timestamp {
   return Timestamp.fromDate(start);
 }
 
+/**
+ * True quand chaque requête a soit répondu, soit échoué : une équipe en
+ * erreur (droits, index) compte comme répondue, sinon la baseline ne serait
+ * jamais fixée et la pastille « Actualiser » ne s’allumerait plus.
+ */
+export function allPlanningQueriesSettled(
+  reportedKeys: ReadonlySet<string> | ReadonlyMap<string, unknown>,
+  failedKeys: ReadonlySet<string>,
+  expectedCount: number,
+): boolean {
+  let settled = reportedKeys.size;
+  for (const key of failedKeys) {
+    if (!reportedKeys.has(key)) settled += 1;
+  }
+  return settled >= expectedCount;
+}
+
 type PlanningChangeListenerResult = {
   hasNewEvents: boolean;
   resetFlag: () => void;
@@ -37,8 +54,8 @@ type PlanningChangeListenerResult = {
  * le dernier snapshot connu, sinon un event qui arrive pile au moment
  * du clic Actualiser est avalé (baseline réétablie au lieu de pastille).
  *
- * On n'compare à la baseline qu'une fois que **toutes** les équipes ont
- * reporté — sinon le 2ᵉ snapshot allume à tort « Actualiser ».
+ * On ne compare à la baseline qu'une fois que **toutes** les équipes ont
+ * reporté (ou échoué) — sinon le 2ᵉ snapshot allume à tort « Actualiser ».
  *
  * @param enabled Si false, aucune souscription (ex. panneau keep-alive masqué).
  */
@@ -73,6 +90,8 @@ export function usePlanningChangeListener(
     const db = getAppFirestore();
     const eventsCol = collection(db, `clubs/${clubId}/events`);
     const idsByTeam = new Map<string, Set<string>>();
+    /** Équipes dont l’écouteur a échoué (comptées comme répondues). */
+    const failedTeams = new Set<string>();
     const expectedTeamCount = teamIds.length;
     const unsubscribes: Unsubscribe[] = [];
 
@@ -84,7 +103,9 @@ export function usePlanningChangeListener(
       lastMergedRef.current = merged;
 
       // Snapshots partiels (équipes pas encore toutes arrivées) → pas de diff.
-      if (idsByTeam.size < expectedTeamCount) return;
+      if (!allPlanningQueriesSettled(idsByTeam, failedTeams, expectedTeamCount)) {
+        return;
+      }
 
       if (baselineIdsRef.current === null) {
         baselineIdsRef.current = new Set(merged);
@@ -134,6 +155,9 @@ export function usePlanningChangeListener(
             code: error.code,
             message: error.message,
           });
+          // Fixe la baseline sur les équipes qui ont répondu.
+          failedTeams.add(teamId);
+          recompute();
         },
       );
       unsubscribes.push(unsubscribe);
@@ -194,6 +218,8 @@ export function useMultiClubPlanningChangeListener(
 
     const db = getAppFirestore();
     const idsByKey = new Map<string, Set<string>>();
+    /** Requêtes en erreur (comptées comme répondues). */
+    const failedKeys = new Set<string>();
     const expectedQueryCount = flat.length;
     const unsubscribes: Unsubscribe[] = [];
 
@@ -204,7 +230,9 @@ export function useMultiClubPlanningChangeListener(
       }
       lastMergedRef.current = merged;
 
-      if (idsByKey.size < expectedQueryCount) return;
+      if (!allPlanningQueriesSettled(idsByKey, failedKeys, expectedQueryCount)) {
+        return;
+      }
 
       if (baselineIdsRef.current === null) {
         baselineIdsRef.current = new Set(merged);
@@ -254,6 +282,8 @@ export function useMultiClubPlanningChangeListener(
             code: error.code,
             message: error.message,
           });
+          failedKeys.add(key);
+          recompute();
         },
       );
       unsubscribes.push(unsubscribe);

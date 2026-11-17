@@ -6,13 +6,20 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { JoinGuardianAccept } from "@/components/auth/JoinGuardianAccept";
 import { JoinMemberAccept } from "@/components/auth/JoinMemberAccept";
 import { JoinTeamAccept } from "@/components/auth/JoinTeamAccept";
+import { joinCopy } from "@/lib/copy/joinCopy";
 import {
-  findInvitationByCode,
+  lookupFailureCopy,
+  type InvitationLookupFailure,
+} from "@/lib/invitations/invitationLookupFailure";
+import {
+  lookupInvitationCode,
   isGuardianInvitation,
   isMemberInvitation,
   isTeamInvitation,
   type InvitationLookupResult,
 } from "@/lib/firebase/invitationService";
+import deniedStyles from "@/components/auth/AccessDenied.module.css";
+import formStyles from "@/components/auth/AuthForm.module.css";
 import styles from "@/components/auth/JoinOnboardingForm.module.css";
 
 /** Accepte une invitation parent, membre ou code d’équipe sur le portail. */
@@ -22,11 +29,15 @@ export function JoinRedirectClient() {
   const [invitation, setInvitation] = useState<InvitationLookupResult | null>(
     null,
   );
+  const [failure, setFailure] = useState<InvitationLookupFailure | null>(null);
   const [lookupDone, setLookupDone] = useState(false);
+  /** Incrémenté par « Réessayer » après une erreur technique. */
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!invitationCode) {
       setInvitation(null);
+      setFailure(null);
       setLookupDone(true);
       return;
     }
@@ -34,29 +45,25 @@ export function JoinRedirectClient() {
     let cancelled = false;
     setLookupDone(false);
 
-    void findInvitationByCode(invitationCode)
-      .then((found) => {
-        if (!cancelled) setInvitation(found);
-      })
-      .catch(() => {
-        if (!cancelled) setInvitation(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLookupDone(true);
-      });
+    void lookupInvitationCode(invitationCode).then((lookup) => {
+      if (cancelled) return;
+      setInvitation(lookup.ok ? lookup.invitation : null);
+      setFailure(lookup.ok ? null : lookup.failure);
+      setLookupDone(true);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [invitationCode]);
+  }, [invitationCode, attempt]);
 
   if (!invitationCode) {
     return (
       <AuthShell
         accent="cyan"
         eyebrow="Rejoindre un club"
-        title="Code manquant"
-        lead="Demande ton code d’invitation à l’admin ou à ton entraîneur, puis réessaie."
+        title={joinCopy.lookupMissingCodeTitle}
+        lead={joinCopy.lookupMissingCodeLead}
       >
         <p className={styles.hint}>
           Tu peux aussi te connecter sur le portail pour compléter ton profil.
@@ -79,16 +86,27 @@ export function JoinRedirectClient() {
   }
 
   if (!invitation) {
+    const failureCopy = lookupFailureCopy(failure ?? "notFound");
     return (
       <AuthShell
         accent="cyan"
         eyebrow="Rejoindre un club"
-        title="Code introuvable"
-        lead="Ce code est invalide ou a expiré. Demande un nouveau code à ton club."
+        title={failureCopy.title}
+        lead={failureCopy.lead}
       >
-        <p className={styles.hint}>
-          Tu peux te connecter sur le portail si tu as déjà un compte.
-        </p>
+        {failure === "error" ? (
+          <div className={deniedStyles.actions}>
+            <button
+              type="button"
+              className={formStyles.submit}
+              onClick={() => setAttempt((count) => count + 1)}
+            >
+              {joinCopy.lookupRetry}
+            </button>
+          </div>
+        ) : (
+          <p className={styles.hint}>{joinCopy.lookupSignInHint}</p>
+        )}
       </AuthShell>
     );
   }

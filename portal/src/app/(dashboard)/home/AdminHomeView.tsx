@@ -158,7 +158,7 @@ export function AdminHomeView({
                 }))}
                 viewAllHref="/announcements"
               />
-              {showActivity ? <RecentActivityPreview clubId={clubId} /> : null}
+              {showActivity ? <RecentActivityPreview key={clubId} clubId={clubId} /> : null}
             </div>
           </div>
         </>

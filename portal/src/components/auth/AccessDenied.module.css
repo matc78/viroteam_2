@@ -87,3 +87,17 @@
 .siteLink:hover {
   color: var(--color-primary-800);
 }
+
+/* Bouton d’action secondaire présenté comme le lien `.siteLink`. */
+button.siteLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button.siteLink:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

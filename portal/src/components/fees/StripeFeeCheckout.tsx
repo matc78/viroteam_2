@@ -45,17 +45,25 @@ function StripeCheckoutForm({
   onClose,
   onPaid,
   onSettled,
+  onSubmittingChange,
 }: {
   amountCents?: number;
   currency?: string;
   onClose: () => void;
   onPaid: () => void;
   onSettled: () => void;
+  /** Signale au parent qu’une confirmation est en cours (fermeture bloquée). */
+  onSubmittingChange: (submitting: boolean) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const { showToast } = useToast();
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmittingState] = useState(false);
+
+  function setSubmitting(value: boolean) {
+    setSubmittingState(value);
+    onSubmittingChange(value);
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -160,8 +168,12 @@ export function StripeFeeCheckout({
   onPaid,
 }: StripeFeeCheckoutProps) {
   const settledRef = useRef(false);
+  /** Confirmation Stripe en cours : Échap / clic fond ne ferment pas. */
+  const submittingRef = useRef(false);
 
   function handleClose() {
+    // Fermeture après succès (settled) autorisée ; sinon on attend la fin.
+    if (submittingRef.current && !settledRef.current) return;
     if (!settledRef.current) {
       FeePaymentAnalytics.trackCancelled("element");
     }
@@ -202,6 +214,9 @@ export function StripeFeeCheckout({
             onPaid={onPaid}
             onSettled={() => {
               settledRef.current = true;
+            }}
+            onSubmittingChange={(value) => {
+              submittingRef.current = value;
             }}
           />
         </Elements>

@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
+import { buildLoginRedirect } from "@/lib/auth/postAuthRedirect";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { defaultBureauLandingPath } from "@/lib/firebase/personalPlanningService";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,7 +26,7 @@ export function FamilyGuard({ children }: FamilyGuardProps) {
     if (status === "loading" || status === "error") return;
     if (status === "signedOut") {
       denyingRef.current = null;
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      router.replace(buildLoginRedirect(pathname, window.location.search));
       return;
     }
     if (isParent) {

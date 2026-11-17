@@ -12,6 +12,13 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Corrigé
 
 - Connexion : un e-mail ou mot de passe incorrect affiche l’erreur sur le formulaire (« E-mail ou mot de passe incorrect. ») au lieu de rediriger vers « Accès limité ».
+- Reconnexion : un lien profond (conversation, événement…) garde ses paramètres et rouvre la bonne page après connexion ; `/messages` et `/activity` acceptés ; un parent sans fiche est redirigé vers l’équivalent famille.
+- Cotisations famille : en changeant d’enfant ou de club, plus de paiement avec le montant de l’enfant précédent ; fenêtre de paiement non fermable pendant le paiement, puis « Paiement en cours de validation » au lieu d’un second bouton Payer.
+- Code d’équipe : un compte connecté confirme avant de rejoindre (bouton « Rejoindre », « Changer de compte », « Pas maintenant ») au lieu d’être inscrit automatiquement.
+- `/join` : code introuvable, expiré, épuisé et erreur technique sont distingués (avec « Réessayer »).
+- Notifications web : la permission n’est plus demandée sans action ; bouton « Activer » dans les préférences de notifications.
+- Messagerie non activée : message explicite au lieu d’une page vide.
+- Accueil : l’activité récente ne peut plus afficher celle du club précédent ; le planning se rafraîchit même si l’écoute d’une équipe échoue.
 
 ### Modifié
 

@@ -9,6 +9,10 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Corrigé
+
+- Connexion : un e-mail ou mot de passe incorrect affiche l’erreur sur le formulaire (« E-mail ou mot de passe incorrect. ») au lieu de rediriger vers « Accès limité ».
+
 ### Modifié
 
 - Mon compte : la page occupe toute la largeur disponible ; en écran large, Compte et Mes clubs à gauche, Notifications à droite (une seule colonne sinon).

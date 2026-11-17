@@ -75,17 +75,6 @@ function messageForAuthCode(code: string): string | null {
   }
 }
 
-/**
- * Indique un compte Auth introuvable (redirection access-denied).
- * Inclut `invalid-credential` (Firebase fusionne souvent compte inconnu / mauvais mdp).
- */
-export function isUnknownAccountAuthError(error: unknown): boolean {
-  const code = errorCode(error);
-  return (
-    code === "auth/user-not-found" || code === "auth/invalid-credential"
-  );
-}
-
 /** Convertit une erreur Auth/Firebase en AuthActionError (message FR). */
 export function toAuthActionError(error: unknown): AuthActionError {
   if (error instanceof AuthActionError) return error;

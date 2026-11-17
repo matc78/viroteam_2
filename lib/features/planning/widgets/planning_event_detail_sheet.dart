@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
@@ -158,7 +159,9 @@ class _PlanningEventDetailSheetState
     allTeams: _event.allTeams,
   );
 
+  /// Appel : masqué tant que [FeatureFlags.attendanceTracking] est coupé.
   bool get _canTakeAttendance =>
+      FeatureFlags.attendanceTracking &&
       _access.canTakeAttendance(_event.teamIds, allTeams: _event.allTeams);
 
   /// Droit planning (ou coach d'une équipe avec `canEditMemberRsvp`) :

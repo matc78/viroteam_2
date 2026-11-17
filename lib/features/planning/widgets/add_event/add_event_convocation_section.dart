@@ -71,6 +71,7 @@ class AddEventConvocationSection extends StatelessWidget {
               member: entry.member,
               convoked: !excludedIds.contains(entry.id),
               enabled: enabled,
+              accentColor: accentColor,
               onChanged: (_) => onPlayerToggled(entry.id),
             ),
         ],

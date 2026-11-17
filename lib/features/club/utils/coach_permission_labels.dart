@@ -1,3 +1,4 @@
+import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_permission.dart';
 
@@ -14,15 +15,20 @@ class CoachPermissionLabel {
   final String description;
 }
 
-/// Capacités coach éditables (ordre du catalogue, aligné portail).
-final coachPermissionLabels = <CoachPermissionLabel>[
+/// Capacités coach affichées (ordre du catalogue, aligné portail), sans
+/// celles d'une fonctionnalité masquée par [FeatureFlags].
+List<CoachPermissionLabel> get coachPermissionLabels => [
   for (final flag in CoachFlag.values)
+    if (_isVisible(flag))
     CoachPermissionLabel(
       flag: flag,
       label: _label(flag),
       description: _description(flag),
     ),
 ];
+
+bool _isVisible(CoachFlag flag) =>
+    flag != CoachFlag.canTakeAttendance || FeatureFlags.attendanceTracking;
 
 String _label(CoachFlag flag) => switch (flag) {
       CoachFlag.canCreateEvents => AppCopy.club.permCreateEventsLabel,

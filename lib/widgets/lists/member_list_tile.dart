@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -16,6 +17,7 @@ import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
+import 'package:viro_team_v2/widgets/common/viro_selection_mark.dart';
 
 /// Ligne de membre (liste du club, effectifs d'équipe).
 ///
@@ -116,7 +118,12 @@ class MemberListTile extends StatelessWidget {
         horizontal: ViroSpacing.md,
         vertical: ViroSpacing.sm,
       ),
-      onTap: onTap,
+      onTap: onTap == null
+          ? null
+          : () {
+              if (selectionMode) ViroHaptics.selection();
+              onTap!();
+            },
       onLongPress: onLongPress,
       borderColor: selected ? accent : null,
       semanticLabel: memberName,
@@ -237,10 +244,7 @@ class MemberListTile extends StatelessWidget {
           if (selectionMode)
             Padding(
               padding: const EdgeInsets.only(left: ViroSpacing.xs),
-              child: ViroIcon(
-                selected ? ViroIcons.checkCircle : ViroIcons.selectAll,
-                color: selected ? accent : palette.textMuted,
-              ),
+              child: ViroSelectionMark(value: selected, color: rawAccent),
             ),
         ],
       ),

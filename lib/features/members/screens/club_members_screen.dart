@@ -267,6 +267,9 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
       coachPermissions:
           club?.coachPermissions ?? CoachPermissions.defaults,
       coachedTeamNames: resolveCoachedTeamNames(member, teams),
+      onEditCoachRights: _access.isAdmin
+          ? () => context.push(AppRoutes.clubSettingsPath(widget.clubId))
+          : null,
     );
     if (next == null) return;
 

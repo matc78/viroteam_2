@@ -5,6 +5,8 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permission_labels.dart';
 import 'package:viro_team_v2/features/club/utils/coach_permissions.dart';
+import 'package:viro_team_v2/features/members/utils/permission_glyphs.dart';
+import 'package:viro_team_v2/features/members/widgets/coach_rights_redirect_dialog.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_permission.dart';
 import 'package:viro_team_v2/widgets/common/club_accent_theme.dart';
@@ -16,12 +18,17 @@ import 'package:viro_team_v2/widgets/lists/member_permission_list_tile.dart';
 /// Capacités d'équipe (lecture seule : relation coach + flags du club), puis
 /// droits club éditables (admin, raccourcis, détail). L'enregistrement
 /// (callable `setMemberPermissions`) reste à l'appelant.
+///
+/// [onEditCoachRights] (admin seulement) : un tap sur une capacité d'équipe
+/// propose d'aller la régler ; sur « Go », la feuille se ferme sans rien
+/// enregistrer puis le callback ouvre les paramètres du club.
 Future<Set<ClubPermission>?> showMemberPermissionsSheet(
   BuildContext context, {
   required ClubMember member,
   required Color accentColor,
   required CoachPermissions coachPermissions,
   required List<String> coachedTeamNames,
+  VoidCallback? onEditCoachRights,
 }) {
   return showModalBottomSheet<Set<ClubPermission>>(
     context: context,
@@ -39,6 +46,7 @@ Future<Set<ClubPermission>?> showMemberPermissionsSheet(
           coachPermissions: coachPermissions,
           coachedTeamNames: coachedTeamNames,
           scrollController: scrollController,
+          onEditCoachRights: onEditCoachRights,
         ),
       ),
     ),
@@ -54,6 +62,7 @@ class MemberPermissionsSheet extends StatefulWidget {
     required this.coachPermissions,
     required this.coachedTeamNames,
     required this.scrollController,
+    this.onEditCoachRights,
   });
 
   final ClubMember member;
@@ -61,6 +70,9 @@ class MemberPermissionsSheet extends StatefulWidget {
   final CoachPermissions coachPermissions;
   final List<String> coachedTeamNames;
   final ScrollController scrollController;
+
+  /// Voir [showMemberPermissionsSheet].
+  final VoidCallback? onEditCoachRights;
 
   @override
   State<MemberPermissionsSheet> createState() => _MemberPermissionsSheetState();
@@ -75,6 +87,19 @@ class _MemberPermissionsSheetState extends State<MemberPermissionsSheet> {
   bool get _isAdmin => _draft.contains(ClubPermission.admin);
 
   bool get _isTeamCoach => widget.member.coachTeamIds.isNotEmpty;
+
+  /// Tap sur une capacité d'équipe : propose les paramètres du club, où se
+  /// règlent les capacités de tous les coachs. Prévenir si le brouillon a
+  /// des droits club non enregistrés.
+  Future<void> _offerCoachRightsRedirect(VoidCallback openSettings) async {
+    final go = await showCoachRightsRedirectDialog(
+      context,
+      discardUnsavedChanges: _changed,
+    );
+    if (!go || !mounted) return;
+    Navigator.pop(context);
+    openSettings();
+  }
 
   bool get _changed {
     final before = ClubPermission.normalize(widget.member.permissions);
@@ -136,6 +161,7 @@ class _MemberPermissionsSheetState extends State<MemberPermissionsSheet> {
     final theme = Theme.of(context).textTheme;
     final accent = widget.accentColor;
     final readOnly = _isAdmin;
+    final openCoachSettings = widget.onEditCoachRights;
     final activeCoachFlags = [
       for (final entry in coachPermissionLabels)
         if (widget.coachPermissions.allows(entry.flag)) entry,
@@ -158,8 +184,6 @@ class _MemberPermissionsSheetState extends State<MemberPermissionsSheet> {
       required Color fillColor,
       required List<Widget> children,
     }) =>
-        // Material (et non un fond décoré) : les cases (ListTile) y peignent
-        // leurs effets d'encre.
         Material(
           color: fillColor,
           shape: RoundedRectangleBorder(
@@ -253,57 +277,54 @@ class _MemberPermissionsSheetState extends State<MemberPermissionsSheet> {
                           ),
                         ),
                       for (final entry in activeCoachFlags)
-                        MemberPermissionListTile(
-                          title: entry.label,
-                          subtitle: entry.description,
-                          value: true,
-                          accentColor: _teamAccent,
-                          onChanged: null,
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: ViroSpacing.xs,
+                          ),
+                          child: MemberPermissionListTile(
+                            title: entry.label,
+                            subtitle: entry.description,
+                            value: true,
+                            accentColor: _teamAccent,
+                            onChanged: null,
+                            onLockedTap: openCoachSettings == null
+                                ? null
+                                : () => _offerCoachRightsRedirect(
+                                    openCoachSettings,
+                                  ),
+                          ),
                         ),
                     ],
                   ],
                 ),
-                const SizedBox(height: ViroSpacing.md),
+                const SizedBox(height: ViroSpacing.lg),
                 sectionLabel(copy.clubRightsSection, color: accent),
                 const SizedBox(height: ViroSpacing.sm),
-                sectionCard(
-                  borderColor: ViroColors.error.withValues(alpha: 0.35),
-                  fillColor: ViroColors.error.withValues(alpha: 0.08),
-                  children: [
-                    sectionLabel(
-                      copy.adminSection,
-                      color: ViroColors.error,
-                    ),
-                    MemberPermissionListTile(
-                      title: copy.permissionLabel(ClubPermission.admin),
-                      subtitle: copy.adminWarning,
-                      value: _isAdmin,
-                      accentColor: ViroColors.error,
-                      onChanged: (enabled) =>
-                          _togglePermission(ClubPermission.admin, enabled),
-                    ),
-                  ],
+                sectionLabel(copy.adminSection, color: ViroColors.error),
+                MemberPermissionListTile(
+                  title: copy.permissionLabel(ClubPermission.admin),
+                  subtitle: copy.adminWarning,
+                  value: _isAdmin,
+                  accentColor: ViroColors.error,
+                  glyph: glyphOfPermission(ClubPermission.admin),
+                  onChanged: (enabled) =>
+                      _togglePermission(ClubPermission.admin, enabled),
                 ),
-                const SizedBox(height: ViroSpacing.md),
-                sectionCard(
-                  borderColor: accent.withValues(alpha: 0.35),
-                  fillColor: accent.withValues(alpha: 0.08),
+                const SizedBox(height: ViroSpacing.lg),
+                sectionLabel(copy.functionsSection, color: accent),
+                Text(
+                  copy.functionsHelper,
+                  style: theme.bodySmall?.copyWith(color: palette.textMuted),
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                _TwoColumnGrid(
                   children: [
-                    sectionLabel(
-                      copy.functionsSection,
-                      color: accent,
-                    ),
-                    Text(
-                      copy.functionsHelper,
-                      style: theme.bodySmall?.copyWith(
-                        color: palette.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: ViroSpacing.xs),
                     for (final function in ClubFunction.values)
                       MemberPermissionListTile(
+                        compact: true,
                         title: copy.functionLabel(function),
                         subtitle: _functionSubtitle(copy, function),
+                        glyph: glyphOfFunction(function),
                         value: function.isFullyGranted(_draft)
                             ? true
                             : function.isPartiallyGranted(_draft)
@@ -317,34 +338,30 @@ class _MemberPermissionsSheetState extends State<MemberPermissionsSheet> {
                   ],
                 ),
                 const SizedBox(height: ViroSpacing.md),
-                sectionCard(
-                  borderColor: accent.withValues(alpha: 0.4),
-                  fillColor: accent.withValues(alpha: 0.08),
-                  children: [
-                    sectionLabel(copy.detailSection, color: accent),
-                    Text(
-                      copy.detailHelper,
-                      style: theme.bodySmall?.copyWith(
-                        color: palette.textMuted,
+                sectionLabel(copy.detailSection, color: accent),
+                Text(
+                  copy.detailHelper,
+                  style: theme.bodySmall?.copyWith(color: palette.textMuted),
+                ),
+                const SizedBox(height: ViroSpacing.sm),
+                for (final permission in ClubPermission.values)
+                  if (permission != ClubPermission.admin)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
+                      child: MemberPermissionListTile(
+                        title: copy.permissionLabel(permission),
+                        subtitle: _permissionSubtitle(copy, permission),
+                        glyph: glyphOfPermission(permission),
+                        value: _isAdmin ||
+                            _draft.contains(permission) ||
+                            _impliedBy(permission) != null,
+                        accentColor: accent,
+                        onChanged: readOnly || _impliedBy(permission) != null
+                            ? null
+                            : (enabled) =>
+                                  _togglePermission(permission, enabled),
                       ),
                     ),
-                    const SizedBox(height: ViroSpacing.xs),
-                    for (final permission in ClubPermission.values)
-                      if (permission != ClubPermission.admin)
-                        MemberPermissionListTile(
-                          title: copy.permissionLabel(permission),
-                          subtitle: _permissionSubtitle(copy, permission),
-                          value: _isAdmin ||
-                              _draft.contains(permission) ||
-                              _impliedBy(permission) != null,
-                          accentColor: accent,
-                          onChanged: readOnly || _impliedBy(permission) != null
-                              ? null
-                              : (enabled) =>
-                                    _togglePermission(permission, enabled),
-                        ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -370,6 +387,39 @@ class _MemberPermissionsSheetState extends State<MemberPermissionsSheet> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Grille de deux colonnes à hauteur égale par rangée ; un élément seul en
+/// fin de liste prend toute la largeur.
+class _TwoColumnGrid extends StatelessWidget {
+  const _TwoColumnGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < children.length; index += 2)
+          Padding(
+            padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
+            child: index + 1 < children.length
+                ? IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: children[index]),
+                        const SizedBox(width: ViroSpacing.sm),
+                        Expanded(child: children[index + 1]),
+                      ],
+                    ),
+                  )
+                : children[index],
+          ),
+      ],
     );
   }
 }

@@ -32,6 +32,17 @@ final class AppCopyPermissions {
       'Pas encore coach d’une équipe — nomme-le coach dans l’équipe pour '
       'lui donner ces capacités.';
   String coachedTeamsLabel(String teams) => 'Équipes : $teams';
+  String get coachRightsRedirectTitle => 'Modifier les capacités des coachs ?';
+  String get coachRightsRedirectBody =>
+      'Elles valent pour tous les coachs du club et se règlent dans les '
+      'paramètres du club. On y va ?';
+  /// Variante si la feuille a des droits club non enregistrés.
+  String get coachRightsRedirectBodyUnsaved =>
+      'Elles valent pour tous les coachs du club et se règlent dans les '
+      'paramètres du club. Les droits non enregistrés de cette feuille '
+      'seront perdus. On y va ?';
+  String get coachRightsRedirectGo => 'Go';
+  String get coachRightsRedirectNo => 'Non';
   String get clubRightsSection => 'Droits club';
   String get functionsSection => 'Raccourcis';
   String get functionsHelper =>

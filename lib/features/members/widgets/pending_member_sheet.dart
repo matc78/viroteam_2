@@ -378,8 +378,10 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
                 margin: EdgeInsets.zero,
                 padding: EdgeInsets.zero,
                 accentColor: managementAccent,
+                // Ligne posée dans une carte : pas d'ombre flottante.
                 child: ViroPressable(
                   onTap: _busy ? null : _openParentSheet,
+                  floating: false,
                   borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(

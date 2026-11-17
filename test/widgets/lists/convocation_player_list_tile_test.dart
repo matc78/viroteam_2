@@ -14,6 +14,24 @@ const _member = ClubMember(
 );
 
 void main() {
+  Future<void> pumpToggleable(WidgetTester tester, {required bool convoked}) {
+    var current = convoked;
+    return tester.pumpWidget(
+      MaterialApp(
+        theme: ViroTheme.light,
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => ConvocationPlayerListTile(
+              member: _member,
+              convoked: current,
+              onChanged: (value) => setState(() => current = value),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   testWidgets('décocher un convoqué le retire, recocher le réintègre',
       (tester) async {
     var convoked = true;
@@ -43,5 +61,40 @@ void main() {
     await tester.tap(find.byType(ConvocationPlayerListTile));
     await tester.pump();
     expect(convoked, isTrue);
+  });
+
+  testWidgets('la ligne garde la même hauteur convoquée ou non',
+      (tester) async {
+    await pumpToggleable(tester, convoked: true);
+    final convokedHeight =
+        tester.getSize(find.byType(ConvocationPlayerListTile)).height;
+
+    await tester.tap(find.byType(ConvocationPlayerListTile));
+    await tester.pumpAndSettle();
+    expect(find.text(AppCopy.planning.notConvoked), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(ConvocationPlayerListTile)).height,
+      convokedHeight,
+    );
+  });
+
+  testWidgets('désactivée : le tap ne change rien', (tester) async {
+    var changed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ViroTheme.light,
+        home: Scaffold(
+          body: ConvocationPlayerListTile(
+            member: _member,
+            convoked: true,
+            enabled: false,
+            onChanged: (_) => changed = true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(ConvocationPlayerListTile));
+    expect(changed, isFalse);
   });
 }

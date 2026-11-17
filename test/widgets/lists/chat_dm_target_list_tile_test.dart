@@ -24,7 +24,7 @@ void main() {
 
     expect(find.text('Sam Martin'), findsOneWidget);
     expect(find.text(AppCopy.common.roleCoach), findsOneWidget);
-    await tester.tap(find.byType(Checkbox));
+    await tester.tap(find.byType(ChatDmTargetListTile));
     expect(changedTo, isTrue);
   });
 

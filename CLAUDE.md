@@ -87,7 +87,8 @@ Chercher d'abord dans `lib/widgets/common/`, `lib/widgets/lists/`, `lib/config/v
 | Écran | `ViroScaffold` + `ViroAppBar` (`viro_scaffold.dart`) — jamais `Scaffold`/`AppBar` bruts |
 | Carte / bloc | `ViroCard`, `ViroStatsCard` |
 | Badge de rôle | `ViroRoleBadge` (dégradés vifs, pas d'emojis) |
-| Icône | `ViroIcon` + `ViroIcons.*` (Phosphor) — jamais `Icons.*` ; nouvelle icône → l'ajouter à `ViroIcons` (+ `catalog` si pertinent) |
+| Icône | `ViroIcon` + `ViroIcons.*` (Phosphor) — jamais `Icons.*` ; nouvelle icône → l'ajouter à `ViroIcons` (+ `catalog` si pertinent) ; icône dessinée pour ViroTeam (droits, fonctions) → `ViroGlyphIcon` + `ViroGlyph` (SVG deux tons dans `assets/icons/glyphs/`) |
+| Sélection (cocher / décocher) | `ViroSelectableRow` (ligne : fond teinté, hauteur constante, re-tap = forme d'origine) / `ViroSelectionMark` (coche ronde seule), dimensions `ViroSelection` — jamais `Checkbox` / `CheckboxListTile` (garde-fou `test/selection_usage_test.dart`) ; `Switch` réservé aux réglages on/off |
 | Tap animé / bouton icône / FAB | `ViroPressable`, `ViroFloatingIconButton`, `ViroFloatingActionButton` |
 | Bouton pleine largeur | `ElevatedButton` / `OutlinedButton` (thème) |
 | États vide / erreur | `ViroEmptyState`, `ViroErrorState` (`viro_empty_error_state.dart`) |

@@ -69,11 +69,13 @@ class ViroScaffold extends StatelessWidget {
       ),
     );
     final fallback = fallbackRoute;
-    if (fallback == null) return shell;
+    // Toujours le même arbre, avec ou sans [fallbackRoute] : basculer ce
+    // paramètre (ex. modifications en cours) ne doit pas recréer le contenu
+    // ni remettre les listes en haut.
     return PopScope(
-      canPop: context.canPop(),
+      canPop: fallback == null || context.canPop(),
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) context.go(fallback);
+        if (!didPop && fallback != null) context.go(fallback);
       },
       child: shell,
     );

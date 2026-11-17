@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
@@ -173,6 +175,9 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       accentColor: _accent,
       coachPermissions: widget.club.coachPermissions,
       coachedTeamNames: resolveCoachedTeamNames(widget.member, teams),
+      onEditCoachRights: ref.read(clubAccessProvider(widget.club.id)).isAdmin
+          ? () => context.push(AppRoutes.clubSettingsPath(widget.club.id))
+          : null,
     );
     if (next == null) return;
 
@@ -695,8 +700,11 @@ class _ActionRow extends StatelessWidget {
     final palette = context.viroPalette;
     final textTheme = Theme.of(context).textTheme;
 
+    // Ligne posée dans une carte : pas d'ombre flottante (elle transparaît
+    // en voile gris sous une ligne sans fond).
     return ViroPressable(
       onTap: onTap,
+      floating: false,
       borderRadius: BorderRadius.zero,
       child: Padding(
         padding: const EdgeInsets.symmetric(

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:viro_team_v2/config/viro_glyphs.dart';
+import 'package:viro_team_v2/config/viro_selection.dart';
 import 'package:viro_team_v2/config/viro_theme.dart';
+import 'package:viro_team_v2/widgets/lists/member_permission_list_tile.dart';
+import 'package:viro_team_v2/widgets/common/viro_selectable_row.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_floating_icon_button.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
@@ -37,6 +41,19 @@ class DesignSystemPreviewScreen extends StatelessWidget {
           ),
           const SizedBox(height: ViroSpacing.sm),
           const _IconsCatalog(),
+          const SizedBox(height: ViroSpacing.lg),
+          Text('ICÔNES SUR MESURE', style: ViroTypography.sectionHeader(palette)),
+          const SizedBox(height: ViroSpacing.sm),
+          Text(
+            'Via ViroGlyphIcon — au repos puis sélectionnée.',
+            style: textTheme.bodySmall,
+          ),
+          const SizedBox(height: ViroSpacing.sm),
+          const _GlyphsCatalog(),
+          const SizedBox(height: ViroSpacing.lg),
+          Text('SÉLECTION', style: ViroTypography.sectionHeader(palette)),
+          const SizedBox(height: ViroSpacing.sm),
+          const _SelectionDemo(),
           const SizedBox(height: ViroSpacing.lg),
           Text('BOUTONS FLOTTANTS', style: ViroTypography.sectionHeader(palette)),
           const SizedBox(height: ViroSpacing.sm),
@@ -189,6 +206,104 @@ class _IconsCatalog extends StatelessWidget {
           ),
           const SizedBox(height: ViroSpacing.sm),
         ],
+      ],
+    );
+  }
+}
+
+class _GlyphsCatalog extends StatelessWidget {
+  const _GlyphsCatalog();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.viroPalette;
+    final accent = Theme.of(context).colorScheme.primary;
+
+    Widget glyphTile(ViroGlyph glyph, {required bool selected}) => Container(
+      width: ViroSelection.glyphTileSize,
+      height: ViroSelection.glyphTileSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: selected ? accent : palette.surfaceSubtle,
+        borderRadius: BorderRadius.circular(ViroSelection.glyphTileRadius),
+      ),
+      child: ViroGlyphIcon(
+        glyph,
+        size: ViroSelection.glyphSize,
+        color: selected ? palette.onAccent : palette.textSecondary,
+      ),
+    );
+
+    return ViroCard(
+      elevated: false,
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.all(ViroSpacing.md),
+      child: Wrap(
+        spacing: ViroSpacing.md,
+        runSpacing: ViroSpacing.md,
+        children: [
+          for (final glyph in ViroGlyph.values)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    glyphTile(glyph, selected: false),
+                    const SizedBox(width: ViroSpacing.xs),
+                    glyphTile(glyph, selected: true),
+                  ],
+                ),
+                const SizedBox(height: ViroSpacing.xs),
+                Text(
+                  glyph.fileName,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 10,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectionDemo extends StatefulWidget {
+  const _SelectionDemo();
+
+  @override
+  State<_SelectionDemo> createState() => _SelectionDemoState();
+}
+
+class _SelectionDemoState extends State<_SelectionDemo> {
+  final Set<int> _selectedRows = {0, 1};
+  bool? _cardValue;
+
+  static const _names = ['Inès Morel', 'Tom Garnier', 'Jade Lefèvre'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < _names.length; index++)
+          ViroSelectableRow(
+            selected: _selectedRows.contains(index),
+            title: _names[index],
+            onChanged: (selected) => setState(() {
+              selected ? _selectedRows.add(index) : _selectedRows.remove(index);
+            }),
+          ),
+        const SizedBox(height: ViroSpacing.sm),
+        MemberPermissionListTile(
+          title: 'Responsable sportif',
+          subtitle: 'Carte partielle : un tap la complète.',
+          glyph: ViroGlyph.sifflet,
+          value: _cardValue,
+          onChanged: (value) => setState(() => _cardValue = value),
+        ),
       ],
     );
   }

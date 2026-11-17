@@ -93,6 +93,16 @@ Scaffold(
 | Bouton pleine largeur | `ElevatedButton` / `OutlinedButton` (thème) |
 | Avatar de conversation (DM, groupe, canal) | `ViroConversationAvatar` (tailles `ViroChat.avatar*`) |
 | Retour haptique | `ViroHaptics` (voir « Retour haptique ») |
+| Sélection (cocher / décocher) | `ViroSelectableRow` (ligne de liste), `ViroSelectionMark` (coche seule) — voir « Sélection » |
+| Icône sur mesure | `ViroGlyphIcon` + `ViroGlyph` (voir « Icônes ») |
+
+### Sélection
+
+- Jamais de `Checkbox` / `CheckboxListTile` Material dans l’UI (garde-fou `test/selection_usage_test.dart`).
+- Coche ronde **`ViroSelectionMark`** (`lib/widgets/common/viro_selection_mark.dart`) : anneau au repos, disque plein + coche tracée si sélectionné, tiret si partiel (`value: null`). Purement visuelle : la ligne qui la porte gère tap et sémantique.
+- Ligne de liste sélectionnable → **`ViroSelectableRow`** : fond teinté (`ClubAccentStyle.chipFill`) et nom en semi-gras quand sélectionnée, **sans hauteur en plus** (une info d’état va sur la même ligne, pas en sous-titre) ; un nouveau tap rend la forme d’origine ; `ViroHaptics.selection()` intégré. Une tuile qui est déjà une `ViroCard` met la ligne dedans avec `padding: EdgeInsets.zero` et passe `borderColor` d’accent quand sélectionnée.
+- Choix riches (droits d’une fiche) → cartes sélectionnables avec icône sur mesure (`MemberPermissionListTile`).
+- Dimensions et durées : **`ViroSelection`** (`lib/config/viro_selection.dart`). Interrupteurs (`Switch`) réservés aux réglages on/off.
 
 ### Messagerie : tokens partagés app ↔ portail
 
@@ -126,6 +136,7 @@ Scaffold(
 - Pas de `Icons.*` Material dans les écrans.
 - Nouvelle icône → l’ajouter dans `ViroIcons` (+ `ViroIcons.catalog` si pertinent).
 - `ViroIcon` décorative (texte voisin) → pas de `semanticLabel` ; informative seule → `semanticLabel` obligatoire.
+- Icônes dessinées pour ViroTeam (droits, fonctions) : SVG deux tons (trait 1,7 + aplat noir à 20 %, grille 24) dans `assets/icons/glyphs/`, déclarés dans **`ViroGlyph`** (`lib/config/viro_glyphs.dart`), rendus par **`ViroGlyphIcon`** (recolorée, mêmes règles `semanticLabel` que `ViroIcon`) et visibles dans l’écran design system. Phosphor reste la règle pour tout le reste.
 
 ### Accessibilité (pragmatique)
 
@@ -310,3 +321,4 @@ Plus tard :
 | 2026-11 | Droits purs (app 2.4.0, mise à jour obligatoire) : `members.permissions` seule autorité, catalogue partagé `shared/permissions_catalog.json`, droit `admin` protégé (≥ 1 par club), fonctions prédéfinies + droits à la carte, coach d'équipe = relation (`coachTeamIds` + `coachPermissions`), badges dérivés ; `role` supprimé (migration `tool/migrate_roles_to_permissions.mjs`) ; spec `viroteam_v2_permissions_spec.md` |
 | 2026-11 | Fin des droits purs : plus de modèles Entraîneur / Joueur ni de demande de rôle (`join_requests`, `resolveJoinRequest` supprimés) ; fiche = `permissions`, `coachTeamIds`, `teamIds`, `accountUid` écrits par les Functions seules (`userId` / `memberId` abandonnés) ; `users.memberClubIds` seul index des clubs (`clubMemberships` et trigger `onUserWrittenSyncClubIds` supprimés) ; badge Membre gris pour une fiche sans admin ni équipe |
 | 2026-11 | Retour haptique : `ViroHaptics` seul point d’entrée (confirm / selection / threshold / success / error, anti-rafale 60 ms), sans paquet ; peu de vibrations, sur les actions clés et les gestes à seuil ; réglage « Vibrations » local, activé par défaut |
+| 2026-11 | Sélection (app) : coche ronde `ViroSelectionMark` + ligne `ViroSelectableRow` (fond teinté, hauteur constante) à la place des cases Material ; feuille des droits en cartes avec icônes sur mesure (`ViroGlyph`, SVG via `flutter_svg`) ; portail inchangé pour l’instant |

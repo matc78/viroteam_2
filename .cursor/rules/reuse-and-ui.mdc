@@ -25,7 +25,8 @@ Ne créer un widget/service neuf que si rien d’existant ne convient (après ad
 
 - Écrans : `ViroScaffold` + `ViroAppBar` (pas de `Scaffold`/`AppBar` bruts).
 - Cartes : `ViroCard` ; badges rôles : `ViroRoleBadge`.
-- Icônes : `ViroIcons` / `ViroIcon` (Phosphor) — pas `Icons.*`.
+- Icônes : `ViroIcons` / `ViroIcon` (Phosphor) — pas `Icons.*` ; icônes dessinées ViroTeam (droits, fonctions) → `ViroGlyphIcon` + `ViroGlyph` (`assets/icons/glyphs/`).
+- Sélection (cocher / décocher) : `ViroSelectableRow` / `ViroSelectionMark` (`ViroSelection`) — jamais `Checkbox` / `CheckboxListTile` (garde-fou `test/selection_usage_test.dart`) ; `Switch` réservé aux réglages on/off.
 - Couleurs / espacements / motion : uniquement `lib/config/` (pas de magic numbers).
 - Dark mode : couleurs neutres / de marque via `context.viroPalette` (`ViroPalette`), jamais `ViroColors.gray*` / `primary*` / `surface*` dans features et widgets (garde-fou `test/theme_palette_usage_test.dart`).
 - Interactions : `ViroPressable` / boutons flottants Viro.

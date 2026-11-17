@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import {
+  TEAM_ROSTER_FIELDS,
   accountUidOf,
   requireUid,
   resolvedDisplayName,
@@ -18,7 +19,7 @@ import { adminIdsUpdate, type ClubAccess } from "./permissionsCatalog";
 import {
   MemberRekeyError,
   readRekeyCore,
-  rewriteMemberReferences,
+  rewriteMemberReferencesWithRetry,
   writeRekeyCore,
 } from "./memberRekey";
 import { mergeMemberDocs } from "./memberRekeyPlan";
@@ -29,22 +30,14 @@ import {
   TEAM_INVITE_MAX_USES,
   TEAM_INVITE_TTL_DAYS,
   type ClaimableMember,
-  memberEmailFromData,
+  claimableMemberFromData,
   normalizeEmail,
   parseTeamInviteArgs,
   parseTeamInviteIdArgs,
   resolveClaimMemberId,
   teamInviteAcceptable,
 } from "./teamInviteUtils";
-
-function generateInviteCode(length = 6): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < length; i += 1) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return code;
-}
+import { newUniqueInviteCode } from "./inviteCodes";
 
 /**
  * Droit `manageMembers`, ou coach de l'équipe quand le club active
@@ -167,7 +160,7 @@ async function handleCreateOrRefreshTeamInvite(
     });
   }
 
-  const code = generateInviteCode();
+  const code = await newUniqueInviteCode();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + TEAM_INVITE_TTL_DAYS);
   const inviteRef = invitesRef.doc();
@@ -239,29 +232,31 @@ async function handleRevokeTeamInvite(
   return { ok: true };
 }
 
-async function loadClaimableMembers(clubId: string): Promise<ClaimableMember[]> {
-  const snap = await db()
-    .collection("clubs")
-    .doc(clubId)
-    .collection("members")
-    .get();
-  return snap.docs.map((doc) => {
-    const data = doc.data() as Record<string, unknown>;
-    const accountUid = accountUidOf(data);
-    const teamIds = Array.isArray(data.teamIds)
-      ? (data.teamIds as unknown[]).filter(
-          (id): id is string => typeof id === "string" && id.length > 0,
-        )
-      : [];
-    return {
-      memberId: doc.id,
-      accountUid,
-      firstName: String(data.firstName ?? "").trim(),
-      lastName: String(data.lastName ?? "").trim(),
-      email: memberEmailFromData(data),
-      teamIds,
-    };
-  });
+/**
+ * Fiches de l'équipe ciblée (effectif, coachs, joueurs en attente) : seules
+ * candidates au claim d'un code d'équipe. Retourne aussi leurs ids.
+ */
+async function loadTeamClaimableMembers(
+  clubId: string,
+  teamId: string,
+): Promise<{ members: ClaimableMember[]; teamMemberIds: string[] }> {
+  const clubRef = db().collection("clubs").doc(clubId);
+  const teamSnap = await clubRef.collection("teams").doc(teamId).get();
+  const team = teamSnap.data() ?? {};
+  const teamMemberIds = [
+    ...new Set(TEAM_ROSTER_FIELDS.flatMap((field) => stringArray(team[field]))),
+  ].filter((id) => !id.includes("/"));
+  if (teamMemberIds.length === 0) return { members: [], teamMemberIds };
+  const snaps = await db().getAll(
+    ...teamMemberIds.map((id) => clubRef.collection("members").doc(id)),
+  );
+  const members = snaps
+    .filter((snap) => snap.exists)
+    .map((snap) => {
+      const data = (snap.data() ?? {}) as Record<string, unknown>;
+      return claimableMemberFromData(snap.id, data, accountUidOf(data));
+    });
+  return { members, teamMemberIds };
 }
 
 /**
@@ -319,8 +314,11 @@ async function handleAcceptTeamInvitation(
 
   let claimMemberId: string | null = null;
   if (!alreadyMember) {
-    const members = await loadClaimableMembers(clubId);
-    // Conflit : e-mail déjà sur une fiche liée à un autre compte.
+    const { members, teamMemberIds } = await loadTeamClaimableMembers(
+      clubId,
+      teamId,
+    );
+    // Conflit : e-mail déjà sur une fiche (de l'équipe) liée à un autre compte.
     const emailConflict = members.find(
       (member) =>
         member.email === authEmailNorm &&
@@ -333,11 +331,12 @@ async function handleAcceptTeamInvitation(
         "Cet e-mail est déjà lié à un autre compte du club",
       );
     }
+    // Claim restreint : fiche de l'équipe, sans droits, e-mail vérifié.
     claimMemberId = resolveClaimMemberId({
       members,
+      teamMemberIds,
       authEmail: authEmailNorm,
-      firstName,
-      lastName,
+      emailVerified: request.auth?.token.email_verified === true,
     });
   }
 
@@ -390,7 +389,22 @@ async function handleAcceptTeamInvitation(
         ? readRekeyCore(tx, { firestore: db(), clubId, fromMemberId: rekeyFrom, uid })
         : Promise.resolve(null),
     ]);
-    const rekey = rekeyState?.source.exists ? rekeyState : null;
+    // Revérifié dans la transaction : la fiche reste réclamable (non liée,
+    // sans droits ni équipe coachée, non anonymisée) au moment de l'écriture.
+    const sourceData = rekeyState?.source.exists
+      ? ((rekeyState.source.data() ?? {}) as Record<string, unknown>)
+      : null;
+    const sourceStillClaimable =
+      sourceData != null &&
+      resolveClaimMemberId({
+        members: [
+          claimableMemberFromData(rekeyFrom!, sourceData, accountUidOf(sourceData)),
+        ],
+        teamMemberIds: [rekeyFrom!],
+        authEmail: authEmailNorm,
+        emailVerified: request.auth?.token.email_verified === true,
+      }) === rekeyFrom;
+    const rekey = sourceStillClaimable ? rekeyState : null;
     const currentData = rekey
       ? rekey.target.exists
         ? mergeMemberDocs(rekey.source.data()!, rekey.target.data()!)
@@ -403,7 +417,7 @@ async function handleAcceptTeamInvitation(
     const alreadyInTeam = teamIds.includes(teamId);
     const playerIds = stringArray(teamTx.data()?.playerIds);
     const alreadyOnRoster =
-      playerIds.includes(uid) || (rekeyFrom != null && playerIds.includes(rekeyFrom));
+      playerIds.includes(uid) || (rekey != null && playerIds.includes(rekey.fromMemberId));
     const alreadyInTeamAndRoster = wasMember && alreadyInTeam && alreadyOnRoster;
 
     if (alreadyInTeamAndRoster && !rekey) {
@@ -478,7 +492,7 @@ async function handleAcceptTeamInvitation(
       tx.update(teamRef, {
         playerIds: admin.firestore.FieldValue.arrayUnion(uid),
         pendingPlayerIds: admin.firestore.FieldValue.arrayRemove(
-          ...[uid, rekeyFrom].filter((id): id is string => Boolean(id)),
+          ...[uid, appliedRekeyFrom].filter((id): id is string => Boolean(id)),
         ),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -515,21 +529,14 @@ async function handleAcceptTeamInvitation(
   });
 
   if (result.rekeyFrom) {
-    try {
-      await rewriteMemberReferences({
-        firestore: db(),
-        clubId,
-        from: result.rekeyFrom,
-        uid,
-      });
-    } catch (error) {
-      // Fiche déjà sous l'uid ; reprise via tool/rekey_linked_members.mjs.
-      console.error("rewriteMemberReferences failed", {
-        clubId,
-        from: result.rekeyFrom,
-        error,
-      });
-    }
+    // Fiche déjà sous l'uid : relances immédiates, puis état incomplet
+    // persistant repris par la tâche planifiée `scheduleMemberRekeyResume`.
+    await rewriteMemberReferencesWithRetry({
+      firestore: db(),
+      clubId,
+      from: result.rekeyFrom,
+      uid,
+    });
   }
 
   await captureClubEvent({

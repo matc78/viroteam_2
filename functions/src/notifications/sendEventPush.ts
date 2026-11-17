@@ -5,6 +5,7 @@ import { captureConvocationSent } from "../analytics";
 import { db, defineDualCallable, isProdDatabase } from "../db";
 import { requireString, requireUid, stringArray } from "../common";
 import { loadClubAccess, permissionDenied } from "../permissions";
+import type { ClubAccess } from "../permissionsCatalog";
 import { ClubDirectory, resolveEventAudience } from "./audience";
 import {
   eventManualPushCopy,
@@ -135,15 +136,25 @@ export async function assertCanManageEvent(params: {
   clubId: string;
   uid: string;
   event: Record<string, unknown>;
-}): Promise<void> {
+}): Promise<ClubAccess> {
   const access = await loadClubAccess(params.clubId, params.uid);
-  if (access.can("manageEvents")) return;
-  const coachAllowed =
-    params.event.allTeams !== true &&
-    access.coachesAllTeams(stringArray(params.event.teamIds));
-  if (!coachAllowed) {
+  if (!canManageEventWith(access, params.event)) {
     throw permissionDenied("Réservé aux coachs de l’événement ou aux responsables du planning");
   }
+  return access;
+}
+
+/**
+ * Même règle que [assertCanManageEvent] avec des droits déjà chargés : droit
+ * `manageEvents`, ou coach de toutes les équipes de [event] (jamais « tout le
+ * club »). Sert à revérifier chaque occurrence d'une série.
+ */
+export function canManageEventWith(
+  access: Pick<ClubAccess, "can" | "coachesAllTeams">,
+  event: Record<string, unknown>,
+): boolean {
+  if (access.can("manageEvents")) return true;
+  return event.allTeams !== true && access.coachesAllTeams(stringArray(event.teamIds));
 }
 
 /**

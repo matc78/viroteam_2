@@ -19,6 +19,8 @@ export {
   onClubWrittenForChatDev,
   onChatMessageCreatedForPush,
   onChatMessageCreatedForPushDev,
+  onChatMessageUpdatedPurgeDeleted,
+  onChatMessageUpdatedPurgeDeletedDev,
   scheduleSeasonChatPurge,
   scheduleSeasonChatPurgeDev,
   createCategoryChannel,

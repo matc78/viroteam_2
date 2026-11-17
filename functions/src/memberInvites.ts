@@ -22,21 +22,13 @@ import { db, defineDualCallable } from "./db";
 import { loadClubAccess, permissionDenied } from "./permissions";
 import { primaryBadge } from "./permissionsCatalog";
 import { ClubActivityTypes, logClubActivity } from "./clubActivity";
+import { newUniqueInviteCode } from "./inviteCodes";
 
 const MAX_MEMBER_IDS = 100;
 const INVITE_TTL_DAYS = 7;
 const INVITATION_STATUS_PENDING = "pending";
 const INVITATION_STATUS_EXPIRED = "expired";
 const INVITATION_TYPE_MEMBER = "member";
-
-function generateInviteCode(length = 6): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < length; i += 1) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return code;
-}
 
 type InviteSendItemResult = {
   memberId: string;
@@ -170,7 +162,7 @@ async function ensurePendingInvite(params: {
 
   const firstName = String(memberData.firstName ?? "").trim();
   const lastName = String(memberData.lastName ?? "").trim();
-  const code = generateInviteCode();
+  const code = await newUniqueInviteCode();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + INVITE_TTL_DAYS);
   const newInviteRef = invitationsCol.doc();

@@ -7,6 +7,8 @@ import {
   parseTeamInviteArgs,
   parseTeamInviteIdArgs,
   personNameKey,
+  claimableMemberFromData,
+  memberIsRetired,
   resolveClaimMemberId,
   teamInviteAcceptable,
   type ClaimableMember,
@@ -23,94 +25,134 @@ test("personNameKey exige prénom et nom", () => {
   assert.equal(personNameKey("", "Lovelace"), "");
 });
 
-test("resolveClaimMemberId priorise l’e-mail unique", () => {
-  const members: ClaimableMember[] = [
-    {
-      memberId: "m1",
-      accountUid: null,
-      firstName: "Lucas",
-      lastName: "Bernard",
-      email: "lucas@example.com",
-      teamIds: [],
-    },
-    {
-      memberId: "m2",
-      accountUid: null,
-      firstName: "Autre",
-      lastName: "Nom",
-      email: "",
-      teamIds: [],
-    },
-  ];
+/** Fiche pré-inscrite réclamable par défaut (surchargée par test). */
+function member(overrides: Partial<ClaimableMember> = {}): ClaimableMember {
+  return {
+    memberId: "m1",
+    accountUid: null,
+    firstName: "Lucas",
+    lastName: "Bernard",
+    email: "lucas@example.com",
+    teamIds: ["t1"],
+    permissions: [],
+    coachTeamIds: [],
+    retired: false,
+    ...overrides,
+  };
+}
+
+test("resolveClaimMemberId réclame la fiche de l’équipe par e-mail vérifié unique", () => {
+  const members = [member(), member({ memberId: "m2", email: "autre@example.com" })];
   assert.equal(
     resolveClaimMemberId({
       members,
+      teamMemberIds: ["m1", "m2"],
+      authEmail: " Lucas@Example.com ",
+      emailVerified: true,
+    }),
+    "m1",
+  );
+});
+
+test("resolveClaimMemberId refuse un e-mail non vérifié", () => {
+  assert.equal(
+    resolveClaimMemberId({
+      members: [member()],
+      teamMemberIds: ["m1"],
       authEmail: "lucas@example.com",
-      firstName: "X",
-      lastName: "Y",
-    }),
-    "m1",
-  );
-});
-
-test("resolveClaimMemberId claim par nom unique si pas d’e-mail", () => {
-  const members: ClaimableMember[] = [
-    {
-      memberId: "m1",
-      accountUid: null,
-      firstName: "Léa",
-      lastName: "Martin",
-      email: "",
-      teamIds: [],
-    },
-    {
-      memberId: "m2",
-      accountUid: "uid-other",
-      firstName: "Léa",
-      lastName: "Martin",
-      email: "",
-      teamIds: [],
-    },
-  ];
-  assert.equal(
-    resolveClaimMemberId({
-      members,
-      authEmail: "lea@example.com",
-      firstName: "Lea",
-      lastName: "Martin",
-    }),
-    "m1",
-  );
-});
-
-test("resolveClaimMemberId refuse les homonymes", () => {
-  const members: ClaimableMember[] = [
-    {
-      memberId: "m1",
-      accountUid: null,
-      firstName: "Thomas",
-      lastName: "Martin",
-      email: "",
-      teamIds: [],
-    },
-    {
-      memberId: "m2",
-      accountUid: null,
-      firstName: "Thomas",
-      lastName: "Martin",
-      email: "",
-      teamIds: [],
-    },
-  ];
-  assert.equal(
-    resolveClaimMemberId({
-      members,
-      authEmail: "t@example.com",
-      firstName: "Thomas",
-      lastName: "Martin",
+      emailVerified: false,
     }),
     null,
   );
+});
+
+test("resolveClaimMemberId ignore les fiches hors de l’équipe ciblée", () => {
+  assert.equal(
+    resolveClaimMemberId({
+      members: [member()],
+      teamMemberIds: ["m-autre"],
+      authEmail: "lucas@example.com",
+      emailVerified: true,
+    }),
+    null,
+  );
+});
+
+test("resolveClaimMemberId ne réclame jamais une fiche avec droits ou équipes coachées", () => {
+  for (const overrides of [
+    { permissions: ["admin"] },
+    { permissions: ["manageFees"] },
+    { coachTeamIds: ["t1"] },
+  ]) {
+    assert.equal(
+      resolveClaimMemberId({
+        members: [member(overrides)],
+        teamMemberIds: ["m1"],
+        authEmail: "lucas@example.com",
+        emailVerified: true,
+      }),
+      null,
+      JSON.stringify(overrides),
+    );
+  }
+});
+
+test("resolveClaimMemberId ne réclame ni fiche liée ni fiche anonymisée", () => {
+  for (const overrides of [{ accountUid: "uid-autre" }, { retired: true }]) {
+    assert.equal(
+      resolveClaimMemberId({
+        members: [member(overrides)],
+        teamMemberIds: ["m1"],
+        authEmail: "lucas@example.com",
+        emailVerified: true,
+      }),
+      null,
+    );
+  }
+});
+
+test("resolveClaimMemberId : prénom + nom seuls ne suffisent plus", () => {
+  assert.equal(
+    resolveClaimMemberId({
+      members: [member({ email: "" })],
+      teamMemberIds: ["m1"],
+      authEmail: "lucas@example.com",
+      emailVerified: true,
+    }),
+    null,
+  );
+});
+
+test("resolveClaimMemberId refuse les doublons d’e-mail", () => {
+  assert.equal(
+    resolveClaimMemberId({
+      members: [member(), member({ memberId: "m2" })],
+      teamMemberIds: ["m1", "m2"],
+      authEmail: "lucas@example.com",
+      emailVerified: true,
+    }),
+    null,
+  );
+});
+
+test("claimableMemberFromData lit droits, coachTeamIds et retrait", () => {
+  const candidate = claimableMemberFromData(
+    "m9",
+    {
+      firstName: " Léa ",
+      snapshot: { email: "LEA@x.fr" },
+      permissions: ["admin", 3],
+      coachTeamIds: ["t2"],
+      anonymizedAt: new Date(),
+    },
+    null,
+  );
+  assert.equal(candidate.email, "lea@x.fr");
+  assert.deepEqual(candidate.permissions, ["admin"]);
+  assert.deepEqual(candidate.coachTeamIds, ["t2"]);
+  assert.equal(candidate.retired, true);
+  assert.equal(memberIsRetired({ status: "archived" }), true);
+  assert.equal(memberIsRetired({ status: "active" }), false);
 });
 
 test("teamInviteAcceptable refuse plafond et expiration", () => {

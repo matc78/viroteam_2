@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import * as crypto from "crypto";
+import { newUniqueInviteCode } from "./inviteCodes";
 import {
   normalizeEmail,
   parseParentLinks,
@@ -25,11 +25,10 @@ import { ServerAnalyticsEvents, captureClubEvent } from "./analytics";
 import { db, defineDualCallable } from "./db";
 import { recomputeParentTeamIdsSafe } from "./parentTeams";
 import { loadClubAccess, permissionDenied } from "./permissions";
+import { isSafeMemberMapKey, staffRsvpTargetDecision } from "./eventRsvpUtils";
 
 const MAX_ACTIVE_GUARDIANS_PER_MEMBER = 1;
 const INVITE_TTL_DAYS = 7;
-const INVITE_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const INVITE_CODE_LENGTH = 6;
 
 const GUARDIAN_STATUS_PENDING = "pending";
 const GUARDIAN_STATUS_ACTIVE = "active";
@@ -52,14 +51,6 @@ function requireEmail(value: unknown, name = "email"): string {
   return email;
 }
 
-function generateInviteCode(): string {
-  const bytes = crypto.randomBytes(INVITE_CODE_LENGTH);
-  let code = "";
-  for (let index = 0; index < INVITE_CODE_LENGTH; index += 1) {
-    code += INVITE_CODE_CHARS[bytes[index]! % INVITE_CODE_CHARS.length];
-  }
-  return code;
-}
 
 function clubRef(clubId: string) {
   return db().collection("clubs").doc(clubId);
@@ -175,12 +166,19 @@ function isCapStatus(status: string): boolean {
   return status === GUARDIAN_STATUS_ACTIVE || status === GUARDIAN_STATUS_PENDING;
 }
 
+/**
+ * Nombre de liens parent occupant le plafond (guardians actifs / en attente,
+ * sinon invitations parent `pending`). Lu dans [options.tx] si fourni, pour
+ * que le contrôle du plafond et l'écriture soient atomiques.
+ */
 async function countGuardiansOccupyingSlot(
   clubId: string,
   memberId: string,
-  options?: { excludeInvitationId?: string },
+  options?: { excludeInvitationId?: string; tx?: admin.firestore.Transaction },
 ): Promise<number> {
-  const guardiansSnap = await memberRef(clubId, memberId).collection("guardians").get();
+  const tx = options?.tx;
+  const guardiansQuery = memberRef(clubId, memberId).collection("guardians");
+  const guardiansSnap = tx ? await tx.get(guardiansQuery) : await guardiansQuery.get();
   let count = 0;
   for (const docSnap of guardiansSnap.docs) {
     const status = String(docSnap.data().status ?? "");
@@ -188,10 +186,10 @@ async function countGuardiansOccupyingSlot(
   }
   if (count > 0) return count;
 
-  const invitesSnap = await invitationsCol(clubId)
+  const invitesQuery = invitationsCol(clubId)
     .where("memberId", "==", memberId)
-    .where("status", "==", "pending")
-    .get();
+    .where("status", "==", "pending");
+  const invitesSnap = tx ? await tx.get(invitesQuery) : await invitesQuery.get();
   return invitesSnap.docs.filter((inviteDoc) => {
     if (inviteDoc.data().type !== INVITATION_TYPE_GUARDIAN) return false;
     if (
@@ -423,32 +421,35 @@ export const {
     );
   }
 
-  const occupying = await countGuardiansOccupyingSlot(clubId, memberId);
-  if (occupying >= MAX_ACTIVE_GUARDIANS_PER_MEMBER) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Un parent est déjà lié ou invité pour cet enfant",
-    );
-  }
-
   const inviteRef = invitationsCol(clubId).doc();
-  const code = generateInviteCode();
+  const code = await newUniqueInviteCode();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + INVITE_TTL_DAYS);
   const now = admin.firestore.FieldValue.serverTimestamp();
 
-  await inviteRef.set({
-    type: INVITATION_TYPE_GUARDIAN,
-    memberId,
-    email,
-    relation,
-    status: "pending",
-    code,
-    sentBy: callerUid,
-    sentAt: now,
-    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
-    clubName: String(club.name ?? ""),
-    clubSport: String(club.sport ?? ""),
+  // Plafond compté et invitation écrite dans la même transaction : deux
+  // invitations simultanées ne peuvent pas dépasser le plafond.
+  await db().runTransaction(async (tx) => {
+    const occupying = await countGuardiansOccupyingSlot(clubId, memberId, { tx });
+    if (occupying >= MAX_ACTIVE_GUARDIANS_PER_MEMBER) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Un parent est déjà lié ou invité pour cet enfant",
+      );
+    }
+    tx.set(inviteRef, {
+      type: INVITATION_TYPE_GUARDIAN,
+      memberId,
+      email,
+      relation,
+      status: "pending",
+      code,
+      sentBy: callerUid,
+      sentAt: now,
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      clubName: String(club.name ?? ""),
+      clubSport: String(club.sport ?? ""),
+    });
   });
 
   if (existingParentUid) {
@@ -461,8 +462,25 @@ export const {
         status: GUARDIAN_STATUS_PENDING,
         invitedBy: callerUid,
       });
-    } catch {
-      // Invitation seule : linkGuardian activera les deux faces à la connexion.
+    } catch (error) {
+      // Seul cas attendu : le compte parent existe dans Auth mais n'a pas
+      // encore de profil `users/{uid}` (`failed-precondition` levé par
+      // writeGuardianAndParentLinks, transaction annulée). L'invitation seule
+      // suffit : linkGuardian activera les deux faces à la connexion.
+      const missingParentProfile =
+        error instanceof HttpsError && error.code === "failed-precondition";
+      if (!missingParentProfile) {
+        // Erreur transitoire : on retire l'invitation pour que le plafond ne
+        // bloque pas la relance, puis on remonte l'erreur.
+        await inviteRef.delete().catch((cleanupError) => {
+          console.error("inviteGuardian: nettoyage invitation échoué", {
+            clubId,
+            invitationId: inviteRef.id,
+            cleanupError,
+          });
+        });
+        throw error;
+      }
     }
   }
 
@@ -910,7 +928,7 @@ export const {
     invitationId: invitationIdArg || undefined,
   });
 
-  const code = generateInviteCode();
+  const code = await newUniqueInviteCode();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + INVITE_TTL_DAYS);
   const now = admin.firestore.FieldValue.serverTimestamp();
@@ -953,15 +971,29 @@ async function assertCanEditMemberRsvpAsStaff(
   clubId: string,
   uid: string,
   event: Record<string, unknown>,
+  targetMemberId: string,
 ): Promise<void> {
   const access = await loadClubAccess(clubId, uid);
-  if (access.can("manageEvents")) return;
+  const canManageEvents = access.can("manageEvents");
   const coachAllowed =
     event.allTeams !== true &&
     access.coachCan("canEditMemberRsvp") &&
     access.coachesAnyTeam(stringArray(event.teamIds));
-  if (!coachAllowed) {
+  if (!canManageEvents && !coachAllowed) {
     throw permissionDenied("Tu n’as pas le droit de modifier les réponses des joueurs");
+  }
+  // Cible : fiche existante, convoquée ; pour un coach, dans une de ses équipes.
+  const targetSnap = await memberRef(clubId, targetMemberId).get();
+  const decision = staffRsvpTargetDecision({
+    event,
+    targetMemberId,
+    targetExists: targetSnap.exists,
+    targetTeamIds: stringArray(targetSnap.data()?.teamIds),
+    canManageEvents,
+    coachTeamIds: access.coachTeamIds,
+  });
+  if (!decision.ok) {
+    throw new HttpsError(decision.code, decision.reason);
   }
 }
 
@@ -978,6 +1010,10 @@ export const {
   const clubId = requireString(request.data?.clubId, "clubId");
   const eventId = requireString(request.data?.eventId, "eventId");
   const memberId = requireString(request.data?.memberId, "memberId");
+  // Clé de map : un « . » créerait un chemin imbriqué (`rsvp.a.b`).
+  if (!isSafeMemberMapKey(memberId)) {
+    throw new HttpsError("invalid-argument", "memberId invalide");
+  }
   const value = String(request.data?.value ?? "").trim();
   if (!RSVP_VALUES.has(value)) {
     throw new HttpsError("invalid-argument", "Réponse RSVP invalide");
@@ -987,6 +1023,9 @@ export const {
   const eventSnap = await eventRef.get();
   if (!eventSnap.exists) {
     throw new HttpsError("not-found", "Événement introuvable");
+  }
+  if (eventSnap.get("canceled") === true) {
+    throw new HttpsError("failed-precondition", "Événement annulé");
   }
 
   let forChild = false;
@@ -1003,7 +1042,7 @@ export const {
     if (!(error instanceof HttpsError) || error.code !== "permission-denied") {
       throw error;
     }
-    await assertCanEditMemberRsvpAsStaff(clubId, uid, eventSnap.data() ?? {});
+    await assertCanEditMemberRsvpAsStaff(clubId, uid, eventSnap.data() ?? {}, memberId);
     via = "staff";
   }
 
@@ -1037,6 +1076,9 @@ export const {
   const clubId = requireString(request.data?.clubId, "clubId");
   const eventId = requireString(request.data?.eventId, "eventId");
   const memberId = requireString(request.data?.memberId, "memberId");
+  if (!isSafeMemberMapKey(memberId)) {
+    throw new HttpsError("invalid-argument", "memberId invalide");
+  }
 
   await assertCanActForMember({
     clubId,

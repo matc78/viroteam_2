@@ -10,7 +10,7 @@ import { parseAcceptInvitationArgs } from "./acceptInvitationArgs";
 import {
   MemberRekeyError,
   readRekeyCore,
-  rewriteMemberReferences,
+  rewriteMemberReferencesWithRetry,
   writeRekeyCore,
 } from "./memberRekey";
 import {
@@ -303,22 +303,15 @@ async function handleAcceptInvitation(
   });
 
   if (result.rekeyFrom) {
-    try {
-      await rewriteMemberReferences({
-        firestore: db(),
-        clubId,
-        from: result.rekeyFrom,
-        uid,
-      });
-    } catch (error) {
-      // La fiche est déjà sous l'uid ; `rekeyPendingFrom` permet la reprise
-      // par tool/rekey_linked_members.mjs.
-      console.error("rewriteMemberReferences failed", {
-        clubId,
-        from: result.rekeyFrom,
-        error,
-      });
-    }
+    // La fiche est déjà sous l'uid : relances immédiates, puis état
+    // incomplet persistant (`rekeyPendingFrom`, `rekeyFailedAt`) repris par
+    // la tâche planifiée `scheduleMemberRekeyResume`.
+    await rewriteMemberReferencesWithRetry({
+      firestore: db(),
+      clubId,
+      from: result.rekeyFrom,
+      uid,
+    });
   }
 
   if (result.email) {

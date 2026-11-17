@@ -3,7 +3,11 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { db, defineDualCallable } from "./db";
 import { requireString, requireUid, stringArray, uniq } from "./common";
 import { planConvocationChange } from "./eventConvocationsUtils";
-import { assertCanManageEvent } from "./notifications/sendEventPush";
+import {
+  assertCanManageEvent,
+  canManageEventWith,
+} from "./notifications/sendEventPush";
+import { isSafeMemberMapKey } from "./eventRsvpUtils";
 
 /** Garde-fou : un roster d'équipe reste bien en dessous. */
 const MAX_IDS_PER_CALL = 200;
@@ -33,6 +37,10 @@ export const {
   if (excludeIds.length + reintegrateIds.length > MAX_IDS_PER_CALL) {
     throw new HttpsError("invalid-argument", "Trop de joueurs en une fois");
   }
+  // Ids utilisés comme clés de map (`rsvp.{id}`) : pas de « . » ni « / ».
+  if (![...excludeIds, ...reintegrateIds].every(isSafeMemberMapKey)) {
+    throw new HttpsError("invalid-argument", "Identifiant de membre invalide");
+  }
   if (excludeIds.some((id) => reintegrateIds.includes(id))) {
     throw new HttpsError(
       "invalid-argument",
@@ -51,9 +59,10 @@ export const {
     throw new HttpsError("failed-precondition", "Événement annulé");
   }
 
-  await assertCanManageEvent({ clubId, uid, event });
+  const access = await assertCanManageEvent({ clubId, uid, event });
 
   const targets = [eventSnap];
+  let skippedCount = 0;
   const seriesId = String(event.seriesId ?? "").trim();
   const dateId = String(event.dateId ?? "").trim();
   if (scope === "following" && seriesId && dateId) {
@@ -63,6 +72,12 @@ export const {
       const data = doc.data();
       if (data.canceled === true) continue;
       if (String(data.dateId ?? "") < dateId) continue;
+      // Droits revérifiés par occurrence : une occurrence déplacée vers une
+      // équipe que le coach n'entraîne pas (ou « tout le club ») est ignorée.
+      if (!canManageEventWith(access, data)) {
+        skippedCount += 1;
+        continue;
+      }
       targets.push(doc);
     }
   }
@@ -101,5 +116,5 @@ export const {
   }
   if (pending > 0) await batch.commit();
 
-  return { ok: true, updatedCount };
+  return { ok: true, updatedCount, skippedCount };
 });

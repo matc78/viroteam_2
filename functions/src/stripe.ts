@@ -12,6 +12,7 @@ import { assertCanActForMember } from "./guardians";
 import { assertPermission } from "./permissions";
 import { PERMISSION_ADMIN } from "./permissionsCatalog";
 import {
+  FeeNotFoundError,
   aidLabel,
   creditMemberFeeFromCardPayment,
   generateAndStoreReceipt,
@@ -25,6 +26,7 @@ import {
   boundedNetCents,
   CANCELABLE_PAYMENT_INTENT_STATUSES,
   CHECKOUT_CURRENCY,
+  excessRefundGrossCents,
   mergeFeeAids,
   normalizeAidInputs,
   remainingDueCents,
@@ -527,92 +529,200 @@ export const {
     }
 
     const stripe = stripeClient();
-    await releasePreviousPaymentIntent({
-      stripe,
-      fee,
-      feeRef,
-    });
-
-    const grossCents = cardGrossCentsFromNet(netCents);
-    const applicationFeeCents = cardFeeCentsFromNet(netCents);
-
-    const { publishableKey } = stripeCredentials();
-    if (!publishableKey || !publishableKey.startsWith("pk_")) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Clé publique Stripe non configurée pour cet environnement",
-      );
-    }
-
-    const clubName =
-      typeof club.name === "string" && club.name.trim()
-        ? club.name.trim()
-        : clubId;
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: grossCents,
-      currency,
-      automatic_payment_methods: { enabled: true },
-      transfer_data: {
-        destination: connectedAccountId,
-      },
-      application_fee_amount: applicationFeeCents,
-      description: `Cotisation ${clubName}`.slice(0, 250),
-      metadata: {
-        sessionId: sessionRef.id,
+    // Verrou sur la cotisation : deux checkouts simultanés ne peuvent pas
+    // chacun annuler / créer un PaymentIntent (deux PI encaissables).
+    const lockedFee = await acquireCheckoutLock(feeRef, sessionRef.id);
+    try {
+      return await createLockedPaymentIntent({
+        stripe,
+        feeRef,
+        fee: lockedFee,
+        sessionRef,
+        netCents,
+        aidDocs,
+        club,
         clubId,
         seasonId,
         memberId,
-        provider: "stripe",
-        netAmountCents: String(netCents),
-        applicationFeeCents: String(applicationFeeCents),
-      },
-    });
+        connectedAccountId,
+        currency,
+        uid,
+      });
+    } finally {
+      await releaseCheckoutLock(feeRef, sessionRef.id);
+    }
+  },
+);
 
-    if (!paymentIntent.client_secret) {
+/** Durée de validité d'un verrou de checkout (au-delà : verrou orphelin). */
+const CHECKOUT_LOCK_TTL_MS = 60_000;
+
+/**
+ * Pose `checkoutLock` sur la cotisation (transaction) et renvoie ses données
+ * fraîches. Refuse si un autre checkout tient un verrou récent.
+ */
+async function acquireCheckoutLock(
+  feeRef: admin.firestore.DocumentReference,
+  sessionId: string,
+): Promise<admin.firestore.DocumentData> {
+  return db().runTransaction(async (tx) => {
+    const snap = await tx.get(feeRef);
+    if (!snap.exists) {
+      throw new HttpsError("not-found", "Cotisation introuvable");
+    }
+    const data = snap.data()!;
+    const lockAt = data.checkoutLock?.at as admin.firestore.Timestamp | undefined;
+    const lockAge = lockAt?.toMillis ? Date.now() - lockAt.toMillis() : Infinity;
+    if (data.checkoutLock && lockAge < CHECKOUT_LOCK_TTL_MS) {
       throw new HttpsError(
-        "internal",
-        "Stripe n'a pas renvoyé de client_secret",
+        "failed-precondition",
+        "Un paiement est déjà en cours de préparation pour cette cotisation — réessaie dans un instant",
       );
     }
+    tx.update(feeRef, {
+      checkoutLock: { sessionId, at: admin.firestore.Timestamp.now() },
+    });
+    return data;
+  });
+}
 
-    await sessionRef.set({
+/** Retire `checkoutLock` s'il appartient encore à [sessionId] (best-effort). */
+async function releaseCheckoutLock(
+  feeRef: admin.firestore.DocumentReference,
+  sessionId: string,
+): Promise<void> {
+  try {
+    await db().runTransaction(async (tx) => {
+      const snap = await tx.get(feeRef);
+      if (snap.get("checkoutLock.sessionId") !== sessionId) return;
+      tx.update(feeRef, { checkoutLock: admin.firestore.FieldValue.delete() });
+    });
+  } catch (error) {
+    // Le verrou expire de lui-même après CHECKOUT_LOCK_TTL_MS.
+    console.error("releaseCheckoutLock failed", { sessionId, error });
+  }
+}
+
+/**
+ * Sous verrou : annule le PaymentIntent précédent s'il est annulable, crée le
+ * nouveau (clé d'idempotence = session) et l'enregistre sur la session et la
+ * cotisation.
+ */
+async function createLockedPaymentIntent(params: {
+  stripe: Stripe;
+  feeRef: admin.firestore.DocumentReference;
+  fee: admin.firestore.DocumentData;
+  sessionRef: admin.firestore.DocumentReference;
+  netCents: number;
+  aidDocs: Record<string, unknown>[];
+  club: admin.firestore.DocumentData;
+  clubId: string;
+  seasonId: string;
+  memberId: string;
+  connectedAccountId: string;
+  currency: string;
+  uid: string;
+}): Promise<Record<string, unknown>> {
+  const {
+    stripe,
+    feeRef,
+    fee,
+    sessionRef,
+    netCents,
+    aidDocs,
+    club,
+    clubId,
+    seasonId,
+    memberId,
+    connectedAccountId,
+    currency,
+    uid,
+  } = params;
+  await releasePreviousPaymentIntent({
+    stripe,
+    fee,
+    feeRef,
+  });
+
+  const grossCents = cardGrossCentsFromNet(netCents);
+  const applicationFeeCents = cardFeeCentsFromNet(netCents);
+
+  const { publishableKey } = stripeCredentials();
+  if (!publishableKey || !publishableKey.startsWith("pk_")) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Clé publique Stripe non configurée pour cet environnement",
+    );
+  }
+
+  const clubName =
+    typeof club.name === "string" && club.name.trim()
+      ? club.name.trim()
+      : clubId;
+
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: grossCents,
+    currency,
+    automatic_payment_methods: { enabled: true },
+    transfer_data: {
+      destination: connectedAccountId,
+    },
+    application_fee_amount: applicationFeeCents,
+    description: `Cotisation ${clubName}`.slice(0, 250),
+    metadata: {
+      sessionId: sessionRef.id,
       clubId,
       seasonId,
       memberId,
-      amountCents: netCents,
-      grossAmountCents: grossCents,
-      applicationFeeCents,
-      installmentCount: 1,
-      aids: aidDocs,
-      status: "pending",
-      paymentIntentId: paymentIntent.id,
       provider: "stripe",
-      createdBy: uid,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+      netAmountCents: String(netCents),
+      applicationFeeCents: String(applicationFeeCents),
+    },
+  }, { idempotencyKey: `checkout_${sessionRef.id}` });
 
-    await feeRef.set(
-      {
-        aids: mergeFeeAids(fee.aids, aidDocs, sessionRef.id),
-        paymentIntentId: paymentIntent.id,
-        installmentCount: 1,
-        paymentProvider: "stripe",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true },
+  if (!paymentIntent.client_secret) {
+    throw new HttpsError(
+      "internal",
+      "Stripe n'a pas renvoyé de client_secret",
     );
+  }
 
-    return {
-      ok: true,
-      sessionId: sessionRef.id,
+  await sessionRef.set({
+    clubId,
+    seasonId,
+    memberId,
+    amountCents: netCents,
+    grossAmountCents: grossCents,
+    applicationFeeCents,
+    installmentCount: 1,
+    aids: aidDocs,
+    status: "pending",
+    paymentIntentId: paymentIntent.id,
+    provider: "stripe",
+    createdBy: uid,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  await feeRef.set(
+    {
+      aids: mergeFeeAids(fee.aids, aidDocs, sessionRef.id),
       paymentIntentId: paymentIntent.id,
-      clientSecret: paymentIntent.client_secret,
-      publishableKey,
-    };
-  },
-);
+      installmentCount: 1,
+      paymentProvider: "stripe",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  return {
+    ok: true,
+    sessionId: sessionRef.id,
+    paymentIntentId: paymentIntent.id,
+    clientSecret: paymentIntent.client_secret,
+    publishableKey,
+  };
+}
 
 /**
  * Webhook Stripe — seule source de vérité pour marquer un paiement CB.
@@ -780,6 +890,139 @@ async function refundUncreditedPaymentIntent(params: {
   );
 }
 
+/**
+ * Rembourse l'excédent d'un paiement partiellement crédité (deux paiements
+ * pour la même cotisation). Rejouable : n'agit que si la session porte
+ * `excessRefundStatus: "pending"` ; clé d'idempotence Stripe dédiée. Le
+ * montant brut est proratisé (frais de l'excédent rendus au payeur).
+ */
+async function refundPartialExcess(params: {
+  stripe: Stripe;
+  paymentIntent: Stripe.PaymentIntent;
+  clubId: string;
+  seasonId: string;
+  sessionId: string;
+}): Promise<void> {
+  const { stripe, paymentIntent, clubId, seasonId, sessionId } = params;
+  if (!sessionId) return;
+  const sessionRef = db()
+    .collection("clubs")
+    .doc(clubId)
+    .collection("fee_seasons")
+    .doc(seasonId)
+    .collection("payment_sessions")
+    .doc(sessionId);
+  const session = (await sessionRef.get()).data();
+  if (session?.excessRefundStatus !== "pending") return;
+  const metadataNet = Number(paymentIntent.metadata?.netAmountCents ?? 0);
+  const netCents =
+    Number.isFinite(metadataNet) && metadataNet > 0
+      ? metadataNet
+      : Number(session.amountCents ?? 0);
+  const refundCents = excessRefundGrossCents({
+    excessNetCents: Number(session.excessCents ?? 0),
+    netCents,
+    grossCents: Number(paymentIntent.amount_received || paymentIntent.amount || 0),
+  });
+  if (refundCents <= 0) {
+    console.error("stripe excess refund: montant incalculable, remboursement manuel", {
+      paymentIntentId: paymentIntent.id,
+      clubId,
+      seasonId,
+      sessionId,
+    });
+    await sessionRef.set(
+      { excessRefundStatus: "manual", updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+      { merge: true },
+    );
+    return;
+  }
+  const refund = await stripe.refunds.create(
+    {
+      payment_intent: paymentIntent.id,
+      amount: refundCents,
+      reason: "duplicate",
+      refund_application_fee: true,
+      reverse_transfer: true,
+    },
+    { idempotencyKey: `excess_refund_${paymentIntent.id}` },
+  );
+  await sessionRef.set(
+    {
+      excessRefundStatus: "refunded",
+      excessRefundId: refund.id,
+      excessRefundCents: refundCents,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+/**
+ * Paiement réussi dont la cotisation est introuvable (même via les anciens
+ * ids de fiche) : remboursement intégral (clé d'idempotence dédiée, donc un
+ * rejeu du webhook ne rembourse pas deux fois) et trace exploitable dans
+ * `_system/stripe_orphan_payments/items/{paymentIntentId}` + la session.
+ * Si le remboursement échoue, l'erreur remonte (500) et Stripe rejoue.
+ */
+async function refundOrphanPaymentIntent(params: {
+  stripe: Stripe;
+  paymentIntent: Stripe.PaymentIntent;
+  clubId: string;
+  seasonId: string;
+  memberId: string;
+  sessionId: string;
+}): Promise<void> {
+  const { stripe, paymentIntent, clubId, seasonId, memberId, sessionId } = params;
+  console.error("stripe payment without fee: remboursement intégral", {
+    paymentIntentId: paymentIntent.id,
+    clubId,
+    seasonId,
+    memberId,
+  });
+  const refund = await stripe.refunds.create(
+    {
+      payment_intent: paymentIntent.id,
+      reason: "requested_by_customer",
+      refund_application_fee: true,
+      reverse_transfer: true,
+    },
+    { idempotencyKey: `orphan_refund_${paymentIntent.id}` },
+  );
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  await db()
+    .collection("_system")
+    .doc("stripe_orphan_payments")
+    .collection("items")
+    .doc(paymentIntent.id)
+    .set(
+      {
+        clubId,
+        seasonId,
+        memberId,
+        sessionId: sessionId || null,
+        amountCents: Number(paymentIntent.amount_received || paymentIntent.amount || 0),
+        refundId: refund.id,
+        status: "refunded",
+        updatedAt: now,
+      },
+      { merge: true },
+    );
+  if (sessionId) {
+    await db()
+      .collection("clubs")
+      .doc(clubId)
+      .collection("fee_seasons")
+      .doc(seasonId)
+      .collection("payment_sessions")
+      .doc(sessionId)
+      .set(
+        { status: "refunded", refundReason: "fee_missing", refundId: refund.id, updatedAt: now },
+        { merge: true },
+      );
+  }
+}
+
 /** Met à jour le statut Connect du club lié au compte Stripe. */
 async function handleAccountUpdated(account: Stripe.Account): Promise<void> {
   let clubId = String(account.metadata?.clubId ?? "").trim();
@@ -864,22 +1107,34 @@ async function handlePaymentIntentSucceeded(
       paymentIntent.amount_received || paymentIntent.amount || 0,
     );
   }
-  const { creditedCents, excessCents } = await creditMemberFeeFromCardPayment({
-    clubId,
-    seasonId,
-    memberId,
-    sessionId,
-    amountCents,
-    externalPaymentId: paymentIntent.id,
-    provider: "stripe",
-  });
-
-  if (excessCents > 0) {
-    console.error("stripe payment exceeds remaining due", {
-      paymentIntentId: paymentIntent.id,
+  let credit: Awaited<ReturnType<typeof creditMemberFeeFromCardPayment>>;
+  try {
+    credit = await creditMemberFeeFromCardPayment({
       clubId,
       seasonId,
       memberId,
+      sessionId,
+      amountCents,
+      externalPaymentId: paymentIntent.id,
+      provider: "stripe",
+    });
+  } catch (error) {
+    if (!(error instanceof FeeNotFoundError)) throw error;
+    // Cotisation introuvable même via `formerMemberIds` (supprimée, saison
+    // effacée…) : rembourser est le plus sûr (le payeur récupère son argent,
+    // rien n'est crédité à tort) plutôt qu'un 500 rejoué indéfiniment.
+    await refundOrphanPaymentIntent({ stripe, paymentIntent, clubId, seasonId, memberId, sessionId });
+    return;
+  }
+  const { creditedCents, excessCents } = credit;
+  const creditedMemberId = credit.memberId;
+
+  if (excessCents > 0) {
+    console.warn("stripe payment exceeds remaining due (remboursement de l'excédent)", {
+      paymentIntentId: paymentIntent.id,
+      clubId,
+      seasonId,
+      memberId: creditedMemberId,
       creditedCents,
       excessCents,
     });
@@ -894,8 +1149,10 @@ async function handlePaymentIntentSucceeded(
       seasonId,
       sessionId,
     });
+    await refundPartialExcess({ stripe, paymentIntent, clubId, seasonId, sessionId });
     return;
   }
+  await refundPartialExcess({ stripe, paymentIntent, clubId, seasonId, sessionId });
 
   try {
     const feeRef = db()
@@ -904,11 +1161,11 @@ async function handlePaymentIntentSucceeded(
       .collection("fee_seasons")
       .doc(seasonId)
       .collection("member_fees")
-      .doc(memberId);
+      .doc(creditedMemberId);
     const receiptUrl = await generateAndStoreReceipt({
       clubId,
       seasonId,
-      memberId,
+      memberId: creditedMemberId,
       amountCents: creditedCents,
       externalPaymentId: paymentIntent.id,
       providerLabel: "encaissement confirmé (Stripe)",

@@ -1,6 +1,8 @@
 import * as admin from "firebase-admin";
+import { getStorage } from "firebase-admin/storage";
 import {
   onDocumentCreated,
+  onDocumentUpdated,
   onDocumentWritten,
 } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -18,6 +20,12 @@ import {
   userProfileFieldsChanged,
 } from "./memberChatDiff";
 import { memberAuthUid, profileFromMember, profileFromUser } from "./participantProfiles";
+import {
+  DELETED_MESSAGE_PREVIEW,
+  chatMediaDeletionTarget,
+  deletedMessagePurgePatch,
+  messageJustDeleted,
+} from "./messageDeletion";
 import {
   createScopedChannelConversation,
   refreshParticipantProfile,
@@ -317,6 +325,92 @@ function defineMessageCreatedTrigger(databaseId: FirestoreDatabaseId) {
   );
 }
 
+/**
+ * Message supprimé (`deletedAt` posé par le client) : efface son contenu
+ * (texte, URL, sondage, réactions, citation), supprime l'image et sa miniature
+ * dans Storage, retire l'extrait `replyToText` des réponses qui le citent et
+ * neutralise l'aperçu de la conversation s'il s'agit du dernier message.
+ * Anti-boucle : n'agit qu'à la transition `deletedAt` vide → posé, et pose
+ * `contentPurgedAt` ; les écritures suivantes ne repassent plus le filtre.
+ */
+function defineMessageUpdatedPurgeTrigger(databaseId: FirestoreDatabaseId) {
+  return onDocumentUpdated(
+    {
+      document: "clubs/{clubId}/conversations/{conversationId}/messages/{messageId}",
+      database: databaseId,
+      region: REGION,
+    },
+    async (event) =>
+      runWithDatabase(databaseId, async () => {
+        const before = event.data?.before?.data();
+        const after = event.data?.after?.data();
+        if (!after || !messageJustDeleted(before, after)) return;
+        const { clubId, conversationId, messageId } = event.params;
+        const firestore = db();
+        const conversationRef = firestore
+          .collection("clubs")
+          .doc(clubId)
+          .collection("conversations")
+          .doc(conversationId);
+        const messagesCol = conversationRef.collection("messages");
+
+        await messagesCol.doc(messageId).update(
+          deletedMessagePurgePatch(
+            after,
+            admin.firestore.FieldValue.delete(),
+            admin.firestore.FieldValue.serverTimestamp(),
+          ),
+        );
+
+        const media = chatMediaDeletionTarget({
+          clubId,
+          conversationId,
+          storagePath: after.storagePath,
+        });
+        if (media) {
+          try {
+            const bucket = getStorage().bucket();
+            const [files] = await bucket.getFiles({ prefix: media.prefix });
+            await Promise.all(
+              files
+                .filter((file) => media.matches(file.name))
+                .map((file) => file.delete({ ignoreNotFound: true })),
+            );
+          } catch (error) {
+            console.error("purge média message supprimé échouée", {
+              clubId,
+              conversationId,
+              messageId,
+              error,
+            });
+          }
+        }
+
+        // Réponses qui recopient l'extrait du message supprimé.
+        const replies = await messagesCol.where("replyToMessageId", "==", messageId).get();
+        for (let start = 0; start < replies.docs.length; start += 400) {
+          const batch = firestore.batch();
+          for (const reply of replies.docs.slice(start, start + 400)) {
+            if (reply.get("replyToText") == null) continue;
+            batch.update(reply.ref, {
+              replyToText: admin.firestore.FieldValue.delete(),
+            });
+          }
+          await batch.commit();
+        }
+
+        // Aperçu de la conversation : neutralisé si c'était le dernier message.
+        const latest = await messagesCol.orderBy("createdAt", "desc").limit(1).get();
+        if (latest.docs[0]?.id === messageId) {
+          await conversationRef.set(
+            { lastMessagePreview: DELETED_MESSAGE_PREVIEW },
+            { merge: true },
+          );
+        }
+      }),
+  );
+}
+
 function defineSeasonChatPurge(databaseId: FirestoreDatabaseId) {
   return onSchedule(
     {
@@ -464,6 +558,10 @@ export const onClubWrittenForChatDev = defineClubWrittenTrigger("v2-dev");
 export const onChatMessageCreatedForPush = defineMessageCreatedTrigger("v2-prod");
 export const onChatMessageCreatedForPushDev =
   defineMessageCreatedTrigger("v2-dev");
+export const onChatMessageUpdatedPurgeDeleted =
+  defineMessageUpdatedPurgeTrigger("v2-prod");
+export const onChatMessageUpdatedPurgeDeletedDev =
+  defineMessageUpdatedPurgeTrigger("v2-dev");
 export const scheduleSeasonChatPurge = defineSeasonChatPurge("v2-prod");
 export const scheduleSeasonChatPurgeDev = defineSeasonChatPurge("v2-dev");
 

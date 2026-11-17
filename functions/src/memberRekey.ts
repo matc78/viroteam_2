@@ -237,6 +237,38 @@ async function commitUpdates(
   }
 }
 
+/** Transactions menées en parallèle par [updateEachInTransaction]. */
+const TRANSACTION_CONCURRENCY = 10;
+
+/**
+ * Pour chaque document de [refs] : relit dans une transaction, recalcule le
+ * patch avec [buildPatch] sur la donnée fraîche, l'applique s'il n'est pas
+ * `null`. Retourne le nombre de documents modifiés.
+ */
+async function updateEachInTransaction(
+  firestore: Firestore,
+  refs: DocumentReference[],
+  buildPatch: (data: DocumentData) => Record<string, unknown> | null,
+): Promise<number> {
+  let updated = 0;
+  for (let start = 0; start < refs.length; start += TRANSACTION_CONCURRENCY) {
+    const results = await Promise.all(
+      refs.slice(start, start + TRANSACTION_CONCURRENCY).map((ref) =>
+        firestore.runTransaction(async (tx) => {
+          const snap = await tx.get(ref);
+          if (!snap.exists) return false;
+          const patch = buildPatch(snap.data() ?? {});
+          if (!patch) return false;
+          tx.update(ref, patch);
+          return true;
+        }),
+      ),
+    );
+    updated += results.filter(Boolean).length;
+  }
+  return updated;
+}
+
 /** Copie puis supprime une cotisation (copier d'abord : relançable après crash). */
 async function moveFee(params: {
   firestore: Firestore;
@@ -289,6 +321,10 @@ export async function rewriteMemberReferences(params: {
   const clubRef = firestore.collection("clubs").doc(clubId);
   const updates: Array<[DocumentReference, Record<string, unknown>]> = [];
 
+  // Équipes, événements, annonces : patchs de tableaux / maps entiers. Ils
+  // sont recalculés dans une transaction par document depuis une lecture
+  // fraîche (jamais depuis le scan initial) pour ne pas écraser une écriture
+  // concurrente (ex. un joueur ajouté au roster ou convoqué entre-temps).
   const teams = clubRef.collection("teams");
   const teamSnaps = await Promise.all(
     TEAM_ROSTER_FIELDS.map((field) =>
@@ -299,14 +335,27 @@ export async function rewriteMemberReferences(params: {
   for (const snap of teamSnaps) {
     for (const doc of snap.docs) teamDocs.set(doc.id, doc);
   }
-  for (const doc of teamDocs.values()) {
-    const patch = buildTeamRekeyPatch(doc.data(), from, uid);
-    if (!patch) continue;
-    updates.push([doc.ref, patch]);
-    report.teams += 1;
-  }
+  report.teams = await updateEachInTransaction(
+    firestore,
+    [...teamDocs.values()]
+      .filter((doc) => buildTeamRekeyPatch(doc.data(), from, uid) != null)
+      .map((doc) => doc.ref),
+    (data) => buildTeamRekeyPatch(data, from, uid),
+  );
 
+  const buildEventPatch = (data: DocumentData) => {
+    const patch = buildEventRekeyPatch({
+      event: data,
+      from,
+      to: uid,
+      deleteField: FieldValue.delete(),
+    });
+    // Écriture technique : pas de push de convocation / modification.
+    if (patch) patch[SILENT_WRITE_FIELD] = FieldValue.serverTimestamp();
+    return patch;
+  };
   const events = clubRef.collection("events");
+  const eventRefs: DocumentReference[] = [];
   let lastEvent: QueryDocumentSnapshot | undefined;
   for (;;) {
     let query = events
@@ -316,33 +365,29 @@ export async function rewriteMemberReferences(params: {
     if (lastEvent) query = query.startAfter(lastEvent);
     const page = await query.get();
     for (const doc of page.docs) {
-      const patch = buildEventRekeyPatch({
-        event: doc.data(),
-        from,
-        to: uid,
-        deleteField: FieldValue.delete(),
-      });
-      if (!patch) continue;
-      // Écriture technique : pas de push de convocation / modification.
-      patch[SILENT_WRITE_FIELD] = FieldValue.serverTimestamp();
-      updates.push([doc.ref, patch]);
-      report.events += 1;
+      if (buildEventPatch(doc.data())) eventRefs.push(doc.ref);
     }
     if (page.size < EVENTS_PAGE_SIZE) break;
     lastEvent = page.docs[page.docs.length - 1];
   }
+  report.events = await updateEachInTransaction(firestore, eventRefs, buildEventPatch);
 
+  const buildAnnouncementPatch = (data: DocumentData) => {
+    if (data.targetType !== ANNOUNCEMENT_TARGET_PEOPLE) return null;
+    const next = migrateTeamMemberIds(stringArray(data.targetIds), from, uid);
+    return next ? { targetIds: next } : null;
+  };
   const announcements = await clubRef
     .collection("announcements")
     .where("targetIds", "array-contains", from)
     .get();
-  for (const doc of announcements.docs) {
-    if (doc.get("targetType") !== ANNOUNCEMENT_TARGET_PEOPLE) continue;
-    const next = migrateTeamMemberIds(stringArray(doc.get("targetIds")), from, uid);
-    if (!next) continue;
-    updates.push([doc.ref, { targetIds: next }]);
-    report.announcements += 1;
-  }
+  report.announcements = await updateEachInTransaction(
+    firestore,
+    announcements.docs
+      .filter((doc) => buildAnnouncementPatch(doc.data()) != null)
+      .map((doc) => doc.ref),
+    buildAnnouncementPatch,
+  );
 
   const invitations = await clubRef
     .collection("invitations")
@@ -402,14 +447,92 @@ export async function rewriteMemberReferences(params: {
     }
   }
 
-  if (report.feeConflictSeasonIds.length === 0) {
-    const memberRef = clubRef.collection("members").doc(uid);
-    const member = await memberRef.get();
-    if (member.exists && member.get("rekeyPendingFrom") === from) {
-      await memberRef.update({ rekeyPendingFrom: FieldValue.delete() });
+  const memberRef = clubRef.collection("members").doc(uid);
+  const member = await memberRef.get();
+  if (member.exists && member.get("rekeyPendingFrom") === from) {
+    if (report.feeConflictSeasonIds.length === 0) {
+      await memberRef.update({
+        rekeyPendingFrom: FieldValue.delete(),
+        [REKEY_FAILED_AT_FIELD]: FieldValue.delete(),
+        [REKEY_FAILURE_COUNT_FIELD]: FieldValue.delete(),
+        [REKEY_LAST_ERROR_FIELD]: FieldValue.delete(),
+        [REKEY_FEE_CONFLICT_FIELD]: FieldValue.delete(),
+      });
+    } else {
+      // Conflit de cotisation : un admin tranche ; la reprise automatique
+      // (`memberRekeyResume.ts`) ignore cette fiche.
+      await memberRef.update({
+        [REKEY_FEE_CONFLICT_FIELD]: report.feeConflictSeasonIds,
+      });
     }
   }
   return report;
+}
+
+/** Re-keying de références en échec : horodatage du dernier échec. */
+export const REKEY_FAILED_AT_FIELD = "rekeyFailedAt";
+/** Nombre d'échecs consécutifs de la réécriture des références. */
+export const REKEY_FAILURE_COUNT_FIELD = "rekeyFailureCount";
+/** Message (tronqué) du dernier échec. */
+export const REKEY_LAST_ERROR_FIELD = "rekeyLastError";
+/** Saisons en conflit de cotisation (reprise automatique suspendue). */
+export const REKEY_FEE_CONFLICT_FIELD = "rekeyFeeConflictSeasonIds";
+
+/**
+ * [rewriteMemberReferences] avec relances (backoff exponentiel). Après le
+ * dernier échec, l'état incomplet reste persistant sur la fiche
+ * `members/{uid}` : `rekeyPendingFrom` (posé par [writeRekeyCore]) plus
+ * `rekeyFailedAt` / `rekeyFailureCount` / `rekeyLastError` ; la tâche
+ * planifiée `scheduleMemberRekeyResume` reprend alors la réécriture.
+ * Ne lève jamais : retourne `null` si toutes les tentatives ont échoué.
+ */
+export async function rewriteMemberReferencesWithRetry(params: {
+  firestore: Firestore;
+  clubId: string;
+  from: string;
+  uid: string;
+  attempts?: number;
+  baseDelayMs?: number;
+}): Promise<RekeyReferencesReport | null> {
+  const attempts = Math.max(1, params.attempts ?? 3);
+  const baseDelayMs = params.baseDelayMs ?? 500;
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await rewriteMemberReferences(params);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, baseDelayMs * 2 ** attempt));
+      }
+    }
+  }
+  console.error("rewriteMemberReferences failed (reprise planifiée)", {
+    clubId: params.clubId,
+    from: params.from,
+    error: lastError,
+  });
+  try {
+    await params.firestore
+      .collection("clubs")
+      .doc(params.clubId)
+      .collection("members")
+      .doc(params.uid)
+      .update({
+        [REKEY_FAILED_AT_FIELD]: FieldValue.serverTimestamp(),
+        [REKEY_FAILURE_COUNT_FIELD]: FieldValue.increment(1),
+        [REKEY_LAST_ERROR_FIELD]: String(
+          lastError instanceof Error ? lastError.message : lastError,
+        ).slice(0, 500),
+      });
+  } catch (markError) {
+    console.error("rewriteMemberReferences: marquage de l'échec impossible", {
+      clubId: params.clubId,
+      uid: params.uid,
+      markError,
+    });
+  }
+  return null;
 }
 
 /**

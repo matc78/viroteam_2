@@ -25,6 +25,49 @@ export function aidLabel(type: string): string {
 }
 
 /**
+ * Cotisation introuvable pour un paiement confirmé, même via les anciens ids
+ * de fiche (`formerMemberIds`) : le webhook rembourse ou trace le paiement
+ * au lieu de renvoyer une erreur indéfiniment.
+ */
+export class FeeNotFoundError extends Error {
+  constructor(
+    readonly clubId: string,
+    readonly seasonId: string,
+    readonly memberId: string,
+  ) {
+    super("fee missing");
+  }
+}
+
+/**
+ * Id de fiche portant la cotisation : [memberId] si `member_fees/{memberId}`
+ * existe, sinon la fiche re-clée qui liste [memberId] dans `formerMemberIds`
+ * (re-key entre le checkout et le webhook : la metadata garde l'ancien id).
+ * Lève [FeeNotFoundError] si aucune cotisation n'est trouvée.
+ */
+export async function resolveFeeMemberId(params: {
+  clubId: string;
+  seasonId: string;
+  memberId: string;
+}): Promise<string> {
+  const { clubId, seasonId, memberId } = params;
+  const clubRef = db().collection("clubs").doc(clubId);
+  const fees = clubRef.collection("fee_seasons").doc(seasonId).collection("member_fees");
+  if ((await fees.doc(memberId).get()).exists) return memberId;
+
+  const rekeyed = await clubRef
+    .collection("members")
+    .where("formerMemberIds", "array-contains", memberId)
+    .limit(2)
+    .get();
+  if (rekeyed.size === 1) {
+    const currentId = rekeyed.docs[0]!.id;
+    if ((await fees.doc(currentId).get()).exists) return currentId;
+  }
+  throw new FeeNotFoundError(clubId, seasonId, memberId);
+}
+
+/**
  * Crédite une cotisation après confirmation serveur (webhook).
  * Idempotent via `appliedExternalPaymentIds`. Le crédit est borné au reste
  * dû : l'excédent (`excessCents`) n'est pas compté comme payé, il est tracé
@@ -40,11 +83,16 @@ export async function creditMemberFeeFromCardPayment(params: {
   externalPaymentId: string;
   externalOrderId?: string;
   provider: FeePaymentProvider;
-}): Promise<{ status: string; creditedCents: number; excessCents: number }> {
+}): Promise<{
+  status: string;
+  creditedCents: number;
+  excessCents: number;
+  /** Id de fiche réellement crédité (différent si la fiche a été re-clée). */
+  memberId: string;
+}> {
   const {
     clubId,
     seasonId,
-    memberId,
     sessionId,
     amountCents,
     externalPaymentId,
@@ -56,6 +104,11 @@ export async function creditMemberFeeFromCardPayment(params: {
     throw new Error("externalPaymentId missing");
   }
 
+  const memberId = await resolveFeeMemberId({
+    clubId,
+    seasonId,
+    memberId: params.memberId,
+  });
   const feeRef = db()
     .collection("clubs")
     .doc(clubId)
@@ -71,7 +124,7 @@ export async function creditMemberFeeFromCardPayment(params: {
   await db().runTransaction(async (tx) => {
     const feeSnap = await tx.get(feeRef);
     if (!feeSnap.exists) {
-      throw new Error("fee missing");
+      throw new FeeNotFoundError(clubId, seasonId, memberId);
     }
     const fee = feeSnap.data()!;
 
@@ -213,6 +266,10 @@ export async function creditMemberFeeFromCardPayment(params: {
                 ? "completed"
                 : "partial",
           excessCents,
+          // Excédent partiel : remboursé par le webhook Stripe (rejouable).
+          ...(creditedCents > 0 && excessCents > 0
+            ? { excessRefundStatus: "pending" }
+            : {}),
           lastExternalPaymentId: externalPaymentId,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
@@ -234,7 +291,7 @@ export async function creditMemberFeeFromCardPayment(params: {
     });
   }
 
-  return { status: nextStatus, creditedCents, excessCents };
+  return { status: nextStatus, creditedCents, excessCents, memberId };
 }
 
 /**

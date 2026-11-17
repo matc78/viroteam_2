@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { resolveNextRedirect } from "@/lib/auth/postAuthRedirect";
 import { isFounderSignupIntent } from "@/lib/auth/signupIntent";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
@@ -13,10 +14,6 @@ type PostAuthRedirectOptions = {
   /** Query `from=signup` sur access-denied pour les comptes sans club. */
   accessDeniedFromSignup?: boolean;
 };
-
-function isSafeRedirect(path: string | null): path is string {
-  return Boolean(path && path.startsWith("/") && !path.startsWith("//"));
-}
 
 /**
  * Redirige après connexion : bureau, famille, ou access-denied / onboarding.
@@ -36,40 +33,15 @@ export function usePostAuthRedirect(options?: PostAuthRedirectOptions): void {
     }
     if (denyingRef.current) return;
 
-    const nextPath = searchParams.get("next");
-    if (isSafeRedirect(nextPath)) {
-      const isFamilyPath = nextPath === "/family" || nextPath.startsWith("/family/");
-      const isBureauPath =
-        nextPath === "/home" ||
-        nextPath === "/my-planning" ||
-        nextPath.startsWith("/my-planning/") ||
-        nextPath.startsWith("/members") ||
-        nextPath.startsWith("/planning") ||
-        nextPath.startsWith("/fees") ||
-        nextPath.startsWith("/announcements") ||
-        nextPath.startsWith("/team") ||
-        nextPath.startsWith("/equipment") ||
-        nextPath.startsWith("/settings") ||
-        nextPath.startsWith("/account");
-      const isJoinPath = nextPath.startsWith("/join");
-      const isClubSetupPath = nextPath.startsWith("/club-setup");
-
-      if (isClubSetupPath) {
-        router.replace(nextPath);
-        return;
-      }
-      if (isJoinPath) {
-        router.replace(nextPath);
-        return;
-      }
-      if (isFamilyPath && isParent) {
-        router.replace(nextPath);
-        return;
-      }
-      if (isBureauPath && isBureauUser) {
-        router.replace(nextPath);
-        return;
-      }
+    // Deep link conservé (query comprise) ; lien bureau d’un parent sans
+    // fiche → équivalent famille.
+    const nextTarget = resolveNextRedirect(searchParams.get("next"), {
+      isBureauUser,
+      isParent,
+    });
+    if (nextTarget) {
+      router.replace(nextTarget);
+      return;
     }
 
     if (isBureauUser && isParent) {

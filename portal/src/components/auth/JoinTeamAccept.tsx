@@ -18,6 +18,7 @@ import {
   lastNameError,
 } from "@/lib/format/personDataFormat";
 import deniedStyles from "./AccessDenied.module.css";
+import formStyles from "./AuthForm.module.css";
 import styles from "./JoinOnboardingForm.module.css";
 
 type JoinTeamAcceptProps = {
@@ -27,13 +28,18 @@ type JoinTeamAcceptProps = {
 };
 
 /**
- * Accepte un code d’équipe multi-usage sur le portail.
+ * Accepte un code d’équipe multi-usage sur le portail, après confirmation
+ * explicite (club, équipe et compte affichés) : un lien ouvert par erreur
+ * ou sur le mauvais compte n’ajoute personne à l’équipe.
  */
 export function JoinTeamAccept({ invitation }: JoinTeamAcceptProps) {
-  const { status, user, profile, refreshProfile } = useAuth();
+  const { status, user, profile, refreshProfile, logout } = useAuth();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** L’utilisateur a cliqué « Rejoindre » (jamais d’acceptation implicite). */
+  const [confirmed, setConfirmed] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
   const userRef = useRef(user);
   const profileRef = useRef(profile);
   userRef.current = user;
@@ -44,6 +50,7 @@ export function JoinTeamAccept({ invitation }: JoinTeamAcceptProps) {
   useEffect(() => {
     if (status === "loading") return;
     if (status !== "signedIn") return;
+    if (!confirmed) return;
 
     let cancelled = false;
     setBusy(true);
@@ -95,6 +102,7 @@ export function JoinTeamAccept({ invitation }: JoinTeamAcceptProps) {
         }
         setError(message);
         setBusy(false);
+        setConfirmed(false);
       }
     })();
 
@@ -113,6 +121,7 @@ export function JoinTeamAccept({ invitation }: JoinTeamAcceptProps) {
     refreshProfile,
     router,
     status,
+    confirmed,
   ]);
 
   const joinPath = `/join?code=${invitation.code}`;
@@ -143,24 +152,75 @@ export function JoinTeamAccept({ invitation }: JoinTeamAcceptProps) {
     );
   }
 
+  async function handleSwitchAccount() {
+    setSwitchingAccount(true);
+    try {
+      await logout();
+      router.replace(loginHref);
+    } catch {
+      setSwitchingAccount(false);
+    }
+  }
+
   if (busy && !error) {
     return (
       <AuthLoadingState message={joinCopy.acceptingTeam(teamLabel)} />
     );
   }
 
+  const accountName = profile?.displayName?.trim() || null;
+  const accountEmail = user?.email ?? null;
+
   return (
     <AuthShell
       accent="cyan"
       eyebrow={joinCopy.joinTeamEyebrow}
-      title={joinCopy.validatingInviteTitle}
-      lead={error ?? joinCopy.teamInviteFallbackLead}
+      title={joinCopy.joinTeamTitle(teamLabel)}
+      lead={joinCopy.confirmTeamJoinLead(teamLabel, invitation.clubName)}
     >
-      {error ? (
-        <p className={styles.hint} role="alert">
-          {error}
-        </p>
-      ) : null}
+      <div className={deniedStyles.body}>
+        {accountName || accountEmail ? (
+          <div className={deniedStyles.accountCard}>
+            <p className={deniedStyles.accountLabel}>{joinCopy.signedInAs}</p>
+            {accountName ? (
+              <p className={deniedStyles.accountName}>{accountName}</p>
+            ) : null}
+            {accountEmail ? (
+              <p className={deniedStyles.accountEmail}>{accountEmail}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {error ? (
+          <p className={styles.hint} role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        <div className={deniedStyles.actions}>
+          <button
+            type="button"
+            className={formStyles.submit}
+            disabled={switchingAccount}
+            onClick={() => setConfirmed(true)}
+          >
+            {joinCopy.confirmTeamJoin}
+          </button>
+          <button
+            type="button"
+            className={deniedStyles.siteLink}
+            disabled={switchingAccount}
+            onClick={() => void handleSwitchAccount()}
+          >
+            {switchingAccount
+              ? joinCopy.switchingAccount
+              : joinCopy.switchAccount}
+          </button>
+          <Link href="/" className={deniedStyles.siteLink}>
+            {joinCopy.declineJoin}
+          </Link>
+        </div>
+      </div>
     </AuthShell>
   );
 }

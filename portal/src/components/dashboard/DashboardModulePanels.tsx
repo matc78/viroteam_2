@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { ReactNode, Suspense, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { MessagingUnavailable } from "@/components/chat/MessagingUnavailable";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { isChatMessagingLive } from "@/lib/featureFlags";
 import { preloadWhenIdle } from "@/lib/ui/preloadWhenIdle";
@@ -215,7 +216,6 @@ export function DashboardModulePanels() {
   return (
     <div className={styles.root}>
       {MODULES.map((module) => {
-        if (module.id === "messages" && !chatLive) return null;
         if (!mountedIds.has(module.id)) return null;
         const isActive = module.id === activeId;
         return (
@@ -229,6 +229,12 @@ export function DashboardModulePanels() {
               <PersonalPlanningClient
                 eyebrow="Espace club"
                 isPanelActive={isActive}
+              />
+            ) : module.id === "messages" && !chatLive ? (
+              <MessagingUnavailable
+                eyebrow="Espace club"
+                pageRoute="/messages"
+                homeHref="/home"
               />
             ) : module.id === "messages" ? (
               <Suspense fallback={null}>

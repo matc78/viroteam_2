@@ -1,11 +1,12 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { FamilyRouteGuard } from "@/components/auth/FamilyRouteGuard";
 import { usePageLoad } from "@/components/common/PageLoadProvider";
 import {
   FamilyAudienceProvider,
+  FamilyTargetFromUrlSync,
   useFamilyAudience,
 } from "@/components/family/FamilyAudienceProvider";
 import { FamilyModulePanels } from "@/components/family/FamilyModulePanels";
@@ -126,6 +127,9 @@ function FamilyShellChrome() {
 export function FamilyShell() {
   return (
     <FamilyAudienceProvider>
+      <Suspense fallback={null}>
+        <FamilyTargetFromUrlSync />
+      </Suspense>
       <FamilyShellChrome />
     </FamilyAudienceProvider>
   );

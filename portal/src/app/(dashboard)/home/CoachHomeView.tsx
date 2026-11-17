@@ -156,7 +156,7 @@ export function CoachHomeView({
                   </ListRows>
                 )}
               </Card>
-              {showActivity ? <RecentActivityPreview clubId={clubId} /> : null}
+              {showActivity ? <RecentActivityPreview key={clubId} clubId={clubId} /> : null}
             </div>
           </div>
         </>

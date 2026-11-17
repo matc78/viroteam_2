@@ -1,7 +1,10 @@
 "use client";
 
 import { AuthLoadingState } from "@/components/auth/AuthLoadingState";
-import { isBureauMessagesPath } from "@/lib/chat/isMessagesPath";
+import {
+  buildLoginRedirect,
+  familyEquivalentPath,
+} from "@/lib/auth/postAuthRedirect";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { defaultFamilyLandingPath } from "@/lib/firebase/personalPlanningService";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -11,9 +14,13 @@ type DashboardGuardProps = {
   children: ReactNode;
 };
 
-/** Redirige /messages → /family/messages pour parent-only (deep link push). */
-function MessagesFamilyRedirect() {
-  const { status, isBureauUser, isParent } = useAuth();
+/**
+ * Parent sans fiche sur un lien bureau (push `/messages`, `/fees?clubId=`,
+ * `/planning?…&memberId=`) → équivalent `/family/*` avec les paramètres
+ * utiles ; sinon landing famille.
+ */
+function FamilyEquivalentRedirect() {
+  const { status, isBureauUser, isParent, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -21,10 +28,11 @@ function MessagesFamilyRedirect() {
   useEffect(() => {
     if (status !== "signedIn") return;
     if (isBureauUser || !isParent) return;
-    if (!isBureauMessagesPath(pathname)) return;
-    const query = searchParams.toString();
-    router.replace(query ? `/family/messages?${query}` : "/family/messages");
-  }, [status, isBureauUser, isParent, pathname, searchParams, router]);
+    const target =
+      familyEquivalentPath(pathname, new URLSearchParams(searchParams.toString())) ??
+      defaultFamilyLandingPath(profile);
+    router.replace(target);
+  }, [status, isBureauUser, isParent, pathname, searchParams, router, profile]);
 
   return null;
 }
@@ -34,7 +42,7 @@ function MessagesFamilyRedirect() {
  * Parent seul → landing famille ; sans accès → /access-denied (session conservée).
  */
 export function DashboardGuard({ children }: DashboardGuardProps) {
-  const { status, isBureauUser, isParent, setActiveSpace, profile } = useAuth();
+  const { status, isBureauUser, isParent, setActiveSpace } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   // Chemin depuis lequel la redirection access-denied a été lancée.
@@ -44,7 +52,9 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
     if (status === "loading" || status === "error") return;
     if (status === "signedOut") {
       denyingRef.current = null;
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      // Query lue au moment de la redirection (pas de useSearchParams ici :
+      // le garde enveloppe tout le layout, sans Suspense).
+      router.replace(buildLoginRedirect(pathname, window.location.search));
       return;
     }
     if (isBureauUser) {
@@ -53,14 +63,8 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
     }
 
     // Parent sans fiche membre : hors bureau (FamilyGuard gère /family).
-    // Deep link messagerie : laisser MessagesFamilyRedirect mapper vers /family/messages.
-    if (isParent) {
-      if (isBureauMessagesPath(pathname)) {
-        return;
-      }
-      router.replace(defaultFamilyLandingPath(profile));
-      return;
-    }
+    // FamilyEquivalentRedirect mappe vers /family/* (paramètres conservés).
+    if (isParent) return;
 
     if (denyingRef.current === pathname) return;
     denyingRef.current = pathname;
@@ -72,7 +76,6 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
     router,
     pathname,
     setActiveSpace,
-    profile,
   ]);
 
   if (status === "loading" || status === "error") {
@@ -84,10 +87,10 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
   }
 
   if (!isBureauUser) {
-    if (isParent && isBureauMessagesPath(pathname)) {
+    if (isParent) {
       return (
         <Suspense fallback={<AuthLoadingState message="Redirection…" />}>
-          <MessagesFamilyRedirect />
+          <FamilyEquivalentRedirect />
           <AuthLoadingState message="Redirection…" />
         </Suspense>
       );

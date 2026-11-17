@@ -3,7 +3,12 @@ import {
   acceptTeamInvitation,
   lookupInvitationByCode,
 } from "./callableService";
+import type { LookupInvitationResult } from "./callableService";
 import { InvitationTypes } from "./constants";
+import {
+  lookupFailureFromResult,
+  type InvitationLookupFailure,
+} from "@/lib/invitations/invitationLookupFailure";
 
 /** Type d’invitation renvoyé par le lookup. */
 export type InvitationType =
@@ -61,46 +66,85 @@ export function isTeamInvitation(
   return invitation.type === InvitationTypes.team;
 }
 
-/**
- * Recherche une invitation active par code via la callable
- * `lookupInvitationByCode` (la lecture collection group par code est interdite
- * côté client par les règles Firestore).
- */
-export async function findInvitationByCode(
-  rawCode: string,
-): Promise<InvitationLookupResult | null> {
-  const code = rawCode.trim().toUpperCase();
-  if (!code) return null;
+/** Résultat d’une recherche de code : invitation, ou cause d’échec. */
+export type InvitationCodeLookup =
+  | { ok: true; invitation: InvitationLookupResult }
+  | { ok: false; failure: InvitationLookupFailure };
 
-  const result = await lookupInvitationByCode({ code });
-  if (!result.found) return null;
+/** Convertit la réponse `lookupInvitationByCode` en invitation ou cause d’échec. */
+function invitationFromLookupResult(
+  result: LookupInvitationResult,
+  code: string,
+): InvitationCodeLookup {
+  if (!result.found) {
+    return { ok: false, failure: lookupFailureFromResult(result) };
+  }
 
   const invitation = result.invitation;
-  if (!invitation.clubId || !invitation.invitationId) return null;
+  if (!invitation.clubId || !invitation.invitationId) {
+    return { ok: false, failure: "error" };
+  }
 
   const expiresAt = invitation.expiresAt
     ? new Date(invitation.expiresAt)
     : null;
 
   return {
-    invitationId: invitation.invitationId,
-    clubId: invitation.clubId,
-    code: invitation.code || code,
-    type: normalizeInvitationType(invitation.type),
-    memberId: invitation.memberId ?? "",
-    clubName: invitation.clubName,
-    firstName: invitation.firstName.trim() || undefined,
-    lastName: invitation.lastName.trim() || undefined,
-    emailHint: invitation.emailHint?.trim() || undefined,
-    expiresAt:
-      expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : undefined,
-    teamId: invitation.teamId?.trim() || undefined,
-    teamName: invitation.teamName?.trim() || undefined,
-    useCount:
-      typeof invitation.useCount === "number" ? invitation.useCount : undefined,
-    maxUses:
-      typeof invitation.maxUses === "number" ? invitation.maxUses : undefined,
+    ok: true,
+    invitation: {
+      invitationId: invitation.invitationId,
+      clubId: invitation.clubId,
+      code: invitation.code || code,
+      type: normalizeInvitationType(invitation.type),
+      memberId: invitation.memberId ?? "",
+      clubName: invitation.clubName,
+      firstName: invitation.firstName.trim() || undefined,
+      lastName: invitation.lastName.trim() || undefined,
+      emailHint: invitation.emailHint?.trim() || undefined,
+      expiresAt:
+        expiresAt && !Number.isNaN(expiresAt.getTime()) ? expiresAt : undefined,
+      teamId: invitation.teamId?.trim() || undefined,
+      teamName: invitation.teamName?.trim() || undefined,
+      useCount:
+        typeof invitation.useCount === "number" ? invitation.useCount : undefined,
+      maxUses:
+        typeof invitation.maxUses === "number" ? invitation.maxUses : undefined,
+    },
   };
+}
+
+/**
+ * Recherche une invitation active par code via la callable
+ * `lookupInvitationByCode` (la lecture collection group par code est interdite
+ * côté client par les règles Firestore). Distingue code introuvable, expiré,
+ * épuisé et erreur technique (réseau, service) — jamais d’exception.
+ */
+export async function lookupInvitationCode(
+  rawCode: string,
+): Promise<InvitationCodeLookup> {
+  const code = rawCode.trim().toUpperCase();
+  if (!code) return { ok: false, failure: "notFound" };
+  try {
+    return invitationFromLookupResult(await lookupInvitationByCode({ code }), code);
+  } catch {
+    return { ok: false, failure: "error" };
+  }
+}
+
+/**
+ * Recherche une invitation active par code ; null si introuvable, expirée
+ * ou épuisée. Propage les erreurs techniques (réseau, service).
+ */
+export async function findInvitationByCode(
+  rawCode: string,
+): Promise<InvitationLookupResult | null> {
+  const code = rawCode.trim().toUpperCase();
+  if (!code) return null;
+  const lookup = invitationFromLookupResult(
+    await lookupInvitationByCode({ code }),
+    code,
+  );
+  return lookup.ok ? lookup.invitation : null;
 }
 
 /**

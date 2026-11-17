@@ -43,6 +43,10 @@ import {
 import { FeePaymentHistory } from "@/components/fees/FeePaymentHistory";
 import { feeStatusLabel } from "@/lib/members/membersView";
 import { useState } from "react";
+import { feesCopy } from "@/lib/copy/feesCopy";
+import { isLoadedForScope, type FamilyScope } from "@/lib/family/familyScope";
+import type { FeePaymentKey } from "@/lib/fees/pendingFeePayment";
+import { usePendingFeePayment } from "@/lib/fees/usePendingFeePayment";
 import styles from "./FamilyHomeClient.module.css";
 import feeStyles from "./FamilyFeesClient.module.css";
 
@@ -53,7 +57,7 @@ function formatEuros(cents: number): string {
   }).format(cents / 100);
 }
 
-type FamilyFeeData = {
+type FamilyFeeData = FamilyScope & {
   season: FeeSeasonRecord | null;
   fee: MemberFeeRecord | null;
   due: number;
@@ -63,6 +67,10 @@ type FamilyFeeData = {
 type CheckoutSession = {
   clientSecret: string;
   publishableKey: string;
+  /** Cotisation et reste dû au lancement (suivi « en validation »). */
+  key: FeePaymentKey;
+  remainingCents: number;
+  currency: string;
 };
 
 /** Vue payeur : statut, reste dû, consignes, checkout Stripe si flag live. */
@@ -76,28 +84,51 @@ export function FamilyFeesClient() {
     null,
   );
 
-  const { data, loading, refreshing, error, reload, loadedClubId } =
-    useAsyncClubResource(
+  const {
+    data: loadedData,
+    loading,
+    refreshing,
+    error,
+    reload,
+    loadedClubId,
+  } = useAsyncClubResource<FamilyFeeData>(
     activeClub,
     async (club) => {
-      if (!selectedMemberId) {
-        return {
-          season: null,
-          fee: null,
-          due: 0,
-          remaining: 0,
-        } satisfies FamilyFeeData;
+      const memberId = selectedMemberId;
+      const scope = { clubId: club.id, memberId };
+      if (!memberId) {
+        return { ...scope, season: null, fee: null, due: 0, remaining: 0 };
       }
       const season = await getActiveSeason(club.id);
       if (!season) {
-        return { season: null, fee: null, due: 0, remaining: 0 };
+        return { ...scope, season: null, fee: null, due: 0, remaining: 0 };
       }
-      const fee = await getMemberFee(club.id, season.id, selectedMemberId);
+      const fee = await getMemberFee(club.id, season.id, memberId);
       const due = fee ? amountDueCents(fee, season) : 0;
       const remaining = fee ? remainingCents(fee, season) : 0;
-      return { season, fee, due, remaining };
+      return { ...scope, season, fee, due, remaining };
     },
     [selectedMemberId],
+  );
+  // Données d’un autre enfant / club (rechargement en cours) : jamais
+  // affichées ni utilisées pour payer.
+  const data = isLoadedForScope(loadedData, {
+    clubId: activeClub?.id ?? null,
+    memberId: selectedMemberId,
+  })
+    ? loadedData
+    : null;
+  const feeKey: FeePaymentKey | null =
+    data?.clubId && data.memberId && data.season && data.fee
+      ? {
+          clubId: data.clubId,
+          seasonId: data.season.id,
+          memberId: data.memberId,
+        }
+      : null;
+  const { pending: paymentPending, markSubmitted } = usePendingFeePayment(
+    feeKey,
+    data?.remaining ?? 0,
   );
   const familyFeesActive = useIsPortalRouteActive(["/family/fees"]);
   useClubRealtimeReload({
@@ -116,31 +147,37 @@ export function FamilyFeesClient() {
   );
 
   async function handleCheckout() {
-    if (!activeClub || !selectedMemberId || !data?.season || !data.fee) return;
+    // Clé figée : la cotisation affichée (club, saison, enfant) au clic.
+    if (!feeKey || !data?.season || refreshing || paymentPending) return;
+    const amountCents = data.remaining;
+    const currency = data.season.currency || "eur";
     setCheckoutBusy(true);
     try {
       const result = await createStripeCheckout({
-        clubId: activeClub.id,
-        seasonId: data.season.id,
-        memberId: selectedMemberId,
-        amountCents: data.remaining,
-        currency: data.season.currency || "eur",
+        clubId: feeKey.clubId,
+        seasonId: feeKey.seasonId,
+        memberId: feeKey.memberId,
+        amountCents,
+        currency,
       });
       if (result.clientSecret && result.publishableKey) {
         FeePaymentAnalytics.trackStarted({
-          amountCents: data.remaining,
-          currency: data.season.currency || "eur",
+          amountCents,
+          currency,
           hasSession: Boolean(result.sessionId),
         });
         setCheckoutSession({
           clientSecret: result.clientSecret,
           publishableKey: result.publishableKey,
+          key: feeKey,
+          remainingCents: amountCents,
+          currency,
         });
         return;
       }
       FeePaymentAnalytics.trackStarted({
-        amountCents: data.remaining,
-        currency: data.season.currency || "eur",
+        amountCents,
+        currency,
         hasSession: Boolean(result.sessionId),
       });
       showToast(result.message ?? "Paiement enregistré.");
@@ -162,7 +199,7 @@ export function FamilyFeesClient() {
     }
   }
 
-  if ((loading || audienceLoading) && !data) {
+  if ((loading || audienceLoading || loadedData) && !data && !error) {
     return <DashboardSkeleton variant="fees" />;
   }
 
@@ -259,16 +296,24 @@ export function FamilyFeesClient() {
         ) : null}
 
         {data?.fee && data.remaining > 0 ? (
-          canPayOnline ? (
+          paymentPending ? (
+            <p className={styles.empty} role="status">
+              <strong>{feesCopy.paymentPendingTitle}</strong>
+              {" — "}
+              {feesCopy.paymentPendingText}
+            </p>
+          ) : canPayOnline ? (
             <button
               type="button"
               className={feeStyles.payButton}
-              disabled={checkoutBusy}
+              disabled={checkoutBusy || refreshing}
               onClick={() => void handleCheckout()}
             >
               {checkoutBusy
                 ? "Préparation…"
-                : `Payer ${formatEuros(cardGrossCentsFromNet(data.remaining))}`}
+                : refreshing
+                  ? feesCopy.payButtonRefreshing
+                  : `Payer ${formatEuros(cardGrossCentsFromNet(data.remaining))}`}
             </button>
           ) : (
             <p className={styles.empty}>
@@ -284,10 +329,16 @@ export function FamilyFeesClient() {
         <StripeFeeCheckout
           clientSecret={checkoutSession.clientSecret}
           publishableKey={checkoutSession.publishableKey}
-          amountCents={data?.remaining}
-          currency={data?.season?.currency || "eur"}
+          amountCents={checkoutSession.remainingCents}
+          currency={checkoutSession.currency}
           onClose={() => setCheckoutSession(null)}
-          onPaid={() => reload()}
+          onPaid={() => {
+            markSubmitted(
+              checkoutSession.key,
+              checkoutSession.remainingCents,
+            );
+            reload();
+          }}
         />
       ) : null}
     </div>

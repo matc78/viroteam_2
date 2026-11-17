@@ -34,18 +34,31 @@ export type MemberMigrationPatch = {
 };
 
 export type ClubMigrationPlan = {
+  /** Le club n'a aucune fiche active (vide ou tout archivé) : il est supprimé. */
+  deleteClub: boolean;
   /** Fiches dont `permissions` ou `coachTeamIds` doit être écrit. */
   memberPatches: MemberMigrationPatch[];
   /** Nouvel index `adminIds`, ou `null` s'il est déjà à jour. */
   adminIds: string[] | null;
   report: {
-    /** Le club n'aurait aucun admin lié à un compte. */
+    /**
+     * Le club reste sans admin lié à un compte après promotion (aucune fiche
+     * liée : l'admin, promu ou existant, agira à la liaison de son compte).
+     */
     noLinkedAdmin: boolean;
+    /**
+     * Fiche promue admin faute d'admin lié : le premier membre arrivé, lié à
+     * un compte de préférence. `null` si aucune promotion.
+     */
+    promotedAdminMemberId: string | null;
     /** Uids de l'ancien `adminIds` sans fiche `members/{uid}`. */
     adminIdsWithoutMember: string[];
     /** Fiches admin non liées à un compte (hors index, ne peuvent pas agir). */
     unlinkedAdminMemberIds: string[];
-    /** Anciens coachs qui n'entraînent aucune équipe. */
+    /**
+     * Anciens coachs qui n'entraînent aucune équipe : passés membres (aucun
+     * droit), l'admin leur réattribue des droits ou une équipe.
+     */
     coachesWithoutTeam: string[];
   };
 };
@@ -60,16 +73,47 @@ function isLinked(member: Record<string, unknown>): boolean {
   return String(member.accountUid ?? member.userId ?? "").trim().length > 0;
 }
 
+/** Date d'arrivée (`joinedAt`, sinon `createdAt`) en ms ; inconnue en dernier. */
+function arrivalMillis(member: Record<string, unknown>): number {
+  for (const value of [member.joinedAt, member.createdAt]) {
+    if (value instanceof Date) return value.getTime();
+    if (typeof value === "number") return value;
+    if (value && typeof (value as { toMillis?: unknown }).toMillis === "function") {
+      return (value as { toMillis: () => number }).toMillis();
+    }
+  }
+  return Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Premier membre arrivé parmi les fiches actives, celles liées à un compte
+ * d'abord (seules à pouvoir administrer tout de suite). `null` si aucune.
+ */
+export function firstMemberToPromote(members: MigrationDoc[]): MigrationDoc | null {
+  const active = members.filter(
+    (member) => member.data.status !== MEMBER_STATUS_ARCHIVED,
+  );
+  const ordered = [...active].sort(
+    (a, b) =>
+      Number(isLinked(b.data)) - Number(isLinked(a.data)) ||
+      arrivalMillis(a.data) - arrivalMillis(b.data) ||
+      a.id.localeCompare(b.id),
+  );
+  return ordered[0] ?? null;
+}
+
 /**
  * Droits d'une fiche après migration. Une fiche qui porte déjà `permissions`
  * est conservée telle quelle (migration relançable) ; sinon l'ancien rôle est
  * converti par son modèle. `wasInAdminIds` : l'ancien `adminIds` donnait le
- * droit admin au même titre que `role == admin`.
+ * droit admin au même titre que `role == admin`. `coachesATeam` (vrai par
+ * défaut) : un ancien coach sans équipe devient simple membre (aucun droit).
  */
 export function migratedPermissions(params: {
   member: Record<string, unknown>;
   wasInAdminIds: boolean;
   clubGrantedViewFeesToCoaches: boolean;
+  coachesATeam?: boolean;
 }): ClubPermission[] {
   const { member } = params;
   if (member.status === MEMBER_STATUS_ARCHIVED) return [];
@@ -80,7 +124,7 @@ export function migratedPermissions(params: {
   if (role === "admin" || params.wasInAdminIds) {
     return normalizePermissions(LEGACY_ROLE_PERMISSIONS.admin);
   }
-  if (role === "coach") {
+  if (role === "coach" && params.coachesATeam !== false) {
     return normalizePermissions([
       ...LEGACY_ROLE_PERMISSIONS.coach,
       ...(params.clubGrantedViewFeesToCoaches ? (["viewFees"] as const) : []),
@@ -119,22 +163,74 @@ export function planClubMigration(params: {
   const coachTeams = coachTeamIdsByMember(teams);
   const memberIds = new Set(members.map((member) => member.id));
 
-  const memberPatches: MemberMigrationPatch[] = [];
-  const adminIds: string[] = [];
-  const unlinkedAdminMemberIds: string[] = [];
-  const coachesWithoutTeam: string[] = [];
+  // Aucune fiche active (seulement des fiches archivées, ex. comptes
+  // supprimés) : personne ne peut plus rien faire du club.
+  if (members.every((member) => member.data.status === MEMBER_STATUS_ARCHIVED)) {
+    return {
+      deleteClub: true,
+      memberPatches: [],
+      adminIds: null,
+      report: {
+        noLinkedAdmin: true,
+        promotedAdminMemberId: null,
+        adminIdsWithoutMember: [...legacyAdminIds],
+        unlinkedAdminMemberIds: [],
+        coachesWithoutTeam: [],
+      },
+    };
+  }
 
-  for (const member of members) {
-    const permissions = migratedPermissions({
-      member: member.data,
-      wasInAdminIds: legacyAdminIds.includes(member.id),
-      clubGrantedViewFeesToCoaches,
-    });
+  const coachesWithoutTeam: string[] = [];
+  const targets = members.map((member) => {
     const coachTeamIds =
       member.data.status === MEMBER_STATUS_ARCHIVED
         ? []
         : (coachTeams.get(member.id) ?? []);
+    const legacyCoachWithoutTeam =
+      !Array.isArray(member.data.permissions) &&
+      member.data.status !== MEMBER_STATUS_ARCHIVED &&
+      String(member.data.role ?? "") === "coach" &&
+      coachTeamIds.length === 0;
+    const permissions = migratedPermissions({
+      member: member.data,
+      wasInAdminIds: legacyAdminIds.includes(member.id),
+      clubGrantedViewFeesToCoaches,
+      coachesATeam: !legacyCoachWithoutTeam,
+    });
+    if (legacyCoachWithoutTeam && !grantsAdmin(permissions)) {
+      coachesWithoutTeam.push(member.id);
+    }
+    return { member, permissions, coachTeamIds };
+  });
 
+  // Toujours au moins un admin lié : sinon le premier membre arrivé (lié de
+  // préférence) est promu. S'il n'y a aucune fiche liée, un admin en attente
+  // de liaison suffit ; à défaut, la première fiche est promue.
+  const hasLinkedAdmin = targets.some(
+    (target) => grantsAdmin(target.permissions) && isLinked(target.member.data),
+  );
+  const hasAnyAdmin = targets.some((target) => grantsAdmin(target.permissions));
+  let promotedAdminMemberId: string | null = null;
+  if (!hasLinkedAdmin) {
+    const candidate = firstMemberToPromote(members);
+    const target = candidate
+      ? targets.find((item) => item.member.id === candidate.id)
+      : undefined;
+    if (candidate && target && (isLinked(candidate.data) || !hasAnyAdmin)) {
+      promotedAdminMemberId = candidate.id;
+      target.permissions = normalizePermissions([
+        ...target.permissions,
+        PERMISSION_ADMIN,
+      ]);
+      const index = coachesWithoutTeam.indexOf(candidate.id);
+      if (index >= 0) coachesWithoutTeam.splice(index, 1);
+    }
+  }
+
+  const memberPatches: MemberMigrationPatch[] = [];
+  const adminIds: string[] = [];
+  const unlinkedAdminMemberIds: string[] = [];
+  for (const { member, permissions, coachTeamIds } of targets) {
     const upToDate =
       Array.isArray(member.data.permissions) &&
       sameList(stringArray(member.data.permissions), permissions) &&
@@ -148,21 +244,16 @@ export function planClubMigration(params: {
       if (isLinked(member.data)) adminIds.push(member.id);
       else unlinkedAdminMemberIds.push(member.id);
     }
-    if (
-      !Array.isArray(member.data.permissions) &&
-      String(member.data.role ?? "") === "coach" &&
-      coachTeamIds.length === 0
-    ) {
-      coachesWithoutTeam.push(member.id);
-    }
   }
 
   adminIds.sort();
   return {
+    deleteClub: false,
     memberPatches,
     adminIds: sameList(legacyAdminIds, adminIds) ? null : adminIds,
     report: {
       noLinkedAdmin: adminIds.length === 0,
+      promotedAdminMemberId,
       adminIdsWithoutMember: legacyAdminIds.filter((uid) => !memberIds.has(uid)),
       unlinkedAdminMemberIds,
       coachesWithoutTeam,

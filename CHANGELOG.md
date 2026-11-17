@@ -8,6 +8,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+
+- Migration rôles → droits (`tool/migrate_roles_to_permissions.mjs`) : un club sans membre actif est supprimé, ainsi que les clubs de test listés (5 en prod) ; un club sans admin lié voit son premier membre arrivé (lié à un compte de préférence) promu admin ; un ancien coach sans équipe passe membre (aucun droit, l’admin lui réattribue des droits)
+
 ## [2.4.0] - 2026-11-17
 
 ### Ajouté

@@ -104,7 +104,11 @@ Supprimés : `members.role`, `coachInfo`, `members.userId`, `members.memberId`, 
 
 Script [`tool/migrate_roles_to_permissions.mjs`](../../tool/migrate_roles_to_permissions.mjs) (dry-run par défaut, `--apply`, `--club`, `--databases`), logique pure dans `functions/src/permissionsMigration.ts`.
 
-- **Phase additive** (idempotente, `role` conservé) : admin ou uid dans `adminIds` → `['admin']` ; coach → `['viewActivity']` (+ `viewFees` si le club avait `canViewFees`) ; joueur → `[]` ; calcul de `coachTeamIds` ; réindexation de `adminIds` ; `accountUid` ← `userId` s'il manque. Rapport : clubs sans admin lié, coachs sans équipe (à rattacher à la main), invitations en attente porteuses d'un rôle, écarts `clubMemberships` ↔ `memberClubIds`. Relancée, elle sert aussi de réparation (`coachTeamIds`, `adminIds`).
+- **Phase additive** (idempotente, `role` conservé) : admin ou uid dans `adminIds` → `['admin']` ; coach d'au moins une équipe → `['viewActivity']` (+ `viewFees` si le club avait `canViewFees`) ; coach sans équipe → `[]` (passé membre, l'admin lui réattribue des droits ou une équipe) ; joueur → `[]` ; calcul de `coachTeamIds` ; réindexation de `adminIds` ; `accountUid` ← `userId` s'il manque.
+  - Club sans fiche active (vide ou seulement des fiches archivées) ou listé dans `CLUBS_TO_DELETE` (clubs de test) : supprimé (document, sous-collections, Storage `clubs/{clubId}/`, `users.memberClubIds` et `parentLinks`, index Stripe).
+  - Club sans admin lié à un compte : le premier membre arrivé (`joinedAt`, fiches liées d'abord) est promu admin. Sans aucune fiche liée, un admin en attente de liaison suffit, sinon la première fiche est promue (admin à la liaison).
+  - Invitation en attente porteuse d'un rôle sans fiche pré-créée : la personne arrive sans droit (assumé).
+  - Rapport : clubs supprimés, admins promus, coachs passés membres, invitations à rôle, écarts `clubMemberships` ↔ `memberClubIds`. Relancée, elle sert aussi de réparation (`coachTeamIds`, `adminIds`) ; la promotion ne se refait pas une fois un admin lié présent.
 - **Phase `--drop-legacy`** (après bascule) : supprime les champs et la collection listés plus haut.
 
 Ordre :

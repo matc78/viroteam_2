@@ -8,11 +8,17 @@
  *     `coachPermissions.canViewFees`) ; joueur → [] ;
  *   - `members.coachTeamIds` : équipes entraînées, d'après `teams.coachIds` ;
  *   - `clubs.adminIds` : réindexé (fiches liées portant le droit admin) ;
- *   - `members.accountUid` = ancien `userId` s'il manque (seul lien au compte).
- *   Rapport : clubs sans admin lié, coachs sans équipe (ils perdent la gestion
- *   des événements et des annonces tant qu'ils ne sont pas rattachés),
- *   invitations en attente qui portaient un rôle sans fiche pré-créée, écarts
- *   entre `users.clubMemberships` et `users.memberClubIds` (seul index).
+ *   - `members.accountUid` = ancien `userId` s'il manque (seul lien au compte) ;
+ *   - club sans aucune fiche membre : supprimé (document, sous-collections,
+ *     fichiers Storage `clubs/{clubId}/`, entrée de `users.memberClubIds`) ;
+ *   - club sans admin lié : le premier membre arrivé (lié à un compte de
+ *     préférence) est promu admin ;
+ *   - ancien coach sans équipe : passé membre (aucun droit), l'admin lui
+ *     réattribue des droits ou une équipe.
+ *   Rapport : clubs supprimés, admins promus, coachs passés membres,
+ *   invitations en attente qui portaient un rôle sans fiche pré-créée (la
+ *   personne arrive sans droit), écarts entre `users.clubMemberships` et
+ *   `users.memberClubIds` (seul index).
  *   Sert aussi d'outil de réparation : relancée, elle recalcule
  *   `coachTeamIds` depuis `teams.coachIds` et réindexe `adminIds`.
  *
@@ -44,6 +50,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 const functionsDir = path.join(root, "functions");
 const BATCH_SIZE = 400;
+
+/**
+ * Clubs supprimés à la bascule, par base, même s'ils ont encore des membres
+ * (clubs de test). Les clubs sans fiche active sont supprimés d'office.
+ */
+const CLUBS_TO_DELETE = {
+  "v2-prod": {
+    muzP6B3OIGPVQ80MhGwc: "viro",
+    HTBfyW6IynDOWLg44MqV: "nage test dev",
+    cAGcyE1Z9lDr18T2KJLW: "test-prod-cilly",
+    hSTdgANj9dK5cxUW8k58: "test-prod-cilly",
+    dQS9dIftHvKJNWY4YNoy: "tennis club test Apple",
+  },
+};
 
 function fail(message) {
   console.error(`❌ ${message}`);
@@ -111,6 +131,7 @@ function loadModules() {
   return {
     admin: require("firebase-admin"),
     getFirestore: require("firebase-admin/firestore").getFirestore,
+    getStorage: require("firebase-admin/storage").getStorage,
     FieldValue: require("firebase-admin/firestore").FieldValue,
     migration: require(migrationPath),
   };
@@ -142,18 +163,22 @@ function initAdmin(admin, credentials) {
   if (admin.apps.length > 0) return admin.app();
   if (credentials.type === "file") {
     const raw = JSON.parse(readFileSync(credentials.path, "utf8"));
+    const projectId = raw.project_id || "viroteam-75303";
     return admin.initializeApp({
       credential: admin.credential.cert({
         projectId: raw.project_id,
         clientEmail: raw.client_email,
         privateKey: raw.private_key,
       }),
-      projectId: raw.project_id || "viroteam-75303",
+      projectId,
+      storageBucket: `${projectId}.firebasestorage.app`,
     });
   }
+  const projectId = process.env.GCLOUD_PROJECT || "viroteam-75303";
   return admin.initializeApp({
     credential: admin.credential.applicationDefault(),
-    projectId: process.env.GCLOUD_PROJECT || "viroteam-75303",
+    projectId,
+    storageBucket: `${projectId}.firebasestorage.app`,
   });
 }
 
@@ -181,10 +206,61 @@ async function clubsOf(firestore, options) {
   return (await firestore.collection("clubs").get()).docs;
 }
 
+/**
+ * Supprime un club et ce qui pointe vers lui : `users.memberClubIds` et
+ * `users.parentLinks` des comptes, index Stripe `_system/stripe_accounts`,
+ * document et sous-collections, fichiers Storage `clubs/{clubId}/`.
+ * Sans [options.apply], ne fait que compter.
+ */
+async function deleteClub({ firestore, FieldValue, bucket, club, apply }) {
+  const usersSnap = await firestore.collection("users").get();
+  const userUpdates = [];
+  for (const doc of usersSnap.docs) {
+    const patch = {};
+    const clubIds = doc.get("memberClubIds");
+    if (Array.isArray(clubIds) && clubIds.includes(club.id)) {
+      patch.memberClubIds = FieldValue.arrayRemove(club.id);
+    }
+    const links = doc.get("parentLinks");
+    if (Array.isArray(links) && links.some((link) => link?.clubId === club.id)) {
+      patch.parentLinks = links.filter((link) => link?.clubId !== club.id);
+    }
+    if (Object.keys(patch).length > 0) userUpdates.push([doc.ref, patch]);
+  }
+  const [members, teams, events] = await Promise.all(
+    ["members", "teams", "events"].map((name) =>
+      club.ref.collection(name).count().get().then((snap) => snap.data().count),
+    ),
+  );
+  const stripeAccountId = String(club.get("stripeConnectedAccountId") ?? "").trim();
+  console.log(
+    `  ${members} fiche(s), ${teams} équipe(s), ${events} événement(s) ; ${userUpdates.length} compte(s) à désindexer`,
+  );
+  if (stripeAccountId) {
+    console.log(
+      `  ⚠️ compte Stripe ${stripeAccountId} : index retiré, compte à fermer à la main dans Stripe`,
+    );
+  }
+  if (!apply) return;
+  await commitUpdates(firestore, userUpdates);
+  if (stripeAccountId) {
+    await firestore
+      .collection("_system")
+      .doc("stripe_accounts")
+      .collection("by_account")
+      .doc(stripeAccountId)
+      .delete();
+  }
+  await firestore.recursiveDelete(club.ref);
+  await bucket.deleteFiles({ prefix: `clubs/${club.id}/` });
+}
+
 /** Phase additive : droits, équipes entraînées, index des admins. */
-async function migrateDatabase({ firestore, migration, options }) {
+async function migrateDatabase({ databaseId, firestore, FieldValue, bucket, migration, options }) {
   const totals = {
     clubs: 0,
+    clubsDeleted: 0,
+    adminsPromoted: 0,
     membersPatched: 0,
     adminIndexesRewritten: 0,
     clubsWithoutLinkedAdmin: 0,
@@ -220,12 +296,24 @@ async function migrateDatabase({ firestore, migration, options }) {
       return !accountUid && userId.length > 0;
     });
 
+    const listedForDeletion = CLUBS_TO_DELETE[databaseId]?.[club.id];
+    if (plan.deleteClub || listedForDeletion) {
+      totals.clubsDeleted += 1;
+      const reason = listedForDeletion ? "club de test listé" : "aucun membre actif";
+      console.log(
+        `\n🗑️  ${club.id} (${String(club.get("name") ?? "")}) : ${reason}, club supprimé`,
+      );
+      await deleteClub({ firestore, FieldValue, bucket, club, apply: options.apply });
+      continue;
+    }
+
     const { report } = plan;
     const quiet =
       accountUidBackfills.length === 0 &&
       plan.memberPatches.length === 0 &&
       plan.adminIds === null &&
       !report.noLinkedAdmin &&
+      report.promotedAdminMemberId === null &&
       report.adminIdsWithoutMember.length === 0 &&
       report.unlinkedAdminMemberIds.length === 0 &&
       report.coachesWithoutTeam.length === 0 &&
@@ -250,8 +338,22 @@ async function migrateDatabase({ firestore, migration, options }) {
     if (accountUidBackfills.length > 0) {
       console.log(`  ＋ ${accountUidBackfills.length} fiche(s) : accountUid ← userId`);
     }
+    if (report.promotedAdminMemberId !== null) {
+      const promoted = membersSnap.docs.find(
+        (doc) => doc.id === report.promotedAdminMemberId,
+      );
+      const name = [promoted?.get("firstName"), promoted?.get("lastName")]
+        .filter(Boolean)
+        .join(" ");
+      console.log(
+        `  👑 aucun admin lié : ${report.promotedAdminMemberId}${name ? ` (${name})` : ""} promu admin (premier membre arrivé)`,
+      );
+      totals.adminsPromoted += 1;
+    }
     if (report.noLinkedAdmin) {
-      console.log("  ⚠️ aucun admin lié à un compte : ce club ne sera plus administrable");
+      console.log(
+        "  ⚠️ aucun admin lié à un compte : administrable seulement quand l'admin en attente liera son compte",
+      );
       totals.clubsWithoutLinkedAdmin += 1;
     }
     for (const uid of report.adminIdsWithoutMember) {
@@ -262,12 +364,12 @@ async function migrateDatabase({ firestore, migration, options }) {
     }
     for (const memberId of report.coachesWithoutTeam) {
       console.log(
-        `  ⚠️ coach sans équipe ${memberId} : à rattacher à une équipe (sinon ni événements ni annonces)`,
+        `  ℹ️ coach sans équipe ${memberId} : passé membre (l'admin lui réattribue des droits ou une équipe)`,
       );
     }
     for (const doc of orphanRoleInvites) {
       console.log(
-        `  ⚠️ invitation ${doc.id} (${doc.get("role")}) sans fiche : la personne arrivera sans droits`,
+        `  ℹ️ invitation ${doc.id} (${doc.get("role")}) sans fiche : la personne arrivera sans droit`,
       );
     }
     totals.coachesWithoutTeam += report.coachesWithoutTeam.length;
@@ -391,8 +493,9 @@ async function dropLegacyDatabase({ firestore, FieldValue, options }) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
-  const { admin, getFirestore, FieldValue, migration } = loadModules();
+  const { admin, getFirestore, getStorage, FieldValue, migration } = loadModules();
   const app = initAdmin(admin, resolveCredentials());
+  const bucket = getStorage(app).bucket();
   const mode = options.apply ? "APPLY" : "DRY-RUN";
   const phase = options.dropLegacy ? "suppression des champs de rôle" : "rôles → droits";
 
@@ -401,11 +504,11 @@ async function main() {
     const firestore = getFirestore(app, databaseId);
     const totals = options.dropLegacy
       ? await dropLegacyDatabase({ firestore, FieldValue, options })
-      : await migrateDatabase({ firestore, migration, options });
+      : await migrateDatabase({ databaseId, firestore, FieldValue, bucket, migration, options });
     console.log(`\n${databaseId} : ${JSON.stringify(totals)}`);
     if (!options.dropLegacy && totals.clubsWithoutLinkedAdmin > 0) {
       console.log(
-        "⚠️ Des clubs n'ont aucun admin lié à un compte : à traiter avant la bascule.",
+        "⚠️ Des clubs n'ont aucun admin lié à un compte (admin en attente de liaison, ou seulement des fiches archivées) : à vérifier.",
       );
     }
   }

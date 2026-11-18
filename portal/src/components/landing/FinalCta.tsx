@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { StoreBadges } from "@/components/StoreBadges";
+import { FOUNDER_SIGNUP_HREF } from "@/lib/auth/authViews";
 import styles from "./FinalCta.module.css";
 
 /** Bandeau final : stores + espace club, cadre coloré et formes. */
@@ -40,7 +41,7 @@ export function FinalCta() {
                 bêta.
               </p>
               <div className={styles.actions}>
-                <Link href="/signup?intent=founder" className={styles.primary}>
+                <Link href={FOUNDER_SIGNUP_HREF} className={styles.primary}>
                   Créer mon club gratuitement
                 </Link>
                 <Link href="/login" className={styles.clubLink}>

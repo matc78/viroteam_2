@@ -2,14 +2,13 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { SiteFooter } from "@/components/landing/SiteFooter";
 import { SiteHeader } from "@/components/landing/SiteHeader";
 import { AuthPageIntro } from "@/components/auth/AuthPageIntro";
 import styles from "./AuthShell.module.css";
 
 const easeOut = [0.22, 1, 0.36, 1] as [number, number, number, number];
-const SLIDE_OFFSET = 14;
 
 type AuthShellBaseProps = {
   children: ReactNode;
@@ -28,20 +27,35 @@ type AuthShellAnimatedProps = AuthShellBaseProps & {
   variant: "animated";
 };
 
-type AuthShellProps = AuthShellStaticProps | AuthShellAnimatedProps;
+type AuthShellStageProps = AuthShellBaseProps & {
+  variant: "stage";
+};
 
-function isAnimatedProps(props: AuthShellProps): props is AuthShellAnimatedProps {
-  return props.variant === "animated";
-}
+type AuthShellProps =
+  | AuthShellStaticProps
+  | AuthShellAnimatedProps
+  | AuthShellStageProps;
 
 /**
  * Coquille auth : header, panneau centré, footer optionnel.
  * - `static` : intro intégrée (join, access-denied).
- * - `animated` : transition login ↔ signup (layout partagé, sans footer).
+ * - `animated` : panneau à fondu entre pages (mot de passe oublié).
+ * - `stage` : sans panneau, le contenu dessine ses cartes (carrousel login).
  */
 export function AuthShell(props: AuthShellProps) {
-  if (isAnimatedProps(props)) {
+  if (props.variant === "animated") {
     return <AuthShellAnimated>{props.children}</AuthShellAnimated>;
+  }
+
+  if (props.variant === "stage") {
+    return (
+      <div className={styles.page}>
+        <SiteHeader />
+        <main className={`${styles.main} ${styles.mainStage}`}>
+          {props.children}
+        </main>
+      </div>
+    );
   }
 
   const accent = props.accent ?? "cyan";
@@ -68,57 +82,31 @@ export function AuthShell(props: AuthShellProps) {
   );
 }
 
-/** Panneau animé pour login / inscription. */
+/** Panneau à fondu d’entrée pour les pages du groupe `(auth)`. */
 function AuthShellAnimated({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const prefersReducedMotion = useReducedMotion();
   const [hasMounted, setHasMounted] = useState(false);
-  const previousPathnameRef = useRef(pathname);
-  const directionRef = useRef(0);
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
 
-  const isSignup = pathname.startsWith("/signup");
-  const panelClass = isSignup
-    ? `${styles.panel} ${styles.panelOrange} ${styles.panelWide}`
-    : `${styles.panel} ${styles.panelCyan}`;
-
-  if (previousPathnameRef.current !== pathname) {
-    if (pathname.startsWith("/signup") && previousPathnameRef.current.startsWith("/login")) {
-      directionRef.current = 1;
-    } else if (
-      pathname.startsWith("/login") &&
-      previousPathnameRef.current.startsWith("/signup")
-    ) {
-      directionRef.current = -1;
-    } else {
-      directionRef.current = 0;
-    }
-  }
-
-  useEffect(() => {
-    previousPathnameRef.current = pathname;
-  }, [pathname]);
-
-  const direction = directionRef.current;
   const reduceMotion = hasMounted && Boolean(prefersReducedMotion);
-  const slideX = reduceMotion ? 0 : direction * SLIDE_OFFSET;
   const shouldAnimateEntry = hasMounted && !reduceMotion;
 
   return (
     <div className={styles.page}>
       <SiteHeader />
       <main className={styles.main}>
-        <div className={panelClass}>
+        <div className={`${styles.panel} ${styles.panelCyan}`}>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={pathname}
               className={styles.panelContent}
-              initial={shouldAnimateEntry ? { opacity: 0, x: slideX } : false}
-              animate={{ opacity: 1, x: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -slideX }}
+              initial={shouldAnimateEntry ? { opacity: 0 } : false}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.26, ease: easeOut }}
             >
               {children}

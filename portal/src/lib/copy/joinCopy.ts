@@ -32,6 +32,16 @@ export const joinCopy = {
   lookupMissingCodeTitle: "Code manquant",
   lookupMissingCodeLead:
     "Demande ton code d’invitation à l’admin ou à ton entraîneur, puis réessaie.",
+  /** Saisie manuelle du code (Espace club, non connecté). */
+  enterCodeEyebrow: "Rejoindre un club",
+  enterCodeTitle: "J’ai un code d’invitation",
+  enterCodeLead:
+    "Entre le code reçu de ton club. On te montrera ensuite l’invitation avant de créer ton compte.",
+  enterCodeLabel: "Code d’invitation",
+  enterCodePlaceholder: "Ex. ASMP1K2E",
+  enterCodeSubmit: "Continuer",
+  enterCodeRequired: "Le code d’invitation est requis.",
+  enterCodeTooShort: "Ce code est trop court.",
   lookupNotFoundTitle: "Code introuvable",
   lookupNotFoundLead:
     "Ce code n’existe pas. Vérifie qu’il est bien recopié, ou demande un nouveau code à ton club.",

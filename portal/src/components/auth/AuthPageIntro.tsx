@@ -14,7 +14,14 @@ export function AuthPageIntro({
   lead,
   compact = false,
   dense = false,
-}: AuthPageIntroProps & { compact?: boolean; dense?: boolean }) {
+  headingLevel = 1,
+}: AuthPageIntroProps & {
+  compact?: boolean;
+  dense?: boolean;
+  /** 2 quand plusieurs intros cohabitent sur la page (carrousel). */
+  headingLevel?: 1 | 2;
+}) {
+  const Heading = headingLevel === 2 ? "h2" : "h1";
   return (
     <>
       <span
@@ -22,7 +29,7 @@ export function AuthPageIntro({
       >
         {eyebrow}
       </span>
-      <h1
+      <Heading
         className={[
           styles.title,
           dense ? styles.titleDense : "",
@@ -32,7 +39,7 @@ export function AuthPageIntro({
           .join(" ")}
       >
         {title}
-      </h1>
+      </Heading>
       {lead.trim() ? (
         <p
           className={

@@ -4,14 +4,15 @@ import Link from "next/link";
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthDivider, GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import { PasswordRequirements } from "@/components/auth/PasswordRequirements";
 import { handleGoogleAuthError } from "@/lib/auth/handleGoogleAuthError";
-import { captureFounderIntentFromSearch, isFounderSignupIntent } from "@/lib/auth/signupIntent";
-import { usePostAuthRedirect } from "@/lib/auth/usePostAuthRedirect";
+import { captureFounderIntentFromSearch } from "@/lib/auth/signupIntent";
 import { validateEmail } from "@/lib/auth/validateEmail";
+import { validatePassword } from "@/lib/auth/passwordPolicy";
 import {
-  PASSWORD_POLICY_HINT,
-  validatePassword,
-} from "@/lib/auth/passwordPolicy";
+  firstNameError,
+  lastNameError,
+} from "@/lib/format/personDataFormat";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import { usePendingOverlay } from "@/lib/ui/usePendingOverlay";
 import styles from "./AuthForm.module.css";
@@ -20,26 +21,50 @@ import styles from "./AuthForm.module.css";
 const AUTH_PENDING_TIMEOUT_MS = 20_000;
 
 type FieldErrors = {
-  displayName?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   password?: string;
   confirmPassword?: string;
   form?: string;
 };
 
-/** Formulaire d’inscription Firebase Auth + profil users/{uid}. */
-export function SignupForm() {
+type SignupFormProps = {
+  /**
+   * Marque le parcours « après inscription » dès le démarrage de la tentative
+   * (avant `signedIn`), pour que la redirect ne dépende pas de la carte visible.
+   */
+  onSignupAttemptChange?: (active: boolean) => void;
+  /** Indique au carrousel qu’une auth est en cours (verrouille la navigation). */
+  onBusyChange?: (busy: boolean) => void;
+};
+
+/**
+ * Formulaire d’inscription Firebase Auth + profil users/{uid}. La redirection
+ * post-auth est portée par la page (`AuthCarousel`).
+ */
+export function SignupForm({
+  onSignupAttemptChange,
+  onBusyChange,
+}: SignupFormProps = {}) {
   return (
     <Suspense fallback={<p>Chargement…</p>}>
-      <SignupFormContent />
+      <SignupFormContent
+        onSignupAttemptChange={onSignupAttemptChange}
+        onBusyChange={onBusyChange}
+      />
     </Suspense>
   );
 }
 
-function SignupFormContent() {
+function SignupFormContent({
+  onSignupAttemptChange,
+  onBusyChange,
+}: SignupFormProps) {
   const searchParams = useSearchParams();
   const { signUp, signInWithGoogle } = useAuth();
-  const [displayName, setDisplayName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -47,29 +72,32 @@ function SignupFormContent() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [isFounderIntent, setIsFounderIntent] = useState(false);
   const pendingOverlay = usePendingOverlay("Inscription…", {
     timeoutMs: AUTH_PENDING_TIMEOUT_MS,
     onTimeout: () => {
       setSubmitting(false);
       setGoogleLoading(false);
+      onSignupAttemptChange?.(false);
     },
   });
 
   useEffect(() => {
     captureFounderIntentFromSearch(searchParams.toString());
-    setIsFounderIntent(isFounderSignupIntent());
   }, [searchParams]);
-
-  usePostAuthRedirect({ accessDeniedFromSignup: true });
 
   const isBusy = submitting || googleLoading || pendingOverlay.pending;
 
+  useEffect(() => {
+    onBusyChange?.(isBusy);
+    return () => onBusyChange?.(false);
+  }, [isBusy, onBusyChange]);
+
   function validate(): FieldErrors {
     const nextErrors: FieldErrors = {};
-    if (!displayName.trim()) {
-      nextErrors.displayName = "Le nom est requis.";
-    }
+    const firstError = firstNameError(firstName);
+    if (firstError) nextErrors.firstName = firstError;
+    const lastError = lastNameError(lastName);
+    if (lastError) nextErrors.lastName = lastError;
     const emailError = validateEmail(email);
     if (emailError) nextErrors.email = emailError;
     const passwordError = validatePassword(password);
@@ -88,12 +116,14 @@ function SignupFormContent() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
+    onSignupAttemptChange?.(true);
     setSubmitting(true);
     pendingOverlay.start("Inscription…");
     try {
-      await signUp({ email, password, displayName });
+      await signUp({ email, password, firstName, lastName });
       // Loader conservé jusqu’à la redirection post-auth.
     } catch (error) {
+      onSignupAttemptChange?.(false);
       setErrors({
         form:
           error instanceof Error
@@ -107,12 +137,14 @@ function SignupFormContent() {
 
   async function handleGoogleSignUp() {
     setErrors({});
+    onSignupAttemptChange?.(true);
     setGoogleLoading(true);
     pendingOverlay.start("Inscription…");
     try {
       await signInWithGoogle({ createProfileIfMissing: true });
       // Loader conservé jusqu’à la redirection post-auth.
     } catch (error) {
+      onSignupAttemptChange?.(false);
       const result = handleGoogleAuthError(error, "Inscription Google impossible.");
       if (result.emailToPrefill) setEmail(result.emailToPrefill);
       if (result.formMessage) setErrors({ form: result.formMessage });
@@ -126,11 +158,6 @@ function SignupFormContent() {
   return (
     <>
       {pendingOverlay.overlay}
-      {isFounderIntent ? (
-        <p className={styles.hint}>
-          Crée ton compte, puis configure ton club en quelques étapes.
-        </p>
-      ) : null}
       <form
         className={`${styles.form} ${styles.formCompact}`}
         onSubmit={handleSubmit}
@@ -139,52 +166,77 @@ function SignupFormContent() {
       >
         <div className={styles.fieldRow}>
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="signup-name">
-              Nom affiché
+            <label className={styles.label} htmlFor="signup-first-name">
+              Prénom
             </label>
             <input
-              id="signup-name"
-              className={`${styles.input}${errors.displayName ? ` ${styles.inputInvalid}` : ""}`}
+              id="signup-first-name"
+              className={`${styles.input}${errors.firstName ? ` ${styles.inputInvalid}` : ""}`}
               type="text"
-              name="displayName"
-              autoComplete="name"
-              placeholder="Tristan Heraud"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              aria-invalid={Boolean(errors.displayName)}
+              name="firstName"
+              autoComplete="given-name"
+              placeholder="Tristan"
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value)}
+              aria-invalid={Boolean(errors.firstName)}
               aria-describedby={
-                errors.displayName ? "signup-name-error" : undefined
+                errors.firstName ? "signup-first-name-error" : undefined
               }
             />
-            {errors.displayName ? (
-              <p id="signup-name-error" className={styles.error} role="alert">
-                {errors.displayName}
+            {errors.firstName ? (
+              <p id="signup-first-name-error" className={styles.error} role="alert">
+                {errors.firstName}
               </p>
             ) : null}
           </div>
 
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="signup-email">
-              E-mail
+            <label className={styles.label} htmlFor="signup-last-name">
+              Nom
             </label>
             <input
-              id="signup-email"
-              className={`${styles.input}${errors.email ? ` ${styles.inputInvalid}` : ""}`}
-              type="email"
-              name="email"
-              autoComplete="email"
-              placeholder="toi@club.fr"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? "signup-email-error" : undefined}
+              id="signup-last-name"
+              className={`${styles.input}${errors.lastName ? ` ${styles.inputInvalid}` : ""}`}
+              type="text"
+              name="lastName"
+              autoComplete="family-name"
+              placeholder="Heraud"
+              value={lastName}
+              onChange={(event) => setLastName(event.target.value)}
+              aria-invalid={Boolean(errors.lastName)}
+              aria-describedby={
+                errors.lastName ? "signup-last-name-error" : undefined
+              }
             />
-            {errors.email ? (
-              <p id="signup-email-error" className={styles.error} role="alert">
-                {errors.email}
+            {errors.lastName ? (
+              <p id="signup-last-name-error" className={styles.error} role="alert">
+                {errors.lastName}
               </p>
             ) : null}
           </div>
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="signup-email">
+            E-mail
+          </label>
+          <input
+            id="signup-email"
+            className={`${styles.input}${errors.email ? ` ${styles.inputInvalid}` : ""}`}
+            type="email"
+            name="email"
+            autoComplete="email"
+            placeholder="toi@club.fr"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "signup-email-error" : undefined}
+          />
+          {errors.email ? (
+            <p id="signup-email-error" className={styles.error} role="alert">
+              {errors.email}
+            </p>
+          ) : null}
         </div>
 
         <div className={styles.fieldRow}>
@@ -204,7 +256,9 @@ function SignupFormContent() {
                 onChange={(event) => setPassword(event.target.value)}
                 aria-invalid={Boolean(errors.password)}
                 aria-describedby={
-                  errors.password ? "signup-password-error" : undefined
+                  errors.password
+                    ? "signup-password-requirements signup-password-error"
+                    : "signup-password-requirements"
                 }
               />
               <button
@@ -232,9 +286,7 @@ function SignupFormContent() {
               <p id="signup-password-error" className={styles.error} role="alert">
                 {errors.password}
               </p>
-            ) : (
-              <p className={styles.hint}>{PASSWORD_POLICY_HINT}</p>
-            )}
+            ) : null}
           </div>
 
           <div className={styles.field}>
@@ -250,6 +302,7 @@ function SignupFormContent() {
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
+              onPaste={(event) => event.preventDefault()}
               aria-invalid={Boolean(errors.confirmPassword)}
               aria-describedby={
                 errors.confirmPassword ? "signup-confirm-error" : undefined
@@ -262,6 +315,11 @@ function SignupFormContent() {
             ) : null}
           </div>
         </div>
+
+        <PasswordRequirements
+          password={password}
+          id="signup-password-requirements"
+        />
 
         <p className={styles.termsMention}>
           En créant ton compte, tu acceptes les{" "}
@@ -300,13 +358,6 @@ function SignupFormContent() {
         loading={googleLoading}
         disabled={submitting || pendingOverlay.pending}
       />
-
-      <p className={styles.switch}>
-        Déjà un compte ?{" "}
-        <Link href="/login" className={styles.switchLink}>
-          Se connecter
-        </Link>
-      </p>
     </>
   );
 }

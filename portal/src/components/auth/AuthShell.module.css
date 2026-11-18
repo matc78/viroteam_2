@@ -1,9 +1,12 @@
 .page {
   min-height: 100dvh;
-  height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+}
+
+.page > header,
+.page > footer {
+  flex-shrink: 0;
 }
 
 .main {
@@ -11,10 +14,16 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  overflow: hidden;
-  padding: var(--space-lg);
+  overflow-y: auto;
+  padding: var(--space-xl) var(--space-lg);
+}
+
+/* Carrousel : place pour les oreilles latérales, pas de scroll horizontal. */
+.mainStage {
+  overflow-x: hidden;
+  padding-inline: var(--space-md);
 }
 
 .panel {
@@ -22,13 +31,13 @@
   z-index: 1;
   width: 100%;
   max-width: 26rem;
+  margin-block: auto;
   padding: clamp(1.75rem, 4vw, 2.5rem);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-white) 92%, transparent);
   border: 2px solid var(--panel-accent, var(--color-sport-cyan));
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(6px);
-  overflow: hidden;
   transition: border-color 320ms ease;
 }
 
@@ -43,10 +52,6 @@
 
 .panelOrange {
   --panel-accent: var(--color-sport-orange);
-}
-
-.panelWide {
-  max-width: 42rem;
 }
 
 .leadCompact {
@@ -97,4 +102,14 @@
   text-align: center;
   font-size: 1rem;
   line-height: 1.5;
+}
+
+@media (max-width: 540px) {
+  .main {
+    padding: var(--space-md);
+  }
+
+  .panel {
+    padding: 1.35rem 1.15rem;
+  }
 }

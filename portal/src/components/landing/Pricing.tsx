@@ -6,6 +6,7 @@ import {
   cardGrossCentsFromNet,
 } from "@/lib/stripe/cardGrossFromNet";
 import section from "./LandingSection.module.css";
+import { FOUNDER_SIGNUP_HREF } from "@/lib/auth/authViews";
 import styles from "./Pricing.module.css";
 
 /** Cotisation d'exemple pour illustrer les frais CB (centimes). */
@@ -61,7 +62,7 @@ export function Pricing() {
                 </li>
               ))}
             </ul>
-            <Link href="/signup?intent=founder" className={styles.cta}>
+            <Link href={FOUNDER_SIGNUP_HREF} className={styles.cta}>
               Créer mon club gratuitement
             </Link>
           </article>

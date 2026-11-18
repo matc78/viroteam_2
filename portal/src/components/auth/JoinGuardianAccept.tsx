@@ -15,6 +15,7 @@ import {
 import { InvitationTypes } from "@/lib/firebase/constants";
 import type { InvitationLookupResult } from "@/lib/firebase/invitationService";
 import deniedStyles from "./AccessDenied.module.css";
+import { authHref } from "@/lib/auth/authViews";
 import styles from "./JoinOnboardingForm.module.css";
 
 type JoinGuardianAcceptProps = {
@@ -85,8 +86,8 @@ export function JoinGuardianAccept({ invitation }: JoinGuardianAcceptProps) {
   ]);
 
   const joinPath = `/join?code=${invitation.code}`;
-  const loginHref = `/login?next=${encodeURIComponent(joinPath)}`;
-  const signupHref = `/signup?next=${encodeURIComponent(joinPath)}`;
+  const loginHref = authHref("login", { next: joinPath });
+  const signupHref = authHref("signup", { next: joinPath });
 
   if (status === "loading") {
     return <AuthLoadingState message="Vérification de ta session…" />;

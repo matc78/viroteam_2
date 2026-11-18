@@ -57,21 +57,6 @@ export function JoinRedirectClient() {
     };
   }, [invitationCode, attempt]);
 
-  if (!invitationCode) {
-    return (
-      <AuthShell
-        accent="cyan"
-        eyebrow="Rejoindre un club"
-        title={joinCopy.lookupMissingCodeTitle}
-        lead={joinCopy.lookupMissingCodeLead}
-      >
-        <p className={styles.hint}>
-          Tu peux aussi te connecter sur le portail pour compléter ton profil.
-        </p>
-      </AuthShell>
-    );
-  }
-
   if (!lookupDone) {
     return (
       <AuthShell

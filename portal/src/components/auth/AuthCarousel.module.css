@@ -1,0 +1,399 @@
+/* Enveloppe : centre le carrousel dans la page ; sur ordinateur, sa hauteur
+   suit le carrousel mis à l’échelle (style inline) pour éviter tout scroll. */
+.fit {
+  width: 100%;
+  margin-block: auto;
+  display: flex;
+  justify-content: center;
+  /* Pas d’étirement : la hauteur du carrousel ne dépend que de son contenu
+     (sinon boucle avec la hauteur inline de l’enveloppe). */
+  align-items: flex-start;
+}
+
+.carousel {
+  /* Même largeur pour les trois cartes (une carte plus large dépasserait des
+     deux côtés derrière une plus étroite) ; la hauteur reste propre à chacune. */
+  --card-w: 30rem;
+  --ear-visible: 4.5rem;
+  --ear-depth: -200px;
+  --ear-tilt: 32deg;
+  --ear-roll: 2deg;
+  --card-motion: 650ms cubic-bezier(0.22, 0.8, 0.25, 1);
+  width: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform-origin: 50% 0;
+}
+
+/* Bouton libellé | scène | bouton libellé, alignés sur le centre des cartes. */
+.row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+}
+
+/* ---- Bureau : carrousel 3D ----
+   La scène a la hauteur de la carte de devant (--stage-h, mesurée) ; les
+   trois cartes sont centrées sur le même point et gardent leur propre
+   hauteur (inscription longue, code courte), les oreilles débordent. */
+
+.stage {
+  position: relative;
+  /* Carte + place des deux oreilles. */
+  width: calc(var(--card-w) + 2 * var(--ear-visible) + 1rem);
+  max-width: 100%;
+  flex-shrink: 1;
+  height: var(--stage-h, auto);
+  margin-block: var(--stage-overflow, 0);
+  perspective: 1400px;
+  transition:
+    height var(--card-motion),
+    margin var(--card-motion);
+}
+
+/* Avant la première mesure : la carte de devant dans le flux, sans
+   animation, pour éviter une scène de hauteur nulle. */
+.stage:not([data-animated]),
+.stage:not([data-animated]) .card {
+  transition: none;
+}
+
+.stage:not([data-measured]) .card[data-position="front"] {
+  position: relative;
+  top: auto;
+  left: auto;
+  margin-inline: auto;
+  transform: none;
+}
+
+.card {
+  --card-accent: var(--color-sport-cyan);
+  /* Décalage latéral d’une oreille : son bord extérieur dépasse d’environ
+     --ear-visible le bord de la carte de devant (approximation de la
+     projection 3D, réglée à l’œil). */
+  --ear-shift: calc((var(--card-w) * 0.1 + var(--ear-visible)) / 0.95);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(100%, var(--card-w));
+  padding: clamp(1.5rem, 3vw, 2rem);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-white) 94%, transparent);
+  border: 2px solid var(--card-accent);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(6px);
+  transition:
+    transform var(--card-motion),
+    filter var(--card-motion);
+}
+
+.cardLogin {
+  --card-accent: var(--color-sport-cyan);
+}
+
+.cardCode {
+  --card-accent: var(--color-sport-green);
+}
+
+.cardSignup {
+  --card-accent: var(--color-sport-orange);
+}
+
+.card[data-position="front"] {
+  z-index: 3;
+  transform: translate(-50%, -50%) translate3d(0, 0, 0) rotateY(0)
+    rotateZ(0);
+}
+
+.card[data-position="left"],
+.card[data-position="right"] {
+  z-index: 1;
+  overflow: hidden;
+  filter: saturate(0.75);
+}
+
+.card[data-position="left"] {
+  transform: translate(-50%, -50%) translate3d(calc(-1 * var(--ear-shift)), 0, var(--ear-depth))
+    rotateY(var(--ear-tilt)) rotateZ(calc(-1 * var(--ear-roll)));
+}
+
+.card[data-position="right"] {
+  transform: translate(-50%, -50%) translate3d(var(--ear-shift), 0, var(--ear-depth))
+    rotateY(calc(-1 * var(--ear-tilt))) rotateZ(var(--ear-roll));
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.card:not([data-position="front"]) .cardBody {
+  opacity: 0.4;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ear {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 1.1rem;
+  border: none;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--color-white) 72%, transparent);
+  cursor: pointer;
+  transition: background 200ms ease;
+}
+
+.card[data-position="left"] .ear {
+  justify-content: flex-start;
+}
+
+.card[data-position="right"] .ear {
+  justify-content: flex-end;
+}
+
+.ear:hover {
+  background: color-mix(in srgb, var(--color-white) 55%, transparent);
+}
+
+.earIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: var(--card-accent);
+  color: var(--color-white);
+}
+
+.earIcon svg,
+.navIcon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* ---- Boutons libellés de part et d’autre (bureau) ---- */
+
+.navButton {
+  position: relative;
+  z-index: 4;
+  flex-shrink: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  width: 7.5rem;
+  padding: 0.75rem 0.5rem;
+  /* Aux couleurs de la carte visée (--card-accent via .cardLogin…). */
+  border: 2px solid var(--card-accent);
+  border-radius: var(--radius-md, 1rem);
+  background: color-mix(in srgb, var(--color-white) 92%, transparent);
+  color: var(--color-primary-800);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.navButton:hover {
+  background: color-mix(in srgb, var(--card-accent) 10%, var(--color-white));
+  transform: translateY(-1px);
+}
+
+.navButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-400) 35%, transparent);
+}
+
+.navIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: var(--card-accent);
+  color: var(--color-white);
+}
+
+.navLabel {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+}
+
+/* Points : téléphone uniquement (sur ordinateur, les boutons suffisent). */
+.dots {
+  display: none;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-gray-300);
+  cursor: pointer;
+  transition: width 250ms ease, background 250ms ease;
+}
+
+.dotActive {
+  width: 1.4rem;
+  background: var(--color-primary-600);
+}
+
+/* ---- Écrans intermédiaires : cartes et boutons plus étroits ---- */
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  .carousel {
+    --card-w: 26rem;
+    --ear-visible: 3.5rem;
+  }
+
+  .navButton {
+    width: 6rem;
+    padding: 0.6rem 0.35rem;
+  }
+
+  .navLabel {
+    font-size: 0.8125rem;
+  }
+}
+
+/* ---- Onglets (téléphone) ---- */
+
+.tabs {
+  display: none;
+}
+
+/* ---- Téléphone : défilement horizontal ---- */
+
+@media (max-width: 767px) {
+  .tabs {
+    display: flex;
+    width: 100%;
+    gap: 0.25rem;
+    margin-bottom: var(--space-md);
+    padding: 0.25rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-white) 85%, transparent);
+    border: 1px solid var(--color-gray-200);
+  }
+
+  .tab {
+    flex: 1;
+    min-height: 2.75rem;
+    padding: 0.35rem 0.4rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-gray-600);
+    font: inherit;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 200ms ease, color 200ms ease;
+  }
+
+  .tabActive {
+    background: var(--color-primary-600);
+    color: var(--color-white);
+  }
+
+  .tab:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary-400) 35%, transparent);
+  }
+
+  .row {
+    display: block;
+  }
+
+  .navButton {
+    display: none;
+  }
+
+  /* La piste prend la hauteur de la carte affichée : les points restent
+     juste en dessous (les voisines plus hautes sont rognées). */
+  .stage {
+    max-width: none;
+    height: auto;
+    overflow-y: hidden;
+    margin-block: 0;
+    transition: height 250ms ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    perspective: none;
+    /* Chaque carte occupe la zone de contenu : centrée au repos, ses voisines
+       dépassent de (padding - gap) pour montrer qu’il y a d’autres options. */
+    padding: 0.25rem 1.75rem;
+    scroll-padding-inline: 1.75rem;
+    margin-inline: calc(-1 * var(--space-md));
+    width: calc(100% + 2 * var(--space-md));
+  }
+
+  .stage[data-measured] {
+    height: calc(var(--stage-h) + 0.5rem);
+  }
+
+  .stage::-webkit-scrollbar {
+    display: none;
+  }
+
+  .card,
+  .card[data-position="left"],
+  .card[data-position="right"],
+  .card[data-position="front"] {
+    position: relative;
+    top: auto;
+    left: auto;
+    flex: 0 0 100%;
+    width: 100%;
+    overflow: visible;
+    scroll-snap-align: center;
+    transform: none;
+    filter: none;
+    padding: 1.35rem 1.15rem;
+  }
+
+  .ear,
+  .card[data-position="left"] .ear,
+  .card[data-position="right"] .ear {
+    padding: 0;
+    background: transparent;
+  }
+
+  .earIcon {
+    display: none;
+  }
+
+  .dots {
+    display: flex;
+    margin-top: var(--space-md);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .dot,
+  .tab,
+  .navButton {
+    transition: none;
+  }
+}

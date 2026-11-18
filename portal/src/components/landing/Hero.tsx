@@ -6,6 +6,7 @@ import { StoreBadges } from "@/components/StoreBadges";
 import { site } from "@/lib/site";
 import { PhoneFrame } from "./PhoneFrame";
 import { SectionConfetti } from "./SectionConfetti";
+import { FOUNDER_SIGNUP_HREF } from "@/lib/auth/authViews";
 import styles from "./Hero.module.css";
 
 const easeOut = [0.22, 1, 0.36, 1] as const;
@@ -74,7 +75,7 @@ export function Hero() {
             initial="hidden"
             animate="show"
           >
-            <Link href="/signup?intent=founder" className={styles.primary}>
+            <Link href={FOUNDER_SIGNUP_HREF} className={styles.primary}>
               Créer mon club gratuitement
             </Link>
             <Link href="/login" className={styles.secondary}>

@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import { AuthDivider, GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { handleGoogleAuthError } from "@/lib/auth/handleGoogleAuthError";
-import { usePostAuthRedirect } from "@/lib/auth/usePostAuthRedirect";
 import { validateEmail } from "@/lib/auth/validateEmail";
 import { authCopy } from "@/lib/copy/authCopy";
 import { useAuth } from "@/lib/firebase/AuthProvider";
@@ -20,7 +19,12 @@ type FieldErrors = {
   form?: string;
 };
 
-function LoginFormContent() {
+type LoginFormProps = {
+  /** Indique au carrousel qu’une auth est en cours (verrouille la navigation). */
+  onBusyChange?: (busy: boolean) => void;
+};
+
+function LoginFormContent({ onBusyChange }: LoginFormProps) {
   const { signIn, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,9 +40,12 @@ function LoginFormContent() {
     },
   });
 
-  usePostAuthRedirect();
-
   const isConnecting = submitting || googleLoading || pendingOverlay.pending;
+
+  useEffect(() => {
+    onBusyChange?.(isConnecting);
+    return () => onBusyChange?.(false);
+  }, [isConnecting, onBusyChange]);
 
   function validate(): FieldErrors {
     const nextErrors: FieldErrors = {};
@@ -227,22 +234,18 @@ function LoginFormContent() {
         loading={googleLoading}
         disabled={submitting}
       />
-
-      <p className={styles.switch}>
-        Pas encore de compte ?{" "}
-        <Link href="/signup" className={styles.switchLink}>
-          Créer un compte
-        </Link>
-      </p>
     </>
   );
 }
 
-/** Formulaire de connexion Firebase Auth. */
-export function LoginForm() {
+/**
+ * Formulaire de connexion Firebase Auth. La redirection post-auth est portée
+ * par la page (`AuthCarousel`), commune aux trois cartes.
+ */
+export function LoginForm({ onBusyChange }: LoginFormProps = {}) {
   return (
     <Suspense fallback={<p>Chargement…</p>}>
-      <LoginFormContent />
+      <LoginFormContent onBusyChange={onBusyChange} />
     </Suspense>
   );
 }

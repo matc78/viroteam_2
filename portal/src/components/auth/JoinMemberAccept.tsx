@@ -19,6 +19,7 @@ import {
   lastNameError,
 } from "@/lib/format/personDataFormat";
 import deniedStyles from "./AccessDenied.module.css";
+import { authHref } from "@/lib/auth/authViews";
 import styles from "./JoinOnboardingForm.module.css";
 
 type JoinMemberAcceptProps = {
@@ -117,8 +118,8 @@ export function JoinMemberAccept({ invitation }: JoinMemberAcceptProps) {
   ]);
 
   const joinPath = `/join?code=${invitation.code}`;
-  const loginHref = `/login?next=${encodeURIComponent(joinPath)}`;
-  const signupHref = `/signup?next=${encodeURIComponent(joinPath)}`;
+  const loginHref = authHref("login", { next: joinPath });
+  const signupHref = authHref("signup", { next: joinPath });
 
   if (status === "loading") {
     return <AuthLoadingState message="Vérification de ta session…" />;

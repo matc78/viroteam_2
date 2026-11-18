@@ -186,54 +186,56 @@ export function JoinOnboardingForm() {
         noValidate
         aria-busy={submitting || undefined}
       >
-      <div className={formStyles.field}>
-        <label className={formStyles.label} htmlFor="join-first-name">
-          Prénom
-        </label>
-        <input
-          id="join-first-name"
-          className={`${formStyles.input}${errors.firstName ? ` ${formStyles.inputInvalid}` : ""}`}
-          type="text"
-          name="firstName"
-          autoComplete="given-name"
-          placeholder="Tristan"
-          value={firstName}
-          onChange={(event) => setFirstName(event.target.value)}
-          aria-invalid={Boolean(errors.firstName)}
-          aria-describedby={
-            errors.firstName ? "join-first-name-error" : undefined
-          }
-        />
-        {errors.firstName ? (
-          <p id="join-first-name-error" className={formStyles.error} role="alert">
-            {errors.firstName}
-          </p>
-        ) : null}
-      </div>
+      <div className={formStyles.fieldRow}>
+        <div className={formStyles.field}>
+          <label className={formStyles.label} htmlFor="join-first-name">
+            Prénom
+          </label>
+          <input
+            id="join-first-name"
+            className={`${formStyles.input}${errors.firstName ? ` ${formStyles.inputInvalid}` : ""}`}
+            type="text"
+            name="firstName"
+            autoComplete="given-name"
+            placeholder="Tristan"
+            value={firstName}
+            onChange={(event) => setFirstName(event.target.value)}
+            aria-invalid={Boolean(errors.firstName)}
+            aria-describedby={
+              errors.firstName ? "join-first-name-error" : undefined
+            }
+          />
+          {errors.firstName ? (
+            <p id="join-first-name-error" className={formStyles.error} role="alert">
+              {errors.firstName}
+            </p>
+          ) : null}
+        </div>
 
-      <div className={formStyles.field}>
-        <label className={formStyles.label} htmlFor="join-last-name">
-          Nom
-        </label>
-        <input
-          id="join-last-name"
-          className={`${formStyles.input}${errors.lastName ? ` ${formStyles.inputInvalid}` : ""}`}
-          type="text"
-          name="lastName"
-          autoComplete="family-name"
-          placeholder="Heraud"
-          value={lastName}
-          onChange={(event) => setLastName(event.target.value)}
-          aria-invalid={Boolean(errors.lastName)}
-          aria-describedby={
-            errors.lastName ? "join-last-name-error" : undefined
-          }
-        />
-        {errors.lastName ? (
-          <p id="join-last-name-error" className={formStyles.error} role="alert">
-            {errors.lastName}
-          </p>
-        ) : null}
+        <div className={formStyles.field}>
+          <label className={formStyles.label} htmlFor="join-last-name">
+            Nom
+          </label>
+          <input
+            id="join-last-name"
+            className={`${formStyles.input}${errors.lastName ? ` ${formStyles.inputInvalid}` : ""}`}
+            type="text"
+            name="lastName"
+            autoComplete="family-name"
+            placeholder="Heraud"
+            value={lastName}
+            onChange={(event) => setLastName(event.target.value)}
+            aria-invalid={Boolean(errors.lastName)}
+            aria-describedby={
+              errors.lastName ? "join-last-name-error" : undefined
+            }
+          />
+          {errors.lastName ? (
+            <p id="join-last-name-error" className={formStyles.error} role="alert">
+              {errors.lastName}
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div className={formStyles.field}>

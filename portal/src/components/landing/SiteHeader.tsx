@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { site } from "@/lib/site";
+import { FOUNDER_SIGNUP_HREF } from "@/lib/auth/authViews";
 import styles from "./SiteHeader.module.css";
 
 const navItems = [
@@ -37,7 +38,7 @@ export function SiteHeader({
             Espace club
           </Link>
           {showCreateClub ? (
-            <Link href="/signup?intent=founder" className={styles.ctaPrimary}>
+            <Link href={FOUNDER_SIGNUP_HREF} className={styles.ctaPrimary}>
               Créer mon club
             </Link>
           ) : null}

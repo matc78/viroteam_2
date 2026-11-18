@@ -105,7 +105,8 @@ type AuthContextValue = {
   signUp: (params: {
     email: string;
     password: string;
-    displayName: string;
+    firstName: string;
+    lastName: string;
   }) => Promise<void>;
   /** Envoie le lien Firebase de réinitialisation du mot de passe. */
   sendPasswordResetEmail: (email: string) => Promise<void>;
@@ -459,7 +460,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (params: {
       email: string;
       password: string;
-      displayName: string;
+      firstName: string;
+      lastName: string;
     }) => {
       const policyError = validatePassword(params.password);
       if (policyError) {
@@ -474,7 +476,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await createUserProfile({
           uid: cred.user.uid,
           email: params.email,
-          displayName: params.displayName.trim(),
+          firstName: params.firstName.trim(),
+          lastName: params.lastName.trim(),
         });
       } catch (error) {
         throw toAuthActionError(error);

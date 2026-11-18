@@ -26,19 +26,26 @@ export async function getUserProfile(uid: string): Promise<ViroUserProfile | nul
 
 /**
  * Crée le document users/{uid} à l’inscription (aligné ViroUser.toCreateMap).
+ * Prénom/nom explicites, ou repli sur `displayName` (ex. Google) via split.
  */
 export async function createUserProfile(params: {
   uid: string;
   email: string;
-  displayName: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
 }): Promise<void> {
   const emailNorm = params.email.trim().toLowerCase();
-  const split = splitDisplayName(params.displayName);
-  const firstName = softFormatFirstName(split.firstName);
-  const lastName = softFormatLastName(split.lastName);
+  const split = splitDisplayName(params.displayName ?? "");
+  const firstName = softFormatFirstName(
+    params.firstName?.trim() || split.firstName,
+  );
+  const lastName = softFormatLastName(
+    params.lastName?.trim() || split.lastName,
+  );
   const displayName =
     [firstName, lastName].filter(Boolean).join(" ") ||
-    params.displayName.trim() ||
+    (params.displayName ?? "").trim() ||
     emailNorm;
 
   await setDoc(doc(getAppFirestore(), Collections.users, params.uid), {

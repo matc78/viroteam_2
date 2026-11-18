@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { JoinGuardianAccept } from "@/components/auth/JoinGuardianAccept";
 import { JoinMemberAccept } from "@/components/auth/JoinMemberAccept";
 import { JoinTeamAccept } from "@/components/auth/JoinTeamAccept";
+import { authHref } from "@/lib/auth/authViews";
 import { joinCopy } from "@/lib/copy/joinCopy";
 import {
   lookupFailureCopy,
@@ -88,9 +90,17 @@ export function JoinRedirectClient() {
             >
               {joinCopy.lookupRetry}
             </button>
+            <Link href={authHref("login")} className={deniedStyles.siteLink}>
+              {joinCopy.lookupBackToSignIn}
+            </Link>
           </div>
         ) : (
-          <p className={styles.hint}>{joinCopy.lookupSignInHint}</p>
+          <div className={deniedStyles.actions}>
+            <Link href={authHref("login")} className={deniedStyles.submitLink}>
+              {joinCopy.lookupBackToSignIn}
+            </Link>
+            <p className={styles.hint}>{joinCopy.lookupSignInHint}</p>
+          </div>
         )}
       </AuthShell>
     );

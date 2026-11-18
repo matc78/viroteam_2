@@ -56,6 +56,7 @@ export const joinCopy = {
     "On n’a pas pu vérifier ton code (connexion ou service indisponible). Réessaie dans un instant.",
   lookupRetry: "Réessayer",
   lookupSignInHint: "Tu peux te connecter sur le portail si tu as déjà un compte.",
+  lookupBackToSignIn: "Retour à la connexion",
   teamInviteFallbackLead: "Invitation d’équipe.",
   clubInviteMessage: (params: {
     clubName: string;

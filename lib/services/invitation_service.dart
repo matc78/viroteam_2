@@ -157,16 +157,27 @@ class InvitationService {
         'invitationId': invitation.id,
       });
     } on FirebaseFunctionsException catch (error) {
-      if (error.code == 'permission-denied') {
-        throw InvitationAcceptException(AppCopy.join.reservedForOtherEmail);
-      }
-      throw InvitationAcceptException(
-        callableErrorMessage(
-          error,
-          fallback: AppCopy.join.inviteAcceptFailed,
-        ),
-      );
+      // E-mail non confirmé : erreur d'origine conservée pour que l'écran
+      // ouvre le parcours de confirmation (`showEmailVerificationDialog`).
+      if (isEmailNotVerifiedError(error)) rethrow;
+      throw mapAcceptError(error);
     }
+  }
+
+  /// Traduit un refus de `acceptInvitation` en [InvitationAcceptException]
+  /// lisible, sauf le refus `email_not_verified`, renvoyé tel quel pour que
+  /// l'écran propose la confirmation d'e-mail au lieu d'un simple texte.
+  static Exception mapAcceptError(FirebaseFunctionsException error) {
+    if (isEmailNotVerifiedError(error)) return error;
+    if (error.code == 'permission-denied') {
+      return InvitationAcceptException(AppCopy.join.reservedForOtherEmail);
+    }
+    return InvitationAcceptException(
+      callableErrorMessage(
+        error,
+        fallback: AppCopy.join.inviteAcceptFailed,
+      ),
+    );
   }
 
   /// Accepte un code d’équipe multi-usage (claim/create + roster).
@@ -185,6 +196,7 @@ class InvitationService {
         'invitationId': invitation.id,
       });
     } on FirebaseFunctionsException catch (error) {
+      if (isEmailNotVerifiedError(error)) rethrow;
       throw InvitationAcceptException(
         callableErrorMessage(
           error,

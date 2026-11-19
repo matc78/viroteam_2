@@ -13,10 +13,15 @@ final class AppCopyJoin {
   String get verifyEmailTitle => 'Confirme ton e-mail';
   String verifyEmailBody(String email) =>
       'Pour accepter l\'invitation, confirme d\'abord que $email est bien à toi : '
-      'clique sur le lien qu\'on t\'envoie, puis reviens ici.';
-  String get verifyEmailSend => 'Envoyer le lien';
+      'on t\'envoie un lien, clique dessus et on s\'occupe du reste.';
+  String get verifyEmailSending => 'Envoi du lien…';
   String get verifyEmailResend => 'Renvoyer le lien';
-  String get verifyEmailSent => 'Lien envoyé, jette un œil à ta boîte mail.';
+  String get verifyEmailSent =>
+      'Lien envoyé ! Ouvre-le depuis ta boîte mail (pense aux spams), '
+      'l\'invitation sera acceptée toute seule.';
+  String get verifyEmailRecentlySent =>
+      'Un lien vient déjà de partir. Regarde ta boîte mail (et les spams) '
+      'avant d\'en redemander un.';
   String get verifyEmailDone => 'C\'est fait';
   String get verifyEmailStillPending =>
       'Ton e-mail n\'est pas encore confirmé. Clique sur le lien reçu, puis réessaie.';

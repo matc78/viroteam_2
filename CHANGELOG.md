@@ -11,6 +11,11 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 ### Modifié
 
 - Migration rôles → droits (`tool/migrate_roles_to_permissions.mjs`) : un club sans membre actif est supprimé, ainsi que les clubs de test listés (5 en prod) ; un club sans admin lié voit son premier membre arrivé (lié à un compte de préférence) promu admin ; un ancien coach sans équipe passe membre (aucun droit, l’admin lui réattribue des droits)
+- Invitation nominative avec un compte e-mail / mot de passe : le lien de confirmation d’e-mail part tout seul (en français) dès que l’acceptation le demande, et l’invitation est acceptée automatiquement une fois le lien cliqué (retour dans l’app ou vérification toutes les 4 s) — plus besoin de « C’est fait » ni de retaper Accepter
+
+### Corrigé
+
+- Accepter une invitation nominative sans e-mail confirmé affichait seulement « Confirme ton adresse e-mail… » sans jamais proposer d’envoyer le lien (erreur enveloppée par `InvitationService`) : le joueur attendait un mail qui n’était jamais parti
 
 ## [2.4.0] - 2026-11-17
 

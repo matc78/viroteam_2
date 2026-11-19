@@ -48,6 +48,8 @@ class AccountService {
   Future<void> sendEmailVerification() async {
     final user = _auth.currentUser;
     if (user == null) throw StateError(AppCopy.settings.notConnected);
+    // Template Firebase en français (sinon langue par défaut du projet).
+    await _auth.setLanguageCode('fr');
     await user.sendEmailVerification();
   }
 

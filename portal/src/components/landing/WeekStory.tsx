@@ -48,8 +48,8 @@ const days: readonly Day[] = [
     auto: "Rappel de cotisation",
     shot: {
       kind: "desktop",
-      src: "/landing/portal-fees-tracking.png",
-      alt: "Suivi des cotisations dans l’espace club : statuts à payer, partiel et restes dus",
+      src: "/landing/portal-fees-overview.png",
+      alt: "Suivi des cotisations dans l’espace club : encaissé, reste dû et paiements à traiter",
     },
   },
   {
@@ -91,7 +91,7 @@ const days: readonly Day[] = [
     auto: "Toute la saison",
     shot: {
       kind: "desktop",
-      src: "/landing/portal-members-teams.png",
+      src: "/landing/portal-teams-board.png",
       alt: "Composition des équipes par catégorie dans l’espace club, avec coachs et joueurs",
     },
   },

@@ -12,12 +12,12 @@ const tools = [
     label: "Membres",
     title: "L’effectif à jour, sans tableur",
     points: [
-      "Rôles, équipes, licences et inscriptions",
-      "Invitations envoyées ou copiées en un clic",
+      "Badges, équipes, licences et inscriptions",
+      "Un code d’invitation à l’app généré en un clic",
       "Import et export CSV",
     ],
-    src: "/landing/portal-members-roster.png",
-    alt: "Liste des membres de l’espace club avec rôles, équipes, licences et invitations",
+    src: "/landing/portal-members-list.png",
+    alt: "Liste des membres de l’espace club avec badges, équipes, inscriptions, licences et codes d’invitation",
   },
   {
     key: "equipes",
@@ -26,10 +26,10 @@ const tools = [
     points: [
       "Coachs et joueurs par équipe",
       "Regroupement par catégorie (M11, M15, Seniors…)",
-      "Un joueur peut être dans plusieurs équipes",
+      "Toute une équipe invitée d’un coup",
     ],
-    src: "/landing/portal-members-teams.png",
-    alt: "Composition des équipes par catégorie avec coachs et joueurs",
+    src: "/landing/portal-teams-board.png",
+    alt: "Équipes rangées par catégorie (Loisir, M11, M13) avec leurs coachs et joueurs",
   },
   {
     key: "cotisations",
@@ -40,8 +40,8 @@ const tools = [
       "Paiement en ligne par carte ou suivi hors ligne",
       "Rappel automatique chaque lundi aux retardataires",
     ],
-    src: "/landing/portal-fees-tracking.png",
-    alt: "Suivi des cotisations avec statuts et restes dus",
+    src: "/landing/portal-fees-overview.png",
+    alt: "Suivi des cotisations : encaissé, reste dû, fiches soldées et paiements à traiter",
   },
   {
     key: "planning",
@@ -52,8 +52,8 @@ const tools = [
       "Filtres par équipe, coach et catégorie",
       "Matchs, tournois, réunions au même endroit",
     ],
-    src: "/landing/portal-planning-week.png",
-    alt: "Planning semaine de l’espace club avec filtres par équipe, coach et catégorie",
+    src: "/landing/portal-planning-month.png",
+    alt: "Planning du mois de l’espace club : entraînements, réunions et matchs, avec filtres par équipe, coach et catégorie",
   },
 ] as const;
 

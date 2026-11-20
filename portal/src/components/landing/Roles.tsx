@@ -80,8 +80,8 @@ const roles: readonly Role[] = [
     ],
     shot: {
       kind: "desktop",
-      src: "/landing/portal-members-roster.png",
-      alt: "Liste des membres de l’espace club, avec rôles et invitations",
+      src: "/landing/portal-members-list.png",
+      alt: "Liste des membres de l’espace club, avec badges, équipes et codes d’invitation",
     },
   },
 ];

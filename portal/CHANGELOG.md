@@ -11,6 +11,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ### Ajouté
 
+- Landing : captures de l’espace club refaites sur l’interface actuelle (sidebar, onglets Membres / Équipes, cotisations, planning en vue mois) en 1440×745 ; textes et descriptions alternatives des onglets alignés sur ce qu’elles montrent.
 - Inscription : champs Prénom et Nom séparés ; règles du mot de passe affichées en pastilles qui se valident en direct.
 - Espace club : page d’authentification unique `/login` en carrousel (Connexion, J’ai un code, Créer un compte). Sur ordinateur, une carte devant et les deux autres en oreilles inclinées qu’un clic fait pivoter, chaque carte gardant sa hauteur, boutons libellés aux couleurs des cartes de part et d’autre, le tout mis à l’échelle pour tenir sans scroll ; sur téléphone, défilement horizontal avec onglets, points et cartes voisines visibles. La carte affichée suit `?vue=` ; `/signup` et `/join` sans code y redirigent.
 

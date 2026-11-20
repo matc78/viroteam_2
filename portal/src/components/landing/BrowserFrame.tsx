@@ -14,8 +14,8 @@ export type BrowserFrameProps = {
 export function BrowserFrame({
   src,
   alt,
-  width = 1024,
-  height = 530,
+  width = 1440,
+  height = 745,
   sizes = "(max-width: 899px) 100vw, 46rem",
   className,
 }: BrowserFrameProps) {

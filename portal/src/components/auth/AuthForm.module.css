@@ -36,6 +36,7 @@
 
 .labelRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-sm);
@@ -282,6 +283,15 @@
   width: 1.25rem;
   height: 1.25rem;
   flex-shrink: 0;
+}
+
+/* Très petits écrans (ou texte agrandi) : le libellé Google tient sur une ligne. */
+@media (max-width: 360px) {
+  .googleButton {
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
 }
 
 .inlineLink {

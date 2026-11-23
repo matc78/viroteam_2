@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -40,6 +41,9 @@ const MIN_FIT_SCALE = 0.6;
 
 /** Respiration gardée en plus du padding de la zone principale (px). */
 const FIT_BREATHING_ROOM = 8;
+
+/** Délai sans scroll après lequel un glissé (inertie comprise) est terminé (ms). */
+const SCROLL_SETTLE_DELAY_MS = 150;
 
 /** Place d’une carte autour de la carte active (bureau). */
 type CardPosition = "front" | "right" | "left";
@@ -107,6 +111,17 @@ export function AuthCarousel() {
   >({});
   /** Cible d’un défilement programmé : le scroll ne change pas la vue avant. */
   const scrollTargetRef = useRef<AuthView | null>(null);
+  /** Vue et mise en page courantes, lues par la mesure (callback stable). */
+  const activeViewRef = useRef<AuthView>(activeView);
+  const isMobileRef = useRef(isMobile);
+  /** Doigt posé sur la piste (mobile) : pas de recentrage pendant le glissé. */
+  const isTouchingRef = useRef(false);
+  /** Minuterie de fin de défilement manuel (inertie comprise). */
+  const settleTimerRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    activeViewRef.current = activeView;
+    isMobileRef.current = isMobile;
+  }, [activeView, isMobile]);
 
   // Lien externe vers une autre vue (même page) : on suit l’URL.
   if (urlView !== syncedUrlView) {
@@ -205,7 +220,15 @@ export function AuthCarousel() {
         window.innerHeight - mainTop - verticalPadding - FIT_BREATHING_ROOM,
       );
     }
-  }, []);
+    // Mobile : largeur, rotation ou taille du texte changée → les cartes ont
+    // bougé mais pas le scroll de la piste ; on recentre la carte active,
+    // sauf pendant un défilement (programmé ou au doigt).
+    const isUserScrolling =
+      isTouchingRef.current || settleTimerRef.current !== null;
+    if (isMobileRef.current && !scrollTargetRef.current && !isUserScrolling) {
+      scrollToCard(activeViewRef.current, "instant");
+    }
+  }, [scrollToCard]);
 
   /**
    * Observateur unique, créé à la demande : chaque élément est observé dès que
@@ -225,12 +248,17 @@ export function AuthCarousel() {
   useEffect(() => {
     for (const view of AUTH_VIEWS) observeLayout(cardRefs.current[view] ?? null);
     observeLayout(carouselRef.current);
+    observeLayout(trackRef.current);
     measureLayout();
     window.addEventListener("resize", measureLayout);
     return () => {
       window.removeEventListener("resize", measureLayout);
       layoutObserverRef.current?.disconnect();
       layoutObserverRef.current = null;
+      if (settleTimerRef.current !== null) {
+        window.clearTimeout(settleTimerRef.current);
+        settleTimerRef.current = null;
+      }
     };
   }, [measureLayout, observeLayout]);
 
@@ -264,7 +292,29 @@ export function AuthCarousel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile]);
 
+  /** Relance la fenêtre « défilement manuel en cours » (fin = scroll au repos). */
+  function scheduleScrollSettle() {
+    if (settleTimerRef.current !== null) {
+      window.clearTimeout(settleTimerRef.current);
+    }
+    settleTimerRef.current = window.setTimeout(() => {
+      settleTimerRef.current = null;
+    }, SCROLL_SETTLE_DELAY_MS);
+  }
+
+  function handleTrackTouchStart() {
+    isTouchingRef.current = true;
+  }
+
+  function handleTrackTouchEnd() {
+    isTouchingRef.current = false;
+    scheduleScrollSettle();
+  }
+
   function handleTrackScroll() {
+    if (isTouchingRef.current || settleTimerRef.current !== null) {
+      scheduleScrollSettle();
+    }
     const track = trackRef.current;
     if (!isMobile || !track || authBusy) return;
     const center = track.scrollLeft + track.clientWidth / 2;
@@ -404,6 +454,9 @@ export function AuthCarousel() {
                   } as CSSProperties)
             }
             onScroll={handleTrackScroll}
+            onTouchStart={handleTrackTouchStart}
+            onTouchEnd={handleTrackTouchEnd}
+            onTouchCancel={handleTrackTouchEnd}
           >
             {AUTH_VIEWS.map((view) => {
               const position = cardPosition(view, activeView);

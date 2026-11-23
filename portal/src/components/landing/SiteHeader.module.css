@@ -123,3 +123,28 @@
     display: none;
   }
 }
+
+/* Très petits téléphones (ou texte agrandi) : les deux boutons sur une ligne. */
+@media (max-width: 380px) {
+  .inner {
+    gap: var(--space-sm);
+    padding: 0 var(--space-md);
+  }
+
+  .nav {
+    flex-wrap: nowrap;
+    gap: var(--space-xs);
+  }
+
+  .cta,
+  .ctaPrimary {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .mark {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+}

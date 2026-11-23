@@ -291,7 +291,8 @@
   }
 
   .tab {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
     min-height: 2.75rem;
     padding: 0.35rem 0.4rem;
     border: none;
@@ -300,7 +301,7 @@
     color: var(--color-gray-600);
     font: inherit;
     font-size: 0.8125rem;
-    white-space: nowrap;
+    line-height: 1.15;
     font-weight: 600;
     cursor: pointer;
     transition: background 200ms ease, color 200ms ease;
@@ -386,6 +387,28 @@
   .dots {
     display: flex;
     margin-top: var(--space-md);
+  }
+}
+
+/* ---- Très petits téléphones (ou texte agrandi) ---- */
+
+@media (max-width: 360px) {
+  .tab {
+    padding-inline: 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  .stage {
+    padding-inline: 1.25rem;
+    scroll-padding-inline: 1.25rem;
+    gap: 0.4rem;
+  }
+
+  .card,
+  .card[data-position="left"],
+  .card[data-position="right"],
+  .card[data-position="front"] {
+    padding: 1.1rem 0.9rem;
   }
 }
 

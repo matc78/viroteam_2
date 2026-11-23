@@ -9,32 +9,32 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-11-23
+
 ### Ajouté
 
 - Landing : captures de l’espace club refaites sur l’interface actuelle (sidebar, onglets Membres / Équipes, cotisations, planning en vue mois) en 1440×745 ; textes et descriptions alternatives des onglets alignés sur ce qu’elles montrent.
 - Inscription : champs Prénom et Nom séparés ; règles du mot de passe affichées en pastilles qui se valident en direct.
 - Espace club : page d’authentification unique `/login` en carrousel (Connexion, J’ai un code, Créer un compte). Sur ordinateur, une carte devant et les deux autres en oreilles inclinées qu’un clic fait pivoter, chaque carte gardant sa hauteur, boutons libellés aux couleurs des cartes de part et d’autre, le tout mis à l’échelle pour tenir sans scroll ; sur téléphone, défilement horizontal avec onglets, points et cartes voisines visibles. La carte affichée suit `?vue=` ; `/signup` et `/join` sans code y redirigent.
+- Membres : section « Droits » dans la fiche (bascule Administrateur, fonctions prédéfinies, droits à la carte ; Administrateur réservé et protégé) ; badges Admin / Entraîneur / Joueur dérivés, et badge gris « Membre » pour une fiche sans droit admin ni équipe (table Membres avec filtre, fiche, chat, sélecteur de club)
+- Planning : dans les réponses d’un événement, badge « Coach » pour les coachs des équipes convoquées ; sur un événement « Tout le club » ou sans équipe, badge « Admin » pour les administrateurs
+- Création de club via la callable `createClub`
+- Paramètres club (admin) : capacité coach « Publier des annonces pour ses équipes » ; le réglage « Voir les cotisations » devient un droit individuel
+- Planning : un admin (ou coach avec le droit `canEditMemberRsvp`) peut modifier le RSVP des convoqués depuis le détail d’événement
+- Paramètres club : toggle « Modifier les réponses RSVP » pour les coachs (off par défaut)
+- Messagerie (masquée), sondages : un vote enregistre aussi son heure (`pollVoteTimes.{uid}`, horodatage serveur, `edited` si changement), comme l’app — pas encore affichée dans le panneau des votes du portail
+- Messagerie (masquée), accessibilité : bouton « Actions du message » au survol et au focus clavier (plus besoin du clic droit) ; suppression confirmée dans le menu d’actions au lieu d’une boîte `window.confirm` ; menus Options et « + » navigables aux flèches (Échap ferme le menu, pas la fenêtre) ; panneaux infos / sondage et fenêtre flottante non modaux (focus à l’ouverture, Échap, Tab peut en sortir pour rejoindre le dock) ; le lecteur d’écran annonce uniquement les messages reçus (« Nouveau message de … »), plus tout le fil ; formulaires sondage, renommage et création avec libellés et erreurs annoncées
+- Messagerie (masquée), mobile (< 768 px) : la page Messages affiche la liste ou le fil en plein écran, avec un bouton retour ; points de rupture du chat ramenés à 767 et 1024 px (`ChatBreakpoints`, vérifié par un test)
+- Messagerie (masquée) : envoi optimiste (le message apparaît tout de suite en « Envoi… », « Échec · Réessayer » cliquable sinon), bouton flottant « Derniers messages » / « n nouveaux messages », historique chargé automatiquement en remontant (position de lecture conservée)
+- Messagerie (masquée) : squelette au chargement du fil, état vide (« Envoie le premier message… » si tu peux écrire), erreur avec « Réessayer »
+- Messagerie (masquée) : recherche dans le fil avec compteur « 2 / 5 », navigation précédent / suivant (boutons, Entrée / Maj+Entrée) et résultat courant mis en évidence
+- Messagerie (masquée) : modification d’un message directement dans le composer (bandeau « Modification » + Annuler, Entrée enregistre, Échap annule) — la boîte de dialogue de modification est supprimée
+- Messagerie (masquée) : mute, favori et réactions appliqués tout de suite, annulés avec un message d’erreur si l’écriture échoue
 
 ### Modifié
 
+- Droits purs (à déployer dans la fenêtre de bascule 2.4.0, après la migration `migrate_roles_to_permissions`) : la session lit `members/{uid}.permissions` du club ; toutes les capacités du bureau (navigation, pages, actions) passent par `useBureauCapabilities()` — plus de rôle club comparé ; clubs du compte lus dans `users.memberClubIds`. Garde-fou `lib/auth/permissionUsage.test.ts`
 - Rejoindre avec une invitation nominative (compte e-mail / mot de passe) : le lien de confirmation d’e-mail part automatiquement (en français) et l’invitation est acceptée dès que le lien est cliqué (retour sur l’onglet ou vérification toutes les 4 s), sans avoir à cliquer « Envoyer le lien » puis « J’ai confirmé ».
-
-### Corrigé
-
-- Inscription (carrousel) : la redirect post-auth (`from=signup` / club-setup) ne dépend plus de la carte visible ; navigation verrouillée pendant l’auth.
-- Accès limité / rejoindre : le footer ne coupe plus le bas de la carte (scroll du contenu).
-- Connexion → Créer un compte : le paramètre `next` (ex. `/join?code=…`) est conservé.
-- Connexion : un e-mail ou mot de passe incorrect affiche l’erreur sur le formulaire (« E-mail ou mot de passe incorrect. ») au lieu de rediriger vers « Accès limité ».
-- Reconnexion : un lien profond (conversation, événement…) garde ses paramètres et rouvre la bonne page après connexion ; `/messages` et `/activity` acceptés ; un parent sans fiche est redirigé vers l’équivalent famille.
-- Cotisations famille : en changeant d’enfant ou de club, plus de paiement avec le montant de l’enfant précédent ; fenêtre de paiement non fermable pendant le paiement, puis « Paiement en cours de validation » au lieu d’un second bouton Payer.
-- Code d’équipe : un compte connecté confirme avant de rejoindre (bouton « Rejoindre », « Changer de compte », « Pas maintenant ») au lieu d’être inscrit automatiquement.
-- `/join` : code introuvable, expiré, épuisé et erreur technique sont distingués (avec « Réessayer »).
-- Notifications web : la permission n’est plus demandée sans action ; bouton « Activer » dans les préférences de notifications.
-- Messagerie non activée : message explicite au lieu d’une page vide.
-- Accueil : l’activité récente ne peut plus afficher celle du club précédent ; le planning se rafraîchit même si l’écoute d’une équipe échoue.
-
-### Modifié
-
 - Mon compte : la page occupe toute la largeur disponible ; en écran large, Compte et Mes clubs à gauche, Notifications à droite (une seule colonne sinon).
 - Paramètres du club : même mise en page pleine largeur ; en écran large, Club (fin de saison, logo) à gauche et Droits des coachs (désormais une section à part) à droite.
   - Couleur du club modifiable depuis le portail (couleur unie + 2e couleur facultative), comme dans l’app.
@@ -69,27 +69,6 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 - Badges : « Coach » devient « Entraîneur » ; libellés centralisés (`src/lib/copy/badgeCopy.ts`) ; badge Parent dans le sélecteur de club (et l’en-tête) pour un membre sans droit admin ni équipe qui a un enfant lié ; pas de badge « Membre » fugace pendant le chargement de la fiche ; avatar gris pour le badge Membre
 - Messagerie : le choix des destinataires n’affiche plus d’identifiant brut (admins lus depuis les fiches liées)
 - Vocabulaire : en-têtes et filtre « Badge » (plus « Rôle ») ; `access-denied?reason=no-access` ; descriptions des réglages coach alignées sur l’app
-
-### Sécurité
-
-- Planning : un coach ne modifie, n’annule ni ne notifie un événement que s’il entraîne toutes ses équipes, jamais « tout le club »
-- Garde-fous renforcés : toute comparaison `x.role ===` (hors place en effectif / colonne d’import), `adminIds.includes(`, `Fields.role`, lecture brute `.permissions.includes(` ; écriture d’un miroir `memberId` sur une fiche
-
-- Droits purs (à déployer dans la fenêtre de bascule 2.4.0, après la migration `migrate_roles_to_permissions`) : la session lit `members/{uid}.permissions` du club ; toutes les capacités du bureau (navigation, pages, actions) passent par `useBureauCapabilities()` — plus de rôle club comparé ; clubs du compte lus dans `users.memberClubIds`. Garde-fou `lib/auth/permissionUsage.test.ts`
-- Dépendances : Next.js 15.5.29, `@sentry/nextjs` 10.78 (tunnel `/monitoring`), remplacement de `xlsx` par `exceljs` pour l’import / modèle membres, overrides npm pour les transitives critiques/hautes (`@grpc/grpc-js`, `postcss`, `glob`, `uuid`, `tinypool`) — `npm audit --omit=dev` à 0
-
-### Ajouté
-
-- Membres : section « Droits » dans la fiche (bascule Administrateur, fonctions prédéfinies, droits à la carte ; Administrateur réservé et protégé) ; badges Admin / Entraîneur / Joueur dérivés, et badge gris « Membre » pour une fiche sans droit admin ni équipe (table Membres avec filtre, fiche, chat, sélecteur de club)
-- Planning : dans les réponses d’un événement, badge « Coach » pour les coachs des équipes convoquées ; sur un événement « Tout le club » ou sans équipe, badge « Admin » pour les administrateurs
-- Création de club via la callable `createClub`
-- Paramètres club (admin) : capacité coach « Publier des annonces pour ses équipes » ; le réglage « Voir les cotisations » devient un droit individuel
-- Planning : un admin (ou coach avec le droit `canEditMemberRsvp`) peut modifier le RSVP des convoqués depuis le détail d’événement
-- Paramètres club : toggle « Modifier les réponses RSVP » pour les coachs (off par défaut)
-- Messagerie (masquée), sondages : un vote enregistre aussi son heure (`pollVoteTimes.{uid}`, horodatage serveur, `edited` si changement), comme l’app — pas encore affichée dans le panneau des votes du portail
-
-### Modifié
-
 - Invitations : l’aperçu n’affiche plus de « rôle proposé »
 - Import CSV : `admin` donne le droit Administrateur ; `coach` rend coach de l’équipe de la ligne, sans droit particulier
 - Technique : l’appartenance aux équipes (`members.teamIds`) n’est plus écrite par le portail, seulement par le serveur ; une fiche pré-créée ne porte plus `memberId` ; l’index des clubs passe à `users.memberClubIds`
@@ -97,9 +76,27 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 - Membres : bouton « Importer CSV » masqué sur téléphone (≤ 767 px)
 - Membres : lecture / écriture Excel via `exceljs` (lazy-load) à la place de SheetJS `xlsx@0.18.5`
 - Une seule clé membre (à déployer après la migration `rekey_linked_members`) : la fiche d’un compte est lue à `members/{uid}` via `src/lib/firebase/memberRefs.ts` ; plus de lecture de `member_accounts` ni de résolveurs uid ↔ memberId (rosters, convocations, RSVP, cotisations, contacts, messagerie). La sync des convocations ne fait plus qu’ajouter les joueurs du roster manquants (hors exclus). L’avatar n’écrit plus que `users/{uid}` (fiche membre synchronisée côté serveur). Le suivi des cotisations affiche le nom courant de la fiche. Garde-fou `memberKeyUsage.test.ts`
+- Messagerie : visible en local (`NEXT_PUBLIC_CHAT_MESSAGING_LIVE`) ou si `users/{uid}.flags.chatMessaging` ; sinon dock / tuile / panneau Messages masqués (redirect `/messages` → home)
+- Messagerie (masquée) : mes bulles en couleur d’accent pleine (texte et liens clairs), celles des autres en surface carte avec la bordure de rôle ; messages consécutifs regroupés comme dans l’app (même expéditeur, même jour, < 5 min, sans séparateur, hors supprimés et sondages) — nom sur le premier, avatar et « queue » sur le dernier, écart `--chat-message-group-gap` (2 px)
+- Messagerie (masquée) : photos du fil au gabarit de l’app (220 px de large, hauteur au ratio bornée 120–320 px, place réservée avant chargement, fond de chargement, « Photo indisponible » en cas d’erreur)
+- Messagerie (masquée) : avatars aux tailles `--chat-avatar-*` (inbox 44, en-tête du fil 36 — nouvel avatar —, expéditeur 28, votant 22, fiche 88) ; `MemberAvatar` accepte un diamètre libre (`diameter`)
+- Messagerie (masquée) : boutons rapides du panneau infos « Couper » / « Réactiver » (libellés accessibles « Couper les notifs » / « Réactiver les notifs ») au lieu de « Mute » / « Notifs »
+- Messagerie (masquée) : `ChatThreadView` découpé en hooks et composants (`components/chat/thread/`), logique pure dans `lib/chat/` (`buildThreadRows`, `filterInbox`, `isMessagesPath` unique), tests vitest ajoutés ; rendu inchangé
+- Messagerie (masquée) : socle visuel commun avec l’app — tokens `--chat-*` (bulles, citations, avatars, couleurs du fil) dans `globals.css`, couleurs en dur des modules chat remplacées par des variables (thème sombre possible), classes dupliquées factorisées dans `chatShared.module.css`, textes regroupés dans `chatCopy`. Seul changement visible : les bulles vont jusqu’à 78 % de la largeur du fil (85 % avant)
 
 ### Corrigé
 
+- Inscription (carrousel) : la redirect post-auth (`from=signup` / club-setup) ne dépend plus de la carte visible ; navigation verrouillée pendant l’auth.
+- Accès limité / rejoindre : le footer ne coupe plus le bas de la carte (scroll du contenu).
+- Connexion → Créer un compte : le paramètre `next` (ex. `/join?code=…`) est conservé.
+- Connexion : un e-mail ou mot de passe incorrect affiche l’erreur sur le formulaire (« E-mail ou mot de passe incorrect. ») au lieu de rediriger vers « Accès limité ».
+- Reconnexion : un lien profond (conversation, événement…) garde ses paramètres et rouvre la bonne page après connexion ; `/messages` et `/activity` acceptés ; un parent sans fiche est redirigé vers l’équivalent famille.
+- Cotisations famille : en changeant d’enfant ou de club, plus de paiement avec le montant de l’enfant précédent ; fenêtre de paiement non fermable pendant le paiement, puis « Paiement en cours de validation » au lieu d’un second bouton Payer.
+- Code d’équipe : un compte connecté confirme avant de rejoindre (bouton « Rejoindre », « Changer de compte », « Pas maintenant ») au lieu d’être inscrit automatiquement.
+- `/join` : code introuvable, expiré, épuisé et erreur technique sont distingués (avec « Réessayer »).
+- Notifications web : la permission n’est plus demandée sans action ; bouton « Activer » dans les préférences de notifications.
+- Messagerie non activée : message explicite au lieu d’une page vide.
+- Accueil : l’activité récente ne peut plus afficher celle du club précédent ; le planning se rafraîchit même si l’écoute d’une équipe échoue.
 - Photo de profil agrandie : l’image n’est plus coupée par l’en-tête.
 - Navigation : « Membres » suit la même règle que l’app — droit Membres ou Équipes, capacité d’inviter, ou coach d’une équipe. Un compte qui a seulement d’autres droits (ex. responsable cotisations ou planning, sans équipe) ne voit plus cette page, qui n’aurait listé que lui ; il garde la vue « Équipe ».
 - Membres : un admin ne peut plus modifier son propre rôle (fiche + actions groupées) — seul un autre admin peut le faire ; la callable refuse aussi l’auto-modification
@@ -115,25 +112,11 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 - Messagerie (masquée) : Entrée n’envoie plus le message pendant une composition IME (accents, kana…) ; le champ garde le focus pendant l’envoi
 - Messagerie (masquée) : la pastille du club prend la couleur du club partout, y compris dans la fenêtre flottante ; titres longs tronqués en CSS (inbox, en-tête du fil, fenêtre flottante)
 
-### Ajouté
+### Sécurité
 
-- Messagerie (masquée), accessibilité : bouton « Actions du message » au survol et au focus clavier (plus besoin du clic droit) ; suppression confirmée dans le menu d’actions au lieu d’une boîte `window.confirm` ; menus Options et « + » navigables aux flèches (Échap ferme le menu, pas la fenêtre) ; panneaux infos / sondage et fenêtre flottante non modaux (focus à l’ouverture, Échap, Tab peut en sortir pour rejoindre le dock) ; le lecteur d’écran annonce uniquement les messages reçus (« Nouveau message de … »), plus tout le fil ; formulaires sondage, renommage et création avec libellés et erreurs annoncées
-- Messagerie (masquée), mobile (< 768 px) : la page Messages affiche la liste ou le fil en plein écran, avec un bouton retour ; points de rupture du chat ramenés à 767 et 1024 px (`ChatBreakpoints`, vérifié par un test)
-- Messagerie (masquée) : envoi optimiste (le message apparaît tout de suite en « Envoi… », « Échec · Réessayer » cliquable sinon), bouton flottant « Derniers messages » / « n nouveaux messages », historique chargé automatiquement en remontant (position de lecture conservée)
-- Messagerie (masquée) : squelette au chargement du fil, état vide (« Envoie le premier message… » si tu peux écrire), erreur avec « Réessayer »
-- Messagerie (masquée) : recherche dans le fil avec compteur « 2 / 5 », navigation précédent / suivant (boutons, Entrée / Maj+Entrée) et résultat courant mis en évidence
-- Messagerie (masquée) : modification d’un message directement dans le composer (bandeau « Modification » + Annuler, Entrée enregistre, Échap annule) — la boîte de dialogue de modification est supprimée
-- Messagerie (masquée) : mute, favori et réactions appliqués tout de suite, annulés avec un message d’erreur si l’écriture échoue
-
-### Modifié
-
-- Messagerie : visible en local (`NEXT_PUBLIC_CHAT_MESSAGING_LIVE`) ou si `users/{uid}.flags.chatMessaging` ; sinon dock / tuile / panneau Messages masqués (redirect `/messages` → home)
-- Messagerie (masquée) : mes bulles en couleur d’accent pleine (texte et liens clairs), celles des autres en surface carte avec la bordure de rôle ; messages consécutifs regroupés comme dans l’app (même expéditeur, même jour, < 5 min, sans séparateur, hors supprimés et sondages) — nom sur le premier, avatar et « queue » sur le dernier, écart `--chat-message-group-gap` (2 px)
-- Messagerie (masquée) : photos du fil au gabarit de l’app (220 px de large, hauteur au ratio bornée 120–320 px, place réservée avant chargement, fond de chargement, « Photo indisponible » en cas d’erreur)
-- Messagerie (masquée) : avatars aux tailles `--chat-avatar-*` (inbox 44, en-tête du fil 36 — nouvel avatar —, expéditeur 28, votant 22, fiche 88) ; `MemberAvatar` accepte un diamètre libre (`diameter`)
-- Messagerie (masquée) : boutons rapides du panneau infos « Couper » / « Réactiver » (libellés accessibles « Couper les notifs » / « Réactiver les notifs ») au lieu de « Mute » / « Notifs »
-- Messagerie (masquée) : `ChatThreadView` découpé en hooks et composants (`components/chat/thread/`), logique pure dans `lib/chat/` (`buildThreadRows`, `filterInbox`, `isMessagesPath` unique), tests vitest ajoutés ; rendu inchangé
-- Messagerie (masquée) : socle visuel commun avec l’app — tokens `--chat-*` (bulles, citations, avatars, couleurs du fil) dans `globals.css`, couleurs en dur des modules chat remplacées par des variables (thème sombre possible), classes dupliquées factorisées dans `chatShared.module.css`, textes regroupés dans `chatCopy`. Seul changement visible : les bulles vont jusqu’à 78 % de la largeur du fil (85 % avant)
+- Planning : un coach ne modifie, n’annule ni ne notifie un événement que s’il entraîne toutes ses équipes, jamais « tout le club »
+- Garde-fous renforcés : toute comparaison `x.role ===` (hors place en effectif / colonne d’import), `adminIds.includes(`, `Fields.role`, lecture brute `.permissions.includes(` ; écriture d’un miroir `memberId` sur une fiche
+- Dépendances : Next.js 15.5.29, `@sentry/nextjs` 10.78 (tunnel `/monitoring`), remplacement de `xlsx` par `exceljs` pour l’import / modèle membres, overrides npm pour les transitives critiques/hautes (`@grpc/grpc-js`, `postcss`, `glob`, `uuid`, `tinypool`) — `npm audit --omit=dev` à 0
 
 ## [1.13.0] - 2026-11-02
 

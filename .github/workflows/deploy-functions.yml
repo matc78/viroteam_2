@@ -75,7 +75,11 @@ jobs:
       - name: Deploy all functions (dual Dev + Prod)
         run: |
           echo "Un deploy pousse toutes les functions duales (*Dev + prod)."
+          # --force : le code du tag fait foi, une fonction retirée du code est
+          # supprimée du projet (sinon --non-interactive refuse la suppression
+          # et fait échouer tout le deploy).
           firebase deploy --only functions \
             --project viroteam-75303 \
-            --non-interactive
+            --non-interactive \
+            --force
         working-directory: .

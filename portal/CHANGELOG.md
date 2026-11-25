@@ -9,6 +9,11 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Corrigé
+
+- Connexion sur téléphone : un glissé à gauche ou à droite passe à la méthode voisine (une seule à la fois) ou revient en place s’il est trop court ; aux extrémités, la carte ne bouge plus. Le défilement natif pouvait sauter une carte, rester entre deux ou changer de vue en plein geste.
+- Connexion sur téléphone : les cartes voisines sont raccourcies proprement à la hauteur de la carte affichée (bordure et coins arrondis gardés) au lieu d’être coupées net, et l’ombre des cartes n’est plus rognée en un bloc grisé.
+
 ## [1.14.1] - 2026-11-25
 
 ### Corrigé

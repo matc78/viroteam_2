@@ -9,6 +9,7 @@ import {
   useState,
   type CSSProperties,
   type ReactNode,
+  type TouchEvent as ReactTouchEvent,
 } from "react";
 import { AuthPageIntro } from "@/components/auth/AuthPageIntro";
 import { JoinCodeEntryForm } from "@/components/auth/JoinCodeEntryForm";
@@ -19,6 +20,7 @@ import {
   AUTH_VIEWS,
   neighbourAuthView,
   parseAuthView,
+  swipeTargetAuthView,
   withAuthView,
   type AuthView,
 } from "@/lib/auth/authViews";
@@ -42,8 +44,21 @@ const MIN_FIT_SCALE = 0.6;
 /** Respiration gardée en plus du padding de la zone principale (px). */
 const FIT_BREATHING_ROOM = 8;
 
-/** Délai sans scroll après lequel un glissé (inertie comprise) est terminé (ms). */
-const SCROLL_SETTLE_DELAY_MS = 150;
+/** Déplacement (px) au-delà duquel on décide si le geste est horizontal. */
+const SWIPE_LOCK_DISTANCE = 8;
+
+/** Glissé au doigt sur la piste mobile. */
+type SwipeGesture = {
+  startX: number;
+  startY: number;
+  startScrollLeft: number;
+  /** `null` tant que la direction n’est pas décidée. */
+  axis: "x" | "y" | null;
+  lastX: number;
+  lastTime: number;
+  /** Vitesse horizontale récente (px/ms). */
+  velocityX: number;
+};
 
 /** Place d’une carte autour de la carte active (bureau). */
 type CardPosition = "front" | "right" | "left";
@@ -74,7 +89,8 @@ function cardPosition(view: AuthView, active: AuthView): CardPosition {
  * Page d’authentification unique : connexion, code d’invitation et création
  * de compte. Bureau : carrousel 3D (une carte devant, les deux autres en
  * oreilles inclinées, boutons libellés de chaque côté), mis à l’échelle pour
- * tenir sans scroll. Téléphone : défilement horizontal avec onglets et points.
+ * tenir sans scroll. Téléphone : piste horizontale avec onglets et points ;
+ * un glissé passe à la carte voisine (sans boucle) ou revient en place.
  * La vue active est reflétée dans `?vue=` sans navigation.
  */
 export function AuthCarousel() {
@@ -114,10 +130,8 @@ export function AuthCarousel() {
   /** Vue et mise en page courantes, lues par la mesure (callback stable). */
   const activeViewRef = useRef<AuthView>(activeView);
   const isMobileRef = useRef(isMobile);
-  /** Doigt posé sur la piste (mobile) : pas de recentrage pendant le glissé. */
-  const isTouchingRef = useRef(false);
-  /** Minuterie de fin de défilement manuel (inertie comprise). */
-  const settleTimerRef = useRef<number | null>(null);
+  /** Glissé au doigt en cours sur la piste (mobile), `null` au repos. */
+  const swipeRef = useRef<SwipeGesture | null>(null);
   useLayoutEffect(() => {
     activeViewRef.current = activeView;
     isMobileRef.current = isMobile;
@@ -205,7 +219,12 @@ export function AuthCarousel() {
     const heights: Partial<Record<AuthView, number>> = {};
     for (const view of AUTH_VIEWS) {
       const card = cardRefs.current[view];
-      if (card) heights[view] = card.offsetHeight;
+      // Hauteur naturelle (bordure comprise), même si une voisine est
+      // raccourcie à la hauteur de la carte affichée (mobile).
+      if (card) {
+        heights[view] =
+          card.scrollHeight + card.offsetHeight - card.clientHeight;
+      }
     }
     setCardHeights(heights);
     const carousel = carouselRef.current;
@@ -223,9 +242,7 @@ export function AuthCarousel() {
     // Mobile : largeur, rotation ou taille du texte changée → les cartes ont
     // bougé mais pas le scroll de la piste ; on recentre la carte active,
     // sauf pendant un défilement (programmé ou au doigt).
-    const isUserScrolling =
-      isTouchingRef.current || settleTimerRef.current !== null;
-    if (isMobileRef.current && !scrollTargetRef.current && !isUserScrolling) {
+    if (isMobileRef.current && !scrollTargetRef.current && !swipeRef.current) {
       scrollToCard(activeViewRef.current, "instant");
     }
   }, [scrollToCard]);
@@ -255,10 +272,6 @@ export function AuthCarousel() {
       window.removeEventListener("resize", measureLayout);
       layoutObserverRef.current?.disconnect();
       layoutObserverRef.current = null;
-      if (settleTimerRef.current !== null) {
-        window.clearTimeout(settleTimerRef.current);
-        settleTimerRef.current = null;
-      }
     };
   }, [measureLayout, observeLayout]);
 
@@ -292,50 +305,81 @@ export function AuthCarousel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile]);
 
-  /** Relance la fenêtre « défilement manuel en cours » (fin = scroll au repos). */
-  function scheduleScrollSettle() {
-    if (settleTimerRef.current !== null) {
-      window.clearTimeout(settleTimerRef.current);
+  /**
+   * Mobile : la piste ne défile pas d’elle-même (`touch-action: pan-y`), le
+   * glissé horizontal est suivi au doigt puis tranché au lâcher par
+   * `swipeTargetAuthView` (une carte voisine au plus, rien aux extrémités).
+   */
+  function handleTrackTouchStart(event: ReactTouchEvent<HTMLDivElement>) {
+    const track = trackRef.current;
+    const touch = event.touches[0];
+    if (!isMobile || !track || authBusy || event.touches.length !== 1) {
+      swipeRef.current = null;
+      return;
     }
-    settleTimerRef.current = window.setTimeout(() => {
-      settleTimerRef.current = null;
-    }, SCROLL_SETTLE_DELAY_MS);
+    // Un glissé reprend la main sur une animation en cours.
+    scrollTargetRef.current = null;
+    swipeRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startScrollLeft: track.scrollLeft,
+      axis: null,
+      lastX: touch.clientX,
+      lastTime: event.timeStamp,
+      velocityX: 0,
+    };
   }
 
-  function handleTrackTouchStart() {
-    isTouchingRef.current = true;
+  function handleTrackTouchMove(event: ReactTouchEvent<HTMLDivElement>) {
+    const swipe = swipeRef.current;
+    const track = trackRef.current;
+    const touch = event.touches[0];
+    if (!swipe || !track || !touch) return;
+    const deltaX = touch.clientX - swipe.startX;
+    const deltaY = touch.clientY - swipe.startY;
+    if (swipe.axis === null) {
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < SWIPE_LOCK_DISTANCE) {
+        return;
+      }
+      swipe.axis = Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
+    }
+    if (swipe.axis !== "x") return;
+    const elapsed = event.timeStamp - swipe.lastTime;
+    if (elapsed > 0) {
+      swipe.velocityX = (touch.clientX - swipe.lastX) / elapsed;
+    }
+    swipe.lastX = touch.clientX;
+    swipe.lastTime = event.timeStamp;
+    // Bornée par le navigateur : aux extrémités, la piste ne bouge pas.
+    track.scrollLeft = swipe.startScrollLeft - deltaX;
   }
 
   function handleTrackTouchEnd() {
-    isTouchingRef.current = false;
-    scheduleScrollSettle();
+    const swipe = swipeRef.current;
+    swipeRef.current = null;
+    const track = trackRef.current;
+    if (!swipe || swipe.axis !== "x" || !track) return;
+    const target = authBusy
+      ? activeView
+      : swipeTargetAuthView(
+          activeView,
+          swipe.lastX - swipe.startX,
+          swipe.velocityX,
+          track.clientWidth,
+        );
+    if (target !== activeView) commitView(target);
+    scrollToCard(target, "smooth");
   }
 
+  /** Fin d’un défilement programmé : la mesure peut de nouveau recentrer. */
   function handleTrackScroll() {
-    if (isTouchingRef.current || settleTimerRef.current !== null) {
-      scheduleScrollSettle();
-    }
     const track = trackRef.current;
-    if (!isMobile || !track || authBusy) return;
+    if (!isMobile || !track || !scrollTargetRef.current) return;
     const center = track.scrollLeft + track.clientWidth / 2;
-    let nearest: AuthView = activeView;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    for (const view of AUTH_VIEWS) {
-      const card = cardRefs.current[view];
-      if (!card) continue;
-      const distance = Math.abs(
-        card.offsetLeft + card.offsetWidth / 2 - center,
-      );
-      if (distance < nearestDistance) {
-        nearest = view;
-        nearestDistance = distance;
-      }
-    }
-    if (scrollTargetRef.current) {
-      if (nearest === scrollTargetRef.current) scrollTargetRef.current = null;
-      return;
-    }
-    if (nearest !== activeView) commitView(nearest);
+    const card = cardRefs.current[scrollTargetRef.current];
+    if (!card) return;
+    const distance = Math.abs(card.offsetLeft + card.offsetWidth / 2 - center);
+    if (distance < 2) scrollTargetRef.current = null;
   }
 
   // Bureau : réduit le carrousel pour qu’il tienne sans scroll. L’échelle se
@@ -455,6 +499,7 @@ export function AuthCarousel() {
             }
             onScroll={handleTrackScroll}
             onTouchStart={handleTrackTouchStart}
+            onTouchMove={handleTrackTouchMove}
             onTouchEnd={handleTrackTouchEnd}
             onTouchCancel={handleTrackTouchEnd}
           >

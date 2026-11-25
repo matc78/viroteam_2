@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   authHref,
   neighbourAuthView,
+  swipeTargetAuthView,
   parseAuthView,
   withAuthView,
 } from "./authViews";
@@ -52,5 +53,34 @@ describe("neighbourAuthView", () => {
     expect(neighbourAuthView("login", -1)).toBe("code");
     expect(neighbourAuthView("signup", 1)).toBe("code");
     expect(neighbourAuthView("code", -1)).toBe("signup");
+  });
+});
+
+describe("swipeTargetAuthView", () => {
+  const width = 300;
+
+  it("passe à la carte voisine sur un glissé assez long", () => {
+    expect(swipeTargetAuthView("login", -80, 0.1, width)).toBe("signup");
+    expect(swipeTargetAuthView("login", 80, 0.1, width)).toBe("code");
+  });
+
+  it("passe à la voisine sur un lancer rapide mais court", () => {
+    expect(swipeTargetAuthView("login", -30, -0.8, width)).toBe("signup");
+    expect(swipeTargetAuthView("login", 30, 0.8, width)).toBe("code");
+  });
+
+  it("reste sur place pour un glissé court et lent", () => {
+    expect(swipeTargetAuthView("login", -30, -0.1, width)).toBe("login");
+    expect(swipeTargetAuthView("login", 5, 2, width)).toBe("login");
+  });
+
+  it("ignore un lancer à contresens du glissé", () => {
+    expect(swipeTargetAuthView("login", -30, 0.8, width)).toBe("login");
+  });
+
+  it("ne boucle pas aux extrémités et n’avance que d’une carte", () => {
+    expect(swipeTargetAuthView("code", 250, 2, width)).toBe("code");
+    expect(swipeTargetAuthView("signup", -250, -2, width)).toBe("signup");
+    expect(swipeTargetAuthView("code", -290, -3, width)).toBe("login");
   });
 });

@@ -118,6 +118,12 @@ abstract final class ProjectConfig {
   static const String eventsSubcollection = 'events';
   static const String announcementsSubcollection = 'announcements';
   static const String teamsSubcollection = 'teams';
+
+  /// `teams/{teamId}/federation/{standings|matches}` : données de la poule
+  /// fédérale, écrites par la synchro (Functions).
+  static const String teamFederationSubcollection = 'federation';
+  static const String federationStandingsDoc = 'standings';
+  static const String federationMatchesDoc = 'matches';
   static const String pendingMembersSubcollection = 'pending_members';
   static const String feeSeasonsSubcollection = 'fee_seasons';
   static const String memberFeesSubcollection = 'member_fees';

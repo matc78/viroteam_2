@@ -1,12 +1,30 @@
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_team.dart';
+import 'package:viro_team_v2/services/standings/pool_team_season.dart';
 import 'package:viro_team_v2/utils/date_format_fr.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 
 /// Libellés d'affichage planning (évite le doublon titre = nom d'équipe).
 abstract final class PlanningEventDisplay {
+  /// Adversaire lisible d'un match synchronisé, `null` sinon.
+  static String? opponentLabel(ClubEvent event) {
+    final opponent = event.opponentName?.trim();
+    if (event.type != EventTypes.match || opponent == null || opponent.isEmpty) {
+      return null;
+    }
+    return displayPoolTeamName(opponent);
+  }
+
   static String headline(ClubEvent event) {
     final typeLabel = eventTypeLabel(event.type);
+    final opponent = opponentLabel(event);
+    if (opponent != null) {
+      final line = AppCopy.standings.matchHeadline(typeLabel, opponent);
+      final score = event.score;
+      return score == null
+          ? line
+          : '$line · ${AppCopy.standings.scoreSuffix(score.us, score.them)}';
+    }
     if (event.type == EventTypes.other) {
       return event.title.isNotEmpty ? event.title : typeLabel;
     }
@@ -43,6 +61,13 @@ abstract final class PlanningEventDisplay {
     }
     final typeLabel = eventTypeLabel(event.type);
     final detail = detailFromStoredTitle(event);
+    final opponent = opponentLabel(event);
+    if (opponent != null) {
+      final versus = AppCopy.standings.versus(opponent);
+      return detail == null
+          ? '$typeLabel · $versus'
+          : '$typeLabel · $detail $versus';
+    }
     if (detail == null) return typeLabel;
     return '$typeLabel · $detail';
   }
@@ -85,7 +110,8 @@ abstract final class PlanningEventDisplay {
   static String? locationLine(ClubEvent event) {
     final loc = event.location?.trim();
     if (loc == null || loc.isEmpty) return null;
-    return loc;
+    // Salles FFVB publiées en capitales.
+    return event.isFederationSynced ? displayPoolTeamName(loc) : loc;
   }
 
   /// L'utilisateur [authUid] (= id de sa fiche) est coach d'une équipe liée

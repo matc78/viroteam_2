@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
-import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
-import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
@@ -14,7 +12,12 @@ import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
 import 'package:viro_team_v2/features/teams/widgets/add_team_member_sheet.dart';
 import 'package:viro_team_v2/features/teams/widgets/confirm_remove_from_team_dialog.dart';
 import 'package:viro_team_v2/features/teams/widgets/invite_team_sheet.dart';
-import 'package:viro_team_v2/features/teams/widgets/team_messaging_links_section.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_card_header.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_federation_section.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_quick_actions.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_roster_section.dart';
+import 'package:viro_team_v2/utils/club_color.dart';
+import 'package:viro_team_v2/utils/sport_emoji.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
@@ -112,6 +115,11 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     final canRemoveCoach = canManageTeams;
     final canRemovePending = canManageTeams;
     final canShareTeamInvite = access.canShareTeamInvite(team.id);
+    // Calendrier FFVB : volley seulement (une équipe déjà liée garde son bloc
+    // pour pouvoir être déliée si le sport du club a changé).
+    final canManageFederation =
+        (canManageTeams || access.coachesTeam(team.id)) &&
+            (isVolleyballSport(widget.club.sport) || team.federation != null);
 
     final membersAsync = ref.watch(clubMembersProvider(team.clubId));
     final membersByUid = membersAsync.value != null
@@ -128,9 +136,30 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
       sessionMemberId: sessionMemberId,
     );
 
+    /// Ligne de roster d'un membre connu ; `null` si la fiche est introuvable.
+    MemberListTile? rosterTile(
+      String uid, {
+      required ViroRole role,
+      required void Function(String uid, ClubMember member)? onRemove,
+    }) {
+      final member = membersByUid[uid];
+      if (member == null) return null;
+      return MemberListTile(
+        member: member,
+        club: widget.club,
+        accentColor: widget.accent,
+        showClubAdminActions: false,
+        embedded: true,
+        displayRole: role,
+        isSessionMember: member.memberId == sessionMemberId,
+        onTap: _memberProfileTap(member),
+        onRemove: onRemove == null ? null : () => onRemove(uid, member),
+      );
+    }
+
     return ViroCard(
       accentColor: widget.accent,
-      borderColor: widget.accent.withValues(alpha: 0.35),
+      borderColor: ClubAccentStyle(widget.accent).border,
       margin: const EdgeInsets.only(bottom: ViroSpacing.sm),
       padding: EdgeInsets.zero,
       child: Stack(
@@ -142,6 +171,10 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                 setState(() => _expanded = expanded);
                 if (expanded) _loadPending();
               },
+              shape: const Border(),
+              collapsedShape: const Border(),
+              iconColor: palette.textSecondary,
+              collapsedIconColor: palette.textSecondary,
               tilePadding: const EdgeInsets.symmetric(
                 horizontal: ViroSpacing.md,
                 vertical: ViroSpacing.xs,
@@ -152,37 +185,12 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                 ViroSpacing.md,
                 ViroSpacing.md,
               ),
-              title: Text(
-                team.name,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: palette.readableAccent(widget.accent),
-                    ),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    team.categoryLabel,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: palette.textSecondary,
-                        ),
-                  ),
-                  if (!_expanded)
-                    Text(
-                      AppCopy.teams.rosterSummary(
-                        players: team.playerIds.length,
-                        coaches: team.coachIds.length,
-                        pending: team.pendingPlayerIds.length,
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: palette.textMuted,
-                          ),
-                    ),
-                ],
+              title: TeamCardHeader(
+                team: team,
+                club: widget.club,
+                accent: widget.accent,
               ),
               children: [
-                const Divider(height: 1),
                 if (!_expanded)
                   const SizedBox.shrink()
                 else if (membersAsync.isLoading)
@@ -197,77 +205,50 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                     ),
                   )
                 else ...[
-                  if (ref.watch(chatMessagingLiveProvider))
-                    TeamMessagingLinksSection(
-                      team: team,
-                      accent: widget.accent,
-                    ),
-                  if (canShareTeamInvite) ...[
-                    const SizedBox(height: ViroSpacing.sm),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        onPressed: _busy
-                            ? null
-                            : () => showInviteTeamSheet(
-                                  context,
-                                  club: widget.club,
-                                  team: team,
-                                ),
-                        icon: ViroIcon(ViroIcons.users, size: 18),
-                        label: Text(AppCopy.join.inviteTeamTitle),
-                      ),
-                    ),
-                  ],
-                  _buildRosterSection(
+                  TeamQuickActions(
+                    team: team,
+                    accent: widget.accent,
+                    onInvite: canShareTeamInvite && !_busy
+                        ? () => showInviteTeamSheet(
+                              context,
+                              club: widget.club,
+                              team: team,
+                            )
+                        : null,
+                  ),
+                  if (canManageFederation)
+                    TeamFederationSection(team: team, accent: widget.accent),
+                  TeamRosterSection(
                     title: AppCopy.teams.coachesSection,
                     titleColor: ViroColors.coachBadgeEnd,
-                    addLabel: AppCopy.teams.addCoachTitle,
-                    canAdd: canAddCoach,
-                    onAdd: canAddCoach
+                    addTooltip: AppCopy.teams.addCoachTitle,
+                    onAdd: canAddCoach && !_busy
                         ? () => _openAddSheet(TeamRosterSlot.coach)
                         : null,
-                    children: orderedCoachIds.map((uid) {
-                      final member = membersByUid[uid];
-                      if (member == null) return const SizedBox.shrink();
-                      return MemberListTile(
-                        member: member,
-                        club: widget.club,
-                        accentColor: widget.accent,
-                        showClubAdminActions: false,
-                        displayRole: ViroRole.coach,
-                        isSessionMember: member.memberId == sessionMemberId,
-                        onTap: _memberProfileTap(member),
-                        onRemove: canRemoveCoach
-                            ? () => _removeCoach(uid, member)
-                            : null,
-                      );
-                    }),
+                    children: [
+                      for (final uid in orderedCoachIds)
+                        ?rosterTile(
+                          uid,
+                          role: ViroRole.coach,
+                          onRemove: canRemoveCoach ? _removeCoach : null,
+                        ),
+                    ],
                   ),
-                  _buildRosterSection(
+                  TeamRosterSection(
                     title: AppCopy.teams.playersSection,
                     titleColor: widget.accent,
-                    addLabel: AppCopy.teams.addPlayerTitle,
-                    canAdd: canAddPlayer,
-                    onAdd: canAddPlayer
+                    addTooltip: AppCopy.teams.addPlayerTitle,
+                    onAdd: canAddPlayer && !_busy
                         ? () => _openAddSheet(TeamRosterSlot.player)
                         : null,
-                    children: orderedPlayerIds.map((uid) {
-                      final member = membersByUid[uid];
-                      if (member == null) return const SizedBox.shrink();
-                      return MemberListTile(
-                        member: member,
-                        club: widget.club,
-                        accentColor: widget.accent,
-                        showClubAdminActions: false,
-                        displayRole: ViroRole.player,
-                        isSessionMember: member.memberId == sessionMemberId,
-                        onTap: _memberProfileTap(member),
-                        onRemove: canRemovePlayer
-                            ? () => _removePlayer(uid, member)
-                            : null,
-                      );
-                    }),
+                    children: [
+                      for (final uid in orderedPlayerIds)
+                        ?rosterTile(
+                          uid,
+                          role: ViroRole.player,
+                          onRemove: canRemovePlayer ? _removePlayer : null,
+                        ),
+                    ],
                   ),
                   if (team.pendingPlayerIds.isNotEmpty) ...[
                     if (_loadingPending)
@@ -281,23 +262,25 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                           ),
                         ),
                       )
-                    else if (_pending != null && _pending!.isNotEmpty)
-                      _buildRosterSection(
+                    else
+                      TeamRosterSection(
                         title: AppCopy.teams.pendingSection,
                         titleColor: palette.textSecondary,
-                        canAdd: false,
-                        children: _pending!.map(
-                          (p) => MemberListTile(
-                            member: pendingAsClubMember(p),
-                            club: widget.club,
-                            accentColor: widget.accent,
-                            showClubAdminActions: false,
-                            displayRole: ViroRole.player,
-                            onRemove: canRemovePending
-                                ? () => _removePending(p)
-                                : null,
-                          ),
-                        ),
+                        showWhenEmpty: false,
+                        children: [
+                          for (final pending in _pending ?? <PendingTeamMember>[])
+                            MemberListTile(
+                              member: pendingAsClubMember(pending),
+                              club: widget.club,
+                              accentColor: widget.accent,
+                              showClubAdminActions: false,
+                              embedded: true,
+                              displayRole: ViroRole.player,
+                              onRemove: canRemovePending
+                                  ? () => _removePending(pending)
+                                  : null,
+                            ),
+                        ],
                       ),
                   ],
                 ],
@@ -319,58 +302,6 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
             ),
         ],
       ),
-    );
-  }
-
-  Widget _buildRosterSection({
-    required String title,
-    required Color titleColor,
-    required Iterable<Widget> children,
-    String? addLabel,
-    bool canAdd = false,
-    VoidCallback? onAdd,
-  }) {
-    final palette = context.viroPalette;
-    final childList = children.toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: ViroSpacing.sm, bottom: 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title.toUpperCase(),
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: palette.readableAccent(titleColor),
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.1,
-                      ),
-                ),
-              ),
-              if (canAdd && onAdd != null)
-                TextButton.icon(
-                  onPressed: _busy ? null : onAdd,
-                  icon: ViroIcon(ViroIcons.add, size: 18),
-                  label: Text(addLabel ?? AppCopy.common.add),
-                ),
-            ],
-          ),
-        ),
-        if (childList.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: ViroSpacing.sm),
-            child: Text(
-              AppCopy.teams.noMembers,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: palette.textSecondary,
-                  ),
-            ),
-          )
-        else
-          ...childList,
-      ],
     );
   }
 

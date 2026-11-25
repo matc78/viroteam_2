@@ -1466,6 +1466,35 @@ test("un coach gère le roster de son équipe seulement, selon son droit", async
   );
 });
 
+test("lien fédération : écrit par les Functions seulement, classement lisible par le club", async () => {
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), {
+      federation: { provider: "ffvb", teamKey: "x" },
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/teams/teamA`), {
+      federation: { provider: "ffvb", teamKey: "x" },
+    }),
+  );
+  await assertFails(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/teams/teamFed`), {
+      name: "Fed",
+      federation: { provider: "ffvb" },
+    }),
+  );
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), `clubs/${CLUB}/teams/teamA/federation/standings`), {
+      rows: [],
+    });
+  });
+  await assertSucceeds(getDoc(doc(as(PLAYER), `clubs/${CLUB}/teams/teamA/federation/standings`)));
+  await assertFails(getDoc(doc(as(STRANGER), `clubs/${CLUB}/teams/teamA/federation/standings`)));
+  await assertFails(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/teams/teamA/federation/standings`), { rows: [] }),
+  );
+});
+
 // ————————————————————————————————————————————————————————————————
 // Demandes de rôle (join_requests) : flux supprimé, refus par défaut
 // ————————————————————————————————————————————————————————————————

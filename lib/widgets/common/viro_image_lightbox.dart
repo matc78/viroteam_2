@@ -21,20 +21,23 @@ enum ViroImageLightboxShape {
 
 /// Overlay plein écran pour agrandir une photo (pinch/zoom).
 ///
-/// Fournir [imageUrl] et/ou [imageBytes]. Si [onEdit] est fourni, affiche
-/// un bouton « Modifier » qui ferme le dialog puis appelle le callback.
+/// Fournir [imageUrl], [imageBytes] ou [imageAsset]. Si [onEdit] est
+/// fourni, affiche un bouton « Modifier » qui ferme le dialog puis appelle
+/// le callback.
 Future<void> showViroImageLightbox(
   BuildContext context, {
   String? imageUrl,
   Uint8List? imageBytes,
+  String? imageAsset,
   String? semanticLabel,
   VoidCallback? onEdit,
   ViroImageLightboxShape shape = ViroImageLightboxShape.free,
 }) {
   assert(
     (imageUrl != null && imageUrl.trim().isNotEmpty) ||
-        (imageBytes != null && imageBytes.isNotEmpty),
-    'showViroImageLightbox requires imageUrl or imageBytes',
+        (imageBytes != null && imageBytes.isNotEmpty) ||
+        (imageAsset != null && imageAsset.isNotEmpty),
+    'showViroImageLightbox requires imageUrl, imageBytes or imageAsset',
   );
   return showDialog<void>(
     context: context,
@@ -44,6 +47,7 @@ Future<void> showViroImageLightbox(
       return _ViroImageLightboxDialog(
         imageUrl: imageUrl?.trim(),
         imageBytes: imageBytes,
+        imageAsset: imageAsset,
         semanticLabel: semanticLabel,
         onEdit: onEdit,
         shape: shape,
@@ -57,12 +61,14 @@ class _ViroImageLightboxDialog extends StatelessWidget {
     required this.shape,
     this.imageUrl,
     this.imageBytes,
+    this.imageAsset,
     this.semanticLabel,
     this.onEdit,
   });
 
   final String? imageUrl;
   final Uint8List? imageBytes;
+  final String? imageAsset;
   final String? semanticLabel;
   final VoidCallback? onEdit;
   final ViroImageLightboxShape shape;
@@ -70,6 +76,9 @@ class _ViroImageLightboxDialog extends StatelessWidget {
   ImageProvider get _provider {
     if (imageBytes != null && imageBytes!.isNotEmpty) {
       return MemoryImage(imageBytes!);
+    }
+    if (imageAsset != null && imageAsset!.isNotEmpty) {
+      return AssetImage(imageAsset!);
     }
     return NetworkImage(imageUrl!);
   }

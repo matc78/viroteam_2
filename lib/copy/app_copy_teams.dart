@@ -53,9 +53,18 @@ final class AppCopyTeams {
   String get whatsappLinkHint => 'https://chat.whatsapp.com/…';
   String get invalidLink => 'Lien invalide';
   String get cannotOpenLink => 'Impossible d\'ouvrir le lien';
-  String get discussionsHeader => 'DISCUSSIONS';
   String get addWhatsappLinks => 'Ajouter les liens WhatsApp';
   String get pendingSection => 'En attente';
+
+  /// Pastilles d'actions rapides d'une carte d'équipe dépliée.
+  String get teamChatShort => 'Chat équipe';
+  String get parentsChatShort => 'Chat parents';
+  String get inviteShort => 'Inviter';
+  String get addShort => 'Ajouter';
+
+  /// Titre de section d'effectif avec son compteur (« COACHS · 2 »).
+  String sectionWithCount(String title, int count) =>
+      '${title.toUpperCase()} · $count';
   String get saveFailed => 'Enregistrement impossible.';
 
   /// Résumé compact d’une carte d’équipe repliée (en attente masqué si 0).

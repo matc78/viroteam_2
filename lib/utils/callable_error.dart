@@ -21,10 +21,25 @@ bool isEmailNotVerifiedError(Object error) {
   return details is Map && details['reason'] == emailNotVerifiedReason;
 }
 
+/// Vrai si [message] est le libellé technique Firebase (ex. `NOT FOUND`
+/// quand la callable n'est pas déployée), pas un texte métier du serveur.
+bool _isTechnicalCallableMessage(String code, String message) {
+  final normalized = message
+      .trim()
+      .toLowerCase()
+      .replaceAll('_', '-')
+      .replaceAll(RegExp(r'\s+'), '-');
+  if (normalized.isEmpty) return true;
+  // Ex. code `not-found` + message Firebase `NOT FOUND`.
+  return normalized == code;
+}
+
 /// Message utilisateur depuis une erreur Cloud Functions (ou fallback).
 ///
-/// Les codes techniques et les erreurs non-[FirebaseFunctionsException]
-/// renvoient toujours [fallback] (pas de stack / message Java brut).
+/// Les codes techniques, les libellés bruts Firebase (`NOT FOUND`, …) et les
+/// erreurs non-[FirebaseFunctionsException] renvoient toujours [fallback]
+/// (pas de stack / message Java brut). Les messages métier du serveur
+/// (`Poule introuvable…`) restent affichés.
 String callableErrorMessage(
   Object error, {
   String fallback = 'Action impossible',
@@ -32,7 +47,9 @@ String callableErrorMessage(
   if (error is FirebaseFunctionsException) {
     if (_technicalCallableCodes.contains(error.code)) return fallback;
     final message = error.message?.trim();
-    if (message != null && message.isNotEmpty) return message;
+    if (message == null || message.isEmpty) return fallback;
+    if (_isTechnicalCallableMessage(error.code, message)) return fallback;
+    return message;
   }
   return fallback;
 }

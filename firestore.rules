@@ -739,9 +739,19 @@ service cloud.firestore {
         // Création / coachs / suppression : droit équipes. Un coach ne peut pas
         // s'ajouter lui-même à `coachIds` (sa relation coach donnerait des
         // capacités sur l'équipe).
-        allow create: if can(clubId, 'manageTeams');
-        allow update: if can(clubId, 'manageTeams') || isCoachTeamUpdate(clubId, teamId);
+        // `federation` (lien FFVB + état de synchro) : Functions uniquement.
+        allow create: if can(clubId, 'manageTeams')
+          && !request.resource.data.keys().hasAny(['federation']);
+        allow update: if (can(clubId, 'manageTeams') || isCoachTeamUpdate(clubId, teamId))
+          && !affectedKeys().hasAny(['federation']);
         allow delete: if can(clubId, 'manageTeams');
+
+        // Classement et matchs de la poule fédé (écrits par la synchro).
+        match /federation/{docId} {
+          allow read: if isClubMember(clubId)
+            || guardianCanSeeTeams(clubId, [teamId]);
+          allow write: if false;
+        }
       }
 
       // Inventaire simple (CRUD admin) — pas de prêts / retours MVP.

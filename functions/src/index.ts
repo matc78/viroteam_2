@@ -95,6 +95,22 @@ export {
 } from "./eventConvocations";
 
 export {
+  previewFederationLink,
+  previewFederationLinkDev,
+  linkTeamFederation,
+  linkTeamFederationDev,
+  unlinkTeamFederation,
+  unlinkTeamFederationDev,
+  refreshTeamFederation,
+  refreshTeamFederationDev,
+} from "./federation/federationCallables";
+
+export {
+  syncFederationTeams,
+  syncFederationTeamsDev,
+} from "./federation/federationScheduler";
+
+export {
   createCoachDm,
   createCoachDmDev,
   createCategoryChannel,

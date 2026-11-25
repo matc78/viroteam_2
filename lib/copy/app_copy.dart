@@ -27,6 +27,7 @@ part 'app_copy_chat.dart';
 part 'app_copy_notifications.dart';
 part 'app_copy_app_update.dart';
 part 'app_copy_permissions.dart';
+part 'app_copy_standings.dart';
 
 /// Point d’entrée des libellés UI.
 abstract final class AppCopy {
@@ -50,4 +51,5 @@ abstract final class AppCopy {
   static const notifications = AppCopyNotifications();
   static const appUpdate = AppCopyAppUpdate();
   static const permissions = AppCopyPermissions();
+  static const standings = AppCopyStandings();
 }

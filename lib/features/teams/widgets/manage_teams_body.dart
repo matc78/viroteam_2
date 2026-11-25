@@ -5,6 +5,7 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
+import 'package:viro_team_v2/features/teams/utils/sort_manage_teams.dart';
 import 'package:viro_team_v2/features/teams/widgets/create_team_dialog.dart';
 import 'package:viro_team_v2/features/teams/widgets/manage_team_card.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -77,6 +78,11 @@ class ManageTeamsBody extends ConsumerWidget {
             onRetry: () => ref.invalidate(clubTeamsProvider(clubId)),
           ),
           data: (teams) {
+            final memberId =
+                ref.watch(clubMemberProvider(clubId)).value?.memberId;
+            final ordered = memberId == null
+                ? teams
+                : sortManageTeams(teams, memberId);
             return ViroRefreshIndicator(
               onRefresh: () async {
                 await Future.wait([
@@ -85,7 +91,7 @@ class ManageTeamsBody extends ConsumerWidget {
                   ref.refresh(clubMemberProvider(clubId).future),
                 ]);
               },
-              child: teams.isEmpty
+              child: ordered.isEmpty
                   ? ListView(
                       physics: ViroRefreshIndicator.scrollPhysics,
                       padding: const EdgeInsets.all(ViroSpacing.md),
@@ -122,10 +128,13 @@ class ManageTeamsBody extends ConsumerWidget {
                         ViroSpacing.screenHorizontal,
                         ViroSpacing.xl,
                       ),
-                      itemCount: teams.length,
+                      itemCount: ordered.length,
                       itemBuilder: (context, index) {
+                        // Clé d'équipe : l'ordre change (tri « mes équipes
+                        // d'abord »), l'état dépliée ne doit pas suivre l'index.
                         return ManageTeamCard(
-                          team: teams[index],
+                          key: ValueKey(ordered[index].id),
+                          team: ordered[index],
                           club: club,
                           accent: accent,
                         );

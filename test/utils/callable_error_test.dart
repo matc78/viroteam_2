@@ -63,6 +63,30 @@ void main() {
         );
       }
     });
+
+    test('not-found + NOT FOUND (callable absente) → fallback', () {
+      // ignore: invalid_use_of_protected_member
+      final error = FirebaseFunctionsException(
+        code: 'not-found',
+        message: 'NOT FOUND',
+      );
+      expect(
+        callableErrorMessage(error, fallback: 'Service indisponible'),
+        'Service indisponible',
+      );
+    });
+
+    test('not-found + message métier serveur → message serveur', () {
+      // ignore: invalid_use_of_protected_member
+      final error = FirebaseFunctionsException(
+        code: 'not-found',
+        message: 'Poule introuvable sur le site FFVB : vérifie le lien',
+      );
+      expect(
+        callableErrorMessage(error, fallback: 'Service indisponible'),
+        'Poule introuvable sur le site FFVB : vérifie le lien',
+      );
+    });
   });
 
   group('isEmailNotVerifiedError', () {

@@ -85,6 +85,7 @@ flutter:
     - assets/sons/
     - assets/branding/
     - assets/images/chat/
+    - assets/images/standings/
 
   fonts:
     - family: Inter

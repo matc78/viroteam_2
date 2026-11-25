@@ -8,8 +8,17 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Calendrier et classement FFVB (volley) : dans l’onglet « Gérer » d’une équipe, le coach ou un gestionnaire d’équipes colle le lien de la page calendrier de sa poule (ffvbbeach.org), choisit son équipe, et toute la saison arrive dans le planning sans notification (domicile / extérieur, adversaire, salle, score). Synchro automatique tous les 2 jours à 5h (plus bouton « Actualiser ») : un report, un changement de salle ou de domicile / extérieur notifie l’équipe via les push existants ; le score s’affiche sans notification. Spec [`docs/specs/viroteam_v2_federation_sync_spec.md`](docs/specs/viroteam_v2_federation_sync_spec.md)
+- Classement de la poule pour les joueurs, coachs et parents de l’équipe (coupe dans l’en-tête de la home, bouton dans « Mes équipes ») ; un tap sur une équipe ouvre sa saison : rang, forme, bilans (sets, points, 3-0…0-3, domicile / extérieur), salles où elle reçoit et parcours match par match
+- Functions : callables `previewFederationLink`, `linkTeamFederation`, `unlinkTeamFederation`, `refreshTeamFederation` et tâche planifiée `syncFederationTeams` (lecture de la page HTML et de l’export CSV FFVB) ; règles : champ `teams.federation` et sous-collection `teams/{id}/federation` réservés aux Functions ; index collection group `teams.federation.provider`
+
 ### Modifié
 
+- Cartes d’équipe (« Mes équipes » et « Gérer ») repensées : en-tête avec avatar, catégorie et effectif toujours visibles (pastille FFVB si liée), actions rapides en pastilles (chat équipe, chat parents, inviter, classement), bloc FFVB compact (tap = classement, menu ⋮ Actualiser / Délier) et effectif en lignes légères avec compteur par section au lieu de cartes imbriquées
+- Calendrier FFVB : bloc de liaison proposé aux clubs de volley seulement ; la feuille de liaison montre une capture d’exemple de la page calendrier attendue (vignette, agrandissable d’un tap) ; « Délier » propose de supprimer aussi les matchs importés par ce lien (erreur de poule ou d’équipe), sans notification et sans toucher aux matchs saisis à la main
+- Classement FFVB : parcours du plus récent au plus ancien ; en-tête et tuiles de match centrés ; adresses de salle enrichies via la fiche match PDF (ex. `PERDREAU, 1 BIS RUE PERDREAU, 78390 BOIS D'ARCY`) pour Google Maps
 - Migration rôles → droits (`tool/migrate_roles_to_permissions.mjs`) : un club sans membre actif est supprimé, ainsi que les clubs de test listés (5 en prod) ; un club sans admin lié voit son premier membre arrivé (lié à un compte de préférence) promu admin ; un ancien coach sans équipe passe membre (aucun droit, l’admin lui réattribue des droits)
 - Invitation nominative avec un compte e-mail / mot de passe : le lien de confirmation d’e-mail part tout seul (en français) dès que l’acceptation le demande, et l’invitation est acceptée automatiquement une fois le lien cliqué (retour dans l’app ou vérification toutes les 4 s) — plus besoin de « C’est fait » ni de retaper Accepter
 

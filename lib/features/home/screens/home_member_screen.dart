@@ -14,6 +14,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
+import 'package:viro_team_v2/features/standings/widgets/home_standings_button.dart';
 import 'package:viro_team_v2/features/home/providers/member_events_provider.dart';
 import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
 import 'package:viro_team_v2/features/home/providers/rsvp_push_highlight_provider.dart';
@@ -265,6 +266,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
           ),
           onTitleTap: _scrollToTop,
           actions: [
+            const HomeStandingsButton(),
             IconButton(
               icon: ViroIcon(
                 ViroIcons.settings,

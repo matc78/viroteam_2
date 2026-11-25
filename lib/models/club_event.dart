@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
+import 'package:viro_team_v2/models/team_federation.dart';
 import 'package:viro_team_v2/utils/calendar_days.dart';
 
 /// Statut RSVP d'un membre sur un événement.
@@ -84,6 +85,9 @@ class ClubEvent {
     this.legacyAttendance = const {},
     this.canceled = false,
     this.seriesId,
+    this.source,
+    this.opponentName,
+    this.score,
   });
 
   final String id;
@@ -115,6 +119,18 @@ class ClubEvent {
   final Map<String, dynamic> legacyAttendance;
   final bool canceled;
   final String? seriesId;
+
+  /// Origine d'un match synchronisé (`ffvb`), `null` si créé dans l'app.
+  final String? source;
+
+  /// Adversaire publié par la fédération.
+  final String? opponentName;
+
+  /// Score publié par la fédération (point de vue du club).
+  final FederationMatchScore? score;
+
+  /// `true` si date, heure et lieu viennent de la fédération (synchro).
+  bool get isFederationSynced => source != null && source!.isNotEmpty;
 
   bool get isRecurringSeries => seriesId != null && seriesId!.isNotEmpty;
 
@@ -303,6 +319,9 @@ class ClubEvent {
       legacyAttendance: attendanceRaw,
       canceled: data[FirestoreFields.canceled] as bool? ?? false,
       seriesId: data[FirestoreFields.seriesId] as String?,
+      source: data[FirestoreFields.source] as String?,
+      opponentName: data[FirestoreFields.opponentName] as String?,
+      score: FederationMatchScore.fromMap(data[FirestoreFields.score]),
     );
   }
 

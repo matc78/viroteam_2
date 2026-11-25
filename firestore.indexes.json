@@ -76,6 +76,14 @@
   ],
   "fieldOverrides": [
     {
+      "collectionGroup": "teams",
+      "fieldPath": "federation.provider",
+      "indexes": [
+        { "queryScope": "COLLECTION", "order": "ASCENDING" },
+        { "queryScope": "COLLECTION_GROUP", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "members",
       "fieldPath": "accountUid",
       "indexes": [

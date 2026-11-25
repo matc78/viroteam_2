@@ -301,6 +301,13 @@ class _PlanningEditEventSheetState
                     : AppCopy.planning.editEventSubtitle,
                 style: theme.bodySmall?.copyWith(color: palette.textSecondary),
               ),
+              if (widget.event.isFederationSynced) ...[
+                const SizedBox(height: ViroSpacing.sm),
+                Text(
+                  AppCopy.standings.federationEditHint,
+                  style: theme.bodySmall?.copyWith(color: palette.warningText),
+                ),
+              ],
               const SizedBox(height: ViroSpacing.md),
               if (_form.hasEditableTitle) ...[
                 AddEventFieldLabel(

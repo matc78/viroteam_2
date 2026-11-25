@@ -16,6 +16,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/utils/invite_message.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/common/viro_selection_mark.dart';
 
@@ -42,6 +43,7 @@ class MemberListTile extends StatelessWidget {
     this.selected = false,
     this.displayRole,
     this.isSessionMember = false,
+    this.embedded = false,
   });
 
   final ClubMember member;
@@ -68,6 +70,12 @@ class MemberListTile extends StatelessWidget {
 
   /// `true` pour le membre en session : nom en gras pour le repérer dans la liste.
   final bool isSessionMember;
+
+  /// `true` dans une carte d'équipe : ligne plate (pas de carte imbriquée),
+  /// avatar réduit et retrait par icône neutre.
+  final bool embedded;
+
+  static const double _embeddedAvatarSize = 36;
 
   bool get _hasAdminMenu =>
       showClubAdminActions &&
@@ -112,24 +120,20 @@ class MemberListTile extends StatelessWidget {
         ? member.fullName
         : AppCopy.members.unnamed;
 
-    return ViroCard(
-      margin: const EdgeInsets.only(bottom: ViroSpacing.sm),
-      padding: const EdgeInsets.symmetric(
-        horizontal: ViroSpacing.md,
-        vertical: ViroSpacing.sm,
-      ),
-      onTap: onTap == null
-          ? null
-          : () {
-              if (selectionMode) ViroHaptics.selection();
-              onTap!();
-            },
-      onLongPress: onLongPress,
-      borderColor: selected ? accent : null,
-      semanticLabel: memberName,
-      child: Row(
+    final handleTap = onTap == null
+        ? null
+        : () {
+            if (selectionMode) ViroHaptics.selection();
+            onTap!();
+          };
+
+    final row = Row(
         children: [
-          MemberAvatar(member: member, accentColor: rawAccent),
+          MemberAvatar(
+            member: member,
+            accentColor: rawAccent,
+            size: embedded ? _embeddedAvatarSize : 44,
+          ),
           const SizedBox(width: ViroSpacing.md),
           Expanded(
             child: Column(
@@ -199,7 +203,20 @@ class MemberListTile extends StatelessWidget {
               tooltip: AppCopy.members.copyInviteCodeTooltip,
               onPressed: () => _copyInvite(context),
             ),
-          if (!selectionMode && !showClubAdminActions && onRemove != null)
+          if (!selectionMode && embedded && onRemove != null)
+            IconButton(
+              icon: ViroIcon(
+                ViroIcons.userMinus,
+                color: palette.textMuted,
+                size: 20,
+              ),
+              onPressed: onRemove,
+              tooltip: AppCopy.members.removeFromTeam,
+            ),
+          if (!selectionMode &&
+              !embedded &&
+              !showClubAdminActions &&
+              onRemove != null)
             IconButton(
               icon: ViroIcon(
                 ViroIcons.clearChat,
@@ -247,7 +264,34 @@ class MemberListTile extends StatelessWidget {
               child: ViroSelectionMark(value: selected, color: rawAccent),
             ),
         ],
+      );
+
+    if (embedded) {
+      return ViroPressable(
+        floating: false,
+        enabled: handleTap != null || onLongPress != null,
+        onTap: handleTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(ViroSpacing.buttonRadius),
+        label: memberName,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: ViroSpacing.xs),
+          child: row,
+        ),
+      );
+    }
+
+    return ViroCard(
+      margin: const EdgeInsets.only(bottom: ViroSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: ViroSpacing.md,
+        vertical: ViroSpacing.sm,
       ),
+      onTap: handleTap,
+      onLongPress: onLongPress,
+      borderColor: selected ? accent : null,
+      semanticLabel: memberName,
+      child: row,
     );
   }
 }

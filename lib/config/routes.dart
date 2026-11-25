@@ -40,6 +40,8 @@ import 'package:viro_team_v2/features/planning/screens/add_event_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/club_planning_screen.dart';
 import 'package:viro_team_v2/features/planning/screens/member_planning_screen.dart';
 import 'package:viro_team_v2/features/members/screens/club_members_screen.dart';
+import 'package:viro_team_v2/features/standings/screens/pool_team_season_screen.dart';
+import 'package:viro_team_v2/features/standings/screens/team_standings_screen.dart';
 import 'package:viro_team_v2/features/teams/screens/teams_hub_screen.dart';
 
 import 'package:viro_team_v2/features/club_setup/screens/club_setup_wizard_screen.dart';
@@ -124,6 +126,13 @@ abstract final class AppRoutes {
 
   static const clubManageTeams = '/club/:clubId/teams/manage';
 
+  /// Classement de la poule fédérale d'une équipe (joueurs, coachs, parents).
+  static const clubTeamStandings = '/club/:clubId/teams/:teamId/standings';
+
+  /// Saison d'une équipe de la poule (parcours, stats, salles).
+  static const clubTeamStandingsSeason =
+      '/club/:clubId/teams/:teamId/standings/:poolTeamKey';
+
   static const clubPlanning = '/club/:clubId/planning';
 
   static const clubAddEvent = '/club/:clubId/planning/add';
@@ -168,6 +177,15 @@ abstract final class AppRoutes {
 
   static String clubManageTeamsPath(String clubId) =>
       clubMyTeamsPath(clubId, tab: 'manage');
+
+  static String clubTeamStandingsPath(String clubId, String teamId) =>
+      '/club/$clubId/teams/$teamId/standings';
+
+  static String clubTeamStandingsSeasonPath(
+    String clubId,
+    String teamId,
+    String poolTeamKey,
+  ) => '/club/$clubId/teams/$teamId/standings/${Uri.encodeComponent(poolTeamKey)}';
 
 
   /// Planning du club, ouvert sur [date] (`YYYY-MM-DD`) avec l’event
@@ -839,6 +857,23 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       ),
 
+      // Lecture protégée par les règles (membres du club, parents de
+      // l'équipe) : pas de garde de droits, un parent n'a pas de fiche.
+      GoRoute(
+        path: AppRoutes.clubTeamStandings,
+        builder: (_, state) => TeamStandingsScreen(
+          clubId: state.pathParameters['clubId']!,
+          teamId: state.pathParameters['teamId']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.clubTeamStandingsSeason,
+        builder: (_, state) => PoolTeamSeasonScreen(
+          clubId: state.pathParameters['clubId']!,
+          teamId: state.pathParameters['teamId']!,
+          poolTeamKey: state.pathParameters['poolTeamKey']!,
+        ),
+      ),
       GoRoute(
         path: AppRoutes.clubManageTeams,
         redirect: (context, state) {

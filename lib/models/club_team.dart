@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_member.dart';
+import 'package:viro_team_v2/models/team_federation.dart';
 
 class ClubTeam {
   const ClubTeam({
@@ -14,6 +15,7 @@ class ClubTeam {
     this.pendingPlayerIds = const [],
     this.messagingLink,
     this.parentsMessagingLink,
+    this.federation,
   });
 
   final String id;
@@ -26,6 +28,9 @@ class ClubTeam {
   final List<String> pendingPlayerIds;
   final String? messagingLink;
   final String? parentsMessagingLink;
+
+  /// Lien vers la poule fédérale (calendrier + classement), écrit par les Functions.
+  final TeamFederationLink? federation;
 
   String get categoryLabel =>
       (category != null && category!.isNotEmpty) ? category! : 'Sans catégorie';
@@ -67,6 +72,7 @@ class ClubTeam {
       messagingLink: (data[FirestoreFields.messagingLink] as String?)?.trim(),
       parentsMessagingLink:
           (data[FirestoreFields.parentsMessagingLink] as String?)?.trim(),
+      federation: TeamFederationLink.fromMap(data[FirestoreFields.federation]),
     );
   }
 }

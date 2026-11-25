@@ -117,6 +117,7 @@ class ViroStatsCard extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.accentColor,
+    this.centered = false,
   });
 
   final String label;
@@ -125,10 +126,14 @@ class ViroStatsCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Color? accentColor;
 
+  /// Aligne label / valeur / sous-titre au centre (saison d'équipe).
+  final bool centered;
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final palette = context.viroPalette;
+    final align = centered ? TextAlign.center : TextAlign.start;
 
     return ViroCard(
       onTap: onTap,
@@ -143,12 +148,14 @@ class ViroStatsCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            centered ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         children: [
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: align,
             style: textTheme.bodySmall?.copyWith(
               color: palette.textSecondary,
               fontWeight: FontWeight.w500,
@@ -160,6 +167,7 @@ class ViroStatsCard extends StatelessWidget {
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
+            textAlign: align,
             style: textTheme.titleSmall?.copyWith(
               color: accentColor != null
                   ? palette.readableAccent(accentColor!)
@@ -174,6 +182,7 @@ class ViroStatsCard extends StatelessWidget {
               subtitle!,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              textAlign: align,
               style: textTheme.bodySmall?.copyWith(
                 color: palette.textSecondary,
                 height: 1.2,

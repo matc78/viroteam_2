@@ -53,3 +53,8 @@ const Map<String, String> _sportEmojiByKey = {
   'aviron': '🚣',
   'autre': '🏅',
 };
+
+/// `true` si [sport] est du volley (salle ou beach) : seul sport synchronisé
+/// avec la fédération (calendrier / classement FFVB).
+bool isVolleyballSport(String? sport) =>
+    _normalizeSportKey(sport).contains('volley');

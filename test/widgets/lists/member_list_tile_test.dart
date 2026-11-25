@@ -4,6 +4,7 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_permission.dart';
+import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
 
@@ -91,6 +92,28 @@ void main() {
     final nameText = tester.widget<Text>(find.text('Paul Admin'));
     expect(nameText.style?.fontWeight, FontWeight.w800);
     expect(find.text(AppCopy.common.roleCoach), findsOneWidget);
+  });
+
+  testWidgets('MemberListTile embedded : ligne plate et retrait', (
+    tester,
+  ) async {
+    var removed = false;
+    await pump(
+      tester,
+      MemberListTile(
+        member: adminCoach,
+        club: club,
+        showClubAdminActions: false,
+        embedded: true,
+        displayRole: ViroRole.coach,
+        onRemove: () => removed = true,
+      ),
+    );
+
+    expect(find.byType(ViroCard), findsNothing);
+    expect(find.text('Paul Admin'), findsOneWidget);
+    await tester.tap(find.byTooltip(AppCopy.members.removeFromTeam));
+    expect(removed, isTrue);
   });
 
   testWidgets('MemberListTile : menu seulement avec des actions fournies', (

@@ -32,6 +32,12 @@ abstract final class ViroIcons {
   // Sport & équipe
   static IconData get ball => PhosphorIconsFill.soccerBall;
   static IconData get trophy => PhosphorIconsFill.trophy;
+
+  /// Coupe en contour : accès léger au classement (home, carte équipe).
+  static IconData get trophyOutline => PhosphorIconsRegular.trophy;
+  static IconData get refresh => PhosphorIconsRegular.arrowsClockwise;
+  static IconData get link => PhosphorIconsRegular.link;
+  static IconData get linkBreak => PhosphorIconsRegular.linkBreak;
   static IconData get users => PhosphorIconsRegular.users;
   static IconData get whistle => PhosphorIconsRegular.megaphoneSimple;
   static IconData get chat => PhosphorIconsRegular.chatCircle;
@@ -62,12 +68,18 @@ abstract final class ViroIcons {
 
   // Compte
   static IconData get user => PhosphorIconsRegular.user;
+  /// Retirer quelqu'un d'un effectif (ligne de roster d'équipe).
+  static IconData get userMinus => PhosphorIconsRegular.userMinus;
+  /// Inviter dans une équipe (code d'invitation partagé).
+  static IconData get userPlus => PhosphorIconsRegular.userPlus;
   static IconData get logout => PhosphorIconsRegular.signOut;
   static IconData get privacy => PhosphorIconsRegular.shieldCheck;
   static IconData get warning => PhosphorIconsRegular.warning;
   static IconData get bell => PhosphorIconsRegular.bell;
   static IconData get payments => PhosphorIconsRegular.currencyEur;
   static IconData get image => PhosphorIconsRegular.image;
+  /// Agrandir une image (vignette tappable).
+  static IconData get zoomIn => PhosphorIconsRegular.magnifyingGlassPlus;
   static IconData get themeLight => PhosphorIconsRegular.sun;
   static IconData get themeDark => PhosphorIconsRegular.moon;
   static IconData get themeSystem => PhosphorIconsRegular.deviceMobile;
@@ -144,6 +156,10 @@ abstract final class ViroIcons {
           icons: [
             ('ball', ball),
             ('trophy', trophy),
+            ('trophyOutline', trophyOutline),
+            ('refresh', refresh),
+            ('link', link),
+            ('linkBreak', linkBreak),
             ('users', users),
             ('whistle', whistle),
             ('chat', chat),

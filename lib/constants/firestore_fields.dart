@@ -158,6 +158,63 @@ abstract final class FirestoreFields {
   static const String messagingLink = 'messagingLink';
   static const String parentsMessagingLink = 'parentsMessagingLink';
 
+  // teams/{teamId}.federation (lien FFVB, écrit par les Functions)
+  static const String federation = 'federation';
+  static const String provider = 'provider';
+  static const String url = 'url';
+  static const String season = 'season';
+  static const String pool = 'pool';
+  static const String poolLabel = 'poolLabel';
+  static const String teamKey = 'teamKey';
+  static const String lastSyncAt = 'lastSyncAt';
+  static const String lastSyncStatus = 'lastSyncStatus';
+  static const String lastSyncError = 'lastSyncError';
+
+  /// Payload / réponse de `unlinkTeamFederation`.
+  static const String deleteImportedMatches = 'deleteImportedMatches';
+  static const String deletedMatches = 'deletedMatches';
+
+  // teams/{teamId}/federation/{standings|matches}
+  static const String rows = 'rows';
+  static const String matches = 'matches';
+  static const String fetchedAt = 'fetchedAt';
+  static const String key = 'key';
+  static const String rank = 'rank';
+  static const String points = 'points';
+  static const String played = 'played';
+  static const String won = 'won';
+  static const String lost = 'lost';
+  static const String forfeits = 'forfeits';
+  static const String wins30 = 'wins30';
+  static const String wins31 = 'wins31';
+  static const String wins32 = 'wins32';
+  static const String losses23 = 'losses23';
+  static const String losses13 = 'losses13';
+  static const String losses03 = 'losses03';
+  static const String setsFor = 'setsFor';
+  static const String setsAgainst = 'setsAgainst';
+  static const String pointsFor = 'pointsFor';
+  static const String pointsAgainst = 'pointsAgainst';
+  static const String round = 'round';
+  static const String time = 'time';
+  static const String homeKey = 'homeKey';
+  static const String homeName = 'homeName';
+  static const String awayKey = 'awayKey';
+  static const String awayName = 'awayName';
+  static const String venue = 'venue';
+  static const String home = 'home';
+  static const String away = 'away';
+  static const String sets = 'sets';
+  static const String forfeit = 'forfeit';
+
+  // events/{eventId} synchronisés depuis la fédération
+  static const String source = 'source';
+  static const String externalMatchId = 'externalMatchId';
+  static const String opponentName = 'opponentName';
+  static const String score = 'score';
+  static const String scoreUs = 'us';
+  static const String scoreThem = 'them';
+
   // announcements
   static const String announcementId = 'announcementId';
   static const String senderId = 'senderId';

@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
-import 'package:viro_team_v2/features/chat/providers/chat_messaging_live_provider.dart';
-import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
 import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/teams/utils/team_roster_members.dart';
-import 'package:viro_team_v2/features/teams/widgets/team_messaging_links_section.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_card_header.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_quick_actions.dart';
+import 'package:viro_team_v2/features/teams/widgets/team_roster_section.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/widgets/common/viro_card.dart';
 import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
-import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/lists/member_list_tile.dart';
 
+/// Carte dépliable d'une de mes équipes (lecture seule) : actions rapides,
+/// staff, coéquipiers et joueurs en attente.
 class TeamExpansionCard extends ConsumerStatefulWidget {
   const TeamExpansionCard({
     super.key,
@@ -59,13 +61,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
   @override
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
-    final accentText = palette.readableAccent(widget.accent);
     final team = widget.team;
-    final theme = Theme.of(context).textTheme;
-    final club = widget.club;
-    final hasAvatar = team.avatarUrl != null && team.avatarUrl!.isNotEmpty;
-    final useClubLogo =
-        !hasAvatar && club.logoUrl != null && club.logoUrl!.isNotEmpty;
 
     final membersAsync = ref.watch(clubMembersProvider(team.clubId));
     final sessionMemberId =
@@ -84,6 +80,10 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
             setState(() => _expanded = expanded);
             if (expanded) _loadPending();
           },
+          shape: const Border(),
+          collapsedShape: const Border(),
+          iconColor: palette.textSecondary,
+          collapsedIconColor: palette.textSecondary,
           tilePadding: const EdgeInsets.symmetric(
             horizontal: ViroSpacing.md,
             vertical: ViroSpacing.xs,
@@ -94,44 +94,12 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
             ViroSpacing.md,
             ViroSpacing.md,
           ),
-          leading: CircleAvatar(
-            radius: 24,
-            backgroundColor: widget.accent.withValues(alpha: 0.12),
-            backgroundImage: hasAvatar
-                ? NetworkImage(team.avatarUrl!)
-                : useClubLogo
-                    ? NetworkImage(club.logoUrl!)
-                    : null,
-            child: hasAvatar || useClubLogo
-                ? null
-                : ViroIcon(ViroIcons.users, color: accentText),
-          ),
-          title: Text(
-            team.name,
-            style: theme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: accentText,
-            ),
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: widget.accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                team.categoryLabel,
-                style: theme.labelSmall?.copyWith(
-                  color: accentText,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+          title: TeamCardHeader(
+            team: team,
+            club: widget.club,
+            accent: widget.accent,
           ),
           children: [
-            const Divider(height: 1),
             if (!_expanded)
               const SizedBox.shrink()
             else if (membersAsync.isLoading)
@@ -146,26 +114,32 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                 ),
               )
             else ...[
-              if (ref.watch(chatMessagingLiveProvider))
-                TeamMessagingLinksSection(
-                  team: team,
-                  accent: widget.accent,
-                ),
-              ..._buildMemberSection(
-                context,
-                title: AppCopy.teams.staffCoachesSection,
-                uids: team.coachIds,
-                membersByUid: membersByUid,
-                sessionMemberId: sessionMemberId,
-                displayRole: ViroRole.coach,
+              TeamQuickActions(
+                team: team,
+                accent: widget.accent,
+                showStandings: true,
               ),
-              ..._buildMemberSection(
-                context,
+              TeamRosterSection(
+                title: AppCopy.teams.staffCoachesSection,
+                titleColor: ViroColors.coachBadgeEnd,
+                showWhenEmpty: false,
+                children: _memberTiles(
+                  team.coachIds,
+                  membersByUid: membersByUid,
+                  sessionMemberId: sessionMemberId,
+                  displayRole: ViroRole.coach,
+                ),
+              ),
+              TeamRosterSection(
                 title: AppCopy.teams.teammatesSection,
-                uids: team.playerIds,
-                membersByUid: membersByUid,
-                sessionMemberId: sessionMemberId,
-                displayRole: ViroRole.player,
+                titleColor: widget.accent,
+                showWhenEmpty: false,
+                children: _memberTiles(
+                  team.playerIds,
+                  membersByUid: membersByUid,
+                  sessionMemberId: sessionMemberId,
+                  displayRole: ViroRole.player,
+                ),
               ),
               if (team.pendingPlayerIds.isNotEmpty) ...[
                 if (_loadingPending)
@@ -179,22 +153,23 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                       ),
                     ),
                   )
-                else if (_pending != null && _pending!.isNotEmpty) ...[
-                  _sectionHeader(
-                    context,
-                    AppCopy.teams.pendingSection,
-                    palette.textSecondary,
+                else
+                  TeamRosterSection(
+                    title: AppCopy.teams.pendingSection,
+                    titleColor: palette.textSecondary,
+                    showWhenEmpty: false,
+                    children: [
+                      for (final pending in _pending ?? <PendingTeamMember>[])
+                        MemberListTile(
+                          member: pendingAsClubMember(pending),
+                          club: widget.club,
+                          accentColor: widget.accent,
+                          showClubAdminActions: false,
+                          embedded: true,
+                          displayRole: ViroRole.player,
+                        ),
+                    ],
                   ),
-                  ..._pending!.map(
-                    (p) => MemberListTile(
-                      member: pendingAsClubMember(p),
-                      club: club,
-                      accentColor: widget.accent,
-                      showClubAdminActions: false,
-                      displayRole: ViroRole.player,
-                    ),
-                  ),
-                ],
               ],
             ],
           ],
@@ -203,60 +178,38 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
     );
   }
 
-  List<Widget> _buildMemberSection(
-    BuildContext context, {
-    required String title,
-    required List<String> uids,
+  /// Lignes de roster des [uids] connus (membre en session en tête).
+  List<Widget> _memberTiles(
+    List<String> uids, {
     required Map<String, ClubMember> membersByUid,
     required String? sessionMemberId,
     required ViroRole displayRole,
   }) {
-    if (uids.isEmpty) return [];
-
-    final titleColor =
-        title.contains('Coach') ? ViroColors.coachBadgeEnd : widget.accent;
     final orderedIds = pinSessionMemberIdFirst(
       uids,
       sessionMemberId: sessionMemberId,
     );
-
     return [
-      _sectionHeader(context, title, titleColor),
-      ...orderedIds.map((uid) {
-        final member = membersByUid[uid];
-        if (member == null) return const SizedBox.shrink();
-        return MemberListTile(
-          member: member,
-          club: widget.club,
-          accentColor: widget.accent,
-          showClubAdminActions: false,
-          displayRole: displayRole,
-          isSessionMember: member.memberId == sessionMemberId,
-          onTap: member.hasLinkedAccount
-              ? () => showMemberDetailSheet(
-                    context,
-                    ref: ref,
-                    club: widget.club,
-                    member: member,
-                    accentColor: widget.accent,
-                  )
-              : null,
-        );
-      }),
+      for (final uid in orderedIds)
+        if (membersByUid[uid] case final member?)
+          MemberListTile(
+            member: member,
+            club: widget.club,
+            accentColor: widget.accent,
+            showClubAdminActions: false,
+            embedded: true,
+            displayRole: displayRole,
+            isSessionMember: member.memberId == sessionMemberId,
+            onTap: member.hasLinkedAccount
+                ? () => showMemberDetailSheet(
+                      context,
+                      ref: ref,
+                      club: widget.club,
+                      member: member,
+                      accentColor: widget.accent,
+                    )
+                : null,
+          ),
     ];
-  }
-
-  Widget _sectionHeader(BuildContext context, String title, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(top: ViroSpacing.sm, bottom: 4),
-      child: Text(
-        title.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: context.viroPalette.readableAccent(color),
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-            ),
-      ),
-    );
   }
 }

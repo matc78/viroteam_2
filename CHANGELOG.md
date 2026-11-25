@@ -8,6 +8,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-25
+
 ### Ajouté
 
 - Calendrier et classement FFVB (volley) : dans l’onglet « Gérer » d’une équipe, le coach ou un gestionnaire d’équipes colle le lien de la page calendrier de sa poule (ffvbbeach.org), choisit son équipe, et toute la saison arrive dans le planning sans notification (domicile / extérieur, adversaire, salle, score). Synchro automatique tous les 2 jours à 5h (plus bouton « Actualiser ») : un report, un changement de salle ou de domicile / extérieur notifie l’équipe via les push existants ; le score s’affiche sans notification. Spec [`docs/specs/viroteam_v2_federation_sync_spec.md`](docs/specs/viroteam_v2_federation_sync_spec.md)

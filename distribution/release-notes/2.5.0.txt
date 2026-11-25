@@ -1,0 +1,4 @@
+- Volley : colle le lien FFVB de ta poule, tout le calendrier de la saison arrive dans le planning (domicile / extérieur, adversaire, salle, score) et se met à jour tout seul
+- Classement de la poule à portée de main (coupe sur l'accueil) : rang, forme, bilans et parcours match par match de chaque équipe
+- Cartes d'équipe repensées, actions rapides en un tap
+- Invitations par e-mail plus fluides : le lien de confirmation part tout seul

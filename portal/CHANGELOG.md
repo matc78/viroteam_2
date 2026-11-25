@@ -9,6 +9,8 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-11-25
+
 ### Corrigé
 
 - Connexion sur téléphone : la carte affichée reste centrée après une rotation, un zoom ou un changement de taille du texte (elle restait décalée, à moitié coupée) ; en-tête, onglets, libellé « Mot de passe » et bouton Google adaptés aux très petits écrans.

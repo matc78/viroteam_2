@@ -9,6 +9,8 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+## [1.14.2] - 2026-11-25
+
 ### Corrigé
 
 - Connexion sur téléphone : un glissé à gauche ou à droite passe à la méthode voisine (une seule à la fois) ou revient en place s’il est trop court ; aux extrémités, la carte ne bouge plus. Le défilement natif pouvait sauter une carte, rester entre deux ou changer de vue en plein geste.

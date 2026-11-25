@@ -116,6 +116,16 @@ abstract final class ProjectConfig {
   static const Duration appUpdateCheckTimeout = Duration(seconds: 3);
 
   static const String eventsSubcollection = 'events';
+
+  /// Outils d'entraînement, sous `events/{eventId}` : une partie par coach
+  /// (`{coachUid}`). Préparation (+ `drills`), brouillon de retour, retour
+  /// envoyé (+ `playerMessages/{memberId}`, écrits par `sendTrainingFeedback`).
+  static const String trainingPlansSubcollection = 'trainingPlans';
+  static const String trainingDrillsSubcollection = 'drills';
+  static const String trainingFeedbackDraftsSubcollection =
+      'trainingFeedbackDrafts';
+  static const String trainingFeedbackSubcollection = 'trainingFeedback';
+  static const String trainingPlayerMessagesSubcollection = 'playerMessages';
   static const String announcementsSubcollection = 'announcements';
   static const String teamsSubcollection = 'teams';
 
@@ -134,6 +144,11 @@ abstract final class ProjectConfig {
   static const String conversationsSubcollection = 'conversations';
   static const String chatMessagesSubcollection = 'messages';
   static const String chatStateSubcollection = 'chatState';
+
+  /// `users/{uid}/trainingFeedbackState/{clubId}_{eventId}` : « flemme » du
+  /// coach, retours de séance lus par le joueur / parent.
+  static const String trainingFeedbackStateSubcollection =
+      'trainingFeedbackState';
   static const String paymentsHelloAssoSpecDoc =
       'docs/specs/viroteam_v2_payments_helloasso_spec.md';
 

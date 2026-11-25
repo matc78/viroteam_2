@@ -147,6 +147,18 @@ class ClubAccess {
           coachCan(CoachFlag.canEditMemberRsvp) &&
           coachesAnyTeam(teamIds));
 
+  // ——— Outils d'entraînement ———
+
+  /// Préparer une séance / faire un retour : coach d'une des équipes, hors
+  /// « tout le club ». L'admin non coach ne fait que consulter.
+  bool canCoachTraining(Iterable<String> teamIds, {required bool allTeams}) =>
+      !allTeams && coachesAnyTeam(teamIds);
+
+  /// Consulter les préparations et les retours envoyés : coachs de la
+  /// séance et admin (lecture seule pour l'admin non coach).
+  bool canReviewTraining(Iterable<String> teamIds, {required bool allTeams}) =>
+      canCoachTraining(teamIds, allTeams: allTeams) || isAdmin;
+
   // ——— Annonces ———
 
   /// Peut publier une annonce (au club, ou seulement à ses équipes).

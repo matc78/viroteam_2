@@ -6,6 +6,7 @@ library;
 
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/club_permission.dart';
+import 'package:viro_team_v2/models/training_feedback.dart';
 
 part 'app_copy_common.dart';
 part 'app_copy_auth.dart';
@@ -28,6 +29,7 @@ part 'app_copy_notifications.dart';
 part 'app_copy_app_update.dart';
 part 'app_copy_permissions.dart';
 part 'app_copy_standings.dart';
+part 'app_copy_training.dart';
 
 /// Point d’entrée des libellés UI.
 abstract final class AppCopy {
@@ -52,4 +54,5 @@ abstract final class AppCopy {
   static const appUpdate = AppCopyAppUpdate();
   static const permissions = AppCopyPermissions();
   static const standings = AppCopyStandings();
+  static const training = AppCopyTraining();
 }

@@ -203,8 +203,11 @@ export const PUSH_BOOKKEEPING_FIELDS = [
   "modifiedNotifyDueAt",
 ] as const;
 
-/** Suivi par membre sans effet push (vue de l'événement sur la home). */
-export const SILENT_TRACKING_FIELDS = ["seenAt"] as const;
+/**
+ * Suivi sans effet push : vue de l'événement sur la home, coachs ayant
+ * envoyé leur retour de séance (`sendTrainingFeedback`).
+ */
+export const SILENT_TRACKING_FIELDS = ["seenAt", "trainingFeedbackSentBy"] as const;
 
 /** True si seuls les champs techniques push (ou de suivi silencieux) ont changé. */
 export function isOnlyPushBookkeepingChange(

@@ -20,6 +20,7 @@ import 'package:viro_team_v2/features/home/models/rsvp_push_highlight.dart';
 import 'package:viro_team_v2/features/home/providers/rsvp_push_highlight_provider.dart';
 import 'package:viro_team_v2/features/clubs/widgets/add_club_sheet.dart';
 import 'package:viro_team_v2/features/home/widgets/club_selector_bar.dart';
+import 'package:viro_team_v2/features/home/widgets/home_feedback_button.dart';
 import 'package:viro_team_v2/features/home/widgets/rsvp_highlight_scroll_hints.dart';
 import 'package:viro_team_v2/features/planning/utils/planning_event_display.dart';
 import 'package:viro_team_v2/features/planning/widgets/member_upcoming_events_list.dart';
@@ -266,6 +267,7 @@ class _HomeMemberScreenState extends ConsumerState<HomeMemberScreen> {
           ),
           onTitleTap: _scrollToTop,
           actions: [
+            const HomeFeedbackButton(),
             const HomeStandingsButton(),
             IconButton(
               icon: ViroIcon(

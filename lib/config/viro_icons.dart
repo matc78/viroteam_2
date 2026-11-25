@@ -117,6 +117,19 @@ abstract final class ViroIcons {
   static IconData get addToList => PhosphorIconsRegular.listPlus;
   static IconData get leaveGroup => PhosphorIconsRegular.signOut;
 
+  // Outils d’entraînement (préparation, retours, tableau blanc)
+  static IconData get trainingPrep => PhosphorIconsRegular.clipboardText;
+  static IconData get feedback => PhosphorIconsRegular.chatCircleText;
+  static IconData get star => PhosphorIconsRegular.star;
+  static IconData get starFill => PhosphorIconsFill.star;
+  static IconData get starHalf => PhosphorIconsFill.starHalf;
+  static IconData get dragHandle => PhosphorIconsRegular.dotsSixVertical;
+  static IconData get boardArrow => PhosphorIconsRegular.arrowUpRight;
+  static IconData get boardMove => PhosphorIconsRegular.handGrabbing;
+  static IconData get boardBall => PhosphorIconsRegular.volleyball;
+  static IconData get undo => PhosphorIconsRegular.arrowCounterClockwise;
+  static IconData get eraser => PhosphorIconsRegular.eraser;
+
   // Rôles (badges)
   static IconData get rolePlayer => PhosphorIconsFill.soccerBall;
   static IconData get roleCoach => PhosphorIconsFill.megaphoneSimple;
@@ -218,6 +231,22 @@ abstract final class ViroIcons {
             ('selectAll', selectAll),
             ('note', note),
             ('analytics', analytics),
+          ],
+        ),
+        ViroIconCatalogGroup(
+          title: 'Entraînement',
+          icons: [
+            ('trainingPrep', trainingPrep),
+            ('feedback', feedback),
+            ('star', star),
+            ('starFill', starFill),
+            ('starHalf', starHalf),
+            ('dragHandle', dragHandle),
+            ('boardArrow', boardArrow),
+            ('boardMove', boardMove),
+            ('boardBall', boardBall),
+            ('undo', undo),
+            ('eraser', eraser),
           ],
         ),
         ViroIconCatalogGroup(

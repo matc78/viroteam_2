@@ -37,6 +37,10 @@ import 'package:viro_team_v2/features/planning/widgets/planning_roll_call_sheet.
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 import 'package:viro_team_v2/models/club_access.dart';
+import 'package:go_router/go_router.dart';
+import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/features/training/providers/training_providers.dart';
+import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 
 enum _CancelScope { single, series }
 
@@ -173,6 +177,122 @@ class _PlanningEventDetailSheetState
   bool get _canTakeAttendance =>
       FeatureFlags.attendanceTracking &&
       _access.canTakeAttendance(_event.teamIds, allTeams: _event.allTeams);
+
+  /// Outils d'entraînement actifs sur cet événement (entraînement non annulé).
+  bool get _isTrainingWithTools =>
+      FeatureFlags.trainingToolsLive &&
+      _event.type == EventTypes.training &&
+      !_event.canceled;
+
+  /// Coach d'une équipe de la séance : préparation et retour.
+  bool get _canCoachTraining =>
+      _isTrainingWithTools &&
+      _access.canCoachTraining(_event.teamIds, allTeams: _event.allTeams);
+
+  /// Coachs de la séance et admin : consultation des retours envoyés.
+  bool get _canReviewTraining =>
+      _isTrainingWithTools &&
+      _access.canReviewTraining(_event.teamIds, allTeams: _event.allTeams);
+
+  /// Boutons des outils d'entraînement : préparer (séance à venir ou du
+  /// jour) ; dès le jour J, faire le retour, consulter les retours envoyés,
+  /// ou lire celui reçu par [rsvpMemberId] (soi ou enfant).
+  List<Widget> _buildTrainingActions({String? rsvpMemberId}) {
+    if (!_isTrainingWithTools) return const [];
+    final uid = ref.watch(trainingAuthUidProvider);
+    final event = _event;
+    final started = _isRollCallDayOrPast;
+    // Le jour J : préparation et retour tous deux possibles.
+    final preparable =
+        !started ||
+        EventDateHelpers.sameCalendarDay(event.date, DateTime.now());
+    final anyFeedbackSent = event.trainingFeedbackSentBy.isNotEmpty;
+
+    Widget button(IconData icon, String label, String location) =>
+        OutlinedButton.icon(
+          onPressed: () => _openTrainingScreen(location),
+          icon: ViroIcon(icon, size: 18),
+          label: Text(label),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(ViroSpacing.buttonHeightMedium),
+          ),
+        );
+
+    final actions = <Widget>[];
+    if (_canCoachTraining && preparable) {
+      final plans =
+          ref
+              .watch(
+                trainingPlansProvider((
+                  clubId: widget.clubId,
+                  eventId: event.id,
+                )),
+              )
+              .value ??
+          const [];
+      final hasPlan = plans.any((plan) => plan.coachUid == uid);
+      actions.add(
+        button(
+          ViroIcons.trainingPrep,
+          hasPlan
+              ? AppCopy.training.myPrepAction
+              : AppCopy.training.prepareAction,
+          AppRoutes.clubTrainingPrepPath(widget.clubId, event.id),
+        ),
+      );
+    }
+    if (_canCoachTraining && started) {
+      final sent = uid != null && event.trainingFeedbackSentByCoach(uid);
+      actions.add(
+        button(
+          sent ? ViroIcons.checkCircle : ViroIcons.feedback,
+          sent
+              ? AppCopy.training.feedbackSentAction
+              : AppCopy.training.feedbackAction,
+          AppRoutes.clubTrainingFeedbackPath(widget.clubId, event.id),
+        ),
+      );
+    }
+    if (_canReviewTraining && started && anyFeedbackSent) {
+      actions.add(
+        button(
+          ViroIcons.eye,
+          AppCopy.training.reviewAction,
+          AppRoutes.clubTrainingFeedbackReviewPath(widget.clubId, event.id),
+        ),
+      );
+    }
+    if (!_canCoachTraining &&
+        started &&
+        anyFeedbackSent &&
+        rsvpMemberId != null &&
+        event.isInvitedAsPlayer(rsvpMemberId)) {
+      actions.add(
+        button(
+          ViroIcons.feedback,
+          AppCopy.training.reviewReceivedAction,
+          AppRoutes.clubTrainingFeedbackReceivedPath(
+            widget.clubId,
+            event.id,
+            memberId: rsvpMemberId,
+          ),
+        ),
+      );
+    }
+    return [
+      for (final action in actions) ...[
+        const SizedBox(height: ViroSpacing.sm),
+        action,
+      ],
+    ];
+  }
+
+  /// Ouvre [location] (écran d'entraînement) en fermant la feuille.
+  void _openTrainingScreen(String location) {
+    final router = GoRouter.of(context);
+    Navigator.of(context).pop();
+    router.push(location);
+  }
 
   /// Droit planning (ou coach d'une équipe avec `canEditMemberRsvp`) :
   /// éditer le RSVP d’un convoqué.
@@ -818,6 +938,7 @@ class _PlanningEventDetailSheetState
                   ),
                 ),
               ],
+              ..._buildTrainingActions(rsvpMemberId: rsvpTarget?.memberId),
               if (_canEditEvent || _canManageConvocations) ...[
                 const SizedBox(height: ViroSpacing.sm),
                 Row(

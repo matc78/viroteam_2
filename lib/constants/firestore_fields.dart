@@ -215,6 +215,29 @@ abstract final class FirestoreFields {
   static const String scoreUs = 'us';
   static const String scoreThem = 'them';
 
+  // Outils d'entraînement (events/{eventId}/trainingPlans | trainingFeedback…)
+  /// `events.trainingFeedbackSentBy` : coachs ayant envoyé leur retour
+  /// (écrit par la callable `sendTrainingFeedback`).
+  static const String trainingFeedbackSentBy = 'trainingFeedbackSentBy';
+  static const String coachUid = 'coachUid';
+  static const String coachName = 'coachName';
+  static const String levelRating = 'levelRating';
+  static const String engagementRating = 'engagementRating';
+  static const String collectiveMessage = 'collectiveMessage';
+  static const String playerMessages = 'playerMessages';
+  static const String playerMessageCount = 'playerMessageCount';
+  static const String drillOrder = 'drillOrder';
+  static const String durationMin = 'durationMin';
+  static const String instructions = 'instructions';
+  static const String board = 'board';
+  static const String strokes = 'strokes';
+  static const String tokens = 'tokens';
+  // users/{uid}/trainingFeedbackState/{clubId}_{eventId}
+  /// Coach qui a renoncé au retour de la séance (« flemme »).
+  static const String skipped = 'skipped';
+  /// Fiche lue → coachs dont le retour a été lu.
+  static const String seen = 'seen';
+
   // announcements
   static const String announcementId = 'announcementId';
   static const String senderId = 'senderId';

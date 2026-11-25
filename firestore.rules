@@ -616,6 +616,11 @@ service cloud.firestore {
       match /chatState/{stateId} {
         allow read, write: if isOwner(uid);
       }
+
+      // Retours de séance : « flemme » du coach, retours lus (client, privé).
+      match /trainingFeedbackState/{stateId} {
+        allow read, write: if isOwner(uid);
+      }
     }
 
     // ————————————————————————————————————————————————————————————
@@ -718,9 +723,70 @@ service cloud.firestore {
       match /events/{eventId} {
         allow read: if isClubMember(clubId)
           || guardianCanSeeTeams(clubId, resource.data.get('teamIds', []));
-        allow create: if canCreateEvent(clubId);
-        allow update: if onlyOwnAudienceUpdate(clubId) || staffEventUpdateOk(clubId);
+        // `trainingFeedbackSentBy` : écrit par la callable `sendTrainingFeedback`.
+        allow create: if canCreateEvent(clubId)
+          && !request.resource.data.keys().hasAny(['trainingFeedbackSentBy']);
+        allow update: if (onlyOwnAudienceUpdate(clubId) || staffEventUpdateOk(clubId))
+          && !affectedKeys().hasAny(['trainingFeedbackSentBy']);
         allow delete: if can(clubId, 'manageEvents');
+
+        // ——— Outils d'entraînement (préparation + retours de séance) ———
+        // Une partie par coach (`{coachUid}`) : chacun écrit la sienne, ses
+        // collègues la lisent. L'admin lit ce qui est envoyé (et les
+        // préparations), sans rien écrire s'il n'est pas coach. Les droits
+        // se lisent sur l'événement parent (jamais sur `resource`) pour que
+        // les requêtes de liste passent.
+        function trainingEvent() {
+          return get(/databases/$(database)/documents/clubs/$(clubId)/events/$(eventId)).data;
+        }
+        /// Coach d'une équipe de l'entraînement (jamais « tout le club »).
+        function isTrainingCoach() {
+          let event = trainingEvent();
+          return event.get('type', '') == 'training'
+            && coachesAnyEventTeam(clubId, event);
+        }
+        /// Coachs de la séance + admin : lecture du contenu staff.
+        function isTrainingReviewer() {
+          return isTrainingCoach() || can(clubId, 'admin');
+        }
+        /// Équipe de la séance : joueurs, parents, coachs, admin.
+        function isTrainingTeamViewer() {
+          let teamIds = trainingEvent().get('teamIds', []);
+          return isTrainingReviewer()
+            || myMember(clubId).get('teamIds', []).hasAny(teamIds)
+            || guardianCanSeeTeams(clubId, teamIds);
+        }
+
+        match /trainingPlans/{coachUid} {
+          allow read: if isTrainingReviewer();
+          allow create, update: if isOwner(coachUid) && isTrainingCoach()
+            && request.resource.data.get('teamIds', []) == trainingEvent().get('teamIds', []);
+          allow delete: if isOwner(coachUid) && isTrainingCoach();
+
+          match /drills/{drillId} {
+            allow read: if isTrainingReviewer();
+            allow create, update, delete: if isOwner(coachUid) && isTrainingCoach();
+          }
+        }
+
+        // Brouillon d'un retour : privé au coach qui l'écrit.
+        match /trainingFeedbackDrafts/{coachUid} {
+          allow read, write: if isOwner(coachUid) && isTrainingCoach();
+        }
+
+        // Retour envoyé (notes collectives + mot au collectif) : toute l'équipe.
+        match /trainingFeedback/{coachUid} {
+          allow read: if isTrainingTeamViewer();
+          allow write: if false;
+
+          // Message perso : le joueur, ses parents, les coachs, l'admin.
+          match /playerMessages/{memberId} {
+            allow read: if isOwner(memberId)
+              || isActiveGuardianOf(clubId, memberId)
+              || isTrainingReviewer();
+            allow write: if false;
+          }
+        }
       }
 
       // ——— Annonces ———

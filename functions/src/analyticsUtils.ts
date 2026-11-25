@@ -29,6 +29,7 @@ export const ServerAnalyticsEvents = {
   convocationSent: "convocation_sent",
   rsvpSet: "rsvp_set",
   feePaymentSucceeded: "fee_payment_succeeded",
+  trainingFeedbackSent: "training_feedback_sent",
 } as const;
 
 export type ServerAnalyticsEvent =

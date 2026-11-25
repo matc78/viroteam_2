@@ -76,6 +76,12 @@ export type RekeyReferencesReport = {
   announcements: number;
   invitations: number;
   paymentSessions: number;
+  /** Messages perso de retour de séance (`playerMessages/{memberId}`) déplacés. */
+  trainingMessages: number;
+  /** Brouillons de retour dont le message perso a changé de clé. */
+  trainingDrafts: number;
+  /** États « retours lus » de parents dont la clé de fiche a changé. */
+  trainingSeenStates: number;
   feesMoved: number;
   feesDropped: number;
   /** Saisons où deux cotisations non vides coexistent (un admin tranche). */
@@ -295,7 +301,8 @@ async function moveFee(params: {
 /**
  * Réécrit toutes les références à [from] sous [uid] : équipes, événements
  * (tous, passés compris, en écriture silencieuse), annonces « Personnes »,
- * invitations, sessions de paiement et cotisations. Chaque étape interroge
+ * invitations, sessions de paiement, retours de séance (messages perso,
+ * brouillons, états lus des parents) et cotisations. Chaque étape interroge
  * par [from] : relancer ne refait rien. `rekeyPendingFrom` est effacé sauf
  * conflit de cotisation.
  */
@@ -312,6 +319,9 @@ export async function rewriteMemberReferences(params: {
     announcements: 0,
     invitations: 0,
     paymentSessions: 0,
+    trainingMessages: 0,
+    trainingDrafts: 0,
+    trainingSeenStates: 0,
     feesMoved: 0,
     feesDropped: 0,
     feeConflictSeasonIds: [],
@@ -356,16 +366,19 @@ export async function rewriteMemberReferences(params: {
   };
   const events = clubRef.collection("events");
   const eventRefs: DocumentReference[] = [];
+  const trainingRefs: DocumentReference[] = [];
   let lastEvent: QueryDocumentSnapshot | undefined;
   for (;;) {
     let query = events
       .orderBy(FieldPath.documentId())
-      .select(...EVENT_REKEY_FIELDS)
+      .select(...EVENT_REKEY_FIELDS, "type")
       .limit(EVENTS_PAGE_SIZE);
     if (lastEvent) query = query.startAfter(lastEvent);
     const page = await query.get();
     for (const doc of page.docs) {
-      if (buildEventPatch(doc.data())) eventRefs.push(doc.ref);
+      if (!buildEventPatch(doc.data())) continue;
+      eventRefs.push(doc.ref);
+      if (doc.get("type") === "training") trainingRefs.push(doc.ref);
     }
     if (page.size < EVENTS_PAGE_SIZE) break;
     lastEvent = page.docs[page.docs.length - 1];
@@ -410,6 +423,67 @@ export async function rewriteMemberReferences(params: {
     }
   }
   await commitUpdates(firestore, updates);
+
+  // Messages perso de retour de séance : id du document = id de fiche.
+  // Copier puis supprimer (relançable) ; un message déjà présent à l'uid gagne.
+  const trainingMessages = await firestore
+    .collectionGroup("playerMessages")
+    .where("clubId", "==", clubId)
+    .where("memberId", "==", from)
+    .get();
+  for (const source of trainingMessages.docs) {
+    const targetRef = source.ref.parent.doc(uid);
+    await firestore.runTransaction(async (tx) => {
+      const target = await tx.get(targetRef);
+      if (!target.exists) tx.set(targetRef, { ...source.data(), memberId: uid });
+      tx.delete(source.ref);
+    });
+    report.trainingMessages += 1;
+  }
+
+  // Brouillons de retour : `playerMessages.{fiche}` (entraînements où la
+  // fiche est convoquée). Un message déjà présent à l'uid gagne.
+  const fromKey = new FieldPath("playerMessages", from);
+  const uidKey = new FieldPath("playerMessages", uid);
+  for (const trainingRef of trainingRefs) {
+    const drafts = await trainingRef.collection("trainingFeedbackDrafts").get();
+    for (const draft of drafts.docs) {
+      const message = draft.get(fromKey);
+      if (typeof message !== "string") continue;
+      await draft.ref.update(
+        uidKey, draft.get(uidKey) ?? message,
+        fromKey, FieldValue.delete(),
+      );
+      report.trainingDrafts += 1;
+    }
+  }
+
+  // Retours lus par les parents : `seen.{fiche}` (guardians déjà déplacés
+  // sous l'uid par le cœur).
+  const guardians = await clubRef
+    .collection("members")
+    .doc(uid)
+    .collection("guardians")
+    .select()
+    .get();
+  for (const guardian of guardians.docs) {
+    const states = await firestore
+      .collection("users")
+      .doc(guardian.id)
+      .collection("trainingFeedbackState")
+      .where("clubId", "==", clubId)
+      .get();
+    for (const state of states.docs) {
+      const seenFrom = new FieldPath("seen", from);
+      const coachUids = stringArray(state.get(seenFrom));
+      if (coachUids.length === 0) continue;
+      await state.ref.update(
+        new FieldPath("seen", uid), FieldValue.arrayUnion(...coachUids),
+        seenFrom, FieldValue.delete(),
+      );
+      report.trainingSeenStates += 1;
+    }
+  }
 
   for (const season of seasons.docs) {
     const fees = season.ref.collection("member_fees");

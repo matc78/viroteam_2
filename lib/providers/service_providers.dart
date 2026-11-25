@@ -33,6 +33,8 @@ import 'package:viro_team_v2/services/chat_messages_local_cache.dart';
 import 'package:viro_team_v2/services/user_avatar_storage.dart';
 import 'package:viro_team_v2/services/conversation_avatar_storage.dart';
 import 'package:viro_team_v2/services/user_service.dart';
+import 'package:viro_team_v2/services/training/training_feedback_service.dart';
+import 'package:viro_team_v2/services/training/training_plan_service.dart';
 
 /// Surchargé dans `main` avec l'instance démarrée selon le consentement.
 final analyticsServiceProvider = Provider<AnalyticsService>(
@@ -139,6 +141,13 @@ final announcementServiceProvider = Provider<AnnouncementService>(
 );
 
 final feeServiceProvider = Provider<FeeService>((ref) => FeeService());
+
+final trainingPlanServiceProvider =
+    Provider<TrainingPlanService>((ref) => TrainingPlanService());
+
+final trainingFeedbackServiceProvider = Provider<TrainingFeedbackService>(
+  (ref) => TrainingFeedbackService(),
+);
 
 final clubActivityServiceProvider = Provider<ClubActivityService>(
   (ref) => ClubActivityService(),

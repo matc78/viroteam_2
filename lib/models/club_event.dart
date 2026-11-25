@@ -88,6 +88,7 @@ class ClubEvent {
     this.source,
     this.opponentName,
     this.score,
+    this.trainingFeedbackSentBy = const [],
   });
 
   final String id;
@@ -128,6 +129,13 @@ class ClubEvent {
 
   /// Score publié par la fédération (point de vue du club).
   final FederationMatchScore? score;
+
+  /// Coachs ayant envoyé leur retour de séance (écrit par les Functions).
+  final List<String> trainingFeedbackSentBy;
+
+  /// `true` si [coachUid] a déjà envoyé son retour sur cet entraînement.
+  bool trainingFeedbackSentByCoach(String coachUid) =>
+      trainingFeedbackSentBy.contains(coachUid);
 
   /// `true` si date, heure et lieu viennent de la fédération (synchro).
   bool get isFederationSynced => source != null && source!.isNotEmpty;
@@ -322,6 +330,11 @@ class ClubEvent {
       source: data[FirestoreFields.source] as String?,
       opponentName: data[FirestoreFields.opponentName] as String?,
       score: FederationMatchScore.fromMap(data[FirestoreFields.score]),
+      trainingFeedbackSentBy:
+          (data[FirestoreFields.trainingFeedbackSentBy] as List<dynamic>?)
+                  ?.whereType<String>()
+                  .toList() ??
+              const [],
     );
   }
 

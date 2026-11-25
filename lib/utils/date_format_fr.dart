@@ -18,6 +18,15 @@ DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
 String formatEventDate(DateTime date) => _dateFormat.format(date);
 
+final _weekdayShortFormat = DateFormat('EEE', 'fr_FR');
+final _monthShortFormat = DateFormat('MMM', 'fr_FR');
+
+/// Jour de la semaine abrégé (ex. « sam. »), pour un bloc date.
+String formatWeekdayShort(DateTime date) => _weekdayShortFormat.format(date);
+
+/// Mois abrégé (ex. « nov. »), pour un bloc date.
+String formatMonthShort(DateTime date) => _monthShortFormat.format(date);
+
 /// Jour de la semaine en toutes lettres (ex. « Lundi »).
 String formatWeekdayLong(DateTime date) =>
     _capitalizeFr(_weekdayFormat.format(date));

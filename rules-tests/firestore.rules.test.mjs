@@ -2409,3 +2409,156 @@ test("une saison de cotisation ne se supprime pas côté client", async () => {
   await assertFails(deleteDoc(doc(as(ADMIN), `clubs/${CLUB}/fee_seasons/s1`)));
   await assertFails(deleteDoc(doc(as(TREASURER), `clubs/${CLUB}/fee_seasons/s1`)));
 });
+
+// ——— Outils d'entraînement : préparation et retours de séance ———
+
+const COACH2 = { uid: "coach2", email: "coach2@club.fr" };
+const COACH_B = { uid: "coachB", email: "coachb@club.fr" };
+const TEAMMATE = { uid: "teammate1", email: "teammate@club.fr" };
+const TRAINING = `clubs/${CLUB}/events/evTrain`;
+
+/** Entraînement de l'équipe A, deux coachs, un coach de B, un coéquipier. */
+async function seedTraining() {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    for (const [user, coachTeamIds, teamIds] of [
+      [COACH2, ["teamA"], ["teamA"]],
+      [COACH_B, ["teamB"], ["teamB"]],
+      [TEAMMATE, [], ["teamA"]],
+    ]) {
+      await setDoc(doc(db, `clubs/${CLUB}/members/${user.uid}`), {
+        accountUid: user.uid,
+        permissions: [],
+        coachTeamIds,
+        status: "active",
+        teamIds,
+      });
+    }
+    await setDoc(doc(db, TRAINING), {
+      title: "Entraînement",
+      type: "training",
+      teamIds: ["teamA"],
+      teamMemberIds: [PLAYER.uid, TEAMMATE.uid],
+      dateId: "20261120",
+    });
+    // Retour envoyé par COACH (écrit par la callable en réel).
+    await setDoc(doc(db, `${TRAINING}/trainingFeedback/${COACH.uid}`), {
+      clubId: CLUB,
+      teamIds: ["teamA"],
+      coachUid: COACH.uid,
+      levelRating: 4,
+      engagementRating: 5,
+    });
+    await setDoc(
+      doc(db, `${TRAINING}/trainingFeedback/${COACH.uid}/playerMessages/${PLAYER.uid}`),
+      { clubId: CLUB, coachUid: COACH.uid, memberId: PLAYER.uid, message: "Bravo" },
+    );
+  });
+}
+
+const plan = (extra = {}) => ({ teamIds: ["teamA"], notes: "Échauffement", ...extra });
+
+test("entraînement : chaque coach écrit sa préparation, ses collègues la lisent", async () => {
+  await seedTraining();
+  const mine = `${TRAINING}/trainingPlans/${COACH.uid}`;
+  await assertSucceeds(setDoc(doc(as(COACH), mine), plan()));
+  await assertSucceeds(setDoc(doc(as(COACH), `${mine}/drills/d1`), { title: "Service" }));
+  await assertSucceeds(getDoc(doc(as(COACH2), mine)));
+  await assertSucceeds(getDocs(collection(as(COACH2), `${TRAINING}/trainingPlans`)));
+  await assertSucceeds(getDocs(collection(as(COACH2), `${mine}/drills`)));
+  // Un coach n'écrit pas dans la partie d'un collègue.
+  await assertFails(setDoc(doc(as(COACH2), mine), plan()));
+  await assertFails(setDoc(doc(as(COACH2), `${mine}/drills/d2`), { title: "Bloc" }));
+  // Équipes de la préparation = équipes de l'entraînement.
+  await assertFails(
+    setDoc(doc(as(COACH), mine), plan({ teamIds: ["teamA", "teamB"] })),
+  );
+});
+
+test("entraînement : l'admin lit la préparation sans l'écrire, joueur et coach d'une autre équipe refusés", async () => {
+  await seedTraining();
+  const mine = `${TRAINING}/trainingPlans/${COACH.uid}`;
+  await assertSucceeds(setDoc(doc(as(COACH), mine), plan()));
+  await assertSucceeds(getDoc(doc(as(ADMIN), mine)));
+  await assertFails(setDoc(doc(as(ADMIN), `${TRAINING}/trainingPlans/${ADMIN.uid}`), plan()));
+  await assertFails(getDoc(doc(as(PLAYER), mine)));
+  await assertFails(getDoc(doc(as(PARENT), mine)));
+  await assertFails(getDoc(doc(as(COACH_B), mine)));
+  await assertFails(
+    setDoc(doc(as(COACH_B), `${TRAINING}/trainingPlans/${COACH_B.uid}`), plan()),
+  );
+});
+
+test("entraînement : le brouillon de retour reste privé au coach", async () => {
+  await seedTraining();
+  const draft = `${TRAINING}/trainingFeedbackDrafts/${COACH.uid}`;
+  await assertSucceeds(setDoc(doc(as(COACH), draft), { levelRating: 3 }));
+  await assertSucceeds(getDoc(doc(as(COACH), draft)));
+  await assertFails(getDoc(doc(as(COACH2), draft)));
+  await assertFails(getDoc(doc(as(ADMIN), draft)));
+  await assertFails(getDoc(doc(as(PLAYER), draft)));
+  await assertFails(setDoc(doc(as(COACH2), draft), { levelRating: 1 }));
+});
+
+test("entraînement : le retour collectif est lu par toute l'équipe, jamais écrit par un client", async () => {
+  await seedTraining();
+  const feedback = `${TRAINING}/trainingFeedback/${COACH.uid}`;
+  for (const user of [PLAYER, TEAMMATE, PARENT, COACH, COACH2, ADMIN]) {
+    await assertSucceeds(getDoc(doc(as(user), feedback)));
+  }
+  await assertSucceeds(getDocs(collection(as(PLAYER), `${TRAINING}/trainingFeedback`)));
+  for (const user of [OTHER_PLAYER, COACH_B, TREASURER, STRANGER]) {
+    await assertFails(getDoc(doc(as(user), feedback)));
+  }
+  await assertFails(setDoc(doc(as(COACH), feedback), { levelRating: 5, engagementRating: 5 }));
+  await assertFails(updateDoc(doc(as(ADMIN), feedback), { levelRating: 1 }));
+});
+
+test("entraînement : un message perso n'est lu que par le joueur, ses parents, les coachs et l'admin", async () => {
+  await seedTraining();
+  const message = `${TRAINING}/trainingFeedback/${COACH.uid}/playerMessages/${PLAYER.uid}`;
+  for (const user of [PLAYER, PARENT, COACH, COACH2, ADMIN]) {
+    await assertSucceeds(getDoc(doc(as(user), message)));
+  }
+  for (const user of [TEAMMATE, OTHER_PLAYER, COACH_B, STRANGER]) {
+    await assertFails(getDoc(doc(as(user), message)));
+  }
+  // Liste des messages d'un coach : staff seulement.
+  const messages = `${TRAINING}/trainingFeedback/${COACH.uid}/playerMessages`;
+  await assertSucceeds(getDocs(collection(as(ADMIN), messages)));
+  await assertFails(getDocs(collection(as(PLAYER), messages)));
+  await assertFails(setDoc(doc(as(COACH), message), { message: "Modifié" }));
+});
+
+test("entraînement : trainingFeedbackSentBy n'est jamais écrit par un client", async () => {
+  await seedTraining();
+  await assertFails(
+    updateDoc(doc(as(COACH), TRAINING), { trainingFeedbackSentBy: arrayUnion(COACH.uid) }),
+  );
+  await assertFails(
+    updateDoc(doc(as(ADMIN), TRAINING), { trainingFeedbackSentBy: [ADMIN.uid] }),
+  );
+  await assertFails(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/events/evNew`), {
+      title: "Entraînement",
+      type: "training",
+      teamIds: ["teamA"],
+      trainingFeedbackSentBy: [COACH.uid],
+    }),
+  );
+});
+
+test("entraînement : l'état perso (flemme, retours lus) reste privé au compte", async () => {
+  const mine = `users/${COACH.uid}/trainingFeedbackState/${CLUB}_evTraining`;
+  await assertSucceeds(
+    setDoc(doc(as(COACH), mine), { clubId: CLUB, eventId: "evTraining", skipped: true }),
+  );
+  await assertSucceeds(getDoc(doc(as(COACH), mine)));
+  await assertSucceeds(
+    getDocs(query(collection(as(COACH), `users/${COACH.uid}/trainingFeedbackState`), where("clubId", "==", CLUB))),
+  );
+  for (const user of [COACH2, ADMIN, PLAYER]) {
+    await assertFails(getDoc(doc(as(user), mine)));
+    await assertFails(setDoc(doc(as(user), mine), { skipped: false }));
+  }
+});

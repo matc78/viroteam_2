@@ -19,4 +19,11 @@ abstract final class FeatureFlags {
   /// les données (`attendance`, `coachPermissions.canTakeAttendance`)
   /// restent en place.
   static const bool attendanceTracking = false;
+
+  /// Outils d'entraînement des coachs : préparation de séance, retours
+  /// (notes collectives + messages perso), tuile d'accueil. Toujours actif
+  /// en debug ; en release quand [_trainingToolsLiveRelease] passe à `true`.
+  static bool get trainingToolsLive => kDebugMode || _trainingToolsLiveRelease;
+
+  static const bool _trainingToolsLiveRelease = false;
 }

@@ -42,6 +42,15 @@ import 'package:viro_team_v2/features/planning/screens/member_planning_screen.da
 import 'package:viro_team_v2/features/members/screens/club_members_screen.dart';
 import 'package:viro_team_v2/features/standings/screens/pool_team_season_screen.dart';
 import 'package:viro_team_v2/features/standings/screens/team_standings_screen.dart';
+import 'package:viro_team_v2/features/training/screens/training_board_screen.dart';
+import 'package:viro_team_v2/features/training/screens/training_drill_editor_screen.dart';
+import 'package:viro_team_v2/features/training/providers/training_providers.dart';
+import 'package:viro_team_v2/features/training/screens/training_feedback_hub_screen.dart';
+import 'package:viro_team_v2/features/training/screens/training_feedback_list_screen.dart';
+import 'package:viro_team_v2/features/training/screens/training_feedback_received_screen.dart';
+import 'package:viro_team_v2/features/training/screens/training_feedback_review_screen.dart';
+import 'package:viro_team_v2/features/training/screens/training_feedback_screen.dart';
+import 'package:viro_team_v2/features/training/screens/training_prep_screen.dart';
 import 'package:viro_team_v2/features/teams/screens/teams_hub_screen.dart';
 
 import 'package:viro_team_v2/features/club_setup/screens/club_setup_wizard_screen.dart';
@@ -135,6 +144,43 @@ abstract final class AppRoutes {
 
   static const clubPlanning = '/club/:clubId/planning';
 
+  /// Page Feedback, tous clubs : « Gestion » et « Pour moi » ;
+  /// `?tab=manage|mine` choisit la partie ouverte.
+  static const trainingFeedbackHub = '/feedback';
+
+  /// Page Feedback ouverte sur [tab] (partie par défaut si `null`).
+  static String trainingFeedbackHubPath({TrainingFeedbackHubTab? tab}) => Uri(
+    path: trainingFeedbackHub,
+    queryParameters: tab == null ? null : {'tab': tab.name},
+  ).toString();
+
+  /// Feedback entraînement : entraînements passés de mes équipes.
+  static const clubTrainingFeedbackList = '/club/:clubId/training/feedback';
+
+  /// Retour de séance d'un coach (saisie).
+  static const clubTrainingFeedback = '/club/:clubId/events/:eventId/feedback';
+
+  /// Retours envoyés sur une séance (lecture seule, coachs et admin) ;
+  /// `?coach=` limite à un coach.
+  static const clubTrainingFeedbackReview =
+      '/club/:clubId/events/:eventId/feedback/review';
+
+  /// Retour du coach reçu par un joueur (ou son parent) ; `?member=` : fiche
+  /// destinataire (soi ou enfant).
+  static const clubTrainingFeedbackReceived =
+      '/club/:clubId/events/:eventId/feedback/received';
+
+  /// Préparation d'un entraînement (une partie par coach).
+  static const clubTrainingPrep = '/club/:clubId/events/:eventId/prep';
+
+  /// Exercice de la préparation d'un coach.
+  static const clubTrainingDrill =
+      '/club/:clubId/events/:eventId/prep/:coachUid/drill/:drillId';
+
+  /// Tableau blanc d'un exercice.
+  static const clubTrainingBoard =
+      '/club/:clubId/events/:eventId/prep/:coachUid/drill/:drillId/board';
+
   static const clubAddEvent = '/club/:clubId/planning/add';
 
   static const clubAnnouncements = '/club/:clubId/announcements';
@@ -203,6 +249,47 @@ abstract final class AppRoutes {
     if (query.isEmpty) return base;
     return Uri(path: base, queryParameters: query).toString();
   }
+
+  static String clubTrainingFeedbackListPath(String clubId) =>
+      '/club/$clubId/training/feedback';
+
+  static String clubTrainingFeedbackPath(String clubId, String eventId) =>
+      '/club/$clubId/events/$eventId/feedback';
+
+  static String clubTrainingFeedbackReviewPath(
+    String clubId,
+    String eventId, {
+    String? coachUid,
+  }) => Uri(
+    path: '/club/$clubId/events/$eventId/feedback/review',
+    queryParameters: coachUid == null ? null : {'coach': coachUid},
+  ).toString();
+
+  static String clubTrainingFeedbackReceivedPath(
+    String clubId,
+    String eventId, {
+    required String memberId,
+  }) => Uri(
+    path: '/club/$clubId/events/$eventId/feedback/received',
+    queryParameters: {'member': memberId},
+  ).toString();
+
+  static String clubTrainingPrepPath(String clubId, String eventId) =>
+      '/club/$clubId/events/$eventId/prep';
+
+  static String clubTrainingDrillPath(
+    String clubId,
+    String eventId,
+    String coachUid,
+    String drillId,
+  ) => '/club/$clubId/events/$eventId/prep/$coachUid/drill/$drillId';
+
+  static String clubTrainingBoardPath(
+    String clubId,
+    String eventId,
+    String coachUid,
+    String drillId,
+  ) => '/club/$clubId/events/$eventId/prep/$coachUid/drill/$drillId/board';
 
   static String clubAnnouncementsPath(String clubId) =>
       '/club/$clubId/announcements';
@@ -872,6 +959,73 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           clubId: state.pathParameters['clubId']!,
           teamId: state.pathParameters['teamId']!,
           poolTeamKey: state.pathParameters['poolTeamKey']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.trainingFeedbackHub,
+        builder: (_, state) => TrainingFeedbackHubScreen(
+          initialTab: TrainingFeedbackHubTab.values
+              .where((tab) => tab.name == state.uri.queryParameters['tab'])
+              .firstOrNull,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.clubTrainingFeedbackList,
+        builder: (_, state) =>
+            TrainingFeedbackListScreen(clubId: state.pathParameters['clubId']!),
+      ),
+      GoRoute(
+        path: AppRoutes.clubTrainingFeedback,
+        builder: (_, state) => TrainingFeedbackScreen(
+          clubId: state.pathParameters['clubId']!,
+          eventId: state.pathParameters['eventId']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.clubTrainingFeedbackReview,
+        builder: (_, state) => TrainingFeedbackReviewScreen(
+          clubId: state.pathParameters['clubId']!,
+          eventId: state.pathParameters['eventId']!,
+          coachUid: state.uri.queryParameters['coach'],
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.clubTrainingFeedbackReceived,
+        // Lien sans fiche destinataire : la liste des retours reçus.
+        redirect: (_, state) => state.uri.queryParameters['member'] == null
+            ? AppRoutes.trainingFeedbackHubPath(
+                tab: TrainingFeedbackHubTab.mine,
+              )
+            : null,
+        builder: (_, state) => TrainingFeedbackReceivedScreen(
+          clubId: state.pathParameters['clubId']!,
+          eventId: state.pathParameters['eventId']!,
+          memberId: state.uri.queryParameters['member']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.clubTrainingPrep,
+        builder: (_, state) => TrainingPrepScreen(
+          clubId: state.pathParameters['clubId']!,
+          eventId: state.pathParameters['eventId']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.clubTrainingDrill,
+        builder: (_, state) => TrainingDrillEditorScreen(
+          clubId: state.pathParameters['clubId']!,
+          eventId: state.pathParameters['eventId']!,
+          coachUid: state.pathParameters['coachUid']!,
+          drillId: state.pathParameters['drillId']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.clubTrainingBoard,
+        builder: (_, state) => TrainingBoardScreen(
+          clubId: state.pathParameters['clubId']!,
+          eventId: state.pathParameters['eventId']!,
+          coachUid: state.pathParameters['coachUid']!,
+          drillId: state.pathParameters['drillId']!,
         ),
       ),
       GoRoute(

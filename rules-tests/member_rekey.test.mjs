@@ -92,6 +92,7 @@ beforeEach(async () => {
     }],
     [club.collection("teams").doc("t1"), { playerIds: [FROM, "uid-b"], coachIds: [FROM] }],
     [club.collection("events").doc("e-past"), {
+      type: "training",
       date: past,
       teamMemberIds: [FROM, "uid-b"],
       excludedMemberIds: [FROM],
@@ -110,6 +111,16 @@ beforeEach(async () => {
       .collection("payment_events").doc("p1"), { amountCents: 2000 }],
     [club.collection("fee_seasons").doc(SEASON).collection("payment_sessions").doc("ps1"), {
       memberId: FROM, status: "pending",
+    }],
+    [club.collection("events").doc("e-past").collection("trainingFeedback").doc("coach1")
+      .collection("playerMessages").doc(FROM), {
+      clubId: CLUB, eventId: "e-past", coachUid: "coach1", memberId: FROM, message: "Bravo",
+    }],
+    [club.collection("events").doc("e-past").collection("trainingFeedbackDrafts").doc("coach2"), {
+      levelRating: 4, playerMessages: { [FROM]: "Continue", "uid-b": "Top" },
+    }],
+    [firestore.collection("users").doc(PARENT).collection("trainingFeedbackState").doc(`${CLUB}_e-past`), {
+      clubId: CLUB, eventId: "e-past", seen: { [FROM]: ["coach1"] },
     }],
   ];
   for (const [ref, data] of writes) await ref.set(data);
@@ -144,6 +155,9 @@ test("re-keying : reprise après le cœur, toutes les références, idempotent",
     announcements: 1,
     invitations: 1,
     paymentSessions: 1,
+    trainingMessages: 1,
+    trainingDrafts: 1,
+    trainingSeenStates: 1,
     feesMoved: 1,
     feesDropped: 0,
     feeConflictSeasonIds: [],
@@ -177,6 +191,16 @@ test("re-keying : reprise après le cœur, toutes les références, idempotent",
   assert.equal((await season.collection("member_fees").doc(FROM).get()).exists, false);
   assert.equal((await season.collection("payment_sessions").doc("ps1").get()).get("memberId"), UID);
   assert.equal((await clubDoc("members", UID)).get("rekeyPendingFrom"), undefined);
+  const trainingMessages = club.collection("events").doc("e-past")
+    .collection("trainingFeedback").doc("coach1").collection("playerMessages");
+  assert.equal((await trainingMessages.doc(UID).get()).get("memberId"), UID);
+  assert.equal((await trainingMessages.doc(FROM).get()).exists, false);
+  const draft = await club.collection("events").doc("e-past")
+    .collection("trainingFeedbackDrafts").doc("coach2").get();
+  assert.deepEqual(draft.get("playerMessages"), { [UID]: "Continue", "uid-b": "Top" });
+  const seenState = await firestore.collection("users").doc(PARENT)
+    .collection("trainingFeedbackState").doc(`${CLUB}_e-past`).get();
+  assert.deepEqual(seenState.get("seen"), { [UID]: ["coach1"] });
 
   const again = await rekeyMemberToAccount({ firestore, clubId: CLUB, fromMemberId: FROM, uid: UID });
   assert.equal(again.core, "already");
@@ -186,6 +210,9 @@ test("re-keying : reprise après le cœur, toutes les références, idempotent",
     announcements: 0,
     invitations: 0,
     paymentSessions: 0,
+    trainingMessages: 0,
+    trainingDrafts: 0,
+    trainingSeenStates: 0,
     feesMoved: 0,
     feesDropped: 0,
     feeConflictSeasonIds: [],

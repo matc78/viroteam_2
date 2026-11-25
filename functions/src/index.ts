@@ -95,6 +95,11 @@ export {
 } from "./eventConvocations";
 
 export {
+  sendTrainingFeedback,
+  sendTrainingFeedbackDev,
+} from "./trainingFeedback";
+
+export {
   previewFederationLink,
   previewFederationLinkDev,
   linkTeamFederation,

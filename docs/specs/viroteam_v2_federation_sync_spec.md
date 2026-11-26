@@ -10,6 +10,7 @@ Une équipe de volley liée à sa poule FFVB récupère automatiquement ses matc
    - il colle le lien `https://www.ffvbbeach.org/ffvbapp/resu/vbspo_calendrier.php?saison=…&codent=…&poule=…` ;
    - `previewFederationLink` lit la poule et propose ses équipes ;
    - il choisit la sienne ;
+   - si l’équipe a des joueurs, il choisit les convoqués par défaut (tous cochés) : les décochés (`excludedMemberIds`, joueurs du roster seulement, jamais les coachs) sont mémorisés dans `teams.federation.excludedMemberIds`, puis retirés de `teamMemberIds` et posés en `excludedMemberIds` sur chaque match **créé** (import, puis matchs ajoutés par les synchros suivantes ; un joueur sorti du roster est ignoré). Un match existant modifié par la synchro (report, salle) garde ses convocations. Ajustable match par match depuis le planning ; une re-liaison repart du choix mémorisé ;
    - `linkTeamFederation` enregistre le lien et importe la saison **en silence** (`silentWriteAt`).
 2. **Synchro**. La tâche `syncFederationTeams` tourne tous les 2 jours à 5h (Europe/Paris). Le bouton « Actualiser » (`refreshTeamFederation`) est limité à une fois toutes les 10 min par équipe. Ces synchros ne sont pas silencieuses : le trigger d’événement existant notifie l’équipe.
 3. **Classement**. Visible par les joueurs, coachs et parents de l’équipe, depuis la coupe de la home ou le bouton « Classement » de « Mes équipes ». Un tap sur une ligne ouvre la saison de l’équipe : rang, forme, bilans, salles et parcours.

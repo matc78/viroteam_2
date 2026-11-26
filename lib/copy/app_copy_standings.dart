@@ -7,6 +7,7 @@ final class AppCopyStandings {
   // ——— Lien fédération (carte équipe, onglet Gérer) ———
   String get linkAction => 'Lier le calendrier FFVB';
   String get linkActionHint => 'Matchs et classement importés tout seuls';
+
   /// Pastille d'en-tête d'une équipe liée à la fédération.
   String get federationBadge => 'FFVB';
   String get sheetTitle => 'Calendrier et classement FFVB';
@@ -22,9 +23,17 @@ final class AppCopyStandings {
   String get checkLink => 'Vérifier le lien';
   String get pickTeam => 'C’est laquelle, ton équipe ?';
   String get importAction => 'Importer les matchs';
+  String get convocationStepTitle => 'Qui est convoqué ?';
+  String get convocationStepHelper =>
+      'Tout le monde est convoqué par défaut sur les matchs importés, et sur '
+      'ceux que la FFVB ajoutera en cours de saison. Décoche ceux qui ne '
+      'jouent pas ce championnat.';
+  String get convocationStepLater =>
+      'Tu pourras ajuster match par match plus tard depuis le planning.';
   String get invalidLink =>
       'Ce lien ne ressemble pas à une page de poule FFVB '
       '(vbspo_calendrier.php).';
+
   /// Callable absente / erreur technique : pas de blâme du site FFVB.
   String get linkCheckUnavailable =>
       'Impossible de vérifier le lien pour l’instant, réessaie dans un moment.';
@@ -96,7 +105,11 @@ final class AppCopyStandings {
 
   // ——— Parcours d'une équipe ———
   String get mySeasonTitle => 'Mon parcours';
-  String rankLine({required int rank, required int points, required int played}) =>
+  String rankLine({
+    required int rank,
+    required int points,
+    required int played,
+  }) =>
       '${rank == 1 ? '1er' : '${rank}e'} · $points pts · '
       '$played ${played > 1 ? 'matchs' : 'match'}';
   String get form => 'Forme';

@@ -211,3 +211,23 @@ export function mergePoolMatches(
     return venue === match.venue ? match : { ...match, venue };
   });
 }
+
+/**
+ * Convocations des matchs créés par la liaison : joueurs et coachs de
+ * l'équipe, moins les joueurs décochés par le coach ([excludedPlayerIds]).
+ * Seuls des joueurs du roster peuvent être exclus (les coachs restent).
+ */
+export function importConvocation(params: {
+  playerIds: string[];
+  coachIds: string[];
+  excludedPlayerIds: string[];
+}): { teamMemberIds: string[]; excludedMemberIds: string[] } {
+  const coaches = new Set(params.coachIds);
+  const roster = new Set(params.playerIds);
+  const excluded = new Set(
+    params.excludedPlayerIds.filter((id) => roster.has(id) && !coaches.has(id)),
+  );
+  const teamMemberIds = [...new Set([...params.playerIds, ...params.coachIds])]
+    .filter((id) => !excluded.has(id));
+  return { teamMemberIds, excludedMemberIds: [...excluded] };
+}

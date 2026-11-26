@@ -8,6 +8,7 @@ import { fetchFfvbPoolCached, type PoolCache } from "./ffvbFetch";
 import type { PoolMatch } from "./ffvbParser";
 import { FFVB_PROVIDER, type FfvbPoolRef } from "./ffvbUrl";
 import {
+  importConvocation,
   isImportedFederationEvent,
   mergePoolMatches,
   planTeamSync,
@@ -30,6 +31,8 @@ export type TeamFederationLink = FfvbPoolRef & {
   teamKey: string;
   teamName: string;
   linkedBy: string | null;
+  /** Joueurs non convoqués par défaut sur les matchs créés par la synchro. */
+  excludedMemberIds: string[];
 };
 
 /** Bilan d'une synchro d'équipe. */
@@ -57,6 +60,7 @@ export function readFederationLink(team: Record<string, unknown>): TeamFederatio
     teamKey,
     teamName: typeof raw.teamName === "string" ? raw.teamName : "",
     linkedBy: typeof raw.linkedBy === "string" ? raw.linkedBy : null,
+    excludedMemberIds: stringArray(raw.excludedMemberIds),
   };
 }
 
@@ -101,6 +105,7 @@ function newEventData(params: {
   teamId: string;
   teamName: string;
   teamMemberIds: string[];
+  excludedMemberIds: string[];
   creatorId: string | null;
 }): Record<string, unknown> {
   const { fields } = params;
@@ -123,6 +128,9 @@ function newEventData(params: {
     externalMatchId: params.matchCode,
     opponentName: fields.opponentName,
   };
+  if (params.excludedMemberIds.length > 0) {
+    data.excludedMemberIds = params.excludedMemberIds;
+  }
   if (fields.startTime) data.startTime = fields.startTime;
   if (fields.score) data.score = fields.score;
   return data;
@@ -149,8 +157,11 @@ async function commitInBatches(
  *
  * `silent` (première liaison) pose `silentWriteAt` : aucune notification.
  * Sinon, le trigger d'événement existant notifie les reports et les
- * changements de salle / domicile-extérieur. En cas d'échec, l'équipe passe
- * en `lastSyncStatus: "error"` et l'erreur est relancée.
+ * changements de salle / domicile-extérieur. Tout match créé (liaison ou
+ * synchro suivante) reprend les convoqués par défaut du lien
+ * (`federation.excludedMemberIds`) ; un match existant garde ses
+ * convocations. En cas d'échec, l'équipe passe en `lastSyncStatus: "error"`
+ * et l'erreur est relancée.
  */
 export async function syncTeamFederation(params: {
   clubId: string;
@@ -212,7 +223,11 @@ export async function syncTeamFederation(params: {
       previousMatches: params.silent ? [] : previousMatches,
     });
     const teamName = typeof team.name === "string" ? team.name : link.teamName;
-    const teamMemberIds = uniq([...stringArray(team.playerIds), ...stringArray(team.coachIds)]);
+    const convocation = importConvocation({
+      playerIds: uniq(stringArray(team.playerIds)),
+      coachIds: uniq(stringArray(team.coachIds)),
+      excludedPlayerIds: link.excludedMemberIds,
+    });
     const silentStamp = { [SILENT_WRITE_FIELD]: timestamp };
     const eventsRef = clubRef.collection("events");
 
@@ -225,7 +240,8 @@ export async function syncTeamFederation(params: {
             matchCode: create.matchCode,
             teamId: params.teamId,
             teamName,
-            teamMemberIds,
+            teamMemberIds: convocation.teamMemberIds,
+            excludedMemberIds: convocation.excludedMemberIds,
             creatorId: link.linkedBy,
           }),
           ...(params.silent ? silentStamp : {}),

@@ -85,18 +85,21 @@ class TeamFederationService {
   }
 
   /// Lie l'équipe à la poule de [url] (équipe [teamKey]) et importe la
-  /// saison sans notification.
+  /// saison sans notification. [excludedMemberIds] : joueurs du roster non
+  /// convoqués par défaut sur les matchs importés.
   Future<FederationSyncResult> link({
     required String clubId,
     required String teamId,
     required String url,
     required String teamKey,
+    List<String> excludedMemberIds = const [],
   }) async {
     final data = await _call('linkTeamFederation', {
       FirestoreFields.clubId: clubId,
       FirestoreFields.teamId: teamId,
       FirestoreFields.url: url.trim(),
       FirestoreFields.teamKey: teamKey,
+      FirestoreFields.excludedMemberIds: excludedMemberIds,
     });
     return _syncResult(data);
   }

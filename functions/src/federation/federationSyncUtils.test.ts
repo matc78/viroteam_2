@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { PoolMatch } from "./ffvbParser";
 import {
   federationEventId,
+  importConvocation,
   isImportedFederationEvent,
   mergePoolMatches,
   planTeamSync,
@@ -166,4 +167,24 @@ test("isImportedFederationEvent : seulement les matchs FFVB importés de l'équi
   assert.equal(isImportedFederationEvent(id, undefined, "team1"), false);
   assert.equal(isImportedFederationEvent(id, "ffvb", "team2"), false);
   assert.equal(isImportedFederationEvent("manualEvent", "ffvb", "team1"), false);
+});
+
+test("importConvocation : retire les joueurs décochés et garde les coachs", () => {
+  const result = importConvocation({
+    playerIds: ["p1", "p2", "p3", "c1"],
+    coachIds: ["c1"],
+    excludedPlayerIds: ["p2", "c1", "inconnu", "p2"],
+  });
+  assert.deepEqual(result.teamMemberIds, ["p1", "p3", "c1"]);
+  assert.deepEqual(result.excludedMemberIds, ["p2"]);
+});
+
+test("importConvocation : sans exclusion, toute l'équipe est convoquée", () => {
+  const result = importConvocation({
+    playerIds: ["p1", "p2"],
+    coachIds: ["c1"],
+    excludedPlayerIds: [],
+  });
+  assert.deepEqual(result.teamMemberIds, ["p1", "p2", "c1"]);
+  assert.deepEqual(result.excludedMemberIds, []);
 });

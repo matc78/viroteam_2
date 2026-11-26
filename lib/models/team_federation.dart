@@ -23,6 +23,7 @@ class TeamFederationLink {
     this.poolLabel,
     this.lastSyncAt,
     this.lastSyncFailed = false,
+    this.excludedMemberIds = const [],
   });
 
   final String provider;
@@ -41,6 +42,9 @@ class TeamFederationLink {
   /// `true` si la dernière synchro a échoué (données précédentes conservées).
   final bool lastSyncFailed;
 
+  /// Joueurs non convoqués par défaut sur les matchs créés par la synchro.
+  final List<String> excludedMemberIds;
+
   /// Lit le champ `federation` d'une équipe ; `null` si absent ou incomplet.
   static TeamFederationLink? fromMap(Object? raw) {
     if (raw is! Map) return null;
@@ -57,6 +61,7 @@ class TeamFederationLink {
       poolLabel: _string(raw[FirestoreFields.poolLabel]),
       lastSyncAt: _date(raw[FirestoreFields.lastSyncAt]),
       lastSyncFailed: raw[FirestoreFields.lastSyncStatus] == 'error',
+      excludedMemberIds: _strings(raw[FirestoreFields.excludedMemberIds]),
     );
   }
 }
@@ -279,7 +284,9 @@ class PoolMatch {
     return PoolMatch(
       code: _string(raw[FirestoreFields.code]) ?? '',
       round: _int(raw[FirestoreFields.round]),
-      date: parsed == null ? null : DateTime(parsed.year, parsed.month, parsed.day),
+      date: parsed == null
+          ? null
+          : DateTime(parsed.year, parsed.month, parsed.day),
       time: _string(raw[FirestoreFields.time]),
       homeKey: _string(raw[FirestoreFields.homeKey]) ?? '',
       homeName: _string(raw[FirestoreFields.homeName]) ?? '',

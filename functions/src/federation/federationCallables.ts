@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { requireString, requireUid } from "../common";
+import { requireString, requireUid, stringArray, uniq } from "../common";
+import { isSafeMemberMapKey } from "../eventRsvpUtils";
 import { db, defineDualCallable } from "../db";
 import { assertPermissionOrTeamCoach } from "../permissions";
 import { FfvbFetchError, fetchFfvbPoolCached, type PoolCache } from "./ffvbFetch";
@@ -102,7 +103,10 @@ async function handlePreviewFederationLink(request: CallableRequest) {
 
 /**
  * Lie l'équipe à une poule FFVB et importe toute la saison en silence
- * (aucune notification à l'import).
+ * (aucune notification à l'import). `excludedMemberIds` : joueurs du roster
+ * non convoqués par défaut, mémorisés sur le lien : appliqués aux matchs
+ * importés et à ceux ajoutés par les synchros suivantes (modifiable ensuite
+ * match par match depuis le planning).
  */
 async function handleLinkTeamFederation(request: CallableRequest) {
   const uid = requireUid(request);
@@ -114,6 +118,13 @@ async function handleLinkTeamFederation(request: CallableRequest) {
     (request.data as Record<string, unknown>).teamKey,
     "teamKey",
   );
+  const excludedPlayerIds = uniq(
+    stringArray((request.data as Record<string, unknown>).excludedMemberIds),
+  );
+  // Ids utilisés comme clés de map (`rsvp.{id}`) : pas de « . » ni « / ».
+  if (!excludedPlayerIds.every(isSafeMemberMapKey)) {
+    throw new HttpsError("invalid-argument", "Identifiant de membre invalide");
+  }
 
   const cache: PoolCache = new Map();
   const pool = await loadPool(cache, ref);
@@ -136,6 +147,7 @@ async function handleLinkTeamFederation(request: CallableRequest) {
       teamName: picked.name,
       linkedBy: uid,
       linkedAt: admin.firestore.FieldValue.serverTimestamp(),
+      excludedMemberIds: excludedPlayerIds,
     },
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });

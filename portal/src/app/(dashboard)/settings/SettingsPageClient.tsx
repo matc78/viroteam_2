@@ -435,7 +435,7 @@ export function SettingsPageClient() {
             <header className={shared.groupHeader}>
               <h2 className={shared.groupTitle}>Droits des coachs</h2>
               <p className={shared.groupLead}>
-                Actions visibles pour les coachs du club.
+                Uniquement sur les équipes qu’il entraîne.
               </p>
             </header>
               <ul className={shared.permissionList}>

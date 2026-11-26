@@ -48,12 +48,12 @@ export const COACH_PERMISSION_LABELS: {
   {
     key: "canCreateEvents",
     label: "Créer des événements",
-    description: "Le coach peut créer et gérer le planning de ses équipes.",
+    description: "Créer et gérer le planning.",
   },
   {
     key: "canManageTeamRoster",
     label: "Gérer le roster",
-    description: "Ajouter des joueurs aux équipes qu’il entraîne.",
+    description: "Ajouter des joueurs.",
   },
   {
     key: "canInvitePlayers",
@@ -69,8 +69,7 @@ export const COACH_PERMISSION_LABELS: {
   {
     key: "canPublishTeamAnnouncements",
     label: "Publier des annonces",
-    description:
-      "Envoyer des annonces aux équipes qu’il entraîne (pas au club entier).",
+    description: "Envoyer des annonces (pas au club entier).",
   },
   {
     key: "canEditMemberLicenses",

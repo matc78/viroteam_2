@@ -34,7 +34,7 @@ final class AppCopyClub {
   String get invalidDate => 'Date invalide.';
   String get coachRightsSectionTitle => 'Capacités d’équipe';
   String get coachRightsHelper =>
-      'Contrôle des actions visibles pour les coachs du club. '
+      'Uniquement sur les équipes qu’il entraîne. '
       'Les changements s’appliquent à l’enregistrement.';
   String get settingsSaved => 'Paramètres du club enregistrés';
   String get settingsSaveFailed => 'Enregistrement impossible, réessaie.';
@@ -45,11 +45,9 @@ final class AppCopyClub {
   String get discardChangesAction => 'Quitter';
 
   String get permCreateEventsLabel => 'Créer des événements';
-  String get permCreateEventsDesc =>
-      'Le coach peut créer et gérer le planning de ses équipes.';
+  String get permCreateEventsDesc => 'Créer et gérer le planning.';
   String get permManageRosterLabel => 'Gérer le roster';
-  String get permManageRosterDesc =>
-      'Ajouter des joueurs aux équipes qu’il entraîne.';
+  String get permManageRosterDesc => 'Ajouter des joueurs.';
   String get permInvitePlayersLabel => 'Inviter des joueurs';
   String get permInvitePlayersDesc =>
       'Créer une fiche membre et envoyer une invitation.';
@@ -58,7 +56,7 @@ final class AppCopyClub {
       'Pointer après la séance pour les stats (optionnel — le RSVP reste prioritaire).';
   String get permPublishTeamAnnouncementsLabel => 'Publier des annonces';
   String get permPublishTeamAnnouncementsDesc =>
-      'Envoyer des annonces aux équipes qu’il entraîne (pas au club entier).';
+      'Envoyer des annonces (pas au club entier).';
   String get permEditLicensesLabel => 'Modifier les licences';
   String get permEditLicensesDesc =>
       'Éditer le numéro de licence des joueurs.';

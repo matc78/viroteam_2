@@ -142,7 +142,7 @@ export function CoachHomeView({
                     {data.teams.map((team) => (
                       <ListRow
                         key={team.id}
-                        href={`/members?team=${encodeURIComponent(team.id)}`}
+                        href={`/teams?team=${encodeURIComponent(team.id)}`}
                         title={team.name}
                         meta={team.category || undefined}
                         trailing={

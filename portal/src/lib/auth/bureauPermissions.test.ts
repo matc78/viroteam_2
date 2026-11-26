@@ -20,44 +20,50 @@ function capsFor(member: {
   );
 }
 
-describe("bureauCapabilities — page Membres", () => {
-  it("l'ouvre à qui voit tout le club", () => {
+describe("bureauCapabilities — pages Membres et Équipes", () => {
+  it("les ouvre à qui voit tout le club", () => {
     const caps = capsFor({ permissions: ["manageMembers"] });
     expect(caps.navHrefs).toContain("/members");
+    expect(caps.navHrefs).toContain("/teams");
     expect(caps.navHrefs).not.toContain("/team");
   });
 
-  it("l'ouvre au coach d'une équipe, sans droit club", () => {
+  it("les ouvre au coach d'une équipe, sans droit club", () => {
     const caps = capsFor({ coachTeamIds: ["t1"], teamIds: ["t1"] });
     expect(caps.navHrefs).toContain("/members");
+    expect(caps.navHrefs).toContain("/teams");
   });
 
-  it("la retire à un responsable cotisations sans équipe (vue Équipe à la place)", () => {
+  it("les retire à un responsable cotisations sans équipe (vue Équipe à la place)", () => {
     const caps = capsFor({ permissions: ["manageFees", "viewFees"] });
     expect(caps.isStaff).toBe(true);
     expect(caps.navHrefs).not.toContain("/members");
+    expect(caps.navHrefs).not.toContain("/teams");
     expect(caps.navHrefs).toContain("/team");
     expect(caps.navHrefs).toContain("/fees");
     expect(isBureauRouteAllowed("/members", caps)).toBe(false);
+    expect(isBureauRouteAllowed("/teams", caps)).toBe(false);
   });
 
-  it("la retire au seul droit planning, comme l'app (canOpenMembers)", () => {
+  it("les retire au seul droit planning, comme l'app (canOpenMembers)", () => {
     const caps = capsFor({ permissions: ["manageEvents"] });
     expect(caps.seesWholeClub).toBe(true);
     expect(caps.navHrefs).not.toContain("/members");
+    expect(caps.navHrefs).not.toContain("/teams");
     expect(caps.navHrefs).toContain("/team");
   });
 
-  it("l'ouvre au droit équipes seul", () => {
-    expect(capsFor({ permissions: ["manageTeams"] }).navHrefs).toContain(
-      "/members",
-    );
+  it("les ouvre au droit équipes seul", () => {
+    const caps = capsFor({ permissions: ["manageTeams"] });
+    expect(caps.navHrefs).toContain("/members");
+    expect(caps.navHrefs).toContain("/teams");
   });
 
   it("garde la vue Équipe pour un joueur", () => {
     const caps = capsFor({ teamIds: ["t1"] });
     expect(caps.navHrefs).toContain("/team");
     expect(caps.navHrefs).not.toContain("/members");
+    expect(caps.navHrefs).not.toContain("/teams");
   });
 });
 

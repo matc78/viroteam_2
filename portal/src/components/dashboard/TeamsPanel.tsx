@@ -16,7 +16,10 @@ import {
   groupTeamsByCategory,
   type TeamRosterRole,
 } from "@/lib/firebase/teamService";
-import { teamCategoryTone } from "@/lib/teams/teamCategoryTone";
+import {
+  clubTeamCategoryTones,
+  teamCategoryToneOf,
+} from "@/lib/teams/teamsOverview";
 import { PlanningSelect } from "./PlanningSelect";
 import styles from "./TeamsPanel.module.css";
 
@@ -115,6 +118,12 @@ export function TeamsPanel({
       { value: "__none__", label: "Sans catégorie" },
     ];
   }, [teams]);
+
+  // Mêmes couleurs de catégorie que la page Équipes (bureau).
+  const categoryTones = useMemo(
+    () => clubTeamCategoryTones(teams, sport),
+    [teams, sport],
+  );
 
   const membersById = useMemo(
     () => new Map(members.map((member) => [member.memberId, member])),
@@ -235,7 +244,7 @@ export function TeamsPanel({
             <section
               key={group.category}
               className={styles.group}
-              data-tone={teamCategoryTone(group.category)}
+              data-tone={teamCategoryToneOf(categoryTones, group.category)}
             >
               <h3 className={styles.groupTitle}>{group.category}</h3>
               <div className={styles.cards}>
@@ -244,6 +253,10 @@ export function TeamsPanel({
                     key={team.id}
                     clubId={clubId}
                     team={team}
+                    categoryTone={teamCategoryToneOf(
+                      categoryTones,
+                      group.category,
+                    )}
                     members={members}
                     busy={busy}
                     searchQuery={search}

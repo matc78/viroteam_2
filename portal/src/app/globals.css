@@ -107,6 +107,23 @@
   --tone-slate-soft: #e2e8f0;
   --tone-slate-text: #334155;
 
+  /* Tons supplémentaires — catégories d’équipe (une couleur par catégorie). */
+  --tone-indigo: #4f46e5;
+  --tone-indigo-soft: #e0e7ff;
+  --tone-indigo-text: #3730a3;
+
+  --tone-teal: #0d9488;
+  --tone-teal-soft: #ccfbf1;
+  --tone-teal-text: #115e59;
+
+  --tone-lime: #65a30d;
+  --tone-lime-soft: #ecfccb;
+  --tone-lime-text: #3f6212;
+
+  --tone-red: #dc2626;
+  --tone-red-soft: #fee2e2;
+  --tone-red-text: #991b1b;
+
   /* Spacing (8px grid) */
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;

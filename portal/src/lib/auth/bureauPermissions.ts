@@ -92,7 +92,7 @@ export function bureauCapabilities(access: ClubAccess): BureauCapabilities {
 
   const navHrefs = [
     "/home",
-    ...(showsMembersPage ? ["/members"] : ["/team"]),
+    ...(showsMembersPage ? ["/members", "/teams"] : ["/team"]),
     "/planning",
     "/fees",
     ...(canPublish ? ["/announcements"] : []),

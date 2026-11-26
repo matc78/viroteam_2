@@ -1,0 +1,320 @@
+/*
+ * Panneau latéral non modal (détail équipe) : ancré à droite sous l’en-tête,
+ * la liste reste visible et cliquable à gauche. Plein écran sur mobile.
+ */
+.panel {
+  --team-tone: var(--tone-blue);
+  position: fixed;
+  top: var(--header-height);
+  right: 0;
+  bottom: 0;
+  /* Sous les dialogs (60) pour que Modifier / Ajouter / Inviter passent devant. */
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 26rem);
+  border-left: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-popover);
+  animation: panelIn 180ms ease-out;
+}
+
+.panel[data-tone="green"] { --team-tone: var(--tone-green); }
+.panel[data-tone="amber"] { --team-tone: var(--tone-amber); }
+.panel[data-tone="orange"] { --team-tone: var(--tone-orange); }
+.panel[data-tone="cyan"] { --team-tone: var(--tone-cyan); }
+.panel[data-tone="violet"] { --team-tone: var(--tone-violet); }
+
+@keyframes panelIn {
+  from {
+    transform: translateX(1.5rem);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 1.25rem 1.25rem 0.5rem;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.toneDot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--team-tone);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0 0.75rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.error {
+  margin: 0.75rem 1.25rem 0;
+  font-size: var(--font-size-sm);
+  color: var(--status-danger-text);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sectionCount {
+  margin-left: 0.25rem;
+  color: var(--text-secondary);
+}
+
+.people {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.75rem;
+  padding: 0.2rem 0.25rem 0.2rem 0.4rem;
+  border-radius: var(--radius-control);
+}
+
+.person:hover,
+.person[data-confirming="true"] {
+  background: var(--surface-muted);
+}
+
+.personName {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personName[data-viewer="true"] {
+  font-weight: var(--font-weight-semibold);
+}
+
+.youTag {
+  margin-left: 0.4rem;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+}
+
+/* Retirer : discret, visible au survol / focus de la ligne (toujours sur tactile). */
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) {
+  .person .iconButton {
+    opacity: 0;
+  }
+
+  .person:hover .iconButton,
+  .person .iconButton:focus-visible {
+    opacity: 1;
+  }
+}
+
+.confirmInline {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.empty {
+  margin: 0;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.filterField {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.filterIcon {
+  position: absolute;
+  left: 0.65rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.filterInput {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.75rem 0.35rem 2.1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.filterInput::placeholder {
+  color: var(--text-muted);
+}
+
+.dangerZone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.dangerText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+.dangerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* Spécificité > `.ghost` du bouton (ordre de chargement des modules non garanti). */
+.dangerZone .dangerTrigger {
+  color: var(--status-danger-text);
+}
+
+.dangerZone .dangerTrigger:hover:not(:disabled) {
+  background: var(--status-danger-soft);
+}
+
+@media (max-width: 640px) {
+  .panel {
+    width: 100%;
+    border-left: none;
+  }
+}
+
+/* Tons élargis (attribution par position : `assignTeamCategoryTones`). */
+.panel[data-tone="pink"] { --team-tone: var(--tone-pink); }
+.panel[data-tone="indigo"] { --team-tone: var(--tone-indigo); }
+.panel[data-tone="teal"] { --team-tone: var(--tone-teal); }
+.panel[data-tone="lime"] { --team-tone: var(--tone-lime); }
+.panel[data-tone="red"] { --team-tone: var(--tone-red); }
+.panel[data-tone="slate"] { --team-tone: var(--tone-slate); }

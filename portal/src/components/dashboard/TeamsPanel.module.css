@@ -1,6 +1,7 @@
 /*
- * Équipes (TeamsPanel + TeamCard). Cartes neutres : le `data-tone` de
- * catégorie reste dans le markup mais n’a plus d’effet visuel.
+ * Équipes (TeamsPanel + TeamCard). Fond léger par catégorie via
+ * `data-tone` (clubTeamCategoryTones) — même catégorie = même couleur que
+ * la page Équipes, deux catégories du club ne partagent pas de couleur.
  */
 .layout {
   display: flex;
@@ -38,8 +39,10 @@
 }
 
 .layoutCentered .group {
-  flex: 0 1 20rem;
-  width: min(100%, 20rem);
+  flex: 1 1 20rem;
+  min-width: min(100%, 20rem);
+  max-width: none;
+  width: auto;
 }
 
 .layoutCentered .emptyBlock {
@@ -166,14 +169,18 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-md) var(--space-lg);
+  width: 100%;
 }
 
 .group {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  flex: 0 1 18rem;
-  width: min(100%, 18rem);
+  /* Colonnes qui s’étirent pour remplir la largeur (plus de vide à droite). */
+  flex: 1 1 20rem;
+  min-width: min(100%, 20rem);
+  max-width: none;
+  width: auto;
 }
 
 .groupTitle {
@@ -185,10 +192,47 @@
   color: var(--text-primary);
 }
 
+.group[data-tone="blue"] .groupTitle {
+  color: var(--tone-blue-text);
+}
+.group[data-tone="green"] .groupTitle {
+  color: var(--tone-green-text);
+}
+.group[data-tone="amber"] .groupTitle {
+  color: var(--tone-amber-text);
+}
+.group[data-tone="orange"] .groupTitle {
+  color: var(--tone-orange-text);
+}
+.group[data-tone="cyan"] .groupTitle {
+  color: var(--tone-cyan-text);
+}
+.group[data-tone="violet"] .groupTitle {
+  color: var(--tone-violet-text);
+}
+.group[data-tone="pink"] .groupTitle {
+  color: var(--tone-pink-text);
+}
+.group[data-tone="indigo"] .groupTitle {
+  color: var(--tone-indigo-text);
+}
+.group[data-tone="teal"] .groupTitle {
+  color: var(--tone-teal-text);
+}
+.group[data-tone="lime"] .groupTitle {
+  color: var(--tone-lime-text);
+}
+.group[data-tone="red"] .groupTitle {
+  color: var(--tone-red-text);
+}
+.group[data-tone="slate"] .groupTitle {
+  color: var(--tone-slate-text);
+}
+
 .cards {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-md);
   width: 100%;
 }
 
@@ -252,19 +296,86 @@
 }
 
 .card {
-  border: 1px solid var(--border-subtle);
+  --team-tone-soft: var(--surface-muted);
+  --team-tone-surface: var(--surface-card);
+  --team-tone-text: var(--text-secondary);
+  --team-name-ch: 14ch;
+  border: 1px solid color-mix(in srgb, var(--team-tone-soft) 70%, var(--border-strong));
   border-radius: var(--radius-card);
-  background: var(--surface-card);
-  box-shadow: var(--shadow-card-subtle);
+  background: var(--team-tone-surface);
+  box-shadow: var(--shadow-card);
   overflow: visible;
-  min-width: 0;
+  /* Titre + pastille effectif + menu ≈ nom + 8rem. */
+  min-width: min(100%, max(20rem, calc(var(--team-name-ch) + 8rem)));
+  width: 100%;
+}
+
+.card[data-tone="blue"] {
+  --team-tone-soft: var(--tone-blue-soft);
+  --team-tone-surface: var(--tone-blue-surface);
+  --team-tone-text: var(--tone-blue-text);
+}
+.card[data-tone="green"] {
+  --team-tone-soft: var(--tone-green-soft);
+  --team-tone-surface: var(--tone-green-surface);
+  --team-tone-text: var(--tone-green-text);
+}
+.card[data-tone="amber"] {
+  --team-tone-soft: var(--tone-amber-soft);
+  --team-tone-surface: var(--tone-amber-surface);
+  --team-tone-text: var(--tone-amber-text);
+}
+.card[data-tone="orange"] {
+  --team-tone-soft: var(--tone-orange-soft);
+  --team-tone-surface: var(--tone-orange-surface);
+  --team-tone-text: var(--tone-orange-text);
+}
+.card[data-tone="cyan"] {
+  --team-tone-soft: var(--tone-cyan-soft);
+  --team-tone-surface: color-mix(in srgb, var(--tone-cyan-soft) 60%, white);
+  --team-tone-text: var(--tone-cyan-text);
+}
+.card[data-tone="violet"] {
+  --team-tone-soft: var(--tone-violet-soft);
+  --team-tone-surface: color-mix(in srgb, var(--tone-violet-soft) 60%, white);
+  --team-tone-text: var(--tone-violet-text);
+}
+.card[data-tone="pink"] {
+  --team-tone-soft: var(--tone-pink-soft);
+  --team-tone-surface: color-mix(in srgb, var(--tone-pink-soft) 60%, white);
+  --team-tone-text: var(--tone-pink-text);
+}
+.card[data-tone="indigo"] {
+  --team-tone-soft: var(--tone-indigo-soft);
+  --team-tone-surface: color-mix(in srgb, var(--tone-indigo-soft) 60%, white);
+  --team-tone-text: var(--tone-indigo-text);
+}
+.card[data-tone="teal"] {
+  --team-tone-soft: var(--tone-teal-soft);
+  --team-tone-surface: color-mix(in srgb, var(--tone-teal-soft) 60%, white);
+  --team-tone-text: var(--tone-teal-text);
+}
+.card[data-tone="lime"] {
+  --team-tone-soft: var(--tone-lime-soft);
+  --team-tone-surface: color-mix(in srgb, var(--tone-lime-soft) 60%, white);
+  --team-tone-text: var(--tone-lime-text);
+}
+.card[data-tone="red"] {
+  --team-tone-soft: var(--tone-red-soft);
+  --team-tone-surface: color-mix(in srgb, var(--tone-red-soft) 60%, white);
+  --team-tone-text: var(--tone-red-text);
+}
+.card[data-tone="slate"] {
+  --team-tone-soft: var(--tone-slate-soft);
+  --team-tone-surface: color-mix(in srgb, var(--tone-slate-soft) 60%, white);
+  --team-tone-text: var(--tone-slate-text);
 }
 
 .card[data-highlighted="true"] {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong));
   box-shadow:
     0 0 0 3px var(--accent-soft),
-    var(--shadow-card-subtle);
+    var(--shadow-card);
 }
 
 .cardTop {
@@ -277,7 +388,7 @@
 }
 
 .cardTop:hover {
-  background: var(--surface-muted);
+  background: color-mix(in srgb, var(--team-tone-soft) 45%, transparent);
 }
 
 .cardHeader {
@@ -320,9 +431,11 @@
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
+  line-height: 1.3;
+  /* nowrap : élargit la colonne au nom ; ellipsis seulement au max-width. */
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .cardMeta {
@@ -332,14 +445,14 @@
   line-height: 1.35;
 }
 
-/* Effectif : pastille neutre (pas un statut). */
+/* Effectif : pastille teintée comme la catégorie. */
 .playerCount {
   flex-shrink: 0;
   margin-top: 0.1rem;
   padding: 0.1rem 0.55rem;
   border-radius: 999px;
-  background: var(--status-neutral-soft);
-  color: var(--status-neutral-text);
+  background: color-mix(in srgb, var(--team-tone-soft) 70%, white);
+  color: var(--team-tone-text);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   line-height: 1.4;
@@ -474,9 +587,9 @@
 
 .sectionTitle {
   margin: 0;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
 }
 
 .chipList {
@@ -485,28 +598,28 @@
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
-/* Personne de l’équipe : pastille neutre façon StatusBadge. */
+/* Personne de l’équipe : pastille lisible sur fond teinté. */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.25rem;
   max-width: 100%;
-  min-height: 1.5rem;
-  padding: 0.1rem 0.2rem 0.1rem 0.55rem;
+  min-height: 1.85rem;
+  padding: 0.2rem 0.25rem 0.2rem 0.7rem;
+  border: 1px solid var(--border-subtle);
   border-radius: 999px;
-  background: var(--status-neutral-soft);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card-subtle);
 }
 
 .chipLabel {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
 }
 
 .chipLabelSession {
@@ -529,15 +642,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.4rem;
+  height: 1.4rem;
   padding: 0;
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
@@ -555,8 +668,8 @@
 
 .rosterEmpty {
   margin: 0;
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
 .error {

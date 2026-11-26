@@ -9,6 +9,17 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+### Ajouté
+
+- Espace club : entrée menu **Équipes** séparée de **Membres** pour admins et coachs (page `/teams`) ; la vue joueur `/team` est inchangée
+- Équipes : fond léger des cartes et titre de colonne teintés selon la catégorie — même couleur sur `/teams`, `/team` et `/family/team`, une couleur distincte par catégorie du club
+
+### Modifié
+
+- Paramètres club : intro des droits coach précisée (« uniquement sur les équipes qu’il entraîne ») ; descriptions des toggles raccourcies
+- Membres : onglet Équipes retiré (désormais page dédiée) ; les deep links `?team=` pointent vers `/teams`
+- Équipes (bureau) : liste dense groupée par catégorie (repliable) au lieu des grandes cartes ; alerte « équipes à compléter » (sans coach / sans joueur) avec filtre dédié ; recherche sans accents qui indique le joueur trouvé ; détail d’une équipe dans un panneau latéral (effectif, ajout / retrait) ; « Inviter l’équipe » passe en action secondaire du panneau ; « Nouvelle équipe » en bouton principal de l’en-tête ; confirmations intégrées au lieu de `window.confirm` ; `?team=` ouvre directement le panneau ; le filtre des joueurs du panneau ignore les accents ; une ligne qui ouvre le panneau est annoncée « développée / réduite » (et non plus comme une bascule)
+
 ## [1.14.2] - 2026-11-25
 
 ### Corrigé

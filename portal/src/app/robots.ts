@@ -10,6 +10,7 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/home",
         "/members",
+        "/teams",
         "/planning",
         "/my-planning",
         "/fees",

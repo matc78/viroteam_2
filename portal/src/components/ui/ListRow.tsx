@@ -15,12 +15,19 @@ type ListRowProps = {
   footer?: ReactNode;
   /** Ligne cliquable vers une page. */
   href?: string;
+  /** Ligne cliquable sans navigation (ouvre un panneau). Ignoré si `href`. */
+  onClick?: () => void;
+  /**
+   * Ligne sélectionnée (panneau ouvert sur cet élément) : annoncée par
+   * `aria-expanded` sur le bouton. Contenu en `span` (valide dans un bouton).
+   */
+  selected?: boolean;
   className?: string;
 };
 
 /**
  * Ligne de liste dense, à empiler dans `ListRows` (séparateurs automatiques).
- * Rendue en lien si `href` est fourni.
+ * Rendue en lien si `href` est fourni, en bouton si `onClick` est fourni.
  */
 export function ListRow({
   title,
@@ -29,32 +36,44 @@ export function ListRow({
   trailing,
   footer,
   href,
+  onClick,
+  selected = false,
   className,
 }: ListRowProps) {
   const body = (
     <>
-      <div className={styles.main}>
-        {leading ? <div className={styles.leading}>{leading}</div> : null}
-        <div className={styles.text}>
+      <span className={styles.main}>
+        {leading ? <span className={styles.leading}>{leading}</span> : null}
+        <span className={styles.text}>
           <span className={styles.title}>{title}</span>
           {meta ? <span className={styles.meta}>{meta}</span> : null}
-        </div>
-        {trailing ? <div className={styles.trailing}>{trailing}</div> : null}
-      </div>
-      {footer ? <div className={styles.footer}>{footer}</div> : null}
+        </span>
+        {trailing ? <span className={styles.trailing}>{trailing}</span> : null}
+      </span>
+      {footer ? <span className={styles.footer}>{footer}</span> : null}
     </>
   );
 
-  const rowClass = [styles.row, href ? styles.rowLink : "", className]
+  const interactive = Boolean(href || onClick);
+  const rowClass = [styles.row, interactive ? styles.rowLink : "", className]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <li className={rowClass}>
+    <li className={rowClass} data-selected={selected ? "true" : undefined}>
       {href ? (
         <Link href={href} className={styles.linkFill}>
           {body}
         </Link>
+      ) : onClick ? (
+        <button
+          type="button"
+          className={`${styles.linkFill} ${styles.buttonFill}`}
+          aria-expanded={selected}
+          onClick={onClick}
+        >
+          {body}
+        </button>
       ) : (
         body
       )}

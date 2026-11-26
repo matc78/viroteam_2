@@ -1,35 +1,55 @@
-/** Tons dashboard utilisés pour colorer les catégories d’équipe. */
-export type TeamCategoryTone =
+/** Palette des catégories d’équipe (tokens `--tone-*`). */
+export type TeamCategoryPaletteTone =
   | "blue"
   | "green"
   | "amber"
   | "orange"
   | "cyan"
-  | "violet";
-
-const CATEGORY_TONES: readonly TeamCategoryTone[] = [
-  "blue",
-  "green",
-  "amber",
-  "orange",
-  "cyan",
-  "violet",
-] as const;
-
-function hashCategoryKey(key: string): number {
-  let hash = 0;
-  for (let index = 0; index < key.length; index += 1) {
-    hash = (hash * 31 + key.charCodeAt(index)) >>> 0;
-  }
-  return hash;
-}
+  | "violet"
+  | "pink"
+  | "indigo"
+  | "teal"
+  | "lime"
+  | "red"
+  | "slate";
 
 /**
- * Associe une catégorie à un ton stable (même label = même couleur).
- * « Sans catégorie » / vide → blue.
+ * Ordre d’attribution : deux catégories voisines (M11 / M13) reçoivent des
+ * teintes éloignées. `slate` (gris) est réservé à « Sans catégorie ».
  */
-export function teamCategoryTone(category: string): TeamCategoryTone {
-  const key = category.trim().toLowerCase();
-  if (!key || key === "sans catégorie") return "blue";
-  return CATEGORY_TONES[hashCategoryKey(key) % CATEGORY_TONES.length];
+const PALETTE_ORDER: readonly TeamCategoryPaletteTone[] = [
+  "blue",
+  "orange",
+  "green",
+  "violet",
+  "amber",
+  "cyan",
+  "pink",
+  "lime",
+  "indigo",
+  "red",
+  "teal",
+] as const;
+
+/**
+ * Attribue une couleur distincte à chaque catégorie d’un club, dans l’ordre
+ * donné (déjà trié) : pas de doublon tant qu’il y a au plus 11 catégories.
+ * « Sans catégorie » / vide → `slate`.
+ */
+export function assignTeamCategoryTones(
+  orderedCategories: readonly string[],
+): Map<string, TeamCategoryPaletteTone> {
+  const tones = new Map<string, TeamCategoryPaletteTone>();
+  let index = 0;
+  for (const raw of orderedCategories) {
+    const category = raw.trim();
+    if (tones.has(category)) continue;
+    if (!category || category.toLowerCase() === "sans catégorie") {
+      tones.set(category, "slate");
+      continue;
+    }
+    tones.set(category, PALETTE_ORDER[index % PALETTE_ORDER.length]);
+    index += 1;
+  }
+  return tones;
 }

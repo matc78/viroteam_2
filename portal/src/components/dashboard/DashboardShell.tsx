@@ -25,6 +25,7 @@ import {
 const NAV_ITEMS: readonly PortalNavItem[] = [
   { href: "/home", label: "Accueil", icon: "home", tone: "blue" },
   { href: "/members", label: "Membres", icon: "users", tone: "violet" },
+  { href: "/teams", label: "Équipes", icon: "team", tone: "green" },
   { href: "/team", label: "Équipe", icon: "team", tone: "green" },
   { href: "/planning", label: "Planning", icon: "calendar", tone: "cyan" },
   { href: "/fees", label: "Cotisations", icon: "wallet", tone: "orange" },
@@ -35,6 +36,7 @@ const NAV_ITEMS: readonly PortalNavItem[] = [
 
 const WIDE_PATH_PREFIXES = [
   "/members",
+  "/teams",
   "/planning",
   "/my-planning",
   "/messages",

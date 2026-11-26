@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { ActivationRosterPanel } from "@/components/dashboard/ActivationRosterPanel";
 import { AddMemberDialog } from "@/components/dashboard/AddMemberDialog";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
@@ -11,16 +10,12 @@ import { InviteParentDialog } from "@/components/dashboard/InviteParentDialog";
 import { MemberDetailPanel } from "@/components/dashboard/MemberDetailPanel";
 import { MembersTable } from "@/components/dashboard/MembersTable";
 import { ParentsTable } from "@/components/dashboard/ParentsTable";
-import { TeamsPanel } from "@/components/dashboard/TeamsPanel";
 import { isCurrentUserMember } from "@/components/dashboard/YouChip";
-import type { TeamFormValues } from "@/components/dashboard/CreateTeamDialog";
 import introStyles from "@/components/dashboard/DashboardPageIntro.module.css";
 import transitionStyles from "@/components/dashboard/DashboardPageTransition.module.css";
 import tabStyles from "@/components/dashboard/MembersTabs.module.css";
 import { useToast } from "@/components/ToastProvider";
 import {
-  canAddPlayerToTeam,
-  canShareTeamInvite,
   canSeeMemberContact,
   membersVisibleToViewer,
   teamsVisibleToViewer,
@@ -72,10 +67,8 @@ import {
 import {
   addMemberToTeam,
   createTeam,
-  deleteTeam,
   removeMemberFromTeam,
   updateTeam,
-  type TeamRosterRole,
 } from "@/lib/firebase/teamService";
 import {
   downloadTextFile,
@@ -113,10 +106,10 @@ const DEFAULT_PARENT_FILTERS: ParentsFilters = {
   status: "all",
 };
 
-type MembersTab = "activation" | "roster" | "parents" | "teams";
+type MembersTab = "activation" | "roster" | "parents";
 
 /** Contenu page Membres branché sur Firestore. */
-function MembersPageContent() {
+export function MembersPageClient() {
   const { activeClub, user } = useAuth();
   const isMobileLayout = useMobileLayout();
   const caps = useBureauCapabilities();
@@ -125,10 +118,6 @@ function MembersPageContent() {
   // Administrateur que si l'importateur est lui-même administrateur.
   const canImportMembers =
     caps.canManageMembers && caps.canManageTeams && !isMobileLayout;
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const teamQuery = searchParams.get("team");
   const { showToast } = useToast();
   const { data, loading, refreshing, error, reload, loadedClubId } =
     useAsyncClubPageResource(
@@ -147,9 +136,6 @@ function MembersPageContent() {
     enabled: membersActive,
   });
 
-  const [highlightedTeamId, setHighlightedTeamId] = useState<string | null>(
-    null,
-  );
   const [membersTab, setMembersTab] = useState<MembersTab>("roster");
   const [filters, setFilters] = useState<MembersFilters>(DEFAULT_FILTERS);
   const [parentFilters, setParentFilters] = useState<ParentsFilters>(
@@ -185,7 +171,6 @@ function MembersPageContent() {
     setCreatedMember(null);
     setImportReport(null);
     setMembersTab("roster");
-    setHighlightedTeamId(null);
   }, [activeClub?.id]);
 
   const scopedTeams = useMemo(() => {
@@ -196,19 +181,6 @@ function MembersPageContent() {
       teams: data.teams,
     });
   }, [data, caps, user?.uid]);
-
-  useEffect(() => {
-    if (!teamQuery || !data) return;
-    const exists = scopedTeams.some((team) => team.id === teamQuery);
-    if (!exists) {
-      router.replace(pathname, { scroll: false });
-      return;
-    }
-    setFilters((current) => ({ ...current, teamId: teamQuery }));
-    setHighlightedTeamId(teamQuery);
-    setMembersTab("teams");
-    router.replace(pathname, { scroll: false });
-  }, [teamQuery, data, scopedTeams, pathname, router]);
 
   useEffect(() => {
     if (!caps.canManageMembers && membersTab === "parents") {
@@ -408,115 +380,6 @@ function MembersPageContent() {
         reload();
       },
       { errorFallback: "Ajout impossible." },
-    );
-  }
-
-  async function handleCreateTeam(values: TeamFormValues) {
-    if (!activeClub) return;
-    const ok = await runMemberAction(
-      async () => {
-        await createTeam({
-          clubId: activeClub.id,
-          name: values.name,
-          category: values.category,
-        });
-        reload();
-      },
-      {
-        successMessage: "Équipe créée.",
-        errorFallback: "Création de l’équipe impossible.",
-      },
-    );
-    if (!ok) throw new Error("Création de l’équipe impossible.");
-  }
-
-  async function handleUpdateTeam(teamId: string, values: TeamFormValues) {
-    if (!activeClub) return;
-    const ok = await runMemberAction(
-      async () => {
-        await updateTeam({
-          clubId: activeClub.id,
-          teamId,
-          name: values.name,
-          category: values.category,
-        });
-        reload();
-      },
-      {
-        successMessage: "Équipe mise à jour.",
-        errorFallback: "Mise à jour de l’équipe impossible.",
-      },
-    );
-    if (!ok) throw new Error("Mise à jour de l’équipe impossible.");
-  }
-
-  async function handleDeleteTeam(teamId: string) {
-    if (!activeClub) return;
-    await runMemberAction(
-      async () => {
-        await deleteTeam({ clubId: activeClub.id, teamId });
-        reload();
-      },
-      {
-        successMessage: "Équipe supprimée.",
-        errorFallback: "Suppression de l’équipe impossible.",
-      },
-    );
-  }
-
-  async function handleAddTeamMember(params: {
-    teamId: string;
-    memberId: string;
-    role: TeamRosterRole;
-  }) {
-    if (!activeClub) return;
-    // Nommer un coach : droit équipes ; ajouter un joueur : droit équipes ou
-    // coach autorisé de l’équipe.
-    if (params.role === "coach" && !caps.canManageTeams) return;
-    if (
-      params.role === "player" &&
-      !canAddPlayerToTeam(caps.access, params.teamId)
-    ) {
-      return;
-    }
-    const ok = await runMemberAction(
-      async () => {
-        await addMemberToTeam({
-          clubId: activeClub.id,
-          teamId: params.teamId,
-          memberId: params.memberId,
-          role: params.role,
-        });
-        reload();
-      },
-      {
-        successMessage: "Changement appliqué.",
-        errorFallback: "Ajout au roster impossible.",
-      },
-    );
-    if (!ok) throw new Error("Ajout au roster impossible.");
-  }
-
-  async function handleRemoveTeamMember(params: {
-    teamId: string;
-    memberId: string;
-    role: TeamRosterRole;
-  }) {
-    if (!activeClub) return;
-    await runMemberAction(
-      async () => {
-        await removeMemberFromTeam({
-          clubId: activeClub.id,
-          teamId: params.teamId,
-          memberId: params.memberId,
-          role: params.role,
-        });
-        reload();
-      },
-      {
-        successMessage: "Changement appliqué.",
-        errorFallback: "Retrait du roster impossible.",
-      },
     );
   }
 
@@ -1368,9 +1231,7 @@ function MembersPageContent() {
               ? `Suivez l’activation des comptes de ${activeClub?.name ?? "votre club"} : liés, à inviter, sans e-mail.`
               : membersTab === "roster"
                 ? `Gérez les membres de ${activeClub?.name ?? "votre club"}, leurs licences et les invitations.`
-                : membersTab === "parents"
-                  ? `Suivez les invitations et parents connectés de ${activeClub?.name ?? "votre club"}.`
-                  : `Créez les équipes de ${activeClub?.name ?? "votre club"}, leurs catégories, joueurs et coachs.`
+                : `Suivez les invitations et parents connectés de ${activeClub?.name ?? "votre club"}.`
           }
           onRefresh={reload}
           refreshing={refreshing}
@@ -1394,18 +1255,6 @@ function MembersPageContent() {
             onClick={() => setMembersTab("roster")}
           >
             Membres
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={membersTab === "teams"}
-            className={`${tabStyles.tab} ${membersTab === "teams" ? tabStyles.tabActive : ""}`}
-            onClick={() => {
-              setActionError(null);
-              setMembersTab("teams");
-            }}
-          >
-            Équipes
           </button>
           {caps.canManageMembers ? (
             <button
@@ -1539,41 +1388,6 @@ function MembersPageContent() {
           />
         ) : null}
 
-        {data && membersTab === "teams" && activeClub ? (
-          <TeamsPanel
-            clubId={activeClub.id}
-            clubName={activeClub.name}
-            teams={scopedTeams}
-            members={membersVisibleToViewer({
-              caps,
-              uid: user?.uid ?? null,
-              teams: data.teams,
-              members: data.members,
-            })}
-            sport={activeClub.sport}
-            busy={busy}
-            error={actionError}
-            highlightedTeamId={highlightedTeamId}
-            viewerMemberId={user?.uid ?? null}
-            canCreateTeam={caps.canManageTeams}
-            canEditTeam={caps.canManageTeams}
-            canDeleteTeam={caps.canManageTeams}
-            canManageCoaches={caps.canManageTeams}
-            canRemovePlayers={caps.canManageTeams}
-            canAddPlayerToTeam={(team) =>
-              canAddPlayerToTeam(caps.access, team.id)
-            }
-            canShareTeamInvite={(team) =>
-              canShareTeamInvite(caps.access, team.id)
-            }
-            onClearError={() => setActionError(null)}
-            onCreateTeam={handleCreateTeam}
-            onUpdateTeam={handleUpdateTeam}
-            onDeleteTeam={handleDeleteTeam}
-            onAddMember={handleAddTeamMember}
-            onRemoveMember={handleRemoveTeamMember}
-          />
-        ) : null}
       </div>
 
       {selectedMember &&
@@ -1677,14 +1491,5 @@ function MembersPageContent() {
         />
       ) : null}
     </>
-  );
-}
-
-/** Client Membres (Suspense pour searchParams). */
-export function MembersPageClient() {
-  return (
-    <Suspense fallback={<DashboardSkeleton variant="members" />}>
-      <MembersPageContent />
-    </Suspense>
   );
 }

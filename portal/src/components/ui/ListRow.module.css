@@ -21,6 +21,7 @@
 }
 
 .footer {
+  display: block;
   padding: 0 1.375rem 0.9rem;
 }
 
@@ -87,6 +88,21 @@
 
 .rowLink:hover {
   background: var(--surface-muted);
+}
+
+/* Variante bouton (`onClick`) : même rendu qu’un lien de ligne. */
+.buttonFill {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row[data-selected="true"] {
+  background: var(--accent-soft);
 }
 
 .linkFill:focus-visible {

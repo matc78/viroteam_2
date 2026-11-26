@@ -20,7 +20,11 @@ export type IconName =
   | "close"
   | "plus"
   | "check"
-  | "activity";
+  | "activity"
+  | "search"
+  | "share"
+  | "pencil"
+  | "trash";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -99,6 +103,33 @@ const PATHS: Record<IconName, ReactNode> = {
   plus: <path d="M12 5v14M5 12h14" />,
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   activity: <path d="M3.5 12h4l2.5-6 4 12 2.5-6h4" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6" />
+      <path d="m15.5 15.5 4 4" />
+    </>
+  ),
+  share: (
+    <>
+      <circle cx="17.5" cy="6" r="2.5" />
+      <circle cx="6.5" cy="12" r="2.5" />
+      <circle cx="17.5" cy="18" r="2.5" />
+      <path d="m8.7 10.8 6.6-3.6M8.7 13.2l6.6 3.6" />
+    </>
+  ),
+  pencil: (
+    <>
+      <path d="M5 19l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L9 17.5Z" />
+      <path d="M13.5 7l3 3" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4.5 7h15M9.5 7V4.5h5V7" />
+      <path d="M6.5 7l1 12.5h9l1-12.5" />
+      <path d="M10 11v5M14 11v5" />
+    </>
+  ),
 };
 
 /** Icône trait (24px, `currentColor`), décorative par défaut. */

@@ -14,6 +14,7 @@ import styles from "./DashboardModulePanels.module.css";
 // les autres sont préchargés quand le navigateur est libre.
 const loadHome = () => import("@/app/(dashboard)/home/HomePageClient");
 const loadMembers = () => import("@/app/(dashboard)/members/MembersPageClient");
+const loadTeams = () => import("@/app/(dashboard)/teams/TeamsPageClient");
 const loadTeam = () => import("@/app/(dashboard)/team/TeamPageClient");
 const loadPlanning = () => import("@/app/(dashboard)/planning/PlanningPageClient");
 const loadPersonalPlanning = () =>
@@ -32,6 +33,10 @@ const HomePageClient = dynamic(() => loadHome().then((m) => m.HomePageClient), {
 });
 const MembersPageClient = dynamic(
   () => loadMembers().then((m) => m.MembersPageClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
+);
+const TeamsPageClient = dynamic(
+  () => loadTeams().then((m) => m.TeamsPageClient),
   { loading: () => <DashboardSkeleton variant="members" /> },
 );
 const TeamPageClient = dynamic(() => loadTeam().then((m) => m.TeamPageClient), {
@@ -77,6 +82,7 @@ const MODULE_LOADERS: Array<() => Promise<unknown>> = [
   loadHome,
   loadPlanning,
   loadMembers,
+  loadTeams,
   loadFees,
   loadTeam,
   loadAnnouncements,
@@ -90,6 +96,7 @@ const MODULE_LOADERS: Array<() => Promise<unknown>> = [
 type ModuleId =
   | "home"
   | "members"
+  | "teams"
   | "team"
   | "planning"
   | "my-planning"
@@ -118,6 +125,12 @@ const MODULES: ModuleDef[] = [
     match: (pathname) =>
       pathname === "/members" || pathname.startsWith("/members/"),
     render: () => <MembersPageClient />,
+  },
+  {
+    id: "teams",
+    match: (pathname) =>
+      pathname === "/teams" || pathname.startsWith("/teams/"),
+    render: () => <TeamsPageClient />,
   },
   {
     id: "team",

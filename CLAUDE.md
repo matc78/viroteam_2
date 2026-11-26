@@ -129,7 +129,7 @@ Chercher d'abord dans `lib/widgets/common/`, `lib/widgets/lists/`, `lib/config/v
 
 - Coquille `PortalShell` (`portal/src/components/shell/`, sidebar + tiroir mobile) pour le bureau et la famille.
 - Primitives `portal/src/components/ui/` (`Card`, `PageHeader`, `StatTile`, `StatusBadge`, `EmptyState`, `ListRow`, `ToggleRow`, `SegmentedChoice`, `Button`…) avant tout nouveau composant.
-- Tokens sémantiques de `globals.css` uniquement (`--surface-*`, `--text-*`, `--border-*`, `--accent*`, `--status-*`), pas de hex ; couleur réservée aux statuts et à l’action principale (exception : la sidebar, un ton `--tone-*` par lien et une couleur par badge).
+- Tokens sémantiques de `globals.css` uniquement (`--surface-*`, `--text-*`, `--border-*`, `--accent*`, `--status-*`), pas de hex ; couleur réservée aux statuts et à l’action principale (exceptions : la sidebar, un ton `--tone-*` par lien et une couleur par badge ; les catégories d’équipe, une couleur distincte par catégorie via `assignTeamCategoryTones`).
 - Page : `PageHeader` → ce qui demande une action → chiffres clés → contenu. Décor (`DecorShapes`) : landing / auth / club-setup seulement.
 
 ### Accessibilité (pragmatique)

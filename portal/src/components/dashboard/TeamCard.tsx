@@ -10,7 +10,7 @@ import {
   isTeamCardExpanded,
   setTeamCardExpanded,
 } from "@/lib/teams/teamCardExpandedStorage";
-import { teamCategoryTone } from "@/lib/teams/teamCategoryTone";
+import type { TeamCategoryPaletteTone } from "@/lib/teams/teamCategoryTone";
 import styles from "./TeamsPanel.module.css";
 
 type RosterPerson = {
@@ -21,6 +21,8 @@ type RosterPerson = {
 type TeamCardProps = {
   clubId: string;
   team: TeamOption;
+  /** Ton de la catégorie, attribué par `clubTeamCategoryTones`. */
+  categoryTone: TeamCategoryPaletteTone;
   members: ClubMemberRecord[];
   busy: boolean;
   /** Texte de recherche à surligner dans les noms (joueurs / coachs). */
@@ -143,6 +145,7 @@ function resolveRosterPeople(
 export function TeamCard({
   clubId,
   team,
+  categoryTone,
   members,
   busy,
   searchQuery = "",
@@ -188,7 +191,6 @@ export function TeamCard({
 
   const categoryLabel = team.category.trim() || "Sans catégorie";
   const playerCountLabel = `${players.length} joueur${players.length === 1 ? "" : "s"}`;
-  const categoryTone = teamCategoryTone(categoryLabel);
   const searchActive = searchQuery.trim().length > 0;
   const showPlayers = searchActive || expanded;
 
@@ -218,11 +220,15 @@ export function TeamCard({
 
   const showMenu = canEdit || canDelete;
 
+  // Largeur mini liée à la longueur du nom (évite la troncature trop tôt).
+  const nameWidthCh = Math.min(Math.max(team.name.trim().length, 14), 36);
+
   return (
     <article
       className={styles.card}
       data-tone={categoryTone}
       data-highlighted={highlighted ? "true" : undefined}
+      style={{ ["--team-name-ch" as string]: `${nameWidthCh}ch` }}
     >
       <div className={styles.cardTop}>
         <button

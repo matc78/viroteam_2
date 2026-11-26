@@ -12,6 +12,7 @@ const BUREAU_ROUTE_ROOTS = [
   "/home",
   "/my-planning",
   "/members",
+  "/teams",
   "/planning",
   "/fees",
   "/announcements",

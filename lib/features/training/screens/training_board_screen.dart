@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/navigation_fallback.dart';
 import 'package:viro_team_v2/config/routes.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -17,9 +18,9 @@ import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/whiteboard/viro_whiteboard.dart';
 
-/// Tableau blanc d'un exercice (terrain de volley) : crayon, flèche, jetons
-/// joueur / adversaire / ballon à déplacer, annuler, tout effacer. « Valider »
-/// enregistre le schéma sur l'exercice.
+/// Tableau blanc d'un schéma d'exercice : crayon, flèche, jetons joueur /
+/// adversaire / ballon à déplacer, annuler, tout effacer. « Valider »
+/// enregistre le schéma à l'index [boardIndex] de l'exercice.
 class TrainingBoardScreen extends ConsumerStatefulWidget {
   const TrainingBoardScreen({
     super.key,
@@ -27,12 +28,16 @@ class TrainingBoardScreen extends ConsumerStatefulWidget {
     required this.eventId,
     required this.coachUid,
     required this.drillId,
+    required this.boardIndex,
   });
 
   final String clubId;
   final String eventId;
   final String coachUid;
   final String drillId;
+
+  /// Index dans `TrainingDrill.boards`.
+  final int boardIndex;
 
   @override
   ConsumerState<TrainingBoardScreen> createState() =>
@@ -117,17 +122,41 @@ class _TrainingBoardScreenState extends ConsumerState<TrainingBoardScreen> {
   }
 
   Future<void> _save() async {
-    final drill = _drill;
-    if (drill == null) return;
+    if (_drill == null) return;
+    final index = widget.boardIndex;
     setState(() => _saving = true);
     try {
+      // Snapshot le plus récent : évite d'écraser titre / autres schémas
+      // modifiés pendant que ce tableau était ouvert.
+      final latest =
+          ref
+              .read(
+                trainingDrillsProvider((
+                  clubId: widget.clubId,
+                  eventId: widget.eventId,
+                  coachUid: widget.coachUid,
+                )),
+              )
+              .value
+              ?.where((d) => d.id == widget.drillId)
+              .firstOrNull ??
+          _drill!;
+      if (index < 0 || index >= latest.boards.length) {
+        if (mounted) {
+          setState(() => _saving = false);
+          ViroSnackBar.show(context, AppCopy.training.saveFailed);
+        }
+        return;
+      }
+      final boards = [...latest.boards];
+      boards[index] = _board;
       await ref
           .read(trainingPlanServiceProvider)
           .saveDrill(
             clubId: widget.clubId,
             eventId: widget.eventId,
             coachUid: widget.coachUid,
-            drill: drill.copyWith(board: _board),
+            drill: latest.copyWith(boards: boards),
           );
       if (mounted) popOrGo(context, _fallback);
     } catch (_) {
@@ -152,7 +181,10 @@ class _TrainingBoardScreenState extends ConsumerState<TrainingBoardScreen> {
         .firstOrNull;
     if (drill != null && _drill == null) {
       _drill = drill;
-      _board = drill.board;
+      final index = widget.boardIndex;
+      if (index >= 0 && index < drill.boards.length) {
+        _board = drill.boards[index];
+      }
     }
 
     return ViroScaffold(
@@ -173,7 +205,11 @@ class _TrainingBoardScreenState extends ConsumerState<TrainingBoardScreen> {
         loading: () => const Center(child: ViroLogoLoader()),
         error: (_, _) => ViroErrorState(message: AppCopy.training.loadError),
         data: (_) {
-          if (_drill == null || uid != widget.coachUid) {
+          final drill = _drill;
+          final indexOk = drill != null &&
+              widget.boardIndex >= 0 &&
+              widget.boardIndex < drill.boards.length;
+          if (drill == null || uid != widget.coachUid || !indexOk) {
             return ViroErrorState(message: AppCopy.training.loadError);
           }
           return SafeArea(
@@ -229,7 +265,7 @@ class _TrainingBoardScreenState extends ConsumerState<TrainingBoardScreen> {
   }
 }
 
-/// Choix du fond : terrain entier ou demi-terrain.
+/// Choix du fond : terrain entier, demi-terrain ou tableau blanc.
 class _CourtPicker extends StatelessWidget {
   const _CourtPicker({required this.court, required this.onChanged});
 
@@ -238,19 +274,30 @@ class _CourtPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: ViroSpacing.sm,
-      children: [
-        for (final (value, label) in [
-          (WhiteboardCourt.full, AppCopy.training.boardCourtFull),
-          (WhiteboardCourt.half, AppCopy.training.boardCourtHalf),
-        ])
-          ChoiceChip(
-            label: Text(label),
-            selected: court == value,
-            onSelected: (_) => onChanged(value),
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<WhiteboardCourt>(
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(
+            value: WhiteboardCourt.full,
+            label: Text(AppCopy.training.boardCourtFull),
           ),
-      ],
+          ButtonSegment(
+            value: WhiteboardCourt.half,
+            label: Text(AppCopy.training.boardCourtHalf),
+          ),
+          ButtonSegment(
+            value: WhiteboardCourt.blank,
+            label: Text(AppCopy.training.boardCourtBlank),
+          ),
+        ],
+        selected: {court},
+        onSelectionChanged: (selected) {
+          ViroHaptics.selection();
+          onChanged(selected.first);
+        },
+      ),
     );
   }
 }

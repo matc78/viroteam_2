@@ -1,9 +1,10 @@
 import 'package:viro_team_v2/constants/firestore_fields.dart';
 
-/// Fond du tableau blanc (volley) : terrain entier ou demi-terrain.
+/// Fond du tableau blanc (volley) : terrain entier, demi-terrain ou blanc.
 enum WhiteboardCourt {
   full('full'),
-  half('half');
+  half('half'),
+  blank('blank');
 
   const WhiteboardCourt(this.id);
 
@@ -157,8 +158,8 @@ class WhiteboardToken {
   }
 }
 
-/// Contenu du tableau blanc d'un exercice, stocké en vectoriel dans le
-/// document de l'exercice (`drills/{drillId}.board`).
+/// Contenu d'un tableau blanc d'exercice, stocké en vectoriel dans
+/// `drills/{drillId}.boards[]` (ancien champ unique `board` encore lu).
 class WhiteboardData {
   const WhiteboardData({
     this.court = WhiteboardCourt.full,

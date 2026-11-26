@@ -14,11 +14,13 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/training/providers/training_providers.dart';
 import 'package:viro_team_v2/models/training_plan.dart';
+import 'package:viro_team_v2/models/whiteboard_data.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/training/training_plan_service.dart';
 import 'package:viro_team_v2/utils/viro_snackbar.dart';
 import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
+import 'package:viro_team_v2/widgets/common/viro_pressable.dart';
 import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/whiteboard/viro_whiteboard.dart';
 
@@ -115,7 +117,7 @@ class _TrainingDrillEditorScreenState
     }
   }
 
-  Future<void> _openBoard() async {
+  Future<void> _openBoard(int boardIndex) async {
     // Le schéma s'enregistre sur la version la plus récente de l'exercice.
     _saveTimer?.cancel();
     await _save();
@@ -126,8 +128,81 @@ class _TrainingDrillEditorScreenState
         widget.eventId,
         widget.coachUid,
         widget.drillId,
+        boardIndex,
       ),
     );
+  }
+
+  Future<void> _addBoard() async {
+    final drill = _drill;
+    if (drill == null) return;
+    if (drill.boards.length >= TrainingDrill.maxBoards) {
+      ViroSnackBar.show(context, AppCopy.training.drillBoardLimit);
+      return;
+    }
+    _saveTimer?.cancel();
+    final next = drill.copyWith(
+      boards: [...drill.boards, WhiteboardData.empty],
+    );
+    setState(() => _drill = next);
+    try {
+      await _service.saveDrill(
+        clubId: widget.clubId,
+        eventId: widget.eventId,
+        coachUid: widget.coachUid,
+        drill: _edited() ?? next,
+      );
+    } catch (_) {
+      if (mounted) ViroSnackBar.show(context, AppCopy.training.saveFailed);
+      return;
+    }
+    if (!mounted) return;
+    await _openBoard(next.boards.length - 1);
+  }
+
+  Future<void> _deleteBoard(int boardIndex) async {
+    final drill = _drill;
+    if (drill == null ||
+        boardIndex < 0 ||
+        boardIndex >= drill.boards.length) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppCopy.training.drillBoardDeleteTitle),
+        content: Text(AppCopy.training.drillBoardDeleteBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(AppCopy.common.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: ViroColors.error,
+              foregroundColor: ViroColors.white,
+            ),
+            child: Text(AppCopy.training.drillBoardDeleteConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final boards = [...drill.boards]..removeAt(boardIndex);
+    final next = drill.copyWith(boards: boards);
+    setState(() => _drill = next);
+    _saveTimer?.cancel();
+    try {
+      await _service.saveDrill(
+        clubId: widget.clubId,
+        eventId: widget.eventId,
+        coachUid: widget.coachUid,
+        drill: _edited() ?? next,
+      );
+    } catch (_) {
+      if (mounted) ViroSnackBar.show(context, AppCopy.training.saveFailed);
+    }
   }
 
   Future<void> _delete(List<String> drillOrder) async {
@@ -205,8 +280,8 @@ class _TrainingDrillEditorScreenState
       _durationController.text = drill.durationMin?.toString() ?? '';
       _instructionsController.text = drill.instructions;
     } else if (drill != null) {
-      // Schéma modifié depuis le tableau blanc : garder la saisie en cours.
-      _drill = _drill!.copyWith(board: drill.board);
+      // Schémas modifiés depuis le tableau blanc : garder la saisie en cours.
+      _drill = _drill!.copyWith(boards: drill.boards);
     }
 
     return ViroScaffold(
@@ -231,6 +306,9 @@ class _TrainingDrillEditorScreenState
           if (current == null) {
             return ViroErrorState(message: AppCopy.training.loadError);
           }
+          final ordered = plan.ordered(drillsAsync.value ?? const []);
+          final drillPosition =
+              ordered.indexWhere((d) => d.id == widget.drillId) + 1;
           return ListView(
             padding: const EdgeInsets.fromLTRB(
               ViroSpacing.screenHorizontal,
@@ -242,7 +320,9 @@ class _TrainingDrillEditorScreenState
               if (readOnly) ...[
                 Text(
                   current.title.trim().isEmpty
-                      ? AppCopy.training.untitledDrill
+                      ? AppCopy.training.untitledDrill(
+                          drillPosition > 0 ? drillPosition : 1,
+                        )
                       : current.title,
                   style: theme.titleMedium?.copyWith(
                     color: palette.brandText,
@@ -302,42 +382,111 @@ class _TrainingDrillEditorScreenState
                 ),
               ],
               const SizedBox(height: ViroSpacing.lg),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      AppCopy.training.drillBoardLabel,
-                      style: theme.titleSmall?.copyWith(
-                        color: palette.brandText,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  if (!readOnly)
-                    TextButton.icon(
-                      onPressed: _openBoard,
-                      icon: ViroIcon(ViroIcons.edit, size: 18),
-                      label: Text(AppCopy.training.drillBoardEdit),
-                    ),
-                ],
+              Text(
+                AppCopy.training.drillBoardLabel,
+                style: theme.titleSmall?.copyWith(
+                  color: palette.brandText,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: ViroSpacing.sm),
-              if (current.board.isEmpty && readOnly)
+              if (!current.hasBoards)
                 Text(
                   AppCopy.training.drillBoardEmpty,
                   style: theme.bodyMedium?.copyWith(color: palette.textMuted),
                 )
               else
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 360),
-                    child: WhiteboardThumbnail(data: current.board),
+                _DrillBoardsGallery(
+                  boards: current.boards,
+                  readOnly: readOnly,
+                  onOpen: _openBoard,
+                  onDelete: _deleteBoard,
+                ),
+              if (!readOnly) ...[
+                const SizedBox(height: ViroSpacing.sm),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: current.boards.length >= TrainingDrill.maxBoards
+                        ? () => ViroSnackBar.show(
+                              context,
+                              AppCopy.training.drillBoardLimit,
+                            )
+                        : _addBoard,
+                    icon: ViroIcon(ViroIcons.add, size: 18),
+                    label: Text(AppCopy.training.drillBoardAdd),
                   ),
                 ),
+              ],
             ],
           );
         },
       ),
+    );
+  }
+}
+
+/// Galerie de miniatures des schémas d'un exercice.
+class _DrillBoardsGallery extends StatelessWidget {
+  const _DrillBoardsGallery({
+    required this.boards,
+    required this.readOnly,
+    required this.onOpen,
+    required this.onDelete,
+  });
+
+  final List<WhiteboardData> boards;
+  final bool readOnly;
+  final ValueChanged<int> onOpen;
+  final ValueChanged<int> onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.viroPalette;
+    return Wrap(
+      spacing: ViroSpacing.sm,
+      runSpacing: ViroSpacing.sm,
+      children: [
+        for (var i = 0; i < boards.length; i++)
+          SizedBox(
+            width: 148,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                ViroPressable(
+                  label: AppCopy.training.boardSemantics,
+                  onTap: readOnly ? null : () => onOpen(i),
+                  floating: false,
+                  child: WhiteboardThumbnail(data: boards[i]),
+                ),
+                if (!readOnly)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: Material(
+                      color: palette.surfaceCard,
+                      shape: const CircleBorder(),
+                      elevation: 1,
+                      child: IconButton(
+                        tooltip: AppCopy.training.drillBoardDelete,
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: ViroSpacing.minTouchTarget,
+                          minHeight: ViroSpacing.minTouchTarget,
+                        ),
+                        onPressed: () => onDelete(i),
+                        icon: ViroIcon(
+                          ViroIcons.trash,
+                          size: 18,
+                          color: ViroColors.error,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

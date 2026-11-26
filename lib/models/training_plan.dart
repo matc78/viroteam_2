@@ -62,8 +62,11 @@ class TrainingDrill {
     this.title = '',
     this.durationMin,
     this.instructions = '',
-    this.board = WhiteboardData.empty,
+    this.boards = const [],
   });
+
+  /// Nombre max de schémas par exercice.
+  static const int maxBoards = 6;
 
   final String id;
   final String title;
@@ -74,10 +77,21 @@ class TrainingDrill {
   /// Consignes de l'exercice.
   final String instructions;
 
-  /// Schéma sur terrain de volley (vectoriel).
-  final WhiteboardData board;
+  /// Schémas vectoriels (0 à [maxBoards]).
+  final List<WhiteboardData> boards;
 
-  /// Lit un document `drills/{drillId}`.
+  /// Au moins un schéma présent (éventuellement vide).
+  bool get hasBoards => boards.isNotEmpty;
+
+  /// Premier schéma non vide, sinon le premier, sinon `null`.
+  WhiteboardData? get previewBoard {
+    for (final board in boards) {
+      if (!board.isEmpty) return board;
+    }
+    return boards.isEmpty ? null : boards.first;
+  }
+
+  /// Lit un document `drills/{drillId}` (`boards`, ou legacy `board`).
   factory TrainingDrill.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
@@ -88,8 +102,23 @@ class TrainingDrill {
       title: data[FirestoreFields.title] as String? ?? '',
       durationMin: duration is num && duration > 0 ? duration.toInt() : null,
       instructions: data[FirestoreFields.instructions] as String? ?? '',
-      board: WhiteboardData.fromMap(data[FirestoreFields.board]),
+      boards: boardsFromData(data),
     );
+  }
+
+  /// Lit `boards` ou, à défaut, l'ancien champ unique `board`
+  /// (y compris si `boards` est une liste vide).
+  static List<WhiteboardData> boardsFromData(Map<String, dynamic> data) {
+    final rawBoards = data[FirestoreFields.boards];
+    if (rawBoards is List && rawBoards.isNotEmpty) {
+      return rawBoards
+          .map(WhiteboardData.fromMap)
+          .take(maxBoards)
+          .toList();
+    }
+    final legacy = data[FirestoreFields.board];
+    if (legacy == null) return const [];
+    return [WhiteboardData.fromMap(legacy)];
   }
 
   /// Copie avec les champs fournis ([clearDuration] retire la durée).
@@ -98,22 +127,25 @@ class TrainingDrill {
     int? durationMin,
     bool clearDuration = false,
     String? instructions,
-    WhiteboardData? board,
+    List<WhiteboardData>? boards,
   }) =>
       TrainingDrill(
         id: id,
         title: title ?? this.title,
         durationMin: clearDuration ? null : (durationMin ?? this.durationMin),
         instructions: instructions ?? this.instructions,
-        board: board ?? this.board,
+        boards: boards ?? this.boards,
       );
 
-  /// Données Firestore de l'exercice.
+  /// Données Firestore de l'exercice (`boards` ; le `set` sans merge
+  /// remplace le doc et fait disparaître l'ancien champ `board`).
   Map<String, dynamic> toFirestore() => {
         FirestoreFields.title: title.trim(),
         FirestoreFields.durationMin: durationMin,
         FirestoreFields.instructions: instructions,
-        FirestoreFields.board: board.toMap(),
+        FirestoreFields.boards: [
+          for (final board in boards.take(maxBoards)) board.toMap(),
+        ],
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       };
 }

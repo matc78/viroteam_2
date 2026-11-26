@@ -177,9 +177,9 @@ abstract final class AppRoutes {
   static const clubTrainingDrill =
       '/club/:clubId/events/:eventId/prep/:coachUid/drill/:drillId';
 
-  /// Tableau blanc d'un exercice.
+  /// Tableau blanc d'un exercice (index dans `boards`).
   static const clubTrainingBoard =
-      '/club/:clubId/events/:eventId/prep/:coachUid/drill/:drillId/board';
+      '/club/:clubId/events/:eventId/prep/:coachUid/drill/:drillId/board/:boardIndex';
 
   static const clubAddEvent = '/club/:clubId/planning/add';
 
@@ -289,7 +289,9 @@ abstract final class AppRoutes {
     String eventId,
     String coachUid,
     String drillId,
-  ) => '/club/$clubId/events/$eventId/prep/$coachUid/drill/$drillId/board';
+    int boardIndex,
+  ) =>
+      '/club/$clubId/events/$eventId/prep/$coachUid/drill/$drillId/board/$boardIndex';
 
   static String clubAnnouncementsPath(String clubId) =>
       '/club/$clubId/announcements';
@@ -1026,6 +1028,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           eventId: state.pathParameters['eventId']!,
           coachUid: state.pathParameters['coachUid']!,
           drillId: state.pathParameters['drillId']!,
+          boardIndex:
+              int.tryParse(state.pathParameters['boardIndex'] ?? '') ?? 0,
         ),
       ),
       GoRoute(

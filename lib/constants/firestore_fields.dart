@@ -230,6 +230,7 @@ abstract final class FirestoreFields {
   static const String durationMin = 'durationMin';
   static const String instructions = 'instructions';
   static const String board = 'board';
+  static const String boards = 'boards';
   static const String strokes = 'strokes';
   static const String tokens = 'tokens';
   // users/{uid}/trainingFeedbackState/{clubId}_{eventId}

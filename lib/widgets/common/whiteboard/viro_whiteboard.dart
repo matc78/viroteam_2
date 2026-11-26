@@ -125,32 +125,40 @@ class _ViroWhiteboardState extends State<ViroWhiteboard> {
             points: _points,
           );
 
+    final radius = BorderRadius.circular(ViroSpacing.cardRadius);
+    final palette = context.viroPalette;
     return AspectRatio(
       aspectRatio: whiteboardAspectRatio(widget.data.court),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final size = constraints.biggest;
-            return Semantics(
-              label: AppCopy.training.boardSemantics,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanStart: (d) => _onPanStart(d, size),
-                onPanUpdate: (d) => _onPanUpdate(d, size),
-                onPanEnd: (_) => _onPanEnd(),
-                onPanCancel: _onPanEnd,
-                child: CustomPaint(
-                  size: size,
-                  painter: WhiteboardPainter(
-                    data: _moving ?? widget.data,
-                    colors: colors,
-                    pending: pending,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(color: palette.borderStrong, width: 1.5),
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final size = constraints.biggest;
+              return Semantics(
+                label: AppCopy.training.boardSemantics,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: (d) => _onPanStart(d, size),
+                  onPanUpdate: (d) => _onPanUpdate(d, size),
+                  onPanEnd: (_) => _onPanEnd(),
+                  onPanCancel: _onPanEnd,
+                  child: CustomPaint(
+                    size: size,
+                    painter: WhiteboardPainter(
+                      data: _moving ?? widget.data,
+                      colors: colors,
+                      pending: pending,
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -172,16 +180,24 @@ class WhiteboardThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.viroPalette;
+    final radius = BorderRadius.circular(ViroSpacing.sm);
     final board = AspectRatio(
       aspectRatio: whiteboardAspectRatio(data.court),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(ViroSpacing.sm),
-        child: ExcludeSemantics(
-          child: CustomPaint(
-            painter: WhiteboardPainter(
-              data: data,
-              colors: WhiteboardColors.of(context.viroPalette),
-              textScale: 0.9,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(color: palette.borderStrong),
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: ExcludeSemantics(
+            child: CustomPaint(
+              painter: WhiteboardPainter(
+                data: data,
+                colors: WhiteboardColors.of(palette),
+                textScale: 0.9,
+              ),
             ),
           ),
         ),

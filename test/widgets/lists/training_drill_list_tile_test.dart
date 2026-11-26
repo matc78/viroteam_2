@@ -21,27 +21,31 @@ void main() {
               title: 'Service-réception',
               durationMin: 15,
               instructions: '3 contre 3, rotation toutes les 5 balles',
-              board: WhiteboardData(
-                tokens: [
-                  WhiteboardToken(
-                    kind: WhiteboardTokenKind.player,
-                    position: WhiteboardPoint(0.5, 0.5),
-                    label: '1',
-                  ),
-                ],
-              ),
+              boards: [
+                WhiteboardData(
+                  tokens: [
+                    WhiteboardToken(
+                      kind: WhiteboardTokenKind.player,
+                      position: WhiteboardPoint(0.5, 0.5),
+                      label: '1',
+                    ),
+                  ],
+                ),
+                WhiteboardData(court: WhiteboardCourt.blank),
+              ],
             ),
-            position: 2,
+            position: 1,
             onTap: () => tapped = true,
           ),
         ),
       ),
     );
 
-    expect(find.text('2'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
     expect(find.text('Service-réception'), findsOneWidget);
     expect(find.text(AppCopy.training.drillDuration(15)), findsOneWidget);
     expect(find.byType(WhiteboardThumbnail), findsOneWidget);
+    expect(find.text(AppCopy.training.drillBoardCount(2)), findsOneWidget);
     await tester.tap(find.text('Service-réception'));
     expect(tapped, isTrue);
   });
@@ -59,7 +63,7 @@ void main() {
       ),
     );
 
-    expect(find.text(AppCopy.training.untitledDrill), findsOneWidget);
+    expect(find.text(AppCopy.training.untitledDrill(1)), findsOneWidget);
     expect(find.byType(WhiteboardThumbnail), findsNothing);
   });
 }

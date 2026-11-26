@@ -190,7 +190,7 @@ final class AppCopyTraining {
       ? '$planned min prévues'
       : '$planned min prévues / $session min de séance';
   String drillDuration(int minutes) => '$minutes min';
-  String get untitledDrill => 'Exercice sans titre';
+  String untitledDrill(int position) => 'Exo $position';
   String drillSemantics(String title, int? minutes) =>
       minutes == null ? title : '$title, $minutes minutes';
   String get reorderHint => 'Appui long pour réordonner';
@@ -204,12 +204,20 @@ final class AppCopyTraining {
   String get drillDurationLabel => 'Durée (min)';
   String get drillInstructionsLabel => 'Consignes';
   String get drillInstructionsHint => 'Déroulé, variantes, points clés…';
-  String get drillBoardLabel => 'Schéma';
-  String get drillBoardEdit => 'Dessiner';
+  String get drillBoardLabel => 'Schémas';
+  String get drillBoardAdd => 'Ajouter un schéma';
   String get drillBoardEmpty => 'Pas encore de schéma';
+  String get drillBoardLimit => 'Maximum 6 schémas par exercice.';
+  String get drillBoardDelete => 'Supprimer ce schéma';
+  String get drillBoardDeleteTitle => 'Supprimer ce schéma ?';
+  String get drillBoardDeleteBody =>
+      'Ce schéma sera retiré de l’exercice. Cette action est définitive.';
+  String get drillBoardDeleteConfirm => 'Supprimer';
+  String drillBoardCount(int count) => '$count';
   String get deleteDrill => 'Supprimer l’exercice';
   String get deleteDrillTitle => 'Supprimer cet exercice ?';
-  String get deleteDrillBody => 'Le titre, les consignes et le schéma seront effacés.';
+  String get deleteDrillBody =>
+      'Le titre, les consignes et les schémas seront effacés.';
   String get deleteDrillConfirm => 'Supprimer';
 
   // ——— Tableau blanc ———
@@ -227,10 +235,11 @@ final class AppCopyTraining {
   String get boardClearConfirm => 'Effacer';
   String get boardCourtFull => 'Terrain entier';
   String get boardCourtHalf => 'Demi-terrain';
+  String get boardCourtBlank => 'Tableau blanc';
   String get boardInkAccent => 'Encre bleue';
   String get boardInkRed => 'Encre rouge';
   String get boardInkDark => 'Encre sombre';
   String get boardDone => 'Valider';
-  String get boardSemantics => 'Schéma sur terrain de volley';
+  String get boardSemantics => 'Schéma d’exercice';
   String get boardLimitReached => 'Schéma plein : efface un élément pour continuer.';
 }

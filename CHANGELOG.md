@@ -10,6 +10,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Préparation d’entraînement : jusqu’à 6 schémas par exercice (galerie sur la fiche, ajout / suppression), avec lecture de l’ancien champ unique `board`
 - Gestion d’équipe : créer un joueur (fiche + invitation) depuis « Ajouter un joueur », puis l’ajouter directement au roster — admin et coach de l’équipe (capacité d’inviter), sans aller-retour par Membres
 - Calendrier FFVB : à la liaison, après le choix de l’équipe, une étape « Qui est convoqué ? » liste les joueurs (tous cochés) ; les joueurs décochés ne sont pas convoqués sur les matchs importés ni sur ceux ajoutés par les synchros suivantes (choix mémorisé dans `teams.federation.excludedMemberIds`, repris à la re-liaison), ajustable ensuite match par match depuis le planning ; un match reporté ou modifié par la synchro garde ses convocations
 - Classement FFVB : bouton « Actualiser » dans l’AppBar pour les coachs de l’équipe (et gestionnaires d’équipes), même synchro manuelle que depuis la carte équipe
@@ -18,6 +19,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- Schéma d’exercice : le jeton ballon affiche l’icône volleyball (plus le rond jaune) ; fond « Tableau blanc » sans marquage de terrain (en plus de terrain entier / demi-terrain)
 - Paramètres club : intro des capacités coach précisée (« uniquement sur les équipes qu’il entraîne ») ; descriptions des toggles raccourcies
 
 ## [2.5.0] - 2026-11-25

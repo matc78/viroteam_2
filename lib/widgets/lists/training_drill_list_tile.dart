@@ -32,7 +32,7 @@ class TrainingDrillListTile extends StatelessWidget {
     final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final title = drill.title.trim().isEmpty
-        ? AppCopy.training.untitledDrill
+        ? AppCopy.training.untitledDrill(position)
         : drill.title.trim();
     final instructions = drill.instructions.trim();
 
@@ -105,9 +105,37 @@ class TrainingDrillListTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (!drill.board.isEmpty) ...[
+            if (drill.previewBoard != null) ...[
               const SizedBox(width: ViroSpacing.sm),
-              WhiteboardThumbnail(data: drill.board, width: 56),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  WhiteboardThumbnail(data: drill.previewBoard!, width: 56),
+                  if (drill.boards.length > 1)
+                    Positioned(
+                      right: -ViroSpacing.xs,
+                      bottom: -ViroSpacing.xs,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: ViroSpacing.xs + 1,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.accentFill,
+                          borderRadius:
+                              BorderRadius.circular(ViroSpacing.buttonRadius),
+                        ),
+                        child: Text(
+                          AppCopy.training.drillBoardCount(drill.boards.length),
+                          style: theme.labelSmall?.copyWith(
+                            color: palette.onAccent,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ],
             if (dragHandle != null) ...[
               const SizedBox(width: ViroSpacing.xs),

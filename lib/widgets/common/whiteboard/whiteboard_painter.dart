@@ -2,21 +2,24 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_colors.dart';
+import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/models/whiteboard_data.dart';
 
 /// Proportions du tableau (largeur / hauteur) selon le fond : terrain de
-/// volley 9 × 18 m (entier, filet au milieu) ou 9 × 9 m (demi, filet en haut),
-/// zone libre comprise.
+/// volley 9 × 18 m (entier, filet au milieu), 9 × 9 m (demi, filet en haut)
+/// ou carré pour le tableau blanc, zone libre comprise.
 double whiteboardAspectRatio(WhiteboardCourt court) => switch (court) {
       WhiteboardCourt.full => 0.62,
       WhiteboardCourt.half => 1.0,
+      WhiteboardCourt.blank => 1.0,
     };
 
 /// Couleurs du tableau résolues depuis la palette (clair / sombre).
 class WhiteboardColors {
   const WhiteboardColors({
     required this.floor,
+    required this.blank,
     required this.court,
     required this.lines,
     required this.net,
@@ -29,6 +32,7 @@ class WhiteboardColors {
   /// Couleurs du tableau pour [palette].
   factory WhiteboardColors.of(ViroPalette palette) => WhiteboardColors(
         floor: palette.surfaceSubtle,
+        blank: palette.surfaceCard,
         court: ViroColors.sportOrange.withValues(alpha: 0.16),
         lines: palette.textSecondary,
         net: palette.textPrimary,
@@ -39,6 +43,7 @@ class WhiteboardColors {
       );
 
   final Color floor;
+  final Color blank;
   final Color court;
   final Color lines;
   final Color net;
@@ -90,7 +95,11 @@ class WhiteboardPainter extends CustomPainter {
   }
 
   void _paintCourt(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = colors.floor);
+    final background =
+        data.court == WhiteboardCourt.blank ? colors.blank : colors.floor;
+    canvas.drawRect(Offset.zero & size, Paint()..color = background);
+    if (data.court == WhiteboardCourt.blank) return;
+
     final marginX = size.width * 0.1;
     final marginY = size.height * 0.06;
     final court = Rect.fromLTRB(
@@ -190,11 +199,13 @@ class WhiteboardPainter extends CustomPainter {
       token.position.y * size.height,
     );
     final radius = size.width * tokenRadiusRatio;
-    final (fill, onFill) = switch (token.kind) {
-      WhiteboardTokenKind.player => (colors.playerFill, colors.onPlayer),
-      WhiteboardTokenKind.opponent => (ViroColors.error, ViroColors.white),
-      WhiteboardTokenKind.ball => (ViroColors.sportYellow, colors.darkInk),
-    };
+    if (token.kind == WhiteboardTokenKind.ball) {
+      _paintBall(canvas, center, radius);
+      return;
+    }
+    final isOpponent = token.kind == WhiteboardTokenKind.opponent;
+    final fill = isOpponent ? ViroColors.error : colors.playerFill;
+    final onFill = isOpponent ? ViroColors.white : colors.onPlayer;
     canvas.drawCircle(center, radius, Paint()..color = fill);
     canvas.drawCircle(
       center,
@@ -204,19 +215,6 @@ class WhiteboardPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = math.max(1, radius * 0.12),
     );
-    if (token.kind == WhiteboardTokenKind.ball) {
-      // Coutures stylisées du ballon.
-      final seam = Paint()
-        ..color = onFill.withValues(alpha: 0.6)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(1, radius * 0.12);
-      canvas.drawLine(
-        center.translate(-radius * 0.7, 0),
-        center.translate(radius * 0.7, 0),
-        seam,
-      );
-      return;
-    }
     if (token.label.isEmpty) return;
     final text = TextPainter(
       text: TextSpan(
@@ -232,6 +230,36 @@ class WhiteboardPainter extends CustomPainter {
     text.paint(
       canvas,
       center - Offset(text.width / 2, text.height / 2),
+    );
+  }
+
+  /// Dessine le jeton ballon avec la même icône volleyball que la barre d'outils.
+  void _paintBall(Canvas canvas, Offset center, double radius) {
+    canvas.drawCircle(center, radius, Paint()..color = ViroColors.white);
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..color = colors.net.withValues(alpha: 0.35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1, radius * 0.12),
+    );
+    final icon = ViroIcons.boardBall;
+    final glyph = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          fontSize: radius * 1.55,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          color: colors.darkInk,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    glyph.paint(
+      canvas,
+      center - Offset(glyph.width / 2, glyph.height / 2),
     );
   }
 

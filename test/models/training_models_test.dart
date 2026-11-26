@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/models/training_feedback.dart';
 import 'package:viro_team_v2/models/training_plan.dart';
 import 'package:viro_team_v2/models/whiteboard_data.dart';
@@ -95,6 +96,12 @@ void main() {
       );
       final read = WhiteboardData.fromMap(board.toMap());
       expect(read.court, WhiteboardCourt.half);
+      expect(
+        WhiteboardData.fromMap(
+          const WhiteboardData(court: WhiteboardCourt.blank).toMap(),
+        ).court,
+        WhiteboardCourt.blank,
+      );
       expect(read.strokes.single.kind, WhiteboardStrokeKind.arrow);
       expect(read.strokes.single.ink, WhiteboardInk.red);
       expect(read.strokes.single.points.last.y, 0.9);
@@ -153,6 +160,72 @@ void main() {
       expect(sessionMinutes('19:00', '20:30'), 90);
       expect(sessionMinutes('19:00', null), isNull);
       expect(sessionMinutes('20:00', '19:00'), isNull);
+    });
+
+    test('TrainingDrill écrit boards et lit le legacy board', () {
+      const multi = TrainingDrill(
+        id: 'd1',
+        boards: [
+          WhiteboardData(court: WhiteboardCourt.half),
+          WhiteboardData(court: WhiteboardCourt.blank),
+        ],
+      );
+      final written = multi.toFirestore();
+      expect(written[FirestoreFields.boards], hasLength(2));
+      expect(
+        (written[FirestoreFields.boards] as List).first['court'],
+        'half',
+      );
+      expect(written.containsKey(FirestoreFields.board), isFalse);
+
+      final fromBoards = TrainingDrill.boardsFromData({
+        FirestoreFields.boards: written[FirestoreFields.boards],
+      });
+      expect(fromBoards.map((b) => b.court), [
+        WhiteboardCourt.half,
+        WhiteboardCourt.blank,
+      ]);
+      expect(
+        const TrainingDrill(id: 'd1', boards: [
+          WhiteboardData(court: WhiteboardCourt.half),
+        ]).hasBoards,
+        isTrue,
+      );
+      expect(
+        const TrainingDrill(
+          id: 'd1',
+          boards: [
+            WhiteboardData.empty,
+            WhiteboardData(
+              court: WhiteboardCourt.blank,
+              tokens: [
+                WhiteboardToken(
+                  kind: WhiteboardTokenKind.ball,
+                  position: WhiteboardPoint(0.4, 0.4),
+                ),
+              ],
+            ),
+          ],
+        ).previewBoard?.court,
+        WhiteboardCourt.blank,
+      );
+
+      final legacy = TrainingDrill.boardsFromData({
+        FirestoreFields.board: const WhiteboardData(
+          court: WhiteboardCourt.full,
+        ).toMap(),
+      });
+      expect(legacy, hasLength(1));
+      expect(legacy.single.court, WhiteboardCourt.full);
+
+      // boards vide + board legacy → on garde le legacy.
+      final emptyBoardsWithLegacy = TrainingDrill.boardsFromData({
+        FirestoreFields.boards: const [],
+        FirestoreFields.board: const WhiteboardData(
+          court: WhiteboardCourt.half,
+        ).toMap(),
+      });
+      expect(emptyBoardsWithLegacy.single.court, WhiteboardCourt.half);
     });
   });
 }

@@ -11,6 +11,8 @@ import 'package:viro_team_v2/features/club/providers/club_access_providers.dart'
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/standings/providers/standings_providers.dart';
 import 'package:viro_team_v2/features/standings/widgets/standings_header.dart';
+import 'package:viro_team_v2/features/standings/widgets/standings_switcher.dart';
+import 'package:viro_team_v2/models/team_federation.dart';
 import 'package:viro_team_v2/models/club_permission.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
@@ -40,6 +42,53 @@ class TeamStandingsScreen extends ConsumerStatefulWidget {
 
 class _TeamStandingsScreenState extends ConsumerState<TeamStandingsScreen> {
   bool _busy = false;
+
+  /// Classement (`club/équipe`) dont l'entrée en cascade a déjà été jouée :
+  /// les lignes reconstruites au défilement apparaissent alors d'emblée.
+  String? _entrancePlayedFor;
+
+  String get _entranceKey => '${widget.clubId}/${widget.teamId}';
+
+  /// Vrai tant que la première frame du classement courant n'est pas
+  /// affichée. À lire à la construction de chaque ligne (le `ListView`
+  /// construit les lignes au défilement sans reconstruire l'écran).
+  bool get _entrancePending => _entrancePlayedFor != _entranceKey;
+
+  /// Marque l'entrée du classement courant comme jouée après la frame en
+  /// cours (sans rebuild : les lignes déjà construites finissent la leur).
+  void _markEntrancePlayedAfterFrame() {
+    if (!_entrancePending) return;
+    final key = _entranceKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _entrancePlayedFor = key;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _recordViewed();
+  }
+
+  @override
+  void didUpdateWidget(TeamStandingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.clubId != widget.clubId ||
+        oldWidget.teamId != widget.teamId) {
+      _recordViewed();
+    }
+  }
+
+  /// Retient ce classement (coupe de la home, barre des clubs), après la
+  /// frame : un provider ne se modifie pas pendant la construction.
+  void _recordViewed() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(standingsLastViewedProvider.notifier)
+          .record(clubId: widget.clubId, teamId: widget.teamId);
+    });
+  }
 
   /// Affiche un dialog bloquant avec [ViroLogoLoader] pendant [action].
   Future<T?> _withBusyDialog<T>(Future<T> Function() action) async {
@@ -79,10 +128,9 @@ class _TeamStandingsScreenState extends ConsumerState<TeamStandingsScreen> {
   Future<void> _refresh() async {
     try {
       final result = await _withBusyDialog(
-        () => ref.read(teamFederationServiceProvider).refresh(
-          clubId: widget.clubId,
-          teamId: widget.teamId,
-        ),
+        () => ref
+            .read(teamFederationServiceProvider)
+            .refresh(clubId: widget.clubId, teamId: widget.teamId),
       );
       if (!mounted || result == null) return;
       ViroSnackBar.show(
@@ -114,6 +162,12 @@ class _TeamStandingsScreenState extends ConsumerState<TeamStandingsScreen> {
       teamStandingsProvider((clubId: clubId, teamId: teamId)),
     );
     final accent = ref.watch(clubMemberAccentProvider(clubId));
+    // Équipes suivies de la poule (plusieurs si fusionnées) : lignes en avant.
+    final followedKeys =
+        ref
+            .watch(standingsEntryProvider((clubId: clubId, teamId: teamId)))
+            ?.teamKeys ??
+        const <String>{};
     final access = ref.watch(clubAccessProvider(clubId));
     // Même périmètre que `refreshTeamFederation` / bloc FFVB « Gérer ».
     final canRefresh =
@@ -126,6 +180,7 @@ class _TeamStandingsScreenState extends ConsumerState<TeamStandingsScreen> {
       appBar: ViroAppBar(
         fallbackRoute: fallback,
         title: Text(copy.screenTitle),
+        centerTitle: true,
         actions: [
           if (canRefresh)
             IconButton(
@@ -135,48 +190,73 @@ class _TeamStandingsScreenState extends ConsumerState<TeamStandingsScreen> {
             ),
         ],
       ),
-      body: standingsAsync.when(
-        loading: () => const Center(child: ViroLogoLoader()),
-        error: (_, _) => ViroErrorState(message: copy.loadError),
-        data: (standings) {
-          if (standings == null || standings.rows.isEmpty) {
-            return ViroEmptyState(
-              icon: ViroIcons.trophyOutline,
-              message: copy.emptyTitle,
-              hint: copy.emptyBody,
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              StandingsHeader(standings: standings, now: DateTime.now()),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(
-                    ViroSpacing.screenHorizontal,
-                    0,
-                    ViroSpacing.screenHorizontal,
-                    ViroSpacing.lg,
-                  ),
-                  itemCount: standings.rows.length,
-                  itemBuilder: (context, index) => TeamStandingListTile(
-                    row: standings.rows[index],
-                    isMyTeam: standings.rows[index].key == standings.myTeamKey,
-                    accentColor: accent,
-                    onTap: () => context.push(
-                      AppRoutes.clubTeamStandingsSeasonPath(
-                        clubId,
-                        teamId,
-                        standings.rows[index].key,
-                      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          StandingsSwitcher(clubId: clubId, teamId: teamId),
+          Expanded(
+            child: _buildStandings(standingsAsync, accent, followedKeys),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStandings(
+    AsyncValue<PoolStandings?> standingsAsync,
+    Color accent,
+    Set<String> followedKeys,
+  ) {
+    final clubId = widget.clubId;
+    final teamId = widget.teamId;
+    final copy = AppCopy.standings;
+    return standingsAsync.when(
+      loading: () => const Center(child: ViroLogoLoader()),
+      error: (_, _) => ViroErrorState(message: copy.loadError),
+      data: (standings) {
+        if (standings == null || standings.rows.isEmpty) {
+          return ViroEmptyState(
+            icon: ViroIcons.trophyOutline,
+            message: copy.emptyTitle,
+            hint: copy.emptyBody,
+          );
+        }
+        // Seules les lignes de la première frame jouent l'entrée.
+        _markEntrancePlayedAfterFrame();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            StandingsHeader(standings: standings, now: DateTime.now()),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(
+                  ViroSpacing.screenHorizontal,
+                  0,
+                  ViroSpacing.screenHorizontal,
+                  ViroSpacing.lg,
+                ),
+                itemCount: standings.rows.length,
+                itemBuilder: (context, index) => TeamStandingListTile(
+                  row: standings.rows[index],
+                  isMyTeam:
+                      standings.rows[index].key == standings.myTeamKey ||
+                      followedKeys.contains(standings.rows[index].key),
+                  accentColor: accent,
+                  entranceIndex: index,
+                  animateEntrance: _entrancePending,
+                  onTap: () => context.push(
+                    AppRoutes.clubTeamStandingsSeasonPath(
+                      clubId,
+                      teamId,
+                      standings.rows[index].key,
                     ),
                   ),
                 ),
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

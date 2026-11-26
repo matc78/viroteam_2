@@ -26,6 +26,14 @@ abstract final class ViroMotion {
   static const Duration seenEyeOpen = Duration(milliseconds: 1400);
   static const Duration seenEyeStartDelay = Duration(milliseconds: 700);
   static const Duration seenEyeStagger = Duration(milliseconds: 180);
+  /// Classement : reflet qui traverse les médailles du podium, entrée en
+  /// cascade des lignes (décalage par ligne, plafonné) et glissement.
+  static const Duration rankShine = Duration(milliseconds: 1100);
+  static const Duration rankShineDelay = Duration(milliseconds: 350);
+  static const Duration standingsRowEnter = Duration(milliseconds: 320);
+  static const Duration standingsRowStagger = Duration(milliseconds: 40);
+  static const int standingsRowStaggerMax = 12;
+  static const double standingsRowOffset = 12;
 
   static const Curve enter = Curves.easeOutCubic;
   static const Curve exit = Curves.easeInCubic;

@@ -37,11 +37,12 @@ class StandingsHeader extends StatelessWidget {
         ViroSpacing.sm,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (standings.poolLabel != null)
             Text(
               standings.poolLabel!,
+              textAlign: TextAlign.center,
               style: theme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: palette.brandText,
@@ -50,6 +51,7 @@ class StandingsHeader extends StatelessWidget {
           if (fetchedAt != null)
             Text(
               copy.updatedAt(fetchedAt, now),
+              textAlign: TextAlign.center,
               style: theme.bodySmall?.copyWith(color: palette.textSecondary),
             ),
           const SizedBox(height: ViroSpacing.md),

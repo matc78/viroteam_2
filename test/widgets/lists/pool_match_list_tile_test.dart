@@ -17,7 +17,7 @@ Future<void> _pump(WidgetTester tester, PoolTeamMatch match) {
 void main() {
   setUpAll(() => initializeDateFormatting('fr_FR'));
 
-  testWidgets('PoolMatchListTile : match joué avec score et sets', (
+  testWidgets('PoolMatchListTile : match joué avec score et sets, sans salle', (
     tester,
   ) async {
     await _pump(
@@ -39,12 +39,15 @@ void main() {
 
     expect(find.text('J2'), findsOneWidget);
     expect(find.text('11/10'), findsOneWidget);
-    expect(find.text('Ext. · vs USM de Viroflay'), findsOneWidget);
+    expect(find.text('USM de Viroflay'), findsOneWidget);
+    expect(find.text('Extérieur'), findsOneWidget);
     expect(find.text('2-3'), findsOneWidget);
-    expect(find.text('25-22, 25-27 · Gaillon'), findsOneWidget);
+    expect(find.text('25-22'), findsOneWidget);
+    expect(find.text('25-27'), findsOneWidget);
+    expect(find.textContaining('Gaillon'), findsNothing);
   });
 
-  testWidgets('PoolMatchListTile : match à venir avec heure et salle', (
+  testWidgets('PoolMatchListTile : match à venir avec heure, sans salle', (
     tester,
   ) async {
     await _pump(
@@ -61,8 +64,9 @@ void main() {
       ),
     );
 
-    expect(find.text("Dom. · vs Volley-Ball Bois d'Arcy 2"), findsOneWidget);
+    expect(find.text("Volley-Ball Bois d'Arcy 2"), findsOneWidget);
+    expect(find.text('Domicile'), findsOneWidget);
     expect(find.text('15:00'), findsOneWidget);
-    expect(find.text('Gymnase du Champ des Oiseaux'), findsOneWidget);
+    expect(find.textContaining('Champ des Oiseaux'), findsNothing);
   });
 }

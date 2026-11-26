@@ -17,6 +17,12 @@ abstract final class ViroColors {
   static const Color sportCyan = Color(0xFF0EA5E9);
   static const Color sportYellow = Color(0xFFFACC15);
 
+  // Rang au classement (badge de position : podium puis 4e en chocolat)
+  static const Color rankGold = Color(0xFFF5B301);
+  static const Color rankSilver = Color(0xFFA8B0BC);
+  static const Color rankBronze = Color(0xFFCD7F32);
+  static const Color rankChocolate = Color(0xFF7B3F00);
+
   // Semantic
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);

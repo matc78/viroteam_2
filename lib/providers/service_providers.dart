@@ -24,6 +24,7 @@ import 'package:viro_team_v2/services/notification_soft_ask_service.dart';
 import 'package:viro_team_v2/services/push_notification_service.dart';
 import 'package:viro_team_v2/services/retour_user_service.dart';
 import 'package:viro_team_v2/services/sign_up_intent_preference_service.dart';
+import 'package:viro_team_v2/services/standings_preference_service.dart';
 import 'package:viro_team_v2/services/team_federation_service.dart';
 import 'package:viro_team_v2/services/team_service.dart';
 import 'package:viro_team_v2/services/theme_preference_service.dart';
@@ -185,3 +186,10 @@ final signUpIntentPreferenceServiceProvider =
 final hapticsPreferenceServiceProvider = Provider<HapticsPreferenceService>(
   (ref) => HapticsPreferenceService(),
 );
+
+/// Surchargé dans `main` avec des préférences préchargées (dernier
+/// classement consulté connu dès l'ouverture de la coupe de la home).
+final standingsPreferenceServiceProvider =
+    Provider<StandingsPreferenceService>(
+      (ref) => StandingsPreferenceService(),
+    );

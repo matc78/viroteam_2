@@ -1,11 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/home/providers/home_teams_provider.dart';
-import 'package:viro_team_v2/models/club_team.dart';
+import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/team_federation.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/providers/session_provider.dart';
 import 'package:viro_team_v2/services/standings/pool_team_season.dart';
+import 'package:viro_team_v2/services/standings/standings_switcher.dart';
+import 'package:viro_team_v2/services/standings_preference_service.dart';
 
 /// Équipe du club dont on lit les données fédérales.
 typedef StandingsTeamRef = ({String clubId, String teamId});
@@ -54,28 +58,133 @@ final poolTeamSeasonProvider = Provider.autoDispose
       );
     });
 
-/// Équipes liées à une poule fédérale que l'utilisateur suit (joueur,
-/// coach, ou parent d'un joueur), tous clubs confondus : icône coupe de la
-/// home. Triées par nom.
-final homeStandingsTeamsProvider = Provider<List<ClubTeam>>((ref) {
+/// Prénoms des enfants suivis (liens parent actifs) : club → fiche → prénom.
+/// Repris des cibles Moi / enfants de chaque club ([clubFamilyTargetsProvider],
+/// déjà lu par le sélecteur d'audience) : aucune lecture en plus. Un club
+/// encore en chargement ou en erreur est absent de la carte.
+final standingsChildNamesProvider = Provider<Map<String, Map<String, String>>>((
+  ref,
+) {
+  final clubIds = ref.watch(
+    viroUserProvider.select(
+      (user) => {
+        for (final link in user.value?.activeParentLinks ?? const [])
+          link.clubId,
+      }.join(','),
+    ),
+  );
+  if (clubIds.isEmpty) return const {};
+  return {
+    for (final clubId in clubIds.split(','))
+      // Liste vide = fiche « Moi » encore en chargement (voir le provider).
+      if (ref.watch(clubFamilyTargetsProvider(clubId)).value case final targets?
+          when targets.isNotEmpty)
+        clubId: {
+          for (final target in targets)
+            if (target.isChild) target.memberId: target.label,
+        },
+  };
+});
+
+/// Classements suivis (joueur, coach ou parent d'un joueur), par club : club
+/// actif d'abord, une entrée par poule. Coupe de la home et barres de choix
+/// de l'écran Classement.
+final standingsGroupsProvider = Provider<List<StandingsClubGroup>>((ref) {
   final uid = ref.watch(viroUserProvider).value?.uid;
   final clubs = ref.watch(userClubsProvider).value ?? const [];
   final teamsByClub = ref.watch(homeClubTeamsProvider).value ?? const {};
+  final childNames = ref.watch(standingsChildNamesProvider);
+  final activeClubId = ref.watch(sessionProvider).activeClubId;
   if (uid == null) return const [];
 
-  final result = <ClubTeam>[];
-  for (final entry in clubs) {
-    final followedIds = {
-      uid,
-      for (final link in entry.parentLinks) link.memberId,
-    };
-    final teams = teamsByClub[entry.club.id]?.values ?? const <ClubTeam>[];
-    for (final team in teams) {
-      if (team.federation == null) continue;
-      final roster = {...team.playerIds, ...team.coachIds};
-      if (roster.any(followedIds.contains)) result.add(team);
+  return buildStandingsGroups(
+    uid: uid,
+    activeClubId: activeClubId,
+    clubs: [
+      for (final entry in clubs)
+        StandingsClubSource(
+          clubId: entry.club.id,
+          clubName: entry.club.name,
+          teams: teamsByClub[entry.club.id]?.values.toList() ?? const [],
+          // Prénom vide tant que le club charge (masqué à l'affichage),
+          // repli « Enfant » seulement si la fiche reste introuvable.
+          childNames: {
+            for (final link in entry.parentLinks)
+              link.memberId: switch (childNames[entry.club.id]) {
+                null => '',
+                final names =>
+                  names[link.memberId] ?? AppCopy.common.childFallback,
+              },
+          },
+        ),
+    ],
+  );
+});
+
+/// Derniers classements consultés par le compte connecté (persistés sur
+/// l'appareil).
+class StandingsLastViewedNotifier extends Notifier<StandingsLastViewed> {
+  @override
+  StandingsLastViewed build() {
+    final uid = ref.watch(authUidProvider);
+    if (uid == null) return const StandingsLastViewed();
+    return ref.read(standingsPreferenceServiceProvider).readSync(uid);
+  }
+
+  /// Retient la consultation de [teamId] dans [clubId].
+  void record({required String clubId, required String teamId}) {
+    final uid = ref.read(authUidProvider);
+    if (uid == null) return;
+    if (state.clubId == clubId && state.teamId == teamId) return;
+    state = state.record(clubId, teamId);
+    ref.read(standingsPreferenceServiceProvider).write(uid, state);
+  }
+}
+
+final standingsLastViewedProvider =
+    NotifierProvider<StandingsLastViewedNotifier, StandingsLastViewed>(
+      StandingsLastViewedNotifier.new,
+    );
+
+/// Classement ouvert par la coupe de la home : le dernier consulté s'il
+/// est toujours suivi, sinon le premier (club actif puis nom). `null` sans
+/// classement suivi.
+final standingsHomeTargetProvider = Provider<StandingsTeamRef?>((ref) {
+  final groups = ref.watch(standingsGroupsProvider);
+  if (groups.isEmpty) return null;
+  final last = ref.watch(standingsLastViewedProvider);
+  if (last.clubId != null && last.teamId != null) {
+    final entry = findStandingsEntry(
+      groups,
+      clubId: last.clubId!,
+      teamId: last.teamId!,
+    );
+    if (entry != null) {
+      return (clubId: entry.clubId, teamId: entry.primary.id);
     }
   }
-  result.sort((a, b) => a.name.compareTo(b.name));
-  return result;
+  final first = groups.first.entries.first;
+  return (clubId: first.clubId, teamId: first.primary.id);
 });
+
+/// Entrée du sélecteur contenant l'équipe, `null` si elle n'est pas suivie.
+final standingsEntryProvider =
+    Provider.family<StandingsEntry?, StandingsTeamRef>((ref, team) {
+      return findStandingsEntry(
+        ref.watch(standingsGroupsProvider),
+        clubId: team.clubId,
+        teamId: team.teamId,
+      );
+    });
+
+/// Meilleure position des équipes suivies de l'entrée de l'équipe (badge
+/// de rang des puces), `null` avant la synchro ou si non classée.
+final standingsEntryRankProvider = Provider.autoDispose
+    .family<int?, StandingsTeamRef>((ref, team) {
+      final entry = ref.watch(standingsEntryProvider(team));
+      if (entry == null) return null;
+      final standings = ref.watch(
+        teamStandingsProvider((clubId: entry.clubId, teamId: entry.primary.id)),
+      );
+      return bestStandingRank(standings.value, entry.teamKeys);
+    });

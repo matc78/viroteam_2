@@ -19,9 +19,13 @@ class ViroCard extends StatelessWidget {
     this.borderColor,
     this.elevated = true,
     this.semanticLabel,
+    this.backgroundColor,
   });
 
   final Widget child;
+
+  /// Fond opaque de la carte (défaut : `palette.surfaceCard`).
+  final Color? backgroundColor;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final EdgeInsetsGeometry? padding;
@@ -65,7 +69,7 @@ class ViroCard extends StatelessWidget {
         boxShadow: _tileShadow(palette),
       ),
       child: Material(
-        color: palette.surfaceCard,
+        color: backgroundColor ?? palette.surfaceCard,
         borderRadius: radius,
         clipBehavior: Clip.antiAlias,
         child: Column(

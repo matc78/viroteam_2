@@ -36,6 +36,10 @@ abstract final class ViroIcons {
   /// Coupe en contour : accès léger au classement (home, carte équipe).
   static IconData get trophyOutline => PhosphorIconsRegular.trophy;
   static IconData get refresh => PhosphorIconsRegular.arrowsClockwise;
+
+  /// Match à domicile / à l'extérieur (parcours d'une équipe).
+  static IconData get homeGame => PhosphorIconsFill.house;
+  static IconData get awayGame => PhosphorIconsFill.van;
   static IconData get link => PhosphorIconsRegular.link;
   static IconData get linkBreak => PhosphorIconsRegular.linkBreak;
   static IconData get users => PhosphorIconsRegular.users;

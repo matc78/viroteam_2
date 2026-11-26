@@ -82,7 +82,22 @@ final class AppCopyStandings {
   // ——— Classement ———
   String get screenTitle => 'Classement';
   String get openStandings => 'Classement';
-  String get pickTeamTitle => 'Quel classement ?';
+
+  /// Position au classement : « 1er », « 2e »…
+  String ordinal(int rank) => rank == 1 ? '1er' : '${rank}e';
+
+  /// Puce de club des barres de choix (enfants suivis entre parenthèses).
+  String clubChipSemantics(String club, List<String> children) =>
+      children.isEmpty
+      ? 'Classements de $club'
+      : 'Classements de $club (${children.join(', ')})';
+
+  /// Puce d'équipe des barres de choix, avec sa position si classée.
+  String teamChipSemantics(String team, List<String> children, int? rank) {
+    final who = children.isEmpty ? team : '$team (${children.join(', ')})';
+    return rank == null ? who : '$who, ${ordinal(rank)}';
+  }
+
   String get emptyTitle => 'Pas encore de classement';
   String get emptyBody =>
       'Le classement s’affiche dès la première synchro avec la fédé.';
@@ -105,13 +120,6 @@ final class AppCopyStandings {
 
   // ——— Parcours d'une équipe ———
   String get mySeasonTitle => 'Mon parcours';
-  String rankLine({
-    required int rank,
-    required int points,
-    required int played,
-  }) =>
-      '${rank == 1 ? '1er' : '${rank}e'} · $points pts · '
-      '$played ${played > 1 ? 'matchs' : 'match'}';
   String get form => 'Forme';
   String get winShort => 'V';
   String get lossShort => 'D';
@@ -119,25 +127,35 @@ final class AppCopyStandings {
   String get statRecord => 'Bilan';
   String get statSets => 'Sets';
   String get statPoints => 'Points';
-  String scorePair(int a, int b) => '$a - $b';
-  String homeAwayRecord({
-    required int homeWon,
-    required int homeLost,
-    required int awayWon,
-    required int awayLost,
-  }) => 'Dom. ${homeWon}V ${homeLost}D · Ext. ${awayWon}V ${awayLost}D';
-  String breakdown(String label, int count) => '$label ×$count';
+  String breakdownCount(int count) => '×$count';
   String get venuesTitle => 'Salles';
   String get venuesEmpty => 'Salle pas encore connue';
   String get playedTitle => 'Parcours';
   String get upcomingTitle => 'À venir';
   String get noMatches => 'Aucun match pour l’instant.';
   String roundShort(int round) => 'J$round';
-  String get homeShort => 'Dom.';
-  String get awayShort => 'Ext.';
+  String get homeLabel => 'Domicile';
+  String get awayLabel => 'Extérieur';
+  String get pointsUnit => 'pts';
+  String playedCount(int played) =>
+      '$played ${played > 1 ? 'matchs joués' : 'match joué'}';
+  String sideRecord({required int won, required int lost}) =>
+      '${won}V · ${lost}D';
+
+  /// Libellé accessible d'un match du parcours (score ou heure en fin).
+  String matchSemantics({
+    required int round,
+    required String opponent,
+    required bool isHome,
+    String? outcome,
+  }) {
+    final side = isHome ? homeLabel : awayLabel;
+    final tail = outcome == null || outcome.isEmpty ? '' : ', $outcome';
+    return 'Journée $round, $side ${versus(opponent)}$tail';
+  }
+
   String versus(String opponent) => 'vs $opponent';
   String get forfeit => 'forfait';
-  String get notScheduled => 'Date à venir';
 
   // ——— Planning (matchs synchronisés) ———
   String get federationEditHint =>

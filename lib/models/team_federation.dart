@@ -45,6 +45,11 @@ class TeamFederationLink {
   /// Joueurs non convoqués par défaut sur les matchs créés par la synchro.
   final List<String> excludedMemberIds;
 
+  /// Identifiant de la poule : l'URL canonique écrite par les Functions,
+  /// sinon `fournisseur|saison|poule`. Deux équipes d'un club dans la même
+  /// poule partagent cette clé.
+  String get poolKey => url ?? '$provider|${season ?? ''}|${pool ?? teamKey}';
+
   /// Lit le champ `federation` d'une équipe ; `null` si absent ou incomplet.
   static TeamFederationLink? fromMap(Object? raw) {
     if (raw is! Map) return null;

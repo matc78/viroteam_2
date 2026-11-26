@@ -90,18 +90,23 @@ final clubFamilyTargetsProvider =
     );
   }
 
-  for (final link in childLinks) {
-    if (selfMember != null && link.memberId == selfMember.memberId) {
-      continue;
-    }
-    final firstName = await guardianService.childFirstName(
-      clubId: clubId,
-      memberId: link.memberId,
-    );
+  final children = [
+    for (final link in childLinks)
+      if (selfMember == null || link.memberId != selfMember.memberId) link,
+  ];
+  // Lectures en parallèle ; une fiche illisible retombe seule sur « Enfant ».
+  final firstNames = await Future.wait(
+    children.map(
+      (link) => guardianService
+          .childFirstName(clubId: clubId, memberId: link.memberId)
+          .catchError((Object _) => AppCopy.common.childFallback),
+    ),
+  );
+  for (final (index, link) in children.indexed) {
     targets.add(
       FamilyAudienceTarget(
         memberId: link.memberId,
-        label: firstName,
+        label: firstNames[index],
         kind: FamilyAudienceKind.child,
       ),
     );

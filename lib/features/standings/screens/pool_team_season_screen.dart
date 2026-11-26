@@ -89,7 +89,6 @@ class PoolTeamSeasonScreen extends ConsumerWidget {
                 sliver: SliverToBoxAdapter(
                   child: StandingsSectionTitle(
                     label: AppCopy.standings.playedTitle,
-                    centered: true,
                   ),
                 ),
               ),
@@ -99,7 +98,6 @@ class PoolTeamSeasonScreen extends ConsumerWidget {
                   sliver: SliverToBoxAdapter(
                     child: StandingsSectionHint(
                       label: AppCopy.standings.noMatches,
-                      centered: true,
                     ),
                   ),
                 ),
@@ -109,6 +107,7 @@ class PoolTeamSeasonScreen extends ConsumerWidget {
                   itemCount: season.played.length,
                   itemBuilder: (context, index) => PoolMatchListTile(
                     match: season.played[index],
+                    accentColor: accent,
                     onTap: () => _openOpponent(context, season.played[index]),
                   ),
                 ),
@@ -119,7 +118,6 @@ class PoolTeamSeasonScreen extends ConsumerWidget {
                   sliver: SliverToBoxAdapter(
                     child: StandingsSectionTitle(
                       label: AppCopy.standings.upcomingTitle,
-                      centered: true,
                     ),
                   ),
                 ),
@@ -129,6 +127,7 @@ class PoolTeamSeasonScreen extends ConsumerWidget {
                     itemCount: season.upcoming.length,
                     itemBuilder: (context, index) => PoolMatchListTile(
                       match: season.upcoming[index],
+                      accentColor: accent,
                       onTap: () =>
                           _openOpponent(context, season.upcoming[index]),
                     ),

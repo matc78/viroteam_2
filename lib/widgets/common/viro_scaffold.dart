@@ -570,9 +570,13 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.onTitleTap,
     this.bottom,
     this.fallbackRoute,
+    this.centerTitle,
   });
 
   final Widget? title;
+
+  /// Centre le titre (sinon comportement par défaut de la plateforme).
+  final bool? centerTitle;
   final List<Widget>? actions;
   final Widget? leading;
 
@@ -615,6 +619,7 @@ class ViroAppBar extends StatelessWidget implements PreferredSizeWidget {
       forceMaterialTransparency: true,
       leading: leading ?? _fallbackBackButton(context),
       actions: actions,
+      centerTitle: centerTitle,
       title: title == null
           ? null
           : onTitleTap == null

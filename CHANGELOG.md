@@ -13,6 +13,12 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Gestion d’équipe : créer un joueur (fiche + invitation) depuis « Ajouter un joueur », puis l’ajouter directement au roster — admin et coach de l’équipe (capacité d’inviter), sans aller-retour par Membres
 - Calendrier FFVB : à la liaison, après le choix de l’équipe, une étape « Qui est convoqué ? » liste les joueurs (tous cochés) ; les joueurs décochés ne sont pas convoqués sur les matchs importés ni sur ceux ajoutés par les synchros suivantes (choix mémorisé dans `teams.federation.excludedMemberIds`, repris à la re-liaison), ajustable ensuite match par match depuis le planning ; un match reporté ou modifié par la synchro garde ses convocations
 - Classement FFVB : bouton « Actualiser » dans l’AppBar pour les coachs de l’équipe (et gestionnaires d’équipes), même synchro manuelle que depuis la carte équipe
+- Classement FFVB multi-équipes / multi-clubs : sous le titre (centré) de l’écran Classement, onglets de club (si plusieurs : pastille et soulignement à la couleur du club, prénoms des enfants suivis pour un parent) puis sélecteur segmenté des équipes du club (si plusieurs, avec un badge de position : or, argent, bronze, chocolat, puis couleur du club) ; ils se partagent la largeur, ou défilent s’ils débordent. Deux équipes d’un club dans la même poule partagent une seule puce, et leurs deux lignes sont mises en avant dans le tableau. Dans le tableau, le rang devient une médaille (rendu métallique, éclat sur le podium) et les 4 premières lignes prennent un fond opaque teinté de leur médaille ; les lignes entrent en cascade (désactivé si animations réduites). La coupe de la home rouvre le dernier classement consulté (mémorisé sur l’appareil, par compte) au lieu de demander « Quel classement ? » ; ordre : club actif puis nom
+- Saison d’une équipe (classement FFVB) : en-tête refait — carte héro (médaille de rang, points, forme), stats Bilan / Sets / Points avec jauge pour-contre verte et rouge, répartition des scores en pastilles colorées, bilans Domicile / Extérieur avec icône, salles dans une carte ; cartes du parcours sans adresse (pastille Domicile / Extérieur), liseré et score à la couleur du résultat, sets gagnés en vert et perdus en rouge, heure en pastille pour les matchs à venir
+
+### Modifié
+
+- Paramètres club : intro des capacités coach précisée (« uniquement sur les équipes qu’il entraîne ») ; descriptions des toggles raccourcies
 
 ## [2.5.0] - 2026-11-25
 

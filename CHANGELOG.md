@@ -8,6 +8,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Gestion d’équipe : créer un joueur (fiche + invitation) depuis « Ajouter un joueur », puis l’ajouter directement au roster — admin et coach de l’équipe (capacité d’inviter), sans aller-retour par Membres
+
 ## [2.5.0] - 2026-11-25
 
 ### Ajouté

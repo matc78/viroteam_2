@@ -15,6 +15,10 @@ final class AppCopyTeams {
   String get teamNameLabel => 'Nom de l\'équipe';
   String get noCoachToAdd => 'Aucun coach dispo à ajouter.';
   String get noPlayerToAdd => 'Aucun joueur dispo à ajouter.';
+  /// CTA depuis la feuille « Ajouter un joueur » (création + ajout roster).
+  String get createPlayerAction => 'Créer un joueur';
+  String get noPlayerToAddHint =>
+      'Crée-le ici — il sera ajouté à l’équipe direct.';
   String searchNoResult(String query) =>
       'Rien trouvé pour « $query ».';
 

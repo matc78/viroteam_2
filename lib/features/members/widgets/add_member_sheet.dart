@@ -24,7 +24,10 @@ import 'package:viro_team_v2/widgets/common/viro_primary_button.dart';
 /// Ouvre la feuille d’ajout d’un membre (fiche pré-inscrite + invitation)
 /// avec écran succès. Les droits et le rôle d’entraîneur se règlent ensuite
 /// (fiche membre, équipe).
-Future<void> showAddMemberSheet(
+///
+/// Retourne le [AddMemberResult] si la fiche a bien été créée (fermeture
+/// depuis l’écran succès), sinon `null` (annulation du formulaire).
+Future<AddMemberResult?> showAddMemberSheet(
   BuildContext context, {
   required Club club,
 }) {
@@ -33,7 +36,7 @@ Future<void> showAddMemberSheet(
     clubId: club.id,
   );
 
-  return showModalBottomSheet<void>(
+  return showModalBottomSheet<AddMemberResult>(
     context: context,
     isScrollControlled: true,
     builder: (_) => ClubAccentTheme(
@@ -307,7 +310,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
         ViroPrimaryButton(
           label: AppCopy.common.close,
           outlined: true,
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(context).pop(_created),
         ),
       ],
     );

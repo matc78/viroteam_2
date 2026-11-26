@@ -4,8 +4,10 @@ import 'package:viro_team_v2/widgets/common/viro_empty_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
+import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/members/providers/member_providers.dart';
+import 'package:viro_team_v2/features/members/widgets/add_member_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club_member.dart';
@@ -105,9 +107,14 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
     return haystack.contains(needle);
   }
 
+  /// Peut créer une fiche membre puis l’ajouter au roster joueur.
+  bool get _canCreatePlayer =>
+      widget.slot == TeamRosterSlot.player &&
+      ref.watch(clubAccessProvider(widget.clubId)).canAddMembers &&
+      ref.watch(clubProvider(widget.clubId)).value != null;
+
   @override
   Widget build(BuildContext context) {
-    final palette = context.viroPalette;
     final membersAsync = ref.watch(clubMembersProvider(widget.clubId));
     final pendingAsync = ref.watch(pendingTeamMembersProvider(widget.clubId));
     final title = widget.slot == TeamRosterSlot.coach
@@ -211,20 +218,20 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                   if (players.isEmpty &&
                       staffAsPlayers.isEmpty &&
                       pendingAvailable.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(ViroSpacing.xl),
-                        child: Text(
-                          !hasAnyEligible
-                              ? AppCopy.teams.noPlayerToAdd
-                              : AppCopy.teams.searchNoResult(_search.trim()),
-                          textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: palette.textSecondary,
-                                  ),
-                        ),
-                      ),
+                    final isSearchMiss = hasAnyEligible;
+                    return ViroEmptyState(
+                      message: !hasAnyEligible
+                          ? AppCopy.teams.noPlayerToAdd
+                          : AppCopy.teams.searchNoResult(_search.trim()),
+                      hint: _canCreatePlayer && !isSearchMiss
+                          ? AppCopy.teams.noPlayerToAddHint
+                          : null,
+                      icon: ViroIcons.personOutline,
+                      actionLabel: _canCreatePlayer
+                          ? AppCopy.teams.createPlayerAction
+                          : null,
+                      onAction:
+                          _canCreatePlayer ? () => _createAndAddPlayer() : null,
                     );
                   }
 
@@ -279,6 +286,10 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
                           );
                           },
                         ),
+                      ],
+                      if (_canCreatePlayer) ...[
+                        const SizedBox(height: ViroSpacing.md),
+                        _CreatePlayerTile(onTap: _createAndAddPlayer),
                       ],
                       const SizedBox(height: ViroSpacing.xl),
                     ],
@@ -343,6 +354,16 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
     );
   }
 
+  /// Ouvre la création de membre, puis ajoute la nouvelle fiche au roster.
+  Future<void> _createAndAddPlayer() async {
+    final club = ref.read(clubProvider(widget.clubId)).value;
+    if (club == null || !mounted) return;
+
+    final result = await showAddMemberSheet(context, club: club);
+    if (!mounted || result == null) return;
+    await _add(context, result.member.memberId);
+  }
+
   Future<void> _add(BuildContext context, String id) async {
     Navigator.pop(context);
     await widget.onAdd(id);
@@ -372,6 +393,32 @@ class _AddTeamMemberSheetState extends ConsumerState<_AddTeamMemberSheet> {
       if (linkedOnRoster) return false;
     }
     return true;
+  }
+}
+
+class _CreatePlayerTile extends StatelessWidget {
+  const _CreatePlayerTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: accent.withValues(alpha: 0.12),
+        child: ViroIcon(ViroIcons.add, color: accent),
+      ),
+      title: Text(
+        AppCopy.teams.createPlayerAction,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: accent,
+        ),
+      ),
+      onTap: onTap,
+    );
   }
 }
 

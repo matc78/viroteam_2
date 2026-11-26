@@ -162,113 +162,132 @@ class _TeamFederationLinkSheetState
     final palette = context.viroPalette;
     final theme = Theme.of(context).textTheme;
     final preview = _preview;
+    // Bouton fixe en bas uniquement après choix d'équipe (jamais grisé).
+    final showImport = preview != null && _selectedKey != null;
 
     return SafeArea(
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.85,
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            ViroSpacing.lg,
-            ViroSpacing.md,
-            ViroSpacing.lg,
-            ViroSpacing.lg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                AppCopy.standings.sheetTitle,
-                style: theme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: palette.brandText,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  ViroSpacing.lg,
+                  ViroSpacing.md,
+                  ViroSpacing.lg,
+                  ViroSpacing.lg,
                 ),
-              ),
-              const SizedBox(height: ViroSpacing.xs),
-              Text(
-                AppCopy.standings.sheetHelper,
-                style: theme.bodyMedium?.copyWith(
-                  color: palette.textSecondary,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: ViroSpacing.md),
-              const _FederationPageExample(),
-              const SizedBox(height: ViroSpacing.lg),
-              TextField(
-                controller: _urlController,
-                keyboardType: TextInputType.url,
-                textInputAction: TextInputAction.done,
-                // Lien modifié : l'aperçu ne correspond plus, on revérifie.
-                onChanged: (_) {
-                  if (_preview == null) return;
-                  setState(() {
-                    _preview = null;
-                    _selectedKey = null;
-                  });
-                },
-                onSubmitted: (_) => _busy ? null : _check(),
-                decoration: InputDecoration(
-                  labelText: AppCopy.standings.urlLabel,
-                  hintText: AppCopy.standings.urlHint,
-                ),
-              ),
-              const SizedBox(height: ViroSpacing.sm),
-              ViroPrimaryButton(
-                label: AppCopy.standings.checkLink,
-                outlined: true,
-                isLoading: _busy && preview == null,
-                onPressed: _busy ? null : _check,
-              ),
-              if (preview != null) ...[
-                const SizedBox(height: ViroSpacing.lg),
-                if (preview.poolLabel.isNotEmpty)
-                  Text(
-                    preview.poolLabel,
-                    style: theme.bodySmall?.copyWith(
-                      color: palette.textSecondary,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      AppCopy.standings.sheetTitle,
+                      style: theme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: palette.brandText,
+                      ),
                     ),
-                  ),
-                const SizedBox(height: ViroSpacing.xs),
-                Text(
-                  AppCopy.standings.pickTeam,
-                  style: theme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: palette.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: ViroSpacing.sm),
-                for (final poolTeam in preview.teams)
-                  ViroSelectableRow(
-                    selected: _selectedKey == poolTeam.key,
-                    accentColor: widget.accent,
-                    title: poolTeam.name,
-                    onChanged: _busy
-                        ? null
-                        : (selected) => setState(
-                            () => _selectedKey = selected ? poolTeam.key : null,
+                    const SizedBox(height: ViroSpacing.xs),
+                    Text(
+                      AppCopy.standings.sheetHelper,
+                      style: theme.bodyMedium?.copyWith(
+                        color: palette.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: ViroSpacing.md),
+                    const _FederationPageExample(),
+                    const SizedBox(height: ViroSpacing.lg),
+                    TextField(
+                      controller: _urlController,
+                      keyboardType: TextInputType.url,
+                      textInputAction: TextInputAction.done,
+                      // Lien modifié : l'aperçu ne correspond plus, on revérifie.
+                      onChanged: (_) {
+                        if (_preview == null) return;
+                        setState(() {
+                          _preview = null;
+                          _selectedKey = null;
+                        });
+                      },
+                      onSubmitted: (_) => _busy ? null : _check(),
+                      decoration: InputDecoration(
+                        labelText: AppCopy.standings.urlLabel,
+                        hintText: AppCopy.standings.urlHint,
+                      ),
+                    ),
+                    const SizedBox(height: ViroSpacing.sm),
+                    ViroPrimaryButton(
+                      label: AppCopy.standings.checkLink,
+                      outlined: true,
+                      isLoading: _busy && preview == null,
+                      onPressed: _busy ? null : _check,
+                    ),
+                    if (preview != null) ...[
+                      const SizedBox(height: ViroSpacing.lg),
+                      if (preview.poolLabel.isNotEmpty)
+                        Text(
+                          preview.poolLabel,
+                          style: theme.bodySmall?.copyWith(
+                            color: palette.textSecondary,
                           ),
-                  ),
-              ],
-              if (_error != null) ...[
-                const SizedBox(height: ViroSpacing.sm),
-                Text(
-                  _error!,
-                  style: theme.bodySmall?.copyWith(color: palette.errorText),
+                        ),
+                      const SizedBox(height: ViroSpacing.xs),
+                      Text(
+                        AppCopy.standings.pickTeam,
+                        style: theme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: palette.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: ViroSpacing.sm),
+                      for (final poolTeam in preview.teams)
+                        ViroSelectableRow(
+                          selected: _selectedKey == poolTeam.key,
+                          accentColor: widget.accent,
+                          title: poolTeam.name,
+                          onChanged: _busy
+                              ? null
+                              : (selected) => setState(
+                                  () => _selectedKey =
+                                      selected ? poolTeam.key : null,
+                                ),
+                        ),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: ViroSpacing.sm),
+                      Text(
+                        _error!,
+                        style: theme.bodySmall?.copyWith(
+                          color: palette.errorText,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-              if (preview != null) ...[
-                const SizedBox(height: ViroSpacing.lg),
-                ViroPrimaryButton(
+              ),
+            ),
+            if (showImport)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  ViroSpacing.lg,
+                  ViroSpacing.sm,
+                  ViroSpacing.lg,
+                  ViroSpacing.lg,
+                ),
+                child: ViroPrimaryButton(
                   label: AppCopy.standings.importAction,
                   isLoading: _busy,
-                  onPressed: _busy || _selectedKey == null ? null : _import,
+                  onPressed: _busy ? null : _import,
                 ),
-              ],
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

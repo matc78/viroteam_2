@@ -144,7 +144,11 @@ class _TeamsHubScreenState extends ConsumerState<TeamsHubScreen> {
             Expanded(
               child: effectiveTab == TeamsHubTab.manage
                   ? ManageTeamsBody(clubId: widget.clubId)
-                  : MyTeamsBody(clubId: widget.clubId),
+                  : MyTeamsBody(
+                      clubId: widget.clubId,
+                      onTeamCreated: () =>
+                          setState(() => _tab = TeamsHubTab.manage),
+                    ),
             ),
           ],
         ),

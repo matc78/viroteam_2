@@ -15,9 +15,16 @@ import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Liste « Mes équipes » (roster lecture) — corps du hub Équipes.
 class MyTeamsBody extends ConsumerWidget {
-  const MyTeamsBody({super.key, required this.clubId});
+  const MyTeamsBody({
+    super.key,
+    required this.clubId,
+    this.onTeamCreated,
+  });
 
   final String clubId;
+
+  /// Après création réussie (admin hors roster) : passer sur Gestion.
+  final VoidCallback? onTeamCreated;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -69,12 +76,15 @@ class MyTeamsBody extends ConsumerWidget {
                                 ? AppCopy.teams.createTeamFab
                                 : null,
                             onAction: canCreateTeam
-                                ? () => createClubTeam(
+                                ? () async {
+                                    final created = await createClubTeam(
                                       context: context,
                                       ref: ref,
                                       clubId: clubId,
                                       sport: club.sport,
-                                    )
+                                    );
+                                    if (created) onTeamCreated?.call();
+                                  }
                                 : null,
                           ),
                         ),

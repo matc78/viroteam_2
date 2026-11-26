@@ -28,6 +28,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Créer une équipe depuis « Mes équipes » (état vide admin) bascule vers l’onglet Gestion pour ajouter coachs et joueurs, au lieu de rester sur une liste encore vide
 - Accepter une invitation nominative sans e-mail confirmé affichait seulement « Confirme ton adresse e-mail… » sans jamais proposer d’envoyer le lien (erreur enveloppée par `InvitationService`) : le joueur attendait un mail qui n’était jamais parti
 
 ## [2.4.0] - 2026-11-17

@@ -17,7 +17,10 @@ import 'package:viro_team_v2/features/club/providers/club_access_providers.dart'
 import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Ouvre le dialog de création d’équipe et persiste en Firestore.
-Future<void> createClubTeam({
+///
+/// Retourne `true` si l’équipe a bien été créée (pour basculer l’onglet
+/// Gestion depuis « Mes équipes », où la nouvelle équipe n’apparaît pas).
+Future<bool> createClubTeam({
   required BuildContext context,
   required WidgetRef ref,
   required String clubId,
@@ -29,7 +32,7 @@ Future<void> createClubTeam({
     sport: sport,
     accentColor: accent,
   );
-  if (result == null || !context.mounted) return;
+  if (result == null || !context.mounted) return false;
 
   try {
     await ref.read(teamServiceProvider).createTeam(
@@ -40,10 +43,12 @@ Future<void> createClubTeam({
     if (context.mounted) {
       ViroSnackBar.show(context, AppCopy.teams.teamCreated);
     }
+    return true;
   } catch (e) {
     if (context.mounted) {
       ViroSnackBar.show(context, AppCopy.common.errorWithDetails(e));
     }
+    return false;
   }
 }
 

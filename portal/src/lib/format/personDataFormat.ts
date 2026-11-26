@@ -5,8 +5,9 @@ const PERSON_NAME_ALLOWED =
 
 const ADDRESS_ALLOWED = /^[\p{L}\p{N} ,.\-'’/°#]+$/u;
 
+/** Lettres + chiffres (arrondissements : « Paris 14e », « Lyon 3e »). */
 const CITY_ALLOWED =
-  /^[\p{L}]+(?:['’\-][\p{L}]+)*(?: [\p{L}]+(?:['’\-][\p{L}]+)*)*$/u;
+  /^[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*(?: [\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*)*$/u;
 
 const POSTAL_CODE_PATTERN = /^\d{5}$/;
 
@@ -73,7 +74,7 @@ export function cityError(
     return options?.required ? "La ville est obligatoire." : null;
   }
   if (!CITY_ALLOWED.test(trimmed)) {
-    return "La ville ne peut contenir que des lettres, espaces, tirets ou apostrophes.";
+    return "La ville ne peut contenir que des lettres, chiffres, espaces, tirets ou apostrophes.";
   }
   return null;
 }

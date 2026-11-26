@@ -49,6 +49,11 @@ describe("personDataFormat", () => {
     expect(addressLineError("12 rue 😀")).toContain("emoji");
     expect(cityError("paris")).toBeNull();
     expect(formatCity("saint-étienne")).toBe("Saint-Étienne");
+    expect(cityError("Paris 14e")).toBeNull();
+    expect(formatCity("paris 14e arrondissement")).toBe(
+      "Paris 14e Arrondissement",
+    );
+    expect(cityError("Paris!")).toContain("lettres");
     expect(cityError("", { required: true })).toContain("obligatoire");
   });
 });

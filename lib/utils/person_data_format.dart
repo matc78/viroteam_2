@@ -12,8 +12,9 @@ final RegExp _addressAllowedPattern = RegExp(
   unicode: true,
 );
 
+/// Lettres + chiffres (arrondissements : « Paris 14e », « Lyon 3e »).
 final RegExp _cityAllowedPattern = RegExp(
-  r"^[\p{L}]+(?:['’\-][\p{L}]+)*(?: [\p{L}]+(?:['’\-][\p{L}]+)*)*$",
+  r"^[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*(?: [\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*)*$",
   unicode: true,
 );
 
@@ -79,7 +80,7 @@ String? cityError(String raw, {bool required = false}) {
     return required ? 'La ville est obligatoire.' : null;
   }
   if (!_cityAllowedPattern.hasMatch(trimmed)) {
-    return 'La ville ne peut contenir que des lettres, espaces, tirets ou apostrophes.';
+    return 'La ville ne peut contenir que des lettres, chiffres, espaces, tirets ou apostrophes.';
   }
   return null;
 }

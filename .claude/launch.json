@@ -4,6 +4,12 @@
     {
       "name": "portal",
       "url": "http://localhost:3000"
+    },
+    {
+      "name": "portal-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "portal", "run", "dev"],
+      "port": 3000
     }
   ]
 }

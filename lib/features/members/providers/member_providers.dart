@@ -3,6 +3,7 @@ import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
 import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/member/member_activation.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 
 final clubMembersProvider = StreamProvider.family<List<ClubMember>, String>((
@@ -35,3 +36,11 @@ final clubForMembersProvider = FutureProvider.family<Club?, String>((
 ) {
   return ref.read(clubServiceProvider).getClub(clubId);
 });
+
+/// Compteurs d’activation des comptes de l’effectif (carte de suivi de
+/// l’écran Gérer les membres), `null` tant que la liste charge.
+final clubMemberActivationStatsProvider =
+    Provider.family<MemberActivationStats?, String>((ref, clubId) {
+      final members = ref.watch(clubMembersWithInvitesProvider(clubId)).value;
+      return members == null ? null : MemberActivationStats.of(members);
+    });

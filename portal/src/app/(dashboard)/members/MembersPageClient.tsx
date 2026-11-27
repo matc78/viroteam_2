@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ActivationRosterPanel } from "@/components/dashboard/ActivationRosterPanel";
 import { AddMemberDialog } from "@/components/dashboard/AddMemberDialog";
 import { DashboardPageIntro } from "@/components/dashboard/DashboardPageIntro";
@@ -1490,6 +1491,23 @@ export function MembersPageClient() {
         />
       ) : null}
 
+      <Suspense fallback={null}>
+        <ImportQueryOpener
+          clubId={
+            data && activeClub && loadedClubId === activeClub.id
+              ? activeClub.id
+              : null
+          }
+          canImport={canImportMembers}
+          onOpen={() => setShowImport(true)}
+          onUnavailable={() =>
+            showToast(
+              "L’import d’une liste de membres se fait sur ordinateur.",
+            )
+          }
+        />
+      </Suspense>
+
       {showImport && data && activeClub && canImportMembers ? (
         <ImportMembersDialog
           sport={activeClub.sport}
@@ -1521,4 +1539,57 @@ export function MembersPageClient() {
       ) : null}
     </>
   );
+}
+
+/**
+ * Ouvre l’import CSV quand l’URL porte `?import=1` (renvoi depuis l’app),
+ * une seule fois, une fois chargées les données du club visé par le lien
+ * (`clubId` de l’URL), puis retire ce seul paramètre de l’URL. Sans droit
+ * d’import ici (petit écran), `onUnavailable` explique pourquoi.
+ */
+function ImportQueryOpener({
+  clubId,
+  canImport,
+  onOpen,
+  onUnavailable,
+}: {
+  /** Club actif dont les membres sont chargés, `null` tant que ça charge. */
+  clubId: string | null;
+  canImport: boolean;
+  onOpen: () => void;
+  onUnavailable: () => void;
+}) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const requested = searchParams.get("import") === "1";
+  const targetClubId = searchParams.get("clubId");
+  const handledRef = useRef(false);
+  const onOpenRef = useRef(onOpen);
+  const onUnavailableRef = useRef(onUnavailable);
+  useEffect(() => {
+    onOpenRef.current = onOpen;
+    onUnavailableRef.current = onUnavailable;
+  });
+
+  useEffect(() => {
+    if (!requested) {
+      handledRef.current = false;
+      return;
+    }
+    if (handledRef.current || !clubId) return;
+    // Lien vers un autre club : attendre que le club actif suive l’URL.
+    if (targetClubId && targetClubId !== clubId) return;
+    handledRef.current = true;
+    if (canImport) onOpenRef.current();
+    else onUnavailableRef.current();
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("import");
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  }, [requested, clubId, targetClubId, canImport, searchParams, router, pathname]);
+
+  return null;
 }

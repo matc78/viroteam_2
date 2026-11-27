@@ -54,6 +54,27 @@ final class AppCopyMembers {
   String inviteAllRetryIn(String cooldown) => 'Réessayer dans $cooldown';
   String inviteAllLabel(int count) => 'Inviter les non inscrits ($count)';
 
+  // Suivi d’activation des comptes (carte en tête de la liste).
+  String activationSummary(int linked, int total, int percent) =>
+      '$linked compte${linked > 1 ? 's' : ''} lié${linked > 1 ? 's' : ''} '
+      'sur $total ($percent %)';
+  String get activationAllLinked =>
+      'Tout le monde a son compte, carton plein !';
+  String get activationHint => 'Touche une étape pour filtrer la liste.';
+  String get activationToInvite => 'À inviter';
+  String get activationPending => 'Invite en cours';
+  String get activationNoEmail => 'Sans e-mail';
+  String get activationLinked => 'Inscrits';
+  String get activationToInviteHint =>
+      'Pas encore inscrits, avec un e-mail : prêts pour une invitation.';
+  String get activationPendingHint =>
+      'Code encore valide : une petite relance peut aider.';
+  String get activationNoEmailHint =>
+      'Ajoute un e-mail sur la fiche pour pouvoir inviter.';
+  String get activationLinkedHint => 'Déjà sur ViroTeam, rien à faire.';
+  String activationFilterSemantics(String label, int count, bool selected) =>
+      '$label : $count${selected ? ', filtre actif' : ''}';
+
   String get pleaseWait => 'Patiente un instant…';
   String get preparing => 'Préparation…';
   String get stayOnScreenDuringSend => 'Reste sur cet écran pendant l’envoi.';
@@ -99,6 +120,15 @@ final class AppCopyMembers {
   String get sessionExpired => 'Session expirée.';
   String get createMemberImpossible => 'Création du membre impossible.';
   String get addMemberTitle => 'Ajouter un membre';
+
+  // Import CSV : renvoi vers le portail (pas d’import dans l’app).
+  String get importMembersTooltip => 'Importer une liste de membres';
+  String get importMembersTitle => 'Importer depuis un ordi';
+  String get importMembersBody =>
+      'L’import d’une liste (fichier CSV ou Excel) se fait sur le site '
+      'ViroTeam, plus confortable sur grand écran. Ouvre le lien sur ton '
+      'ordi : la fenêtre d’import s’ouvre directement.';
+
   String get firstNameRequired => 'Prénom *';
   String get lastNameRequired => 'Nom *';
   String get emailRequired => 'E-mail *';

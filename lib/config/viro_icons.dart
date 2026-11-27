@@ -23,6 +23,12 @@ abstract final class ViroIcons {
   static IconData get close => PhosphorIconsRegular.x;
   static IconData get appUpdate => PhosphorIconsRegular.downloadSimple;
 
+  /// Action à faire sur ordinateur (renvoi vers le portail web).
+  static IconData get desktop => PhosphorIconsRegular.desktop;
+
+  /// Import d’un fichier (liste de membres).
+  static IconData get fileImport => PhosphorIconsRegular.fileArrowUp;
+
   // Lieux & planning
   static IconData get place => PhosphorIconsRegular.mapPin;
   static IconData get navigation => PhosphorIconsRegular.navigationArrow;
@@ -161,6 +167,8 @@ abstract final class ViroIcons {
             ('club', club),
             ('close', close),
             ('appUpdate', appUpdate),
+            ('desktop', desktop),
+            ('fileImport', fileImport),
           ],
         ),
         ViroIconCatalogGroup(

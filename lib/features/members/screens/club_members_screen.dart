@@ -28,6 +28,10 @@ import 'package:viro_team_v2/features/members/widgets/member_detail_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/pending_member_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/parents_section.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
+import 'package:viro_team_v2/features/members/widgets/member_activation_card.dart';
+import 'package:viro_team_v2/services/member/member_activation.dart';
+import 'package:viro_team_v2/utils/portal_links.dart';
+import 'package:viro_team_v2/widgets/common/portal_handoff_sheet.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/callable_error.dart';
@@ -59,6 +63,9 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
   String _search = '';
   /// Filtre par badge (`null` : tous).
   MemberBadge? _badgeFilter;
+
+  /// Étape d’activation filtrée (carte de suivi), `null` = toutes.
+  MemberActivationBucket? _activationFilter;
 
   MembersScreenSection _section = MembersScreenSection.roster;
   bool _selectionMode = false;
@@ -162,10 +169,18 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
     return '${seconds}s';
   }
 
-  List<ClubMember> _filterMembers(List<ClubMember> members) {
+  /// Membres affichés : filtres badge, étape d’activation ([activation],
+  /// `null` = toutes) et recherche.
+  List<ClubMember> _filterMembers(
+    List<ClubMember> members, {
+    MemberActivationBucket? activation,
+  }) {
     return members.where((m) {
       final filter = _badgeFilter;
       if (filter != null && !m.badges.contains(filter)) return false;
+      if (activation != null && memberActivationBucket(m) != activation) {
+        return false;
+      }
       if (_search.isEmpty) return true;
       return m.fullName.toLowerCase().contains(_search.toLowerCase());
     }).toList();
@@ -203,6 +218,18 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
     if (club == null || !mounted) return;
     await showAddMemberSheet(context, club: club);
   }
+
+  /// Import CSV / Excel : mêmes droits que sur le portail (membres + équipes).
+  bool get _canImportMembers =>
+      _canManageMembers && _access.can(ClubPermission.manageTeams);
+
+  /// Renvoie vers l’import du portail (fenêtre ouverte via `?import=1`).
+  Future<void> _openImportOnPortal() => showPortalHandoffSheet(
+        context,
+        title: AppCopy.members.importMembersTitle,
+        message: AppCopy.members.importMembersBody,
+        url: portalMembersImportUrl(clubId: widget.clubId),
+      );
 
   Future<bool> _emailInvite(ClubMember member) async {
     try {
@@ -598,6 +625,15 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                 ),
                 title: Text(AppCopy.members.manageTitle),
                 actions: [
+                  if (_canImportMembers &&
+                      !_selectionMode &&
+                      !_inviteAllBusy &&
+                      _section == MembersScreenSection.roster)
+                    IconButton(
+                      tooltip: AppCopy.members.importMembersTooltip,
+                      icon: ViroIcon(ViroIcons.fileImport),
+                      onPressed: _openImportOnPortal,
+                    ),
                   if (_selectionMode && !_inviteAllBusy)
                     TextButton(
                       onPressed: _cancelSelectionMode,
@@ -646,7 +682,23 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                     data: (members) {
                       // Abonnement : les getters de droits lisent ce provider.
                       final access = ref.watch(clubAccessProvider(clubId));
-                      final filtered = _filterMembers(members);
+                      final activationStats = ref.watch(
+                        clubMemberActivationStatsProvider(clubId),
+                      );
+                      final showActivation = _canManageMembers &&
+                          !_selectionMode &&
+                          members.isNotEmpty &&
+                          activationStats != null;
+                      // Le filtre d’étape ne vaut que si ses étapes sont
+                      // visibles (sinon impossible de l’enlever).
+                      final activationFilter =
+                          showActivation && !activationStats.allLinked
+                              ? _activationFilter
+                              : null;
+                      final filtered = _filterMembers(
+                        members,
+                        activation: activationFilter,
+                      );
                       final eligibleInviteCount =
                           _eligibleInviteMembers(members).length;
                       final parentStatusByMemberId = _canManageMembers
@@ -764,6 +816,25 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                   ),
                                 ),
                               ),
+                              if (showActivation)
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      ViroSpacing.screenHorizontal,
+                                      ViroSpacing.md,
+                                      ViroSpacing.screenHorizontal,
+                                      0,
+                                    ),
+                                    child: MemberActivationCard(
+                                      stats: activationStats,
+                                      selected: activationFilter,
+                                      accentColor: accent,
+                                      onSelected: (bucket) => setState(
+                                        () => _activationFilter = bucket,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               if (_canInviteAll &&
                                   !_selectionMode &&
                                   eligibleInviteCount > 0)
@@ -807,7 +878,8 @@ class _ClubMembersScreenState extends ConsumerState<ClubMembersScreen> {
                                 SliverFillRemaining(
                                   hasScrollBody: false,
                                   child: _search.isNotEmpty ||
-                                          _badgeFilter != null
+                                          _badgeFilter != null ||
+                                          activationFilter != null
                                       ? ViroEmptyState(
                                           message: AppCopy.members.emptySearch,
                                           icon: ViroIcons.search,

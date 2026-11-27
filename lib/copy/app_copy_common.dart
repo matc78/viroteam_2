@@ -28,6 +28,13 @@ final class AppCopyCommon {
   String get invite => 'Inviter';
   String get create => 'Créer';
   String get seeAll => 'Voir tout';
+
+  // Renvoi vers le portail web (actions pensées pour un ordinateur).
+  String get portalHandoffOpen => 'Ouvrir le site';
+  String get portalHandoffCopy => 'Copier le lien';
+  String get portalHandoffCopied => 'Lien copié, colle-le sur ton ordi.';
+  String get portalHandoffOpenFailed =>
+      'Impossible d’ouvrir le site. Copie le lien à la place.';
   String get hide => 'Masquer';
   String get saving => 'Enregistrement…';
   String get preparing => 'Préparation…';

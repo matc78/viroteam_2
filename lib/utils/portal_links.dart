@@ -42,6 +42,14 @@ Uri portalMembersUrl({
   );
 }
 
+/// Membres avec la fenêtre d’import CSV ouverte (`/members?import=1`).
+Uri portalMembersImportUrl({required String clubId}) {
+  final uri = portalPageUrl('/members', clubId: clubId);
+  return uri.replace(
+    queryParameters: {...uri.queryParameters, 'import': '1'},
+  );
+}
+
 /// Inventaire équipements (`/equipment`).
 Uri portalEquipmentUrl({required String clubId}) =>
     portalPageUrl('/equipment', clubId: clubId);

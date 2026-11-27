@@ -122,7 +122,7 @@ class ClubMember {
       pendingInviteCode != null &&
       pendingInviteCode!.isNotEmpty &&
       (pendingInviteExpiresAt == null ||
-          DateTime.now().isBefore(pendingInviteExpiresAt!));
+          !DateTime.now().isAfter(pendingInviteExpiresAt!));
 
   /// Éligible à un e-mail d’invitation : pas encore de compte + e-mail renseigné.
   bool get canReceiveInviteEmail =>

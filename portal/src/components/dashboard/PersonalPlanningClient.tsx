@@ -31,6 +31,15 @@ import {
   type PersonalPlanningData,
 } from "@/lib/firebase/personalPlanningService";
 import { expandEventsToLabelBlocks } from "@/lib/planning/calendarEventBlocks";
+import {
+  buildIcs,
+  downloadIcsFile,
+  icsFileName,
+  upcomingEvents,
+} from "@/lib/planning/icsExport";
+import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/ToastProvider";
+import styles from "./PersonalPlanningClient.module.css";
 import { useOptimisticEventRsvp } from "@/lib/planning/useOptimisticEventRsvp";
 import type { PopoverAnchorRect } from "@/lib/planning/anchoredPopoverPosition";
 import familyStyles from "@/components/family/FamilyPlanningClient.module.css";
@@ -49,12 +58,16 @@ type PersonalPlanningClientProps = {
  * Planning multi-clubs : events du viewer (joueur + coach) et des enfants liés.
  * Pas de création d’événement ; filtres = clubs.
  */
+/** Horizon de l’export `.ics` (mois à venir). */
+const ICS_EXPORT_MONTHS = 12;
+
 export function PersonalPlanningClient({
   eyebrow = "Personnel",
   isPanelActive = true,
 }: PersonalPlanningClientProps) {
   const pathname = usePathname();
   const { user, profile, bureauClubs, familyClubs } = useAuth();
+  const { showToast } = useToast();
 
   const planningRoute = pathname.startsWith("/family")
     ? "/family/my-planning"
@@ -290,6 +303,45 @@ export function PersonalPlanningClient({
     );
   }, [data, clubOptions, clubColorById, filteredEvents, filters.teamIds]);
 
+  const [icsExporting, setIcsExporting] = useState(false);
+
+  /**
+   * Télécharge les événements à venir (12 mois, pas seulement la période
+   * affichée) des clubs cochés au format `.ics`.
+   */
+  const handleIcsExport = useCallback(async () => {
+    if (!user || !profile || icsExporting) return;
+    const selectedClubs = new Set(filters.teamIds);
+    const now = new Date();
+    const end = new Date(now);
+    end.setMonth(end.getMonth() + ICS_EXPORT_MONTHS);
+    setIcsExporting(true);
+    try {
+      const upcoming = await loadPersonalPlanningAcrossClubs({
+        uid: user.uid,
+        profile,
+        clubs,
+        range: { start: now, end },
+      });
+      const events = upcomingEvents(
+        upcoming.events.filter((event) => selectedClubs.has(event.clubId)),
+        now,
+      );
+      if (events.length === 0) {
+        showToast("Aucun événement à venir à exporter.");
+        return;
+      }
+      downloadIcsFile(
+        buildIcs(events, { calendarName: "ViroTeam", now }),
+        icsFileName(now),
+      );
+    } catch {
+      showToast("Export impossible. Réessaie dans un instant.", "error");
+    } finally {
+      setIcsExporting(false);
+    }
+  }, [user, profile, clubs, filters.teamIds, icsExporting, showToast]);
+
   /** Resync le popover après reload RSVP. */
   useEffect(() => {
     if (!selectedEvent) return;
@@ -360,7 +412,20 @@ export function PersonalPlanningClient({
         onRefresh={reload}
         refreshing={refreshing}
         hasNewData={hasNewEvents}
-      />
+      >
+        {filters.teamIds.length > 0 ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className={styles.icsButton}
+            title="Télécharge un fichier .ics à ouvrir dans Google Agenda, Outlook ou Calendrier"
+            disabled={icsExporting}
+            onClick={() => void handleIcsExport()}
+          >
+            Exporter vers mon agenda
+          </Button>
+        ) : null}
+      </DashboardPageIntro>
 
       {error ? (
         <p className={introStyles.lead} role="alert">

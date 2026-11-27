@@ -73,6 +73,10 @@ export type ClubEventView = {
   startsAt: string;
   /** Fin estimée (endTime Firestore, sinon début + 75 min). */
   endsAt: string;
+  /** Heure de début saisie (`startTime`) ; sinon `startsAt` est minuit. */
+  startTimeSet?: boolean;
+  /** Heure de fin saisie (`endTime`) ; sinon `endsAt` est estimée. */
+  endTimeSet?: boolean;
   dateId: string;
   location: string;
   teamIds: string[];
@@ -347,6 +351,8 @@ export function parseClubEvent(
     title: String(data[Fields.title] ?? "Événement"),
     type: parseEventType(data[Fields.type]),
     startsAt: startsAtDate.toISOString(),
+    startTimeSet: startTime !== null,
+    endTimeSet: endTime !== null,
     endsAt: endsAtDate.toISOString(),
     dateId,
     location: String(data[Fields.location] ?? ""),

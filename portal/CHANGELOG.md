@@ -18,6 +18,7 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 - Paramètres club : rubrique **Lieux de pratique** (ajout, modification, suppression confirmée sur place) avec autocomplétion ville / adresse ; les lieux sont ceux proposés à la création d’un événement, comme dans l’app
 - Pastille de chargement flottante en bas de l’écran pendant une navigation (point orange qui pulse et « Chargement… », puis point vert « Prêt » quand la page a fini de charger ses données) ; n’apparaît pas si la page s’affiche en moins de 200 ms
 - Indicateurs « à faire » cliquables jusqu’à l’action : Équipes — « N à compléter » d’une catégorie (filtre ses équipes incomplètes), puces « Sans coach » / « Aucun joueur » du panneau d’une équipe (ouvrent l’ajout du coach / joueur) ; Cotisations — tuiles **Reste dû** / **À traiter** et puce « aides à valider » (basculent la vue du suivi). `StatTile` et `StatusBadge` acceptent `onClick`
+- Mon planning (bureau et famille) : bouton discret **Exporter vers mon agenda** qui télécharge un `.ics` des événements à venir des clubs cochés (mêmes identifiants que l’export de l’app : un ré-import met à jour au lieu de dupliquer)
 
 ### Corrigé
 

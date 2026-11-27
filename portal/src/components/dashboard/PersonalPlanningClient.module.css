@@ -1,0 +1,5 @@
+/* Export .ics discret : collé au bouton Actualiser, à droite de l’en-tête. */
+.icsButton {
+  margin-left: auto;
+  color: var(--text-muted);
+}

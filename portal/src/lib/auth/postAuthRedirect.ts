@@ -16,6 +16,7 @@ const BUREAU_ROUTE_ROOTS = [
   "/members",
   "/teams",
   "/attendance",
+  "/sessions",
   "/planning",
   "/fees",
   "/announcements",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
+import { isCoachTraining } from "@/lib/firebase/trainingService";
 import {
   canEditMemberRsvp,
   canManageEvent,
@@ -560,6 +561,11 @@ function PlanningPageContent() {
               canManageEventAudience(caps.access, selectedEvent),
           )}
           canEditMemberRsvp={canEditMemberRsvp(caps.access, selectedEvent)}
+          prepareHref={
+            isCoachTraining(selectedEvent, new Set(caps.access.coachTeamIds))
+              ? `/sessions?event=${encodeURIComponent(selectedEvent.id)}`
+              : null
+          }
           onManageConvocations={
             canManageConvocationsOf(selectedEvent)
               ? () => setConvocationsEvent(selectedEvent)

@@ -1,0 +1,189 @@
+/* Éditeur de schéma : barre d’outils + grand tableau. */
+
+/* Grille : en-tête (galerie + outils) et schéma dans la colonne centrale,
+   bloc latéral (consignes) à droite, aligné sur le haut du schéma. */
+.root {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "head" "canvas" "aside";
+  gap: var(--space-sm) var(--space-md);
+  align-items: start;
+  min-width: 0;
+}
+
+@media (min-width: 1280px) {
+  .root[data-with-aside="true"] {
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
+    grid-template-areas: "head ." "canvas aside";
+  }
+}
+
+.head {
+  grid-area: head;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.aside {
+  grid-area: aside;
+  min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+.group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
+}
+
+.tool,
+.danger {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.tool:hover:not(:disabled) {
+  background: var(--surface-card);
+  color: var(--text-primary);
+}
+
+.tool[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.tool:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.tool:focus-visible,
+.ink:focus-visible,
+.danger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.danger {
+  background: var(--status-danger);
+  color: var(--color-white);
+}
+
+.confirm {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.confirmLabel {
+  align-self: center;
+  padding: 0 0.4rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.ink {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  background-clip: content-box;
+  padding: 0.3rem;
+}
+
+.ink[data-ink="accent"] {
+  background-color: var(--accent);
+}
+
+.ink[data-ink="red"] {
+  background-color: var(--status-danger);
+}
+
+.ink[data-ink="dark"] {
+  background-color: var(--text-primary);
+}
+
+.ink[aria-pressed="true"] {
+  border-color: var(--text-primary);
+}
+
+.courtSelect select {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+/* Saisie du numéro d’un jeton, posée sur le jeton (double-clic). */
+.labelInput {
+  position: absolute;
+  width: 3rem;
+  height: 2.25rem;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-popover);
+}
+
+.labelInput:focus {
+  outline: none;
+}
+
+.notice {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--status-warning-text);
+}
+
+/* Le schéma est l’élément central : centré, le plus grand possible sans
+   dépasser la hauteur de l’écran (le terrain entier est haut). */
+.canvas {
+  grid-area: canvas;
+  position: relative;
+  width: 100%;
+  margin-inline: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.canvas[data-court="full"] {
+  max-width: min(100%, calc(78vh * 0.62));
+}
+
+.canvas[data-court="half"],
+.canvas[data-court="blank"] {
+  max-width: min(100%, 78vh);
+}

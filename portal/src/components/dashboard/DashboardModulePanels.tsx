@@ -16,6 +16,8 @@ const loadHome = () => import("@/app/(dashboard)/home/HomePageClient");
 const loadMembers = () => import("@/app/(dashboard)/members/MembersPageClient");
 const loadTeams = () => import("@/app/(dashboard)/teams/TeamsPageClient");
 const loadTeam = () => import("@/app/(dashboard)/team/TeamPageClient");
+const loadSessions = () =>
+  import("@/app/(dashboard)/sessions/SessionsPageClient");
 const loadAttendance = () =>
   import("@/app/(dashboard)/attendance/AttendancePageClient");
 const loadPlanning = () => import("@/app/(dashboard)/planning/PlanningPageClient");
@@ -43,6 +45,10 @@ const MembersPageClient = dynamic(
 const TeamsPageClient = dynamic(
   () => loadTeams().then((m) => m.TeamsPageClient),
   { loading: () => <DashboardSkeleton variant="members" /> },
+);
+const SessionsPageClient = dynamic(
+  () => loadSessions().then((m) => m.SessionsPageClient),
+  { loading: () => <DashboardSkeleton variant="planning" /> },
 );
 const AttendancePageClient = dynamic(
   () => loadAttendance().then((m) => m.AttendancePageClient),
@@ -103,6 +109,7 @@ const MODULE_LOADERS: Array<() => Promise<unknown>> = [
   loadFees,
   loadTeam,
   loadAttendance,
+  loadSessions,
   loadAnnouncements,
   loadPersonalPlanning,
   loadStandings,
@@ -119,6 +126,7 @@ type ModuleId =
   | "teams"
   | "team"
   | "attendance"
+  | "sessions"
   | "planning"
   | "my-planning"
   | "standings"
@@ -154,6 +162,12 @@ const MODULES: ModuleDef[] = [
     match: (pathname) =>
       pathname === "/teams" || pathname.startsWith("/teams/"),
     render: () => <TeamsPageClient />,
+  },
+  {
+    id: "sessions",
+    match: (pathname) =>
+      pathname === "/sessions" || pathname.startsWith("/sessions/"),
+    render: () => <SessionsPageClient />,
   },
   {
     id: "attendance",

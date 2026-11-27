@@ -340,6 +340,7 @@
   font: inherit;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
+  text-decoration: none;
   cursor: pointer;
   transition: background 140ms ease;
 }

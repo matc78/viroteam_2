@@ -26,7 +26,8 @@ export type IconName =
   | "pencil"
   | "trash"
   | "trophy"
-  | "chart";
+  | "chart"
+  | "clipboard";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -117,6 +118,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="6.5" cy="12" r="2.5" />
       <circle cx="17.5" cy="18" r="2.5" />
       <path d="m8.7 10.8 6.6-3.6M8.7 13.2l6.6 3.6" />
+    </>
+  ),
+  clipboard: (
+    <>
+      <path d="M9 4.5h6v2.5H9Z" />
+      <path d="M9 5.5H6.5v14h11v-14H15" />
+      <path d="M9 11h6M9 14.5h4" />
     </>
   ),
   chart: <path d="M5 19V11M10 19V5M15 19v-6M20 19V9M3.5 19.5h17" />,

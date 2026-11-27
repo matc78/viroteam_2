@@ -1,0 +1,88 @@
+/* Schéma d’exercice (SVG) : couleurs du terrain et des encres. */
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  touch-action: none;
+  user-select: none;
+}
+
+.floor {
+  fill: var(--surface-muted);
+}
+
+.blank {
+  fill: var(--surface-card);
+}
+
+.court {
+  fill: var(--tone-orange-soft);
+  stroke: var(--text-secondary);
+}
+
+.line {
+  stroke: var(--text-secondary);
+}
+
+.net {
+  stroke: var(--text-primary);
+}
+
+.inkAccent {
+  stroke: var(--accent);
+}
+
+.inkRed {
+  stroke: var(--status-danger);
+}
+
+.inkDark {
+  stroke: var(--text-primary);
+}
+
+.inkAccentFill {
+  fill: var(--accent);
+}
+
+.inkRedFill {
+  fill: var(--status-danger);
+}
+
+.inkDarkFill {
+  fill: var(--text-primary);
+}
+
+.player circle {
+  fill: var(--accent);
+  stroke: var(--border-strong);
+}
+
+.player text {
+  fill: var(--color-white);
+}
+
+.opponent circle {
+  fill: var(--status-danger);
+  stroke: var(--border-strong);
+}
+
+.opponent text {
+  fill: var(--color-white);
+}
+
+.ball circle {
+  fill: var(--surface-card);
+  stroke: var(--text-primary);
+}
+
+/* Poignées d’extrémité de la flèche sélectionnée. */
+.handle {
+  fill: var(--surface-card);
+  stroke: var(--accent);
+}
+
+.ballSeam {
+  stroke: var(--text-primary);
+}

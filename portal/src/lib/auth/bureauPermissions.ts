@@ -101,6 +101,8 @@ export function bureauCapabilities(access: ClubAccess): BureauCapabilities {
     // Classements de tout le club : administrateurs (chacun garde
     // « Mes classements », multi-clubs, pour ses équipes).
     ...(access.isAdmin ? ["/club-standings"] : []),
+    // Séances : préparation réservée aux coachs d’une équipe.
+    ...(access.isTeamCoach ? ["/sessions"] : []),
     "/fees",
     ...(canPublish ? ["/announcements"] : []),
     ...(canManageEquipment ? ["/equipment"] : []),

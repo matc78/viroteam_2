@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type {
   ClubEventView,
@@ -65,6 +66,8 @@ type PlanningEventDetailPanelProps = {
   onManageConvocations?: () => void;
   /** Si fourni, affiche « Modifier » (date, heures, lieu, titre). */
   onEdit?: () => void;
+  /** Lien « Préparer la séance » (coach d’un entraînement), sinon masqué. */
+  prepareHref?: string | null;
   /** Admin / coach autorisé : éditer le RSVP des convoqués. */
   canEditMemberRsvp?: boolean;
 };
@@ -113,6 +116,7 @@ export function PlanningEventDetailPanel({
   canSendPush = false,
   onManageConvocations,
   onEdit,
+  prepareHref = null,
   canEditMemberRsvp = false,
 }: PlanningEventDetailPanelProps) {
   const { showToast } = useToast();
@@ -380,8 +384,16 @@ export function PlanningEventDetailPanel({
             ) : null}
           </section>
 
-          {onEdit || onManageConvocations || (canSendPush && clubId) ? (
+          {onEdit ||
+          onManageConvocations ||
+          prepareHref ||
+          (canSendPush && clubId) ? (
             <div className={styles.pushActions}>
+              {prepareHref ? (
+                <Link className={styles.pushButton} href={prepareHref}>
+                  Préparer la séance
+                </Link>
+              ) : null}
               {canSendPush && clubId ? (
                 <button
                   type="button"

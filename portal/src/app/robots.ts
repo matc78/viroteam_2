@@ -13,6 +13,8 @@ export default function robots(): MetadataRoute.Robots {
         "/teams",
         "/planning",
         "/my-planning",
+        "/standings",
+        "/club-standings",
         "/fees",
         "/announcements",
         "/equipment",

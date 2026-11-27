@@ -1,0 +1,97 @@
+/*
+ * Pages Classements : « Mes classements » (puces au-dessus du tableau) et
+ * onglet club (liste par catégorie à gauche, classement à droite).
+ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ——— Poule sélectionnée ——— */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.poolHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+}
+
+.poolEyebrow {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.poolHeading {
+  min-width: 0;
+}
+
+.poolTitle {
+  margin: 0.1rem 0 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.poolLabel {
+  margin: 0.15rem 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.syncInfo {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.syncInfo[data-failed="true"] {
+  color: var(--status-warning-text);
+}
+
+.matchColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+@media (max-width: 640px) {
+  .matchColumns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.error {
+  margin: 0;
+  color: var(--status-danger-text);
+  font-size: var(--font-size-sm);
+}

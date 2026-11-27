@@ -17,6 +17,7 @@ const loadPlanning = () => import("@/components/family/FamilyPlanningClient");
 const loadPersonalPlanning = () =>
   import("@/components/dashboard/PersonalPlanningClient");
 const loadMessages = () => import("@/components/chat/MessagesPageClient");
+const loadStandings = () => import("@/components/standings/StandingsClient");
 const loadFees = () => import("@/components/family/FamilyFeesClient");
 const loadSettings = () => import("@/components/family/FamilySettingsClient");
 
@@ -35,6 +36,10 @@ const FamilyPlanningClient = dynamic(
 const PersonalPlanningClient = dynamic(
   () => loadPersonalPlanning().then((m) => m.PersonalPlanningClient),
   { loading: () => <DashboardSkeleton variant="planning" /> },
+);
+const StandingsClient = dynamic(
+  () => loadStandings().then((m) => m.StandingsClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
 );
 const MessagesPageClient = dynamic(
   () => loadMessages().then((m) => m.MessagesPageClient),
@@ -55,6 +60,7 @@ const MODULE_LOADERS: Array<() => Promise<unknown>> = [
   loadTeam,
   loadFees,
   loadPersonalPlanning,
+  loadStandings,
   loadSettings,
 ];
 
@@ -63,6 +69,7 @@ type ModuleId =
   | "team"
   | "planning"
   | "my-planning"
+  | "standings"
   | "messages"
   | "fees"
   | "settings";
@@ -97,6 +104,13 @@ const MODULES: ModuleDef[] = [
     match: (pathname) =>
       pathname === "/family/my-planning" ||
       pathname.startsWith("/family/my-planning/"),
+    // Rendu dédié ci-dessous (isPanelActive pour keep-alive).
+    render: () => null,
+  },
+  {
+    id: "standings",
+    match: (pathname) =>
+      pathname === "/family/standings" || pathname.startsWith("/family/standings/"),
     // Rendu dédié ci-dessous (isPanelActive pour keep-alive).
     render: () => null,
   },
@@ -168,6 +182,11 @@ export function FamilyModulePanels() {
           >
             {module.id === "my-planning" ? (
               <PersonalPlanningClient
+                eyebrow="Espace famille"
+                isPanelActive={isActive}
+              />
+            ) : module.id === "standings" ? (
+              <StandingsClient
                 eyebrow="Espace famille"
                 isPanelActive={isActive}
               />

@@ -11,6 +11,8 @@ const SAME_ORIGIN_PROBE = "https://portal.viroteam.invalid";
 const BUREAU_ROUTE_ROOTS = [
   "/home",
   "/my-planning",
+  "/standings",
+  "/club-standings",
   "/members",
   "/teams",
   "/planning",
@@ -31,6 +33,7 @@ const FAMILY_FORWARDED_PARAMS = ["clubId", "memberId", "eventId"] as const;
 const FAMILY_EQUIVALENTS: ReadonlyArray<{ bureau: string; family: string }> = [
   { bureau: "/home", family: "/family" },
   { bureau: "/my-planning", family: "/family/my-planning" },
+  { bureau: "/standings", family: "/family/standings" },
   { bureau: "/planning", family: "/family/planning" },
   { bureau: "/fees", family: "/family/fees" },
   { bureau: "/team", family: "/family/team" },

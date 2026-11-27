@@ -47,6 +47,8 @@ type PortalShellProps = {
   /** Page multi-clubs (Mon planning, Messagerie, Mon compte) : aucun club sélectionné. */
   crossClub: boolean;
   myPlanningHref: string;
+  /** Lien « Mes classements » (multi-clubs), `null` = masqué (aucun club de volley). */
+  standingsHref?: string | null;
   accountHref: string;
   /** Lien « Régler » du bandeau d’échéance de cotisation. */
   feesHref: string;
@@ -151,6 +153,7 @@ export function PortalShell({
   isNavItemActive,
   crossClub,
   myPlanningHref,
+  standingsHref = null,
   accountHref,
   feesHref,
   feeDeadlineUrgent,
@@ -328,6 +331,26 @@ export function PortalShell({
                     return;
                   }
                   beginPageLoad(myPlanningHref);
+                }}
+              />
+            </li>
+          ) : null}
+          {standingsHref ? (
+            <li>
+              <SidebarLink
+                href={standingsHref}
+                label="Mes classements"
+                icon="trophy"
+                tone="amber"
+                active={isPathUnder(pathname, standingsHref)}
+                pending={pendingHref === standingsHref}
+                collapsed={collapsed}
+                onNavigate={(event) => {
+                  if (isPathUnder(pathname, standingsHref)) {
+                    event.preventDefault();
+                    return;
+                  }
+                  beginPageLoad(standingsHref);
                 }}
               />
             </li>

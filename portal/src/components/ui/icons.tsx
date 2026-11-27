@@ -24,7 +24,8 @@ export type IconName =
   | "search"
   | "share"
   | "pencil"
-  | "trash";
+  | "trash"
+  | "trophy";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -115,6 +116,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="6.5" cy="12" r="2.5" />
       <circle cx="17.5" cy="18" r="2.5" />
       <path d="m8.7 10.8 6.6-3.6M8.7 13.2l6.6 3.6" />
+    </>
+  ),
+  trophy: (
+    <>
+      <path d="M8 4h8v5a4 4 0 0 1-8 0Z" />
+      <path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4" />
+      <path d="M12 13v4M8.5 20h7M10 17h4" />
     </>
   ),
   pencil: (

@@ -65,6 +65,7 @@ export type BureauCapabilities = {
 const ALWAYS_ALLOWED_ROUTES = [
   "/home",
   "/my-planning",
+  "/standings",
   "/messages",
   "/fees",
   "/account",
@@ -94,6 +95,9 @@ export function bureauCapabilities(access: ClubAccess): BureauCapabilities {
     "/home",
     ...(showsMembersPage ? ["/members", "/teams"] : ["/team"]),
     "/planning",
+    // Classements de tout le club : administrateurs (chacun garde
+    // « Mes classements », multi-clubs, pour ses équipes).
+    ...(access.isAdmin ? ["/club-standings"] : []),
     "/fees",
     ...(canPublish ? ["/announcements"] : []),
     ...(canManageEquipment ? ["/equipment"] : []),
@@ -227,6 +231,7 @@ export const FAMILY_NAV_HREFS = [
 const FAMILY_DEEP_LINK_ROUTES = [
   "/family/settings",
   "/family/my-planning",
+  "/family/standings",
   "/family/messages",
 ] as const;
 

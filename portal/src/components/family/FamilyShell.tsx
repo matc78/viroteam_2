@@ -12,6 +12,7 @@ import {
 import { FamilyModulePanels } from "@/components/family/FamilyModulePanels";
 import { PortalShell, type PortalNavItem } from "@/components/shell/PortalShell";
 import { isFamilyRouteAllowed } from "@/lib/auth/bureauPermissions";
+import { isVolleyballSport } from "@/lib/standings/standingsTypes";
 import { useFamilyFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
 import {
@@ -36,7 +37,12 @@ function isNavItemActive(pathname: string, href: string): boolean {
 }
 
 function isFamilyCrossClubPath(pathname: string): boolean {
-  return ["/family/my-planning", "/family/messages", "/family/settings"].some(
+  return [
+    "/family/my-planning",
+    "/family/standings",
+    "/family/messages",
+    "/family/settings",
+  ].some(
     (href) => isPathUnder(pathname, href),
   );
 }
@@ -101,6 +107,13 @@ function FamilyShellChrome() {
       isNavItemActive={isNavItemActive}
       crossClub={isFamilyCrossClubPath(pathname)}
       myPlanningHref="/family/my-planning"
+      standingsHref={
+        [...bureauClubs, ...familyClubs].some((club) =>
+          isVolleyballSport(club.sport),
+        )
+          ? "/family/standings"
+          : null
+      }
       accountHref="/family/settings"
       feesHref="/family/fees"
       feeDeadlineUrgent={feeDeadlineUrgent}

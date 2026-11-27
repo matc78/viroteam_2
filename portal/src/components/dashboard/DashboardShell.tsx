@@ -16,6 +16,7 @@ import { isBureauMessagesPath } from "@/lib/chat/isMessagesPath";
 import { badgeLabel } from "@/lib/copy/badgeCopy";
 import { usePlayerFeeDeadlineUrgency } from "@/lib/dashboard/useFeeDeadlineUrgency";
 import { useAuth } from "@/lib/firebase/AuthProvider";
+import { isVolleyballSport } from "@/lib/standings/standingsTypes";
 import {
   accountClubBadge,
   buildClubMembershipTiles,
@@ -28,6 +29,7 @@ const NAV_ITEMS: readonly PortalNavItem[] = [
   { href: "/teams", label: "Équipes", icon: "team", tone: "green" },
   { href: "/team", label: "Équipe", icon: "team", tone: "green" },
   { href: "/planning", label: "Planning", icon: "calendar", tone: "cyan" },
+  { href: "/club-standings", label: "Classements", icon: "trophy", tone: "amber" },
   { href: "/fees", label: "Cotisations", icon: "wallet", tone: "orange" },
   { href: "/announcements", label: "Annonces", icon: "megaphone", tone: "pink" },
   { href: "/equipment", label: "Équipements", icon: "box", tone: "amber" },
@@ -39,6 +41,8 @@ const WIDE_PATH_PREFIXES = [
   "/teams",
   "/planning",
   "/my-planning",
+  "/standings",
+  "/club-standings",
   "/messages",
 ] as const;
 
@@ -50,6 +54,7 @@ function isPathUnder(pathname: string, href: string): boolean {
 function isCrossClubPath(pathname: string): boolean {
   return (
     isPathUnder(pathname, "/my-planning") ||
+    isPathUnder(pathname, "/standings") ||
     isPathUnder(pathname, "/account") ||
     isBureauMessagesPath(pathname)
   );
@@ -89,13 +94,17 @@ export function DashboardShell() {
 
   const visibleNavItems = useMemo(() => {
     const allowed = new Set(caps.navHrefs);
+    // Classements du club : FFVB, donc clubs de volley seulement.
+    if (!isVolleyballSport(activeClub?.sport)) {
+      allowed.delete("/club-standings");
+    }
     return NAV_ITEMS.filter((item) => allowed.has(item.href)).map((item) =>
       // Sans droit de lecture des cotisations : une seule cotisation, la sienne.
       item.href === "/fees" && !caps.canViewFees
         ? { ...item, label: "Ma cotisation" }
         : item,
     );
-  }, [caps.navHrefs, caps.canViewFees]);
+  }, [caps.navHrefs, caps.canViewFees, activeClub?.sport]);
 
   function handleClubChange(clubId: string, space: PortalSpace) {
     if (space !== activeSpace) {
@@ -130,6 +139,13 @@ export function DashboardShell() {
       isNavItemActive={isPathUnder}
       crossClub={isCrossClubPath(pathname)}
       myPlanningHref="/my-planning"
+      standingsHref={
+        [...bureauClubs, ...familyClubs].some((club) =>
+          isVolleyballSport(club.sport),
+        )
+          ? "/standings"
+          : null
+      }
       accountHref="/account"
       feesHref="/fees"
       feeDeadlineUrgent={feeDeadlineUrgent}

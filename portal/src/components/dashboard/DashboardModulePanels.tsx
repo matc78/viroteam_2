@@ -20,6 +20,9 @@ const loadPlanning = () => import("@/app/(dashboard)/planning/PlanningPageClient
 const loadPersonalPlanning = () =>
   import("@/components/dashboard/PersonalPlanningClient");
 const loadMessages = () => import("@/components/chat/MessagesPageClient");
+const loadStandings = () => import("@/components/standings/StandingsClient");
+const loadClubStandings = () =>
+  import("@/components/standings/ClubStandingsClient");
 const loadFees = () => import("@/app/(dashboard)/fees/FeesPageClient");
 const loadAnnouncements = () =>
   import("@/app/(dashboard)/announcements/AnnouncementsPageClient");
@@ -49,6 +52,14 @@ const PlanningPageClient = dynamic(
 const PersonalPlanningClient = dynamic(
   () => loadPersonalPlanning().then((m) => m.PersonalPlanningClient),
   { loading: () => <DashboardSkeleton variant="planning" /> },
+);
+const StandingsClient = dynamic(
+  () => loadStandings().then((m) => m.StandingsClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
+);
+const ClubStandingsClient = dynamic(
+  () => loadClubStandings().then((m) => m.ClubStandingsClient),
+  { loading: () => <DashboardSkeleton variant="members" /> },
 );
 const MessagesPageClient = dynamic(
   () => loadMessages().then((m) => m.MessagesPageClient),
@@ -87,6 +98,8 @@ const MODULE_LOADERS: Array<() => Promise<unknown>> = [
   loadTeam,
   loadAnnouncements,
   loadPersonalPlanning,
+  loadStandings,
+  loadClubStandings,
   loadSettings,
   loadAccount,
   loadEquipment,
@@ -100,6 +113,8 @@ type ModuleId =
   | "team"
   | "planning"
   | "my-planning"
+  | "standings"
+  | "club-standings"
   | "messages"
   | "fees"
   | "announcements"
@@ -149,6 +164,20 @@ const MODULES: ModuleDef[] = [
       pathname === "/my-planning" || pathname.startsWith("/my-planning/"),
     // Rendu dédié ci-dessous (isPanelActive pour keep-alive).
     render: () => null,
+  },
+  {
+    id: "standings",
+    match: (pathname) =>
+      pathname === "/standings" || pathname.startsWith("/standings/"),
+    // Rendu dédié ci-dessous (isPanelActive pour keep-alive).
+    render: () => null,
+  },
+  {
+    id: "club-standings",
+    match: (pathname) =>
+      pathname === "/club-standings" ||
+      pathname.startsWith("/club-standings/"),
+    render: () => <ClubStandingsClient />,
   },
   {
     id: "messages",
@@ -240,6 +269,11 @@ export function DashboardModulePanels() {
           >
             {module.id === "my-planning" ? (
               <PersonalPlanningClient
+                eyebrow="Espace club"
+                isPanelActive={isActive}
+              />
+            ) : module.id === "standings" ? (
+              <StandingsClient
                 eyebrow="Espace club"
                 isPanelActive={isActive}
               />

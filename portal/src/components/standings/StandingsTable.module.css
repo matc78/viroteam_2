@@ -1,0 +1,177 @@
+/* Tableau du classement d’une poule. */
+
+.wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card-subtle);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+.table th {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.table abbr {
+  text-decoration: none;
+}
+
+.table td {
+  padding: 0.45rem 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.row:first-child td {
+  border-top: none;
+}
+
+/*
+ * Ligne entière cliquable : le bouton du nom étend sa zone de clic sur la
+ * ligne (::after), le survol teinte la ligne et marque un liseré à gauche.
+ */
+.row {
+  position: relative;
+  cursor: pointer;
+}
+
+.row td {
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.row:hover td {
+  background: var(--surface-hover);
+}
+
+.row:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.row[data-mine="true"] td {
+  background: var(--accent-soft);
+}
+
+.row[data-mine="true"]:hover td {
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--accent) 12%);
+}
+
+.row[data-mine="true"] .teamButton {
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-text);
+}
+
+.row[data-selected="true"] td {
+  background: var(--surface-hover);
+}
+
+.rankCol {
+  width: 3rem;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.table th.num {
+  text-align: right;
+}
+
+.points {
+  font-weight: var(--font-weight-bold);
+}
+
+@media (max-width: 560px) {
+  .wide {
+    display: none;
+  }
+}
+
+.rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+
+.rank[data-medal="gold"] {
+  background: var(--medal-gold-soft);
+  color: var(--medal-gold);
+  box-shadow: inset 0 0 0 2px var(--medal-gold);
+}
+
+.rank[data-medal="silver"] {
+  background: var(--medal-silver-soft);
+  color: var(--medal-silver);
+  box-shadow: inset 0 0 0 2px var(--medal-silver);
+}
+
+.rank[data-medal="bronze"] {
+  background: var(--medal-bronze-soft);
+  color: var(--medal-bronze);
+  box-shadow: inset 0 0 0 2px var(--medal-bronze);
+}
+
+.rank[data-medal="chocolate"] {
+  background: var(--medal-chocolate-soft);
+  color: var(--medal-chocolate);
+  box-shadow: inset 0 0 0 2px var(--medal-chocolate);
+}
+
+.teamButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 2.75rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.teamButton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.teamButton:focus-visible {
+  outline: none;
+}
+
+.teamButton:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.mineTag {
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--color-white);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}

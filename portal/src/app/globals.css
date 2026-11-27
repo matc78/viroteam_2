@@ -126,6 +126,16 @@
   --tone-red-soft: #fee2e2;
   --tone-red-text: #991b1b;
 
+  /* Médailles de rang (classements FFVB : podium + 4e « chocolat »). */
+  --medal-gold: #c99a06;
+  --medal-gold-soft: #fdf3d0;
+  --medal-silver: #8a949e;
+  --medal-silver-soft: #eef1f4;
+  --medal-bronze: #b0703c;
+  --medal-bronze-soft: #f6e6d8;
+  --medal-chocolate: #6b4226;
+  --medal-chocolate-soft: #efe4dc;
+
   /* Spacing (8px grid) */
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;

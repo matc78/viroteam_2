@@ -76,6 +76,19 @@ describe("bureauCapabilities — paramètres et compte", () => {
     expect(capsFor({ permissions: ["admin"] }).navHrefs).toContain("/settings");
   });
 
+  it("réserve les classements du club aux administrateurs", () => {
+    expect(capsFor({}).navHrefs).not.toContain("/club-standings");
+    expect(
+      capsFor({ permissions: ["manageTeams"] }).navHrefs,
+    ).not.toContain("/club-standings");
+    expect(capsFor({ permissions: ["admin"] }).navHrefs).toContain(
+      "/club-standings",
+    );
+    expect(isBureauRouteAllowed("/club-standings", capsFor({}))).toBe(false);
+    // « Mes classements » reste ouvert à tout membre.
+    expect(isBureauRouteAllowed("/standings", capsFor({}))).toBe(true);
+  });
+
   it("laisse /account accessible à tout membre", () => {
     expect(isBureauRouteAllowed("/account", capsFor({}))).toBe(true);
   });

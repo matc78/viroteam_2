@@ -1,0 +1,98 @@
+/* Liste de matchs d’une équipe (prochains / derniers / parcours). */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.empty {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.match {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.1rem var(--space-sm);
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.match[data-result="win"] {
+  border-left-color: var(--status-success);
+}
+
+.match[data-result="loss"] {
+  border-left-color: var(--status-danger);
+}
+
+.when {
+  grid-column: 1 / -1;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.opponent {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  min-width: 0;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.side {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+.score {
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.match[data-result="win"] .score {
+  color: var(--status-success-text);
+}
+
+.match[data-result="loss"] .score {
+  color: var(--status-danger-text);
+}
+
+.forfeit {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.sets {
+  grid-column: 1 / -1;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

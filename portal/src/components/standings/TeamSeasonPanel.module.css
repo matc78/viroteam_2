@@ -1,0 +1,225 @@
+/*
+ * Panneau latéral non modal (saison d’une équipe) : ancré à droite sous
+ * l’en-tête, le classement reste cliquable à gauche. Plein écran sur mobile.
+ */
+.panel {
+  position: fixed;
+  top: var(--header-height);
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 26rem);
+  border-left: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-popover);
+  animation: panelIn 180ms ease-out;
+}
+
+@keyframes panelIn {
+  from {
+    transform: translateX(1.5rem);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 1.25rem 1.25rem 0.5rem;
+}
+
+.headerText {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.title {
+  margin: 0.15rem 0 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: 0.5rem 1.25rem 1.5rem;
+}
+
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-card);
+  background: var(--surface-muted);
+}
+
+.rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 999px;
+  background: var(--surface-card);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+
+.rank[data-medal="gold"] {
+  background: var(--medal-gold-soft);
+  color: var(--medal-gold);
+  box-shadow: inset 0 0 0 3px var(--medal-gold);
+}
+
+.rank[data-medal="silver"] {
+  background: var(--medal-silver-soft);
+  color: var(--medal-silver);
+  box-shadow: inset 0 0 0 3px var(--medal-silver);
+}
+
+.rank[data-medal="bronze"] {
+  background: var(--medal-bronze-soft);
+  color: var(--medal-bronze);
+  box-shadow: inset 0 0 0 3px var(--medal-bronze);
+}
+
+.rank[data-medal="chocolate"] {
+  background: var(--medal-chocolate-soft);
+  color: var(--medal-chocolate);
+  box-shadow: inset 0 0 0 3px var(--medal-chocolate);
+}
+
+.heroPoints {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.heroMeta {
+  margin: 0.1rem 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.form {
+  list-style: none;
+  margin: 0 0 0 auto;
+  padding: 0;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.formChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-white);
+}
+
+.formChip[data-result="win"] {
+  background: var(--status-success);
+}
+
+.formChip[data-result="loss"] {
+  background: var(--status-danger);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.stats > div {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.stats dt {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.stats dd {
+  margin: 0.1rem 0 0;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.stats .scoreline {
+  grid-column: 1 / -1;
+}
+
+.stats .scoreline dd {
+  font-weight: var(--font-weight-regular);
+  font-size: var(--font-size-sm);
+}
+
+.venues {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}

@@ -106,8 +106,7 @@ void main() {
         allowed.canManageEventAudience(['a', 'b'], allTeams: false),
         isFalse,
       );
-      // Appel et RSVP d'autrui : une équipe suffit (pour ses joueurs).
-      expect(allowed.canTakeAttendance(['a', 'b'], allTeams: false), isTrue);
+      // RSVP d'autrui : une équipe suffit (pour ses joueurs).
       expect(allowed.canEditMemberRsvp(['a', 'b'], allTeams: false), isTrue);
     });
 
@@ -121,7 +120,6 @@ void main() {
       );
       expect(allowed.canManageEvent(['a'], allTeams: true), isFalse);
       expect(allowed.canManageEventAudience(['a'], allTeams: true), isFalse);
-      expect(allowed.canTakeAttendance(['a'], allTeams: true), isFalse);
       expect(allowed.canEditMemberRsvp(['a'], allTeams: true), isFalse);
       expect(allowed.canManageEvent(const [], allTeams: true), isFalse);
     });
@@ -146,7 +144,6 @@ void main() {
     expect(planner.canCreateEvents, isTrue);
     expect(planner.canManageEvent(const [], allTeams: true), isTrue);
     expect(planner.canManageEventAudience(['x'], allTeams: true), isTrue);
-    expect(planner.canTakeAttendance(['x'], allTeams: false), isTrue);
     expect(planner.canEditMemberRsvp(['x'], allTeams: true), isTrue);
   });
 

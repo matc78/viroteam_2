@@ -12,7 +12,6 @@ import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/utils/stream_switch_map.dart';
-import 'package:viro_team_v2/models/club_permission.dart';
 import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 
 class ClubEventsState {
@@ -127,22 +126,6 @@ final clubAttendanceRateProvider =
   return ref.read(eventServiceProvider).computeAttendanceRate(
         clubId: clubId,
         authUid: auth.uid,
-      );
-});
-
-/// Taux d'appel terrain (optionnel) — null si aucun appel sur 30 j.
-final clubPitchAttendanceRateProvider =
-    FutureProvider.family<double?, String>((ref, clubId) async {
-  final auth = ref.watch(firestoreAuthReadyProvider).value;
-  if (auth == null) return null;
-  if (ref.watch(isGuardianOnlyInClubProvider(clubId))) return null;
-  // Encadrement uniquement (coach d'équipe ou droit planning).
-  final access = ref.watch(clubAccessProvider(clubId));
-  if (!access.isTeamCoach && !access.can(ClubPermission.manageEvents)) {
-    return null;
-  }
-  return ref.read(eventServiceProvider).computePitchAttendanceRate(
-        clubId: clubId,
       );
 });
 

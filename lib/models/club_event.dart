@@ -25,23 +25,6 @@ enum RsvpStatus {
   };
 }
 
-/// Statut d'appel coach (`attendance.{uid}.status`) — distinct du RSVP.
-enum AttendanceStatus {
-  present,
-  absent;
-
-  static AttendanceStatus? fromString(String? value) => switch (value) {
-    'present' || 'yes' => AttendanceStatus.present,
-    'absent' || 'no' => AttendanceStatus.absent,
-    _ => null,
-  };
-
-  String get firestoreValue => switch (this) {
-    AttendanceStatus.present => 'present',
-    AttendanceStatus.absent => 'absent',
-  };
-}
-
 /// Types d'événements club.
 abstract final class EventTypes {
   static const String training = 'training';
@@ -116,7 +99,8 @@ class ClubEvent {
   /// Première vue de l'événement sur la home par membre (`memberId` → date).
   final Map<String, DateTime> seenAt;
 
-  /// Présences v1 (`attendance`) — utilisé si `rsvp` est vide.
+  /// Réponses v1 (`attendance`) — utilisées si `rsvp` n'a pas d'entrée ; les
+  /// entrées de l'ancien appel coach (`markedBy` / `markedAt`) sont ignorées.
   final Map<String, dynamic> legacyAttendance;
   final bool canceled;
   final String? seriesId;
@@ -233,27 +217,6 @@ class ClubEvent {
   /// Joueurs convoqués sans les coachs d'équipe.
   List<String> playerMemberIds(Set<String> excludeCoachUids) =>
       teamMemberIds.where((id) => !excludeCoachUids.contains(id)).toList();
-
-  /// Statut d'appel coach pour [uid], si déjà pointé.
-  AttendanceStatus? attendanceStatusFor(String uid) {
-    final entry = legacyAttendance[uid];
-    if (entry == null) return null;
-    final status = entry is Map
-        ? entry[FirestoreFields.status] as String?
-        : entry.toString();
-    return AttendanceStatus.fromString(status);
-  }
-
-  /// True si au moins un membre a un statut d'appel renseigné.
-  bool get hasRollCall {
-    for (final entry in legacyAttendance.values) {
-      final status = entry is Map
-          ? entry[FirestoreFields.status] as String?
-          : entry?.toString();
-      if (AttendanceStatus.fromString(status) != null) return true;
-    }
-    return false;
-  }
 
   bool get isUpcoming =>
       !canceled && !date.isBefore(_startOfDay(DateTime.now()));

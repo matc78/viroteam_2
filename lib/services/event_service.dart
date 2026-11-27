@@ -328,20 +328,6 @@ class EventService {
         viaCallable: viaCallable,
       );
 
-  /// Enregistre l'appel coach (`attendance`) sans modifier `rsvp`.
-  Future<void> updateAttendance({
-    required String clubId,
-    required String eventId,
-    required Map<String, AttendanceStatus> statusesByMemberId,
-    required String markedByUid,
-  }) =>
-      _rsvp.updateAttendance(
-        clubId: clubId,
-        eventId: eventId,
-        statusesByMemberId: statusesByMemberId,
-        markedByUid: markedByUid,
-      );
-
   /// Stream de la fiche `members/{memberId}` (soi : [memberId] = authUid).
   Stream<ClubMember?> watchClubMember({
     required String clubId,
@@ -359,12 +345,6 @@ class EventService {
     required String authUid,
   }) =>
       _rsvp.computeAttendanceRate(clubId: clubId, authUid: authUid);
-
-  /// Taux de présence terrain (appel coach) sur 30 j.
-  Future<double?> computePitchAttendanceRate({
-    required String clubId,
-  }) =>
-      _rsvp.computePitchAttendanceRate(clubId: clubId);
 
   /// Retire ([excludeIds]) / réintègre ([reintegrateIds]) des joueurs convoqués
   /// via la callable `updateEventConvocations`. [following] : aussi les

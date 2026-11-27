@@ -22,6 +22,10 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Schéma d’exercice : le jeton ballon affiche l’icône volleyball (plus le rond jaune) ; fond « Tableau blanc » sans marquage de terrain (en plus de terrain entier / demi-terrain)
 - Paramètres club : intro des capacités coach précisée (« uniquement sur les équipes qu’il entraîne ») ; descriptions des toggles raccourcies
 
+### Supprimé
+
+- Appel coach (pointage Présent / Absent pendant ou après la séance) : feuille « Faire l’appel », flag `FeatureFlags.attendanceTracking`, capacité coach `canTakeAttendance` (catalogue, Functions, portail, règles) et pastille « % présents (appel) » de l’écran club ; les présences reposent uniquement sur le RSVP (une réponse corrigée par le coach compte) ; les règles refusent désormais toute écriture de `events.attendance` par un coach
+
 ## [2.5.0] - 2026-11-25
 
 ### Ajouté

@@ -133,13 +133,6 @@ class ClubAccess {
       can(ClubPermission.manageEvents) ||
       (!allTeams && coachesAllTeams(teamIds));
 
-  /// Appel : coach d'une des équipes, hors « tout le club ».
-  bool canTakeAttendance(Iterable<String> teamIds, {required bool allTeams}) =>
-      can(ClubPermission.manageEvents) ||
-      (!allTeams &&
-          coachCan(CoachFlag.canTakeAttendance) &&
-          coachesAnyTeam(teamIds));
-
   /// RSVP d'un autre membre : coach d'une des équipes, hors « tout le club ».
   bool canEditMemberRsvp(Iterable<String> teamIds, {required bool allTeams}) =>
       can(ClubPermission.manageEvents) ||

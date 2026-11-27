@@ -33,7 +33,6 @@ import 'package:viro_team_v2/widgets/common/viro_status_toast.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_convocation_sheet.dart';
 import 'package:viro_team_v2/features/planning/widgets/planning_edit_event_sheet.dart';
-import 'package:viro_team_v2/features/planning/widgets/planning_roll_call_sheet.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 import 'package:viro_team_v2/models/club_access.dart';
@@ -145,8 +144,8 @@ class _PlanningEventDetailSheetState
         _ => ViroIcons.calendar,
       };
 
-  /// Événement du jour ou passé (appel possible).
-  bool get _isRollCallDayOrPast {
+  /// Événement du jour ou passé (retour de séance possible).
+  bool get _isDayOrPast {
     if (_event.canceled) return false;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -173,11 +172,6 @@ class _PlanningEventDetailSheetState
     allTeams: _event.allTeams,
   );
 
-  /// Appel : masqué tant que [FeatureFlags.attendanceTracking] est coupé.
-  bool get _canTakeAttendance =>
-      FeatureFlags.attendanceTracking &&
-      _access.canTakeAttendance(_event.teamIds, allTeams: _event.allTeams);
-
   /// Outils d'entraînement actifs sur cet événement (entraînement non annulé).
   bool get _isTrainingWithTools =>
       FeatureFlags.trainingToolsLive &&
@@ -201,7 +195,7 @@ class _PlanningEventDetailSheetState
     if (!_isTrainingWithTools) return const [];
     final uid = ref.watch(trainingAuthUidProvider);
     final event = _event;
-    final started = _isRollCallDayOrPast;
+    final started = _isDayOrPast;
     // Le jour J : préparation et retour tous deux possibles.
     final preparable =
         !started ||
@@ -328,23 +322,6 @@ class _PlanningEventDetailSheetState
       ViroHaptics.error();
       ViroSnackBar.show(context, AppCopy.planning.staffRsvpUpdateFailed);
     }
-  }
-
-  Future<void> _openRollCall() async {
-    final saved = await PlanningRollCallSheet.show(
-      context: context,
-      clubId: widget.clubId,
-      event: _event,
-      excludeCoachUids: widget.excludeCoachUids,
-    );
-    if (!saved || !mounted) return;
-    final fresh = await ref.read(eventServiceProvider).getEvent(
-          clubId: widget.clubId,
-          eventId: _event.id,
-        );
-    if (!mounted) return;
-    if (fresh != null) setState(() => _event = fresh);
-    ref.invalidate(clubPitchAttendanceRateProvider(widget.clubId));
   }
 
   /// Coach : événement d'équipe(s) à venir, convocations modifiables.
@@ -919,19 +896,6 @@ class _PlanningEventDetailSheetState
                     _sendingPush ? AppCopy.planning.sending : AppCopy.planning.sendNotification,
                   ),
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(
-                      ViroSpacing.buttonHeightMedium,
-                    ),
-                  ),
-                ),
-              ],
-              if (_canTakeAttendance && _isRollCallDayOrPast) ...[
-                const SizedBox(height: ViroSpacing.sm),
-                OutlinedButton.icon(
-                  onPressed: _openRollCall,
-                  icon: ViroIcon(ViroIcons.whistle, size: 18),
-                  label: Text(AppCopy.planning.takeAttendance),
-                  style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(
                       ViroSpacing.buttonHeightMedium,
                     ),

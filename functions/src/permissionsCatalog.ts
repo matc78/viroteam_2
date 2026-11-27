@@ -55,7 +55,6 @@ export const COACH_FLAG_DEFAULTS = {
   canCreateEvents: true,
   canManageTeamRoster: true,
   canInvitePlayers: true,
-  canTakeAttendance: true,
   canPublishTeamAnnouncements: true,
   canEditMemberLicenses: false,
   canEditMemberRsvp: false,

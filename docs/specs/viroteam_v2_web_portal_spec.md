@@ -152,7 +152,7 @@ Exemples de flags :
 - `canCreateEvents`
 - `canManageTeamRoster`
 - `canInvitePlayers`
-- `canTakeAttendance`
+- `canEditMemberRsvp`
 - (`canViewFees` est devenu le droit club `viewFees`, attribuable à n’importe quel membre)
 
 Stockage : `clubs/{clubId}.coachPermissions` (mêmes réglages pour tous les coachs du club, modifiables par le droit `admin`). Les droits club d’une personne vivent à part, dans `members/{uid}.permissions`.

@@ -364,32 +364,26 @@ service cloud.firestore {
     /// - droit planning : tout l'événement ;
     /// - coach autorisé (`canCreateEvents`) de toutes les équipes de
     ///   l'événement, jamais « tout le club » : édition, annulation, audience,
-    ///   sans le déplacer vers des équipes qu'il n'entraîne pas ; l'appel suit
-    ///   `canTakeAttendance` ;
-    /// - coach d'une équipe de l'événement (hors « tout le club ») : appel seul
-    ///   (`canTakeAttendance`, spec droits : coach d'une des équipes) ;
+    ///   sans le déplacer vers des équipes qu'il n'entraîne pas ;
     /// - droit équipes, ou coach de toutes les équipes (hors « tout le
     ///   club ») : synchronisation d'audience seule ;
     /// - coach d'une partie des équipes : synchronisation d'audience bornée
     ///   (`partialCoachAudienceSyncOk`).
+    /// Personne n'écrit l'ancien appel (`attendance`, supprimé : seul le RSVP
+    /// compte) ; les Functions (Admin SDK) le migrent encore au re-clé.
     function staffEventUpdateOk(clubId) {
       let eventTeams = resource.data.get('teamIds', []);
       let audienceOnly = affectedKeys().hasOnly([
         'teamMemberIds', 'rsvp', 'rsvpUpdatedAt', 'seenAt', 'updatedAt'
       ]);
-      return noForeignRsvpWrite() && (
+      return noForeignRsvpWrite() && !affectedKeys().hasAny(['attendance']) && (
         can(clubId, 'manageEvents')
         || (coachCan(clubId, 'canCreateEvents', true)
           && resource.data.get('allTeams', false) != true
           && coachesAll(clubId, eventTeams)
           && (!affectedKeys().hasAny(['teamIds', 'allTeams'])
             || (coachesAll(clubId, request.resource.data.get('teamIds', []))
-              && request.resource.data.get('allTeams', false) != true))
-          && (!affectedKeys().hasAny(['attendance'])
-            || coachFlag(clubId, 'canTakeAttendance', true)))
-        || (affectedKeys().hasOnly(['attendance', 'updatedAt'])
-          && coachCan(clubId, 'canTakeAttendance', true)
-          && coachesAnyEventTeam(clubId, resource.data))
+              && request.resource.data.get('allTeams', false) != true)))
         || (audienceOnly
           && (can(clubId, 'manageTeams')
             || (resource.data.get('allTeams', false) != true

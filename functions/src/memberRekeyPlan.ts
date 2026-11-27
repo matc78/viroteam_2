@@ -64,7 +64,7 @@ export function buildTeamRekeyPatch(
 
 /**
  * Patch d'événement : audience, RSVP (le vote le plus récent gagne),
- * `rsvpUpdatedAt`, `seenAt`, exclusions et appel coach (`attendance`).
+ * `rsvpUpdatedAt`, `seenAt`, exclusions et ancien appel coach (`attendance`, historique).
  * Retourne `null` si rien ne change (un second passage est donc un no-op).
  */
 export function buildEventRekeyPatch(params: {

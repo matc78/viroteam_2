@@ -13,13 +13,6 @@ abstract final class FeatureFlags {
   /// Flip à `true` pour activer Stripe aussi en release (après clés live).
   static const bool _stripePaymentsLiveRelease = true;
 
-  /// Pointage des présences (appel coach) : bouton « Faire l'appel » du
-  /// détail d'un événement et capacité coach « Prendre les présences ».
-  /// Masqué tant que la fonctionnalité n'est pas mise en avant ; le code et
-  /// les données (`attendance`, `coachPermissions.canTakeAttendance`)
-  /// restent en place.
-  static const bool attendanceTracking = false;
-
   /// Outils d'entraînement des coachs : préparation de séance, retours
   /// (notes collectives + messages perso), tuile d'accueil. Toujours actif
   /// en debug ; en release quand [_trainingToolsLiveRelease] passe à `true`.

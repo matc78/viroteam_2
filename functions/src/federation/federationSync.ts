@@ -120,7 +120,6 @@ function newEventData(params: {
     matchVenue: fields.matchVenue,
     teamMemberIds: params.teamMemberIds,
     rsvp: {},
-    attendance: {},
     creatorId: params.creatorId,
     canceled: false,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),

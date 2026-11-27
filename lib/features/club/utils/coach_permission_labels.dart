@@ -1,4 +1,3 @@
-import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_permission.dart';
 
@@ -15,11 +14,9 @@ class CoachPermissionLabel {
   final String description;
 }
 
-/// Capacités coach affichées (ordre du catalogue, aligné portail), sans
-/// celles d'une fonctionnalité masquée par [FeatureFlags].
+/// Capacités coach affichées (ordre du catalogue, aligné portail).
 List<CoachPermissionLabel> get coachPermissionLabels => [
   for (final flag in CoachFlag.values)
-    if (_isVisible(flag))
     CoachPermissionLabel(
       flag: flag,
       label: _label(flag),
@@ -27,14 +24,10 @@ List<CoachPermissionLabel> get coachPermissionLabels => [
     ),
 ];
 
-bool _isVisible(CoachFlag flag) =>
-    flag != CoachFlag.canTakeAttendance || FeatureFlags.attendanceTracking;
-
 String _label(CoachFlag flag) => switch (flag) {
       CoachFlag.canCreateEvents => AppCopy.club.permCreateEventsLabel,
       CoachFlag.canManageTeamRoster => AppCopy.club.permManageRosterLabel,
       CoachFlag.canInvitePlayers => AppCopy.club.permInvitePlayersLabel,
-      CoachFlag.canTakeAttendance => AppCopy.club.permTakeAttendanceLabel,
       CoachFlag.canPublishTeamAnnouncements =>
         AppCopy.club.permPublishTeamAnnouncementsLabel,
       CoachFlag.canEditMemberLicenses => AppCopy.club.permEditLicensesLabel,
@@ -45,7 +38,6 @@ String _description(CoachFlag flag) => switch (flag) {
       CoachFlag.canCreateEvents => AppCopy.club.permCreateEventsDesc,
       CoachFlag.canManageTeamRoster => AppCopy.club.permManageRosterDesc,
       CoachFlag.canInvitePlayers => AppCopy.club.permInvitePlayersDesc,
-      CoachFlag.canTakeAttendance => AppCopy.club.permTakeAttendanceDesc,
       CoachFlag.canPublishTeamAnnouncements =>
         AppCopy.club.permPublishTeamAnnouncementsDesc,
       CoachFlag.canEditMemberLicenses => AppCopy.club.permEditLicensesDesc,

@@ -51,9 +51,6 @@ final class AppCopyClub {
   String get permInvitePlayersLabel => 'Inviter des joueurs';
   String get permInvitePlayersDesc =>
       'Créer une fiche membre et envoyer une invitation.';
-  String get permTakeAttendanceLabel => 'Prendre les présences';
-  String get permTakeAttendanceDesc =>
-      'Pointer après la séance pour les stats (optionnel — le RSVP reste prioritaire).';
   String get permPublishTeamAnnouncementsLabel => 'Publier des annonces';
   String get permPublishTeamAnnouncementsDesc =>
       'Envoyer des annonces (pas au club entier).';
@@ -171,7 +168,6 @@ final class AppCopyClub {
   String get equipmentSubtitle => 'Matériel du club';
   String get settingsSubtitle => 'Droits des coachs, infos du club';
   String heroAttendance(int percent) => '$percent % de oui';
-  String heroPitchAttendance(int percent) => '$percent % présents (appel)';
   String heroTeams(int count) => count <= 1 ? '$count équipe' : '$count équipes';
 
   String get myClubsTitle => 'Mes clubs';

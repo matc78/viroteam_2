@@ -107,10 +107,4 @@ void main() {
     expect(find.text(AppCopy.permissions.coachRightsRedirectTitle),
         findsNothing);
   });
-
-  testWidgets('capacité « Prendre les présences » masquée par le flag',
-      (tester) async {
-    await openSheet(tester, onEditCoachRights: null);
-    expect(find.text(AppCopy.club.permTakeAttendanceLabel), findsNothing);
-  });
 }

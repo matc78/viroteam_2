@@ -7,9 +7,9 @@ import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/event/event_paths.dart';
 import 'package:viro_team_v2/utils/cloud_callable.dart';
 
-/// RSVP, appel coach, fiche membre et stats de présence.
+/// RSVP, fiche membre et stats de présence.
 class EventRsvpOperations {
-  /// Crée le module RSVP / attendance / audience.
+  /// Crée le module RSVP / audience.
   EventRsvpOperations({
     required EventPaths paths,
     required FirebaseFunctions functions,
@@ -77,28 +77,6 @@ class EventRsvpOperations {
     });
   }
 
-  /// Enregistre l'appel coach (`attendance`) sans modifier `rsvp`.
-  Future<void> updateAttendance({
-    required String clubId,
-    required String eventId,
-    required Map<String, AttendanceStatus> statusesByMemberId,
-    required String markedByUid,
-  }) async {
-    if (statusesByMemberId.isEmpty) return;
-    final markedAt = Timestamp.now();
-    final updates = <String, dynamic>{
-      FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-    };
-    for (final entry in statusesByMemberId.entries) {
-      updates['${FirestoreFields.attendance}.${entry.key}'] = {
-        FirestoreFields.status: entry.value.firestoreValue,
-        FirestoreFields.markedBy: markedByUid,
-        FirestoreFields.markedAt: markedAt,
-      };
-    }
-    await _paths.events(clubId).doc(eventId).update(updates);
-  }
-
   /// Stream de la fiche `members/{memberId}` (soi : [memberId] = authUid).
   Stream<ClubMember?> watchClubMember({
     required String clubId,
@@ -146,45 +124,6 @@ class EventRsvpOperations {
 
     if (answered == 0) return null;
     return yesCount / answered * 100;
-  }
-
-  /// Taux de présence terrain (appel coach) sur 30 j.
-  ///
-  /// Retourne null s’il n’y a pas encore d’appel renseigné (évite 0 % trompeur).
-  Future<double?> computePitchAttendanceRate({
-    required String clubId,
-  }) async {
-    final since = DateTime.now().subtract(const Duration(days: 30));
-    final snap = await _paths
-        .events(clubId)
-        .where(
-          FirestoreFields.date,
-          isGreaterThanOrEqualTo: Timestamp.fromDate(since),
-        )
-        .where(
-          FirestoreFields.date,
-          isLessThan: Timestamp.fromDate(EventDateHelpers.startOfToday()),
-        )
-        .get();
-
-    var presentCount = 0;
-    var markedCount = 0;
-    var eventsWithRollCall = 0;
-
-    for (final doc in snap.docs) {
-      final event = ClubEvent.fromFirestore(clubId: clubId, doc: doc);
-      if (event.canceled || !event.hasRollCall) continue;
-      eventsWithRollCall++;
-      for (final uid in event.teamMemberIds) {
-        final status = event.attendanceStatusFor(uid);
-        if (status == null) continue;
-        markedCount++;
-        if (status == AttendanceStatus.present) presentCount++;
-      }
-    }
-
-    if (eventsWithRollCall < 1 || markedCount == 0) return null;
-    return presentCount / markedCount * 100;
   }
 
   /// Retire / réintègre des joueurs convoqués (callable, multi-occurrences).

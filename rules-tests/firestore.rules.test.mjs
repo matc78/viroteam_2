@@ -1683,16 +1683,17 @@ test("un coach modifie ou annule un événement de son équipe, pas d'une autre"
   await assertSucceeds(deleteDoc(doc(as(ADMIN), `clubs/${CLUB}/events/evB`)));
 });
 
-test("l'appel suit canTakeAttendance sur les équipes du coach", async () => {
+test("l'appel coach n'existe plus : personne n'écrit `attendance`", async () => {
   const attendance = {
     [`attendance.${PLAYER.uid}`]: { status: "present", markedBy: COACH.uid },
   };
-  await assertSucceeds(updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), attendance));
+  // Même sur un événement qu'il gère entièrement : seul le RSVP compte.
+  await assertFails(updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), attendance));
   await assertFails(updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evB`), attendance));
-  await setCoachPermissions({ canTakeAttendance: false });
+  // Le droit planning non plus (une entrée sans `markedBy` se lirait comme un RSVP).
   await assertFails(
-    updateDoc(doc(as(COACH), `clubs/${CLUB}/events/evA`), {
-      [`attendance.${PLAYER.uid}`]: { status: "absent", markedBy: COACH.uid },
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/events/evA`), {
+      [`attendance.${PLAYER.uid}`]: "yes",
     }),
   );
 });
@@ -1854,8 +1855,8 @@ test("un coach ne modifie un événement multi-équipes que s'il les entraîne t
   });
   const ref = doc(as(COACH), `clubs/${CLUB}/events/evAB`);
   await assertFails(updateDoc(ref, { title: "Piraté" }));
-  // L'appel reste ouvert au coach d'une des équipes (pour ses joueurs).
-  await assertSucceeds(
+  // Plus d'appel coach : seul le RSVP compte.
+  await assertFails(
     updateDoc(ref, { [`attendance.${PLAYER.uid}`]: { status: "present", markedBy: COACH.uid } }),
   );
   await assertSucceeds(

@@ -106,7 +106,6 @@ enum CoachFlag {
   canCreateEvents('canCreateEvents', defaultValue: true),
   canManageTeamRoster('canManageTeamRoster', defaultValue: true),
   canInvitePlayers('canInvitePlayers', defaultValue: true),
-  canTakeAttendance('canTakeAttendance', defaultValue: true),
   canPublishTeamAnnouncements(
     'canPublishTeamAnnouncements',
     defaultValue: true,

@@ -61,12 +61,6 @@ export const COACH_PERMISSION_LABELS: {
     description: "Créer une fiche membre et envoyer une invitation.",
   },
   {
-    key: "canTakeAttendance",
-    label: "Prendre les présences",
-    description:
-      "Pointer après la séance pour les stats (optionnel — le RSVP reste prioritaire).",
-  },
-  {
     key: "canPublishTeamAnnouncements",
     label: "Publier des annonces",
     description: "Envoyer des annonces (pas au club entier).",

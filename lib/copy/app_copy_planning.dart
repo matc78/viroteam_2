@@ -197,17 +197,6 @@ final class AppCopyPlanning {
       : 'Convoqués mis à jour';
   String get convocationsSaveFailed => 'Mise à jour impossible, réessaie';
 
-  String get takeAttendance => 'Faire l\'appel';
-  String get takeAttendanceTitle => 'Faire l\'appel';
-  String get takeAttendanceSubtitle =>
-      'Optionnel — pour les stats. Le RSVP avant la séance reste la priorité.';
-  String get markAllPresent => 'Tous présents';
-  String get attendancePresent => 'Présent';
-  String get attendanceAbsent => 'Absent';
-  String get attendanceSaved => 'Appel enregistré';
-  String get attendanceSaveFailed => 'Enregistrement impossible, réessaie';
-  String get attendanceUnmarked => 'Non pointé';
-
   String eventsCancelled(int count) =>
       count > 1 ? '$count événements annulés' : 'Événement annulé';
   String get eventCancelled => 'Événement annulé';

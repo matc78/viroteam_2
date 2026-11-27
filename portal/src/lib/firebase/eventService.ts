@@ -519,7 +519,6 @@ export async function createClubEvent(
       [Fields.startTime]: input.startTime,
       [Fields.teamMemberIds]: teamMemberIds,
       [Fields.rsvp]: {},
-      [Fields.attendance]: {},
       [Fields.creatorId]: input.creatorId,
       [Fields.canceled]: false,
       [Fields.createdAt]: serverTimestamp(),

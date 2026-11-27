@@ -70,7 +70,6 @@ class EventMutations {
         if (excludedMemberIds.isNotEmpty)
           FirestoreFields.excludedMemberIds: excludedMemberIds,
         FirestoreFields.rsvp: <String, String>{},
-        FirestoreFields.attendance: <String, dynamic>{},
         FirestoreFields.creatorId: creatorId,
         FirestoreFields.canceled: false,
         FirestoreFields.createdAt: FieldValue.serverTimestamp(),

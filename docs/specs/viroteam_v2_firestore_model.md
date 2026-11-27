@@ -171,7 +171,7 @@ V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiv
 | `teamMemberIds` | array | Audience de l'événement (ajout → push « Nouvelle convocation » si ≤ 7 j, hors séries sauf réintégration) |
 | `excludedMemberIds` | array? | Joueurs retirés par le coach : absents de `teamMemberIds`, événement masqué pour eux (et leurs parents), jamais reconvoqués par la synchro roster. Écrit à la création (match) ou via la callable `updateEventConvocations` |
 | `rsvp` | map | `uid → 'yes' \| 'no' \| 'maybe' \| 'none'` |
-| `attendance` | map | `uid → { status, lateMinutes, markedBy, markedAt }` |
+| `attendance` | map? | Legacy, plus écrit (règles : refusé à tous les clients). Réponses v1 (`uid → 'yes' \| …`) relues comme RSVP si `rsvp` n'a pas d'entrée ; les entrées de l'ancien appel coach (`{ status, markedBy, markedAt }`) sont ignorées |
 | `creatorId` | string | |
 | `createdAt` | timestamp | |
 | `canceled` | bool | Annulation soft |
@@ -187,7 +187,7 @@ V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiv
 | `rsvpNotifyPending` / `rsvpNotifyDueAt` | map / timestamp? | File de push RSVP (debounce 5 s, Functions) |
 | `modifiedNotifyPending` / `modifiedNotifyDueAt` | map / timestamp? | Champs modifiés regroupés 10 min (2 min le jour J) avant la push « modifié » (Functions) |
 
-> **`attendance`** est le seul map de présence — `sessionAttendance` et la collection `training_attendances` sont supprimés.
+> Les présences reposent uniquement sur **`rsvp`** (« présent » = a répondu oui ; une réponse corrigée par le coach compte) — l'appel coach (`attendance`), `sessionAttendance` et la collection `training_attendances` sont supprimés.
 
 ---
 

@@ -65,10 +65,11 @@ Responsable cotisations (`manageFees`, `viewFees`) · Responsable annonces (`man
 | `canCreateEvents` | vrai | Créer / modifier / annuler / notifier les événements de ses équipes : il doit entraîner **toutes** les équipes de l'événement, jamais « tout le club » (`allTeams`) |
 | `canManageTeamRoster` | vrai | Ajouter des joueurs (retrait : `manageTeams`) |
 | `canInvitePlayers` | vrai | Code d'équipe, pré-création de fiche, invitation — fiches sans droit, de ses équipes ou sans équipe |
-| `canTakeAttendance` | vrai | Appel (coach d'une des équipes de l'événement, hors « tout le club ») |
 | `canPublishTeamAnnouncements` | vrai | Annonces ciblant uniquement ses équipes |
 | `canEditMemberLicenses` | faux | Licences des membres de ses équipes |
-| `canEditMemberRsvp` | faux | RSVP d'autrui sur ses événements (hors « tout le club ») |
+| `canEditMemberRsvp` | faux | RSVP d'autrui sur ses événements (hors « tout le club ») ; compte dans les présences comme une réponse du joueur |
+
+Pas d'appel coach : les présences reposent uniquement sur le RSVP (« présent » = a répondu oui). L'ancien droit `canTakeAttendance` et le champ `events.attendance` ne sont plus écrits.
 
 Sans flag : liens de discussion, écriture en `coaches_and_admins`, canal staff, modération des conversations de ses équipes. Les convocations / push d'un événement suivent la portée de `canCreateEvents` (toutes ses équipes, jamais « tout le club »). Réglage par un admin seulement.
 

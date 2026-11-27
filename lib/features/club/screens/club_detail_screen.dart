@@ -187,7 +187,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     await Future.wait([
       ref.refresh(clubProvider(clubId).future),
       ref.refresh(clubAttendanceRateProvider(clubId).future),
-      ref.refresh(clubPitchAttendanceRateProvider(clubId).future),
     ]);
 
     final streamWaits = <Future<Object?>>[
@@ -334,7 +333,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final isAdmin = access.isAdmin;
     final summary = ref.watch(clubShortcutsSummaryProvider(clubId));
     final attendanceRate = ref.watch(clubAttendanceRateProvider(clubId)).value;
-    final pitchRate = ref.watch(clubPitchAttendanceRateProvider(clubId)).value;
     final hasActiveSeason =
         ref.watch(activeSeasonProvider(clubId)).value != null;
     final canOpenMembers = access.canOpenMembers;
@@ -362,11 +360,6 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
         ClubHeroStat(
           icon: ViroIcons.checkCircle,
           label: AppCopy.club.heroAttendance(attendanceRate.round()),
-        ),
-      if (pitchRate != null)
-        ClubHeroStat(
-          icon: ViroIcons.whistle,
-          label: AppCopy.club.heroPitchAttendance(pitchRate.round()),
         ),
     ];
 

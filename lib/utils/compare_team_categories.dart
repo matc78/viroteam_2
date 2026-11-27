@@ -1,24 +1,62 @@
 import 'package:viro_team_v2/utils/team_categories.dart';
 
-/// Compare deux libellés de catégorie (M7 avant M21, U9 avant U11…).
+/// Compare deux libellés de catégorie (M7 avant M21, U9 avant U11…), sans
+/// tenir compte des accents ni de la casse, comme le portail
+/// (`localeCompare('fr', { sensitivity: 'base' })`) : même ordre, donc mêmes
+/// couleurs de catégorie des deux côtés.
 int compareTeamCategories(String a, String b) {
   final left = _parseCategorySortKey(a);
   final right = _parseCategorySortKey(b);
-  final prefixCmp = left.prefix.compareTo(right.prefix);
+  final prefixCmp = _fold(left.prefix).compareTo(_fold(right.prefix));
   if (prefixCmp != 0) return prefixCmp;
   if (left.age != null && right.age != null && left.age != right.age) {
     return left.age!.compareTo(right.age!);
   }
   if (left.age != null && right.age == null) return -1;
   if (left.age == null && right.age != null) return 1;
-  return a.toLowerCase().compareTo(b.toLowerCase());
+  return _fold(a).compareTo(_fold(b));
+}
+
+const _accentFolds = {
+  'à': 'a',
+  'â': 'a',
+  'ä': 'a',
+  'á': 'a',
+  'ã': 'a',
+  'ç': 'c',
+  'é': 'e',
+  'è': 'e',
+  'ê': 'e',
+  'ë': 'e',
+  'î': 'i',
+  'ï': 'i',
+  'í': 'i',
+  'ô': 'o',
+  'ö': 'o',
+  'ó': 'o',
+  'õ': 'o',
+  'ù': 'u',
+  'û': 'u',
+  'ü': 'u',
+  'ú': 'u',
+  'ÿ': 'y',
+  'ñ': 'n',
+  'œ': 'oe',
+  'æ': 'ae',
+};
+
+/// Minuscules sans accents (clé de comparaison).
+String _fold(String value) {
+  final lower = value.toLowerCase();
+  final buffer = StringBuffer();
+  for (final char in lower.split('')) {
+    buffer.write(_accentFolds[char] ?? char);
+  }
+  return buffer.toString();
 }
 
 /// Trie les catégories ; si [sport] est fourni, privilégie l’ordre catalogue sport.
-List<String> sortTeamCategories(
-  Iterable<String> categories, {
-  String? sport,
-}) {
+List<String> sortTeamCategories(Iterable<String> categories, {String? sport}) {
   final unique = categories
       .map((c) => c.trim())
       .where((c) => c.isNotEmpty)

@@ -85,6 +85,25 @@ final class AppCopyTeams {
     return parts.join(' · ');
   }
 
+  // En-tête de catégorie (liste Gestion groupée par catégorie).
+  String get noCategory => 'Sans catégorie';
+  String categoryTeamCount(int count) =>
+      '$count équipe${count > 1 ? 's' : ''}';
+  String categoryNoCoach(int count) => '$count sans coach';
+  String categoryNoPlayer(int count) => '$count sans joueur';
+  String categoryHeaderSemantics({
+    required String category,
+    required int count,
+    required List<String> alerts,
+    required bool expanded,
+  }) =>
+      [
+        category,
+        categoryTeamCount(count),
+        ...alerts,
+        expanded ? 'développé' : 'réduit',
+      ].join(', ');
+
   String get removeFromTeamTitle => 'Retirer de l’équipe ?';
 
   /// Corps de la confirmation de retrait d’un membre du roster.

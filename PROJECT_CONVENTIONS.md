@@ -39,6 +39,7 @@ Référence technique : `lib/config/viro_theme.dart`, `viro_palette.dart`, `viro
 - **Interdit** dans `lib/features`, `lib/widgets`, `lib/screens` : `ViroColors.gray*`, `primary*`, `surface*`, `scaffold*` (resteraient clairs en sombre). Garde-fou : `test/theme_palette_usage_test.dart`.
 - Restent des constantes `ViroColors` (identiques dans les deux modes) : `sport*`, `success` / `warning` / `error` (texte : `palette.errorText`…), dégradés des badges de rôle, `white` posé sur un fond vif.
 - Couleur de marque club en texte ou icône → `palette.readableAccent(color)` (éclaircie si trop foncée en sombre).
+- Couleur d’une catégorie d’équipe → `TeamCategoryTone` (`lib/config/viro_team_category_tones.dart`, mêmes valeurs que les `--tone-*` du portail), attribuée par `assignTeamCategoryTones` (`features/teams/utils/team_category_groups.dart`) ou lue via `teamCategoryTonesProvider(clubId)` : une catégorie a la même couleur dans l’app et sur le portail.
 
 ```dart
 // ✅ Bon

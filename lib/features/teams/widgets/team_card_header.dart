@@ -15,13 +15,18 @@ class TeamCardHeader extends StatelessWidget {
     required this.team,
     required this.club,
     required this.accent,
+    this.categoryColor,
   });
 
   final ClubTeam team;
   final Club club;
   final Color accent;
 
+  /// Couleur de la catégorie (pastille devant le résumé), `null` = aucune.
+  final Color? categoryColor;
+
   static const double _avatarRadius = 22;
+  static const double _categoryDotSize = 8;
 
   @override
   Widget build(BuildContext context) {
@@ -82,13 +87,30 @@ class TeamCardHeader extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 2),
-              Text(
-                summary,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.bodySmall?.copyWith(
-                  color: palette.textSecondary,
-                ),
+              Row(
+                children: [
+                  if (categoryColor case final dotColor?) ...[
+                    Container(
+                      width: _categoryDotSize,
+                      height: _categoryDotSize,
+                      decoration: BoxDecoration(
+                        color: dotColor,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: ViroSpacing.xs),
+                  ],
+                  Expanded(
+                    child: Text(
+                      summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.bodySmall?.copyWith(
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

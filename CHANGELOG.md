@@ -18,6 +18,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 - Saison d’une équipe (classement FFVB) : en-tête refait — carte héro (médaille de rang, points, forme), stats Bilan / Sets / Points avec jauge pour-contre verte et rouge, répartition des scores en pastilles colorées, bilans Domicile / Extérieur avec icône, salles dans une carte ; cartes du parcours sans adresse (pastille Domicile / Extérieur), liseré et score à la couleur du résultat, sets gagnés en vert et perdus en rouge, heure en pastille pour les matchs à venir
 
 - Sparring : un joueur peut passer « sparring » dans une équipe (bouton sur sa ligne dans Gestion des équipes, ou section Sparring de sa fiche membre) — admin et coach avec gestion d’effectif ; il s’entraîne avec l’équipe mais n’est pas convoqué d’office aux matchs (création de match, import FFVB), on peut l’ajouter match par match via « Gérer les convocations » ; ses matchs à venir le retirent sauf s’il a déjà répondu présent, et il y revient quand il repasse joueur. Nouveau badge Sparring gris argent dans l’effectif, les convocations et le libellé d’équipe de la fiche (`teams.sparringIds`, règles et trigger `onTeamWritten`)
+- Équipes (Gestion) : liste groupée par catégorie, en-têtes repliables avec le nombre d’équipes et les alertes « sans coach » / « sans joueur » ; une couleur par catégorie (pastille sur les cartes de Gestion et de Mes équipes), la même que sur le portail
 
 ### Modifié
 

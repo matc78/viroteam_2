@@ -5,7 +5,9 @@ import 'package:viro_team_v2/config/viro_spacing.dart';
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/features/club/providers/club_detail_providers.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
-import 'package:viro_team_v2/features/teams/utils/sort_manage_teams.dart';
+import 'package:viro_team_v2/features/teams/utils/team_category_groups.dart';
+import 'package:viro_team_v2/models/club_team.dart';
+import 'package:viro_team_v2/widgets/lists/team_category_header_list_tile.dart';
 import 'package:viro_team_v2/features/teams/widgets/create_team_dialog.dart';
 import 'package:viro_team_v2/features/teams/widgets/manage_team_card.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
@@ -52,14 +54,44 @@ Future<bool> createClubTeam({
   }
 }
 
-/// Liste gestion des équipes du club — corps du hub Équipes.
-class ManageTeamsBody extends ConsumerWidget {
+/// Liste gestion des équipes du club — corps du hub Équipes, groupée par
+/// catégorie (repliable, une couleur par catégorie comme sur le portail).
+class ManageTeamsBody extends ConsumerStatefulWidget {
   const ManageTeamsBody({super.key, required this.clubId});
 
   final String clubId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ManageTeamsBody> createState() => _ManageTeamsBodyState();
+}
+
+class _ManageTeamsBodyState extends ConsumerState<ManageTeamsBody> {
+  /// Catégories repliées par l’utilisateur (propres au club affiché).
+  final _collapsed = <String>{};
+
+  @override
+  void didUpdateWidget(covariant ManageTeamsBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.clubId != widget.clubId) _collapsed.clear();
+  }
+
+  void _toggle(String category) => setState(() {
+        if (!_collapsed.remove(category)) _collapsed.add(category);
+      });
+
+  /// Lignes à afficher : en-tête de chaque catégorie puis ses équipes
+  /// (sauf repliée).
+  List<_ManageTeamsRow> _rows(List<TeamCategoryGroup> groups) => [
+        for (final group in groups) ...[
+          _ManageTeamsRow.header(group),
+          if (!_collapsed.contains(group.category))
+            for (final team in group.teams) _ManageTeamsRow.team(team, group),
+        ],
+      ];
+
+  @override
+  Widget build(BuildContext context) {
+    final clubId = widget.clubId;
     final teamsAsync = ref.watch(clubTeamsProvider(clubId));
     final clubAsync = ref.watch(clubProvider(clubId));
     final canCreateTeam =
@@ -83,11 +115,9 @@ class ManageTeamsBody extends ConsumerWidget {
             onRetry: () => ref.invalidate(clubTeamsProvider(clubId)),
           ),
           data: (teams) {
-            final memberId =
-                ref.watch(clubMemberProvider(clubId)).value?.memberId;
-            final ordered = memberId == null
-                ? teams
-                : sortManageTeams(teams, memberId);
+            final rows = _rows(
+              ref.watch(manageTeamCategoryGroupsProvider(clubId)) ?? const [],
+            );
             return ViroRefreshIndicator(
               onRefresh: () async {
                 await Future.wait([
@@ -96,7 +126,7 @@ class ManageTeamsBody extends ConsumerWidget {
                   ref.refresh(clubMemberProvider(clubId).future),
                 ]);
               },
-              child: ordered.isEmpty
+              child: teams.isEmpty
                   ? ListView(
                       physics: ViroRefreshIndicator.scrollPhysics,
                       padding: const EdgeInsets.all(ViroSpacing.md),
@@ -133,15 +163,27 @@ class ManageTeamsBody extends ConsumerWidget {
                         ViroSpacing.screenHorizontal,
                         ViroSpacing.xl,
                       ),
-                      itemCount: ordered.length,
+                      itemCount: rows.length,
                       itemBuilder: (context, index) {
+                        final row = rows[index];
+                        final team = row.team;
+                        if (team == null) {
+                          return TeamCategoryHeaderListTile(
+                            key: ValueKey('category:${row.group.category}'),
+                            group: row.group,
+                            expanded:
+                                !_collapsed.contains(row.group.category),
+                            onToggle: () => _toggle(row.group.category),
+                          );
+                        }
                         // Clé d'équipe : l'ordre change (tri « mes équipes
                         // d'abord »), l'état dépliée ne doit pas suivre l'index.
                         return ManageTeamCard(
-                          key: ValueKey(ordered[index].id),
-                          team: ordered[index],
+                          key: ValueKey(team.id),
+                          team: team,
                           club: club,
                           accent: accent,
+                          categoryColor: row.group.tone.color,
                         );
                       },
                     ),
@@ -151,4 +193,13 @@ class ManageTeamsBody extends ConsumerWidget {
       },
     );
   }
+}
+
+/// Ligne de la liste Gestion : en-tête de catégorie ([team] nul) ou équipe.
+class _ManageTeamsRow {
+  const _ManageTeamsRow.header(this.group) : team = null;
+  const _ManageTeamsRow.team(ClubTeam this.team, this.group);
+
+  final TeamCategoryGroup group;
+  final ClubTeam? team;
 }

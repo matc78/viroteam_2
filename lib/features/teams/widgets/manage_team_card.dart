@@ -35,11 +35,15 @@ class ManageTeamCard extends ConsumerStatefulWidget {
     required this.team,
     required this.club,
     required this.accent,
+    this.categoryColor,
   });
 
   final ClubTeam team;
   final Club club;
   final Color accent;
+
+  /// Couleur de la catégorie de l’équipe (pastille de l’en-tête).
+  final Color? categoryColor;
 
   @override
   ConsumerState<ManageTeamCard> createState() => _ManageTeamCardState();
@@ -197,6 +201,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                 team: team,
                 club: widget.club,
                 accent: widget.accent,
+                categoryColor: widget.categoryColor,
               ),
               children: [
                 if (!_expanded)

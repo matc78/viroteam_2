@@ -183,29 +183,28 @@ class _MemberPermissionsSheetState extends State<MemberPermissionsSheet> {
       required Color borderColor,
       required Color fillColor,
       required List<Widget> children,
-    }) =>
-        Material(
-          color: fillColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
-            side: BorderSide(color: borderColor),
+    }) => Material(
+      color: fillColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(ViroSpacing.cardRadius),
+        side: BorderSide(color: borderColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          ViroSpacing.md,
+          ViroSpacing.sm,
+          ViroSpacing.md,
+          ViroSpacing.sm,
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              ViroSpacing.md,
-              ViroSpacing.sm,
-              ViroSpacing.md,
-              ViroSpacing.sm,
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: children,
-              ),
-            ),
-          ),
-        );
+        ),
+      ),
+    );
 
     return Material(
       color: palette.surfaceCard,
@@ -352,7 +351,8 @@ class _MemberPermissionsSheetState extends State<MemberPermissionsSheet> {
                         title: copy.permissionLabel(permission),
                         subtitle: _permissionSubtitle(copy, permission),
                         glyph: glyphOfPermission(permission),
-                        value: _isAdmin ||
+                        value:
+                            _isAdmin ||
                             _draft.contains(permission) ||
                             _impliedBy(permission) != null,
                         accentColor: accent,

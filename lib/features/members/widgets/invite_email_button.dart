@@ -141,8 +141,7 @@ class _InviteEmailButtonState extends State<InviteEmailButton> {
 
     if (isGhost) {
       return TextButton(
-        onPressed:
-            widget.disabled || _isLocked ? null : () => _handlePress(),
+        onPressed: widget.disabled || _isLocked ? null : () => _handlePress(),
         style: TextButton.styleFrom(
           foregroundColor: accent,
           padding: const EdgeInsets.symmetric(
@@ -159,8 +158,7 @@ class _InviteEmailButtonState extends State<InviteEmailButton> {
       width: double.infinity,
       height: ViroSpacing.buttonHeightLarge,
       child: ElevatedButton(
-        onPressed:
-            widget.disabled || _isLocked ? null : () => _handlePress(),
+        onPressed: widget.disabled || _isLocked ? null : () => _handlePress(),
         style: ElevatedButton.styleFrom(
           backgroundColor: backgroundColor ?? accent,
           foregroundColor: onAccent,

@@ -3,10 +3,7 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
 
 /// Noms des équipes que [member] entraîne (`coachTeamIds`), triés.
-List<String> resolveCoachedTeamNames(
-  ClubMember member,
-  List<ClubTeam> teams,
-) {
+List<String> resolveCoachedTeamNames(ClubMember member, List<ClubTeam> teams) {
   final names = [
     for (final team in teams)
       if (member.coachTeamIds.contains(team.id)) team.name,

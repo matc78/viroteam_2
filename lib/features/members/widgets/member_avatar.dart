@@ -31,8 +31,7 @@ class MemberAvatar extends StatelessWidget {
     final palette = context.viroPalette;
     final hasAccount = member.hasLinkedAccount;
     final photoUrl = member.avatarUrl?.trim();
-    final hasPhoto =
-        hasAccount && photoUrl != null && photoUrl.isNotEmpty;
+    final hasPhoto = hasAccount && photoUrl != null && photoUrl.isNotEmpty;
 
     final accent = accentColor ?? palette.accent;
     final accentBorder = showAccentBorder
@@ -83,7 +82,8 @@ class MemberAvatar extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: palette.surfaceMuted,
-          border: accentBorder ??
+          border:
+              accentBorder ??
               Border.all(color: palette.borderStrong, width: 1.5),
         ),
         alignment: Alignment.center,

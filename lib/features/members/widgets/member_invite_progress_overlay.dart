@@ -59,8 +59,7 @@ class _MemberInviteProgressOverlayState
     final total = widget.totalCount <= 0 ? 1 : widget.totalCount;
     final progress = (widget.completedCount / total).clamp(0.0, 1.0);
     final theme = Theme.of(context).textTheme;
-    final phaseLabel =
-        widget.phaseLabel ?? AppCopy.members.inviteSendingPhase;
+    final phaseLabel = widget.phaseLabel ?? AppCopy.members.inviteSendingPhase;
 
     return Material(
       color: palette.background.withValues(alpha: 0.94),

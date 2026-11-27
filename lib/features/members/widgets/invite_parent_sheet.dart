@@ -81,7 +81,9 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
       _error = null;
     });
     try {
-      final view = await ref.read(guardianServiceProvider).getMemberGuardian(
+      final view = await ref
+          .read(guardianServiceProvider)
+          .getMemberGuardian(
             clubId: widget.club.id,
             memberId: widget.member.memberId,
           );
@@ -112,7 +114,9 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
       _error = null;
     });
     try {
-      final result = await ref.read(guardianServiceProvider).inviteGuardian(
+      final result = await ref
+          .read(guardianServiceProvider)
+          .inviteGuardian(
             clubId: widget.club.id,
             memberId: widget.member.memberId,
             email: email,
@@ -150,7 +154,9 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
       _error = null;
     });
     try {
-      await ref.read(guardianServiceProvider).revokeGuardian(
+      await ref
+          .read(guardianServiceProvider)
+          .revokeGuardian(
             clubId: widget.club.id,
             memberId: widget.member.memberId,
             parentUid: _guardian?.parentUid,
@@ -205,7 +211,9 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
           else if (occupying) ...[
             Text(
               [
-                _guardian!.displayName ?? _guardian!.email ?? AppCopy.members.parentInvited,
+                _guardian!.displayName ??
+                    _guardian!.email ??
+                    AppCopy.members.parentInvited,
                 if (_guardian!.inviteExpired)
                   AppCopy.members.inviteExpiredLower
                 else if (_guardian!.isPending)
@@ -221,7 +229,9 @@ class _InviteParentSheetState extends ConsumerState<InviteParentSheet> {
                 onTap: _copyCode,
                 child: Text(
                   AppCopy.members.inviteCodeLabel(_guardian!.invitationCode!),
-                  style: theme.bodySmall?.copyWith(color: palette.textSecondary),
+                  style: theme.bodySmall?.copyWith(
+                    color: palette.textSecondary,
+                  ),
                 ),
               ),
             ],

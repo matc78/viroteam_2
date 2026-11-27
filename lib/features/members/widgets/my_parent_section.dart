@@ -86,7 +86,9 @@ class MyParentSection extends ConsumerWidget {
                             AppCopy.members.pendingLower,
                         ].join(' · ')
                       : AppCopy.members.noParentInviteHint,
-                  style: theme.bodySmall?.copyWith(color: palette.textSecondary),
+                  style: theme.bodySmall?.copyWith(
+                    color: palette.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: ViroSpacing.md),
                 ViroPrimaryButton(
@@ -101,9 +103,10 @@ class MyParentSection extends ConsumerWidget {
                       member: member,
                     );
                     ref.invalidate(
-                      _myGuardianProvider(
-                        (clubId: club.id, memberId: member.memberId),
-                      ),
+                      _myGuardianProvider((
+                        clubId: club.id,
+                        memberId: member.memberId,
+                      )),
                     );
                   },
                 ),
@@ -116,11 +119,12 @@ class MyParentSection extends ConsumerWidget {
   }
 }
 
-final _myGuardianProvider = FutureProvider.family<
-    MemberGuardianView,
-    ({String clubId, String memberId})>((ref, params) {
-  return ref.read(guardianServiceProvider).getMemberGuardian(
-        clubId: params.clubId,
-        memberId: params.memberId,
-      );
-});
+final _myGuardianProvider =
+    FutureProvider.family<
+      MemberGuardianView,
+      ({String clubId, String memberId})
+    >((ref, params) {
+      return ref
+          .read(guardianServiceProvider)
+          .getMemberGuardian(clubId: params.clubId, memberId: params.memberId);
+    });

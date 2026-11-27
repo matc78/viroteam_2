@@ -2,11 +2,7 @@ import 'package:viro_team_v2/constants/firestore_fields.dart';
 import 'package:viro_team_v2/services/member_service.dart';
 
 /// Statut du lien parent pour un joueur (vue admin liste membres).
-enum ParentLinkStatus {
-  none,
-  pending,
-  active,
-}
+enum ParentLinkStatus { none, pending, active }
 
 /// Construit une map `memberId` → statut parent à partir de la liste club-wide.
 Map<String, ParentLinkStatus> buildParentStatusByMemberId(

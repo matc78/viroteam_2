@@ -167,7 +167,9 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
       final formattedFirst = formatFirstName(firstName);
       final formattedLast = formatLastName(lastName);
       final normalizedEmail = normalizeEmail(email);
-      await ref.read(memberServiceProvider).updatePendingMemberProfile(
+      await ref
+          .read(memberServiceProvider)
+          .updatePendingMemberProfile(
             clubId: widget.club.id,
             memberId: _member.memberId,
             firstName: formattedFirst,
@@ -206,16 +208,15 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     }
 
     try {
-      final result =
-          await ref.read(memberInviteServiceProvider).sendMemberInvites(
-                clubId: widget.club.id,
-                memberIds: [_member.memberId],
-              );
+      final result = await ref
+          .read(memberInviteServiceProvider)
+          .sendMemberInvites(
+            clubId: widget.club.id,
+            memberIds: [_member.memberId],
+          );
       if (result.sent > 0) return true;
       final first = result.results.isNotEmpty ? result.results.first : null;
-      throw Exception(
-        first?.reason ?? AppCopy.members.inviteSendFailed,
-      );
+      throw Exception(first?.reason ?? AppCopy.members.inviteSendFailed);
     } catch (error) {
       if (mounted) {
         ViroSnackBar.show(
@@ -255,7 +256,9 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
 
     setState(() => _loadingGuardian = true);
     try {
-      final view = await ref.read(guardianServiceProvider).getMemberGuardian(
+      final view = await ref
+          .read(guardianServiceProvider)
+          .getMemberGuardian(
             clubId: widget.club.id,
             memberId: widget.member.memberId,
           );
@@ -285,8 +288,13 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     if (guardian?.hasOccupant != true) {
       return AppCopy.members.noParentLinked;
     }
-    final name = guardian!.displayName ?? guardian.email ?? AppCopy.members.parentInvited;
-    if (guardian.inviteExpired) return AppCopy.members.parentWithInviteExpired(name);
+    final name =
+        guardian!.displayName ??
+        guardian.email ??
+        AppCopy.members.parentInvited;
+    if (guardian.inviteExpired) {
+      return AppCopy.members.parentWithInviteExpired(name);
+    }
     if (guardian.isPending) return AppCopy.members.parentWithPending(name);
     return name;
   }
@@ -297,8 +305,9 @@ class _PendingMemberSheetState extends ConsumerState<PendingMemberSheet> {
     final theme = Theme.of(context);
     final titleColor = theme.appBarTheme.foregroundColor;
     final accent = theme.colorScheme.primary;
-    final managementAccent =
-        ref.watch(clubManagementAccentProvider(widget.club.id));
+    final managementAccent = ref.watch(
+      clubManagementAccentProvider(widget.club.id),
+    );
 
     return Padding(
       padding: EdgeInsets.only(

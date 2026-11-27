@@ -9,8 +9,7 @@ String buildInviteSendSummary(SendMemberInvitesResult result) {
   final reasonCounts = <String, int>{};
   for (final item in result.results) {
     if (item.status == 'sent') continue;
-    final reason =
-        (item.reason ?? AppCopy.members.unknownReason).trim();
+    final reason = (item.reason ?? AppCopy.members.unknownReason).trim();
     if (reason.isEmpty) continue;
     reasonCounts[reason] = (reasonCounts[reason] ?? 0) + 1;
   }

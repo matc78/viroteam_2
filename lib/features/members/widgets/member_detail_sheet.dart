@@ -103,14 +103,14 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       isOwnProfile || _access.can(ClubPermission.viewFees);
 
   ClubAccentStyle get _accentStyle => clubAccentStyle(
-        brandColorHex: widget.club.brandColorHex,
-        clubId: widget.club.id,
-      );
+    brandColorHex: widget.club.brandColorHex,
+    clubId: widget.club.id,
+  );
 
   Color get _accent => resolveClubBrandColors(
-        brandColorHex: widget.club.brandColorHex,
-        clubId: widget.club.id,
-      ).managementZoneColor;
+    brandColorHex: widget.club.brandColorHex,
+    clubId: widget.club.id,
+  ).managementZoneColor;
 
   @override
   void initState() {
@@ -126,14 +126,17 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
         clubId: widget.club.id,
         memberId: widget.member.memberId,
       );
-      final guardianFuture = ref
-                  .read(clubAccessProvider(widget.club.id))
-                  .can(ClubPermission.manageMembers)
-              ? ref.read(guardianServiceProvider).getMemberGuardian(
-                    clubId: widget.club.id,
-                    memberId: widget.member.memberId,
-                  )
-              : Future<MemberGuardianView?>.value(null);
+      final guardianFuture =
+          ref
+              .read(clubAccessProvider(widget.club.id))
+              .can(ClubPermission.manageMembers)
+          ? ref
+                .read(guardianServiceProvider)
+                .getMemberGuardian(
+                  clubId: widget.club.id,
+                  memberId: widget.member.memberId,
+                )
+          : Future<MemberGuardianView?>.value(null);
 
       final results = await Future.wait<Object?>([
         licenseFuture,
@@ -183,7 +186,9 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
 
     setState(() => _busy = true);
     try {
-      await ref.read(memberServiceProvider).updateMemberPermissions(
+      await ref
+          .read(memberServiceProvider)
+          .updateMemberPermissions(
             clubId: widget.club.id,
             memberId: widget.member.memberId,
             permissions: next,
@@ -208,7 +213,9 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
   Future<void> _removeMember() async {
     setState(() => _busy = true);
     try {
-      await ref.read(memberServiceProvider).removeMember(
+      await ref
+          .read(memberServiceProvider)
+          .removeMember(
             clubId: widget.club.id,
             memberId: widget.member.memberId,
           );
@@ -220,8 +227,10 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
       if (!mounted) return;
       ViroSnackBar.show(
         context,
-        callableErrorMessage(error,
-            fallback: AppCopy.members.removeMemberImpossible),
+        callableErrorMessage(
+          error,
+          fallback: AppCopy.members.removeMemberImpossible,
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -287,7 +296,9 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
 
     setState(() => _busy = true);
     try {
-      await ref.read(memberServiceProvider).updateMemberLicense(
+      await ref
+          .read(memberServiceProvider)
+          .updateMemberLicense(
             clubId: widget.club.id,
             memberId: widget.member.memberId,
             rawLicense: controller.text,
@@ -313,10 +324,10 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
 
   /// Résumé des droits de la fiche (« Entraîneur · 1 droit club », …).
   String get _rightsSummary => AppCopy.permissions.rightsSummary(
-        isAdmin: widget.member.isAdmin,
-        permissionCount: widget.member.permissionCount,
-        isTeamCoach: widget.member.coachTeamIds.isNotEmpty,
-      );
+    isAdmin: widget.member.isAdmin,
+    permissionCount: widget.member.permissionCount,
+    isTeamCoach: widget.member.coachTeamIds.isNotEmpty,
+  );
 
   String? _parentSubtitle() {
     if (_loadingExtras) return null;
@@ -324,8 +335,13 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
     if (guardian?.hasOccupant != true) {
       return AppCopy.members.noParentLinked;
     }
-    final name = guardian!.displayName ?? guardian.email ?? AppCopy.members.parentInvited;
-    if (guardian.inviteExpired) return AppCopy.members.parentWithInviteExpired(name);
+    final name =
+        guardian!.displayName ??
+        guardian.email ??
+        AppCopy.members.parentInvited;
+    if (guardian.inviteExpired) {
+      return AppCopy.members.parentWithInviteExpired(name);
+    }
     if (guardian.isPending) return AppCopy.members.parentWithPending(name);
     return name;
   }
@@ -359,11 +375,13 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
     final canEditRights = access.isAdmin && !isOwnProfile;
     // Retirer un admin exige d'être admin (garde « dernier admin » côté
     // serveur) ; jamais sa propre fiche ici.
-    final showDangerAction = canManageMembers &&
+    final showDangerAction =
+        canManageMembers &&
         !isOwnProfile &&
         (!widget.member.isAdmin || access.isAdmin);
-    final licenseValue =
-        _loadingExtras ? '…' : (_license?.isNotEmpty == true ? _license! : '—');
+    final licenseValue = _loadingExtras
+        ? '…'
+        : (_license?.isNotEmpty == true ? _license! : '—');
 
     return Material(
       color: palette.surfaceCard,
@@ -384,8 +402,8 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
             accentStyle: accentStyle,
             subtitle:
                 canSeeContact && widget.member.email?.trim().isNotEmpty == true
-                    ? widget.member.email!.trim()
-                    : AppCopy.members.accountLinked,
+                ? widget.member.email!.trim()
+                : AppCopy.members.accountLinked,
           ),
           const SizedBox(height: ViroSpacing.lg),
           _SectionLabel(label: AppCopy.members.sectionInfo),
@@ -413,8 +431,9 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                 _InfoDivider(color: accentStyle.border),
                 _InfoRow(
                   label: AppCopy.members.labelTeams,
-                  value:
-                      teamLabels.isNotEmpty ? teamLabels.join(', ') : AppCopy.common.none,
+                  value: teamLabels.isNotEmpty
+                      ? teamLabels.join(', ')
+                      : AppCopy.common.none,
                   accent: accent,
                 ),
                 if (canSeeFee) ...[
@@ -517,8 +536,9 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
               ),
               const SizedBox(height: ViroSpacing.sm),
               OutlinedButton(
-                onPressed:
-                    _busy ? null : () => setState(() => _confirmRemove = false),
+                onPressed: _busy
+                    ? null
+                    : () => setState(() => _confirmRemove = false),
                 child: Text(AppCopy.common.cancel),
               ),
             ] else
@@ -584,7 +604,9 @@ class _ProfileHeader extends StatelessWidget {
           MemberAvatar(member: member, accentColor: accent, size: 64),
           const SizedBox(height: ViroSpacing.sm),
           Text(
-            member.fullName.isNotEmpty ? member.fullName : AppCopy.members.unnamed,
+            member.fullName.isNotEmpty
+                ? member.fullName
+                : AppCopy.members.unnamed,
             textAlign: TextAlign.center,
             style: textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
@@ -611,9 +633,7 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({
-    required this.label,
-  });
+  const _SectionLabel({required this.label});
 
   final String label;
 
@@ -623,10 +643,10 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       label.toUpperCase(),
       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-            color: palette.brandText,
-          ),
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.8,
+        color: palette.brandText,
+      ),
     );
   }
 }

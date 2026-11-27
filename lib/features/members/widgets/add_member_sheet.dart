@@ -103,15 +103,16 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
     });
 
     try {
-      final result =
-          await ref.read(memberServiceProvider).addMemberWithInvitation(
-                clubId: widget.club.id,
-                firstName: _firstNameController.text.trim(),
-                lastName: _lastNameController.text.trim(),
-                sentByUid: auth.uid,
-                club: widget.club,
-                email: normalizeEmail(_emailController.text),
-              );
+      final result = await ref
+          .read(memberServiceProvider)
+          .addMemberWithInvitation(
+            clubId: widget.club.id,
+            firstName: _firstNameController.text.trim(),
+            lastName: _lastNameController.text.trim(),
+            sentByUid: auth.uid,
+            club: widget.club,
+            email: normalizeEmail(_emailController.text),
+          );
       if (!mounted) return;
       setState(() {
         _created = result;
@@ -133,16 +134,15 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
 
   Future<bool> _sendEmailInvite() async {
     try {
-      final result =
-          await ref.read(memberInviteServiceProvider).sendMemberInvites(
-        clubId: widget.club.id,
-        memberIds: [_member.memberId],
-      );
+      final result = await ref
+          .read(memberInviteServiceProvider)
+          .sendMemberInvites(
+            clubId: widget.club.id,
+            memberIds: [_member.memberId],
+          );
       if (result.sent > 0) return true;
       final first = result.results.isNotEmpty ? result.results.first : null;
-      throw Exception(
-        first?.reason ?? AppCopy.members.inviteSendFailed,
-      );
+      throw Exception(first?.reason ?? AppCopy.members.inviteSendFailed);
     } catch (error) {
       if (mounted) {
         ViroSnackBar.show(
@@ -230,7 +230,9 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
           const SizedBox(height: ViroSpacing.md),
           Text(
             _error!,
-            style: theme.textTheme.bodySmall?.copyWith(color: palette.errorText),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: palette.errorText,
+            ),
           ),
         ],
         const SizedBox(height: ViroSpacing.lg),
@@ -246,7 +248,9 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
             const SizedBox(width: ViroSpacing.md),
             Expanded(
               child: ViroPrimaryButton(
-                label: _busy ? AppCopy.members.creating : AppCopy.members.createAndInvite,
+                label: _busy
+                    ? AppCopy.members.creating
+                    : AppCopy.members.createAndInvite,
                 isLoading: _busy,
                 onPressed: _isFormValid && !_busy ? _createMember : null,
               ),
@@ -297,10 +301,7 @@ class _AddMemberSheetState extends ConsumerState<AddMemberSheet> {
         ),
         const SizedBox(height: ViroSpacing.lg),
         if (hasEmail)
-          InviteEmailButton(
-            onSend: _sendEmailInvite,
-            disabled: _busy,
-          )
+          InviteEmailButton(onSend: _sendEmailInvite, disabled: _busy)
         else
           ViroPrimaryButton(
             label: AppCopy.members.copyMessage,

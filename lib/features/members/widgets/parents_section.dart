@@ -74,9 +74,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(AppCopy.members.revokeParentTitle),
-        content: Text(
-          AppCopy.members.revokeParentBody(child.displayName),
-        ),
+        content: Text(AppCopy.members.revokeParentBody(child.displayName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -93,7 +91,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
 
     setState(() => _busy = true);
     try {
-      await ref.read(guardianServiceProvider).revokeGuardian(
+      await ref
+          .read(guardianServiceProvider)
+          .revokeGuardian(
             clubId: widget.clubId,
             memberId: child.memberId,
             parentUid: child.parentUid ?? parent.parentUid,
@@ -129,7 +129,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
     if (pending == null) return;
     setState(() => _busy = true);
     try {
-      final result = await ref.read(guardianServiceProvider).extendGuardianInvite(
+      final result = await ref
+          .read(guardianServiceProvider)
+          .extendGuardianInvite(
             clubId: widget.clubId,
             memberId: pending.memberId,
             invitationId: pending.invitationId,
@@ -140,7 +142,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
       ViroSnackBar.show(
         context,
         date != null
-            ? AppCopy.members.inviteExtendedUntil('${date.day}/${date.month}/${date.year}')
+            ? AppCopy.members.inviteExtendedUntil(
+                '${date.day}/${date.month}/${date.year}',
+              )
             : AppCopy.members.inviteExtended,
       );
     } catch (error) {
@@ -156,12 +160,13 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
     if (pending == null) return;
     setState(() => _busy = true);
     try {
-      final result =
-          await ref.read(guardianServiceProvider).regenerateGuardianInvite(
-                clubId: widget.clubId,
-                memberId: pending.memberId,
-                invitationId: pending.invitationId,
-              );
+      final result = await ref
+          .read(guardianServiceProvider)
+          .regenerateGuardianInvite(
+            clubId: widget.clubId,
+            memberId: pending.memberId,
+            invitationId: pending.invitationId,
+          );
       ref.invalidate(clubParentsProvider(widget.clubId));
       if (!mounted) return;
       ViroSnackBar.show(context, AppCopy.members.newInviteCode(result.code));
@@ -184,7 +189,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(labelText: AppCopy.members.parentEmailLabel),
+          decoration: InputDecoration(
+            labelText: AppCopy.members.parentEmailLabel,
+          ),
         ),
         actions: [
           TextButton(
@@ -203,7 +210,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
 
     setState(() => _busy = true);
     try {
-      await ref.read(guardianServiceProvider).updateGuardianInviteEmail(
+      await ref
+          .read(guardianServiceProvider)
+          .updateGuardianInviteEmail(
             clubId: widget.clubId,
             memberId: pending.memberId,
             email: next,
@@ -253,7 +262,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
             children: [
               DropdownButtonFormField<String>(
                 initialValue: selected.memberId,
-                decoration: InputDecoration(labelText: AppCopy.members.childLabel),
+                decoration: InputDecoration(
+                  labelText: AppCopy.members.childLabel,
+                ),
                 items: candidates
                     .map(
                       (m) => DropdownMenuItem(
@@ -265,8 +276,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                 onChanged: (value) {
                   if (value == null) return;
                   setDialogState(() {
-                    selected =
-                        candidates.firstWhere((m) => m.memberId == value);
+                    selected = candidates.firstWhere(
+                      (m) => m.memberId == value,
+                    );
                   });
                 },
               ),
@@ -274,8 +286,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
-                decoration:
-                    InputDecoration(labelText: AppCopy.members.parentEmailLabel),
+                decoration: InputDecoration(
+                  labelText: AppCopy.members.parentEmailLabel,
+                ),
               ),
             ],
           ),
@@ -303,7 +316,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
 
     setState(() => _busy = true);
     try {
-      final result = await ref.read(guardianServiceProvider).inviteGuardian(
+      final result = await ref
+          .read(guardianServiceProvider)
+          .inviteGuardian(
             clubId: widget.clubId,
             memberId: selected.memberId,
             email: email,
@@ -347,9 +362,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
       showCheckmark: false,
       selectedColor: accent,
       backgroundColor: palette.surfaceSubtle,
-      side: BorderSide(
-        color: selected ? accent : palette.border,
-      ),
+      side: BorderSide(color: selected ? accent : palette.border),
     );
   }
 
@@ -399,8 +412,7 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                   hintText: AppCopy.members.searchParentHint,
                   prefixIcon: ViroIcon(ViroIcons.search),
                 ),
-                onChanged: (value) =>
-                    setState(() => _search = value.trim()),
+                onChanged: (value) => setState(() => _search = value.trim()),
               ),
             ),
             SingleChildScrollView(
@@ -427,9 +439,8 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                   _chip(
                     label: AppCopy.members.filterConnected,
                     selected: _statusFilter == GuardianStatuses.active,
-                    onSelected: (_) => setState(
-                      () => _statusFilter = GuardianStatuses.active,
-                    ),
+                    onSelected: (_) =>
+                        setState(() => _statusFilter = GuardianStatuses.active),
                   ),
                   const SizedBox(width: ViroSpacing.sm),
                   OutlinedButton(
@@ -453,7 +464,9 @@ class _ParentsSectionState extends ConsumerState<ParentsSection> {
                 child: Text(
                   AppCopy.members.parentsEmpty,
                   textAlign: TextAlign.center,
-                  style: theme.bodyMedium?.copyWith(color: palette.textSecondary),
+                  style: theme.bodyMedium?.copyWith(
+                    color: palette.textSecondary,
+                  ),
                 ),
               )
             else

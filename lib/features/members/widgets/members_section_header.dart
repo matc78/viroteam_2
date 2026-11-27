@@ -85,9 +85,9 @@ class MembersSectionHeader extends StatelessWidget {
                     child: Text(
                       teamsLabel,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: palette.textPrimary,
-                          ),
+                        fontWeight: FontWeight.w600,
+                        color: palette.textPrimary,
+                      ),
                     ),
                   ),
                   ViroIcon(

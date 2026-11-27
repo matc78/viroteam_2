@@ -31,8 +31,9 @@ Future<bool?> showMemberBulkActionSheet(
   required bool canSendInvites,
   required bool canAddToTeam,
 }) {
-  final eligibleInviteMembers =
-      selectedMembers.where((member) => member.canReceiveInviteEmail).toList();
+  final eligibleInviteMembers = selectedMembers
+      .where((member) => member.canReceiveInviteEmail)
+      .toList();
   // Tout membre peut rejoindre l'effectif d'une équipe.
   final playersToAdd = selectedMembers.toList();
 
@@ -46,9 +47,8 @@ Future<bool?> showMemberBulkActionSheet(
       playerCount: playersToAdd.length,
       addableTeams: addableTeams,
       canSendInvites: canSendInvites && eligibleInviteMembers.isNotEmpty,
-      canAddToTeam: canAddToTeam &&
-          playersToAdd.isNotEmpty &&
-          addableTeams.isNotEmpty,
+      canAddToTeam:
+          canAddToTeam && playersToAdd.isNotEmpty && addableTeams.isNotEmpty,
       onSendInvites: !canSendInvites || eligibleInviteMembers.isEmpty
           ? null
           : () async {
@@ -84,9 +84,7 @@ Future<bool?> showMemberBulkActionSheet(
                 );
               }
             },
-      onAddToTeam: !canAddToTeam ||
-              playersToAdd.isEmpty ||
-              addableTeams.isEmpty
+      onAddToTeam: !canAddToTeam || playersToAdd.isEmpty || addableTeams.isEmpty
           ? null
           : (team) async {
               try {
@@ -178,9 +176,9 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
             children: [
               Text(
                 AppCopy.members.selectedMembersCount(widget.selectedCount),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: ViroSpacing.sm),
               if (_busy)
@@ -246,9 +244,9 @@ class _MemberBulkActionSheetState extends State<_MemberBulkActionSheet> {
           Expanded(
             child: Text(
               AppCopy.members.chooseTeam,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
         ],

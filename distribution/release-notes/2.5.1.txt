@@ -1,0 +1,5 @@
+- Présences : qui dit oui aux entraînements et matchs (par équipe, 30 j / 3 mois / saison), et qui relancer
+- Sparring : s'entraîne avec l'équipe sans être convoqué d'office aux matchs
+- Préparation d'entraînement pour les coachs : bibliothèque des séances passées, jusqu'à 6 schémas par exo
+- Classement FFVB : multi-équipes, médailles de rang, bouton Actualiser
+- Membres : suivi d'activation des comptes et import depuis le portail

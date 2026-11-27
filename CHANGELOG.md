@@ -8,6 +8,8 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-11-27
+
 ### Ajouté
 
 - Préparation d’entraînement : jusqu’à 6 schémas par exercice (galerie sur la fiche, ajout / suppression), avec lecture de l’ancien champ unique `board`

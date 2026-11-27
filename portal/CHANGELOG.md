@@ -9,6 +9,8 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-11-27
+
 ### Ajouté
 
 - Sparring : section **Sparrings** dans le panneau d’une équipe, sous Joueurs, avec une courte explication ; on y glisse-dépose un joueur (et inversement) ; section **Sparring** de la fiche membre ; badge Sparring gris argent (équipe, convocations, libellé « (sparring) ») ; un sparring part décoché à la création d’un match et reste ajoutable dans « Gérer les convoqués » ; à la liaison FFVB il est exclu d’office des matchs importés

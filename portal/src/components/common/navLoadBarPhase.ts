@@ -10,8 +10,12 @@ export const NAV_LOAD_BAR_EXIT_MS = 320;
  */
 export type NavLoadPhase = "idle" | "waiting" | "filling" | "done";
 
-/** Événements : navigation démarrée / terminée, ou fin du timer de la phase. */
-export type NavLoadEvent = "activate" | "deactivate" | "timer";
+/**
+ * Événements : navigation démarrée / terminée, abandonnée (délai dépassé sans
+ * signal ready : on disparaît sans afficher de fin réussie), ou fin du timer
+ * de la phase.
+ */
+export type NavLoadEvent = "activate" | "deactivate" | "abort" | "timer";
 
 /**
  * Transition de phase de la barre de chargement.
@@ -30,6 +34,8 @@ export function nextNavLoadPhase(
       if (phase === "waiting") return "idle";
       if (phase === "filling") return "done";
       return phase;
+    case "abort":
+      return "idle";
     case "timer":
       if (phase === "waiting") return "filling";
       if (phase === "done") return "idle";

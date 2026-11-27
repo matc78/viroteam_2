@@ -12,6 +12,7 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import { PageLoadOverlay } from "@/components/common/PageLoadOverlay";
+import { PageLoadPill } from "@/components/common/PageLoadPill";
 import {
   useAuth,
   type PortalSpace,
@@ -20,8 +21,22 @@ import {
 /** Le voile n’apparaît que si le changement de club dure plus que ce délai. */
 const OVERLAY_DELAY_MS = 300;
 
-/** Filet de sécurité si une page ne signale jamais ready. */
+/**
+ * Filet de sécurité si une page, une fois atteinte (pathname à jour), ne
+ * signale jamais ready. Ne démarre qu’à l’arrivée : la compilation d’une route
+ * en dev ou un réseau lent ne doivent pas couper l’attente.
+ */
 const SAFETY_TIMEOUT_MS = 8_000;
+
+/**
+ * Navigation jamais arrivée (erreur, Ctrl+clic, retour arrière) : on cesse
+ * d’attendre. Assez long pour la compilation d’une route en dev, assez
+ * court pour ne pas laisser le chargement affiché.
+ */
+const NAVIGATION_TIMEOUT_MS = 20_000;
+
+/** Fin d’une navigation : page prête, ou attente abandonnée (délai dépassé). */
+export type PageLoadOutcome = "ready" | "abandoned";
 
 type PageLoadOptions = {
   clubId?: string;
@@ -40,6 +55,8 @@ type PendingPageLoad = {
   blocking: boolean;
   /** True une fois que la page cible a fini son chargement de données. */
   contentReady: boolean;
+  /** True une fois le pathname (et le club) de la cible atteints. */
+  arrived: boolean;
 };
 
 type PageLoadContextValue = {
@@ -92,6 +109,7 @@ export function PageLoadProvider({ children }: { children: ReactNode }) {
   const { activeClub, activeSpace } = useAuth();
   const [pending, setPending] = useState<PendingPageLoad | null>(null);
   const [overlayVisible, setOverlayVisible] = useState(false);
+  const [lastOutcome, setLastOutcome] = useState<PageLoadOutcome>("ready");
   const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimers = useCallback(() => {
@@ -101,22 +119,32 @@ export function PageLoadProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /** Arme le délai au-delà duquel on abandonne l’attente (sans « Prêt »). */
+  const armAbandonTimer = useCallback(
+    (delayMs: number) => {
+      clearTimers();
+      safetyTimerRef.current = setTimeout(() => {
+        safetyTimerRef.current = null;
+        setLastOutcome("abandoned");
+        setPending(null);
+      }, delayMs);
+    },
+    [clearTimers],
+  );
+
   const beginPageLoad = useCallback(
     (href: string, options?: PageLoadOptions) => {
-      clearTimers();
       setPending({
         href: normalizePagePath(href),
         clubId: options?.clubId,
         space: options?.space,
         blocking: Boolean(options?.clubId || options?.space),
         contentReady: false,
+        arrived: false,
       });
-      safetyTimerRef.current = setTimeout(() => {
-        safetyTimerRef.current = null;
-        setPending(null);
-      }, SAFETY_TIMEOUT_MS);
+      armAbandonTimer(NAVIGATION_TIMEOUT_MS);
     },
-    [clearTimers],
+    [armAbandonTimer],
   );
 
   const markPageReady = useCallback(() => {
@@ -148,11 +176,30 @@ export function PageLoadProvider({ children }: { children: ReactNode }) {
 
     if (!pathReady || !clubReady) return;
 
-    if (!pending.contentReady) return;
+    if (!pending.contentReady) {
+      // Page atteinte : le filet court ne démarre que maintenant.
+      if (!pending.arrived) {
+        // Mise à jour fonctionnelle : un `markPageReady` de la page dans le
+        // même commit (données en cache) ne doit pas être écrasé.
+        setPending((current) =>
+          current && !current.arrived ? { ...current, arrived: true } : current,
+        );
+        armAbandonTimer(SAFETY_TIMEOUT_MS);
+      }
+      return;
+    }
 
     clearTimers();
+    setLastOutcome("ready");
     setPending(null);
-  }, [pathname, activeClub?.id, activeSpace, pending, clearTimers]);
+  }, [
+    pathname,
+    activeClub?.id,
+    activeSpace,
+    pending,
+    clearTimers,
+    armAbandonTimer,
+  ]);
 
   useEffect(() => {
     return () => clearTimers();
@@ -181,6 +228,7 @@ export function PageLoadProvider({ children }: { children: ReactNode }) {
     <PageLoadContext.Provider value={value}>
       {children}
       {showOverlay ? <PageLoadOverlay /> : null}
+      <PageLoadPill active={pending !== null} outcome={lastOutcome} />
     </PageLoadContext.Provider>
   );
 }

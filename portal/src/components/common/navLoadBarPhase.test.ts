@@ -25,6 +25,12 @@ describe("navLoadBarReducer", () => {
 });
 
 describe("nextNavLoadPhase", () => {
+  it("abort termine sans passer par done", () => {
+    expect(nextNavLoadPhase("waiting", "abort")).toBe("idle");
+    expect(nextNavLoadPhase("filling", "abort")).toBe("idle");
+    expect(nextNavLoadPhase("done", "abort")).toBe("idle");
+  });
+
   it("parcourt idle → waiting → filling → done → idle", () => {
     expect(nextNavLoadPhase("idle", "activate")).toBe("waiting");
     expect(nextNavLoadPhase("waiting", "timer")).toBe("filling");

@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -8,9 +11,13 @@ import 'package:viro_team_v2/widgets/common/whiteboard/whiteboard_painter.dart';
 /// Outil actif du tableau blanc.
 enum WhiteboardTool { pen, arrow, move }
 
-/// Tableau blanc sur terrain de volley : trace au crayon ou en flèche, ou
-/// déplace les jetons ([WhiteboardTool.move]). Les données restent
-/// vectorielles (coordonnées 0–1) : [onChanged] reçoit chaque nouvel état.
+/// Tableau blanc sur terrain de volley : trace au crayon ou en flèche.
+/// Comme sur le portail, les jetons et les flèches (ou une extrémité de
+/// flèche) se déplacent avec tous les outils ; [WhiteboardTool.move] ne fait
+/// que ça. Un tap sur une flèche la sélectionne ([selectedArrow]), un double
+/// tap sur un joueur ou un adversaire demande à changer son numéro
+/// ([onEditTokenLabel]). Les données restent vectorielles (coordonnées
+/// 0–1) : [onChanged] reçoit chaque nouvel état.
 class ViroWhiteboard extends StatefulWidget {
   const ViroWhiteboard({
     super.key,
@@ -19,6 +26,9 @@ class ViroWhiteboard extends StatefulWidget {
     this.tool = WhiteboardTool.pen,
     this.ink = WhiteboardInk.accent,
     this.onLimitReached,
+    this.selectedArrow,
+    this.onSelectedArrowChanged,
+    this.onEditTokenLabel,
   });
 
   final WhiteboardData data;
@@ -29,41 +39,140 @@ class ViroWhiteboard extends StatefulWidget {
   /// Appelé quand un trait est refusé (tableau plein).
   final VoidCallback? onLimitReached;
 
+  /// Index (dans `data.strokes`) de la flèche sélectionnée, poignées sur ses
+  /// extrémités.
+  final int? selectedArrow;
+
+  /// Sélection d'une flèche (tap ou saisie) ou désélection (`null`).
+  final ValueChanged<int?>? onSelectedArrowChanged;
+
+  /// Double tap sur un joueur ou un adversaire : index du jeton.
+  final ValueChanged<int>? onEditTokenLabel;
+
   @override
   State<ViroWhiteboard> createState() => _ViroWhiteboardState();
 }
 
-class _ViroWhiteboardState extends State<ViroWhiteboard> {
-  List<WhiteboardPoint> _points = const [];
-  int? _draggedToken;
+/// Objet saisi pendant un geste : un jeton, ou une flèche (ou une extrémité).
+sealed class _Drag {
+  const _Drag();
+}
 
-  /// Aperçu pendant le déplacement d'un jeton (émis en fin de geste).
+class _TokenDrag extends _Drag {
+  const _TokenDrag(this.index);
+
+  final int index;
+}
+
+class _ArrowDrag extends _Drag {
+  const _ArrowDrag({
+    required this.index,
+    required this.part,
+    required this.origin,
+    required this.original,
+  });
+
+  final int index;
+  final WhiteboardArrowPart part;
+  final WhiteboardPoint origin;
+  final WhiteboardStroke original;
+}
+
+class _ViroWhiteboardState extends State<ViroWhiteboard> {
+  /// Rayon de prise d'une extrémité de flèche (relatif à la largeur, comme
+  /// le portail), jamais sous la moitié d'une cible tactile.
+  static const double _arrowHandleRatio = 0.03;
+
+  /// Distance de prise du trait d'une flèche (relative à la largeur).
+  static const double _arrowBodyRatio = 0.018;
+
+  List<WhiteboardPoint> _points = const [];
+  _Drag? _drag;
+  Offset? _doubleTapPosition;
+
+  /// Aperçu pendant un déplacement (émis en fin de geste).
   WhiteboardData? _moving;
 
   WhiteboardPoint _normalized(Offset local, Size size) =>
       WhiteboardPoint(local.dx / size.width, local.dy / size.height).clamped();
 
+  WhiteboardArrowHit? _arrowAt(WhiteboardPoint point, Size size) =>
+      whiteboardArrowAt(
+        widget.data,
+        point,
+        width: size.width,
+        height: size.height,
+        handleRadius: math.max(
+          size.width * _arrowHandleRatio,
+          ViroSpacing.minTouchTarget / 2,
+        ),
+        bodyTolerance: math.max(
+          size.width * _arrowBodyRatio,
+          ViroSpacing.minTouchTarget / 4,
+        ),
+      );
+
+  void _select(int? index) {
+    if (index != widget.selectedArrow) {
+      widget.onSelectedArrowChanged?.call(index);
+    }
+  }
+
   void _onPanStart(DragStartDetails details, Size size) {
     final point = _normalized(details.localPosition, size);
-    if (widget.tool == WhiteboardTool.move) {
-      _draggedToken = _tokenAt(point, size);
-      if (_draggedToken != null) _moving = widget.data;
+    final token = _tokenAt(point, size);
+    if (token != null) {
+      _select(null);
+      setState(() {
+        _drag = _TokenDrag(token);
+        _moving = widget.data;
+      });
       return;
     }
+    final arrow = _arrowAt(point, size);
+    if (arrow != null) {
+      _select(arrow.index);
+      setState(() {
+        _drag = _ArrowDrag(
+          index: arrow.index,
+          part: arrow.part,
+          origin: point,
+          original: widget.data.strokes[arrow.index],
+        );
+        _moving = widget.data;
+      });
+      return;
+    }
+    _select(null);
+    if (widget.tool == WhiteboardTool.move) return;
     setState(() => _points = [point]);
   }
 
   void _onPanUpdate(DragUpdateDetails details, Size size) {
     final point = _normalized(details.localPosition, size);
-    if (widget.tool == WhiteboardTool.move) {
-      final index = _draggedToken;
-      final moving = _moving;
-      if (index == null || moving == null) return;
-      final tokens = [...moving.tokens];
-      tokens[index] = tokens[index].movedTo(point);
-      setState(() => _moving = moving.copyWith(tokens: tokens));
+    final drag = _drag;
+    final moving = _moving;
+    if (drag != null && moving != null) {
+      setState(() {
+        switch (drag) {
+          case _TokenDrag(:final index):
+            final tokens = [...moving.tokens];
+            tokens[index] = tokens[index].movedTo(point);
+            _moving = moving.copyWith(tokens: tokens);
+          case _ArrowDrag():
+            final strokes = [...moving.strokes];
+            strokes[drag.index] = whiteboardDragArrow(
+              drag.original,
+              drag.part,
+              drag.origin,
+              point,
+            );
+            _moving = moving.copyWith(strokes: strokes);
+        }
+      });
       return;
     }
+    if (_points.isEmpty) return;
     setState(() {
       _points = widget.tool == WhiteboardTool.arrow
           ? [_points.first, point]
@@ -72,13 +181,16 @@ class _ViroWhiteboardState extends State<ViroWhiteboard> {
   }
 
   void _onPanEnd() {
-    if (widget.tool == WhiteboardTool.move) {
+    if (_drag != null) {
       final moved = _moving;
       setState(() {
-        _draggedToken = null;
+        _drag = null;
         _moving = null;
       });
-      if (moved != null) widget.onChanged(moved);
+      // Une saisie sans déplacement ne crée pas d'étape d'annulation.
+      if (moved != null && !identical(moved, widget.data)) {
+        widget.onChanged(moved);
+      }
       return;
     }
     final points = _points;
@@ -112,6 +224,26 @@ class _ViroWhiteboardState extends State<ViroWhiteboard> {
     return null;
   }
 
+  /// Tap simple : sélectionne la flèche touchée, sinon désélectionne.
+  void _onTapUp(TapUpDetails details, Size size) {
+    final point = _normalized(details.localPosition, size);
+    if (_tokenAt(point, size) != null) {
+      _select(null);
+      return;
+    }
+    _select(_arrowAt(point, size)?.index);
+  }
+
+  /// Double tap sur un joueur ou un adversaire : édition de son numéro.
+  void _onDoubleTap(Size size) {
+    final position = _doubleTapPosition;
+    _doubleTapPosition = null;
+    if (position == null) return;
+    final index = _tokenAt(_normalized(position, size), size);
+    if (index == null || !widget.data.tokens[index].hasLabel) return;
+    widget.onEditTokenLabel?.call(index);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = WhiteboardColors.of(context.viroPalette);
@@ -124,6 +256,17 @@ class _ViroWhiteboardState extends State<ViroWhiteboard> {
             ink: widget.ink,
             points: _points,
           );
+
+    // Flèche sélectionnée encore valide (une annulation a pu la retirer).
+    final shown = _moving ?? widget.data;
+    final selected = widget.selectedArrow;
+    final activeArrow =
+        selected != null &&
+            selected >= 0 &&
+            selected < shown.strokes.length &&
+            shown.strokes[selected].kind == WhiteboardStrokeKind.arrow
+        ? selected
+        : null;
 
     final radius = BorderRadius.circular(ViroSpacing.cardRadius);
     final palette = context.viroPalette;
@@ -143,16 +286,23 @@ class _ViroWhiteboardState extends State<ViroWhiteboard> {
                 label: AppCopy.training.boardSemantics,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
+                  // Saisie au point touché (pas après le seuil de glissé) :
+                  // un jeton ou une flèche se prend là où le doigt s'est posé.
+                  dragStartBehavior: DragStartBehavior.down,
                   onPanStart: (d) => _onPanStart(d, size),
                   onPanUpdate: (d) => _onPanUpdate(d, size),
                   onPanEnd: (_) => _onPanEnd(),
                   onPanCancel: _onPanEnd,
+                  onTapUp: (d) => _onTapUp(d, size),
+                  onDoubleTapDown: (d) => _doubleTapPosition = d.localPosition,
+                  onDoubleTap: () => _onDoubleTap(size),
                   child: CustomPaint(
                     size: size,
                     painter: WhiteboardPainter(
                       data: _moving ?? widget.data,
                       colors: colors,
                       pending: pending,
+                      selectedStroke: activeArrow,
                     ),
                   ),
                 ),
@@ -167,11 +317,7 @@ class _ViroWhiteboardState extends State<ViroWhiteboard> {
 
 /// Miniature non interactive d'un schéma (liste d'exercices, fiche exercice).
 class WhiteboardThumbnail extends StatelessWidget {
-  const WhiteboardThumbnail({
-    super.key,
-    required this.data,
-    this.width,
-  });
+  const WhiteboardThumbnail({super.key, required this.data, this.width});
 
   final WhiteboardData data;
 

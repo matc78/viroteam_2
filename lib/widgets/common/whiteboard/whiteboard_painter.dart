@@ -10,10 +10,10 @@ import 'package:viro_team_v2/models/whiteboard_data.dart';
 /// volley 9 × 18 m (entier, filet au milieu), 9 × 9 m (demi, filet en haut)
 /// ou carré pour le tableau blanc, zone libre comprise.
 double whiteboardAspectRatio(WhiteboardCourt court) => switch (court) {
-      WhiteboardCourt.full => 0.62,
-      WhiteboardCourt.half => 1.0,
-      WhiteboardCourt.blank => 1.0,
-    };
+  WhiteboardCourt.full => 0.62,
+  WhiteboardCourt.half => 1.0,
+  WhiteboardCourt.blank => 1.0,
+};
 
 /// Couleurs du tableau résolues depuis la palette (clair / sombre).
 class WhiteboardColors {
@@ -27,20 +27,22 @@ class WhiteboardColors {
     required this.darkInk,
     required this.playerFill,
     required this.onPlayer,
+    required this.handleFill,
   });
 
   /// Couleurs du tableau pour [palette].
   factory WhiteboardColors.of(ViroPalette palette) => WhiteboardColors(
-        floor: palette.surfaceSubtle,
-        blank: palette.surfaceCard,
-        court: ViroColors.sportOrange.withValues(alpha: 0.16),
-        lines: palette.textSecondary,
-        net: palette.textPrimary,
-        accentInk: palette.accent,
-        darkInk: palette.textPrimary,
-        playerFill: palette.accentFill,
-        onPlayer: palette.onAccent,
-      );
+    floor: palette.surfaceSubtle,
+    blank: palette.surfaceCard,
+    court: ViroColors.sportOrange.withValues(alpha: 0.16),
+    lines: palette.textSecondary,
+    net: palette.textPrimary,
+    accentInk: palette.accent,
+    darkInk: palette.textPrimary,
+    playerFill: palette.accentFill,
+    onPlayer: palette.onAccent,
+    handleFill: palette.surfaceCard,
+  );
 
   final Color floor;
   final Color blank;
@@ -52,12 +54,15 @@ class WhiteboardColors {
   final Color playerFill;
   final Color onPlayer;
 
+  /// Fond des poignées d'une flèche sélectionnée (contour [accentInk]).
+  final Color handleFill;
+
   /// Couleur d'un trait.
   Color ink(WhiteboardInk ink) => switch (ink) {
-        WhiteboardInk.accent => accentInk,
-        WhiteboardInk.red => ViroColors.error,
-        WhiteboardInk.dark => darkInk,
-      };
+    WhiteboardInk.accent => accentInk,
+    WhiteboardInk.red => ViroColors.error,
+    WhiteboardInk.dark => darkInk,
+  };
 }
 
 /// Dessine le terrain de volley, les traits et les jetons d'un
@@ -68,6 +73,7 @@ class WhiteboardPainter extends CustomPainter {
     required this.colors,
     this.pending,
     this.textScale = 1,
+    this.selectedStroke,
   });
 
   final WhiteboardData data;
@@ -78,6 +84,9 @@ class WhiteboardPainter extends CustomPainter {
 
   /// Échelle des numéros de jetons (miniature plus petite).
   final double textScale;
+
+  /// Index de la flèche sélectionnée : poignées sur ses extrémités.
+  final int? selectedStroke;
 
   /// Rayon d'un jeton, relatif à la largeur du tableau.
   static const double tokenRadiusRatio = 0.045;
@@ -92,11 +101,34 @@ class WhiteboardPainter extends CustomPainter {
     for (final token in data.tokens) {
       _paintToken(canvas, size, token);
     }
+    _paintSelectionHandles(canvas, size);
+  }
+
+  /// Poignées rondes sur les extrémités de la flèche sélectionnée (mêmes
+  /// proportions que le portail).
+  void _paintSelectionHandles(Canvas canvas, Size size) {
+    final index = selectedStroke;
+    if (index == null || index < 0 || index >= data.strokes.length) return;
+    final stroke = data.strokes[index];
+    if (stroke.points.length < 2) return;
+    final radius = size.width * 0.014;
+    final fill = Paint()..color = colors.handleFill;
+    final outline = Paint()
+      ..color = colors.accentInk
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1, size.width * 0.004);
+    for (final point in [stroke.points.first, stroke.points.last]) {
+      final center = Offset(point.x * size.width, point.y * size.height);
+      canvas
+        ..drawCircle(center, radius, fill)
+        ..drawCircle(center, radius, outline);
+    }
   }
 
   void _paintCourt(Canvas canvas, Size size) {
-    final background =
-        data.court == WhiteboardCourt.blank ? colors.blank : colors.floor;
+    final background = data.court == WhiteboardCourt.blank
+        ? colors.blank
+        : colors.floor;
     canvas.drawRect(Offset.zero & size, Paint()..color = background);
     if (data.court == WhiteboardCourt.blank) return;
 
@@ -158,7 +190,8 @@ class WhiteboardPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     final points = [
-      for (final p in stroke.points) Offset(p.x * size.width, p.y * size.height),
+      for (final p in stroke.points)
+        Offset(p.x * size.width, p.y * size.height),
     ];
 
     if (stroke.kind == WhiteboardStrokeKind.arrow) {
@@ -227,10 +260,7 @@ class WhiteboardPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    text.paint(
-      canvas,
-      center - Offset(text.width / 2, text.height / 2),
-    );
+    text.paint(canvas, center - Offset(text.width / 2, text.height / 2));
   }
 
   /// Dessine le jeton ballon avec la même icône volleyball que la barre d'outils.
@@ -257,16 +287,14 @@ class WhiteboardPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    glyph.paint(
-      canvas,
-      center - Offset(glyph.width / 2, glyph.height / 2),
-    );
+    glyph.paint(canvas, center - Offset(glyph.width / 2, glyph.height / 2));
   }
 
   @override
   bool shouldRepaint(covariant WhiteboardPainter oldDelegate) =>
       oldDelegate.data != data ||
       oldDelegate.pending != pending ||
+      oldDelegate.selectedStroke != selectedStroke ||
       oldDelegate.colors.floor != colors.floor ||
       oldDelegate.colors.accentInk != colors.accentInk;
 }

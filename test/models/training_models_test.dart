@@ -10,8 +10,10 @@ void main() {
       expect(TrainingFeedbackDraft.empty.canSend, isFalse);
       expect(const TrainingFeedbackDraft(levelRating: 4).canSend, isFalse);
       expect(
-        const TrainingFeedbackDraft(levelRating: 3.5, engagementRating: 5)
-            .canSend,
+        const TrainingFeedbackDraft(
+          levelRating: 3.5,
+          engagementRating: 5,
+        ).canSend,
         isTrue,
       );
     });
@@ -41,14 +43,16 @@ void main() {
       expect(feedback.engagementRating, 4.0);
     });
 
-    test('messagesFor garde les messages non vides des joueurs de la séance',
-        () {
-      final draft = TrainingFeedbackDraft.empty
-          .withPlayerMessage('p1', '  Bravo  ')
-          .withPlayerMessage('p2', '   ')
-          .withPlayerMessage('ancien', 'Hors séance');
-      expect(draft.messagesFor(['p1', 'p2']), {'p1': 'Bravo'});
-    });
+    test(
+      'messagesFor garde les messages non vides des joueurs de la séance',
+      () {
+        final draft = TrainingFeedbackDraft.empty
+            .withPlayerMessage('p1', '  Bravo  ')
+            .withPlayerMessage('p2', '   ')
+            .withPlayerMessage('ancien', 'Hors séance');
+        expect(draft.messagesFor(['p1', 'p2']), {'p1': 'Bravo'});
+      },
+    );
 
     test('fromSent reprend un retour déjà envoyé', () {
       final draft = TrainingFeedbackDraft.fromSent(
@@ -135,6 +139,88 @@ void main() {
       expect(simplified.first, same(points.first));
       expect(simplified.last, same(points.last));
     });
+
+    test('withLabel rogne et plafonne le numéro à 2 caractères', () {
+      const token = WhiteboardToken(
+        kind: WhiteboardTokenKind.player,
+        position: WhiteboardPoint(0.5, 0.5),
+        label: '1',
+      );
+      expect(token.withLabel(' 12 ').label, '12');
+      expect(token.withLabel('123').label, '12');
+      expect(token.withLabel('L').position.x, 0.5);
+      expect(token.hasLabel, isTrue);
+      expect(
+        const WhiteboardToken(
+          kind: WhiteboardTokenKind.ball,
+          position: WhiteboardPoint(0, 0),
+        ).hasLabel,
+        isFalse,
+      );
+    });
+  });
+
+  group('Flèches du schéma (miroir du portail)', () {
+    const arrow = WhiteboardStroke(
+      kind: WhiteboardStrokeKind.arrow,
+      ink: WhiteboardInk.accent,
+      points: [WhiteboardPoint(0.2, 0.5), WhiteboardPoint(0.8, 0.5)],
+    );
+    const pen = WhiteboardStroke(
+      kind: WhiteboardStrokeKind.pen,
+      ink: WhiteboardInk.accent,
+      points: [WhiteboardPoint(0.2, 0.2), WhiteboardPoint(0.8, 0.2)],
+    );
+    const board = WhiteboardData(strokes: [pen, arrow]);
+
+    WhiteboardArrowHit? hit(WhiteboardPoint point) => whiteboardArrowAt(
+      board,
+      point,
+      width: 100,
+      height: 100,
+      handleRadius: 3,
+      bodyTolerance: 2,
+    );
+
+    test('saisit une extrémité, puis le trait, jamais un trait de crayon', () {
+      expect(hit(const WhiteboardPoint(0.81, 0.5)), (
+        index: 1,
+        part: WhiteboardArrowPart.end,
+      ));
+      expect(hit(const WhiteboardPoint(0.2, 0.52)), (
+        index: 1,
+        part: WhiteboardArrowPart.start,
+      ));
+      expect(hit(const WhiteboardPoint(0.5, 0.51)), (
+        index: 1,
+        part: WhiteboardArrowPart.body,
+      ));
+      expect(hit(const WhiteboardPoint(0.5, 0.2)), isNull);
+      expect(hit(const WhiteboardPoint(0.5, 0.6)), isNull);
+    });
+
+    test('déplace une extrémité seule ou le trait sans sortir du cadre', () {
+      final end = whiteboardDragArrow(
+        arrow,
+        WhiteboardArrowPart.end,
+        const WhiteboardPoint(0.8, 0.5),
+        const WhiteboardPoint(0.9, 0.9),
+      );
+      expect(end.points.first.x, 0.2);
+      expect(end.points.last.y, 0.9);
+
+      final body = whiteboardDragArrow(
+        arrow,
+        WhiteboardArrowPart.body,
+        const WhiteboardPoint(0.5, 0.5),
+        const WhiteboardPoint(0.9, 0.6),
+      );
+      // Translation bornée : l'extrémité droite s'arrête au bord.
+      expect(body.points.last.x, 1.0);
+      expect(body.points.first.x, closeTo(0.4, 1e-9));
+      expect(body.points.first.y, closeTo(0.6, 1e-9));
+      expect(body.kind, WhiteboardStrokeKind.arrow);
+    });
   });
 
   group('Préparation', () {
@@ -172,10 +258,7 @@ void main() {
       );
       final written = multi.toFirestore();
       expect(written[FirestoreFields.boards], hasLength(2));
-      expect(
-        (written[FirestoreFields.boards] as List).first['court'],
-        'half',
-      );
+      expect((written[FirestoreFields.boards] as List).first['court'], 'half');
       expect(written.containsKey(FirestoreFields.board), isFalse);
 
       final fromBoards = TrainingDrill.boardsFromData({
@@ -186,9 +269,10 @@ void main() {
         WhiteboardCourt.blank,
       ]);
       expect(
-        const TrainingDrill(id: 'd1', boards: [
-          WhiteboardData(court: WhiteboardCourt.half),
-        ]).hasBoards,
+        const TrainingDrill(
+          id: 'd1',
+          boards: [WhiteboardData(court: WhiteboardCourt.half)],
+        ).hasBoards,
         isTrue,
       );
       expect(

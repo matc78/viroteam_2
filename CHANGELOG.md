@@ -25,6 +25,7 @@ et ce projet adhère au [Versioning Sémantique](https://semver.org/lang/fr/).
 ### Modifié
 
 - Schéma d’exercice : le jeton ballon affiche l’icône volleyball (plus le rond jaune) ; fond « Tableau blanc » sans marquage de terrain (en plus de terrain entier / demi-terrain)
+- Schéma d’exercice : comme sur le portail, jetons et flèches se déplacent avec tous les outils, une extrémité de flèche se déplace seule, une flèche touchée se sélectionne (poignées, bouton « Supprimer la flèche ») ; double tap sur un joueur ou un adversaire pour changer son numéro
 - Paramètres club : intro des capacités coach précisée (« uniquement sur les équipes qu’il entraîne ») ; descriptions des toggles raccourcies
 
 ### Supprimé

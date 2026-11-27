@@ -19,8 +19,11 @@ import 'package:viro_team_v2/widgets/common/viro_scaffold.dart';
 import 'package:viro_team_v2/widgets/common/whiteboard/viro_whiteboard.dart';
 
 /// Tableau blanc d'un schéma d'exercice : crayon, flèche, jetons joueur /
-/// adversaire / ballon à déplacer, annuler, tout effacer. « Valider »
-/// enregistre le schéma à l'index [boardIndex] de l'exercice.
+/// adversaire / ballon à déplacer, annuler, tout effacer. Comme sur le
+/// portail : jetons et flèches se déplacent avec tous les outils, une flèche
+/// touchée se sélectionne (supprimable), double tap sur un joueur ou un
+/// adversaire pour changer son numéro. « Valider » enregistre le schéma à
+/// l'index [boardIndex] de l'exercice.
 class TrainingBoardScreen extends ConsumerStatefulWidget {
   const TrainingBoardScreen({
     super.key,
@@ -51,6 +54,9 @@ class _TrainingBoardScreenState extends ConsumerState<TrainingBoardScreen> {
   WhiteboardTool _tool = WhiteboardTool.pen;
   WhiteboardInk _ink = WhiteboardInk.accent;
   bool _saving = false;
+
+  /// Flèche sélectionnée sur le tableau (poignées, bouton Supprimer).
+  int? _selectedArrow;
 
   String get _fallback => AppRoutes.clubTrainingDrillPath(
     widget.clubId,
@@ -92,6 +98,50 @@ class _TrainingBoardScreenState extends ConsumerState<TrainingBoardScreen> {
   void _undo() {
     if (_history.isEmpty) return;
     setState(() => _board = _history.removeLast());
+  }
+
+  /// Flèche sélectionnée encore valide (une annulation a pu la retirer).
+  int? get _activeArrow {
+    final index = _selectedArrow;
+    if (index == null || index < 0 || index >= _board.strokes.length) {
+      return null;
+    }
+    return _board.strokes[index].kind == WhiteboardStrokeKind.arrow
+        ? index
+        : null;
+  }
+
+  void _deleteSelectedArrow() {
+    final index = _activeArrow;
+    if (index == null) return;
+    final strokes = [..._board.strokes]..removeAt(index);
+    _apply(_board.copyWith(strokes: strokes));
+    setState(() => _selectedArrow = null);
+  }
+
+  /// Double tap sur un joueur ou un adversaire : nouveau numéro.
+  Future<void> _editTokenLabel(int index) async {
+    if (index < 0 || index >= _board.tokens.length) return;
+    final token = _board.tokens[index];
+    final label = await showDialog<String>(
+      context: context,
+      builder: (_) => _TokenLabelDialog(
+        title: token.kind == WhiteboardTokenKind.opponent
+            ? AppCopy.training.boardOpponentLabelTitle
+            : AppCopy.training.boardPlayerLabelTitle,
+        initialLabel: token.label,
+      ),
+    );
+    if (!mounted || label == null) return;
+    // Le schéma a pu changer pendant la saisie (aucun geste possible, mais
+    // on revérifie l'index).
+    if (index >= _board.tokens.length) return;
+    final current = _board.tokens[index];
+    final renamed = current.withLabel(label);
+    if (renamed.label == current.label) return;
+    final tokens = [..._board.tokens];
+    tokens[index] = renamed;
+    _apply(_board.copyWith(tokens: tokens));
   }
 
   Future<void> _clear() async {
@@ -206,7 +256,8 @@ class _TrainingBoardScreenState extends ConsumerState<TrainingBoardScreen> {
         error: (_, _) => ViroErrorState(message: AppCopy.training.loadError),
         data: (_) {
           final drill = _drill;
-          final indexOk = drill != null &&
+          final indexOk =
+              drill != null &&
               widget.boardIndex >= 0 &&
               widget.boardIndex < drill.boards.length;
           if (drill == null || uid != widget.coachUid || !indexOk) {
@@ -241,6 +292,10 @@ class _TrainingBoardScreenState extends ConsumerState<TrainingBoardScreen> {
                           context,
                           AppCopy.training.boardLimitReached,
                         ),
+                        selectedArrow: _activeArrow,
+                        onSelectedArrowChanged: (index) =>
+                            setState(() => _selectedArrow = index),
+                        onEditTokenLabel: _editTokenLabel,
                       ),
                     ),
                   ),
@@ -250,17 +305,77 @@ class _TrainingBoardScreenState extends ConsumerState<TrainingBoardScreen> {
                   ink: _ink,
                   canUndo: _history.isNotEmpty,
                   canClear: !_board.isEmpty,
+                  canDeleteArrow: _activeArrow != null,
                   onTool: (tool) => setState(() => _tool = tool),
                   onInk: (ink) => setState(() => _ink = ink),
                   onAddToken: _addToken,
                   onUndo: _undo,
                   onClear: _clear,
+                  onDeleteArrow: _deleteSelectedArrow,
                 ),
               ],
             ),
           );
         },
       ),
+    );
+  }
+}
+
+/// Saisie du numéro d'un jeton (2 caractères max, comme le portail) ;
+/// renvoie le texte saisi, ou `null` si annulé.
+class _TokenLabelDialog extends StatefulWidget {
+  const _TokenLabelDialog({required this.title, required this.initialLabel});
+
+  final String title;
+  final String initialLabel;
+
+  @override
+  State<_TokenLabelDialog> createState() => _TokenLabelDialogState();
+}
+
+class _TokenLabelDialogState extends State<_TokenLabelDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initialLabel)
+        ..selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: widget.initialLabel.length,
+        );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.pop(context, _controller.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLength: WhiteboardToken.maxLabelLength,
+        textAlign: TextAlign.center,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          hintText: AppCopy.training.boardLabelHint,
+          counterText: '',
+        ),
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(AppCopy.common.cancel),
+        ),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(AppCopy.training.boardLabelSave),
+        ),
+      ],
     );
   }
 }
@@ -309,22 +424,26 @@ class _BoardToolbar extends StatelessWidget {
     required this.ink,
     required this.canUndo,
     required this.canClear,
+    required this.canDeleteArrow,
     required this.onTool,
     required this.onInk,
     required this.onAddToken,
     required this.onUndo,
     required this.onClear,
+    required this.onDeleteArrow,
   });
 
   final WhiteboardTool tool;
   final WhiteboardInk ink;
   final bool canUndo;
   final bool canClear;
+  final bool canDeleteArrow;
   final ValueChanged<WhiteboardTool> onTool;
   final ValueChanged<WhiteboardInk> onInk;
   final ValueChanged<WhiteboardTokenKind> onAddToken;
   final VoidCallback onUndo;
   final VoidCallback onClear;
+  final VoidCallback onDeleteArrow;
 
   @override
   Widget build(BuildContext context) {
@@ -429,6 +548,11 @@ class _BoardToolbar extends StatelessWidget {
                     ViroIcons.boardBall,
                     color: palette.textSecondary,
                   ),
+                ),
+                IconButton(
+                  tooltip: AppCopy.training.boardDeleteArrow,
+                  onPressed: canDeleteArrow ? onDeleteArrow : null,
+                  icon: ViroIcon(ViroIcons.trash),
                 ),
                 IconButton(
                   tooltip: AppCopy.training.boardUndo,

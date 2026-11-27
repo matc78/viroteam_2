@@ -242,4 +242,9 @@ final class AppCopyTraining {
   String get boardDone => 'Valider';
   String get boardSemantics => 'Schéma d’exercice';
   String get boardLimitReached => 'Schéma plein : efface un élément pour continuer.';
+  String get boardDeleteArrow => 'Supprimer la flèche';
+  String get boardPlayerLabelTitle => 'Numéro du joueur';
+  String get boardOpponentLabelTitle => 'Numéro de l’adversaire';
+  String get boardLabelHint => 'Ex. 7';
+  String get boardLabelSave => 'OK';
 }

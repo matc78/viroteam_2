@@ -94,6 +94,16 @@ export function CoachHomeView({
                 hint="14 prochains jours"
                 href="/planning"
               />
+              {data.presenceRate !== null ? (
+                <StatTile
+                  label="Taux de oui"
+                  value={data.presenceRate}
+                  unit="%"
+                  hint="Tes équipes · 30 derniers jours"
+                  tone={data.presenceRate < 50 ? "warning" : "neutral"}
+                  href="/attendance"
+                />
+              ) : null}
               <StatTile
                 label="Joueurs"
                 value={data.memberCount}

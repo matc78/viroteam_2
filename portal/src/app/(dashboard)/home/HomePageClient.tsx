@@ -46,8 +46,9 @@ export function HomePageClient() {
         adminDisplayName: displayName,
         uid: user?.uid,
         includeFees: caps.canViewFees,
+        includePresence: caps.seesWholeClub,
       }),
-    [displayName, showClubHome, caps.canViewFees, user?.uid],
+    [displayName, showClubHome, caps.canViewFees, caps.seesWholeClub, user?.uid],
   );
 
   const coachResource = useAsyncClubResource(

@@ -29,6 +29,7 @@ const NAV_ITEMS: readonly PortalNavItem[] = [
   { href: "/teams", label: "Équipes", icon: "team", tone: "green" },
   { href: "/team", label: "Équipe", icon: "team", tone: "green" },
   { href: "/planning", label: "Planning", icon: "calendar", tone: "cyan" },
+  { href: "/attendance", label: "Présences", icon: "chart", tone: "teal" },
   { href: "/club-standings", label: "Classements", icon: "trophy", tone: "amber" },
   { href: "/fees", label: "Cotisations", icon: "wallet", tone: "orange" },
   { href: "/announcements", label: "Annonces", icon: "megaphone", tone: "pink" },
@@ -39,6 +40,7 @@ const NAV_ITEMS: readonly PortalNavItem[] = [
 const WIDE_PATH_PREFIXES = [
   "/members",
   "/teams",
+  "/attendance",
   "/planning",
   "/my-planning",
   "/standings",

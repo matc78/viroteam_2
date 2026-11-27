@@ -34,6 +34,7 @@ import {
   teamsPlayedByViewer,
 } from "@/lib/teams/viewerTeamScope";
 import { resolveMemberTeams } from "@/lib/members/membersView";
+import { loadRecentPresenceRate } from "@/lib/firebase/attendanceService";
 
 
 type FeeStatus = "paye" | "partiel" | "a_payer" | "exonere";
@@ -335,6 +336,8 @@ export type CoachHomeDashboardData = {
   /** True si le viewer joue aussi dans au moins une équipe. */
   hasPlayerTeams: boolean;
   trainingCount: number;
+  /** Présence de ses équipes sur 30 jours (oui / convoqués), `null` sans données. */
+  presenceRate: number | null;
   /** Events des équipes entraînées (stats RSVP équipe). */
   coachedUpcomingEvents: UpcomingEvent[];
   /** Events des équipes où il est joueur (hors équipes coachées). */
@@ -420,7 +423,15 @@ export async function loadHomeDashboard(params: {
   uid?: string;
   /** Droit `viewFees` : sans lui, aucune lecture ni indicateur cotisations. */
   includeFees: boolean;
+  /** Voit tout le club (page Présences) : tuile « Taux de oui » du club. */
+  includePresence: boolean;
 }): Promise<HomeDashboardData> {
+  const teamsPromise = loadTeamsForClub(params.club.id);
+  // Indicateur secondaire, lancé en parallèle : une erreur ne bloque pas.
+  const presencePromise = params.includePresence
+    ? loadRecentPresenceRate({ clubId: params.club.id, teams: teamsPromise })
+        .catch(() => null)
+    : Promise.resolve(null);
   // Tout en parallèle ; les cotisations suivent la saison sans attendre le reste.
   const [linkedMemberId, { season, fees }, teams, allUpcomingEvents, clubAnnouncements] =
     await Promise.all([
@@ -434,13 +445,14 @@ export async function loadHomeDashboard(params: {
             ? await listMemberFees(params.club.id, activeSeason.id)
             : [],
       })),
-      loadTeamsForClub(params.club.id),
+      teamsPromise,
       loadUpcomingEvents(params.club.id, { repairAudience: true }),
       // Accueil : seules les plus récentes peuvent encore être actives.
       loadClubAnnouncements(params.club.id, {
         limit: HOME_ANNOUNCEMENT_SCAN_LIMIT,
       }),
     ]);
+  const presenceRate30d = await presencePromise;
   const teamNamesById = new Map(
     teams.map((team) => [team.id, team.name] as const),
   );
@@ -529,6 +541,18 @@ export async function loadHomeDashboard(params: {
         hint: "Oui / convoqués · 14 j",
         tone: "accent",
       },
+      ...(presenceRate30d === null
+        ? []
+        : [
+            {
+              id: "presence-30d",
+              label: "Taux de oui",
+              value: presenceRate30d,
+              suffix: "%",
+              hint: "Oui / convoqués · 30 derniers jours",
+              tone: "neutral",
+            } satisfies HomeKpi,
+          ]),
       {
         id: "paid-rate",
         label: "Cotisations soldées",
@@ -573,8 +597,14 @@ export async function loadCoachHomeDashboard(params: {
   displayName: string;
   uid: string;
 }): Promise<CoachHomeDashboardData> {
+  const teamsPromise = loadTeamsForClub(params.club.id);
+  // Taux de oui de ses équipes, lancé en parallèle (indicateur secondaire).
+  const presencePromise = loadRecentPresenceRate({
+    clubId: params.club.id,
+    teams: teamsPromise.then((all) => teamsCoachedByViewer(all, params.uid)),
+  }).catch(() => null);
   const [teams, members, allUpcomingEvents, linkedMemberId] = await Promise.all([
-    loadTeamsForClub(params.club.id),
+    teamsPromise,
     listClubMembers(params.club.id),
     loadUpcomingEvents(params.club.id, { repairAudience: true }),
     getOwnMemberId(params.club.id, params.uid),
@@ -657,6 +687,7 @@ export async function loadCoachHomeDashboard(params: {
     })),
     hasPlayerTeams: playedTeams.length > 0,
     trainingCount,
+    presenceRate: await presencePromise,
     coachedUpcomingEvents,
     playerUpcomingEvents,
     weekEvents,

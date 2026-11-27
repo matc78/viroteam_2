@@ -17,6 +17,8 @@ import homeStyles from "@/components/home/home.module.css";
 /** Page détaillée et tonalité d’un KPI admin (la couleur signale une action). */
 function kpiPresentation(kpi: HomeKpi): { href: string; tone: StatusTone } {
   switch (kpi.id) {
+    case "presence-30d":
+      return { href: "/attendance", tone: kpi.value < 50 ? "warning" : "neutral" };
     case "rsvp-rate":
       return { href: "/planning", tone: kpi.value < 50 ? "warning" : "neutral" };
     case "paid-rate":

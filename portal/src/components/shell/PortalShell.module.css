@@ -168,6 +168,12 @@
   --nav-tone-soft: var(--tone-pink-soft);
   --nav-tone-text: var(--tone-pink-text);
 }
+.navLink[data-tone="teal"] {
+  --nav-tone: var(--tone-teal);
+  --nav-tone-soft: var(--tone-teal-soft);
+  --nav-tone-text: var(--tone-teal-text);
+}
+
 .navLink[data-tone="slate"] {
   --nav-tone: var(--tone-slate);
   --nav-tone-soft: var(--tone-slate-soft);

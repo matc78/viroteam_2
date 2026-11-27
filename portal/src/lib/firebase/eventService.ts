@@ -269,10 +269,45 @@ function parseEventType(raw: unknown): EventType {
   return "other";
 }
 
+/**
+ * Réponses v1 (`attendance`, plus écrit) : relues comme RSVP quand `rsvp`
+ * n’a pas d’entrée, comme l’app (`ClubEvent.rsvpStatusForUser`). Les entrées
+ * de l’ancien appel coach (`markedBy` / `markedAt`) sont ignorées.
+ */
+const LEGACY_ATTENDANCE_FIELD = "attendance";
+
+function legacyRsvp(entry: unknown): string | null {
+  if (entry && typeof entry === "object") {
+    if ("markedBy" in entry || "markedAt" in entry) return null;
+    entry = (entry as { status?: unknown }).status;
+  }
+  switch (entry) {
+    case "present":
+    case "yes":
+      return "yes";
+    case "maybe":
+      return "maybe";
+    case "absent":
+    case "no":
+      return "no";
+    default:
+      return null;
+  }
+}
+
 function parseRsvpMap(data: Record<string, unknown>): Record<string, string> {
-  const rsvpRaw = data[Fields.rsvp];
-  if (!rsvpRaw || typeof rsvpRaw !== "object") return {};
   const result: Record<string, string> = {};
+  const legacyRaw = data[LEGACY_ATTENDANCE_FIELD];
+  if (legacyRaw && typeof legacyRaw === "object") {
+    for (const [memberId, entry] of Object.entries(
+      legacyRaw as Record<string, unknown>,
+    )) {
+      const answer = legacyRsvp(entry);
+      if (answer) result[memberId] = answer;
+    }
+  }
+  const rsvpRaw = data[Fields.rsvp];
+  if (!rsvpRaw || typeof rsvpRaw !== "object") return result;
   for (const [memberId, value] of Object.entries(
     rsvpRaw as Record<string, unknown>,
   )) {

@@ -96,6 +96,8 @@ export function bureauCapabilities(access: ClubAccess): BureauCapabilities {
     "/home",
     ...(showsMembersPage ? ["/members", "/teams"] : ["/team"]),
     "/planning",
+    // Présences : staff (tout le club) ou coach (ses équipes).
+    ...(seesWholeClub || access.isTeamCoach ? ["/attendance"] : []),
     // Classements de tout le club : administrateurs (chacun garde
     // « Mes classements », multi-clubs, pour ses équipes).
     ...(access.isAdmin ? ["/club-standings"] : []),

@@ -25,7 +25,8 @@ export type IconName =
   | "share"
   | "pencil"
   | "trash"
-  | "trophy";
+  | "trophy"
+  | "chart";
 
 const PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -118,6 +119,7 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="m8.7 10.8 6.6-3.6M8.7 13.2l6.6 3.6" />
     </>
   ),
+  chart: <path d="M5 19V11M10 19V5M15 19v-6M20 19V9M3.5 19.5h17" />,
   trophy: (
     <>
       <path d="M8 4h8v5a4 4 0 0 1-8 0Z" />

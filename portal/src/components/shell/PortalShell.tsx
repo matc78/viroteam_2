@@ -27,6 +27,7 @@ export type PortalNavTone =
   | "orange"
   | "amber"
   | "pink"
+  | "teal"
   | "slate";
 
 /** Entrée de navigation d’un module du club. */

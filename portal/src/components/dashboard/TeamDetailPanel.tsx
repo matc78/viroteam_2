@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, type DragEvent } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { useBureauCapabilities } from "@/lib/auth/useBureauCapabilities";
 import { Icon } from "@/components/ui/icons";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { joinCopy } from "@/lib/copy/joinCopy";
@@ -121,6 +122,11 @@ export function TeamDetailPanel({
   onDelete,
 }: TeamDetailPanelProps) {
   const panelRef = useDialogA11y({ onClose, modal: false });
+  // Présences de cette équipe : staff (tout le club) ou coach de l’équipe,
+  // comme le périmètre de la page.
+  const caps = useBureauCapabilities();
+  const canSeeAttendance =
+    caps.seesWholeClub || caps.access.coachTeamIds.includes(team.id);
   const [confirmingRemoval, setConfirmingRemoval] = useState<string | null>(
     null,
   );
@@ -323,7 +329,7 @@ export function TeamDetailPanel({
         </button>
       </header>
 
-      {canEdit || canShareInvite ? (
+      {canEdit || canShareInvite || canSeeAttendance ? (
         <div className={styles.headerActions}>
           {canEdit ? (
             <Button size="sm" variant="ghost" disabled={busy} onClick={onEdit}>
@@ -341,6 +347,16 @@ export function TeamDetailPanel({
               <Icon name="share" size={16} />
               {joinCopy.inviteTeamTitle}
             </Button>
+          ) : null}
+          {canSeeAttendance ? (
+            <ButtonLink
+              size="sm"
+              variant="ghost"
+              href={`/attendance?team=${encodeURIComponent(team.id)}`}
+            >
+              <Icon name="chart" size={16} />
+              Présences
+            </ButtonLink>
           ) : null}
         </div>
       ) : null}
